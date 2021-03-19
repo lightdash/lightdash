@@ -56,7 +56,7 @@ function App() {
     const [activeDimensions, setActiveDimensions] = useState<SeekerDimension[]>([])
     const [activeMeasures, setActiveMeasures] = useState<SeekerMeasure[]>([])
     const [isTableLoading, setIsTableLoading] = useState(false);
-    const [tableData, setTableData] = useState<{[column: string]: (string | Date)}[]>([]);
+    const [tableData, setTableData] = useState<{[column: string]: string}[]>([]);
 
     const onSideTreeSelect = (dimensionId: string) => {
         setActiveColumnIds(ad => ({
