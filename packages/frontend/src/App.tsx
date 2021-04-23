@@ -1,113 +1,167 @@
 import React, {Component, useEffect, useState} from 'react';
-import {Alignment, Button, Classes, Colors, Icon, Intent, ITreeNode, Navbar, Tree} from '@blueprintjs/core';
+import {
+    Alignment,
+    Button,
+    Classes,
+    Colors,
+    HTMLTable,
+    Icon,
+    Intent,
+    ITreeNode,
+    MenuItem,
+    Navbar,
+    NonIdealState,
+    Spinner,
+    Tab,
+    Tag,
+    Tabs,
+    Tree
+} from '@blueprintjs/core';
 import {Tooltip2} from "@blueprintjs/popover2";
-import {Cell, Column, Table, TableLoadingOption} from '@blueprintjs/table';
 import "@blueprintjs/core/lib/css/blueprint.css";
 import "@blueprintjs/table/lib/css/table.css";
 import "@blueprintjs/popover2/lib/css/blueprint-popover2.css";
-import {SeekerDimension, SeekerMeasure, SeekerView, SeekerViewColumn} from "./seekerTypes";
-import {loadModelNodes, translateDbtModelToSeekerView} from "./dbt";
+import {
+    Dimension,
+    Direction,
+    Explore,
+    Field,
+    fieldId,
+    getDimensions,
+    getMeasures,
+    Measure,
+    Relation,
+    SortField
+} from "common";
+import {buildQuery, refFromName} from "./queryBuilder";
+import {usePagination, useSortBy, useTable} from "react-table";
+import {ItemRenderer, Select} from "@blueprintjs/select";
+import {getExplores, runQuery} from "./api";
 
-const measureTypes: { [key: string]: (sql: string) => string} = {
-    'max': (sql: string) => `MAX( ${sql} )`,
-    'count distinct': (sql: string) => `COUNT( DISTINCT ${sql} )` ,
-}
-
-type GeneratedSqlProps = {
-    dimensions?: SeekerDimension[]
-    measures?: SeekerMeasure[]
-}
 
 const hexToRGB = (hex: string, alpha: number) => {
     const h = parseInt('0x' + hex.substring(1))
-    const r = h >> 16 & 0xFF
-    const g = h >> 8 & 0xFF
-    const b = h & 0xFF
+    const r = (h >> 16) & 0xFF
+    const g = (h >> 8) & 0xFF
+    const b = (h & 0xFF)
     return `rgb(${r}, ${g}, ${b}, ${alpha})`
 }
 
-const niceSqlName = (sql: string): string => sql.toLowerCase().split(' ').join('_')
-
-const generateSql = ({ dimensions = [], measures = [] }: GeneratedSqlProps) => {
-    const allTableSql = [...dimensions, ...measures].map(
-        (col: SeekerViewColumn) => `\`${col.database}.${col.schema}.${col.tableName}\` AS ${col.tableName}`
+const ExploreSelect = Select.ofType<Explore>()
+const exploreSelectRenderer: ItemRenderer<Explore> = (explore, {handleClick, modifiers }) => {
+    if (!modifiers.matchesPredicate) {
+        return null;
+    }
+    return (
+        <MenuItem
+            active={modifiers.active}
+            key={explore.name}
+            label={explore.relations[explore.baseRelation]?.table || ''}
+            onClick={handleClick}
+            text={explore.name}
+        />
     )
-    const tableSql = allTableSql.filter((val, idx, arr) => arr.indexOf(val) === idx);
-    const dimensionSql = dimensions.map(d => `${d.tableName}.${d.sql} AS \`${niceSqlName(d.name)}\``)
-    const groupsSql = (dimensions?.length > 0) && (measures?.length > 0) ? 'GROUP BY ' + dimensions.map((dim, idx) => `${idx + 1}`).join(', ') : ''
-    const measureSql = measures.map(m => `${measureTypes[m.type](m.tableName + '.' + m.sql)} AS \`${niceSqlName(m.name)}\``)
-    return `SELECT
-  ${[...dimensionSql, measureSql].join(',\n  ')}
-FROM ${tableSql.join('\nLEFT JOIN  ')}
-${groupsSql}
-`
 }
 
-
-const views: { [id: string]: SeekerView} = Object.fromEntries(loadModelNodes()
-    .map(translateDbtModelToSeekerView)
-    .map(view => [view.id, view]))
-
-const dimensions = Object.assign({}, ...Object.values(views).map(view => view.dimensions))
-const measures = Object.assign({}, ...Object.values(views).map(view => view.measures))
-
 function App() {
-    const [activeColumnIds, setActiveColumnIds] = useState<{[key: string]: boolean}>({})
-    const [activeDimensions, setActiveDimensions] = useState<SeekerDimension[]>([])
-    const [activeMeasures, setActiveMeasures] = useState<SeekerMeasure[]>([])
+    const [explores, setExplores] = useState<Explore[]>([])
+    const [activeExplore, setActiveExplore] = useState<Explore>()
+    const [isExploresLoading, setIsExploresLoading] = useState(false)
+
+    const [measures, setMeasures] = useState<Measure[]>([]);
+    const [dimensions, setDimensions] = useState<Dimension[]>([])
+    const [activeDimensions, setActiveDimensions] = useState<Dimension[]>([])
+    const [activeMeasures, setActiveMeasures] = useState<Measure[]>([])
+    const [activeSorts, setActiveSorts] = useState<SortField[]>([])
+    const [activeColumnIds, setActiveColumnIds] = useState<Set<string>>(new Set())
+    const [activeTab, setActiveTab] = useState<string | number>('results')
     const [isTableLoading, setIsTableLoading] = useState(false);
-    const [tableData, setTableData] = useState<{[column: string]: string}[]>([]);
+    const [tableData, setTableData] = useState<{[column: string]: any}[]>([]);
 
-    const onSideTreeSelect = (dimensionId: string) => {
-        setActiveColumnIds(ad => ({
-            ...ad,
-            [dimensionId]: !(ad[dimensionId] || false),
-        }))
+    const getTab = (tab: string|number) => {
+        return (
+            <div style={{height: '100%'}}>
+                <div style={tab !== 'sql' ? {display: 'none'} : {}}>
+                    <RenderedSql explore={activeExplore} measures={activeMeasures} dimensions={activeDimensions}
+                                 sorts={activeSorts}/>
+                </div>
+                <div style={tab !== 'results' ? {display: 'none'} : {height: '100%'}}>
+                    <ExploreTable isDataLoading={isTableLoading} dimensions={activeDimensions} measures={activeMeasures}
+                                  data={tableData} sortFields={[]} onSortFieldChange={setActiveSorts}/>
+                </div>
+            </div>
+        )
     }
 
+    // on load
     useEffect( () => {
-        const ids = Object.keys(activeColumnIds).filter(id => activeColumnIds[id] || false)
-        setActiveDimensions(ids.map(id => dimensions[id]).filter(Boolean))
-        setActiveMeasures(ids.map(id => measures[id]).filter(Boolean))
-    }, [activeColumnIds])
+        setIsExploresLoading(true)
+        getExplores(false)
+            .then(explores => {
+                setExplores(explores)
+                setIsExploresLoading(false)
+            })
+    }, [])
 
-    const cellRender = (rowIndex: number, colIndex: number) => {
-        const isDimension = colIndex < activeDimensions.length;
-        const isEven = (rowIndex % 2) === 0
-        const color = isDimension
-            ? (isEven ? hexToRGB(Colors.BLUE3, 0.1) : hexToRGB(Colors.BLUE3, 0.2))
-            : (isEven ? hexToRGB(Colors.ORANGE3, 0.1) : hexToRGB(Colors.ORANGE3, 0.2))
-        const value = Object.values(tableData[rowIndex])[colIndex];
-        return <Cell style={{backgroundColor: color}}>{value}</Cell>
-    }
+    // Update available measures on explore change
+    useEffect(() => {
+        if (activeExplore) {
+            setMeasures(getMeasures(activeExplore))
+            setDimensions(getDimensions(activeExplore))
+            setActiveMeasures([])
+            setActiveDimensions([])
+        }
+    }, [activeExplore])
+
+    useEffect(() => {
+        setActiveMeasures(measures.filter(m => activeColumnIds.has(fieldId(m))))
+        setActiveDimensions(dimensions.filter(d => activeColumnIds.has(fieldId(d))))
+    }, [activeColumnIds, measures, dimensions])
+
+    useEffect(() => {
+    }, [activeMeasures, activeDimensions])
+
 
     const runSql = () => {
         setIsTableLoading(true);
-        fetch('/query', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                projectId: 'alpine-land-278512',
-                query: generateSql({dimensions: activeDimensions, measures: activeMeasures}),
-            })
-        })
-            .then(r => r.json())
-            .then(rows => {
-                console.log(rows)
-                setTableData(rows);
-                setIsTableLoading(false);
-            })
-    };
+        setTableData([])
+        if (activeExplore) {
+            // Sort by first field if not sorts
+            const fields: Field[] = [...activeDimensions, ...activeMeasures]
+            if (fields.length > 0) {
+                const query = buildQuery({explore: activeExplore, dimensions: activeDimensions, measures: activeMeasures, sorts: activeSorts})
+                runQuery(query)
+                    .then(rows => {
+                        setTableData(rows)
+                        setIsTableLoading(false)
+                    })
+            }
+        }
+    }
+
+    const onSideTreeNodeChange = async (id: string, ids: Set<string>) => {
+        setActiveColumnIds(ids)
+    }
 
     return (
         <div style={{
-            height: "100vh",
+            height: 'calc(100vh - 50px)',
         }}>
             <Navbar className="bp3-dark">
                 <Navbar.Group align={Alignment.LEFT}>
                     <Navbar.Heading>Seeker</Navbar.Heading>
+                    <Navbar.Divider />
+                    <ExploreSelect items={explores} itemRenderer={exploreSelectRenderer} onItemSelect={setActiveExplore}>
+                        {isExploresLoading && (
+                            <Spinner size={Spinner.SIZE_SMALL}/>
+                        )}
+                        {isExploresLoading || (
+                            <Button
+                                rightIcon="caret-down"
+                                text={activeExplore ? `Model: ${activeExplore.name}` : "Select a model to explore"}
+                            />
+                        )}
+                    </ExploreSelect>
               </Navbar.Group>
           </Navbar>
           <div style={{
@@ -120,56 +174,54 @@ function App() {
           }}>
               <div style={{
                   backgroundColor: Colors.LIGHT_GRAY4,
-                  flexGrow: 1,
+                  width: '300px',
               }}>
                   <SideTree
-                    onNodeSelect={onSideTreeSelect}
-                    selectedNodes={activeColumnIds}
+                    explore={activeExplore}
+                    onSelectedNodeChange={onSideTreeNodeChange}
                   />
               </div>
               <div style={{
-                  flexGrow: 4,
+                  padding: 30,
+                  flexGrow: 1,
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "flex-start",
               }}>
-                  <div style={{height: 400}}>
-                      <Table numRows={tableData.length} loadingOptions={isTableLoading ? [TableLoadingOption.CELLS, TableLoadingOption.ROW_HEADERS] : []}>
-                          {
-                              [
-                                  ...Object.values(views).flatMap(view => Object.values(view.dimensions).map(dimension => ({...dimension, viewName: view.name}))),
-                                  ...Object.values(views).flatMap(view => Object.values(view.measures).map(measure => ({...measure, viewName: view.name}))),
-                              ]
-                                  .filter(col => activeColumnIds[col.id])
-                                  .map(col => (
-                                          <Column
-                                              name={`${col.viewName} ${col.name}`}
-                                              key={col.id}
-                                              cellRenderer={cellRender}
-                                          />
-                                      )
-                                  )
-                          }
-                      </Table>
+                  <div style={{display: "flex", flexDirection: "row", justifyContent: "flex-end"}}>
+                      <Button intent={"primary"} style={{width: 200}} onClick={runSql} disabled={[...activeMeasures, ...activeDimensions].length === 0}>Run query</Button>
                   </div>
-                  <p>
-                      <pre className="bp3-code-block"><code>{ generateSql({dimensions: activeDimensions, measures: activeMeasures}) }</code></pre>
-                  </p>
-                  <Button intent={"primary"} style={{width: 200}} onClick={runSql}>
-                      Run
-                  </Button>
+                  <Tabs onChange={setActiveTab}>
+                      <Tab id='results' title='Results' />
+                      <Tab id='sql' title='SQL' />
+                  </Tabs>
+                  <div style={{height: '100%', paddingTop: '20px'}}>
+                      {getTab(activeTab)}
+                  </div>
               </div>
           </div>
       </div>
   );
 }
 
+type RenderedSqlProps = {
+    explore: Explore | undefined,
+    measures: Measure[],
+    dimensions: Dimension[],
+    sorts: SortField[],
+}
+
+const RenderedSql = ({ explore, measures, dimensions, sorts}: RenderedSqlProps) => (
+    <pre className="bp3-code-block"><code>{ explore ? buildQuery({explore, measures, dimensions, sorts}) : ''}</code></pre>
+)
+
 type SideTreeProps = {
-    selectedNodes: { [key: string]: boolean},
-    onNodeSelect: ((id: string) => void);
+    explore: Explore | undefined,
+    onSelectedNodeChange: (nodeId: string, selectedNodeIds: Set<string>) => void
 };
 type SideTreeState = {
     expandedNodes: { [key: string]: boolean},
+    selectedNodes: Set<string>,
 };
 class SideTree extends Component<SideTreeProps, SideTreeState> {
 
@@ -178,17 +230,20 @@ class SideTree extends Component<SideTreeProps, SideTreeState> {
         this.handleNodeCollapse = this.handleNodeCollapse.bind(this);
         this.handleNodeExpand = this.handleNodeExpand.bind(this);
         this.handleOnNodeClick = this.handleOnNodeClick.bind(this);
+        this.onSideTreeSelect = this.onSideTreeSelect.bind(this);
         this.state = {
-            expandedNodes: {},
+            expandedNodes: Object.fromEntries(Object.keys(this.props.explore?.relations || {}).map(name => [name, true])),
+            selectedNodes: new Set<string>(),
         };
     }
 
     render() {
-        const contents = Object.values(views).map( view => ({
-            key: view.id,
-            id: view.id,
-            label: view.name,
-            isExpanded: this.state.expandedNodes[view.id] || false,
+        const relations = Object.values(this.props.explore?.relations || {}) as Relation[]
+        const contents = relations.map( relation => ({
+            key: relation.name,
+            id: relation.name,
+            label: relation.name,
+            isExpanded: this.state.expandedNodes[relation.name] || false,
             childNodes: [
                 {
                     key: "dimensions",
@@ -199,11 +254,12 @@ class SideTree extends Component<SideTreeProps, SideTreeState> {
                     ),
                     hasCaret: false,
                     isExpanded: true,
-                    childNodes: Object.values(view.dimensions).map( dimension => ({
-                        key: dimension.id,
-                        id: dimension.id,
+                    childNodes: Object.values(relation.dimensions).map( dimension => ({
+                        key: dimension.name,
+                        id: dimension.name,
                         label: dimension.name,
-                        isSelected: this.props.selectedNodes[dimension.id],
+                        nodeData: {relation: dimension.relation},
+                        isSelected: this.state.selectedNodes.has(fieldId(dimension)),
                         secondaryLabel: dimension.description ? (
                             <Tooltip2 content={dimension.description}>
                                 <Icon icon="eye-open" />
@@ -220,11 +276,12 @@ class SideTree extends Component<SideTreeProps, SideTreeState> {
                     ),
                     isExpanded: true,
                     hasCaret: false,
-                    childNodes: Object.values(view.measures).map( measure => ({
-                        key: measure.id,
-                        id: measure.id,
+                    childNodes: Object.values(relation.measures).map( measure => ({
+                        key: measure.name,
+                        id: measure.name,
                         label: measure.name,
-                        isSelected: this.props.selectedNodes[measure.id],
+                        nodeData: {relation: measure.relation},
+                        isSelected: this.state.selectedNodes.has(fieldId(measure)),
                         secondaryLabel: measure.description ? (
                             <Tooltip2 content={measure.description}>
                                 <Icon icon="eye-open" />
@@ -240,7 +297,6 @@ class SideTree extends Component<SideTreeProps, SideTreeState> {
                 onNodeCollapse={this.handleNodeCollapse}
                 onNodeExpand={this.handleNodeExpand}
                 onNodeClick={this.handleOnNodeClick}
-                className={Classes.ELEVATION_0}
                 />
         )
     };
@@ -257,13 +313,187 @@ class SideTree extends Component<SideTreeProps, SideTreeState> {
         }))
     };
 
-    handleOnNodeClick = (nodeData: ITreeNode, _nodePath: number[]) => {
+    handleOnNodeClick = (nodeData: ITreeNode<{relation: string}>, _nodePath: number[]) => {
         if (_nodePath.length !== 1) {
-            this.props.onNodeSelect(`${nodeData.id}`)
+            if (nodeData.nodeData) {
+                this.onSideTreeSelect(nodeData.nodeData.relation, `${nodeData.id}`)
+            }
         };
+    }
+
+    onSideTreeSelect = (relation: string, name: string) => {
+        const id = `${relation}.${name}`
+        this.setState((state) => {
+            const ids = new Set(state.selectedNodes)
+            ids.has(id) ? ids.delete(id) : ids.add(id)
+            this.props.onSelectedNodeChange(id, ids)
+            return {selectedNodes: ids}
+        })
     }
 
 }
 
+
+type ExploreTableProps = {
+    dimensions: Dimension[],
+    measures: Measure[],
+    data: {[columnName: string]: any}[],
+    sortFields: SortField[],
+    onSortFieldChange: (sortFields: SortField[]) => void,
+    isDataLoading: boolean,
+}
+
+
+const ExploreTable = ({ dimensions, measures, data, onSortFieldChange, isDataLoading }: ExploreTableProps) => {
+    const columnId = (field: Field) => `${field.relation}_${refFromName(field.name)}`
+    const dimensionColumnIds = dimensions.map(columnId)
+    const columns = React.useMemo(() => [...dimensions, ...measures].map((field: Field) => ({
+        Header: field.name,
+        accessor: columnId(field)
+    })), [dimensions, measures])
+
+    useEffect(() => {
+        setSortBy(sortBy.filter(sb => columns.find(col => col.accessor === sb.id)))
+    }, [columns])
+
+    const {
+        getTableProps,
+        headerGroups,
+        getTableBodyProps,
+        page,
+        prepareRow,
+        setSortBy,
+        pageCount,
+        nextPage,
+        canNextPage,
+        previousPage,
+        canPreviousPage,
+        state: { pageIndex, pageSize, sortBy }
+    } = useTable({ columns, data, manualSortBy: true, initialState: { pageIndex: 0, pageSize: 25}, autoResetSortBy: false }, useSortBy, usePagination)
+
+    useEffect(() => {
+        console.log(sortBy)
+        onSortFieldChange(sortBy.map(sb => {
+            const field = [...dimensions, ...measures].find(f => columnId(f) === sb.id) as Field
+            return {
+                field: field,
+                direction: sb.desc ? Direction.descending : Direction.ascending
+            }
+        }))
+    }, [sortBy])
+
+    const getColumnStyle = (columnId: string) => {
+        const isDimension = dimensionColumnIds.find(v => v === columnId)
+        return {
+            style: {
+                backgroundColor: isDimension ? hexToRGB(Colors.BLUE1, 0.2) : hexToRGB(Colors.ORANGE1, 0.2),
+            }
+        }
+    }
+
+    const getRowStyle = (rowIndex: number, columnId: string) => {
+        const isDimension = dimensionColumnIds.find(v => v === columnId)
+        return {
+            style: {
+                backgroundColor: rowIndex % 2 ? undefined : Colors.LIGHT_GRAY4,
+                textAlign: isDimension ? 'left' as 'left': 'right' as 'right',
+            }
+    }}
+
+    const getHeaderStyle = (columnId: string) => {
+        const isDimension = dimensionColumnIds.find(v => v === columnId)
+        return {
+            style: {
+                textAlign: isDimension ? 'left' as 'left': 'right' as 'right',
+            }
+        }
+    }
+
+    if (columns.length === 0) {
+        return (
+            <NonIdealState
+                title="Select fields to explore"
+                description="Get started by selecting dimensions and measures."
+                icon='hand-left'
+            />
+        )
+    }
+
+    const getSortIndicator = (columnId: string, desc: boolean, sortIndex: number) => {
+        const isDimension = dimensionColumnIds.find(v => v === columnId)
+        const style = {paddingLeft: '5px'}
+        if (isDimension)
+            return <React.Fragment>
+                {(sortBy.length > 1) && <Tag minimal style={style}>{sortIndex + 1}</Tag>}
+                {desc ? <Icon style={style} icon={"sort-alphabetical-desc"} /> : <Icon style={style} icon={"sort-alphabetical"} />}
+            </React.Fragment>
+        else
+            return <React.Fragment>
+                {(sortBy.length > 1) && <Tag minimal style={style}>{sortIndex + 1}</Tag>}
+                {desc ? <Icon style={style} icon={"sort-numerical-desc"} /> : <Icon style={style} icon={"sort-numerical"} />}
+            </React.Fragment>
+    }
+
+    return (
+        <div style={{height: '100%'}}>
+            <div style={{display: 'flex', flexDirection: 'column', justifyContent: 'space-between'}}>
+                <div style={{display: 'block', maxWidth: '100%'}}>
+                    <HTMLTable bordered condensed {...getTableProps()} style={{width: '100%'}}>
+                        {headerGroups.map(headerGroup => (
+                            <colgroup>
+                                {headerGroup.headers.map(column => (
+                                    <col {...column.getHeaderProps([getColumnStyle(column.id)])} />
+                                ))}
+                            </colgroup>
+                        ))}
+                        <thead>
+                        {headerGroups.map(headerGroup => (
+                            <tr {...headerGroup.getHeaderGroupProps()}>
+                                {headerGroup.headers.map(column => (
+                                    <th {...column.getHeaderProps([column.getSortByToggleProps(), getHeaderStyle(column.id)])}>
+                                        {column.render('Header')}
+                                        {column.isSorted && getSortIndicator(column.id, column.isSortedDesc || false, column.sortedIndex)}
+                                    </th>
+                                ))}
+                            </tr>
+                        ))}
+                        </thead>
+                        <tbody {...getTableBodyProps()}>
+                        {page.map(row => {
+                            prepareRow(row)
+                            return (
+                                <tr {...row.getRowProps()}>
+                                    {row.cells.map(cell => {
+                                        return (
+                                            <td {...cell.getCellProps([getRowStyle(row.index, cell.column.id)])}>
+                                                {cell.render('Cell')}
+                                            </td>
+                                        )
+                                    })}
+                                </tr>
+                            )
+                        })}
+                        </tbody>
+                    </HTMLTable>
+                    { pageCount > 1 && (
+                        <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center'}}>
+                            {canPreviousPage && <Button icon={'arrow-left'} onClick={previousPage} />}
+                            <span style={{paddingRight: '5px', paddingLeft: '5px'}}>Page {pageIndex + 1} of {pageCount}</span>
+                            {canNextPage && <Button icon={'arrow-right'} onClick={nextPage} />}
+                        </div>
+                    )}
+                </div>
+            </div>
+            { isDataLoading && (
+                <div style={{height: '100%', flexDirection: 'column', justifyContent: 'center'}}>
+                    <NonIdealState
+                        title='Loading results'
+                        icon={<Spinner />}
+                    />
+                </div>
+            )}
+        </div>
+    )
+}
 
 export default App;

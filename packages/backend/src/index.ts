@@ -1,16 +1,51 @@
 import express from "express";
-import { BigQuery } from "@google-cloud/bigquery";
+import NodeCache from "node-cache";
+import {getExploresFromDbt, runQueryOnDbtAdapter} from "./dbt";
+import execa from "execa";
+import { ChildProcess }from 'child_process';
 
 const app = express();
 app.use(express.json())
 
+if (!process.env.DBT_PROJECT_PATH) {
+  throw Error('Must specify DBT_PROJECT_PATH')
+}
+
+const runDbt = () => execa('dbt', ['rpc'], {cwd: process.env.DBT_PROJECT_PATH})
+
+const respawnDbt = (proc: ChildProcess) => {
+  if (proc.stdout) {
+    proc.stdout.pipe(process.stdout)
+  }
+  proc.on('exit', () => {
+    respawnDbt(runDbt())
+  })
+}
+respawnDbt(runDbt())
+
+const cache = new NodeCache()
+
+app.get('/explores', (req, res) => {
+  const getAndCache = async () => {
+    const explores = await getExploresFromDbt()
+    cache.set('explores', explores, 3600)
+    return explores
+  }
+  const fetchExplores = async () => {
+    if (req.query.refresh) {
+      return getAndCache()
+    }
+    return cache.get('explores') || getAndCache()
+  }
+
+  fetchExplores()
+      .then(explores => res.json(explores))
+})
+
 app.post('/query', (req, res) => {
-  const body: {query: string, projectId: string} = req.body;
-  console.log(body);
-  const bq = new BigQuery({ projectId: body.projectId});
-  bq.createQueryJob({query: body.query})
-     .then(([ job ]) => job.getQueryResults())
-      .then(([ rows ]) => res.json(rows))
+  const body: {query: string} = req.body;
+  runQueryOnDbtAdapter(body.query)
+      .then((results: {[columnName: string]: any}[]) => res.json(results))
 })
 
 app.listen(process.env.PORT || 8080);
