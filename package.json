@@ -19,6 +19,7 @@
     "frontend-dev": "yarn workspace frontend start",
     "frontend-build": "yarn workspace frontend build",
     "dev": "run-p backend-dev frontend-dev",
-    "start": "run-s backend-build frontend-build backend-start"
+    "build": "run-p backend-build frontend-build",
+    "start": "run-p backend-start"
   }
 }
