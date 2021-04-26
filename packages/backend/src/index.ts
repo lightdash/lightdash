@@ -1,4 +1,5 @@
 import express from "express";
+import path from "path";
 import NodeCache from "node-cache";
 import {getExploresFromDbt, runQueryOnDbtAdapter} from "./dbt";
 import execa from "execa";
@@ -25,6 +26,8 @@ respawnDbt(runDbt())
 
 const cache = new NodeCache()
 
+app.use(express.static(path.join(__dirname, '../../frontend/build')))
+
 app.get('/explores', (req, res) => {
   const getAndCache = async () => {
     const explores = await getExploresFromDbt()
@@ -46,6 +49,10 @@ app.post('/query', (req, res) => {
   const body: {query: string} = req.body;
   runQueryOnDbtAdapter(body.query)
       .then((results: {[columnName: string]: any}[]) => res.json(results))
+})
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../../frontend/build', 'index.html'))
 })
 
 app.listen(process.env.PORT || 8080);

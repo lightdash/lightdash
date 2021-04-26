@@ -14,7 +14,11 @@
   },
   "scripts": {
     "backend-dev": "yarn workspace backend dev",
+    "backend-build": "yarn workspace backend build",
+    "backend-start": "yarn workspace backend start",
     "frontend-dev": "yarn workspace frontend start",
-    "start": "run-p backend-dev frontend-dev"
+    "frontend-build": "yarn workspace frontend build",
+    "dev": "run-p backend-dev frontend-dev",
+    "start": "run-s backend-build frontend-build backend-start"
   }
 }

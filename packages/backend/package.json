@@ -19,6 +19,8 @@
     "node-fetch": "^2.6.1"
   },
   "scripts": {
-    "dev": "nodemon src/index.ts"
+    "dev": "nodemon src/index.ts",
+    "build": "tsc --build tsconfig.json",
+    "start": "ts-node dist/index.js"
   }
 }
