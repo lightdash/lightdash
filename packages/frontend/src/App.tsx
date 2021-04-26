@@ -13,16 +13,14 @@ import {
     NonIdealState,
     Spinner,
     Tab,
-    Tag,
     Tabs,
+    Tag,
     Tree
 } from '@blueprintjs/core';
 import {Tooltip2} from "@blueprintjs/popover2";
-import "@blueprintjs/core/lib/css/blueprint.css";
-import "@blueprintjs/table/lib/css/table.css";
-import "@blueprintjs/popover2/lib/css/blueprint-popover2.css";
 import {
     Dimension,
+    DimensionType,
     Direction,
     Explore,
     Field,
@@ -33,6 +31,9 @@ import {
     Relation,
     SortField
 } from "common";
+import "@blueprintjs/core/lib/css/blueprint.css";
+import "@blueprintjs/table/lib/css/table.css";
+import "@blueprintjs/popover2/lib/css/blueprint-popover2.css";
 import {buildQuery, refFromName} from "./queryBuilder";
 import {usePagination, useSortBy, useTable} from "react-table";
 import {ItemRenderer, Select} from "@blueprintjs/select";
@@ -262,7 +263,7 @@ class SideTree extends Component<SideTreeProps, SideTreeState> {
                         isSelected: this.state.selectedNodes.has(fieldId(dimension)),
                         secondaryLabel: dimension.description ? (
                             <Tooltip2 content={dimension.description}>
-                                <Icon icon="eye-open" />
+                                <Icon icon="info-sign" iconSize={12}/>
                             </Tooltip2>
                         ) : null
                     }))
@@ -284,7 +285,7 @@ class SideTree extends Component<SideTreeProps, SideTreeState> {
                         isSelected: this.state.selectedNodes.has(fieldId(measure)),
                         secondaryLabel: measure.description ? (
                             <Tooltip2 content={measure.description}>
-                                <Icon icon="eye-open" />
+                                <Icon icon="info-sign" iconSize={12}/>
                             </Tooltip2>
                         ) : null
                     }))
@@ -347,14 +348,44 @@ type ExploreTableProps = {
 const ExploreTable = ({ dimensions, measures, data, onSortFieldChange, isDataLoading }: ExploreTableProps) => {
     const columnId = (field: Field) => `${field.relation}_${refFromName(field.name)}`
     const dimensionColumnIds = dimensions.map(columnId)
-    const columns = React.useMemo(() => [...dimensions, ...measures].map((field: Field) => ({
-        Header: field.name,
-        accessor: columnId(field)
-    })), [dimensions, measures])
 
-    useEffect(() => {
-        setSortBy(sortBy.filter(sb => columns.find(col => col.accessor === sb.id)))
-    }, [columns])
+    const formatDate = (date: string | Date) => new Date(date).toISOString().slice(0, 10)
+    const formatTimestamp = (datetime: string | Date) => new Date(datetime).toISOString()
+    const formatNumber = (v: number) => `${v}`
+    const formatString = (v: string) => `${v}`
+    const formatDefault = (v: any) => `${v}`
+    const formatBoolean = (v: boolean | string) => `${v}` in ['True', 'true', 'yes', 'Yes', '1', 'T'] ? 'Yes' : 'No'
+
+    const getDimensionFormatter = React.useMemo(() => (d: Dimension) => {
+        if (d.type === DimensionType.number)
+            return ({ value }: any) => formatNumber(value)
+        else if (d.type === DimensionType.string)
+            return ({ value }: any) => formatString(value)
+        else if (d.type === DimensionType.timestamp)
+            return ({ value }: any) => formatTimestamp(value)
+        else if (d.type === DimensionType.date)
+            return ({ value }: any) => formatDate(value)
+        else if (d.type === DimensionType.boolean)
+            return ({ value }: any) => formatBoolean(value)
+        else
+            return ({ value }: any) => formatDefault(value)
+    }, [])
+
+    const getMeasureFormatter = React.useMemo( () => (m: Measure) => {
+        return ({ value }: any) => formatNumber(value)
+    }, [])
+
+    const dimColumns = React.useMemo(() => dimensions.map( dim => ({
+        Header: dim.name,
+        accessor: columnId(dim),
+        Cell: getDimensionFormatter(dim)
+    })), [dimensions, getDimensionFormatter])
+    const measureColumns = React.useMemo(() => measures.map(m => ({
+        Header: m.name,
+        accessor: columnId(m),
+        Cell: getMeasureFormatter(m),
+    })), [measures, getMeasureFormatter])
+    const columns = React.useMemo(() => [...dimColumns, ...measureColumns], [dimColumns, measureColumns])
 
     const {
         getTableProps,
@@ -372,7 +403,10 @@ const ExploreTable = ({ dimensions, measures, data, onSortFieldChange, isDataLoa
     } = useTable({ columns, data, manualSortBy: true, initialState: { pageIndex: 0, pageSize: 25}, autoResetSortBy: false }, useSortBy, usePagination)
 
     useEffect(() => {
-        console.log(sortBy)
+        setSortBy(sortBy.filter(sb => columns.find(col => col.accessor === sb.id)))
+    }, [columns])
+
+    useEffect(() => {
         onSortFieldChange(sortBy.map(sb => {
             const field = [...dimensions, ...measures].find(f => columnId(f) === sb.id) as Field
             return {
@@ -380,7 +414,7 @@ const ExploreTable = ({ dimensions, measures, data, onSortFieldChange, isDataLoa
                 direction: sb.desc ? Direction.descending : Direction.ascending
             }
         }))
-    }, [sortBy])
+    }, [sortBy, onSortFieldChange, dimensions, measures])
 
     const getColumnStyle = (columnId: string) => {
         const isDimension = dimensionColumnIds.find(v => v === columnId)

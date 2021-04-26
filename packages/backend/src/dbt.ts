@@ -1,5 +1,5 @@
 import {v4 as uuidv4} from 'uuid';
-import {Dimension, DimensionType, Explore, Measure, MeasureType, Relation} from "common";
+import {Dimension, DimensionType, Explore, mapColumnTypeToSeekerType, Measure, MeasureType, Relation} from "common";
 import fetch from 'node-fetch'
 
 const DBT_RPC_URL = 'http://localhost:8580/jsonrpc'
@@ -21,7 +21,8 @@ type DbtModelNode = DbtNode & {
 type DbtModelColumn = {
     name: string,
     description?: string,
-    meta: DbtColumnMetadata
+    meta: DbtColumnMetadata,
+    type?: string,
 }
 
 
@@ -34,8 +35,8 @@ type DbtModelSeekerConfig = {
 }
 type DbtModelJoin = {
     join: string,
-    left_on: string,
-    right_on: string,
+    left_join_key: string | string[],
+    right_join_key: string | string[],
 }
 type DbtColumnMetadata = {
     "seeker"?: DbtColumnSeekerConfig,
@@ -44,6 +45,7 @@ type DbtColumnSeekerConfig = {
     dimension?: DbtColumnSeekerDimension,
     measures?: DbtColumnSeekerMeasure[],
 }
+
 type DbtColumnSeekerDimension = {
     name?: string,
     type?: DimensionType,
@@ -62,7 +64,11 @@ const convertDimension = (modelName: string, column: DbtModelColumn): Dimension 
         name: column.meta.seeker?.dimension?.name || column.name,
         column: column.name,
         relation: modelName,
-        type: column.meta.seeker?.dimension?.type || DimensionType.string,   // TODO: default to catalog value
+        type: (
+            column.meta.seeker?.dimension?.type ||
+            (column.type && mapColumnTypeToSeekerType(column.type))
+            || DimensionType.string
+        ),
         description: column.meta.seeker?.dimension?.description || column.description
     }
 }
@@ -99,8 +105,8 @@ const convertExplores = async (models: DbtModelNode[]): Promise<Explore[]> => {
             baseRelation: model.name,
             joinedRelations: (model.meta.seeker?.joins || []).map(join => ({
                 relation: join.join,
-                leftColumn: join.left_on,
-                rightColumn: join.right_on
+                leftJoinKey: Array.isArray(join.left_join_key) ? join.left_join_key : [join.left_join_key],
+                rightJoinKey: Array.isArray(join.right_join_key) ? join.right_join_key : [join.right_join_key],
             })),
             relations: Object.fromEntries(relationNames.map(n => [n, relations[n]])),
         }

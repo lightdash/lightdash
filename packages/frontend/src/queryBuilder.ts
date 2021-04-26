@@ -26,7 +26,8 @@ export const buildQuery = ({explore, dimensions, measures, sorts}: BuildQueryPro
     const sqlJoins = explore.joinedRelations.map(join => {
         const joinRef = refFromName(join.relation)
         const joinTable = explore.relations[join.relation].table
-        return `LEFT JOIN ${joinTable} AS ${joinRef}\n  ON ${baseRef}.${join.leftColumn} = ${joinRef}.${join.rightColumn}`
+        const joins = join.leftJoinKey.map((jk, idx) => `${baseRef}.${jk} = ${joinRef}.${join.rightJoinKey[idx]}`).join('\n  AND ')
+        return `LEFT JOIN ${joinTable} AS ${joinRef}\n  ON ${joins}`
     })
 
     const dimensionSelects = dimensions.map(dimension => {
