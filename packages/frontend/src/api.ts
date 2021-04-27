@@ -4,8 +4,8 @@ const headers = {
     'Content-Type': 'application/json'
 }
 
-export const getExplores = async (forceRefresh: boolean): Promise<Explore[]> => {
-    const url = forceRefresh ? '/explores?forceRefresh' : '/explores'
+export const getExplores = async (refresh: boolean): Promise<Explore[]> => {
+    const url = refresh ? '/explores?refresh=true' : '/explores'
     return fetch(url, {method: 'GET', headers})
         .then(r => {
             if (!r.ok) {

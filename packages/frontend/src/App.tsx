@@ -3,7 +3,7 @@ import {
     Alignment,
     Button,
     Classes,
-    Colors,
+    Colors, FormGroup,
     HTMLTable,
     Icon,
     Intent,
@@ -90,12 +90,28 @@ function App() {
                     <ExploreTable isDataLoading={isTableLoading} dimensions={activeDimensions} measures={activeMeasures}
                                   data={tableData} sortFields={[]} onSortFieldChange={setActiveSorts}/>
                 </div>
+                <div style={tab !== 'filters' ? {display: 'none'} : {}}>
+                    <span>
+                        <Filters />
+                    </span>
+                </div>
             </div>
         )
     }
 
+    const refreshExplores = async () => {
+        setIsExploresLoading(true)
+        getExplores(true)
+            .then(explores => {
+                setExplores(explores)
+                const prevExplore = explores.find(e => e.name === activeExplore?.name)
+                setActiveExplore(prevExplore)
+                setIsExploresLoading(false)
+            })
+    }
+
     // on load
-    useEffect( () => {
+    useEffect(() => {
         setIsExploresLoading(true)
         getExplores(false)
             .then(explores => {
@@ -130,7 +146,7 @@ function App() {
             // Sort by first field if not sorts
             const fields: Field[] = [...activeDimensions, ...activeMeasures]
             if (fields.length > 0) {
-                const query = buildQuery({explore: activeExplore, dimensions: activeDimensions, measures: activeMeasures, sorts: activeSorts})
+                const query = buildQuery({explore: activeExplore, dimensions: activeDimensions, measures: activeMeasures, filters: [], sorts: activeSorts})
                 runQuery(query)
                     .then(rows => {
                         setTableData(rows)
@@ -164,6 +180,9 @@ function App() {
                         )}
                     </ExploreSelect>
               </Navbar.Group>
+                <Navbar.Group align={Alignment.RIGHT}>
+                    <Button icon={'refresh'} onClick={refreshExplores} />
+                </Navbar.Group>
           </Navbar>
           <div style={{
               display: "flex",
@@ -192,9 +211,10 @@ function App() {
                   <div style={{display: "flex", flexDirection: "row", justifyContent: "flex-end"}}>
                       <Button intent={"primary"} style={{width: 200}} onClick={runSql} disabled={[...activeMeasures, ...activeDimensions].length === 0}>Run query</Button>
                   </div>
-                  <Tabs onChange={setActiveTab}>
-                      <Tab id='results' title='Results' />
+                  <Tabs defaultSelectedTabId='results' onChange={setActiveTab}>
+                      <Tab id='filters' title='Filters' />
                       <Tab id='sql' title='SQL' />
+                      <Tab id='results' title='Results' />
                   </Tabs>
                   <div style={{height: '100%', paddingTop: '20px'}}>
                       {getTab(activeTab)}
@@ -213,7 +233,7 @@ type RenderedSqlProps = {
 }
 
 const RenderedSql = ({ explore, measures, dimensions, sorts}: RenderedSqlProps) => (
-    <pre className="bp3-code-block"><code>{ explore ? buildQuery({explore, measures, dimensions, sorts}) : ''}</code></pre>
+    <pre className="bp3-code-block"><code>{ explore ? buildQuery({explore, measures, dimensions, sorts, filters: []}) : ''}</code></pre>
 )
 
 type SideTreeProps = {
@@ -375,13 +395,15 @@ const ExploreTable = ({ dimensions, measures, data, onSortFieldChange, isDataLoa
         return ({ value }: any) => formatNumber(value)
     }, [])
 
+    const capitalize = (word: string): string => `${word.charAt(0).toUpperCase()}${word.slice(1)}`
+
     const dimColumns = React.useMemo(() => dimensions.map( dim => ({
-        Header: dim.name,
+        Header: <span>{capitalize(dim.relation)} <b>{capitalize(dim.name)}</b></span>,
         accessor: columnId(dim),
         Cell: getDimensionFormatter(dim)
     })), [dimensions, getDimensionFormatter])
     const measureColumns = React.useMemo(() => measures.map(m => ({
-        Header: m.name,
+        Header: <span>{capitalize(m.relation)} <b>{capitalize(m.name)}</b></span>,
         accessor: columnId(m),
         Cell: getMeasureFormatter(m),
     })), [measures, getMeasureFormatter])
@@ -527,6 +549,16 @@ const ExploreTable = ({ dimensions, measures, data, onSortFieldChange, isDataLoa
                 </div>
             )}
         </div>
+    )
+}
+
+const Filters = () => {
+    return (
+        <form>
+            <FormGroup>
+
+            </FormGroup>
+        </form>
     )
 }
 

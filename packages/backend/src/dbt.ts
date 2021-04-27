@@ -232,6 +232,22 @@ export const getExploresFromDbt = async (): Promise<Explore[]> => (
         .then(convertExplores)
 )
 
+export const waitForDbtServerReady = async (): Promise<boolean> => {
+    const poll = async (resolve: (value: boolean) => void, reject: (reason: any) => void): Promise<any> => {
+        const response = await postDbtSyncRpc('status', {})
+        const status = response.result.state
+        if (status === 'ready')
+            return resolve(true)
+        else if (status === 'compiling')
+            setTimeout(poll, 200, resolve, reject)
+        else if (status === 'error')
+            reject(response.result.error)
+        else
+            reject(`Unknown status code received from dbt: ${JSON.stringify(response)}`)
+    }
+    return new Promise(poll)
+}
+
 const pollDbtServer = async (requestToken: string): Promise<any> => {
     let attemptCount = 0
     const maxAttempts = 20

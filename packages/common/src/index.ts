@@ -3,6 +3,27 @@ export enum Direction {
     descending = 'descending',
 }
 
+export type MetricQuery = {
+    explore: Explore
+    dimensions: Dimension[],
+    measures: Measure[],
+    filters: StringFilter[],
+    sorts: SortField[],
+}
+
+export type Filter = {
+    field: Field,
+    type: string,
+}
+
+export type StringFilter = Filter & {
+    type: 'string',
+    is: string[],
+    not: string[],
+    startsWith: string[],
+}
+
+
 export type SortField = {
     field: Field,
     direction: Direction,

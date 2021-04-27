@@ -1,13 +1,8 @@
-import {Dimension, Direction, Explore, Measure, MeasureType, SortField} from "common";
-
-type BuildQueryProps = {
-    explore: Explore,
-    dimensions: Dimension[],
-    measures: Measure[],
-    sorts: SortField[],
-}
+import {Dimension, Direction, Explore, Field, Measure, MeasureType, MetricQuery, SortField, StringFilter} from "common";
 
 export const refFromName = (name: string) => name.toLowerCase().split(' ').join('_')
+
+export const refFromField = (field: Field) => `${refFromName(field.relation)}_${refFromName(field.name)}`
 
 const measureSql = (relationRef: string, measure: Measure) => {
          if (measure.type === MeasureType.max)           return `MAX(${relationRef}.${measure.column})`
@@ -19,7 +14,7 @@ const measureSql = (relationRef: string, measure: Measure) => {
     else throw Error(`Measure type ${measure.type} not supported`)
 }
 
-export const buildQuery = ({explore, dimensions, measures, sorts}: BuildQueryProps) => {
+export const buildQuery = ({ explore, dimensions, measures, filters, sorts }: MetricQuery) => {
     const baseRef = refFromName(explore.baseRelation)
     const baseTable = explore.relations[explore.baseRelation].table
     const sqlFrom = `FROM ${baseTable} AS ${baseRef}`
