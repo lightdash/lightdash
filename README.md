@@ -4,9 +4,9 @@ Seeker removes the gap between your data transformation layer and your data visu
 
 Seeker integrates with your dbt project and gives a framework for defining metrics and specifying joins between models all within your existing dbt YAML files. The data output from your dbt project is then available for exploring and sharing in Seeker.
 
-- No more scattered, duplicated metrics across multiple tools  
-- No more time spent trying to maintain data changes in both dbt and and your data viz tools  
-- 
+- No more scattered, duplicated metrics across multiple tools.
+- No more time spent trying to maintain data changes in both dbt and and your data viz tools.  
+- No more context lost between your data transformation and your data visualization layer.
 
 ## Getting Started
 ---
@@ -47,3 +47,11 @@ yarn start
 
 # Press ALLOW when asked to "accept incoming connections from python"
 ```
+## Join the community!
+---
+- Find us on [Slack](https://join.slack.com/t/seekercommunity/shared_invite/zt-ptiqsd6p-Dbjjn8GXozYkFhARgAs3cw). We'd love to hear what you have to say about Seeker :)
+- _coming soon_ Join the discussion in our discourse.
+
+## Reporting bugs and feature requests
+---
+- Want to report a bug or request a feature? Let us know on [Slack](https://join.slack.com/t/seekercommunity/shared_invite/zt-ptiqsd6p-Dbjjn8GXozYkFhARgAs3cw), or open an [issue](https://github.com/hubble-data/seeker/issues/new/choose).
