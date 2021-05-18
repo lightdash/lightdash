@@ -15,11 +15,13 @@ COPY packages/frontend/package.json ./packages/frontend/
 RUN yarn install --pure-lockfile --non-interactive
 
 # Build common
-COPY packages/common/ ./packages/common/
+COPY packages/common/tsconfig.json ./packages/common/
+COPY packages/common/src/ ./packages/common/src/
 RUN yarn --cwd ./packages/common/ build
 
 # Build backend
-COPY packages/backend/ ./packages/backend/
+COPY packages/backend/tsconfig.json ./packages/backend/
+COPY packages/backend/src/ ./packages/backend/src
 RUN yarn --cwd ./packages/backend/ build
 
 # Build frontend
