@@ -16,7 +16,7 @@
     "@types/react-dom": "^17.0.0",
     "@types/react-table": "^7.0.29",
     "@types/uuid": "^8.3.0",
-    "common": "1.0.0",
+    "common": "^0.1.0",
     "echarts": "^5.1.1",
     "echarts-for-react": "^3.0.1",
     "react": "^17.0.1",

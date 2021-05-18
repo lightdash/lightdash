@@ -19,7 +19,7 @@
     // "outFile": "./",                             /* Concatenate and emit output to single file. */
     "outDir": "dist",
     "rootDir": "src",
-    // "composite": true,                           /* Enable project compilation */
+    "composite": true,                              /* Enable project compilation */
     // "tsBuildInfoFile": "./",                     /* Specify file to store incremental compilation information */
     // "removeComments": true,                      /* Do not emit comments to output. */
     // "noEmit": true,                              /* Do not emit outputs. */
