@@ -1,0 +1,4960 @@
+{
+  "$ref": "#/definitions/CompiledModelNode",
+  "definitions": {
+    "LightdashDimension": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_]+$"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "string",
+            "number",
+            "boolean",
+            "date",
+            "timestamp"
+          ]
+        },
+        "dimension": {
+          "type": "string"
+        },
+        "sql": {
+          "type": "string"
+        }
+      }
+    },
+    "LightdashMeasure": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "average",
+            "count",
+            "count_distinct",
+            "sum",
+            "min",
+            "max"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "sql": {
+          "type": "string"
+        }
+      }
+    },
+    "LightdashColumnMetadata": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "dimension": {
+          "$ref": "#/definitions/LightdashDimension"
+        },
+        "measures": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/LightdashMeasure"
+          },
+          "default": {}
+        }
+      }
+    },
+    "LightdashModelMetadata": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "joins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "join",
+              "sql_on"
+            ],
+            "properties": {
+              "join": {
+                "type": "string"
+              },
+              "sql_on": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "default": {}
+    },
+    "ManifestMetadata": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "dbt_schema_version": {
+          "type": "string",
+          "default": "https://schemas.getdbt.com/dbt/manifest/v1.json"
+        },
+        "dbt_version": {
+          "type": "string",
+          "default": "0.19.0"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "default": "2021-02-10T04:42:33.683996Z"
+        },
+        "invocation_id": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "project_id": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A unique identifier for the project"
+        },
+        "user_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A unique identifier for the user"
+        },
+        "send_anonymous_usage_stats": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Whether dbt is configured to send anonymous usage statistics"
+        },
+        "adapter_type": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The type name of the adapter"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Metadata for the manifest."
+    },
+    "CompiledAnalysisNode": {
+      "type": "object",
+      "required": [
+        "raw_sql",
+        "compiled",
+        "schema",
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "resource_type",
+        "alias",
+        "checksum"
+      ],
+      "properties": {
+        "raw_sql": {
+          "type": "string"
+        },
+        "compiled": {
+          "type": "boolean"
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "analysis"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/definitions/FileHash"
+        },
+        "config": {
+          "$ref": "#/definitions/NodeConfig",
+          "default": {
+            "enabled": true,
+            "materialized": "view",
+            "persist_docs": {},
+            "post-hook": [],
+            "pre-hook": [],
+            "vars": {},
+            "quoting": {},
+            "column_types": {},
+            "alias": null,
+            "schema": null,
+            "database": null,
+            "tags": [],
+            "full_refresh": null
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        },
+        "compiled_sql": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extra_ctes_injected": {
+          "type": "boolean",
+          "default": false
+        },
+        "extra_ctes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/InjectedCTE"
+          },
+          "default": []
+        },
+        "relation_name": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "CompiledAnalysisNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None)"
+    },
+    "FileHash": {
+      "type": "object",
+      "required": [
+        "name",
+        "checksum"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "checksum": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "FileHash(name: str, checksum: str)"
+    },
+    "NodeConfig": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "materialized": {
+          "type": "string",
+          "default": "view"
+        },
+        "persist_docs": {
+          "type": "object",
+          "default": {}
+        },
+        "post-hook": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hook"
+          },
+          "default": []
+        },
+        "pre-hook": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hook"
+          },
+          "default": []
+        },
+        "vars": {
+          "type": "object",
+          "default": {}
+        },
+        "quoting": {
+          "type": "object",
+          "default": {}
+        },
+        "column_types": {
+          "type": "object",
+          "default": {}
+        },
+        "alias": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tags": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": []
+        },
+        "full_refresh": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": true,
+      "description": "NodeConfig(*args, **kwds)"
+    },
+    "Hook": {
+      "type": "object",
+      "required": [
+        "sql"
+      ],
+      "properties": {
+        "sql": {
+          "type": "string"
+        },
+        "transaction": {
+          "type": "boolean",
+          "default": true
+        },
+        "index": {
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "Hook(sql: str, transaction: bool = True, index: Union[int, NoneType] = None)"
+    },
+    "DependsOn": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "macros": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false,
+      "description": "DependsOn(macros: List[str] = <factory>, nodes: List[str] = <factory>)"
+    },
+    "ColumnInfo": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "meta": {
+          "type": "object",
+          "$ref": "#/definitions/LightdashColumnMetadata",
+          "default": {}
+        },
+        "data_type": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "quote": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": true,
+      "description": "ColumnInfo(name: str, description: str = '', meta: Dict[str, Any] = <factory>, data_type: Union[str, NoneType] = None, quote: Union[bool, NoneType] = None, tags: List[str] = <factory>, _extra: Dict[str, Any] = <factory>)"
+    },
+    "Docs": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "show": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false,
+      "description": "Docs(show: bool = True)"
+    },
+    "InjectedCTE": {
+      "type": "object",
+      "required": [
+        "id",
+        "sql"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "sql": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "InjectedCTE(id: str, sql: str)"
+    },
+    "CompiledDataTestNode": {
+      "type": "object",
+      "required": [
+        "raw_sql",
+        "compiled",
+        "schema",
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "resource_type",
+        "alias",
+        "checksum"
+      ],
+      "properties": {
+        "raw_sql": {
+          "type": "string"
+        },
+        "compiled": {
+          "type": "boolean"
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "test"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/definitions/FileHash"
+        },
+        "config": {
+          "$ref": "#/definitions/TestConfig",
+          "default": {
+            "enabled": true,
+            "materialized": "test",
+            "persist_docs": {},
+            "post-hook": [],
+            "pre-hook": [],
+            "vars": {},
+            "quoting": {},
+            "column_types": {},
+            "alias": null,
+            "schema": null,
+            "database": null,
+            "tags": [],
+            "full_refresh": null,
+            "severity": "ERROR"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        },
+        "compiled_sql": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extra_ctes_injected": {
+          "type": "boolean",
+          "default": false
+        },
+        "extra_ctes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/InjectedCTE"
+          },
+          "default": []
+        },
+        "relation_name": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "CompiledDataTestNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.TestConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None)"
+    },
+    "TestConfig": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "materialized": {
+          "type": "string",
+          "default": "test"
+        },
+        "persist_docs": {
+          "type": "object",
+          "default": {}
+        },
+        "post-hook": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hook"
+          },
+          "default": []
+        },
+        "pre-hook": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hook"
+          },
+          "default": []
+        },
+        "vars": {
+          "type": "object",
+          "default": {}
+        },
+        "quoting": {
+          "type": "object",
+          "default": {}
+        },
+        "column_types": {
+          "type": "object",
+          "default": {}
+        },
+        "alias": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tags": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": []
+        },
+        "full_refresh": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "severity": {
+          "type": "string",
+          "pattern": "^([Ww][Aa][Rr][Nn]|[Ee][Rr][Rr][Oo][Rr])$",
+          "default": "ERROR"
+        }
+      },
+      "additionalProperties": true,
+      "description": "TestConfig(*args, **kwds)"
+    },
+    "CompiledModelNode": {
+      "type": "object",
+      "required": [
+        "raw_sql",
+        "compiled",
+        "schema",
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "resource_type",
+        "alias",
+        "checksum"
+      ],
+      "properties": {
+        "raw_sql": {
+          "type": "string"
+        },
+        "compiled": {
+          "type": "boolean"
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "model"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/definitions/FileHash"
+        },
+        "config": {
+          "$ref": "#/definitions/NodeConfig",
+          "default": {
+            "enabled": true,
+            "materialized": "view",
+            "persist_docs": {},
+            "post-hook": [],
+            "pre-hook": [],
+            "vars": {},
+            "quoting": {},
+            "column_types": {},
+            "alias": null,
+            "schema": null,
+            "database": null,
+            "tags": [],
+            "full_refresh": null
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "$ref": "#/definitions/LightdashModelMetadata",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        },
+        "compiled_sql": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extra_ctes_injected": {
+          "type": "boolean",
+          "default": false
+        },
+        "extra_ctes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/InjectedCTE"
+          },
+          "default": []
+        },
+        "relation_name": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "CompiledModelNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None)"
+    },
+    "CompiledHookNode": {
+      "type": "object",
+      "required": [
+        "raw_sql",
+        "compiled",
+        "schema",
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "resource_type",
+        "alias",
+        "checksum"
+      ],
+      "properties": {
+        "raw_sql": {
+          "type": "string"
+        },
+        "compiled": {
+          "type": "boolean"
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "operation"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/definitions/FileHash"
+        },
+        "config": {
+          "$ref": "#/definitions/NodeConfig",
+          "default": {
+            "enabled": true,
+            "materialized": "view",
+            "persist_docs": {},
+            "post-hook": [],
+            "pre-hook": [],
+            "vars": {},
+            "quoting": {},
+            "column_types": {},
+            "alias": null,
+            "schema": null,
+            "database": null,
+            "tags": [],
+            "full_refresh": null
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        },
+        "compiled_sql": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extra_ctes_injected": {
+          "type": "boolean",
+          "default": false
+        },
+        "extra_ctes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/InjectedCTE"
+          },
+          "default": []
+        },
+        "relation_name": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "index": {
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "CompiledHookNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None, index: Union[int, NoneType] = None)"
+    },
+    "CompiledRPCNode": {
+      "type": "object",
+      "required": [
+        "raw_sql",
+        "compiled",
+        "schema",
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "resource_type",
+        "alias",
+        "checksum"
+      ],
+      "properties": {
+        "raw_sql": {
+          "type": "string"
+        },
+        "compiled": {
+          "type": "boolean"
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "rpc"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/definitions/FileHash"
+        },
+        "config": {
+          "$ref": "#/definitions/NodeConfig",
+          "default": {
+            "enabled": true,
+            "materialized": "view",
+            "persist_docs": {},
+            "post-hook": [],
+            "pre-hook": [],
+            "vars": {},
+            "quoting": {},
+            "column_types": {},
+            "alias": null,
+            "schema": null,
+            "database": null,
+            "tags": [],
+            "full_refresh": null
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        },
+        "compiled_sql": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extra_ctes_injected": {
+          "type": "boolean",
+          "default": false
+        },
+        "extra_ctes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/InjectedCTE"
+          },
+          "default": []
+        },
+        "relation_name": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "CompiledRPCNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None)"
+    },
+    "CompiledSchemaTestNode": {
+      "type": "object",
+      "required": [
+        "raw_sql",
+        "test_metadata",
+        "compiled",
+        "schema",
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "resource_type",
+        "alias",
+        "checksum"
+      ],
+      "properties": {
+        "raw_sql": {
+          "type": "string"
+        },
+        "test_metadata": {
+          "$ref": "#/definitions/TestMetadata"
+        },
+        "compiled": {
+          "type": "boolean"
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "test"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/definitions/FileHash"
+        },
+        "config": {
+          "$ref": "#/definitions/TestConfig",
+          "default": {
+            "enabled": true,
+            "materialized": "test",
+            "persist_docs": {},
+            "post-hook": [],
+            "pre-hook": [],
+            "vars": {},
+            "quoting": {},
+            "column_types": {},
+            "alias": null,
+            "schema": null,
+            "database": null,
+            "tags": [],
+            "full_refresh": null,
+            "severity": "ERROR"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        },
+        "compiled_sql": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extra_ctes_injected": {
+          "type": "boolean",
+          "default": false
+        },
+        "extra_ctes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/InjectedCTE"
+          },
+          "default": []
+        },
+        "relation_name": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "column_name": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "CompiledSchemaTestNode(raw_sql: str, test_metadata: dbt.contracts.graph.parsed.TestMetadata, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.TestConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None, column_name: Union[str, NoneType] = None)"
+    },
+    "TestMetadata": {
+      "type": "object",
+      "required": [
+        "name",
+        "kwargs"
+      ],
+      "properties": {
+        "namespace": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "kwargs": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "TestMetadata(namespace: Union[str, NoneType], name: str, kwargs: Dict[str, Any])"
+    },
+    "CompiledSeedNode": {
+      "type": "object",
+      "required": [
+        "raw_sql",
+        "compiled",
+        "schema",
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "resource_type",
+        "alias",
+        "checksum"
+      ],
+      "properties": {
+        "raw_sql": {
+          "type": "string"
+        },
+        "compiled": {
+          "type": "boolean"
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "seed"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/definitions/FileHash"
+        },
+        "config": {
+          "$ref": "#/definitions/SeedConfig",
+          "default": {
+            "enabled": true,
+            "materialized": "seed",
+            "persist_docs": {},
+            "post-hook": [],
+            "pre-hook": [],
+            "vars": {},
+            "quoting": {},
+            "column_types": {},
+            "alias": null,
+            "schema": null,
+            "database": null,
+            "tags": [],
+            "full_refresh": null,
+            "quote_columns": null
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        },
+        "compiled_sql": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extra_ctes_injected": {
+          "type": "boolean",
+          "default": false
+        },
+        "extra_ctes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/InjectedCTE"
+          },
+          "default": []
+        },
+        "relation_name": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "CompiledSeedNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.SeedConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None)"
+    },
+    "SeedConfig": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "materialized": {
+          "type": "string",
+          "default": "seed"
+        },
+        "persist_docs": {
+          "type": "object",
+          "default": {}
+        },
+        "post-hook": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hook"
+          },
+          "default": []
+        },
+        "pre-hook": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hook"
+          },
+          "default": []
+        },
+        "vars": {
+          "type": "object",
+          "default": {}
+        },
+        "quoting": {
+          "type": "object",
+          "default": {}
+        },
+        "column_types": {
+          "type": "object",
+          "default": {}
+        },
+        "alias": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tags": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": []
+        },
+        "full_refresh": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "quote_columns": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": true,
+      "description": "SeedConfig(*args, **kwds)"
+    },
+    "CompiledSnapshotNode": {
+      "type": "object",
+      "required": [
+        "raw_sql",
+        "compiled",
+        "schema",
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "resource_type",
+        "alias",
+        "checksum"
+      ],
+      "properties": {
+        "raw_sql": {
+          "type": "string"
+        },
+        "compiled": {
+          "type": "boolean"
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "snapshot"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/definitions/FileHash"
+        },
+        "config": {
+          "$ref": "#/definitions/NodeConfig",
+          "default": {
+            "enabled": true,
+            "materialized": "view",
+            "persist_docs": {},
+            "post-hook": [],
+            "pre-hook": [],
+            "vars": {},
+            "quoting": {},
+            "column_types": {},
+            "alias": null,
+            "schema": null,
+            "database": null,
+            "tags": [],
+            "full_refresh": null
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        },
+        "compiled_sql": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extra_ctes_injected": {
+          "type": "boolean",
+          "default": false
+        },
+        "extra_ctes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/InjectedCTE"
+          },
+          "default": []
+        },
+        "relation_name": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "CompiledSnapshotNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None)"
+    },
+    "ParsedAnalysisNode": {
+      "type": "object",
+      "required": [
+        "raw_sql",
+        "schema",
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "resource_type",
+        "alias",
+        "checksum"
+      ],
+      "properties": {
+        "raw_sql": {
+          "type": "string"
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "analysis"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/definitions/FileHash"
+        },
+        "config": {
+          "$ref": "#/definitions/NodeConfig",
+          "default": {
+            "enabled": true,
+            "materialized": "view",
+            "persist_docs": {},
+            "post-hook": [],
+            "pre-hook": [],
+            "vars": {},
+            "quoting": {},
+            "column_types": {},
+            "alias": null,
+            "schema": null,
+            "database": null,
+            "tags": [],
+            "full_refresh": null
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        }
+      },
+      "additionalProperties": false,
+      "description": "ParsedAnalysisNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>)"
+    },
+    "ParsedDataTestNode": {
+      "type": "object",
+      "required": [
+        "raw_sql",
+        "schema",
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "resource_type",
+        "alias",
+        "checksum"
+      ],
+      "properties": {
+        "raw_sql": {
+          "type": "string"
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "test"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/definitions/FileHash"
+        },
+        "config": {
+          "$ref": "#/definitions/TestConfig",
+          "default": {
+            "enabled": true,
+            "materialized": "test",
+            "persist_docs": {},
+            "post-hook": [],
+            "pre-hook": [],
+            "vars": {},
+            "quoting": {},
+            "column_types": {},
+            "alias": null,
+            "schema": null,
+            "database": null,
+            "tags": [],
+            "full_refresh": null,
+            "severity": "ERROR"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        }
+      },
+      "additionalProperties": false,
+      "description": "ParsedDataTestNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.TestConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>)"
+    },
+    "ParsedHookNode": {
+      "type": "object",
+      "required": [
+        "raw_sql",
+        "schema",
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "resource_type",
+        "alias",
+        "checksum"
+      ],
+      "properties": {
+        "raw_sql": {
+          "type": "string"
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "operation"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/definitions/FileHash"
+        },
+        "config": {
+          "$ref": "#/definitions/NodeConfig",
+          "default": {
+            "enabled": true,
+            "materialized": "view",
+            "persist_docs": {},
+            "post-hook": [],
+            "pre-hook": [],
+            "vars": {},
+            "quoting": {},
+            "column_types": {},
+            "alias": null,
+            "schema": null,
+            "database": null,
+            "tags": [],
+            "full_refresh": null
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        },
+        "index": {
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "ParsedHookNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, index: Union[int, NoneType] = None)"
+    },
+    "ParsedModelNode": {
+      "type": "object",
+      "required": [
+        "raw_sql",
+        "schema",
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "resource_type",
+        "alias",
+        "checksum"
+      ],
+      "properties": {
+        "raw_sql": {
+          "type": "string"
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "model"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/definitions/FileHash"
+        },
+        "config": {
+          "$ref": "#/definitions/NodeConfig",
+          "default": {
+            "enabled": true,
+            "materialized": "view",
+            "persist_docs": {},
+            "post-hook": [],
+            "pre-hook": [],
+            "vars": {},
+            "quoting": {},
+            "column_types": {},
+            "alias": null,
+            "schema": null,
+            "database": null,
+            "tags": [],
+            "full_refresh": null
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        }
+      },
+      "additionalProperties": false,
+      "description": "ParsedModelNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>)"
+    },
+    "ParsedRPCNode": {
+      "type": "object",
+      "required": [
+        "raw_sql",
+        "schema",
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "resource_type",
+        "alias",
+        "checksum"
+      ],
+      "properties": {
+        "raw_sql": {
+          "type": "string"
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "rpc"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/definitions/FileHash"
+        },
+        "config": {
+          "$ref": "#/definitions/NodeConfig",
+          "default": {
+            "enabled": true,
+            "materialized": "view",
+            "persist_docs": {},
+            "post-hook": [],
+            "pre-hook": [],
+            "vars": {},
+            "quoting": {},
+            "column_types": {},
+            "alias": null,
+            "schema": null,
+            "database": null,
+            "tags": [],
+            "full_refresh": null
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        }
+      },
+      "additionalProperties": false,
+      "description": "ParsedRPCNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>)"
+    },
+    "ParsedSchemaTestNode": {
+      "type": "object",
+      "required": [
+        "raw_sql",
+        "test_metadata",
+        "schema",
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "resource_type",
+        "alias",
+        "checksum"
+      ],
+      "properties": {
+        "raw_sql": {
+          "type": "string"
+        },
+        "test_metadata": {
+          "$ref": "#/definitions/TestMetadata"
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "test"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/definitions/FileHash"
+        },
+        "config": {
+          "$ref": "#/definitions/TestConfig",
+          "default": {
+            "enabled": true,
+            "materialized": "test",
+            "persist_docs": {},
+            "post-hook": [],
+            "pre-hook": [],
+            "vars": {},
+            "quoting": {},
+            "column_types": {},
+            "alias": null,
+            "schema": null,
+            "database": null,
+            "tags": [],
+            "full_refresh": null,
+            "severity": "ERROR"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        },
+        "column_name": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "ParsedSchemaTestNode(raw_sql: str, test_metadata: dbt.contracts.graph.parsed.TestMetadata, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.TestConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, column_name: Union[str, NoneType] = None)"
+    },
+    "ParsedSeedNode": {
+      "type": "object",
+      "required": [
+        "raw_sql",
+        "schema",
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "resource_type",
+        "alias",
+        "checksum"
+      ],
+      "properties": {
+        "raw_sql": {
+          "type": "string"
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "seed"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/definitions/FileHash"
+        },
+        "config": {
+          "$ref": "#/definitions/SeedConfig",
+          "default": {
+            "enabled": true,
+            "materialized": "seed",
+            "persist_docs": {},
+            "post-hook": [],
+            "pre-hook": [],
+            "vars": {},
+            "quoting": {},
+            "column_types": {},
+            "alias": null,
+            "schema": null,
+            "database": null,
+            "tags": [],
+            "full_refresh": null,
+            "quote_columns": null
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        }
+      },
+      "additionalProperties": false,
+      "description": "ParsedSeedNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.SeedConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>)"
+    },
+    "ParsedSnapshotNode": {
+      "type": "object",
+      "required": [
+        "raw_sql",
+        "schema",
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "resource_type",
+        "alias",
+        "checksum",
+        "config"
+      ],
+      "properties": {
+        "raw_sql": {
+          "type": "string"
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "snapshot"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "checksum": {
+          "$ref": "#/definitions/FileHash"
+        },
+        "config": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/TimestampSnapshotConfig"
+            },
+            {
+              "$ref": "#/definitions/CheckSnapshotConfig"
+            },
+            {
+              "$ref": "#/definitions/GenericSnapshotConfig"
+            }
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        }
+      },
+      "additionalProperties": false,
+      "description": "ParsedSnapshotNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: Union[ForwardRef('TimestampSnapshotConfig'), ForwardRef('CheckSnapshotConfig'), ForwardRef('GenericSnapshotConfig')], tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>)"
+    },
+    "TimestampSnapshotConfig": {
+      "type": "object",
+      "required": [
+        "unique_key",
+        "target_schema",
+        "strategy",
+        "updated_at"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "materialized": {
+          "type": "string",
+          "default": "snapshot"
+        },
+        "persist_docs": {
+          "type": "object",
+          "default": {}
+        },
+        "post-hook": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hook"
+          },
+          "default": []
+        },
+        "pre-hook": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hook"
+          },
+          "default": []
+        },
+        "vars": {
+          "type": "object",
+          "default": {}
+        },
+        "quoting": {
+          "type": "object",
+          "default": {}
+        },
+        "column_types": {
+          "type": "object",
+          "default": {}
+        },
+        "alias": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tags": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": []
+        },
+        "full_refresh": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unique_key": {
+          "type": "string"
+        },
+        "target_schema": {
+          "type": "string"
+        },
+        "target_database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "strategy": {
+          "type": "string",
+          "enum": [
+            "timestamp"
+          ]
+        },
+        "updated_at": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true,
+      "description": "TimestampSnapshotConfig(*args, **kwds)"
+    },
+    "CheckSnapshotConfig": {
+      "type": "object",
+      "required": [
+        "unique_key",
+        "target_schema",
+        "strategy",
+        "check_cols"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "materialized": {
+          "type": "string",
+          "default": "snapshot"
+        },
+        "persist_docs": {
+          "type": "object",
+          "default": {}
+        },
+        "post-hook": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hook"
+          },
+          "default": []
+        },
+        "pre-hook": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hook"
+          },
+          "default": []
+        },
+        "vars": {
+          "type": "object",
+          "default": {}
+        },
+        "quoting": {
+          "type": "object",
+          "default": {}
+        },
+        "column_types": {
+          "type": "object",
+          "default": {}
+        },
+        "alias": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tags": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": []
+        },
+        "full_refresh": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unique_key": {
+          "type": "string"
+        },
+        "target_schema": {
+          "type": "string"
+        },
+        "target_database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "strategy": {
+          "type": "string",
+          "enum": [
+            "check"
+          ]
+        },
+        "check_cols": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "all"
+              ]
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": true,
+      "description": "CheckSnapshotConfig(*args, **kwds)"
+    },
+    "GenericSnapshotConfig": {
+      "type": "object",
+      "required": [
+        "unique_key",
+        "target_schema",
+        "strategy"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "materialized": {
+          "type": "string",
+          "default": "snapshot"
+        },
+        "persist_docs": {
+          "type": "object",
+          "default": {}
+        },
+        "post-hook": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hook"
+          },
+          "default": []
+        },
+        "pre-hook": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Hook"
+          },
+          "default": []
+        },
+        "vars": {
+          "type": "object",
+          "default": {}
+        },
+        "quoting": {
+          "type": "object",
+          "default": {}
+        },
+        "column_types": {
+          "type": "object",
+          "default": {}
+        },
+        "alias": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tags": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": []
+        },
+        "full_refresh": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unique_key": {
+          "type": "string"
+        },
+        "target_schema": {
+          "type": "string"
+        },
+        "target_database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "strategy": {
+          "allOf": [
+            {
+              "type": "string"
+            },
+            {
+              "not": {
+                "type": "string",
+                "enum": [
+                  "timestamp"
+                ]
+              }
+            },
+            {
+              "not": {
+                "type": "string",
+                "enum": [
+                  "check"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": true,
+      "description": "GenericSnapshotConfig(*args, **kwds)"
+    },
+    "ParsedSourceDefinition": {
+      "type": "object",
+      "required": [
+        "fqn",
+        "schema",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "source_name",
+        "source_description",
+        "loader",
+        "identifier",
+        "resource_type"
+      ],
+      "properties": {
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "database": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "type": "string"
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "source_name": {
+          "type": "string"
+        },
+        "source_description": {
+          "type": "string"
+        },
+        "loader": {
+          "type": "string"
+        },
+        "identifier": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "source"
+          ]
+        },
+        "quoting": {
+          "$ref": "#/definitions/Quoting",
+          "default": {
+            "database": null,
+            "schema": null,
+            "identifier": null,
+            "column": null
+          }
+        },
+        "loaded_at_field": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "freshness": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/FreshnessThreshold"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "external": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/ExternalTable"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnInfo"
+          },
+          "default": {}
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "source_meta": {
+          "type": "object",
+          "default": {}
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "config": {
+          "$ref": "#/definitions/SourceConfig",
+          "default": {
+            "enabled": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unrendered_config": {
+          "type": "object",
+          "default": {}
+        },
+        "relation_name": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "ParsedSourceDefinition(fqn: List[str], database: Union[str, NoneType], schema: str, unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, source_name: str, source_description: str, loader: str, identifier: str, resource_type: dbt.node_types.NodeType, quoting: dbt.contracts.graph.unparsed.Quoting = <factory>, loaded_at_field: Union[str, NoneType] = None, freshness: Union[dbt.contracts.graph.unparsed.FreshnessThreshold, NoneType] = None, external: Union[dbt.contracts.graph.unparsed.ExternalTable, NoneType] = None, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, source_meta: Dict[str, Any] = <factory>, tags: List[str] = <factory>, config: dbt.contracts.graph.model_config.SourceConfig = <factory>, patch_path: Union[pathlib.Path, NoneType] = None, unrendered_config: Dict[str, Any] = <factory>, relation_name: Union[str, NoneType] = None)"
+    },
+    "Quoting": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "database": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "identifier": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "column": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "Quoting(database: Union[bool, NoneType] = None, schema: Union[bool, NoneType] = None, identifier: Union[bool, NoneType] = None, column: Union[bool, NoneType] = None)"
+    },
+    "FreshnessThreshold": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "warn_after": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error_after": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "filter": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "FreshnessThreshold(warn_after: Union[dbt.contracts.graph.unparsed.Time, NoneType] = None, error_after: Union[dbt.contracts.graph.unparsed.Time, NoneType] = None, filter: Union[str, NoneType] = None)"
+    },
+    "FreshnessMetadata": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "dbt_schema_version": {
+          "type": "string",
+          "default": "https://schemas.getdbt.com/dbt/sources/v1.json"
+        },
+        "dbt_version": {
+          "type": "string",
+          "default": "0.19.0"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "default": "2021-02-10T04:42:33.675309Z"
+        },
+        "invocation_id": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        }
+      },
+      "additionalProperties": false,
+      "description": "FreshnessMetadata(dbt_schema_version: str = <factory>, dbt_version: str = '0.19.0', generated_at: datetime.datetime = <factory>, invocation_id: Union[str, NoneType] = <factory>, env: Dict[str, str] = <factory>)"
+    },
+    "SourceFreshnessRuntimeError": {
+      "type": "object",
+      "required": [
+        "unique_id",
+        "status"
+      ],
+      "properties": {
+        "unique_id": {
+          "type": "string"
+        },
+        "error": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "runtime error"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "SourceFreshnessRuntimeError(unique_id: str, error: Union[str, int, NoneType], status: dbt.contracts.results.FreshnessErrorEnum)"
+    },
+    "SourceFreshnessOutput": {
+      "type": "object",
+      "required": [
+        "unique_id",
+        "max_loaded_at",
+        "snapshotted_at",
+        "max_loaded_at_time_ago_in_s",
+        "status",
+        "criteria",
+        "adapter_response"
+      ],
+      "properties": {
+        "unique_id": {
+          "type": "string"
+        },
+        "max_loaded_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "snapshotted_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "max_loaded_at_time_ago_in_s": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "warn",
+            "error",
+            "runtime error"
+          ]
+        },
+        "criteria": {
+          "$ref": "#/definitions/FreshnessThreshold"
+        },
+        "adapter_response": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "SourceFreshnessOutput(unique_id: str, max_loaded_at: datetime.datetime, snapshotted_at: datetime.datetime, max_loaded_at_time_ago_in_s: float, status: dbt.contracts.results.FreshnessStatus, criteria: dbt.contracts.graph.unparsed.FreshnessThreshold, adapter_response: Dict[str, Any])"
+    },
+    "Time": {
+      "type": "object",
+      "required": [
+        "count",
+        "period"
+      ],
+      "properties": {
+        "count": {
+          "type": "integer"
+        },
+        "period": {
+          "type": "string",
+          "enum": [
+            "minute",
+            "hour",
+            "day"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "Time(count: int, period: dbt.contracts.graph.unparsed.TimePeriod)"
+    },
+    "ExternalTable": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "location": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "file_format": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "row_format": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tbl_properties": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "partitions": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ExternalPartition"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": true,
+      "description": "ExternalTable(_extra: Dict[str, Any] = <factory>, location: Union[str, NoneType] = None, file_format: Union[str, NoneType] = None, row_format: Union[str, NoneType] = None, tbl_properties: Union[str, NoneType] = None, partitions: Union[List[dbt.contracts.graph.unparsed.ExternalPartition], NoneType] = None)"
+    },
+    "ExternalPartition": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "name": {
+          "type": "string",
+          "default": ""
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "data_type": {
+          "type": "string",
+          "default": ""
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        }
+      },
+      "additionalProperties": true,
+      "description": "ExternalPartition(_extra: Dict[str, Any] = <factory>, name: str = '', description: str = '', data_type: str = '', meta: Dict[str, Any] = <factory>)"
+    },
+    "SourceConfig": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": true,
+      "description": "SourceConfig(*args, **kwds)"
+    },
+    "ParsedMacro": {
+      "type": "object",
+      "required": [
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "macro_sql",
+        "resource_type"
+      ],
+      "properties": {
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "macro_sql": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "macro"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "depends_on": {
+          "$ref": "#/definitions/MacroDependsOn",
+          "default": {
+            "macros": []
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "meta": {
+          "type": "object",
+          "default": {}
+        },
+        "docs": {
+          "$ref": "#/definitions/Docs",
+          "default": {
+            "show": true
+          }
+        },
+        "patch_path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MacroArgument"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false,
+      "description": "ParsedMacro(unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, macro_sql: str, resource_type: dbt.node_types.NodeType, tags: List[str] = <factory>, depends_on: dbt.contracts.graph.parsed.MacroDependsOn = <factory>, description: str = '', meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, arguments: List[dbt.contracts.graph.unparsed.MacroArgument] = <factory>)"
+    },
+    "MacroDependsOn": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "macros": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false,
+      "description": "MacroDependsOn(macros: List[str] = <factory>)"
+    },
+    "MacroArgument": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        }
+      },
+      "additionalProperties": false,
+      "description": "MacroArgument(name: str, type: Union[str, NoneType] = None, description: str = '')"
+    },
+    "ParsedDocumentation": {
+      "type": "object",
+      "required": [
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "block_contents"
+      ],
+      "properties": {
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "block_contents": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "ParsedDocumentation(unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, block_contents: str)"
+    },
+    "ParsedExposure": {
+      "type": "object",
+      "required": [
+        "fqn",
+        "unique_id",
+        "package_name",
+        "root_path",
+        "path",
+        "original_file_path",
+        "name",
+        "type",
+        "owner"
+      ],
+      "properties": {
+        "fqn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique_id": {
+          "type": "string"
+        },
+        "package_name": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "original_file_path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "dashboard",
+            "notebook",
+            "analysis",
+            "ml",
+            "application"
+          ]
+        },
+        "owner": {
+          "$ref": "#/definitions/ExposureOwner"
+        },
+        "resource_type": {
+          "type": "string",
+          "enum": [
+            "model",
+            "analysis",
+            "test",
+            "snapshot",
+            "operation",
+            "seed",
+            "rpc",
+            "docs",
+            "source",
+            "macro",
+            "exposure"
+          ],
+          "default": "exposure"
+        },
+        "description": {
+          "type": "string",
+          "default": ""
+        },
+        "maturity": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "url": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "depends_on": {
+          "$ref": "#/definitions/DependsOn",
+          "default": {
+            "macros": [],
+            "nodes": []
+          }
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false,
+      "description": "ParsedExposure(fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, type: dbt.contracts.graph.unparsed.ExposureType, owner: dbt.contracts.graph.unparsed.ExposureOwner, resource_type: dbt.node_types.NodeType = <NodeType.Exposure: 'exposure'>, description: str = '', maturity: Union[dbt.contracts.graph.unparsed.MaturityType, NoneType] = None, url: Union[str, NoneType] = None, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, refs: List[List[str]] = <factory>, sources: List[List[str]] = <factory>)"
+    },
+    "ExposureOwner": {
+      "type": "object",
+      "required": [
+        "email"
+      ],
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "name": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "ExposureOwner(email: str, name: Union[str, NoneType] = None)"
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://schemas.lightdash.io/dbt/dbtModel/v1.json"
+}

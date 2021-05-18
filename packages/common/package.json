@@ -1,0 +1,18 @@
+{
+  "name": "common",
+  "version": "0.1.0",
+  "main": "dist/index",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^14.14.35",
+    "nodemon": "^2.0.7",
+    "ts-node": "^9.1.1",
+    "typescript": "^4.2.3",
+    "typescript-json-schema": "^0.50.0"
+  },
+  "dependencies": {},
+  "scripts": {
+    "dev": "nodemon src/index.ts",
+    "build": "tsc --build tsconfig.json"
+  }
+}
