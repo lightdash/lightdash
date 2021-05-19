@@ -173,7 +173,7 @@ export const runQueryOnDbtAdapter = async (query: string): Promise<{[col: string
     catch (e) {
         if ((e instanceof DbtError)) {
             const errorData = {
-                databaseResponse: (e.data.data?.message || '').split('\n').map((s: string) => s.trim()).slice(1).join('\n')
+                databaseResponse: (e.data?.message || '').split('\n').map((s: string) => s.trim()).slice(1).join('\n')
             }
             throw new QueryError('Error running on Dbt adapter', errorData)
         }
