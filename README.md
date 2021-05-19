@@ -26,17 +26,25 @@ cd lightdash
 # (i.e. the directory containing dbt_project.yml)
 # You MUST use the absolute path (i.e no ../../myrepo)
 export DBT_PROJECT_DIR=/Users/myuser/dbtrepo
+```
 
+### Launching lightdash:
+#### If you're NOT using BigQuery:
+```
 # Build and launch lightdash
-# if you're NOT using BigQuery:
 docker-compose -f docker-compose.yml up
-
-# if you're using BigQuery:
-docker-compose -f docker-compose.yml -f docker-compose.gcloud.yml up
 
 # Ready on http://localhost:8080 !
 ```
 
+#### If you're using BigQuery:
+```
+# Build and launch lightdash
+docker-compose -f docker-compose.yml -f docker-compose.gcloud.yml up
+
+# Ready on http://localhost:8080 !
+```
+---
 ### Installation from source
 
 lightdash requires node.js and yarn.
