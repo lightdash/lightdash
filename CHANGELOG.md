@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## [Unreleased]
+
+## [0.1.2] - 2021-05-19
 ### Fixed
  - fix issue where failed sql queries didn't show details in the UI
  - fix queries using models with 2 or more joined tables
