@@ -138,11 +138,12 @@ const renderFilterGroupSql = (filterGroup: FilterGroup, explore: Explore): strin
 export const buildQuery = ({ explore, dimensions, measures, filters, sorts, limit }: MetricQuery) => {
     const baseTable = explore.tables[explore.baseTable].sqlTable
     const sqlFrom = `FROM ${baseTable} AS ${explore.baseTable}`
+
     const sqlJoins = explore.joinedTables.map(join => {
         const joinTable = explore.tables[join.table].sqlTable
         const alias = join.table
         return `LEFT JOIN ${joinTable} AS ${alias}\n  ON ${renderExploreJoinSql(join, explore)}`
-    })
+    }).join('\n')
 
     const dimensionSelects = dimensions.map(field => {
         const dimension = explore.tables[field.table].dimensions[field.name]
