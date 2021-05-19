@@ -28,7 +28,11 @@ cd lightdash
 export DBT_PROJECT_DIR=/Users/myuser/dbtrepo
 
 # Build and launch lightdash
-docker compose up
+# if you're NOT using BigQuery:
+docker-compose -f docker-compose.yml up
+
+# if you're using BigQuery:
+docker-compose -f docker-compose.yml -f docker-compose.gcloud.yml up
 
 # Ready on http://localhost:8080 !
 ```
