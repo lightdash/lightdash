@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## [Unreleased]
+### Fixed
+ - fix issue with postgres backends where fields were quoted with backticks
 
 ## [0.1.2] - 2021-05-19
 ### Fixed
