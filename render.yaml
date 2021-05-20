@@ -1,0 +1,53 @@
+previewsEnabled: true
+
+databases:
+  - name: jaffle_db
+    ipAllowList: []
+
+
+services:
+  - type: pserv
+    name: dbt-server
+    env: docker
+    dockerContext: ./examples/full-jaffle-shop-demo
+    dockerfilePath: ./examples/full-jaffle-shop-demo/dockerfile-jaffleshop
+    envVars:
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: jaffle_db
+          property: password
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: jaffle_db
+          property: user
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: jaffle_db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: jaffle_db
+          property: port
+      - key: POSTGRES_DATABASE
+        fromDatabase:
+          name: jaffle_db
+          property: database
+
+  - type: web
+    env: docker
+    name: lightdash
+    dockerContext: .
+    dockerfilePath: dockerfile
+    envVars:
+      - key: LIGHTDASH_DBT_HOST
+        fromService:
+          name: dbt-server
+          type: pserv
+          property: host
+      - key: LIGHTDASH_DBT_PORT
+        fromService:
+          name: dbt-server
+          type: pserv
+          property: port
+      - key: LIGHTDASH_SPAWN_DBT
+        value: false 

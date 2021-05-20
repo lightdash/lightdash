@@ -1,0 +1,34 @@
+version: "3.9"
+services:
+  dbt-server:
+    build:
+      context: .
+      dockerfile: dockerfile-jaffleshop
+    depends_on:
+      - db
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DATABASE=postgres
+      - PORT=8580
+
+  lightdash:
+    build:
+      context: ../../
+    depends_on: 
+      - dbt-server
+    environment:
+      - LIGHTDASH_DBT_HOST=dbt-server
+      - LIGHTDASH_DBT_PORT=8580
+      - LIGHTDASH_SPAWN_DBT=false
+      - DBT_PROJECT_DIR
+    ports:
+      - 8080:8080
+
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: password
