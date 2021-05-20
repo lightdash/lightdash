@@ -138,6 +138,7 @@ const renderFilterGroupSql = (filterGroup: FilterGroup, explore: Explore): strin
 export const buildQuery = ({ explore, dimensions, measures, filters, sorts, limit }: MetricQuery) => {
     const baseTable = explore.tables[explore.baseTable].sqlTable
     const sqlFrom = `FROM ${baseTable} AS ${explore.baseTable}`
+    const q = baseTable.slice(0, 1)  // quote char
 
     const sqlJoins = explore.joinedTables.map(join => {
         const joinTable = explore.tables[join.table].sqlTable
@@ -148,13 +149,13 @@ export const buildQuery = ({ explore, dimensions, measures, filters, sorts, limi
     const dimensionSelects = dimensions.map(field => {
         const dimension = explore.tables[field.table].dimensions[field.name]
         const alias = fieldId(field)
-        return `  ${renderDimensionSql(dimension, explore)} AS \`${alias}\``
+        return `  ${renderDimensionSql(dimension, explore)} AS ${q}${alias}${q}`
     })
 
     const measureSelects = measures.map(field => {
         const measure = explore.tables[field.table].measures[field.name]
         const alias = fieldId(field)
-        return `  ${renderMeasureSql(measure, explore)} AS \`${alias}\``
+        return `  ${renderMeasureSql(measure, explore)} AS ${q}${alias}${q}`
     })
 
     const sqlSelect = `SELECT\n${[...dimensionSelects, ...measureSelects].join(',\n')}`
