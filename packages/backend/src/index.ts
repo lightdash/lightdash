@@ -26,7 +26,7 @@ if (spawnDbt && !process.env.DBT_PROJECT_PATH) {
 }
 
 let dbtChildProcess: undefined | ChildProcess = undefined
-const runDbt = () => execa('dbt', ['rpc', '--host', dbtHost, '--port', dbtPort], {cwd: process.env.DBT_PROJECT_PATH})
+const runDbt = () => execa('dbt', ['rpc', '--host', dbtHost, '--port', dbtPort], {cwd: process.env.DBT_PROJECT_DIR})
 const respawnDbt = (childProcess: ChildProcess) => {
     dbtChildProcess = childProcess
     if (childProcess.stdout)
