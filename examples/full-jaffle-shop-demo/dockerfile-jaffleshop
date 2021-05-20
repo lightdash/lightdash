@@ -1,0 +1,7 @@
+FROM fishtownanalytics/dbt:0.19.1
+
+COPY ./dbt /usr/app
+COPY ./profiles /usr/app/profiles
+COPY ./entrypoint.sh /usr/bin/entrypoint.sh
+ENV DBT_PROFILES_DIR=/usr/app/profiles
+ENTRYPOINT ["/usr/bin/entrypoint.sh"]
