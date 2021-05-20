@@ -80,7 +80,7 @@ Check out our [example_model.yml](https://github.com/lightdash/lightdash/blob/ma
 # Specify the path to your dbt project
 # (i.e. the directory containing dbt_project.yml)
 # You MUST use the absolute path (i.e no ../../myrepo)
-export DBT_PROJECT_PATH=/Users/myuser/dbtrepo
+export DBT_PROJECT_DIR=/Users/myuser/dbtrepo
 
 # Build and run lightdash
 yarn start
