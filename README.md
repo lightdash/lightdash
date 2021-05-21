@@ -83,7 +83,7 @@ yarn start
 ```
 ## Docs
 ---
-Have a question about a feature? Or maybe fancy some light reading? Head on over to our [lightdash documentation](https://docs.lightdash.com/) for our tutorials, reference docs, FAQs and more.
+Have a question about a feature? Or maybe fancy some light reading? Head on over to our [lightdash documentation](https://docs.lightdash.com/) to check out some tutorials, reference docs, FAQs and more.
 
 ## Reporting bugs and feature requests
 ---
