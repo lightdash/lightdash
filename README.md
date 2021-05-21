@@ -88,11 +88,6 @@ yarn start
 # Press ALLOW when asked to "accept incoming connections from python"
 ```
 
-## Join the community!
----
-- Find us on [Slack](https://join.slack.com/t/seekercommunity/shared_invite/zt-ptiqsd6p-Dbjjn8GXozYkFhARgAs3cw). We'd love to hear what you have to say about lightdash :)
-- _coming soon_ Join the discussion in our discourse.
-
 ## Reporting bugs and feature requests
 ---
-- Want to report a bug or request a feature? Let us know on [Slack](https://join.slack.com/t/seekercommunity/shared_invite/zt-ptiqsd6p-Dbjjn8GXozYkFhARgAs3cw), or open an [issue](https://github.com/lightdash/lightdash/issues/new/choose).
+- Want to report a bug or request a feature? Open an [issue](https://github.com/lightdash/lightdash/issues/new/choose).
