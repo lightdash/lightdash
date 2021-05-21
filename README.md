@@ -68,12 +68,6 @@ yarn install
 yarn build
 ```
 
-### Adding dimensions, measures, joins, and more to your lightdash project
-
-lightdash's configuration is fully defined in your dbt project. For example, measures and joins sit in your models' .yml files.
-
-Check out our [example_model.yml](https://github.com/lightdash/lightdash/blob/main/examples/example_model.yml) file for more details on how to add these features to your project! 
-
 ### Launching lightdash
 
 ```shell
@@ -87,6 +81,9 @@ yarn start
 
 # Press ALLOW when asked to "accept incoming connections from python"
 ```
+## Docs
+---
+Have a question about a feature? Or maybe fancy some light reading? Head on over to our [lightdash documentation](https://docs.lightdash.com/) for our tutorials, reference docs, FAQs and more.
 
 ## Reporting bugs and feature requests
 ---
