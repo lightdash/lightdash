@@ -51,3 +51,10 @@ services:
           property: port
       - key: LIGHTDASH_SPAWN_DBT
         value: false 
+
+  - type: web
+    name: docsite
+    env: static
+    buildCommand: cd docs; yarn install; yarn build
+    staticPublishPath: docs/build
+    pullRequestPreviewsEnabled: true
