@@ -20,17 +20,20 @@ app.use(morgan('dev'))
 const spawnDbt = process.env.LIGHTDASH_SPAWN_DBT === undefined ? true : process.env.LIGHTDASH_SPAWN_DBT === 'true'
 const dbtHost = process.env.LIGHTDASH_DBT_HOST || '0.0.0.0'
 const dbtPort = process.env.LIGHTDASH_DBT_PORT || '8580'
+const dbtProfilesDir = process.env.DBT_PROFILES_DIR || '~/.dbt'
 
-if (spawnDbt && !process.env.DBT_PROJECT_PATH) {
-    throw Error('Must specify DBT_PROJECT_PATH')
+if (spawnDbt && !process.env.DBT_PROJECT_DIR) {
+    throw Error('Must specify DBT_PROJECT_DIR')
 }
 
 let dbtChildProcess: undefined | ChildProcess = undefined
-const runDbt = () => execa('dbt', ['rpc', '--host', dbtHost, '--port', dbtPort], {cwd: process.env.DBT_PROJECT_DIR})
+const runDbt = () => execa('dbt', ['rpc', '--host', dbtHost, '--port', dbtPort, '--profiles-dir', dbtProfilesDir], {cwd: process.env.DBT_PROJECT_DIR})
 const respawnDbt = (childProcess: ChildProcess) => {
     dbtChildProcess = childProcess
     if (childProcess.stdout)
         childProcess.stdout.pipe(process.stdout)
+    if (childProcess.stderr)
+        childProcess.stderr.pipe(process.stderr)
     childProcess.on('exit', () => {
         respawnDbt(runDbt())
     })

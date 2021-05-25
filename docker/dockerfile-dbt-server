@@ -1,6 +1,0 @@
-FROM fishtownanalytics/dbt:0.19.1
-
-RUN apt-get update && apt-get install -y --no-install-recommends curl
-RUN curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-341.0.0-linux-x86_64.tar.gz > /tmp/gcloud-sdk.tar.gz
-RUN mkdir /usr/local/gcloud && tar -C /usr/local/gcloud -xvf /tmp/gcloud-sdk.tar.gz
-ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin

@@ -46,7 +46,7 @@ module.exports = {
           routeBasePath: '/',
           // Please change this to your repo.
           editUrl:
-            'https://github.com/lightdash/lightdash/edit/master/docs/',
+            'https://github.com/lightdash/lightdash/edit/main/docs/',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
