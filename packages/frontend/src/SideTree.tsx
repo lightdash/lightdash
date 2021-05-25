@@ -6,7 +6,7 @@ import Fuse from 'fuse.js';
 
 type SideTreeProps = {
     fields: Field[]
-    onSelectedNodeChange: (columnId: string) => void
+    onSelectedNodeChange: (columnid: string) => void
     selectedNodes: Set<string>,
     fuse: Fuse<Field>,
 };

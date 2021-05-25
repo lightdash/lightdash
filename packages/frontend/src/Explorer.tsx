@@ -6,7 +6,7 @@ import {
     Field,
     fieldId,
     FilterGroup,
-    friendlyName,
+    friendlyName, getDimensions, getMeasures,
     Measure,
     SortField
 } from "common";
@@ -20,16 +20,15 @@ import {
     Collapse,
     Colors, FormGroup, H5,
     HTMLTable,
-    Icon, Label,
+    Icon,
     NonIdealState, NumericInput, Pre,
     Spinner,
     Tag
 } from "@blueprintjs/core";
 import {FiltersForm} from "./filters/FiltersForm";
 import EChartsReact from "echarts-for-react";
-import { Tabs } from "@blueprintjs/core";
-import { Tab } from "@blueprintjs/core";
 import { ButtonGroup } from "@blueprintjs/core";
+import useActiveFields from "./hooks/useActiveFields";
 
 const hexToRGB = (hex: string, alpha: number) => {
     const h = parseInt('0x' + hex.substring(1))
@@ -40,8 +39,6 @@ const hexToRGB = (hex: string, alpha: number) => {
 }
 type ExplorerProps = {
     activeExplore: Explore | undefined,
-    activeMeasures: Measure[],
-    activeDimensions: Dimension[],
     activeFilters: FilterGroup[],
     onChangeActiveFilters: (filters: FilterGroup[]) => void,
     columns: any,
@@ -55,8 +52,6 @@ type ExplorerProps = {
 }
 export const Explorer = ({
      activeExplore,
-     activeMeasures,
-     activeDimensions,
      activeFilters,
      onChangeActiveFilters,
      columns,
@@ -68,6 +63,9 @@ export const Explorer = ({
     isExploresRefreshing,
     onRefreshExplores,
     }: ExplorerProps) => {
+    const { activeFields } = useActiveFields()
+    const activeDimensions = (activeExplore ? getDimensions(activeExplore) : []).filter(d => activeFields.has(fieldId(d)))
+    const activeMeasures = (activeExplore ? getMeasures(activeExplore) : []).filter(m => activeFields.has(fieldId(m)))
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false)
     const [resultsIsOpen, setResultsIsOpen] = useState<boolean>(true)
     const [sqlIsOpen, setSqlIsOpen] = useState<boolean>(false)
