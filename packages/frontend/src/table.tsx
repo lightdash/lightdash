@@ -1,5 +1,6 @@
-import {Dimension, fieldId, friendlyName, Measure} from "common";
+import {Dimension, Explore, fieldId, friendlyName, getDimensions, getMeasures} from "common";
 import React from "react";
+import useActiveFields from "./hooks/useActiveFields";
 
 const formatDate = (date: string | Date) => new Date(date).toISOString().slice(0, 10)
 const formatTimestamp = (datetime: string | Date) => new Date(datetime).toISOString()
@@ -41,7 +42,10 @@ const getMeasureFormatter = () => {
     return formatWrapper(formatNumber)
 }
 
-export const buildColumns = (dimensions: Dimension[], measures: Measure[]) => {
+export const useColumns = (activeExplore: Explore | undefined) => {
+    const { activeFields } = useActiveFields()
+    const dimensions = (activeExplore ? getDimensions(activeExplore) : []).filter(d => activeFields.has(fieldId(d)))
+    const measures = (activeExplore ? getMeasures(activeExplore) : []).filter(m => activeFields.has(fieldId(m)))
     const dimColumns = dimensions.map( dim => ({
         Header: <span>{friendlyName(dim.table)} <b>{friendlyName(dim.name)}</b></span>,
         accessor: fieldId(dim),
