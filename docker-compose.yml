@@ -1,20 +1,14 @@
 version: "3.9"
 services:
-  dbt:
-    image: "fishtownanalytics/dbt:0.19.1"
-    volumes:
-      - "${DBT_PROFILE_DIR}:/usr/app/profile"
-      - "${DBT_PROJECT_DIR}:/usr/app"
-    command: ["rpc", "--profiles-dir", "profile", "--host", "0.0.0.0", "--port", "8580"]
-
   lightdash:
     build:
       context: .
-    depends_on: 
-      - dbt
     environment:
-      - LIGHTDASH_DBT_HOST=dbt
-      - LIGHTDASH_DBT_PORT=8580
-      - LIGHTDASH_SPAWN_DBT=false
+      - LIGHTDASH_SPAWN_DBT=true
+      - DBT_PROJECT_DIR=/usr/app/dbt
+      - DBT_PROFILES_DIR=/usr/app/profiles
+    volumes:
+      - "${DBT_PROFILES_DIR}:/usr/app/profiles"
+      - "${DBT_PROJECT_DIR}:/usr/app/dbt"
     ports:
       - 8080:8080

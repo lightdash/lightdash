@@ -1,8 +1,5 @@
 version: "3.9"
 services:
-  dbt:
-    build:
-      context: ./docker
-      dockerfile: dockerfile-dbt-server
+  lightdash:
     volumes:
       - "${GCLOUD_CONFIG_DIR}:/root/.config/gcloud"
