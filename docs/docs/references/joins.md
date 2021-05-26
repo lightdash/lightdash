@@ -34,7 +34,8 @@ models:
         meta:
           measures:
             num_unique_user_ids:
-              type: count_distinct ```
+              type: count_distinct
+```
 
 When you open lightdash, your joined models' dimensions and metrics will appear below the ones in your selected model.
 

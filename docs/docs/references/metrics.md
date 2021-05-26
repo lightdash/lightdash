@@ -28,8 +28,8 @@ models:
 
 ## Metric types:
 
-| Type            | Description                                               |
-| --------------- | --------------------------------------------------------- |
+|       Type      | Description                                               |
+|:---------------:| --------------------------------------------------------- |
 | average         | Generates an average (mean) of values within a column     |
 | count           | Counts the total number of values in the dimension        |
 | count_distinct  | Counts the total unique number of values in the dimension |
