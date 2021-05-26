@@ -33,3 +33,7 @@ node_modules
 # examples
 /dbt
 /profile*
+
+# docs
+/docs/build
+/docs/.docusaurus
