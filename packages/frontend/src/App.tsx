@@ -1,14 +1,12 @@
-import React, {useEffect, useState} from 'react';
-import {Callout, Card, Colors} from '@blueprintjs/core';
-import {BrowserRouter as Router, Route, Switch, useHistory,} from "react-router-dom";
+import React from 'react';
+import {Card, Colors} from '@blueprintjs/core';
+import {BrowserRouter as Router, Route, Switch } from "react-router-dom";
 import "@blueprintjs/core/lib/css/blueprint.css";
 import "@blueprintjs/table/lib/css/table.css";
 import "@blueprintjs/popover2/lib/css/blueprint-popover2.css";
 import {Explorer} from "./components/Explorer";
 import './App.css'
-import {AppToaster} from "./components/AppToaster";
-import {ExploreConfigContext, useExploreConfig} from "./hooks/useExploreConfig";
-import {useExplores} from "./hooks/useExplores";
+import {ExploreConfigContext} from "./hooks/useExploreConfig";
 import {QueryClient, QueryClientProvider} from "react-query";
 import {ExploreSideBar} from "./components/ExploreSideBar";
 import {ErrorCallout} from "./components/ErrorCallout";
@@ -39,20 +37,6 @@ const App = () => {
 }
 
 const InnerApp = () => {
-    const { setError } = useExploreConfig()
-    const exploresResults = useExplores()
-
-    useEffect(() => {
-        if (exploresResults.isError) {
-            const error = exploresResults.error
-            const [first, ...rest] = error.error.message.split('\n')
-            setError({title: first, text: rest.join('\n')})
-        }
-
-        if (exploresResults.isLoading) {
-            AppToaster.show({message: 'Refreshing dbt... This could take a few minutes.', intent: "warning"})
-        }
-    }, [exploresResults])
 
     return (
           <div style={{

@@ -1,21 +1,8 @@
-import {useExploreConfig} from "../hooks/useExploreConfig";
 import EChartsReact from "echarts-for-react";
 import React from "react";
-import {Dimension, FieldId, friendlyName, Metric} from "common";
-
-const echartMap: {[key in Dimension['type'] | Metric['type']]: string} = {
-    'date': 'time',
-    'string': 'ordinal',
-    'timestamp': 'time',
-    'boolean': 'ordinal',
-    'number': 'number',
-    'max': 'number',
-    'min': 'number',
-    'count': 'number',
-    'count_distinct': 'number',
-    'sum': 'number',
-    'average': 'number',
-}
+import {fieldId, FieldId, friendlyName, getDimensions, getMetrics} from "common";
+import {useQueryResults} from "../hooks/useQueryResults";
+import {useTable} from "../hooks/useTable";
 
 const pivot = (values: { [key: string]: any }[], indexKey: string, pivotKey: string, metricKey: string) => {
     return Object.values(values.reduce((acc, value) => {
@@ -60,7 +47,7 @@ const defaultEchartDimensions = (results: { [key: string]: any }[], dimensions: 
             }
         default:
             // Otherwise we only plot the first dimension and a series per metric
-            const [first, ...rest] = dimensions
+            const [first] = dimensions
             return {
                 data: results,
                 echartDimensions: [
@@ -85,6 +72,7 @@ const flipXFromChartType = (chartType: ChartType) => {
         case "scatter":
             return false
         default:
+            // eslint-disable-next-line
             const nope: never = chartType
     }
 }
@@ -99,6 +87,7 @@ const echartType = (chartType: ChartType) => {
         case "scatter":
             return 'scatter'
         default:
+            // eslint-disable-next-line
             const nope: never = chartType
     }
 }
@@ -106,11 +95,16 @@ type SimpleChartProps = {
     chartType: ChartType,
 }
 export const SimpleChart = ({chartType}: SimpleChartProps) => {
-    // Different behaviour depending on dimensions
-    const {activeDimensions, activeMetrics, tableData} = useExploreConfig()
-    const plotData = defaultEchartDimensions(tableData || [], Array.from(activeDimensions), Array.from(activeMetrics))
+    const { data: tableData } = useQueryResults()
+    const { data: explore } = useTable()
+    if (!tableData || tableData.length === 0 || !explore)
+        return null
+    const headerFields = new Set<string>(Object.keys(tableData[0]))
+    const dimensions = getDimensions(explore).map(fieldId).filter(dim => headerFields.has(dim))
+    const metrics = getMetrics(explore).map(fieldId).filter(m => headerFields.has(m))
+    const plotData = defaultEchartDimensions(tableData, dimensions, metrics)
     if (!plotData)
-        return <span>Can't plot</span>
+        return null
     const flipX = flipXFromChartType(chartType)
     const [xdim, ...ydims] = plotData.echartDimensions
     const options = {

@@ -10,10 +10,13 @@ export type ExploreJoin = {
     sqlOn: string,              // Templated sql on clause
 }
 
-export type Table = {
+export type PartialTable = {
     name: string,                                 // Must be sql friendly (a-Z, 0-9, _)
     description?: string,                         // Optional description of table
     sqlTable: string,                             // The sql identifier for the table
+}
+
+export type Table = PartialTable & {
     dimensions: {[fieldName: string]: Dimension}, // Field names must be unique across dims and metrics
     metrics: {[fieldName: string]: Metric},     //
 }
@@ -162,9 +165,8 @@ export type Metric =
 
 export type MetricType = Metric["type"]
 
-// Object used to query an explore
+// Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {
-    explore: Explore              // Queries only happen within a single explore
     dimensions: FieldId[],        // Dimensions to group by in the explore
     metrics: FieldId[],           // Metrics to compute in the explore
     filters: FilterGroup[],       // Filters applied to the table to query (logical AND)
@@ -349,11 +351,62 @@ export type ApiError = {
     status: 'error'
     error: ApiErrorDetail
 }
-export type ApiQueryResults = ApiError | {
+export type ApiQueryResults = {[col: string]: any}[]
+export type ApiQueryResponse = ApiError | {
     status: 'ok'
-    results: {[col: string]: any}[]
+    results: ApiQueryResults
 }
-export type ApiExploresResults = ApiError | {
+
+export type ApiCompiledQueryResults = string
+export type ApiCompiledQueryResponse = ApiError | {
     status: 'ok'
-    results: Explore[]
+    results: ApiCompiledQueryResults
 }
+
+export type ApiExploresResults = Explore[]
+export type ApiExploresResponse = ApiError | {
+    status: 'ok'
+    results: ApiExploresResults,
+}
+
+export type ApiTablesResults = PartialTable[]
+export type ApiTablesResponse = ApiError | {
+    status: 'ok'
+    results: PartialTable[],
+}
+
+export type ApiTableResults = Explore
+export type ApiTableResponse = ApiError | {
+    status: 'ok',
+    results: ApiTableResults,
+}
+
+export type ApiStatusResults = 'loading' | 'ready'
+export type ApiStatusResponse = ApiError | {
+    status: 'ok',
+    results: ApiStatusResults,
+}
+
+export type ApiRefreshResults = undefined
+export type ApiRefreshResponse = ApiError | {
+    status: 'ok',
+    results: ApiRefreshResults,
+}
+
+export type ApiResults =
+    ApiQueryResults
+    | ApiCompiledQueryResults
+    | ApiTablesResults
+    | ApiExploresResults
+    | ApiTableResults
+    | ApiStatusResults
+    | ApiRefreshResults
+
+export type ApiResponse =
+    ApiQueryResponse
+    | ApiCompiledQueryResponse
+    | ApiTablesResponse
+    | ApiExploresResponse
+    | ApiTableResponse
+    | ApiStatusResponse
+    | ApiRefreshResponse

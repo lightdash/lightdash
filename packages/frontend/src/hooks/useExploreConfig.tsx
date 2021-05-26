@@ -10,22 +10,19 @@ type ContextProps = {
     activeFields: Set<string>,
     activeDimensions: Set<string>,
     activeMetrics: Set<string>,
+    validQuery: boolean,
     toggleActiveField: (fieldName: string, isDimension: boolean) => void,
     sidebarPanel: SidebarPanel,
     setSidebarPanel: (panelName: SidebarPanel) => void,
     sortFields: SortField[],
     setSortFields: (sortFields: SortField[]) => void,
     toggleSortField: (fieldId: string) => void,
-    tableData: {[col: string]: any}[] | null,
-    setTableData: (data: {[col: string]: any}[] | null) => void,
-    isTableDataLoading: boolean,
-    setIsTableDataLoading: (val: boolean) => void,
     activeFilters: FilterGroup[],
     setActiveFilters: (filters: FilterGroup[]) => void,
     error: {title: string, text: string} | undefined,
     setError: (errors: {title: string, text: string}) => void,
     resultsRowLimit: number | undefined,
-    setResultsRowLimit: (rowLimit: number | undefined) => void,
+    setResultsRowLimit: (limit: string | undefined) => void,
 }
 const context = React.createContext<ContextProps>({
     activeTableName: undefined,
@@ -33,26 +30,26 @@ const context = React.createContext<ContextProps>({
     activeFields: new Set<string>(),
     activeDimensions: new Set<string>(),
     activeMetrics: new Set<string>(),
+    validQuery: false,
     toggleActiveField: () => {},
     sidebarPanel: 'base',
     setSidebarPanel: () => {},
     sortFields: [],
     setSortFields: () => {},
     toggleSortField: () => {},
-    tableData: null,
-    setTableData: () => {},
-    isTableDataLoading: false,
-    setIsTableDataLoading: () => {},
     activeFilters: [],
     setActiveFilters: () => {},
     error: undefined,
     setError: () => {},
-    resultsRowLimit: undefined,
+    resultsRowLimit: 500,
     setResultsRowLimit: () => {},
 });
 
 export const ExploreConfigContext: React.FC = ({ children }) => {
-    const searchParams = new URLSearchParams(useLocation().search)
+    const { search } = useLocation()
+    const searchParams = useMemo(() => (
+        new URLSearchParams(search)
+    ), [search])
     const pathParams = useParams<{tableId: string | undefined}>()
     const history = useHistory()
 
@@ -76,12 +73,20 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
 
     // Currently active fields
     const dimensionSearchParam = searchParams.get('dimensions')
-    const activeDimensions = new Set<string>(dimensionSearchParam === null ? [] : dimensionSearchParam.split(','))
+    const activeDimensions = useMemo(() => (
+        new Set<string>(dimensionSearchParam === null ? [] : dimensionSearchParam.split(','))
+    ), [dimensionSearchParam])
 
     const metricSearchParam = searchParams.get('metrics')
-    const activeMetrics = new Set<string>(metricSearchParam === null ? [] : metricSearchParam.split(','))
+    const activeMetrics = useMemo(() => (
+        new Set<string>(metricSearchParam === null ? [] : metricSearchParam.split(','))
+    ), [metricSearchParam])
 
-    const activeFields = new Set<string>([...activeDimensions, ...activeMetrics])
+    const activeFields = useMemo(() => (
+        new Set<string>([...activeDimensions, ...activeMetrics])
+    ), [activeDimensions, activeMetrics])
+
+    const validQuery = activeFields.size > 0
 
     const setActiveDimensions = (dimensions: Set<string>) => {
         const newParams = new URLSearchParams(searchParams)
@@ -135,20 +140,25 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
 
     // Active sorts
     const sortSearchParam = searchParams.get('sort')
-    const sortFields: SortField[] = sortSearchParam === null ? [] : JSON.parse(sortSearchParam)
-    const setSortFields = (sortFields: SortField[]) => {
-        // Can't sort a field that's not active
-        sortFields.filter(sf => activeFields.has(sf.fieldId))
-        const newParams = new URLSearchParams(searchParams)
-        if (sortFields.length === 0)
-            newParams.delete('sort')
-        else
-            newParams.set('sort', JSON.stringify(sortFields))
-        history.replace({
-            pathname: history.location.pathname,
-            search: newParams.toString(),
-        })
-    }
+    const sortFields: SortField[] = useMemo(() => (
+        sortSearchParam === null ? [] : JSON.parse(sortSearchParam)
+    ), [sortSearchParam])
+
+    const setSortFields = useMemo(() => (
+        (sortFields: SortField[]) => {
+            // Can't sort a field that's not active
+            sortFields.filter(sf => activeFields.has(sf.fieldId))
+            const newParams = new URLSearchParams(searchParams)
+            if (sortFields.length === 0)
+                newParams.delete('sort')
+            else
+                newParams.set('sort', JSON.stringify(sortFields))
+            history.replace({
+                pathname: history.location.pathname,
+                search: newParams.toString(),
+            })
+        }
+    ), [activeFields, searchParams, history])
     // First lets try single sort
     const toggleSortField = (fieldId: string) => {
         const prevState = sortFields.find(sf => sf.fieldId === fieldId)
@@ -178,8 +188,8 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
 
     // Row limit
     const limitSearchParam = searchParams.get('limit')
-    const resultsRowLimit = limitSearchParam && parseInt(limitSearchParam) ? parseInt(limitSearchParam) : 0
-    const setResultsRowLimit = (rowLimit: number | undefined) => {
+    const resultsRowLimit = limitSearchParam && !isNaN(parseInt(limitSearchParam)) ? parseInt(limitSearchParam) : 500
+    const setResultsRowLimit = (rowLimit: string | undefined) => {
         const newParams = new URLSearchParams(searchParams)
         if (rowLimit === undefined)
             newParams.delete('limit')
@@ -191,15 +201,11 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
         })
     }
 
-    const [tableData, setTableData] = useState<{[col: string]: any}[] | null>(null)
-    const [isTableDataLoading, setIsTableDataLoading] = useState(false)
-
-
     // Remove sorts if out of date
     useEffect(() => {
         if (sortFields.some(sf => !activeFields.has(sf.fieldId)))
             setSortFields([])
-    }, [sortFields, setSortFields])
+    }, [sortFields, setSortFields, activeFields])
 
 
     const contextValue = {
@@ -208,16 +214,13 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
         activeFields,
         activeDimensions,
         activeMetrics,
+        validQuery,
         toggleActiveField,
         sidebarPanel,
         setSidebarPanel,
         sortFields,
         setSortFields,
         toggleSortField,
-        tableData,
-        setTableData,
-        isTableDataLoading,
-        setIsTableDataLoading,
         activeFilters,
         setActiveFilters,
         error,
@@ -238,16 +241,13 @@ export const useExploreConfig = () => {
         activeFields,
         activeDimensions,
         activeMetrics,
+        validQuery,
         toggleActiveField,
         sidebarPanel,
         setSidebarPanel,
         sortFields,
         setSortFields,
         toggleSortField,
-        tableData,
-        setTableData,
-        isTableDataLoading,
-        setIsTableDataLoading,
         activeFilters,
         setActiveFilters,
         error,
@@ -262,16 +262,13 @@ export const useExploreConfig = () => {
         activeFields,
         activeDimensions,
         activeMetrics,
+        validQuery,
         toggleActiveField,
         sidebarPanel,
         setSidebarPanel,
         sortFields: useMemo(() => sortFields, [sortFields]),
         setSortFields: useMemo(() => setSortFields, [setSortFields]),
         toggleSortField: useMemo(() => toggleSortField, [toggleSortField]),
-        tableData: useMemo(() => tableData, [tableData]),
-        setTableData,
-        isTableDataLoading,
-        setIsTableDataLoading,
         activeFilters,
         setActiveFilters,
         error,

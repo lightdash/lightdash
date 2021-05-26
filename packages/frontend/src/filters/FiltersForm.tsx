@@ -11,7 +11,7 @@ import {Button, HTMLSelect} from "@blueprintjs/core";
 import {defaultValuesForNewStringFilter, StringFilterGroupForm} from "./StringFilterForm";
 import {defaultValuesForNewNumberFilter, NumberFilterGroupForm} from "./NumberFilterForm";
 import {useExploreConfig} from "../hooks/useExploreConfig";
-import {useExplores} from "../hooks/useExplores";
+import {useTable} from "../hooks/useTable";
 
 export const FiltersForm = () => {
     const {
@@ -65,6 +65,7 @@ const FilterGroupForm = ({ filterGroup, onDelete, onChange }: FilterGroupFormPro
         case "number":
             return <NumberFilterGroupForm filterGroup={filterGroup} onChange={onChange} />
         default:
+            // eslint-disable-next-line
             const nope: never = filterGroup
             throw Error(`Filter group form not implemented for ${groupType}`)
     }
@@ -72,14 +73,14 @@ const FilterGroupForm = ({ filterGroup, onDelete, onChange }: FilterGroupFormPro
 
 const AddFilterGroup = () => {
     const {
-        activeTableName,
         activeFilters,
         setActiveFilters,
     } = useExploreConfig()
     const [showButton, setShowButton] = useState<boolean>(true)
-    const exploreResults = useExplores()
-    const explore = (exploreResults.data || []).find(e => e.name === activeTableName)
-    const dimensions = explore ? getDimensions(explore) : []
+    const explore = useTable()
+    if (explore.status !== 'success')
+        return null
+    const dimensions = explore ? getDimensions(explore.data) : []
 
     const onAdd = (filterGroup: FilterGroup) => {
         setActiveFilters([...activeFilters, filterGroup])
@@ -98,7 +99,7 @@ const AddFilterGroup = () => {
         setShowButton(true)
         const dimension = filterableDimensions.find(dim => fieldId(dim) === id)
         if (dimension === undefined)
-            throw new Error(`Selected dimension with id ${id} that does not exist as a filterable dimension in explore ${explore?.name || 'not loaded'}`)
+            throw new Error(`Selected dimension with id ${id} that does not exist as a filterable dimension in explore ${explore.data.name || 'not loaded'}`)
 
         // Add a default filter group as a placeholder for the new filter group
         const dimensionType = dimension.type
@@ -122,6 +123,7 @@ const AddFilterGroup = () => {
                 })
                 break
             default:
+                // eslint-disable-next-line
                 const _nope: never = dimension
                 throw Error(`No default filter group implemented for filter group with type ${dimensionType}`)
         }

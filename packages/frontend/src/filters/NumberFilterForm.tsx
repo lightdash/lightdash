@@ -114,6 +114,7 @@ const NumberFilterForm = ({filter, onChange}: NumberFilterFormProps) => {
                 onValueChange={value => onChange({...filter, value})}
             />
         default:
+            // eslint-disable-next-line
             const nope: never = filter
             throw Error(`No form implemented for String filter operator ${filterType}`)
     }

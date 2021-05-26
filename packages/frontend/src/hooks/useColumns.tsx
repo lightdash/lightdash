@@ -1,7 +1,7 @@
 import {Dimension, fieldId, friendlyName, getDimensions, getMetrics, SortField} from "common";
-import {useExplores} from "./useExplores";
 import {useExploreConfig} from "./useExploreConfig";
 import React, {useMemo} from "react";
+import {useTable} from "./useTable";
 
 const formatDate = (date: string | Date) => new Date(date).toISOString().slice(0, 10)
 const formatTimestamp = (datetime: string | Date) => new Date(datetime).toISOString()
@@ -32,6 +32,7 @@ const getDimensionFormatter = (d: Dimension) => {
         case "timestamp":
             return formatWrapper(formatTimestamp)
         default:
+            // eslint-disable-next-line
             const nope: never = dimensionType
             throw Error(`Dimension formatter is not implemented for dimension type ${dimensionType}`)
     }
@@ -58,26 +59,33 @@ const getSortByProps = (fieldId: string, sortFields: SortField[], toggleSortFiel
     }
 }
 export const useColumns = () => {
-    const exploresResults = useExplores()
-    const {activeFields, activeTableName, sortFields, toggleSortField} = useExploreConfig()
-    const activeExplore = (exploresResults.data || []).find(e => e.name === activeTableName)
-    const dimensions = (activeExplore ? getDimensions(activeExplore) : []).filter(d => activeFields.has(fieldId(d)))
-    const metrics = (activeExplore ? getMetrics(activeExplore) : []).filter(m => activeFields.has(fieldId(m)))
-    const dimColumns = dimensions.map(dim => ({
-        Header: <span>{friendlyName(dim.table)} <b>{friendlyName(dim.name)}</b></span>,
-        accessor: fieldId(dim),
-        Cell: getDimensionFormatter(dim),
-        isDimension: true,
-        dimensionType: dim.type,
-        ...getSortByProps(fieldId(dim), sortFields, toggleSortField),
-    }))
-    const metricColumns = metrics.map(m => ({
-        Header: <span>{friendlyName(m.table)} <b>{friendlyName(m.name)}</b></span>,
-        accessor: fieldId(m),
-        Cell: getMetricFormatter(),
-        isDimension: false,
-        ...getSortByProps(fieldId(m), sortFields, toggleSortField),
-    }))
-    const result = useMemo(() => [...dimColumns, ...metricColumns], [activeFields, activeTableName, sortFields, exploresResults.status])
+    const activeExplore = useTable()
+    const {activeFields, sortFields, toggleSortField} = useExploreConfig()
+    const dimensions = useMemo(() => (
+        activeExplore.data ? getDimensions(activeExplore.data).filter(d => activeFields.has(fieldId(d))) : []
+    ), [activeFields, activeExplore.data])
+    const metrics = useMemo(() => (
+        activeExplore.data ? getMetrics(activeExplore.data).filter(m => activeFields.has(fieldId(m))) : []
+    ), [activeFields, activeExplore.data])
+    const dimColumns = useMemo(() =>(
+        dimensions.map(dim => ({
+            Header: <span>{friendlyName(dim.table)} <b>{friendlyName(dim.name)}</b></span>,
+            accessor: fieldId(dim),
+            Cell: getDimensionFormatter(dim),
+            isDimension: true,
+            dimensionType: dim.type,
+            ...getSortByProps(fieldId(dim), sortFields, toggleSortField),
+        }))
+    ), [dimensions, sortFields, toggleSortField])
+    const metricColumns = useMemo(() => (
+        metrics.map(m => ({
+            Header: <span>{friendlyName(m.table)} <b>{friendlyName(m.name)}</b></span>,
+            accessor: fieldId(m),
+            Cell: getMetricFormatter(),
+            isDimension: false,
+            ...getSortByProps(fieldId(m), sortFields, toggleSortField),
+        }))
+    ), [metrics, sortFields, toggleSortField])
+    const result = useMemo(() => [...dimColumns, ...metricColumns], [dimColumns, metricColumns])
     return result
 }

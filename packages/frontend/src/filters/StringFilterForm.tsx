@@ -107,6 +107,7 @@ const StringFilterForm = ({filter, onChange}: StringFilterFormProps) => {
                 onChange={e => onChange({...filter, value: e.currentTarget.value})}
             />
         default:
+            // eslint-disable-next-line
             const nope: never = filter
             throw Error(`No form implemented for String filter operator ${filterType}`)
     }

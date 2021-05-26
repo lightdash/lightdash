@@ -1,10 +1,11 @@
 import {Alert, Button, Code, Divider, H3, Menu, MenuDivider, MenuItem, Text} from "@blueprintjs/core";
 import React, {useState} from "react";
-import {useExplores} from "../hooks/useExplores";
 import {useExploreConfig} from "../hooks/useExploreConfig";
 import {friendlyName, getFields} from "common";
 import Fuse from "fuse.js";
 import {SideTree} from "./SideTree";
+import {useTables} from "../hooks/useTables";
+import {useTable} from "../hooks/useTable";
 
 const SideBarLoadingState = () => (
     <Menu large={true}>
@@ -20,7 +21,7 @@ const SideBarLoadingState = () => (
     </Menu>
 )
 const BasePanel = () => {
-    const exploresResult = useExplores()
+    const exploresResult = useTables()
     const [showChangeExploreConfirmation, setShowChangeExploreConfirmation] = useState(false)
     const [selectedExploreName, setSelectedExploreName] = useState('')
     const {activeTableName, setActiveTableName, activeFields, setSidebarPanel} = useExploreConfig()
@@ -98,16 +99,25 @@ type ExplorePanelProps = {
     onBack: () => void,
 }
 const ExplorePanel = ({onBack}: ExplorePanelProps) => {
-    const exploresResult = useExplores()
-    const {activeTableName, activeFields, toggleActiveField} = useExploreConfig()
-    const activeExplore = (exploresResult.data || []).find(e => e.name === activeTableName)
-    if (exploresResult.isLoading) {
-        return <SideBarLoadingState/>
+    const {activeFields, toggleActiveField, setError } = useExploreConfig()
+    const exploresResult = useTable()
+    switch (exploresResult.status) {
+        case "idle": {
+            onBack()
+            return null
+        }
+        case "error": {
+            onBack()
+            const [title, ...lines] = exploresResult.error.error.message.split('\n')
+            setError({title, text: lines.join('\n')})
+            return null
+        }
+        case "loading": {
+            return <SideBarLoadingState />
+        }
     }
-    if (activeExplore === undefined) {
-        onBack()
-        return <div/>
-    }
+    // Success
+    const activeExplore = exploresResult.data
     const fields = getFields(activeExplore)
     const fuse = new Fuse(fields, {keys: ['name', 'description']})
     return (
