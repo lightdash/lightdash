@@ -3,6 +3,11 @@
 Recent and upcoming changes to lightdash
 
 ## [Unreleased]
+### Added
+ - app url is shareable and be used to share the current table and active fields you've selected
+
+### Changed
+ - updated site metadata and favicon
 
 ## [0.1.3] - 2021-05-20
 ### Fixed
