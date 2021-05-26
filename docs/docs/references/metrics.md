@@ -8,7 +8,7 @@ Metrics are quantitative measurements. You can think of them as "actions" that y
 
 ---
 
-# Adding metrics to your project
+## Adding metrics to your project
 
 To add a metric to lightdash, you define it in your dbt project under the dimension name you're applying the measurement on.
 
@@ -26,7 +26,7 @@ models:
               type: count
 ```
 
-# Metric types:
+## Metric types:
 
 | Type            | Description                                               |
 | --------------- | --------------------------------------------------------- |
@@ -37,7 +37,7 @@ models:
 | min             | Generates the minimum value within a column               |
 | sum             | Generates a sum of values within a column                 |
 
-# Adding your own metric descriptions
+## Adding your own metric descriptions
 
 We add default descriptions to all of the metrics you include in your model. But, you can override these using the description parameter when you define your metric.
 
@@ -48,7 +48,7 @@ measures:
     description: "Total number of user IDs. NOTE: this is NOT counting unique user IDs"
 ```
 
-# Using custom SQL in metrics
+## Using custom SQL in metrics
 
 You can include custom SQL in your metric definition to build more advanced metrics using the sql parameter.
 Inside the sql parameter, you can reference any other dimension from the given model and any joined models. You **can’t reference other metrics.**
