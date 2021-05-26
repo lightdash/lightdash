@@ -12,7 +12,7 @@ Filters appear at the top of an explore and allow users to change the data being
 
 To filter the data that you're exploring, simply click on the `filters` toggle in lightdash and click `add dimension to filter`.
 
-![screenshot-filters-view](assets/screenshot-filters-view.jpg)
+![screenshot-filters-view](assets/screenshot-filters-view.png)
 
 :::info
 
