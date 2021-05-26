@@ -8,12 +8,11 @@ Filters appear at the top of an explore and allow users to change the data being
 
 ---
 
-# Adding filters to your explore
+## Adding filters to your explore
 
 To filter the data that you're exploring, simply click on the `filters` toggle in lightdash and click `add dimension to filter`.
 
-
-![screenshot-filters-view](assets/screenshot-filters-view.png)
+![screenshot-filters-view](assets/screenshot-filters-view.jpg)
 
 :::info
 
@@ -39,7 +38,7 @@ WHERE (
 
 ## If you want to include multiple values in your filter, just hit `enter` between each value entry in your list
 
-![screenshot-multiple-values-filter](assets/screenshot_multiple_values_filter.png)
+![screenshot-multiple-values-filter](assets/screenshot-multiple-values-filter.png)
 
 The listed values are separated by an OR statement in the compiled SQL. E.g. the above would give us:
 ```

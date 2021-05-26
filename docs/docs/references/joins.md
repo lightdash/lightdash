@@ -8,7 +8,7 @@ Joins let you to connect different models to each other so that you can explore 
 
 ---
 
-# Adding joins in your models
+## Adding joins in your models
 
 Joins are defined at the same level as your model parameters in your YAML file.
 
