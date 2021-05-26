@@ -11,6 +11,7 @@ Recent and upcoming changes to lightdash
  - updated site metadata and favicon
  - currently active fields aren't removed on changing tables
  - currently active fields aren't removed on refreshing tables
+ - renamed "Measures" to "Metrics" everywhere
 
 ## [0.1.3] - 2021-05-20
 ### Fixed
