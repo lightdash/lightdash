@@ -19,6 +19,17 @@ class LightdashError extends Error {
     }
 }
 
+export class NotExistsError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'NotExistsError',
+            statusCode: 404,
+            data: {},
+        })
+    }
+}
+
 export class MissingCatalogEntryError extends LightdashError {
     constructor(message: string, data: {[key: string]: any}) {
         super({

@@ -1,10 +1,10 @@
 import {Code, Pre} from "@blueprintjs/core";
 import React from "react";
-import {useSqlQuery} from "../hooks/useSqlQuery";
+import {useCompliedSql} from "../hooks/useCompiledSql";
 
 export const RenderedSql = () => {
-    const { renderedSql } = useSqlQuery()
-    const text = renderedSql === undefined ? '' : renderedSql
+    const { data } = useCompliedSql()
+    const text = data === undefined ? '' : data
     return (
         <Pre style={{borderRadius: '0', boxShadow: 'none'}}><Code>{text}</Code></Pre>
     )

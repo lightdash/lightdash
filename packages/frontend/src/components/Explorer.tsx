@@ -1,25 +1,19 @@
 import React, {useState} from "react";
-import {Button, ButtonGroup, Card, Collapse, FormGroup, H5, NumericInput, Spinner, Tag} from "@blueprintjs/core";
+import {Button, ButtonGroup, Card, Collapse, FormGroup, H5, NumericInput, Tag} from "@blueprintjs/core";
 import {FiltersForm} from "../filters/FiltersForm";
 import {useExploreConfig} from "../hooks/useExploreConfig";
-import {useExplores} from "../hooks/useExplores";
 import {ResultsTable} from "./ResultsTable";
 import {ChartType, SimpleChart} from "./SimpleChart";
 import {RenderedSql} from "./RenderedSql";
-import {useSqlQuery} from "../hooks/useSqlQuery";
+import {RefreshServerButton} from "./RefreshServerButton";
+import {RefreshButton} from "./RefreshButton";
 
 export const Explorer = () => {
     const {
-        activeDimensions,
-        activeMetrics,
-        activeTableName,
         activeFilters,
         resultsRowLimit,
         setResultsRowLimit
     } = useExploreConfig()
-    const { refresh: refreshSqlQuery } = useSqlQuery()
-    const exploresResults = useExplores()
-    const activeExplore = (exploresResults.data || []).find(e => e.name === activeTableName)
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false)
     const [resultsIsOpen, setResultsIsOpen] = useState<boolean>(true)
     const [sqlIsOpen, setSqlIsOpen] = useState<boolean>(false)
@@ -30,23 +24,18 @@ export const Explorer = () => {
     return (
         <React.Fragment>
             <div style={{display: "flex", flexDirection: "row", justifyContent: "flex-end"}}>
-                <Button intent={"primary"} style={{height: '40px', width: 150, marginRight: '10px'}} onClick={refreshSqlQuery}
-                        disabled={[...activeMetrics, ...activeDimensions].length === 0}>Run query</Button>
-                { exploresResults.isFetching
-                    ? <Button disabled={true}><div style={{display: 'flex', flexDirection: 'row'}}><Spinner size={15}/><div style={{paddingRight: '5px'}} />Refreshing dbt</div></Button>
-                    : <Button icon={'refresh'} onClick={exploresResults.refresh}>Refresh dbt</Button>
-                }
-
+                <RefreshButton />
+                <RefreshServerButton />
             </div>
             <div style={{paddingTop: '10px'}} />
             <Card style={{padding: 5}} elevation={1}>
                 <div style={{display: 'flex', flexDirection: 'row', alignItems: 'center'}}>
-                    <Button disabled={activeExplore === undefined} icon={filterIsOpen ? 'chevron-down' : 'chevron-right'} minimal={true} onClick={() => setFilterIsOpen(f => !f)} />
+                    <Button icon={filterIsOpen ? 'chevron-down' : 'chevron-right'} minimal={true} onClick={() => setFilterIsOpen(f => !f)} />
                     <H5 style={{margin: 0, padding: 0}}>Filters</H5>
                     {totalActiveFilters > 0 ? <Tag style={{marginLeft: '10px'}}>{totalActiveFilters} active filters</Tag> : null}
                 </div>
                <Collapse isOpen={filterIsOpen}>
-                   {activeExplore && <FiltersForm />}
+                   <FiltersForm />
                </Collapse>
             </Card>
             <div style={{paddingTop: '10px'}} />
@@ -54,7 +43,7 @@ export const Explorer = () => {
             <Card style={{padding: 5}} elevation={1}>
                 <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between'}}>
                     <div style={{display: 'flex', flexDirection: 'row', alignItems: 'center'}}>
-                        <Button disabled={activeExplore === undefined} icon={vizIsOpen ? 'chevron-down' : 'chevron-right'} minimal={true} onClick={() => setVizisOpen(f => !f)} />
+                        <Button icon={vizIsOpen ? 'chevron-down' : 'chevron-right'} minimal={true} onClick={() => setVizisOpen(f => !f)} />
                         <H5 style={{margin: 0, padding: 0}}>Charts</H5>
                     </div>
                     {vizIsOpen &&
@@ -78,7 +67,7 @@ export const Explorer = () => {
                         <Button icon={resultsIsOpen ? 'chevron-down' : 'chevron-right'} minimal={true} onClick={() => setResultsIsOpen(f => !f)} />
                         <H5 style={{margin: 0, padding: 0}}>Results</H5>
                     </div>
-                    {resultsIsOpen && <FormGroup style={{marginRight: 12}} label="Total rows:" inline={true}><NumericInput style={{width: 100}} buttonPosition={'none'} value={resultsRowLimit} onValueChange={setResultsRowLimit}/></FormGroup>}
+                    {resultsIsOpen && <FormGroup style={{marginRight: 12}} label="Total rows:" inline={true}><NumericInput style={{width: 100}} min={0} buttonPosition={'none'} value={resultsRowLimit} onValueChange={(valueAsNumber, valueAsString) => setResultsRowLimit(valueAsString)}/></FormGroup>}
                 </div>
                 <Collapse isOpen={resultsIsOpen}>
                     <ResultsTable />

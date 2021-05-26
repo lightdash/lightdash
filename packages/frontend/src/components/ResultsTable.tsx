@@ -1,12 +1,13 @@
 import {useExploreConfig} from "../hooks/useExploreConfig";
-import {usePagination, useTable} from "react-table";
+import {usePagination, useTable as useReactTable} from "react-table";
 import {Button, Colors, HTMLTable, Icon, NonIdealState, Spinner, Tag} from "@blueprintjs/core";
 import {DimensionType} from "common";
 import React from "react";
 import {CSVLink} from "react-csv";
 import {useColumns} from "../hooks/useColumns";
-import {useExplores} from "../hooks/useExplores";
-import {useSqlQuery} from "../hooks/useSqlQuery";
+import {useTable} from "../hooks/useTable";
+import {RefreshButton} from "./RefreshButton";
+import {useQueryResults} from "../hooks/useQueryResults";
 
 const hexToRGB = (hex: string, alpha: number) => {
     const h = parseInt('0x' + hex.substring(1))
@@ -27,19 +28,12 @@ const EmptyStateNoColumns = () => (
 )
 
 const EmptyStateNoTableData = () => {
-    const { refresh } = useSqlQuery()
     return (
         <div style={{padding: '50px 0'}}>
             <NonIdealState
                 title="Run query"
                 description="Get results from your data warehouse"
-                action={
-                    <Button
-                        intent={"primary"}
-                        onClick={refresh}
-                    >
-                        Run query
-                    </Button>}
+                action={<RefreshButton />}
             />
         </div>
     )
@@ -61,11 +55,12 @@ const EmptyStateNoRows = () => (
 
 export const ResultsTable = () => {
     const columns = useColumns()
-    const {tableData, isTableDataLoading, activeTableName} = useExploreConfig()
-    const exploreResults = useExplores()
-    const safeData = React.useMemo(() => tableData === null ? [] : tableData, [tableData])
+    const {activeTableName} = useExploreConfig()
+    const activeExplore = useTable()
+    const queryResults = useQueryResults()
+    const safeData = React.useMemo(() => queryResults.status === 'success' ? queryResults.data : [], [queryResults.status, queryResults.data])
 
-    const tableInstance = useTable({
+    const tableInstance = useReactTable({
         columns: columns,
         data: safeData,
         initialState: {
@@ -99,7 +94,7 @@ export const ResultsTable = () => {
         }
     }
 
-    if (exploreResults.isLoading)
+    if (activeExplore.isLoading)
         return <EmptyStateExploreLoading />
 
     if (tableInstance.columns.length === 0)
@@ -168,7 +163,7 @@ export const ResultsTable = () => {
                     })}
                     </tbody>
                 </HTMLTable>
-                {isTableDataLoading && (
+                {queryResults.isLoading && (
                     <React.Fragment>
                         <div style={{paddingTop: '20px'}}/>
                         <NonIdealState
@@ -177,10 +172,10 @@ export const ResultsTable = () => {
                         />
                     </React.Fragment>
                 )}
-                {tableData === null && !isTableDataLoading && (
+                {queryResults.isIdle && (
                     <EmptyStateNoTableData />
                 )}
-                {tableData !== null && tableData.length === 0 && (
+                {queryResults.status === 'success' && queryResults.data.length === 0 && (
                     <EmptyStateNoRows />
                 )}
             </div>
