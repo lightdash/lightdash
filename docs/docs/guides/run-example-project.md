@@ -15,7 +15,7 @@ Head over to the [Docker docs](https://docs.docker.com/get-docker/) and install 
 Download the lightdash code:
 
 ```shell
-git clone https://github.com/lightdash/lightdash
+git clone --recurse-submodules https://github.com/lightdash/lightdash
 ```
 
 ## 3. Start up the demo with docker
