@@ -14,6 +14,7 @@ import React, {useEffect, useState} from "react";
 import {TableInstance, usePagination, useSortBy, useTable} from "react-table";
 import {buildQuery} from "./queryBuilder";
 import {runQuery} from "./api";
+import {CSVLink} from 'react-csv';
 import {
     Button,
     Card, Code,
@@ -284,46 +285,68 @@ const ExploreTable = ({tableInstance, isDataLoading}: ExploreTableProps) => {
     }
 
     return (
-        <div style={{height: '100%', padding: '10px', minHeight: '500px'}}>
-            <div style={{display: 'flex', flexDirection: 'column', justifyContent: 'space-between'}}>
-                <div style={{display: 'block', maxWidth: '100%'}}>
-                    <HTMLTable bordered condensed {...tableInstance.getTableProps()} style={{width: '100%'}}>
-                        {tableInstance.headerGroups.map(headerGroup => (
-                            <colgroup>
-                                {headerGroup.headers.map(column => (
-                                    <col {...column.getHeaderProps([getColumnStyle(column.isDimension)])} />
-                                ))}
-                            </colgroup>
-                        ))}
-                        <thead>
-                        {tableInstance.headerGroups.map(headerGroup => (
-                            <tr {...headerGroup.getHeaderGroupProps()}>
-                                {headerGroup.headers.map(column => (
-                                    <th {...column.getHeaderProps([column.getSortByToggleProps(), getHeaderStyle(column.isDimension)])}>
-                                        {column.render('Header')}
-                                        {column.isSorted && getSortIndicator(column.isDimension, column.dimensionType, column.isSortedDesc || false, column.sortedIndex)}
-                                    </th>
-                                ))}
+        <div style={{height: '100%', padding: '10px', minHeight: '500px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between'}}>
+            <div style={{display: 'block', maxWidth: '100%'}}>
+                <HTMLTable bordered condensed {...tableInstance.getTableProps()} style={{width: '100%'}}>
+                    {tableInstance.headerGroups.map(headerGroup => (
+                        <colgroup>
+                            {headerGroup.headers.map(column => (
+                                <col {...column.getHeaderProps([getColumnStyle(column.isDimension)])} />
+                            ))}
+                        </colgroup>
+                    ))}
+                    <thead>
+                    {tableInstance.headerGroups.map(headerGroup => (
+                        <tr {...headerGroup.getHeaderGroupProps()}>
+                            {headerGroup.headers.map(column => (
+                                <th {...column.getHeaderProps([column.getSortByToggleProps(), getHeaderStyle(column.isDimension)])}>
+                                    {column.render('Header')}
+                                    {column.isSorted && getSortIndicator(column.isDimension, column.dimensionType, column.isSortedDesc || false, column.sortedIndex)}
+                                </th>
+                            ))}
+                        </tr>
+                    ))}
+                    </thead>
+                    <tbody {...tableInstance.getTableBodyProps()}>
+                    {tableInstance.page.map(row => {
+                        tableInstance.prepareRow(row)
+                        return (
+                            <tr {...row.getRowProps()}>
+                                {row.cells.map(cell => {
+                                    return (
+                                        <td {...cell.getCellProps([getRowStyle(row.index, cell.column.isDimension)])}>
+                                            {cell.render('Cell')}
+                                        </td>
+                                    )
+                                })}
                             </tr>
-                        ))}
-                        </thead>
-                        <tbody {...tableInstance.getTableBodyProps()}>
-                        {tableInstance.page.map(row => {
-                            tableInstance.prepareRow(row)
-                            return (
-                                <tr {...row.getRowProps()}>
-                                    {row.cells.map(cell => {
-                                        return (
-                                            <td {...cell.getCellProps([getRowStyle(row.index, cell.column.isDimension)])}>
-                                                {cell.render('Cell')}
-                                            </td>
-                                        )
-                                    })}
-                                </tr>
-                            )
-                        })}
-                        </tbody>
-                    </HTMLTable>
+                        )
+                    })}
+                    </tbody>
+                </HTMLTable>
+                {isDataLoading && (
+                    <React.Fragment>
+                        <div style={{paddingTop: '20px'}} />
+                        <NonIdealState
+                            title='Loading results'
+                            icon={<Spinner/>}
+                        />
+                    </React.Fragment>
+                )}
+            </div>
+            <div style={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingTop: '10px',
+                    }}>
+                    <div>
+                        {tableInstance.rows.length > 0
+                            ? <CSVLink role='button' tabIndex={0} className="bp3-button" data={tableInstance.rows.map(row => row.values)} filename='lightdash-export.csv' target='_blank'><Icon icon={"export"} /><span>Export CSV</span></CSVLink>
+                            : null
+                        }
+                    </div>
                     {tableInstance.pageCount > 1 && (
                         <div style={{
                             display: 'flex',
@@ -342,15 +365,6 @@ const ExploreTable = ({tableInstance, isDataLoading}: ExploreTableProps) => {
                         </div>
                     )}
                 </div>
-            </div>
-            {isDataLoading && (
-                <div style={{height: '100%', paddingTop: '20px', flexDirection: 'column', justifyContent: 'center'}}>
-                    <NonIdealState
-                        title='Loading results'
-                        icon={<Spinner/>}
-                    />
-                </div>
-            )}
         </div>
     )
 }
