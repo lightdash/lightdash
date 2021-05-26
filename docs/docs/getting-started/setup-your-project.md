@@ -18,7 +18,7 @@ Once you've built and launched your lightdash project by running either `docker 
 
 ![screenshot-tables-view](assets/screenshot-tables-view.png)
 
-If you click on any of the models within your lightdash project, you'll see the dimensions and measures for that model listed on the left side.
+If you click on any of the models within your lightdash project, you'll see the dimensions and metrics for that model listed on the left side.
 
 The dimensions you see in lightdash are the columns that you've defined in your model's dbt YAML file. If you include descriptions for your columns, these will be pulled into lightdash automatically!
 
@@ -58,7 +58,7 @@ models:
     columns:
       - name: user_id # dimension name of your metric
         meta:
-          measures:
+          metrics:
             num_unique_user_ids: # name of your metric
               type: count_distinct # metric type
             num_user_ids:
@@ -98,7 +98,7 @@ models:
     columns:
 ```
 
-Once you've added a join, you can refresh lightdash to see your changes in action. The dimensions and measures of the joined model are included in the list on the left, right below the original model:
+Once you've added a join, you can refresh lightdash to see your changes in action. The dimensions and metrics of the joined model are included in the list on the left, right below the original model:
 
 ![screenshot-joined-tables](assets/screenshot-joined-tables.png)
 

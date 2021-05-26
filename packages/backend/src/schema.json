@@ -27,7 +27,7 @@
         }
       }
     },
-    "LightdashMeasure": {
+    "LightdashMetric": {
       "type": "object",
       "required": ["type"],
       "properties": {
@@ -57,10 +57,10 @@
         "dimension": {
           "$ref": "#/definitions/LightdashDimension"
         },
-        "measures": {
+        "metrics": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/definitions/LightdashMeasure"
+            "$ref": "#/definitions/LightdashMetric"
           },
           "default": {}
         }

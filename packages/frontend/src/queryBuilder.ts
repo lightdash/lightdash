@@ -6,7 +6,7 @@ import {
     ExploreJoin,
     fieldId,
     FilterGroupOperator,
-    Measure,
+    Metric,
     MetricQuery, StringFilter, StringDimension, NumberDimension, NumberFilter,
 } from "common";
 
@@ -31,7 +31,7 @@ const renderDimensionReference = (ref: string, explore: Explore, currentTable: s
     return `(${renderDimensionSql(dimension, explore)})`
 }
 
-const renderMeasureReference = (ref: string, explore: Explore, currentTable: string): string => {
+const renderMetricReference = (ref: string, explore: Explore, currentTable: string): string => {
     // Reference to current table
     if (ref === 'TABLE') {
         return currentTable
@@ -39,21 +39,21 @@ const renderMeasureReference = (ref: string, explore: Explore, currentTable: str
     // Reference to another dimension
     const split = ref.split('.')
     if (split.length > 2) {
-        throw new Error(`Model ${currentTable} has an illegal measure reference: \${${ref}}`)
+        throw new Error(`Model ${currentTable} has an illegal metric reference: \${${ref}}`)
     }
     const refTable = split.length === 1 ? currentTable : split[0]
     const refName = split.length === 1 ? split[0] : split[1]
-    const measure = explore.tables[refTable]?.measures[refName]
-    if (measure === undefined)
-        throw Error(`Model ${currentTable} has a measure reference: \${${ref}} which matches no measure`)
-    return `(${renderMeasureSql(measure, explore)})`
+    const metric = explore.tables[refTable]?.metrics[refName]
+    if (metric === undefined)
+        throw Error(`Model ${currentTable} has a metric reference: \${${ref}} which matches no metric`)
+    return `(${renderMetricSql(metric, explore)})`
 }
 
-const renderMeasureSql = (measure: Measure, explore: Explore): string => {
-    // Measure might have references to other dimensions
-    const renderedSql = measure.sql.replace(lightdashVariablePattern, (_, p1) => renderDimensionReference(p1, explore, measure.table))
-    const measureType = measure.type
-    switch(measureType) {
+const renderMetricSql = (metric: Metric, explore: Explore): string => {
+    // Metric might have references to other dimensions
+    const renderedSql = metric.sql.replace(lightdashVariablePattern, (_, p1) => renderDimensionReference(p1, explore, metric.table))
+    const metricType = metric.type
+    switch(metricType) {
         case "average": return `AVG(${renderedSql})`
         case "count":   return `COUNT(${renderedSql})`
         case "count_distinct": return `COUNT(DISTINCT ${renderedSql})`
@@ -61,8 +61,8 @@ const renderMeasureSql = (measure: Measure, explore: Explore): string => {
         case "min": return `MIN(${renderedSql})`
         case "sum": return `SUM(${renderedSql})`
         default:
-            const nope: never = measureType
-            throw Error(`No SQL render function implemented for measure with type ${measure.type}`)
+            const nope: never = metricType
+            throw Error(`No SQL render function implemented for metric with type ${metric.type}`)
     }
 }
 
@@ -135,7 +135,7 @@ const renderFilterGroupSql = (filterGroup: FilterGroup, explore: Explore): strin
 }
 
 
-export const buildQuery = ({ explore, dimensions, measures, filters, sorts, limit }: MetricQuery) => {
+export const buildQuery = ({ explore, dimensions, metrics, filters, sorts, limit }: MetricQuery) => {
     const baseTable = explore.tables[explore.baseTable].sqlTable
     const sqlFrom = `FROM ${baseTable} AS ${explore.baseTable}`
     const q = baseTable.slice(0, 1)  // quote char
@@ -152,13 +152,13 @@ export const buildQuery = ({ explore, dimensions, measures, filters, sorts, limi
         return `  ${renderDimensionSql(dimension, explore)} AS ${q}${alias}${q}`
     })
 
-    const measureSelects = measures.map(field => {
-        const measure = explore.tables[field.table].measures[field.name]
+    const metricSelects = metrics.map(field => {
+        const metric = explore.tables[field.table].metrics[field.name]
         const alias = fieldId(field)
-        return `  ${renderMeasureSql(measure, explore)} AS ${q}${alias}${q}`
+        return `  ${renderMetricSql(metric, explore)} AS ${q}${alias}${q}`
     })
 
-    const sqlSelect = `SELECT\n${[...dimensionSelects, ...measureSelects].join(',\n')}`
+    const sqlSelect = `SELECT\n${[...dimensionSelects, ...metricSelects].join(',\n')}`
     const sqlGroupBy = dimensionSelects.length > 0 ? `GROUP BY ${dimensionSelects.map((val, i) => i+1).join(',')}`: ''
 
     const fieldOrders = sorts.map(sort => `${fieldId(sort.field)}${sort.direction === Direction.descending ? ' DESC' : ''}`)

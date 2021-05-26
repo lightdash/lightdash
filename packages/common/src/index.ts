@@ -14,8 +14,8 @@ export type Table = {
     name: string,                                 // Must be sql friendly (a-Z, 0-9, _)
     description?: string,                         // Optional description of table
     sqlTable: string,                             // The sql identifier for the table
-    dimensions: {[fieldName: string]: Dimension}, // Field names must be unique across dims and measures
-    measures: {[fieldName: string]: Measure},     //
+    dimensions: {[fieldName: string]: Dimension}, // Field names must be unique across dims and metrics
+    metrics: {[fieldName: string]: Metric},     //
 }
 
 // Helper function to get a list of all dimensions in an explore
@@ -23,17 +23,17 @@ export const getDimensions = (explore: Explore) => (
     Object.values(explore.tables).flatMap(t => Object.values(t.dimensions))
 )
 
-// Helper function to get a list of all measures in an explore
-export const getMeasures = (explore: Explore) => (
-    Object.values(explore.tables).flatMap(t => Object.values(t.measures))
+// Helper function to get a list of all metrics in an explore
+export const getMetrics = (explore: Explore) => (
+    Object.values(explore.tables).flatMap(t => Object.values(t.metrics))
 )
 
-export const getFields = (explore: Explore): Field[] => [...getDimensions(explore), ...getMeasures(explore)]
+export const getFields = (explore: Explore): Field[] => [...getDimensions(explore), ...getMetrics(explore)]
 
-// Every dimension and measure is a field
+// Every dimension and metric is a field
 export type Field =
     | Dimension
-    | Measure
+    | Metric
 
 // Dimensions can have different types (UI behaviour and filter options)
 export type StringDimension = {
@@ -91,7 +91,7 @@ export const isDimension = (field: Field) => {
         case "date": return true
         case "timestamp": return true
 
-        // Measures
+        // Metrics
         case "average": return false
         case "sum": return false
         case "min": return false
@@ -109,64 +109,64 @@ export const isDimension = (field: Field) => {
 export type FieldId = string
 export const fieldId = (field: Field): FieldId => `${field.table}_${field.name}`
 
-// Measures
-export type AverageMeasure = {
+// Metrics
+export type AverageMetric = {
     type: 'average',
     name: string,
     table: string,
     sql: string
     description?: string
 }
-export type CountMeasure = {
+export type CountMetric = {
     type: 'count',
     name: string,
     table: string,
     sql: string
     description?: string
 }
-export type CountDistinctMeasure = {
+export type CountDistinctMetric = {
     type: 'count_distinct',
     name: string,
     table: string,
     sql: string
     description?: string
 }
-export type SumMeasure = {
+export type SumMetric = {
     type: 'sum',
     name: string,
     table: string,
     sql: string
     description?: string
 }
-export type MinMeasure = {
+export type MinMetric = {
     type: 'min',
     name: string,
     table: string,
     sql: string
     description?: string
 }
-export type MaxMeasure = {
+export type MaxMetric = {
     type: 'max',
     name: string,
     table: string,
     sql: string
     description?: string
 }
-export type Measure =
-    | AverageMeasure
-    | CountMeasure
-    | CountDistinctMeasure
-    | SumMeasure
-    | MinMeasure
-    | MaxMeasure
+export type Metric =
+    | AverageMetric
+    | CountMetric
+    | CountDistinctMetric
+    | SumMetric
+    | MinMetric
+    | MaxMetric
 
-export type MeasureType = Measure["type"]
+export type MetricType = Metric["type"]
 
 // Object used to query an explore
 export type MetricQuery = {
     explore: Explore              // Queries only happen within a single explore
     dimensions: Dimension[],      // Dimensions to group by in the explore
-    measures: Measure[],          // Measures to compute in the explore
+    metrics: Metric[],          // Metrics to compute in the explore
     filters: FilterGroup[],       // Filters applied to the table to query (logical AND)
     sorts: SortField[],           // Sorts for the data
     limit: number,                // Max number of rows to return from query
@@ -188,7 +188,7 @@ export enum FilterGroupOperator {
     or = 'or',
 }
 
-// Filter groups combine multiple filters for a single dimension or measure
+// Filter groups combine multiple filters for a single dimension or metric
 // The filters in a filter group can be combined with AND/OR
 // Filters vary depending on the dimension type
 export type StringFilterGroup = {

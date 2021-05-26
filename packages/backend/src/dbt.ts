@@ -4,8 +4,8 @@ import {
     DimensionType,
     Explore, friendlyName,
     mapColumnTypeToLightdashType,
-    Measure,
-    MeasureType,
+    Metric,
+    MetricType,
     Table,
 } from "common";
 import fetch from 'node-fetch'
@@ -57,7 +57,7 @@ type DbtModelJoin = {
 type DbtColumnMetadata = DbtColumnLightdashConfig & {}
 type DbtColumnLightdashConfig = {
     dimension?: DbtColumnLightdashDimension,
-    measures?: {[measureName: string]: DbtColumnLightdashMeasure}
+    metrics?: {[metricName: string]: DbtColumnLightdashMetric}
 }
 
 type DbtColumnLightdashDimension = {
@@ -67,8 +67,8 @@ type DbtColumnLightdashDimension = {
     sql?: string,
 }
 
-type DbtColumnLightdashMeasure = {
-    type: MeasureType,
+type DbtColumnLightdashMetric = {
+    type: MetricType,
     description?: string,
     sql?: string,
 }
@@ -88,8 +88,8 @@ const convertDimension = (modelName: string, column: DbtModelColumn): Dimension 
     }
 }
 
-const convertMeasures = (modelName: string, column: DbtModelColumn): Measure[] => {
-    return Object.entries(column.meta.measures || {}).map(([name, m]) => ({
+const convertMetrics = (modelName: string, column: DbtModelColumn): Metric[] => {
+    return Object.entries(column.meta.metrics || {}).map(([name, m]) => ({
         name: name,
         sql: m.sql || `\$\{TABLE\}.${column.name}`,
         table: modelName,
@@ -104,7 +104,7 @@ const convertTables = (model: DbtModelNode): Table => {
         sqlTable: model.relation_name,
         description: model.description || `${model.name} table`,
         dimensions: Object.fromEntries(Object.values(model.columns).map(col => convertDimension(model.name, col)).map(d => [d.name, d])),
-        measures: Object.fromEntries(Object.values(model.columns).map(col => convertMeasures(model.name, col)).flatMap(ms => ms.map(m => [m.name, m]))),
+        metrics: Object.fromEntries(Object.values(model.columns).map(col => convertMetrics(model.name, col)).flatMap(ms => ms.map(m => [m.name, m]))),
     }
 }
 
