@@ -30,6 +30,7 @@ import {FiltersForm} from "./filters/FiltersForm";
 import EChartsReact from "echarts-for-react";
 import { ButtonGroup } from "@blueprintjs/core";
 import useActiveFields from "./hooks/useActiveFields";
+import {useParams} from "react-router-dom";
 
 const hexToRGB = (hex: string, alpha: number) => {
     const h = parseInt('0x' + hex.substring(1))
@@ -230,6 +231,7 @@ type ExploreTableProps = {
     isDataLoading: boolean,
 }
 const ExploreTable = ({tableInstance, isDataLoading}: ExploreTableProps) => {
+    const params = useParams<{ tableId: string | undefined }>()
 
     const getColumnStyle = (isDimension: boolean) => {
         return {
@@ -343,7 +345,16 @@ const ExploreTable = ({tableInstance, isDataLoading}: ExploreTableProps) => {
                     }}>
                     <div>
                         {tableInstance.rows.length > 0
-                            ? <CSVLink role='button' tabIndex={0} className="bp3-button" data={tableInstance.rows.map(row => row.values)} filename='lightdash-export.csv' target='_blank'><Icon icon={"export"} /><span>Export CSV</span></CSVLink>
+                            ? <CSVLink
+                                role='button'
+                                tabIndex={0}
+                                className="bp3-button"
+                                data={tableInstance.rows.map(row => row.values)}
+                                filename={`lightdash-${params.tableId || 'export'}-${(new Date()).toISOString().slice(0, 10)}.csv`}
+                                target='_blank'
+                            >
+                                <Icon icon={"export"} /><span>Export CSV</span>
+                            </CSVLink>
                             : null
                         }
                     </div>
