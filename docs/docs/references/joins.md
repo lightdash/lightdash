@@ -32,7 +32,7 @@ models:
     columns:
       - name: user_id
         meta:
-          measures:
+          metrics:
             num_unique_user_ids:
               type: count_distinct
 ```

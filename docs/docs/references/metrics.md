@@ -19,7 +19,7 @@ models:
     columns:
       - name: user_id # dimension name of your metric
         meta:
-          measures:
+          metrics:
             num_unique_user_ids: # name of your metric
               type: count_distinct # metric type
             num_user_ids:
@@ -42,7 +42,7 @@ models:
 We add default descriptions to all of the metrics you include in your model. But, you can override these using the description parameter when you define your metric.
 
 ```
-measures:
+metrics:
   num_user_ids:
     type: count
     description: "Total number of user IDs. NOTE: this is NOT counting unique user IDs"
@@ -57,7 +57,7 @@ You can reference dimensions from the same model like this: `sql: "${dimension_i
 Or from joined models like this: `sql: "${other_model.dimension_in_other_model}"`
 
 ```
-measures:
+metrics:
   num_unique_7d_web_active_user_ids:
     type: count_distinct # metric type
     sql: "IF(${is_7d_web_active}, ${user_id}, NULL)"

@@ -1,5 +1,5 @@
 import React, {Component} from "react";
-import {Explore, Field, fieldId, friendlyName, getDimensions, getFields, getMeasures, isDimension, Table} from "common";
+import {Explore, Field, fieldId, friendlyName, getDimensions, getFields, getMetrics, isDimension, Table} from "common";
 import {Button, Classes, Colors, Icon, InputGroup, Intent, ITreeNode, Tree} from "@blueprintjs/core";
 import {Tooltip2} from "@blueprintjs/popover2";
 import Fuse from 'fuse.js';
@@ -38,7 +38,7 @@ export class SideTree extends Component<SideTreeProps, SideTreeState> {
             const ds = fields.filter(field => (field.table === tableName) && (isDimension(field)))
             return {
                 name: tableName,
-                measures: ms,
+                metrics: ms,
                 dimensions: ds,
             }
         })
@@ -51,21 +51,21 @@ export class SideTree extends Component<SideTreeProps, SideTreeState> {
             childNodes: [
                 {
                     key: "Metrics",
-                    id: "measures",
+                    id: "metrics",
                     label: (<span style={{color: Colors.ORANGE1}}><strong>Metrics</strong></span>),
                     icon: (
                         <Icon icon="numerical" intent={Intent.WARNING} className={Classes.TREE_NODE_ICON}/>
                     ),
                     isExpanded: true,
                     hasCaret: false,
-                    childNodes: table.measures.map(measure => ({
-                        key: measure.name,
-                        id: measure.name,
-                        label: friendlyName(measure.name),
-                        nodeData: {relation: measure.table},
-                        isSelected: this.props.selectedNodes.has(fieldId(measure)),
-                        secondaryLabel: measure.description ? (
-                            <Tooltip2 content={measure.description}>
+                    childNodes: table.metrics.map(metric => ({
+                        key: metric.name,
+                        id: metric.name,
+                        label: friendlyName(metric.name),
+                        nodeData: {relation: metric.table},
+                        isSelected: this.props.selectedNodes.has(fieldId(metric)),
+                        secondaryLabel: metric.description ? (
+                            <Tooltip2 content={metric.description}>
                                 <Icon icon="info-sign" iconSize={12}/>
                             </Tooltip2>
                         ) : null

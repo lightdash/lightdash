@@ -1,4 +1,4 @@
-import {Dimension, Explore, fieldId, friendlyName, getDimensions, getMeasures} from "common";
+import {Dimension, Explore, fieldId, friendlyName, getDimensions, getMetrics} from "common";
 import React from "react";
 import useActiveFields from "./hooks/useActiveFields";
 
@@ -38,14 +38,14 @@ const getDimensionFormatter = (d: Dimension) => {
     }
 }
 
-const getMeasureFormatter = () => {
+const getMetricFormatter = () => {
     return formatWrapper(formatNumber)
 }
 
 export const useColumns = (activeExplore: Explore | undefined) => {
     const { activeFields } = useActiveFields()
     const dimensions = (activeExplore ? getDimensions(activeExplore) : []).filter(d => activeFields.has(fieldId(d)))
-    const measures = (activeExplore ? getMeasures(activeExplore) : []).filter(m => activeFields.has(fieldId(m)))
+    const metrics = (activeExplore ? getMetrics(activeExplore) : []).filter(m => activeFields.has(fieldId(m)))
     const dimColumns = dimensions.map( dim => ({
         Header: <span>{friendlyName(dim.table)} <b>{friendlyName(dim.name)}</b></span>,
         accessor: fieldId(dim),
@@ -53,11 +53,11 @@ export const useColumns = (activeExplore: Explore | undefined) => {
         isDimension: true,
         dimensionType: dim.type,
     }))
-    const measureColumns = measures.map(m => ({
+    const metricColumns = metrics.map(m => ({
         Header: <span>{friendlyName(m.table)} <b>{friendlyName(m.name)}</b></span>,
         accessor: fieldId(m),
-        Cell: getMeasureFormatter(),
+        Cell: getMetricFormatter(),
         isDimension: false,
     }))
-    return [...dimColumns, ...measureColumns]
+    return [...dimColumns, ...metricColumns]
 }

@@ -27,14 +27,14 @@ models:
           - unique
           - not_null
 
-        # We add measures in lightdash in a `meta` block within the column definition.
-        # A single column can have multiple measures.
+        # We add metrics in lightdash in a `meta` block within the column definition.
+        # A single column can have multiple metrics.
         meta:
-          measures:
-            - name: num_unique_users # this is the name of the measure.
+          metrics:
+            - name: num_unique_users # this is the name of the metric.
               type: count_distinct # this is the type of calculation that's being done
             - name: num_unique_7d_active_users
-              description: "Unique number of users that have had at least one web session in the past 7 days." # measures have default descriptions that are added to lightdash. But, you can override these with your own descriptions if you want!
+              description: "Unique number of users that have had at least one web session in the past 7 days." # metrics have default descriptions that are added to lightdash. But, you can override these with your own descriptions if you want!
               type: count_distinct
       - name: user_activated_date
         description: "Date ('yyyy-mm-dd') when the user ID was first recorded."
@@ -45,7 +45,7 @@ models:
       - name: num_web_sessions_prev_7d
         description: 'Total number of web sessions the user has had in the past 7 days'
         meta:
-          measures:
+          metrics:
             - name: total_num_web_sessions_prev_7d
               type: sum
       - name: num_web_sessions_prev_30d
