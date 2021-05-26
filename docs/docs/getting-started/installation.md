@@ -6,10 +6,10 @@ sidebar_position: 1
 
 ## Quickstart with docker
 
-The fastest way to get started is to use (Docker)[https://docs.docker.com/get-docker/].
+The fastest way to get started is to use [Docker](https://docs.docker.com/get-docker/).
 
 ### Install Docker
-You can install docker (here)[https://docs.docker.com/get-docker/].
+You can install docker [here](https://docs.docker.com/get-docker/).
 
 Once you've installed Docker, make sure to open the app so that it's running in the background.
 

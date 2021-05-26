@@ -8,7 +8,7 @@ In this guide you'll setup lightdash with some fictional data. You don't need an
 
 ## 1. Install docker
 
-Head over to the (Docker docs)[https://docs.docker.com/get-docker/] and install the latest version of docker.
+Head over to the [Docker docs](https://docs.docker.com/get-docker/) and install the latest version of docker.
 
 ## 2. Clone lightdash
 
