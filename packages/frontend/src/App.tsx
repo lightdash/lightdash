@@ -35,7 +35,7 @@ const ExploreSideBarProps = ({explores, isLoading, activeExplore}: ExploreSideBa
     const history = useHistory()
     const { activeFields, toggleActiveField } = useActiveFields()
     const BasePanel = () => {
-        if (isLoading) {
+        if ((explores.length === 0) && isLoading) {
             return <Menu large={true}>
                 {[0, 1, 2, 3, 4].map(idx => (
                     <React.Fragment key={idx}>
@@ -68,7 +68,17 @@ const ExploreSideBarProps = ({explores, isLoading, activeExplore}: ExploreSideBa
                             <MenuItem
                                 icon={'database'}
                                 text={friendlyName(explore.name)}
-                                onClick={() => history.push(`/tables/${explore.name}`)}
+                                onClick={() => {
+                                    const state = (history.location.state || {}) as {prevTable?: string, prevFields?: Set<string>}
+                                    history.push(
+                                        {
+                                            pathname: `/tables/${explore.name}`,
+                                            search: explore.name === state.prevTable
+                                                ? new URLSearchParams({fields: Array.from(state.prevFields || new Set()).join(',')}).toString()
+                                                : '',
+                                        },
+                                    )
+                                }}
                             />
                             <MenuDivider/>
                         </React.Fragment>
@@ -78,6 +88,7 @@ const ExploreSideBarProps = ({explores, isLoading, activeExplore}: ExploreSideBa
         )
     }
     const ExplorePanel = () => {
+        const { activeFields } = useActiveFields()
         if (!activeExplore)
             return null
         const fields = getFields(activeExplore)
@@ -85,7 +96,13 @@ const ExploreSideBarProps = ({explores, isLoading, activeExplore}: ExploreSideBa
         return (
             <div style={{height: '100%', overflow: 'hidden'}}>
                 <div style={{paddingBottom: '10px', display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center'}}>
-                    <Button onClick={() => history.push('/')} icon='chevron-left' />
+                    <Button onClick={() => history.push({
+                        pathname: '/',
+                        state: {
+                            prevTable: activeExplore.name,
+                            prevFields: activeFields,
+                        }
+                    })} icon='chevron-left' />
                     <H3 style={{marginBottom: 0, marginLeft: '10px'}}>{friendlyName(activeExplore.name)}</H3>
                 </div>
                 <Code>
