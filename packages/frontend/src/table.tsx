@@ -1,6 +1,8 @@
 import {Dimension, Explore, fieldId, friendlyName, getDimensions, getMetrics} from "common";
 import React from "react";
 import useActiveFields from "./hooks/useActiveFields";
+import {useExplores} from "./hooks/useExplores";
+import {useExploreConfig} from "./hooks/useExploreConfig";
 
 const formatDate = (date: string | Date) => new Date(date).toISOString().slice(0, 10)
 const formatTimestamp = (datetime: string | Date) => new Date(datetime).toISOString()
@@ -42,8 +44,10 @@ const getMetricFormatter = () => {
     return formatWrapper(formatNumber)
 }
 
-export const useColumns = (activeExplore: Explore | undefined) => {
-    const { activeFields } = useActiveFields()
+export const useColumns = () => {
+    const exploresResults = useExplores()
+    const { activeFields, activeTableName } = useExploreConfig()
+    const activeExplore = (exploresResults.data || []).find(e => e.name === activeTableName)
     const dimensions = (activeExplore ? getDimensions(activeExplore) : []).filter(d => activeFields.has(fieldId(d)))
     const metrics = (activeExplore ? getMetrics(activeExplore) : []).filter(m => activeFields.has(fieldId(m)))
     const dimColumns = dimensions.map( dim => ({
