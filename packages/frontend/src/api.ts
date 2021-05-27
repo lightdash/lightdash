@@ -1,10 +1,10 @@
-import {ApiError, ApiExploresResults, ApiQueryResults} from "common";
+import {ApiError, ApiExploresResults, ApiQueryResults, Explore} from "common";
 
 const headers = {
     'Content-Type': 'application/json'
 }
 
-const handleErrors = (err: any): ApiError => {
+const handleError = (err: any): ApiError => {
     if (err.error?.statusCode && err.error?.name)
         return err
     return {
@@ -18,7 +18,7 @@ const handleErrors = (err: any): ApiError => {
     }
 }
 
-export const getExplores = async (refresh: boolean): Promise<ApiExploresResults> => {
+export const getExplores = async (refresh: boolean): Promise<Explore[]> => {
     const url = refresh ? '/explores?refresh=true' : '/explores'
     return fetch(url, {method: 'GET', headers})
         .then(r => {
@@ -27,7 +27,14 @@ export const getExplores = async (refresh: boolean): Promise<ApiExploresResults>
             return r
         })
         .then(r => r.json())
-        .catch(handleErrors)
+        .then((d: ApiExploresResults) => {
+            switch (d.status) {
+                case "ok": return d.results
+                case "error": throw d
+                default: throw d
+            }
+        })
+        .catch(err => {throw(handleError(err))})
 }
 
 export const runQuery = async (query: string): Promise<ApiQueryResults> => {
@@ -40,5 +47,5 @@ export const runQuery = async (query: string): Promise<ApiQueryResults> => {
             return r
         })
         .then(r => r.json())
-        .catch(handleErrors)
+        .catch(handleError)
 }

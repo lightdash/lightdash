@@ -29,8 +29,9 @@ import {
 import {FiltersForm} from "./filters/FiltersForm";
 import EChartsReact from "echarts-for-react";
 import { ButtonGroup } from "@blueprintjs/core";
-import useActiveFields from "./hooks/useActiveFields";
 import {useParams} from "react-router-dom";
+import {useExploreConfig} from "./hooks/useExploreConfig";
+import {useExplores} from "./hooks/useExplores";
 
 const hexToRGB = (hex: string, alpha: number) => {
     const h = parseInt('0x' + hex.substring(1))
@@ -40,7 +41,6 @@ const hexToRGB = (hex: string, alpha: number) => {
     return `rgb(${r}, ${g}, ${b}, ${alpha})`
 }
 type ExplorerProps = {
-    activeExplore: Explore | undefined,
     activeFilters: FilterGroup[],
     onChangeActiveFilters: (filters: FilterGroup[]) => void,
     columns: any,
@@ -49,11 +49,8 @@ type ExplorerProps = {
     tableData: { [columnName: string]: any }[],
     onChangeTableData: (data: { [columnName: string]: any }[]) => void,
     onError: ({title, text}: {title: string, text: string}) => void,
-    isExploresRefreshing: boolean,
-    onRefreshExplores: () => void,
 }
 export const Explorer = ({
-     activeExplore,
      activeFilters,
      onChangeActiveFilters,
      columns,
@@ -62,10 +59,10 @@ export const Explorer = ({
      tableData,
      onChangeTableData,
      onError,
-    isExploresRefreshing,
-    onRefreshExplores,
     }: ExplorerProps) => {
-    const { activeFields } = useActiveFields()
+    const { activeFields, activeTableName } = useExploreConfig()
+    const exploresResults = useExplores()
+    const activeExplore = (exploresResults.data || []).find(e => e.name === activeTableName)
     const activeDimensions = (activeExplore ? getDimensions(activeExplore) : []).filter(d => activeFields.has(fieldId(d)))
     const activeMetrics = (activeExplore ? getMetrics(activeExplore) : []).filter(m => activeFields.has(fieldId(m)))
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false)
@@ -141,9 +138,9 @@ export const Explorer = ({
             <div style={{display: "flex", flexDirection: "row", justifyContent: "flex-end"}}>
                 <Button intent={"primary"} style={{height: '40px', width: 150, marginRight: '10px'}} onClick={runSql}
                         disabled={[...activeMetrics, ...activeDimensions].length === 0}>Run query</Button>
-                { isExploresRefreshing
+                { exploresResults.isFetching
                     ? <Button disabled={true}><div style={{display: 'flex', flexDirection: 'row'}}><Spinner size={15}/><div style={{paddingRight: '5px'}} />Refreshing dbt</div></Button>
-                    : <Button icon={'refresh'} onClick={onRefreshExplores}></Button>
+                    : <Button icon={'refresh'} onClick={exploresResults.refresh}></Button>
                 }
 
             </div>
