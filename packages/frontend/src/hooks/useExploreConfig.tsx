@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {useHistory, useLocation, useParams} from "react-router-dom";
 import {SortField} from "common";
 
@@ -147,7 +147,7 @@ export const useExploreConfig = () => {
         setSidebarPanel,
         sortFields,
         setSortFields,
-        tableData,
+        tableData: useMemo(() => tableData, [tableData]),
         setTableData,
         isTableDataLoading,
         setIsTableDataLoading,

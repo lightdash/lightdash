@@ -29,9 +29,9 @@ import {
 import {FiltersForm} from "./filters/FiltersForm";
 import EChartsReact from "echarts-for-react";
 import { ButtonGroup } from "@blueprintjs/core";
-import {useParams} from "react-router-dom";
 import {useExploreConfig} from "./hooks/useExploreConfig";
 import {useExplores} from "./hooks/useExplores";
+import {useColumns} from "./table";
 
 const hexToRGB = (hex: string, alpha: number) => {
     const h = parseInt('0x' + hex.substring(1))
@@ -43,13 +43,11 @@ const hexToRGB = (hex: string, alpha: number) => {
 type ExplorerProps = {
     activeFilters: FilterGroup[],
     onChangeActiveFilters: (filters: FilterGroup[]) => void,
-    columns: any,
     onError: ({title, text}: {title: string, text: string}) => void,
 }
 export const Explorer = ({
      activeFilters,
      onChangeActiveFilters,
-     columns,
      onError,
     }: ExplorerProps) => {
     const { activeFields, activeTableName, tableData, setTableData, isTableDataLoading, setIsTableDataLoading } = useExploreConfig()
@@ -66,34 +64,22 @@ export const Explorer = ({
     const [resultsRowLimit, setResultsRowLimit] = useState<number>(500)
     const [activeVizTab, setActiveVizTab] = useState<ChartType>('column')
 
-    // Everything we need to build the table later
-    const tableInstance = useTable({
-        columns,
-        data: tableData,
-        manualSortBy: true,
-        autoResetSortBy: false,
-        initialState: {
-            pageIndex: 0,
-            pageSize: 25,
-        }
-    }, useSortBy, usePagination)
-
     // Reset sorts if columns change - note triggers rerender of this component
-    useEffect(() => {
-        const sbIsExpired = tableInstance.state.sortBy.map(sb => fieldLookup[sb.id] === undefined).reduce((a, b) => a || b, false)
-        if (sbIsExpired) {
-            tableInstance.setSortBy([])
-        }
-    }, [columns, fieldLookup, tableInstance])
+    // useEffect(() => {
+    //     const sbIsExpired = tableInstance.state.sortBy.map(sb => fieldLookup[sb.id] === undefined).reduce((a, b) => a || b, false)
+    //     if (sbIsExpired) {
+    //         tableInstance.setSortBy([])
+    //     }
+    // }, [columns, fieldLookup, tableInstance])
 
     // RACE CONDITION
     // The currently sorted fields (controlled by table)
     // Table sorts can be out of sync with active explore etc.
     // WHY?
-    const activeSorts = tableInstance.state.sortBy.filter(sb => fieldLookup[sb.id]).map(sb => ({
-        field: fieldLookup[sb.id],
-        direction: sb.desc ? Direction.descending : Direction.ascending
-    })) as SortField[]
+    // const activeSorts = tableInstance.state.sortBy.filter(sb => fieldLookup[sb.id]).map(sb => ({
+    //     field: fieldLookup[sb.id],
+    //     direction: sb.desc ? Direction.descending : Direction.ascending
+    // })) as SortField[]
 
     // This breaks everything
     // setSortFields(activeSorts)
@@ -111,7 +97,7 @@ export const Explorer = ({
                     dimensions: activeDimensions,
                     metrics: activeMetrics,
                     filters: activeFilters,
-                    sorts: activeSorts,
+                    sorts: [],
                     limit: resultsRowLimit,
                 })
                 runQuery(query)
@@ -182,7 +168,7 @@ export const Explorer = ({
                     {resultsIsOpen && <FormGroup style={{marginRight: 12}} label="Total rows:" inline={true}><NumericInput style={{width: 100}} buttonPosition={'none'} value={resultsRowLimit} onValueChange={setResultsRowLimit}/></FormGroup>}
                 </div>
                 <Collapse isOpen={resultsIsOpen}>
-                    <ExploreTable tableInstance={tableInstance} isDataLoading={isTableDataLoading}/>
+                    <ExploreTable />
                 </Collapse>
             </Card>
             <div style={{paddingTop: '10px'}} />
@@ -193,7 +179,7 @@ export const Explorer = ({
                 </div>
                 <Collapse isOpen={sqlIsOpen}>
                     <RenderedSql explore={activeExplore} metrics={activeMetrics} dimensions={activeDimensions}
-                                 sorts={activeSorts} filters={activeFilters} limit={resultsRowLimit}/>
+                                 sorts={[]} filters={activeFilters} limit={resultsRowLimit}/>
                 </Collapse>
             </Card>
         </React.Fragment>
@@ -218,12 +204,20 @@ const RenderedSql = ({explore, metrics, dimensions, sorts, filters, limit}: Rend
         limit: limit
     }) : ''}</Code></Pre>
 )
-type ExploreTableProps = {
-    tableInstance: TableInstance,
-    isDataLoading: boolean,
-}
-const ExploreTable = ({tableInstance, isDataLoading}: ExploreTableProps) => {
-    const params = useParams<{ tableId: string | undefined }>()
+
+const ExploreTable = () => {
+    const columns = useColumns()
+    const { tableData, isTableDataLoading, activeTableName } = useExploreConfig()
+    const tableInstance = useTable({
+        columns: columns,
+        data: tableData,
+        manualSortBy: true,
+        autoResetSortBy: false,
+        initialState: {
+            pageIndex: 0,
+            pageSize: 25,
+        }
+    }, useSortBy, usePagination)
 
     const getColumnStyle = (isDimension: boolean) => {
         return {
@@ -318,7 +312,7 @@ const ExploreTable = ({tableInstance, isDataLoading}: ExploreTableProps) => {
                     })}
                     </tbody>
                 </HTMLTable>
-                {isDataLoading && (
+                {isTableDataLoading && (
                     <React.Fragment>
                         <div style={{paddingTop: '20px'}} />
                         <NonIdealState
@@ -342,7 +336,7 @@ const ExploreTable = ({tableInstance, isDataLoading}: ExploreTableProps) => {
                                 tabIndex={0}
                                 className="bp3-button"
                                 data={tableInstance.rows.map(row => row.values)}
-                                filename={`lightdash-${params.tableId || 'export'}-${(new Date()).toISOString().slice(0, 10)}.csv`}
+                                filename={`lightdash-${activeTableName || 'export'}-${(new Date()).toISOString().slice(0, 10)}.csv`}
                                 target='_blank'
                             >
                                 <Icon icon={"export"} /><span>Export CSV</span>
