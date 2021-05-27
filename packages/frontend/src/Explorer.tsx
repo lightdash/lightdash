@@ -44,23 +44,15 @@ type ExplorerProps = {
     activeFilters: FilterGroup[],
     onChangeActiveFilters: (filters: FilterGroup[]) => void,
     columns: any,
-    isTableLoading: boolean,
-    onChangeTableLoading: (loading: boolean) => void,
-    tableData: { [columnName: string]: any }[],
-    onChangeTableData: (data: { [columnName: string]: any }[]) => void,
     onError: ({title, text}: {title: string, text: string}) => void,
 }
 export const Explorer = ({
      activeFilters,
      onChangeActiveFilters,
      columns,
-     isTableLoading,
-     onChangeTableLoading,
-     tableData,
-     onChangeTableData,
      onError,
     }: ExplorerProps) => {
-    const { activeFields, activeTableName } = useExploreConfig()
+    const { activeFields, activeTableName, tableData, setTableData, isTableDataLoading, setIsTableDataLoading } = useExploreConfig()
     const exploresResults = useExplores()
     const activeExplore = (exploresResults.data || []).find(e => e.name === activeTableName)
     const activeDimensions = (activeExplore ? getDimensions(activeExplore) : []).filter(d => activeFields.has(fieldId(d)))
@@ -103,10 +95,13 @@ export const Explorer = ({
         direction: sb.desc ? Direction.descending : Direction.ascending
     })) as SortField[]
 
+    // This breaks everything
+    // setSortFields(activeSorts)
+
     const runSql = () => {
-        onChangeTableLoading(true)
+        setIsTableDataLoading(true)
         setResultsIsOpen(true)
-        onChangeTableData([])
+        setTableData([])
         if (activeExplore) {
             // Sort by first field if not sorts
             const fields: Field[] = [...activeDimensions, ...activeMetrics]
@@ -122,12 +117,12 @@ export const Explorer = ({
                 runQuery(query)
                     .then(response => {
                         if (response.status === 'error') {
-                            onChangeTableData([])
+                            setTableData([])
                             onError({title: 'Error running SQL query', text: response.error.data.databaseResponse})
                         }
                         else
-                            onChangeTableData(response.results)
-                        onChangeTableLoading(false)
+                            setTableData(response.results)
+                        setIsTableDataLoading(false)
                     })
             }
         }
@@ -187,7 +182,7 @@ export const Explorer = ({
                     {resultsIsOpen && <FormGroup style={{marginRight: 12}} label="Total rows:" inline={true}><NumericInput style={{width: 100}} buttonPosition={'none'} value={resultsRowLimit} onValueChange={setResultsRowLimit}/></FormGroup>}
                 </div>
                 <Collapse isOpen={resultsIsOpen}>
-                    <ExploreTable tableInstance={tableInstance} isDataLoading={isTableLoading}/>
+                    <ExploreTable tableInstance={tableInstance} isDataLoading={isTableDataLoading}/>
                 </Collapse>
             </Card>
             <div style={{paddingTop: '10px'}} />
