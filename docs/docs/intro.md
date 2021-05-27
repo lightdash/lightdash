@@ -3,7 +3,7 @@ sidebar_position: 1
 slug: /
 ---
 
-# Intro
+# lightdash
 
 
 lightdash removes the gap between your data transformation layer and your data visualization layer. It enables data analysts and engineers to control all of their business intelligence (data transformations/business logic as well as data visualization) in a single place.
