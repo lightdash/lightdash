@@ -1,5 +1,5 @@
 import {Dimension, Explore, fieldId, friendlyName, getDimensions, getMetrics} from "common";
-import React from "react";
+import React, {useMemo} from "react";
 import {useExplores} from "./hooks/useExplores";
 import {useExploreConfig} from "./hooks/useExploreConfig";
 
@@ -62,5 +62,6 @@ export const useColumns = () => {
         Cell: getMetricFormatter(),
         isDimension: false,
     }))
-    return [...dimColumns, ...metricColumns]
+    const result = useMemo(() => [...dimColumns, ...metricColumns], [activeFields, activeTableName])
+    return result
 }

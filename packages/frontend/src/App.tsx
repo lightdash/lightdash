@@ -95,7 +95,6 @@ const InnerApp = () => {
                   <Explorer
                       activeFilters={activeFilters}
                       onChangeActiveFilters={setActiveFilters}
-                      columns={columns}
                       onError={setErrors}
                   />
               </div>
