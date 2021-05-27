@@ -18,22 +18,24 @@ const queryClient = new QueryClient()
 
 const App = () => {
     return (
-        <QueryClientProvider client={queryClient}>
-            <Router>
-                    <Switch>
-                        <Route path="/tables/:tableId">
-                            <ExploreConfigContext>
+        <Router>
+                <Switch>
+                    <Route path="/tables/:tableId">
+                        <ExploreConfigContext>
+                            <QueryClientProvider client={queryClient}>
                                 <InnerApp />
-                            </ExploreConfigContext>
-                        </Route>
-                        <Route path="/">
-                            <ExploreConfigContext>
+                            </QueryClientProvider>
+                        </ExploreConfigContext>
+                    </Route>
+                    <Route path="/">
+                        <ExploreConfigContext>
+                            <QueryClientProvider client={queryClient}>
                                 <InnerApp />
-                            </ExploreConfigContext>
-                        </Route>
-                    </Switch>
-            </Router>
-        </QueryClientProvider>
+                            </QueryClientProvider>
+                        </ExploreConfigContext>
+                    </Route>
+                </Switch>
+        </Router>
     )
 }
 

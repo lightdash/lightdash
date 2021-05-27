@@ -8,9 +8,8 @@ export const useExplores = () => {
     const query = useQuery<Explore[], ApiError>({
         queryKey,
         queryFn: () => getExplores(true),
-        staleTime: 120000,
+        staleTime: 5 * 60 * 1000,   // 5 mins
     })
-    // const refresh = () => queryClient.invalidateQueries(queryKey)
-    const refresh = () => {}
+    const refresh = () => queryClient.invalidateQueries(queryKey)
     return {...query, refresh }
 }

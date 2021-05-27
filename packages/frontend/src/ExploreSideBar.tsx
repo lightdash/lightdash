@@ -5,6 +5,7 @@ import {Button, Code, Divider, H3, Menu, MenuDivider, MenuItem, Text} from "@blu
 import {friendlyName, getFields} from "common";
 import Fuse from "fuse.js";
 import {SideTree} from "./SideTree";
+import { Alert } from "@blueprintjs/core";
 
 const SideBarLoadingState = () => (
     <Menu large={true}>
@@ -24,7 +25,25 @@ type BasePanelProps = {
 }
 const BasePanel = ({onExploreSelect}: BasePanelProps) => {
     const exploresResult = useExplores()
-    const {setActiveTableName} = useExploreConfig()
+    const [showChangeExploreConfirmation, setShowChangeExploreConfirmation] = useState(false)
+    const [selectedExploreName, setSelectedExploreName] = useState('')
+    const {activeTableName, setActiveTableName, activeFields, setSidebarPanel} = useExploreConfig()
+
+    const onCancelConfirmation = () => {
+        setShowChangeExploreConfirmation(false)
+        setSidebarPanel('explores')
+    }
+
+    const onSubmitConfirmation = () => {
+        setShowChangeExploreConfirmation(false)
+        setActiveTableName(selectedExploreName)
+    }
+
+    const confirm = (exploreName: string) => {
+        setSelectedExploreName(exploreName)
+        setShowChangeExploreConfirmation(true)
+    }
+
     // TODO: render error
     if (exploresResult.isLoading)
         return <SideBarLoadingState/>
@@ -53,14 +72,28 @@ const BasePanel = ({onExploreSelect}: BasePanelProps) => {
                             icon={'database'}
                             text={friendlyName(explore.name)}
                             onClick={() => {
-                                setActiveTableName(explore.name)
-                                onExploreSelect()
+                                if ((activeFields.size > 0) && (activeTableName !== explore.name))
+                                    confirm(explore.name)
+                                else {
+                                    setActiveTableName(explore.name)
+                                }
                             }}
                         />
                         <MenuDivider/>
                     </React.Fragment>
                 ))}
             </Menu>
+            <Alert
+                isOpen={showChangeExploreConfirmation}
+                onCancel={onCancelConfirmation}
+                onConfirm={() => onSubmitConfirmation()}
+                cancelButtonText={`Go back to ${activeTableName}`}
+                confirmButtonText={`Explore ${selectedExploreName}`}
+            >
+                <Text>
+                    {`Start exploring ${selectedExploreName}? You will lose your current work on ${activeTableName}.`}
+                </Text>
+            </Alert>
         </div>
     )
 }
@@ -71,6 +104,9 @@ const ExplorePanel = ({onBack}: ExplorePanelProps) => {
     const exploresResult = useExplores()
     const {activeTableName, activeFields, toggleActiveField} = useExploreConfig()
     const activeExplore = (exploresResult.data || []).find(e => e.name === activeTableName)
+    if (exploresResult.isLoading) {
+        return <SideBarLoadingState />
+    }
     if (activeExplore === undefined) {
         onBack()
         return <div/>
@@ -109,16 +145,15 @@ const ExplorePanel = ({onBack}: ExplorePanelProps) => {
     )
 }
 export const ExploreSideBar = () => {
-    const [activePanel, setActivePanel] = useState<'base' | 'explores'>('base')
-    useEffect(() => console.log(activePanel), [activePanel])
+    const { sidebarPanel, setSidebarPanel } = useExploreConfig()
     const onBack = () => {
-        setActivePanel('base')
+        setSidebarPanel('base')
     }
     const onExploreSelect = () => {
-        setActivePanel('explores')
+        setSidebarPanel('explores')
     }
 
-    switch (activePanel) {
+    switch (sidebarPanel) {
         case "base":
             return <BasePanel onExploreSelect={onExploreSelect}/>
         case "explores":

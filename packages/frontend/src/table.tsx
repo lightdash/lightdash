@@ -1,6 +1,5 @@
 import {Dimension, Explore, fieldId, friendlyName, getDimensions, getMetrics} from "common";
 import React from "react";
-import useActiveFields from "./hooks/useActiveFields";
 import {useExplores} from "./hooks/useExplores";
 import {useExploreConfig} from "./hooks/useExploreConfig";
 
