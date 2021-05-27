@@ -1,5 +1,6 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {useHistory, useLocation, useParams} from "react-router-dom";
+import {SortField} from "common";
 
 type SidebarPanel = 'base' | 'explores'
 
@@ -10,6 +11,12 @@ type ContextProps = {
     toggleActiveField: (fieldName: string) => void,
     sidebarPanel: SidebarPanel,
     setSidebarPanel: (panelName: SidebarPanel) => void,
+    sortFields: SortField[],
+    setSortFields: (sortFields: SortField[]) => void,
+    tableData: {[col: string]: any}[],
+    setTableData: (data: {[col: string]: any}[]) => void,
+    isTableDataLoading: boolean,
+    setIsTableDataLoading: (val: boolean) => void,
 }
 const context = React.createContext<ContextProps>({
     activeTableName: undefined,
@@ -18,6 +25,12 @@ const context = React.createContext<ContextProps>({
     toggleActiveField: () => {},
     sidebarPanel: 'base',
     setSidebarPanel: () => {},
+    sortFields: [],
+    setSortFields: () => {},
+    tableData: [],
+    setTableData: () => {},
+    isTableDataLoading: false,
+    setIsTableDataLoading: () => {},
 });
 
 export const ExploreConfigContext: React.FC = ({ children }) => {
@@ -53,6 +66,12 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
             search: newParams.toString(),
         })
     }
+    const toggleActiveField = (field: string) => {
+        const newFields = new Set(activeFields)
+        if (!newFields.delete(field))
+            newFields.add(field)
+        setActiveFields(newFields)
+    }
 
     // Sidebar state
     const sidebarPanel: SidebarPanel = (searchParams.get('sidebar') || 'base') === 'explores' ? 'explores' : 'base'
@@ -65,12 +84,23 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
         })
     }
 
-    const toggleActiveField = (field: string) => {
-        const newFields = new Set(activeFields)
-        if (!newFields.delete(field))
-            newFields.add(field)
-        setActiveFields(newFields)
+    // Active sorts
+    const sortSearchParam = searchParams.get('sort')
+    const sortFields: SortField[] = sortSearchParam === null ? [] : JSON.parse(sortSearchParam)
+    const setSortFields = (sortFields: SortField[]) => {
+        const newParams = new URLSearchParams(searchParams)
+        if (sortFields.length === 0)
+            newParams.delete('sort')
+        else
+            newParams.set('sort', JSON.stringify(sortFields))
+        history.push({
+            pathname: history.location.pathname,
+            search: newParams.toString(),
+        })
     }
+
+    const [tableData, setTableData] = useState<{[col: string]: any}[]>([])
+    const [isTableDataLoading, setIsTableDataLoading] = useState(false)
 
     const contextValue = {
         activeTableName,
@@ -79,6 +109,12 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
         toggleActiveField,
         sidebarPanel,
         setSidebarPanel,
+        sortFields,
+        setSortFields,
+        tableData,
+        setTableData,
+        isTableDataLoading,
+        setIsTableDataLoading,
     }
 
     return (
@@ -93,7 +129,14 @@ export const useExploreConfig = () => {
         activeFields,
         toggleActiveField,
         sidebarPanel,
-        setSidebarPanel } = React.useContext(context)
+        setSidebarPanel,
+        sortFields,
+        setSortFields,
+        tableData,
+        setTableData,
+        isTableDataLoading,
+        setIsTableDataLoading,
+    } = React.useContext(context)
 
     return {
         activeTableName,
@@ -102,5 +145,11 @@ export const useExploreConfig = () => {
         toggleActiveField,
         sidebarPanel,
         setSidebarPanel,
+        sortFields,
+        setSortFields,
+        tableData,
+        setTableData,
+        isTableDataLoading,
+        setIsTableDataLoading,
     }
 }

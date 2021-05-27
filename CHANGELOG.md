@@ -5,13 +5,16 @@ Recent and upcoming changes to lightdash
 ## [Unreleased]
 ### Added
  - CSV export feature for table of results
- - app url is shareable and be used to share the current table and active fields you've selected
+ - app url is shareable and can be used to share your current work (active table, columns, sorts, filters)
+ - user is prompted to confirm before losing work (starting to explore a new table)
+ - dbt refreshes happen in the background whenever possible
 
 ### Changed
  - updated site metadata and favicon
  - currently active fields aren't removed on changing tables
  - currently active fields aren't removed on refreshing tables
  - renamed "Measures" to "Metrics" everywhere
+ - navigating the sidebar won't discard your current table explore
 
 ## [0.1.3] - 2021-05-20
 ### Fixed

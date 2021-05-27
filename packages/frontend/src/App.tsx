@@ -49,10 +49,6 @@ const InnerApp = () => {
     // Column definitions for react-table
     const columns = useColumns()
 
-    // The current data to display in the table
-    const [isTableLoading, setIsTableLoading] = useState(false);
-    const [tableData, setTableData] = useState<{[column: string]: any}[]>([]);
-
     const exploresResults = useExplores()
 
     useEffect(() => {
@@ -100,10 +96,6 @@ const InnerApp = () => {
                       activeFilters={activeFilters}
                       onChangeActiveFilters={setActiveFilters}
                       columns={columns}
-                      tableData={tableData}
-                      isTableLoading={isTableLoading}
-                      onChangeTableData={data => {setErrors(undefined); setTableData(data)}}
-                      onChangeTableLoading={setIsTableLoading}
                       onError={setErrors}
                   />
               </div>
