@@ -4,13 +4,13 @@ import {BrowserRouter as Router, Route, Switch, useHistory,} from "react-router-
 import "@blueprintjs/core/lib/css/blueprint.css";
 import "@blueprintjs/table/lib/css/table.css";
 import "@blueprintjs/popover2/lib/css/blueprint-popover2.css";
-import {Explorer} from "./Explorer";
+import {Explorer} from "./components/Explorer";
 import './App.css'
-import {AppToaster} from "./AppToaster";
-import {ExploreSideBar} from "./ExploreSideBar";
+import {AppToaster} from "./components/AppToaster";
 import {ExploreConfigContext} from "./hooks/useExploreConfig";
 import {useExplores} from "./hooks/useExplores";
 import {QueryClient, QueryClientProvider} from "react-query";
+import {ExploreSideBar} from "./components/ExploreSideBar";
 
 const queryClient = new QueryClient()
 

@@ -1,16 +1,15 @@
-import {Dimension, Explore, fieldId, friendlyName, getDimensions, getMetrics, SortField} from "common";
+import {Dimension, fieldId, friendlyName, getDimensions, getMetrics, SortField} from "common";
+import {useExplores} from "./useExplores";
+import {useExploreConfig} from "./useExploreConfig";
 import React, {useMemo} from "react";
-import {useExplores} from "./hooks/useExplores";
-import {useExploreConfig} from "./hooks/useExploreConfig";
 
 const formatDate = (date: string | Date) => new Date(date).toISOString().slice(0, 10)
 const formatTimestamp = (datetime: string | Date) => new Date(datetime).toISOString()
 const formatNumber = (v: number) => `${v}`
 const formatString = (v: string) => `${v}`
 const formatBoolean = (v: boolean | string) => `${v}` in ['True', 'true', 'yes', 'Yes', '1', 'T'] ? 'Yes' : 'No'
-
 const formatWrapper = (formatter: (value: any) => string) => {
-    return ({ value }: any) => {
+    return ({value}: any) => {
         if (value === null)
             return '∅'
         else if (value === undefined)
@@ -19,10 +18,9 @@ const formatWrapper = (formatter: (value: any) => string) => {
             return formatter(value)
     }
 }
-
 const getDimensionFormatter = (d: Dimension) => {
     const dimensionType = d.type
-    switch(dimensionType) {
+    switch (dimensionType) {
         case "string":
             return formatWrapper(formatString)
         case "number":
@@ -38,11 +36,9 @@ const getDimensionFormatter = (d: Dimension) => {
             throw Error(`Dimension formatter is not implemented for dimension type ${dimensionType}`)
     }
 }
-
 const getMetricFormatter = () => {
     return formatWrapper(formatNumber)
 }
-
 const getSortByProps = (fieldId: string, sortFields: SortField[], toggleSortField: (fieldId: string) => void) => {
     const getSortByToggleProps = () => ({
         style: {
@@ -61,14 +57,13 @@ const getSortByProps = (fieldId: string, sortFields: SortField[], toggleSortFiel
         isMultiSort: sortFields.length > 1,
     }
 }
-
 export const useColumns = () => {
     const exploresResults = useExplores()
-    const { activeFields, activeTableName, sortFields, toggleSortField } = useExploreConfig()
+    const {activeFields, activeTableName, sortFields, toggleSortField} = useExploreConfig()
     const activeExplore = (exploresResults.data || []).find(e => e.name === activeTableName)
     const dimensions = (activeExplore ? getDimensions(activeExplore) : []).filter(d => activeFields.has(fieldId(d)))
     const metrics = (activeExplore ? getMetrics(activeExplore) : []).filter(m => activeFields.has(fieldId(m)))
-    const dimColumns = dimensions.map( dim => ({
+    const dimColumns = dimensions.map(dim => ({
         Header: <span>{friendlyName(dim.table)} <b>{friendlyName(dim.name)}</b></span>,
         accessor: fieldId(dim),
         Cell: getDimensionFormatter(dim),

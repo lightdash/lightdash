@@ -165,8 +165,8 @@ export type MetricType = Metric["type"]
 // Object used to query an explore
 export type MetricQuery = {
     explore: Explore              // Queries only happen within a single explore
-    dimensions: Dimension[],      // Dimensions to group by in the explore
-    metrics: Metric[],           // Metrics to compute in the explore
+    dimensions: FieldId[],        // Dimensions to group by in the explore
+    metrics: FieldId[],           // Metrics to compute in the explore
     filters: FilterGroup[],       // Filters applied to the table to query (logical AND)
     sorts: SortField[],           // Sorts for the data
     limit: number,                // Max number of rows to return from query

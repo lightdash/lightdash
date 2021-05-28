@@ -6,7 +6,14 @@ import {
     fieldId,
     FilterGroupOperator,
     Metric,
-    MetricQuery, StringFilter, StringDimension, NumberDimension, NumberFilter, getDimensions, fieldIdFromFilterGroup,
+    MetricQuery,
+    StringFilter,
+    StringDimension,
+    NumberDimension,
+    NumberFilter,
+    getDimensions,
+    fieldIdFromFilterGroup,
+    FieldId, getMetrics,
 } from "common";
 
 
@@ -140,6 +147,22 @@ const renderFilterGroupSql = (filterGroup: FilterGroup, explore: Explore): strin
     }
 }
 
+const getDimensionFromId = (dimId: FieldId, explore: Explore) => {
+    const dimensions = getDimensions(explore)
+    const dimension = dimensions.find(d => fieldId(d) === dimId)
+    if (dimension === undefined)
+        throw new Error(`Tried to reference dimension with unknown field id: ${dimId}`)
+    return dimension
+}
+
+const getMetricFromId = (metricId: FieldId, explore: Explore) => {
+    const metrics = getMetrics(explore)
+    const metric = metrics.find(m => fieldId(m) === metricId)
+    if (metric === undefined)
+        throw new Error(`Tried to reference metric with unknown field id ${metricId}`)
+    return metric
+}
+
 
 export const buildQuery = ({ explore, dimensions, metrics, filters, sorts, limit }: MetricQuery) => {
     const baseTable = explore.tables[explore.baseTable].sqlTable
@@ -153,14 +176,14 @@ export const buildQuery = ({ explore, dimensions, metrics, filters, sorts, limit
     }).join('\n')
 
     const dimensionSelects = dimensions.map(field => {
-        const dimension = explore.tables[field.table].dimensions[field.name]
-        const alias = fieldId(field)
+        const alias = field
+        const dimension = getDimensionFromId(field, explore)
         return `  ${renderDimensionSql(dimension, explore)} AS ${q}${alias}${q}`
     })
 
     const metricSelects = metrics.map(field => {
-        const metric = explore.tables[field.table].metrics[field.name]
-        const alias = fieldId(field)
+        const alias = field
+        const metric = getMetricFromId(field, explore)
         return `  ${renderMetricSql(metric, explore)} AS ${q}${alias}${q}`
     })
 
