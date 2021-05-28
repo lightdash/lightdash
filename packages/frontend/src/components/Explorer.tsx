@@ -1,36 +1,13 @@
-import {
-    Dimension,
-    Explore,
-    Field,
-    fieldId,
-    FilterGroup,
-    friendlyName,
-    getDimensions,
-    getMetrics,
-    Metric,
-    SortField
-} from "common";
 import React, {useState} from "react";
-import {buildQuery} from "./queryBuilder";
-import {runQuery} from "./api";
-import {
-    Button,
-    ButtonGroup,
-    Card,
-    Code,
-    Collapse,
-    FormGroup,
-    H5,
-    NumericInput,
-    Pre,
-    Spinner,
-    Tag
-} from "@blueprintjs/core";
-import {FiltersForm} from "./filters/FiltersForm";
-import EChartsReact from "echarts-for-react";
-import {useExploreConfig} from "./hooks/useExploreConfig";
-import {useExplores} from "./hooks/useExplores";
-import {ResultsTable} from "./components/ResultsTable";
+import {buildQuery} from "../queryBuilder";
+import {runQuery} from "../api";
+import {Button, ButtonGroup, Card, Collapse, FormGroup, H5, NumericInput, Spinner, Tag} from "@blueprintjs/core";
+import {FiltersForm} from "../filters/FiltersForm";
+import {useExploreConfig} from "../hooks/useExploreConfig";
+import {useExplores} from "../hooks/useExplores";
+import {ResultsTable} from "./ResultsTable";
+import {ChartType, SimpleChart} from "./SimpleChart";
+import {RenderedSql} from "./RenderedSql";
 
 type ExplorerProps = {
     onError: ({title, text}: {title: string, text: string}) => void,
@@ -40,6 +17,8 @@ export const Explorer = ({
     }: ExplorerProps) => {
     const {
         activeFields,
+        activeDimensions,
+        activeMetrics,
         activeTableName,
         tableData,
         setTableData,
@@ -49,8 +28,6 @@ export const Explorer = ({
     } = useExploreConfig()
     const exploresResults = useExplores()
     const activeExplore = (exploresResults.data || []).find(e => e.name === activeTableName)
-    const activeDimensions = (activeExplore ? getDimensions(activeExplore) : []).filter(d => activeFields.has(fieldId(d)))
-    const activeMetrics = (activeExplore ? getMetrics(activeExplore) : []).filter(m => activeFields.has(fieldId(m)))
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false)
     const [resultsIsOpen, setResultsIsOpen] = useState<boolean>(true)
     const [sqlIsOpen, setSqlIsOpen] = useState<boolean>(false)
@@ -65,12 +42,11 @@ export const Explorer = ({
         setTableData([])
         if (activeExplore) {
             // Sort by first field if not sorts
-            const fields: Field[] = [...activeDimensions, ...activeMetrics]
-            if (fields.length > 0) {
+            if (activeFields.size > 0) {
                 const query = buildQuery({
                     explore: activeExplore,
-                    dimensions: activeDimensions,
-                    metrics: activeMetrics,
+                    dimensions: Array.from(activeDimensions),
+                    metrics: Array.from(activeMetrics),
                     filters: activeFilters,
                     sorts: sortFields,
                     limit: resultsRowLimit,
@@ -129,7 +105,7 @@ export const Explorer = ({
                     }
                 </div>
                 <Collapse isOpen={vizIsOpen}>
-                    <SimpleChart results={tableData} dimensions={activeDimensions} metrics={activeMetrics} chartType={activeVizTab}/>
+                    <SimpleChart chartType={activeVizTab}/>
                 </Collapse>
             </Card>
             <div style={{paddingTop: '10px'}} />
@@ -153,7 +129,7 @@ export const Explorer = ({
                     <H5 style={{margin: 0, padding: 0}}>SQL</H5>
                 </div>
                 <Collapse isOpen={sqlIsOpen}>
-                    <RenderedSql explore={activeExplore} metrics={activeMetrics} dimensions={activeDimensions}
+                    <RenderedSql explore={activeExplore} metrics={Array.from(activeMetrics)} dimensions={Array.from(activeDimensions)}
                                  sorts={sortFields} filters={activeFilters} limit={resultsRowLimit}/>
                 </Collapse>
             </Card>
@@ -161,153 +137,3 @@ export const Explorer = ({
     )
 }
 
-type RenderedSqlProps = {
-    explore: Explore | undefined,
-    metrics: Metric[],
-    dimensions: Dimension[],
-    sorts: SortField[],
-    filters: FilterGroup[],
-    limit: number
-}
-const RenderedSql = ({explore, metrics, dimensions, sorts, filters, limit}: RenderedSqlProps) => (
-    <Pre style={{borderRadius: '0', boxShadow: 'none'}}><Code>{explore ? buildQuery({
-        explore,
-        metrics,
-        dimensions,
-        sorts,
-        filters,
-        limit: limit
-    }) : ''}</Code></Pre>
-)
-
-const echartMap: {[key in Dimension['type'] | Metric['type']]: string} = {
-    'date': 'time',
-    'string': 'ordinal',
-    'timestamp': 'time',
-    'boolean': 'ordinal',
-    'number': 'number',
-    'max': 'number',
-    'min': 'number',
-    'count': 'number',
-    'count_distinct': 'number',
-    'sum': 'number',
-    'average': 'number',
-}
-
-const pivot = (values: {[key: string]: any}[], indexKey: string, pivotKey: string, metricKey: string) => {
-    return Object.values(values.reduce((acc, value) => {
-        acc[value[indexKey]] = acc[value[indexKey]] || {[indexKey]: value[indexKey]}
-        acc[value[indexKey]][value[pivotKey]] = value[metricKey]
-        return acc
-    }, {}))
-}
-
-const defaultEchartDimensions = (results: {[key: string]: any }[], dimensions: Dimension[], metrics: Metric[]) => {
-    if (metrics.length === 0)
-        return undefined
-    switch (dimensions.length) {
-        case 0:
-            return undefined
-        case 1:
-            // With just one dimension: create a series per metric
-            return {
-                data: results,
-                echartDimensions: [...dimensions, ...metrics].map(field => ({name: fieldId(field), displayName: `${friendlyName(field.table)} ${friendlyName(field.name)}`}))
-            }
-        case 2:
-            // Two dimensions: pivot on the second dimension and only use the first metric
-            const indexKey = fieldId(dimensions[0])
-            const pivotKey = fieldId(dimensions[1])
-            const metricKey = fieldId(metrics[0])
-            const data = pivot(results, indexKey, pivotKey, metricKey)
-            const seriesNames = [...new Set(results.map(r => r[pivotKey]))]
-            return {
-                data: data,
-                echartDimensions: [
-                    {
-                        name: indexKey,
-                        displayName: `${friendlyName(dimensions[0].table)} ${friendlyName(dimensions[0].name)}`
-                    },
-                    ...seriesNames.map(name => ({name: name, displayName: name}))
-                ]
-            }
-        default:
-            // Otherwise we only plot the first dimension and a series per metric
-            const [first, ...rest] = dimensions
-            return {
-                data: results,
-                echartDimensions: [
-                    {
-                        name: fieldId(first),
-                        displayName: `${friendlyName(first.table)} ${friendlyName(first.name)}`,
-                    },
-                    ...metrics.map(field => ({name: fieldId(field), displayName: `${friendlyName(field.table)} ${friendlyName(field.name)}`}))
-                ]
-            }
-    }
-}
-
-type ChartType = 'line' | 'column' | 'bar' | 'scatter'
-
-const flipXFromChartType = (chartType: ChartType) => {
-    switch (chartType) {
-        case "column": return false
-        case "bar": return true
-        case "line": return false
-        case "scatter": return false
-        default:
-            const nope: never = chartType
-    }
-}
-
-const echartType = (chartType: ChartType) => {
-    switch (chartType) {
-        case "line": return 'line'
-        case "bar": return 'bar'
-        case "column": return 'bar'
-        case "scatter": return 'scatter'
-        default:
-            const nope: never = chartType
-    }
-}
-
-type SimpleChartProps = {
-    results: {[key: string]: any}[],
-    dimensions: Dimension[],
-    metrics: Metric[],
-    chartType: ChartType,
-}
-const SimpleChart = ({ results, dimensions, metrics, chartType }: SimpleChartProps) => {
-    // Different behaviour depending on dimensions
-    const plotData = defaultEchartDimensions(results, dimensions, metrics)
-    if (!plotData)
-        return <span>Can't plot</span>
-    const flipX = flipXFromChartType(chartType)
-    const [xdim, ...ydims] = plotData.echartDimensions
-    const options = {
-        dataset: {
-            id: 'lightdashResults',
-            source: plotData.data,
-            dimensions: plotData.echartDimensions,
-        },
-        xAxis: {
-            type: flipX ? 'value' : 'category',
-            name: flipX ? ydims[0].displayName : xdim.displayName,
-        },
-        tooltip: {
-            show: true,
-            trigger: 'item',
-        },
-        yAxis: {
-            type: flipX ? 'category' : 'value',
-            name: flipX ? xdim.displayName : ydims[0].displayName,
-        },
-        series: ydims.map(d => ({type: echartType(chartType)})),
-        legend: {
-            show: ydims.length > 1 ? true : false,
-        }
-    }
-    return <div style={{padding: 10}}>
-        <EChartsReact option={options} notMerge={true}/>
-    </div>
-}

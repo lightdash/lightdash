@@ -1,12 +1,12 @@
 import React, {Component} from "react";
-import {Explore, Field, fieldId, friendlyName, getDimensions, getFields, getMetrics, isDimension, Table} from "common";
+import {Field, FieldId, fieldId, friendlyName, isDimension} from "common";
 import {Button, Classes, Colors, Icon, InputGroup, Intent, ITreeNode, Tree} from "@blueprintjs/core";
 import {Tooltip2} from "@blueprintjs/popover2";
 import Fuse from 'fuse.js';
 
 type SideTreeProps = {
     fields: Field[]
-    onSelectedNodeChange: (columnid: string) => void
+    onSelectedNodeChange: (fieldId: string, isDimension: boolean) => void
     selectedNodes: Set<string>,
     fuse: Fuse<Field>,
 };
@@ -14,7 +14,12 @@ type SideTreeState = {
     expandedNodes: { [key: string]: boolean },
     searchValue: string,
 };
+type NodeDataProps = {
+    fieldId: FieldId,
+    isDimension: boolean,
+}
 
+// blueprintjs sidetree component doesn't support state handling with hooks
 export class SideTree extends Component<SideTreeProps, SideTreeState> {
 
     constructor(props: SideTreeProps) {
@@ -62,7 +67,7 @@ export class SideTree extends Component<SideTreeProps, SideTreeState> {
                         key: metric.name,
                         id: metric.name,
                         label: friendlyName(metric.name),
-                        nodeData: {relation: metric.table},
+                        nodeData: {fieldId: fieldId(metric), isDimension: false} as NodeDataProps,
                         isSelected: this.props.selectedNodes.has(fieldId(metric)),
                         secondaryLabel: metric.description ? (
                             <Tooltip2 content={metric.description}>
@@ -84,7 +89,7 @@ export class SideTree extends Component<SideTreeProps, SideTreeState> {
                         key: dimension.name,
                         id: dimension.name,
                         label: friendlyName(dimension.name),
-                        nodeData: {relation: dimension.table},
+                        nodeData: {fieldId: fieldId(dimension), isDimension: true} as NodeDataProps,
                         isSelected: this.props.selectedNodes.has(fieldId(dimension)),
                         secondaryLabel: dimension.description ? (
                             <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center'}}>
@@ -132,18 +137,17 @@ export class SideTree extends Component<SideTreeProps, SideTreeState> {
         }))
     };
 
-    handleOnNodeClick = (nodeData: ITreeNode<{ relation: string }>, _nodePath: number[]) => {
+    handleOnNodeClick = (nodeData: ITreeNode<NodeDataProps>, _nodePath: number[]) => {
         if (_nodePath.length !== 1) {
             if (nodeData.nodeData) {
-                this.onSideTreeSelect(nodeData.nodeData.relation, `${nodeData.id}`)
+                this.onSideTreeSelect(nodeData.nodeData.fieldId, nodeData.nodeData.isDimension)
             }
         }
         ;
     }
 
-    onSideTreeSelect = (relation: string, name: string) => {
-        const id = `${relation}_${name}`
-        this.props.onSelectedNodeChange(id)
+    onSideTreeSelect = (fieldId: string, isDimension: boolean) => {
+        this.props.onSelectedNodeChange(fieldId, isDimension)
     }
 
     onSearchChange = (search: string) => {

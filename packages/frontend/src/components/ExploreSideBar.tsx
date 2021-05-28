@@ -1,11 +1,10 @@
+import {Alert, Button, Code, Divider, H3, Menu, MenuDivider, MenuItem, Text} from "@blueprintjs/core";
 import React, {useState} from "react";
-import {useExplores} from "./hooks/useExplores";
-import {useExploreConfig} from "./hooks/useExploreConfig";
-import {Button, Code, Divider, H3, Menu, MenuDivider, MenuItem, Text} from "@blueprintjs/core";
+import {useExplores} from "../hooks/useExplores";
+import {useExploreConfig} from "../hooks/useExploreConfig";
 import {friendlyName, getFields} from "common";
 import Fuse from "fuse.js";
 import {SideTree} from "./SideTree";
-import { Alert } from "@blueprintjs/core";
 
 const SideBarLoadingState = () => (
     <Menu large={true}>
@@ -20,10 +19,7 @@ const SideBarLoadingState = () => (
         ))}
     </Menu>
 )
-type BasePanelProps = {
-    onExploreSelect: () => void,
-}
-const BasePanel = ({onExploreSelect}: BasePanelProps) => {
+const BasePanel = () => {
     const exploresResult = useExplores()
     const [showChangeExploreConfirmation, setShowChangeExploreConfirmation] = useState(false)
     const [selectedExploreName, setSelectedExploreName] = useState('')
@@ -106,7 +102,7 @@ const ExplorePanel = ({onBack}: ExplorePanelProps) => {
     const {activeTableName, activeFields, toggleActiveField} = useExploreConfig()
     const activeExplore = (exploresResult.data || []).find(e => e.name === activeTableName)
     if (exploresResult.isLoading) {
-        return <SideBarLoadingState />
+        return <SideBarLoadingState/>
     }
     if (activeExplore === undefined) {
         onBack()
@@ -146,17 +142,14 @@ const ExplorePanel = ({onBack}: ExplorePanelProps) => {
     )
 }
 export const ExploreSideBar = () => {
-    const { sidebarPanel, setSidebarPanel } = useExploreConfig()
+    const {sidebarPanel, setSidebarPanel} = useExploreConfig()
     const onBack = () => {
         setSidebarPanel('base')
-    }
-    const onExploreSelect = () => {
-        setSidebarPanel('explores')
     }
 
     switch (sidebarPanel) {
         case "base":
-            return <BasePanel onExploreSelect={onExploreSelect}/>
+            return <BasePanel />
         case "explores":
             return <ExplorePanel onBack={onBack}/>
     }

@@ -1,6 +1,6 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {useHistory, useLocation, useParams} from "react-router-dom";
-import {fieldId, FilterGroup, SortField} from "common";
+import { FilterGroup, SortField} from "common";
 
 type SidebarPanel = 'base' | 'explores'
 
@@ -8,7 +8,9 @@ type ContextProps = {
     activeTableName: string | undefined,
     setActiveTableName: (tableName: string) => void,
     activeFields: Set<string>,
-    toggleActiveField: (fieldName: string) => void,
+    activeDimensions: Set<string>,
+    activeMetrics: Set<string>,
+    toggleActiveField: (fieldName: string, isDimension: boolean) => void,
     sidebarPanel: SidebarPanel,
     setSidebarPanel: (panelName: SidebarPanel) => void,
     sortFields: SortField[],
@@ -25,6 +27,8 @@ const context = React.createContext<ContextProps>({
     activeTableName: undefined,
     setActiveTableName: () => {},
     activeFields: new Set<string>(),
+    activeDimensions: new Set<string>(),
+    activeMetrics: new Set<string>(),
     toggleActiveField: () => {},
     sidebarPanel: 'base',
     setSidebarPanel: () => {},
@@ -60,24 +64,51 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
     }
 
     // Currently active fields
-    const fieldSearchParam = searchParams.get('fields')
-    const activeFields = new Set<string>(fieldSearchParam === null ? [] : fieldSearchParam.split(','))
-    const setActiveFields = (fields: Set<string>) => {
+    const dimensionSearchParam = searchParams.get('dimensions')
+    const activeDimensions = new Set<string>(dimensionSearchParam === null ? [] : dimensionSearchParam.split(','))
+
+    const metricSearchParam = searchParams.get('metrics')
+    const activeMetrics = new Set<string>(metricSearchParam === null ? [] : metricSearchParam.split(','))
+
+    const activeFields = new Set<string>([...activeDimensions, ...activeMetrics])
+
+    const setActiveDimensions = (dimensions: Set<string>) => {
         const newParams = new URLSearchParams(searchParams)
-        if (fields.size === 0)
-            newParams.delete('fields')
+        if (dimensions.size === 0)
+            newParams.delete('dimensions')
         else
-            newParams.set('fields', Array.from(fields).join(','))
+            newParams.set('dimensions', Array.from(dimensions).join(','))
         history.replace({
             pathname: history.location.pathname,
             search: newParams.toString(),
         })
     }
-    const toggleActiveField = (field: string) => {
-        const newFields = new Set(activeFields)
-        if (!newFields.delete(field))
-            newFields.add(field)
-        setActiveFields(newFields)
+
+    const setActiveMetrics = (metrics: Set<string>) => {
+        const newParams = new URLSearchParams(searchParams)
+        if (metrics.size === 0)
+            newParams.delete('metrics')
+        else
+            newParams.set('metrics', Array.from(metrics).join(','))
+        history.replace({
+            pathname: history.location.pathname,
+            search: newParams.toString(),
+        })
+    }
+
+    const toggleActiveField = (fieldId: string, isDimension: boolean) => {
+        if (isDimension) {
+            const newDimensions = new Set(activeDimensions)
+            if (!newDimensions.delete(fieldId))
+                newDimensions.add(fieldId)
+            setActiveDimensions(newDimensions)
+        }
+        else {
+            const newMetrics = new Set(activeMetrics)
+            if (!newMetrics.delete(fieldId))
+                newMetrics.add(fieldId)
+            setActiveMetrics(newMetrics)
+        }
     }
 
     // Sidebar state
@@ -149,6 +180,8 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
         activeTableName,
         setActiveTableName,
         activeFields,
+        activeDimensions,
+        activeMetrics,
         toggleActiveField,
         sidebarPanel,
         setSidebarPanel,
@@ -173,6 +206,8 @@ export const useExploreConfig = () => {
         activeTableName,
         setActiveTableName,
         activeFields,
+        activeDimensions,
+        activeMetrics,
         toggleActiveField,
         sidebarPanel,
         setSidebarPanel,
@@ -191,6 +226,8 @@ export const useExploreConfig = () => {
         activeTableName,
         setActiveTableName,
         activeFields,
+        activeDimensions,
+        activeMetrics,
         toggleActiveField,
         sidebarPanel,
         setSidebarPanel,

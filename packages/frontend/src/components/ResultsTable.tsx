@@ -1,10 +1,10 @@
-import {useColumns} from "../table";
 import {useExploreConfig} from "../hooks/useExploreConfig";
 import {usePagination, useTable} from "react-table";
 import {Button, Colors, HTMLTable, Icon, NonIdealState, Spinner, Tag} from "@blueprintjs/core";
 import {DimensionType} from "common";
 import React from "react";
 import {CSVLink} from "react-csv";
+import {useColumns} from "../hooks/useColumns";
 
 const hexToRGB = (hex: string, alpha: number) => {
     const h = parseInt('0x' + hex.substring(1))
