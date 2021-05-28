@@ -244,6 +244,8 @@ const lightdashTypeMap: {[columnType: string]: DimensionType} = {
     'INT32':     'number',
     'INT64':     'number',
     'FLOAT':     'number',
+    'FLOAT32':   'number',
+    'FLOAT64':   'number',
     'NUMERIC':   'number',
     'BOOLEAN':   'boolean',
     'STRING':    'string',
