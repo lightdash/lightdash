@@ -331,7 +331,7 @@ const lightdashTypeMap: {[columnType: string]: DimensionType} = {
 // # TIME WITH TIME ZONE not supported
 
 
-const capitalize = (word: string): string => `${word.charAt(0).toUpperCase()}${word.slice(1)}`
+const capitalize = (word: string): string => word ? `${word.charAt(0).toUpperCase()}${word.slice(1)}` : ''
 
 export const friendlyName = (text: string): string => {
     const [first, ...rest] = text.match(/[0-9]*[A-Za-z][a-z]*/g) || []
