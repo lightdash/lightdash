@@ -33,16 +33,20 @@ import {useExplores} from "./hooks/useExplores";
 import {ResultsTable} from "./components/ResultsTable";
 
 type ExplorerProps = {
-    activeFilters: FilterGroup[],
-    onChangeActiveFilters: (filters: FilterGroup[]) => void,
     onError: ({title, text}: {title: string, text: string}) => void,
 }
 export const Explorer = ({
-     activeFilters,
-     onChangeActiveFilters,
      onError,
     }: ExplorerProps) => {
-    const { activeFields, activeTableName, tableData, setTableData, setIsTableDataLoading, sortFields } = useExploreConfig()
+    const {
+        activeFields,
+        activeTableName,
+        tableData,
+        setTableData,
+        setIsTableDataLoading,
+        sortFields,
+        activeFilters,
+    } = useExploreConfig()
     const exploresResults = useExplores()
     const activeExplore = (exploresResults.data || []).find(e => e.name === activeTableName)
     const activeDimensions = (activeExplore ? getDimensions(activeExplore) : []).filter(d => activeFields.has(fieldId(d)))
@@ -104,7 +108,7 @@ export const Explorer = ({
                     {totalActiveFilters > 0 ? <Tag style={{marginLeft: '10px'}}>{totalActiveFilters} active filters</Tag> : null}
                 </div>
                <Collapse isOpen={filterIsOpen}>
-                   {activeExplore && <FiltersForm explore={activeExplore} filters={activeFilters} onChangeFilters={onChangeActiveFilters} />}
+                   {activeExplore && <FiltersForm />}
                </Collapse>
             </Card>
             <div style={{paddingTop: '10px'}} />

@@ -2,7 +2,6 @@ import {ControlGroup, NumericInput, TagInput} from "@blueprintjs/core";
 import React from "react";
 import {NumberFilter, NumberFilterGroup} from "common";
 import {FilterRow, SelectFilterOperator} from "./FilterRow";
-import {defaultValuesForNewStringFilter} from "./StringFilterForm";
 
 export const defaultValuesForNewNumberFilter: {[key in NumberFilter["operator"]]: NumberFilter} = {
     equals: {operator: "equals", values: []},

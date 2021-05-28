@@ -1,5 +1,4 @@
 import {
-    Explore,
     fieldId,
     filterableDimensionsOnly,
     FilterGroup,
@@ -8,26 +7,24 @@ import {
     getDimensions,
 } from "common";
 import React, {useState} from "react";
-import {Button, Card, Divider, HTMLSelect} from "@blueprintjs/core";
+import {Button, HTMLSelect} from "@blueprintjs/core";
 import {defaultValuesForNewStringFilter, StringFilterGroupForm} from "./StringFilterForm";
 import {defaultValuesForNewNumberFilter, NumberFilterGroupForm} from "./NumberFilterForm";
+import {useExploreConfig} from "../hooks/useExploreConfig";
+import {useExplores} from "../hooks/useExplores";
 
-type FiltersFormProps = {
-    explore: Explore,
-    filters: FilterGroup[],
-    onChangeFilters: (filters: FilterGroup[]) => void,
-}
-export const FiltersForm = ( { explore, filters, onChangeFilters }: FiltersFormProps) => {
-    const onAddFilterGroup = (filterGroup: FilterGroup) => {
-        onChangeFilters([...filters, filterGroup])
-    }
+export const FiltersForm = () => {
+    const {
+        activeFilters,
+        setActiveFilters
+    } = useExploreConfig()
 
     const onDeleteFilterGroup = (index: number) => {
-        onChangeFilters([...filters.slice(0, index), ...filters.slice(index + 1)])
+        setActiveFilters([...activeFilters.slice(0, index), ...activeFilters.slice(index + 1)])
     }
 
     const onChangeFilterGroup = (index: number, filterGroup: FilterGroup) => {
-        onChangeFilters([...filters.slice(0, index), filterGroup, ...filters.slice(index + 1)])
+        setActiveFilters([...activeFilters.slice(0, index), filterGroup, ...activeFilters.slice(index + 1)])
     }
 
     return (
@@ -38,14 +35,14 @@ export const FiltersForm = ( { explore, filters, onChangeFilters }: FiltersFormP
                 justifyContent: 'flex-start',
                 alignItems: 'start',
             }}>
-                {filters.map( (filterGroup, idx) => (
+                {activeFilters.map( (filterGroup, idx) => (
                     <React.Fragment key={idx}>
                         <div style={{paddingLeft: '15px', width: '100%', paddingBottom: '20px'}}>
                             <FilterGroupForm filterGroup={filterGroup} key={idx} onDelete={() => onDeleteFilterGroup(idx)} onChange={filterGroup => onChangeFilterGroup(idx, filterGroup)}/>
                         </div>
                     </React.Fragment>
                 ))}
-                <AddFilter explore={explore} onAddFilter={onAddFilterGroup} filters={filters}/>
+                <AddFilterGroup />
             </div>
     )
 }
@@ -73,16 +70,24 @@ const FilterGroupForm = ({ filterGroup, onDelete, onChange }: FilterGroupFormPro
     }
 }
 
-type AddFilterProps = {
-    explore: Explore,
-    filters: FilterGroup[],
-    onAddFilter: (filterGroup: FilterGroup) => void
-}
-
-const AddFilter = ( { explore, filters, onAddFilter }: AddFilterProps) => {
+const AddFilterGroup = () => {
+    const {
+        activeTableName,
+        activeFilters,
+        setActiveFilters,
+    } = useExploreConfig()
     const [showButton, setShowButton] = useState<boolean>(true)
-    const filterableDimensions = filterableDimensionsOnly(getDimensions(explore))
-        .filter(dim => filters.find(f => fieldId(f.dimension) === fieldId(dim)) === undefined)
+    const exploreResults = useExplores()
+    const explore = (exploreResults.data || []).find(e => e.name === activeTableName)
+    const dimensions = explore ? getDimensions(explore) : []
+
+    const onAdd = (filterGroup: FilterGroup) => {
+        setActiveFilters([...activeFilters, filterGroup])
+    }
+
+    const filterableDimensions = filterableDimensionsOnly(dimensions)
+        .filter(dim => activeFilters.find(f => fieldId(f.dimension) === fieldId(dim)) === undefined)
+
     const selectOptions = filterableDimensions.map(dim => ({
         value: fieldId(dim),
         label: `${friendlyName(dim.table)} ${friendlyName(dim.name)}`
@@ -93,13 +98,13 @@ const AddFilter = ( { explore, filters, onAddFilter }: AddFilterProps) => {
         setShowButton(true)
         const dimension = filterableDimensions.find(dim => fieldId(dim) === id)
         if (dimension === undefined)
-            throw new Error(`Selected dimension with id ${id} that does not exist as a filterable dimension in explore ${explore.name}`)
+            throw new Error(`Selected dimension with id ${id} that does not exist as a filterable dimension in explore ${explore?.name || 'not loaded'}`)
 
         // Add a default filter group as a placeholder for the new filter group
         const dimensionType = dimension.type
         switch (dimension.type) {
             case "string":
-                onAddFilter({
+                onAdd({
                     type: 'string',
                     dimension: dimension,
                     operator: FilterGroupOperator.and,
@@ -107,7 +112,7 @@ const AddFilter = ( { explore, filters, onAddFilter }: AddFilterProps) => {
                 })
                 break
             case "number":
-                onAddFilter({
+                onAdd({
                     type: 'number',
                     dimension: dimension,
                     operator: FilterGroupOperator.and,

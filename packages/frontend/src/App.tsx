@@ -1,11 +1,9 @@
 import React, {useEffect, useState} from 'react';
 import {Callout, Card, Colors} from '@blueprintjs/core';
 import {BrowserRouter as Router, Route, Switch, useHistory,} from "react-router-dom";
-import {FilterGroup} from "common";
 import "@blueprintjs/core/lib/css/blueprint.css";
 import "@blueprintjs/table/lib/css/table.css";
 import "@blueprintjs/popover2/lib/css/blueprint-popover2.css";
-import {useColumns} from "./table";
 import {Explorer} from "./Explorer";
 import './App.css'
 import {AppToaster} from "./AppToaster";
@@ -42,13 +40,6 @@ const App = () => {
 const InnerApp = () => {
     // Any errors to display to the user
     const [errors, setErrors] = useState<{title: string, text: string} | undefined>()
-
-    // Active filters applied to the table
-    const [activeFilters, setActiveFilters] = useState<FilterGroup[]>([])
-
-    // Column definitions for react-table
-    const columns = useColumns()
-
     const exploresResults = useExplores()
 
     useEffect(() => {
@@ -93,8 +84,6 @@ const InnerApp = () => {
                     <Callout style={{marginBottom: '20px'}} intent={'danger'} title={errors.title}>{ errors.text.split('\n').map((line, idx) => <p key={idx}>{line}</p>)}</Callout>
                   }
                   <Explorer
-                      activeFilters={activeFilters}
-                      onChangeActiveFilters={setActiveFilters}
                       onError={setErrors}
                   />
               </div>
