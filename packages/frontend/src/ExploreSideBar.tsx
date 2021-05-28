@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {useState} from "react";
 import {useExplores} from "./hooks/useExplores";
 import {useExploreConfig} from "./hooks/useExploreConfig";
 import {Button, Code, Divider, H3, Menu, MenuDivider, MenuItem, Text} from "@blueprintjs/core";
@@ -87,11 +87,12 @@ const BasePanel = ({onExploreSelect}: BasePanelProps) => {
                 isOpen={showChangeExploreConfirmation}
                 onCancel={onCancelConfirmation}
                 onConfirm={() => onSubmitConfirmation()}
-                cancelButtonText={`Go back to ${activeTableName}`}
-                confirmButtonText={`Explore ${selectedExploreName}`}
+                intent={'success'}
+                cancelButtonText={`Go back to ${friendlyName(activeTableName || '')}`}
+                confirmButtonText={`Explore ${friendlyName(selectedExploreName || '')}`}
             >
                 <Text>
-                    {`Start exploring ${selectedExploreName}? You will lose your current work on ${activeTableName}.`}
+                    {`Start exploring ${friendlyName(selectedExploreName || '')}? You will lose your current work on ${friendlyName(activeTableName || '')}.`}
                 </Text>
             </Alert>
         </div>
