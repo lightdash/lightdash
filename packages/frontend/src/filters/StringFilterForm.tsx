@@ -35,8 +35,8 @@ export const StringFilterGroupForm = ({filterGroup, onChange}: StringFilterGroup
                         key={index}
                         isFirst={index === 0}
                         isLast={index === (filterGroup.filters.length - 1)}
-                        tableName={filterGroup.dimension.table}
-                        fieldName={filterGroup.dimension.name}
+                        tableName={filterGroup.tableName}
+                        fieldName={filterGroup.fieldName}
                         onAdd={() => onChange({...filterGroup, filters: [...filterGroup.filters, defaultNewFilter]})}
                         onDelete={() => onChange({
                             ...filterGroup,

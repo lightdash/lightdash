@@ -1,5 +1,5 @@
 import {
-    fieldId,
+    fieldId, fieldIdFromFilterGroup,
     filterableDimensionsOnly,
     FilterGroup,
     FilterGroupOperator,
@@ -86,7 +86,7 @@ const AddFilterGroup = () => {
     }
 
     const filterableDimensions = filterableDimensionsOnly(dimensions)
-        .filter(dim => activeFilters.find(f => fieldId(f.dimension) === fieldId(dim)) === undefined)
+        .filter(dim => activeFilters.find(f => fieldIdFromFilterGroup(f) === fieldId(dim)) === undefined)
 
     const selectOptions = filterableDimensions.map(dim => ({
         value: fieldId(dim),
@@ -106,7 +106,8 @@ const AddFilterGroup = () => {
             case "string":
                 onAdd({
                     type: 'string',
-                    dimension: dimension,
+                    tableName: dimension.table,
+                    fieldName: dimension.name,
                     operator: FilterGroupOperator.and,
                     filters: [defaultValuesForNewStringFilter['equals']] // Default empty equals filter
                 })
@@ -114,7 +115,8 @@ const AddFilterGroup = () => {
             case "number":
                 onAdd({
                     type: 'number',
-                    dimension: dimension,
+                    tableName: dimension.table,
+                    fieldName: dimension.name,
                     operator: FilterGroupOperator.and,
                     filters: [defaultValuesForNewNumberFilter['equals']]  // Default empty equals filter
                 })

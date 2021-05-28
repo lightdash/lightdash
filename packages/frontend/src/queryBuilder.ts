@@ -6,7 +6,7 @@ import {
     fieldId,
     FilterGroupOperator,
     Metric,
-    MetricQuery, StringFilter, StringDimension, NumberDimension, NumberFilter,
+    MetricQuery, StringFilter, StringDimension, NumberDimension, NumberFilter, getDimensions, fieldIdFromFilterGroup,
 } from "common";
 
 
@@ -121,11 +121,18 @@ const renderNumberFilterSql = (dimension: NumberDimension, filter: NumberFilter,
 const renderFilterGroupSql = (filterGroup: FilterGroup, explore: Explore): string => {
     const operator = filterGroup.operator === FilterGroupOperator.or ? 'OR' : 'AND'
     const groupType = filterGroup.type
+    const filterGroupFieldId = fieldIdFromFilterGroup(filterGroup)
+    const dimension = getDimensions(explore).find(d => (fieldId(d) === filterGroupFieldId))
     switch (filterGroup.type) {
-        case "string":
-            return filterGroup.filters.map(filter => renderStringFilterSql(filterGroup.dimension, filter, explore)).join(`\n   ${operator} `)
+        case "string": {
+            if (dimension?.type === 'string')
+                return filterGroup.filters.map(filter => renderStringFilterSql(dimension, filter, explore)).join(`\n   ${operator} `)
+            throw new Error(`StringFilterGroup has a reference to an unknown string field ${fieldIdFromFilterGroup(filterGroup)}`)
+        }
         case "number":
-            return filterGroup.filters.map(filter => renderNumberFilterSql(filterGroup.dimension, filter, explore)).join(`\n   ${operator} `)
+            if (dimension?.type === 'number')
+                return filterGroup.filters.map(filter => renderNumberFilterSql(dimension, filter, explore)).join(`\n   ${operator} `)
+            throw new Error(`NumberFilterGroup has a reference to an unknown number field ${fieldIdFromFilterGroup(filterGroup)}`)
         default:
             const nope: never = filterGroup
             throw Error(`No function implemented to render sql for filter group type ${groupType}`)
