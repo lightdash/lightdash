@@ -1,7 +1,6 @@
 import {
     Dimension,
     DimensionType,
-    Direction,
     Explore,
     Field,
     fieldId,
@@ -10,8 +9,8 @@ import {
     Metric,
     SortField
 } from "common";
-import React, {useEffect, useState} from "react";
-import {TableInstance, usePagination, useSortBy, useTable} from "react-table";
+import React, {useState} from "react";
+import {usePagination, useTable} from "react-table";
 import {buildQuery} from "./queryBuilder";
 import {runQuery} from "./api";
 import {CSVLink} from 'react-csv';
@@ -50,7 +49,7 @@ export const Explorer = ({
      onChangeActiveFilters,
      onError,
     }: ExplorerProps) => {
-    const { activeFields, activeTableName, tableData, setTableData, isTableDataLoading, setIsTableDataLoading } = useExploreConfig()
+    const { activeFields, activeTableName, tableData, setTableData, setIsTableDataLoading, sortFields } = useExploreConfig()
     const exploresResults = useExplores()
     const activeExplore = (exploresResults.data || []).find(e => e.name === activeTableName)
     const activeDimensions = (activeExplore ? getDimensions(activeExplore) : []).filter(d => activeFields.has(fieldId(d)))
@@ -59,30 +58,9 @@ export const Explorer = ({
     const [resultsIsOpen, setResultsIsOpen] = useState<boolean>(true)
     const [sqlIsOpen, setSqlIsOpen] = useState<boolean>(false)
     const [vizIsOpen, setVizisOpen] = useState<boolean>(false)
-    const fieldLookup = Object.fromEntries([...activeDimensions, ...activeMetrics].map(field => ([fieldId(field), field])))
     const totalActiveFilters = activeFilters.flatMap(filterGroup => filterGroup.filters.length).reduce((p, t) => p + t, 0)
     const [resultsRowLimit, setResultsRowLimit] = useState<number>(500)
     const [activeVizTab, setActiveVizTab] = useState<ChartType>('column')
-
-    // Reset sorts if columns change - note triggers rerender of this component
-    // useEffect(() => {
-    //     const sbIsExpired = tableInstance.state.sortBy.map(sb => fieldLookup[sb.id] === undefined).reduce((a, b) => a || b, false)
-    //     if (sbIsExpired) {
-    //         tableInstance.setSortBy([])
-    //     }
-    // }, [columns, fieldLookup, tableInstance])
-
-    // RACE CONDITION
-    // The currently sorted fields (controlled by table)
-    // Table sorts can be out of sync with active explore etc.
-    // WHY?
-    // const activeSorts = tableInstance.state.sortBy.filter(sb => fieldLookup[sb.id]).map(sb => ({
-    //     field: fieldLookup[sb.id],
-    //     direction: sb.desc ? Direction.descending : Direction.ascending
-    // })) as SortField[]
-
-    // This breaks everything
-    // setSortFields(activeSorts)
 
     const runSql = () => {
         setIsTableDataLoading(true)
@@ -97,7 +75,7 @@ export const Explorer = ({
                     dimensions: activeDimensions,
                     metrics: activeMetrics,
                     filters: activeFilters,
-                    sorts: [],
+                    sorts: sortFields,
                     limit: resultsRowLimit,
                 })
                 runQuery(query)
@@ -179,7 +157,7 @@ export const Explorer = ({
                 </div>
                 <Collapse isOpen={sqlIsOpen}>
                     <RenderedSql explore={activeExplore} metrics={activeMetrics} dimensions={activeDimensions}
-                                 sorts={[]} filters={activeFilters} limit={resultsRowLimit}/>
+                                 sorts={sortFields} filters={activeFilters} limit={resultsRowLimit}/>
                 </Collapse>
             </Card>
         </React.Fragment>
@@ -208,16 +186,15 @@ const RenderedSql = ({explore, metrics, dimensions, sorts, filters, limit}: Rend
 const ExploreTable = () => {
     const columns = useColumns()
     const { tableData, isTableDataLoading, activeTableName } = useExploreConfig()
+
     const tableInstance = useTable({
         columns: columns,
         data: tableData,
-        manualSortBy: true,
-        autoResetSortBy: false,
         initialState: {
             pageIndex: 0,
             pageSize: 25,
-        }
-    }, useSortBy, usePagination)
+        },
+    }, usePagination)
 
     const getColumnStyle = (isDimension: boolean) => {
         return {
@@ -256,17 +233,17 @@ const ExploreTable = () => {
         )
     }
 
-    const getSortIndicator = (isDimension: boolean, dimensionType: DimensionType, desc: boolean, sortIndex: number) => {
+    const getSortIndicator = (isDimension: boolean, dimensionType: DimensionType, desc: boolean, sortIndex: number, isMultiSort: boolean) => {
         const style = {paddingLeft: '5px'}
         if (isDimension && (dimensionType === 'string'))
             return <React.Fragment>
-                {(tableInstance.state.sortBy.length > 1) && <Tag minimal style={style}>{sortIndex + 1}</Tag>}
+                {(isMultiSort) && <Tag minimal style={style}>{sortIndex + 1}</Tag>}
                 {desc ? <Icon style={style} icon={"sort-alphabetical-desc"}/> :
                     <Icon style={style} icon={"sort-alphabetical"}/>}
             </React.Fragment>
         else
             return <React.Fragment>
-                {(tableInstance.state.sortBy.length > 1) && <Tag minimal style={style}>{sortIndex + 1}</Tag>}
+                {isMultiSort && <Tag minimal style={style}>{sortIndex + 1}</Tag>}
                 {desc ? <Icon style={style} icon={"sort-numerical-desc"}/> :
                     <Icon style={style} icon={"sort-numerical"}/>}
             </React.Fragment>
@@ -289,7 +266,7 @@ const ExploreTable = () => {
                             {headerGroup.headers.map(column => (
                                 <th {...column.getHeaderProps([column.getSortByToggleProps(), getHeaderStyle(column.isDimension)])}>
                                     {column.render('Header')}
-                                    {column.isSorted && getSortIndicator(column.isDimension, column.dimensionType, column.isSortedDesc || false, column.sortedIndex)}
+                                    {column.isSorted && getSortIndicator(column.isDimension, column.dimensionType, column.isSortedDesc || false, column.sortedIndex, column.isMultiSort)}
                                 </th>
                             ))}
                         </tr>

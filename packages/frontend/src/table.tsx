@@ -1,4 +1,4 @@
-import {Dimension, Explore, fieldId, friendlyName, getDimensions, getMetrics} from "common";
+import {Dimension, Explore, fieldId, friendlyName, getDimensions, getMetrics, SortField} from "common";
 import React, {useMemo} from "react";
 import {useExplores} from "./hooks/useExplores";
 import {useExploreConfig} from "./hooks/useExploreConfig";
@@ -43,9 +43,28 @@ const getMetricFormatter = () => {
     return formatWrapper(formatNumber)
 }
 
+const getSortByProps = (fieldId: string, sortFields: SortField[], toggleSortField: (fieldId: string) => void) => {
+    const getSortByToggleProps = () => ({
+        style: {
+            cursor: 'pointer',
+        },
+        title: 'Toggle SortBy',
+        onClick: (e: MouseEvent) => toggleSortField(fieldId),
+    })
+
+    const sortedIndex = sortFields.findIndex(sf => fieldId === sf.fieldId)
+    return {
+        getSortByToggleProps,
+        sortedIndex,
+        isSorted: sortedIndex !== -1,
+        isSortedDesc: sortedIndex === -1 ? undefined : sortFields[sortedIndex].descending,
+        isMultiSort: sortFields.length > 1,
+    }
+}
+
 export const useColumns = () => {
     const exploresResults = useExplores()
-    const { activeFields, activeTableName } = useExploreConfig()
+    const { activeFields, activeTableName, sortFields, toggleSortField } = useExploreConfig()
     const activeExplore = (exploresResults.data || []).find(e => e.name === activeTableName)
     const dimensions = (activeExplore ? getDimensions(activeExplore) : []).filter(d => activeFields.has(fieldId(d)))
     const metrics = (activeExplore ? getMetrics(activeExplore) : []).filter(m => activeFields.has(fieldId(m)))
@@ -55,13 +74,15 @@ export const useColumns = () => {
         Cell: getDimensionFormatter(dim),
         isDimension: true,
         dimensionType: dim.type,
+        ...getSortByProps(fieldId(dim), sortFields, toggleSortField),
     }))
     const metricColumns = metrics.map(m => ({
         Header: <span>{friendlyName(m.table)} <b>{friendlyName(m.name)}</b></span>,
         accessor: fieldId(m),
         Cell: getMetricFormatter(),
         isDimension: false,
+        ...getSortByProps(fieldId(m), sortFields, toggleSortField),
     }))
-    const result = useMemo(() => [...dimColumns, ...metricColumns], [activeFields, activeTableName])
+    const result = useMemo(() => [...dimColumns, ...metricColumns], [activeFields, activeTableName, sortFields])
     return result
 }
