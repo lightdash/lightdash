@@ -1,6 +1,6 @@
-import React, {useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {useHistory, useLocation, useParams} from "react-router-dom";
-import {FilterGroup, SortField} from "common";
+import {fieldId, FilterGroup, SortField} from "common";
 
 type SidebarPanel = 'base' | 'explores'
 
@@ -124,6 +124,12 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
 
     const [tableData, setTableData] = useState<{[col: string]: any}[]>([])
     const [isTableDataLoading, setIsTableDataLoading] = useState(false)
+
+    // Remove sorts if out of date
+    useEffect(() => {
+        if (sortFields.some(sf => !activeFields.has(sf.fieldId)))
+            setSortFields([])
+    }, [sortFields, setSortFields])
 
     const contextValue = {
         activeTableName,
