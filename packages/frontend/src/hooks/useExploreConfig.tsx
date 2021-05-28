@@ -1,6 +1,7 @@
 import React, {useMemo, useState} from 'react';
 import {useHistory, useLocation, useParams} from "react-router-dom";
 import {SortField} from "common";
+import {usePagination, useSortBy, useTable} from "react-table";
 
 type SidebarPanel = 'base' | 'explores'
 
@@ -13,6 +14,7 @@ type ContextProps = {
     setSidebarPanel: (panelName: SidebarPanel) => void,
     sortFields: SortField[],
     setSortFields: (sortFields: SortField[]) => void,
+    toggleSortField: (fieldId: string) => void,
     tableData: {[col: string]: any}[],
     setTableData: (data: {[col: string]: any}[]) => void,
     isTableDataLoading: boolean,
@@ -27,6 +29,7 @@ const context = React.createContext<ContextProps>({
     setSidebarPanel: () => {},
     sortFields: [],
     setSortFields: () => {},
+    toggleSortField: () => {},
     tableData: [],
     setTableData: () => {},
     isTableDataLoading: false,
@@ -45,6 +48,7 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
         newParams.set('sidebar', 'explores')
         if (tableName !== activeTableName) {
             newParams.delete('fields')
+            newParams.delete('sort')
         }
         history.push({
             pathname: `/tables/${tableName}`,
@@ -61,7 +65,7 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
             newParams.delete('fields')
         else
             newParams.set('fields', Array.from(fields).join(','))
-        history.push({
+        history.replace({
             pathname: history.location.pathname,
             search: newParams.toString(),
         })
@@ -88,15 +92,27 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
     const sortSearchParam = searchParams.get('sort')
     const sortFields: SortField[] = sortSearchParam === null ? [] : JSON.parse(sortSearchParam)
     const setSortFields = (sortFields: SortField[]) => {
+        // Can't sort a field that's not active
+        sortFields.filter(sf => activeFields.has(sf.fieldId))
         const newParams = new URLSearchParams(searchParams)
         if (sortFields.length === 0)
             newParams.delete('sort')
         else
             newParams.set('sort', JSON.stringify(sortFields))
-        history.push({
+        history.replace({
             pathname: history.location.pathname,
             search: newParams.toString(),
         })
+    }
+    // First lets try single sort
+    const toggleSortField = (fieldId: string) => {
+        const prevState = sortFields.find(sf => sf.fieldId === fieldId)
+        if (prevState === undefined)
+            setSortFields([{fieldId, descending: false}])
+        else if (!prevState.descending)
+            setSortFields([{fieldId, descending: true}])
+        else
+            setSortFields([])
     }
 
     const [tableData, setTableData] = useState<{[col: string]: any}[]>([])
@@ -111,6 +127,7 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
         setSidebarPanel,
         sortFields,
         setSortFields,
+        toggleSortField,
         tableData,
         setTableData,
         isTableDataLoading,
@@ -132,6 +149,7 @@ export const useExploreConfig = () => {
         setSidebarPanel,
         sortFields,
         setSortFields,
+        toggleSortField,
         tableData,
         setTableData,
         isTableDataLoading,
@@ -145,8 +163,9 @@ export const useExploreConfig = () => {
         toggleActiveField,
         sidebarPanel,
         setSidebarPanel,
-        sortFields,
-        setSortFields,
+        sortFields: useMemo(() => sortFields, [sortFields]),
+        setSortFields: useMemo(() => setSortFields, [setSortFields]),
+        toggleSortField: useMemo(() => toggleSortField, [toggleSortField]),
         tableData: useMemo(() => tableData, [tableData]),
         setTableData,
         isTableDataLoading,

@@ -1,7 +1,6 @@
 import {
     Dimension,
     FilterGroup,
-    Direction,
     Explore,
     ExploreJoin,
     fieldId,
@@ -161,7 +160,7 @@ export const buildQuery = ({ explore, dimensions, metrics, filters, sorts, limit
     const sqlSelect = `SELECT\n${[...dimensionSelects, ...metricSelects].join(',\n')}`
     const sqlGroupBy = dimensionSelects.length > 0 ? `GROUP BY ${dimensionSelects.map((val, i) => i+1).join(',')}`: ''
 
-    const fieldOrders = sorts.map(sort => `${fieldId(sort.field)}${sort.direction === Direction.descending ? ' DESC' : ''}`)
+    const fieldOrders = sorts.map(sort => `${sort.fieldId}${sort.descending ? ' DESC' : ''}`)
     const sqlOrderBy = fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : ''
 
     const whereFilters = filters.map(filter => renderFilterGroupSql(filter, explore))

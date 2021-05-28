@@ -166,7 +166,7 @@ export type MetricType = Metric["type"]
 export type MetricQuery = {
     explore: Explore              // Queries only happen within a single explore
     dimensions: Dimension[],      // Dimensions to group by in the explore
-    metrics: Metric[],          // Metrics to compute in the explore
+    metrics: Metric[],           // Metrics to compute in the explore
     filters: FilterGroup[],       // Filters applied to the table to query (logical AND)
     sorts: SortField[],           // Sorts for the data
     limit: number,                // Max number of rows to return from query
@@ -174,13 +174,8 @@ export type MetricQuery = {
 
 // Sort by
 export type SortField = {
-    field: Field,                 // Field must exist in the explore
-    direction: Direction,         // Direction of the sort
-}
-
-export enum Direction {
-    ascending = 'ascending',
-    descending = 'descending',
+    fieldId: string,              // Field must exist in the explore
+    descending: boolean,          // Direction of the sort
 }
 
 export enum FilterGroupOperator {
