@@ -20,7 +20,6 @@ export const Explorer = ({
         activeDimensions,
         activeMetrics,
         activeTableName,
-        tableData,
         setTableData,
         setIsTableDataLoading,
         sortFields,
@@ -72,7 +71,7 @@ export const Explorer = ({
                         disabled={[...activeMetrics, ...activeDimensions].length === 0}>Run query</Button>
                 { exploresResults.isFetching
                     ? <Button disabled={true}><div style={{display: 'flex', flexDirection: 'row'}}><Spinner size={15}/><div style={{paddingRight: '5px'}} />Refreshing dbt</div></Button>
-                    : <Button icon={'refresh'} onClick={exploresResults.refresh}></Button>
+                    : <Button icon={'refresh'} onClick={exploresResults.refresh}>Refresh dbt</Button>
                 }
 
             </div>

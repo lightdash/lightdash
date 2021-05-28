@@ -83,7 +83,7 @@ const BasePanel = () => {
                 isOpen={showChangeExploreConfirmation}
                 onCancel={onCancelConfirmation}
                 onConfirm={() => onSubmitConfirmation()}
-                intent={'success'}
+                intent={'primary'}
                 cancelButtonText={`Go back to ${friendlyName(activeTableName || '')}`}
                 confirmButtonText={`Explore ${friendlyName(selectedExploreName || '')}`}
             >
