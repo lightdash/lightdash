@@ -1,7 +1,6 @@
 import React, {useMemo, useState} from 'react';
 import {useHistory, useLocation, useParams} from "react-router-dom";
-import {SortField} from "common";
-import {usePagination, useSortBy, useTable} from "react-table";
+import {FilterGroup, SortField} from "common";
 
 type SidebarPanel = 'base' | 'explores'
 
@@ -19,6 +18,8 @@ type ContextProps = {
     setTableData: (data: {[col: string]: any}[]) => void,
     isTableDataLoading: boolean,
     setIsTableDataLoading: (val: boolean) => void,
+    activeFilters: FilterGroup[],
+    setActiveFilters: (filters: FilterGroup[]) => void,
 }
 const context = React.createContext<ContextProps>({
     activeTableName: undefined,
@@ -34,6 +35,8 @@ const context = React.createContext<ContextProps>({
     setTableData: () => {},
     isTableDataLoading: false,
     setIsTableDataLoading: () => {},
+    activeFilters: [],
+    setActiveFilters: () => {},
 });
 
 export const ExploreConfigContext: React.FC = ({ children }) => {
@@ -115,6 +118,10 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
             setSortFields([])
     }
 
+
+    // Active filters applied to the table
+    const [activeFilters, setActiveFilters] = useState<FilterGroup[]>([])
+
     const [tableData, setTableData] = useState<{[col: string]: any}[]>([])
     const [isTableDataLoading, setIsTableDataLoading] = useState(false)
 
@@ -132,6 +139,8 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
         setTableData,
         isTableDataLoading,
         setIsTableDataLoading,
+        activeFilters,
+        setActiveFilters,
     }
 
     return (
@@ -154,6 +163,8 @@ export const useExploreConfig = () => {
         setTableData,
         isTableDataLoading,
         setIsTableDataLoading,
+        activeFilters,
+        setActiveFilters,
     } = React.useContext(context)
 
     return {
@@ -170,5 +181,7 @@ export const useExploreConfig = () => {
         setTableData,
         isTableDataLoading,
         setIsTableDataLoading,
+        activeFilters,
+        setActiveFilters,
     }
 }
