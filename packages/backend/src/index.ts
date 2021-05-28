@@ -108,4 +108,4 @@ app.use(async (error: Error, req: Request, res: Response, next: NextFunction) =>
 })
 
 const port = process.env.PORT || 8080
-app.listen(port, () => console.log(`--------------------------------------\nLaunch lightdash at http://localhost:${port}\n--------------------------------------`));
+app.listen(port, () => console.log(`   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |  \n \\ | / \\ | / \\ | / \\ | / \\ | / \\ | / \\ | /\n  \\|/   \\|/   \\|/   \\|/   \\|/   \\|/   \\|/\n------------------------------------------\nLaunch lightdash at http://localhost:8080\n------------------------------------------\n  /|\\   /|\\   /|\\   /|\\   /|\\   /|\\   /|\\\n / | \\ / | \\ / | \\ / | \\ / | \\ / | \\ / | \\\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |`));
