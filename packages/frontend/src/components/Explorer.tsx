@@ -1,6 +1,4 @@
 import React, {useState} from "react";
-import {buildQuery} from "../queryBuilder";
-import {runQuery} from "../api";
 import {Button, ButtonGroup, Card, Collapse, FormGroup, H5, NumericInput, Spinner, Tag} from "@blueprintjs/core";
 import {FiltersForm} from "../filters/FiltersForm";
 import {useExploreConfig} from "../hooks/useExploreConfig";
@@ -8,23 +6,18 @@ import {useExplores} from "../hooks/useExplores";
 import {ResultsTable} from "./ResultsTable";
 import {ChartType, SimpleChart} from "./SimpleChart";
 import {RenderedSql} from "./RenderedSql";
+import {useSqlQuery} from "../hooks/useSqlQuery";
 
-type ExplorerProps = {
-    onError: ({title, text}: {title: string, text: string}) => void,
-}
-export const Explorer = ({
-     onError,
-    }: ExplorerProps) => {
+export const Explorer = () => {
     const {
-        activeFields,
         activeDimensions,
         activeMetrics,
         activeTableName,
-        setTableData,
-        setIsTableDataLoading,
-        sortFields,
         activeFilters,
+        resultsRowLimit,
+        setResultsRowLimit
     } = useExploreConfig()
+    const { refresh: refreshSqlQuery } = useSqlQuery()
     const exploresResults = useExplores()
     const activeExplore = (exploresResults.data || []).find(e => e.name === activeTableName)
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false)
@@ -32,42 +25,12 @@ export const Explorer = ({
     const [sqlIsOpen, setSqlIsOpen] = useState<boolean>(false)
     const [vizIsOpen, setVizisOpen] = useState<boolean>(false)
     const totalActiveFilters = activeFilters.flatMap(filterGroup => filterGroup.filters.length).reduce((p, t) => p + t, 0)
-    const [resultsRowLimit, setResultsRowLimit] = useState<number>(500)
     const [activeVizTab, setActiveVizTab] = useState<ChartType>('column')
-
-    const runSql = () => {
-        setIsTableDataLoading(true)
-        setResultsIsOpen(true)
-        setTableData([])
-        if (activeExplore) {
-            // Sort by first field if not sorts
-            if (activeFields.size > 0) {
-                const query = buildQuery({
-                    explore: activeExplore,
-                    dimensions: Array.from(activeDimensions),
-                    metrics: Array.from(activeMetrics),
-                    filters: activeFilters,
-                    sorts: sortFields,
-                    limit: resultsRowLimit,
-                })
-                runQuery(query)
-                    .then(response => {
-                        if (response.status === 'error') {
-                            setTableData([])
-                            onError({title: 'Error running SQL query', text: response.error.data.databaseResponse})
-                        }
-                        else
-                            setTableData(response.results)
-                        setIsTableDataLoading(false)
-                    })
-            }
-        }
-    }
 
     return (
         <React.Fragment>
             <div style={{display: "flex", flexDirection: "row", justifyContent: "flex-end"}}>
-                <Button intent={"primary"} style={{height: '40px', width: 150, marginRight: '10px'}} onClick={runSql}
+                <Button intent={"primary"} style={{height: '40px', width: 150, marginRight: '10px'}} onClick={refreshSqlQuery}
                         disabled={[...activeMetrics, ...activeDimensions].length === 0}>Run query</Button>
                 { exploresResults.isFetching
                     ? <Button disabled={true}><div style={{display: 'flex', flexDirection: 'row'}}><Spinner size={15}/><div style={{paddingRight: '5px'}} />Refreshing dbt</div></Button>
@@ -128,8 +91,7 @@ export const Explorer = ({
                     <H5 style={{margin: 0, padding: 0}}>SQL</H5>
                 </div>
                 <Collapse isOpen={sqlIsOpen}>
-                    <RenderedSql explore={activeExplore} metrics={Array.from(activeMetrics)} dimensions={Array.from(activeDimensions)}
-                                 sorts={sortFields} filters={activeFilters} limit={resultsRowLimit}/>
+                    <RenderedSql />
                 </Collapse>
             </Card>
         </React.Fragment>

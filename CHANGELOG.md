@@ -5,9 +5,10 @@ Recent and upcoming changes to lightdash
 ## [Unreleased]
 ### Added
  - CSV export feature for table of results
- - app url is shareable and can be used to share your current work (active table, columns, sorts, filters)
+ - app url is shareable and can be used to share your current work (active table, columns, sorts, filters, limit)
  - user is prompted to confirm before losing work (starting to explore a new table)
  - dbt refreshes happen in the background whenever possible
+ - better messages when query results are empty or haven't been run
 
 ### Changed
  - updated site metadata and favicon

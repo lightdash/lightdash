@@ -5,6 +5,8 @@ import {DimensionType} from "common";
 import React from "react";
 import {CSVLink} from "react-csv";
 import {useColumns} from "../hooks/useColumns";
+import {useExplores} from "../hooks/useExplores";
+import {useSqlQuery} from "../hooks/useSqlQuery";
 
 const hexToRGB = (hex: string, alpha: number) => {
     const h = parseInt('0x' + hex.substring(1))
@@ -13,13 +15,59 @@ const hexToRGB = (hex: string, alpha: number) => {
     const b = (h & 0xFF)
     return `rgb(${r}, ${g}, ${b}, ${alpha})`
 }
+
+const EmptyStateNoColumns = () => (
+    <div style={{padding: '50px 0'}}>
+        <NonIdealState
+            title="Select fields to explore"
+            description="Get started by selecting metrics and dimensions."
+            icon='hand-left'
+        />
+    </div>
+)
+
+const EmptyStateNoTableData = () => {
+    const { refresh } = useSqlQuery()
+    return (
+        <div style={{padding: '50px 0'}}>
+            <NonIdealState
+                title="Run query"
+                description="Get results from your data warehouse"
+                action={
+                    <Button
+                        intent={"primary"}
+                        onClick={refresh}
+                    >
+                        Run query
+                    </Button>}
+            />
+        </div>
+    )
+}
+
+const EmptyStateExploreLoading = () => (
+    <NonIdealState
+        title='Loading tables'
+        icon={<Spinner/>}
+    />
+)
+
+const EmptyStateNoRows = () => (
+    <NonIdealState
+        title='Query returned no results'
+        description='This query ran successfully but returned no results'
+    />
+)
+
 export const ResultsTable = () => {
     const columns = useColumns()
     const {tableData, isTableDataLoading, activeTableName} = useExploreConfig()
+    const exploreResults = useExplores()
+    const safeData = React.useMemo(() => tableData === null ? [] : tableData, [tableData])
 
     const tableInstance = useTable({
         columns: columns,
-        data: tableData,
+        data: safeData,
         initialState: {
             pageIndex: 0,
             pageSize: 25,
@@ -51,17 +99,11 @@ export const ResultsTable = () => {
         }
     }
 
-    if (tableInstance.columns.length === 0) {
-        return (
-            <div style={{padding: '50px 0'}}>
-                <NonIdealState
-                    title="Select fields to explore"
-                    description="Get started by selecting metrics and dimensions."
-                    icon='hand-left'
-                />
-            </div>
-        )
-    }
+    if (exploreResults.isLoading)
+        return <EmptyStateExploreLoading />
+
+    if (tableInstance.columns.length === 0)
+        return <EmptyStateNoColumns />
 
     const getSortIndicator = (isDimension: boolean, dimensionType: DimensionType, desc: boolean, sortIndex: number, isMultiSort: boolean) => {
         const style = {paddingLeft: '5px'}
@@ -134,6 +176,12 @@ export const ResultsTable = () => {
                             icon={<Spinner/>}
                         />
                     </React.Fragment>
+                )}
+                {tableData === null && !isTableDataLoading && (
+                    <EmptyStateNoTableData />
+                )}
+                {tableData !== null && tableData.length === 0 && (
+                    <EmptyStateNoRows />
                 )}
             </div>
             <div style={{
