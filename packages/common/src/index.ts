@@ -188,7 +188,8 @@ export enum FilterGroupOperator {
 // Filters vary depending on the dimension type
 export type StringFilterGroup = {
     type: 'string'
-    dimension: StringDimension
+    tableName: string,
+    fieldName: string,
     operator: FilterGroupOperator
     filters: StringFilter[]
 }
@@ -202,7 +203,8 @@ export type StringFilter =
 
 export type NumberFilterGroup = {
     type: 'number'
-    dimension: NumberDimension
+    tableName: string,
+    fieldName: string,
     operator: FilterGroupOperator
     filters: NumberFilter[]
 }
@@ -219,7 +221,9 @@ export type FilterGroup =
     | StringFilterGroup
     | NumberFilterGroup
 
-export type FilterableDimension = FilterGroup["dimension"]
+export const fieldIdFromFilterGroup = (fg: FilterGroup) => `${fg.tableName}_${fg.fieldName}`
+
+export type FilterableDimension = StringDimension | NumberDimension
 export type FilterType = FilterGroup["type"]
 export const assertFilterableDimension = (dimension: Dimension): FilterableDimension | undefined => {
     switch (dimension.type) {
