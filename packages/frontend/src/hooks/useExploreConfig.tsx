@@ -16,12 +16,16 @@ type ContextProps = {
     sortFields: SortField[],
     setSortFields: (sortFields: SortField[]) => void,
     toggleSortField: (fieldId: string) => void,
-    tableData: {[col: string]: any}[],
-    setTableData: (data: {[col: string]: any}[]) => void,
+    tableData: {[col: string]: any}[] | null,
+    setTableData: (data: {[col: string]: any}[] | null) => void,
     isTableDataLoading: boolean,
     setIsTableDataLoading: (val: boolean) => void,
     activeFilters: FilterGroup[],
     setActiveFilters: (filters: FilterGroup[]) => void,
+    error: {title: string, text: string} | undefined,
+    setError: (errors: {title: string, text: string}) => void,
+    resultsRowLimit: number | undefined,
+    setResultsRowLimit: (rowLimit: number | undefined) => void,
 }
 const context = React.createContext<ContextProps>({
     activeTableName: undefined,
@@ -35,18 +39,25 @@ const context = React.createContext<ContextProps>({
     sortFields: [],
     setSortFields: () => {},
     toggleSortField: () => {},
-    tableData: [],
+    tableData: null,
     setTableData: () => {},
     isTableDataLoading: false,
     setIsTableDataLoading: () => {},
     activeFilters: [],
     setActiveFilters: () => {},
+    error: undefined,
+    setError: () => {},
+    resultsRowLimit: undefined,
+    setResultsRowLimit: () => {},
 });
 
 export const ExploreConfigContext: React.FC = ({ children }) => {
     const searchParams = new URLSearchParams(useLocation().search)
     const pathParams = useParams<{tableId: string | undefined}>()
     const history = useHistory()
+
+    // Global error state
+    const [error, setError] = useState<{title: string, text: string} | undefined>()
 
     // Currently active table
     const activeTableName = pathParams.tableId
@@ -165,7 +176,22 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
         })
     }
 
-    const [tableData, setTableData] = useState<{[col: string]: any}[]>([])
+    // Row limit
+    const limitSearchParam = searchParams.get('limit')
+    const resultsRowLimit = limitSearchParam && parseInt(limitSearchParam) ? parseInt(limitSearchParam) : 0
+    const setResultsRowLimit = (rowLimit: number | undefined) => {
+        const newParams = new URLSearchParams(searchParams)
+        if (rowLimit === undefined)
+            newParams.delete('limit')
+        else
+            newParams.set('limit', `${rowLimit}`)
+        history.replace({
+            pathname: history.location.pathname,
+            search: newParams.toString(),
+        })
+    }
+
+    const [tableData, setTableData] = useState<{[col: string]: any}[] | null>(null)
     const [isTableDataLoading, setIsTableDataLoading] = useState(false)
 
 
@@ -194,6 +220,10 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
         setIsTableDataLoading,
         activeFilters,
         setActiveFilters,
+        error,
+        setError,
+        resultsRowLimit,
+        setResultsRowLimit,
     }
 
     return (
@@ -220,6 +250,10 @@ export const useExploreConfig = () => {
         setIsTableDataLoading,
         activeFilters,
         setActiveFilters,
+        error,
+        setError,
+        resultsRowLimit,
+        setResultsRowLimit,
     } = React.useContext(context)
 
     return {
@@ -240,5 +274,9 @@ export const useExploreConfig = () => {
         setIsTableDataLoading,
         activeFilters,
         setActiveFilters,
+        error,
+        setError,
+        resultsRowLimit,
+        setResultsRowLimit,
     }
 }

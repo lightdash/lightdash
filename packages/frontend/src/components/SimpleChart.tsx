@@ -25,6 +25,8 @@ const pivot = (values: { [key: string]: any }[], indexKey: string, pivotKey: str
     }, {}))
 }
 const defaultEchartDimensions = (results: { [key: string]: any }[], dimensions: FieldId[], metrics: FieldId[]) => {
+    if (results.length === 0)
+        return undefined
     if (metrics.length === 0)
         return undefined
     switch (dimensions.length) {
@@ -106,7 +108,7 @@ type SimpleChartProps = {
 export const SimpleChart = ({chartType}: SimpleChartProps) => {
     // Different behaviour depending on dimensions
     const {activeDimensions, activeMetrics, tableData} = useExploreConfig()
-    const plotData = defaultEchartDimensions(tableData, Array.from(activeDimensions), Array.from(activeMetrics))
+    const plotData = defaultEchartDimensions(tableData || [], Array.from(activeDimensions), Array.from(activeMetrics))
     if (!plotData)
         return <span>Can't plot</span>
     const flipX = flipXFromChartType(chartType)

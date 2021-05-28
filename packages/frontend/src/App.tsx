@@ -7,10 +7,11 @@ import "@blueprintjs/popover2/lib/css/blueprint-popover2.css";
 import {Explorer} from "./components/Explorer";
 import './App.css'
 import {AppToaster} from "./components/AppToaster";
-import {ExploreConfigContext} from "./hooks/useExploreConfig";
+import {ExploreConfigContext, useExploreConfig} from "./hooks/useExploreConfig";
 import {useExplores} from "./hooks/useExplores";
 import {QueryClient, QueryClientProvider} from "react-query";
 import {ExploreSideBar} from "./components/ExploreSideBar";
+import {ErrorCallout} from "./components/ErrorCallout";
 
 const queryClient = new QueryClient()
 
@@ -38,15 +39,14 @@ const App = () => {
 }
 
 const InnerApp = () => {
-    // Any errors to display to the user
-    const [errors, setErrors] = useState<{title: string, text: string} | undefined>()
+    const { setError } = useExploreConfig()
     const exploresResults = useExplores()
 
     useEffect(() => {
         if (exploresResults.isError) {
             const error = exploresResults.error
             const [first, ...rest] = error.error.message.split('\n')
-            setErrors({title: first, text: rest.join('\n')})
+            setError({title: first, text: rest.join('\n')})
         }
 
         if (exploresResults.isLoading) {
@@ -80,12 +80,8 @@ const InnerApp = () => {
                   justifyContent: "flex-start",
                   alignItems: 'stretch'
               }}>
-                  { errors &&
-                    <Callout style={{marginBottom: '20px'}} intent={'danger'} title={errors.title}>{ errors.text.split('\n').map((line, idx) => <p key={idx}>{line}</p>)}</Callout>
-                  }
-                  <Explorer
-                      onError={setErrors}
-                  />
+                  <ErrorCallout />
+                  <Explorer />
               </div>
           </div>
   );

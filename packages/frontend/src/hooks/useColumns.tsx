@@ -78,6 +78,6 @@ export const useColumns = () => {
         isDimension: false,
         ...getSortByProps(fieldId(m), sortFields, toggleSortField),
     }))
-    const result = useMemo(() => [...dimColumns, ...metricColumns], [activeFields, activeTableName, sortFields])
+    const result = useMemo(() => [...dimColumns, ...metricColumns], [activeFields, activeTableName, sortFields, exploresResults.status])
     return result
 }
