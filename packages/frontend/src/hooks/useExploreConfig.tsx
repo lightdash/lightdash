@@ -120,16 +120,30 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
 
 
     // Active filters applied to the table
-    const [activeFilters, setActiveFilters] = useState<FilterGroup[]>([])
+    const filterSearchParam = searchParams.get('filters')
+    const activeFilters: FilterGroup[] = filterSearchParam === null ? [] : JSON.parse(filterSearchParam)
+    const setActiveFilters = (activeFilters: FilterGroup[]) => {
+        const newParams = new URLSearchParams(searchParams)
+        if (activeFilters.length === 0)
+            newParams.delete('filters')
+        else
+            newParams.set('filters', JSON.stringify(activeFilters))
+        history.replace({
+            pathname: history.location.pathname,
+            search: newParams.toString(),
+        })
+    }
 
     const [tableData, setTableData] = useState<{[col: string]: any}[]>([])
     const [isTableDataLoading, setIsTableDataLoading] = useState(false)
+
 
     // Remove sorts if out of date
     useEffect(() => {
         if (sortFields.some(sf => !activeFields.has(sf.fieldId)))
             setSortFields([])
     }, [sortFields, setSortFields])
+
 
     const contextValue = {
         activeTableName,
