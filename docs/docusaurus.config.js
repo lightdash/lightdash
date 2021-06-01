@@ -1,4 +1,6 @@
 /** @type {import('@docusaurus/types').DocusaurusConfig} */
+const path = require('path');
+
 module.exports = {
   title: 'Documentation | lightdash',
   tagline: 'Documentation. Learn how to use lightdash and setup the BI tool for the modern data stack.',
@@ -9,6 +11,15 @@ module.exports = {
   favicon: 'img/favicon.ico',  // TODO update
   organizationName: 'lightdash', // Usually your GitHub org/user name.
   projectName: 'lightdash', // Usually your repo name.
+  plugins: [
+      [
+          path.resolve(__dirname, 'docusaurus-rudderstack-plugin'),
+          {
+              dataplaneUrl: 'https://analytics.lightdash.com',
+              writeKey: '1tLM5JN9u3GhRUidt5zjU0Uc5Qf',
+          }
+      ],
+  ],
   themeConfig: {
     navbar: {
       title: 'lightdash',
