@@ -1,4 +1,4 @@
-import {ApiError, ApiQueryResults, ApiResponse, ApiResults} from "common";
+import {ApiError, ApiResponse, ApiResults} from "common";
 
 const headers = {
     'Content-Type': 'application/json'
@@ -39,17 +39,4 @@ export const lightdashApi = async <T extends ApiResults>({ method, url, body }: 
             }
         })
         .catch(err => {throw(handleError(err))})
-}
-
-export const runQuery = async (query: string): Promise<ApiQueryResults> => {
-    const url = '/query'
-    const body = JSON.stringify({ query })
-    return fetch(url, { method: 'POST', headers, body })
-        .then(r => {
-            if (!r.ok)
-                return r.json().then(d => { throw d })
-            return r
-        })
-        .then(r => r.json())
-        .catch(handleError)
 }

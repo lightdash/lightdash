@@ -1,7 +1,8 @@
-import {ApiQueryResults, MetricQuery} from "common";
+import {ApiError, ApiQueryResults, MetricQuery} from "common";
 import {lightdashApi} from "../api";
 import {useExploreConfig} from "./useExploreConfig";
 import {useQuery} from "react-query";
+import {useEffect} from "react";
 
 const getQueryResults = async (tableId: string, query: MetricQuery) => {
     return await lightdashApi<ApiQueryResults>({
@@ -12,6 +13,7 @@ const getQueryResults = async (tableId: string, query: MetricQuery) => {
 }
 export const useQueryResults = () => {
     const {
+        setError,
         activeTableName: tableId,
         activeDimensions: dimensions,
         activeMetrics: metrics,
@@ -27,11 +29,19 @@ export const useQueryResults = () => {
         limit: limit || 500
     }
     const queryKey = ['queryResults', tableId, metricQuery]
-    const query = useQuery({
+    const query = useQuery<ApiQueryResults, ApiError>({
         queryKey,
         queryFn: () => getQueryResults(tableId || '', metricQuery),
         enabled: false,  // don't run automatically
         keepPreviousData: true, // changing the query won't update results until fetch
     })
+
+    useEffect(() => {
+        if (query.error) {
+            const [first, ...rest] = query.error.error.message.split('\n')
+            setError({title: first, text: rest.join('\n')})
+        }
+    }, [query.error, setError])
+
     return query
 }
