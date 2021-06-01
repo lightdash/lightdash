@@ -20,7 +20,7 @@ type ContextProps = {
     activeFilters: FilterGroup[],
     setActiveFilters: (filters: FilterGroup[]) => void,
     error: {title: string, text: string} | undefined,
-    setError: (errors: {title: string, text: string}) => void,
+    setError: (error: {title: string, text: string} | undefined) => void,
     resultsRowLimit: number | undefined,
     setResultsRowLimit: (limit: string | undefined) => void,
 }
