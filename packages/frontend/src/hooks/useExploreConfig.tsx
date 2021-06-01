@@ -62,7 +62,10 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
         const newParams = new URLSearchParams(searchParams)
         newParams.set('sidebar', 'explores')
         if (tableName !== activeTableName) {
-            newParams.delete('fields')
+            newParams.delete('metrics')
+            newParams.delete('dimensions')
+            newParams.delete('filters')
+            newParams.delete('limit')
             newParams.delete('sort')
         }
         history.push({
