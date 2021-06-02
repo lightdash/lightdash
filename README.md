@@ -1,5 +1,5 @@
 <h1 align="center">
-        <a href="https://www.lightdash.com">Lightdash </a>
+        <a href="https://www.lightdash.com">⚡️ Lightdash </a>
 </h1>
 
 <p align="center">The open source Looker alternative</p>
@@ -18,7 +18,6 @@ Lightdash integrates with your dbt project and gives a framework for defining me
 - No more context lost between your data transformation and your data visualization layer.
 
 ## Getting Started
----
 
 ### Quickstart with docker
 
