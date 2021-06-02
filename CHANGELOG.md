@@ -2,7 +2,9 @@
 
 Recent and upcoming changes to lightdash
 
-## [Unreleased]
+## Unreleased
+
+## [0.2.0] - 2021-06-02
 ### Added
  - CSV export feature for table of results
  - app url is shareable and can be used to share your current work (active table, columns, sorts, filters, limit)
@@ -11,6 +13,7 @@ Recent and upcoming changes to lightdash
  - better messages when query results are empty or haven't been run
 
 ### Changed
+ - all api routes have been prefixed with `/api/v1`
  - updated site metadata and favicon
  - currently active fields aren't removed on changing tables
  - currently active fields aren't removed on refreshing tables
@@ -19,6 +22,10 @@ Recent and upcoming changes to lightdash
 
 ### Removed
  - multisort not supported (using shift click on column titles)
+
+### Fixed
+ - fixed problem where error messages wouldn't appear
+ - fixed problem where app would be stuck in loading state
 
 ## [0.1.3] - 2021-05-20
 ### Fixed
