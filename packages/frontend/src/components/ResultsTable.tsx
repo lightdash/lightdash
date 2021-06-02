@@ -31,8 +31,7 @@ const EmptyStateNoTableData = () => {
     return (
         <div style={{padding: '50px 0'}}>
             <NonIdealState
-                title="Run query"
-                description="Get results from your data warehouse"
+                description="Click run query to see your results"
                 action={<RefreshButton />}
             />
         </div>
