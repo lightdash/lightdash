@@ -8,6 +8,19 @@
         <img align="center" style="max-width:300px;" src="/static/screenshots/lightdashpreview.gif">
 </div>
 <br>
+<p align="center">
+    <a href="http://www.lightdash.com"><b>Website</b></a> •
+    <a href="https://www.loom.com/share/f3725e98ce4840bda3f719da647f58b0"><b>Demo</b></a> • 
+    <a href="http://docs.lightdash.com/"><b>Docs</b></a>
+</p>
+
+## Features
+- [x] 
+- [x] 
+- [ ] 
+- [ ] 
+
+## About Lightdash
 
 Lightdash removes the gap between your data transformation layer and your data visualization layer. It enables data analysts and engineers to control all of their business intelligence (data transformations/business logic as well as data visualization) in a single place.
 
