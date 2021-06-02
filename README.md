@@ -15,10 +15,10 @@
 </p>
 
 ## Features
-- [x] 
-- [x] 
-- [ ] 
-- [ ] 
+- [x] Data visualisations
+- [x] Shareable URLs
+- [x] Export data to CSV
+- [x] dbt metadata available in UI
 
 ## About Lightdash
 
