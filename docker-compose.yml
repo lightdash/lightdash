@@ -1,12 +1,9 @@
 version: "3.9"
 services:
   lightdash:
-    build:
-      context: .
+    image: lightdash/lightdash:latest
     environment:
       - LIGHTDASH_SPAWN_DBT=true
-      - DBT_PROJECT_DIR=/usr/app/dbt
-      - DBT_PROFILES_DIR=/usr/app/profiles
     volumes:
       - "${DBT_PROFILES_DIR}:/usr/app/profiles"
       - "${DBT_PROJECT_DIR}:/usr/app/dbt"
