@@ -29,6 +29,6 @@ export const useServerStatus = () => {
 
     // Invalidate cache
     if (query.data && query.data === 'loading')
-        setTimeout(query.refetch, 1000)
+        setTimeout(query.refetch, 5000)
     return query
 }

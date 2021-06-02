@@ -327,7 +327,7 @@ export const waitForDbtServerReady = async (): Promise<boolean> => {
 
 const pollDbtServer = async (requestToken: string): Promise<any> => {
     let attemptCount = 0
-    const maxAttempts = 20
+    const maxAttempts = 50
     const interval = 1000  // 1 second
     const params = {
         request_token: requestToken
