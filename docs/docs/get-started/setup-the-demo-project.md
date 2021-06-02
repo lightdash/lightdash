@@ -1,0 +1,93 @@
+---
+sidebar_position: 1
+sidebar_label: Setup demo project
+---
+
+# Setup Lightdash with the demo dbt project
+
+In this tutorial, you'll setup Lightdash and connect it to a demo dbt project containing some fake data.
+This is the fastest way to play with Lightdash on your local machine. The final result will look exactly like
+[https://demo.lightdash.com](https://demo.lightdash.com).
+
+**Prerequisites**
+* You must have [git](https://git-scm.com) installed. If you don't have git installed you can find [many great guides online](https://www.linode.com/docs/guides/how-to-install-git-on-linux-mac-and-windows/).
+
+## 1. Install docker
+
+You can install docker for your system [here](https://docs.docker.com/get-docker/).
+
+Once you've installed Docker, you must also [run the docker application](https://docs.docker.com/get-docker/).
+
+Check docker is running by this in your terminal:
+
+```shell
+# Check docker is running
+docker info
+
+# If the output shows:
+# > Server: 
+# >   ERROR...
+# then docker isn't running
+```
+
+## 2. Clone the Lightdash repository
+
+Clone the Lightdash code to your local machine. This will create a new directory called `./lightdash` (the lightdash directory).
+
+```bash
+# Clone the lightdash repo
+git clone https://github.com/lightdash/lightdash
+
+# A new directory called "lightdash" should appear
+```
+
+## 3. Start the demo project and dependencies
+
+Now run the `docker compose` command below to start:
+* A test data warehouse (postgres)
+* A demo dbt project containing fake data
+* A fully functional Lightdash instance for exploring the data
+
+This command might take a while to run depending on your internet speed, while it downloads Lightdash and it's dependencies.
+
+```shell
+# Change directories into the demo directory
+cd ./lightdash/examples/full-jaffle-shop-demo
+
+# Run docker compose
+docker compose up
+
+# If you see
+# > Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
+# then docker isn't running
+```
+
+## 4. Launch the Lightdash app
+
+When you see the following in your terminal, open up the app at [http://localhost:8080](http://localhost:8080).
+
+```text
+lightdash_1  | ------------------------------------------
+lightdash_1  | Launch lightdash at http://localhost:8080
+lightdash_1  | ------------------------------------------
+lightdash_1  | {"timestamp": "2021-06-02T16:03:33.770878Z", "message": "Running with dbt=0.19.1", "channel": "dbt", "l...
+lightdash_1  | {"timestamp": "2021-06-02T16:03:34.300057Z", "message": "Serving RPC server at 0.0.0.0:8580, pid=35", "...
+lightdash_1  | {"timestamp": "2021-06-02T16:03:34.303841Z", "message": "Supported methods: ['cli_args', 'compile', 'co...
+lightdash_1  | {"timestamp": "2021-06-02T16:03:34.305703Z", "message": "Send requests to http://localhost:8580/jsonrpc...
+```
+
+
+If you see the following error message:
+```text
+Error response from daemon: Ports are not available: listen tcp 0.0.0.0:8080: bind: address already in use"
+```
+
+read more about how to change ports here.
+
+
+## Next steps
+
+Learn how to start exploring data with Lightdash:
+* Run a query
+* Create a chart
+* Export query results
