@@ -70,6 +70,9 @@ ENV NODE_ENV production
 RUN yarn install --pure-lockfile --non-interactive --production
 
 # Run the backend
+ENV DBT_PROJECT_DIR /usr/app/dbt
+ENV DBT_PROFILES_DIR /usr/app/profiles
+ENV LIGHTDASH_SPAWN_DBT true
 WORKDIR /usr/app/packages/backend
 
 # USER node
