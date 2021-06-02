@@ -2,7 +2,12 @@
         <a href="https://www.lightdash.com">Lightdash </a>
 </h1>
 
-<p align="center">Open source Looker alternative</p>
+<p align="center">The open source Looker alternative</p>
+
+<div align="center">
+        <img align="center" style="max-width:300px;" src="/static/screenshots/lightdashpreview.gif">
+</div>
+<br>
 
 Lightdash removes the gap between your data transformation layer and your data visualization layer. It enables data analysts and engineers to control all of their business intelligence (data transformations/business logic as well as data visualization) in a single place.
 
