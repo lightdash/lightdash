@@ -3,7 +3,7 @@ services:
   lightdash:
     build:
       context: .
-      dockerfile: dockerfile-jaffleshop
+      dockerfile: dockerfile-lightdash-demo
     depends_on: 
       - db
     environment:
