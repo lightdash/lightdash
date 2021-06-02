@@ -16,9 +16,9 @@
 
 Lightdash is a BI tool that is fully integrated with your dbt project, allowing you to define metrics alongside your data models.
 ## Features
-- [x] Data visualisations
-- [x] Shareable URLs
-- [x] Export data to CSV
+- [x] Quickly create data visualisations
+- [x] All URLs are shareable links to share your work 
+- [x] Export data as CSV to use in any tools you want
 - [x] dbt metadata available in UI
 
 ## About Lightdash
