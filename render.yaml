@@ -10,7 +10,7 @@ services:
     name: dbt-server
     env: docker
     dockerContext: ./examples/full-jaffle-shop-demo
-    dockerfilePath: ./examples/full-jaffle-shop-demo/dockerfile-jaffleshop
+    dockerfilePath: ./examples/full-jaffle-shop-demo/dockerfile-dbt-demo
     envVars:
       - key: POSTGRES_PASSWORD
         fromDatabase:
