@@ -4,6 +4,10 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.2.1] - 2021-06-02
+### Changed
+ - increased timeouts while waiting for larger dbt projects to compile
+
 ## [0.2.0] - 2021-06-02
 ### Added
  - CSV export feature for table of results
