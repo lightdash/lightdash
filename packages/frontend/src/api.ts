@@ -1,5 +1,7 @@
 import {ApiError, ApiResponse, ApiResults} from "common";
 
+const apiPrefix = '/api/v1'
+
 const headers = {
     'Content-Type': 'application/json'
 }
@@ -24,7 +26,7 @@ type LightdashApiProps = {
     body: BodyInit | null | undefined,
 }
 export const lightdashApi = async <T extends ApiResults>({ method, url, body }: LightdashApiProps): Promise<T> => {
-    return fetch(url, {method, headers, body})
+    return fetch(`${apiPrefix}${url}`, {method, headers, body})
         .then(r => {
             if (!r.ok)
                 return r.json().then(d => { throw d })
