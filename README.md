@@ -14,6 +14,7 @@
     <a href="http://docs.lightdash.com/"><b>Docs</b></a>
 </p>
 
+Lightdash is a BI tool that is fully integrated with your dbt project, allowing you to define metrics alongside your data models.
 ## Features
 - [x] Data visualisations
 - [x] Shareable URLs
