@@ -242,7 +242,7 @@ export const filterableDimensionsOnly = (dimensions: Dimension[]): FilterableDim
 // Map native database types to sensible dimension types in lightdash
 // Used to autogenerate explore tables from database table schemas
 export const mapColumnTypeToLightdashType = (columnType: string): DimensionType => {
-    return lightdashTypeMap[columnType] || 'string'
+    return lightdashTypeMap[columnType.toUpperCase()] || 'string'
 }
 
 const lightdashTypeMap: {[columnType: string]: DimensionType} = {
