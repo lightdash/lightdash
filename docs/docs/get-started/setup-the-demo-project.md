@@ -1,6 +1,6 @@
 ---
 sidebar_position: 1
-sidebar_label: Setup demo project
+sidebar_label: Setup the demo project
 ---
 
 # Setup Lightdash with the demo dbt project
@@ -12,11 +12,15 @@ This is the fastest way to play with Lightdash on your local machine. The final 
 **Prerequisites**
 * You must have [git](https://git-scm.com) installed. If you don't have git installed you can find [many great guides online](https://www.linode.com/docs/guides/how-to-install-git-on-linux-mac-and-windows/).
 
-## 1. Install docker
+## 1. Install and run docker desktop
 
-You can install docker for your system [here](https://docs.docker.com/get-docker/).
+:::info
 
-Once you've installed Docker, you must also [run the docker application](https://docs.docker.com/get-docker/).
+You must have docker desktop >3.0.0 installed, please check any existing installation
+
+:::
+
+You can install docker desktop for your system [here](https://docs.docker.com/get-docker/). Once you've installed Docker, you must also [run the docker application](https://docs.docker.com/get-docker/).
 
 Check docker is running by this in your terminal:
 
@@ -36,14 +40,14 @@ Clone the Lightdash code to your local machine. This will create a new directory
 
 ```bash
 # Clone the lightdash repo
-git clone https://github.com/lightdash/lightdash
+git clone --recurse-submodules https://github.com/lightdash/lightdash
 
 # A new directory called "lightdash" should appear
 ```
 
 ## 3. Start the demo project and dependencies
 
-Now run the `docker compose` command below to start:
+When you run the code block below, 3 services will be started:
 * A test data warehouse (postgres)
 * A demo dbt project containing fake data
 * A fully functional Lightdash instance for exploring the data
@@ -60,6 +64,10 @@ docker compose up
 # If you see
 # > Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
 # then docker isn't running
+
+# If you see
+# > Compose is not a valid docker command
+# You have an older version of docker, please upgrade to docker >3.0.0
 ```
 
 ## 4. Launch the Lightdash app
@@ -82,6 +90,7 @@ If you see the following error message:
 Error response from daemon: Ports are not available: listen tcp 0.0.0.0:8080: bind: address already in use"
 ```
 
+you'll need to run 
 read more about how to change ports here.
 
 
@@ -91,3 +100,10 @@ Learn how to start exploring data with Lightdash:
 * Run a query
 * Create a chart
 * Export query results
+
+Get familiar with customising dimensions and metrics by editing the demo files:
+* [How to create dimensions](../guides/how-to-create-dimensions.md)
+* [How to create metrics](../guides/how-to-create-metrics.md)
+
+Or connect up your own dbt project:
+* [Setup an existing dbt project](setup-an-existing-dbt-project.md)

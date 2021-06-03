@@ -10,16 +10,41 @@
 <br>
 <p align="center">
     <a href="http://www.lightdash.com"><b>Website</b></a> •
-    <a href="https://www.loom.com/share/f3725e98ce4840bda3f719da647f58b0"><b>Demo</b></a> • 
+    <a href="https://www.loom.com/share/f3725e98ce4840bda3f719da647f58b0"><b>Watch demo</b></a> • 
     <a href="http://docs.lightdash.com/"><b>Docs</b></a>
 </p>
+<div align="center">
+<img src="https://img.shields.io/github/license/lightdash/lightdash" />
+</div>
+<div align="center">
+<img src="https://img.shields.io/docker/cloud/build/lightdash/lightdash" />
+<img src="https://img.shields.io/snyk/vulnerabilities/github/lightdash/lightdash?label=snyk%20vulnerabilities" />
+</div>
+<div align="center">
+<img src="https://img.shields.io/github/languages/top/lightdash/lightdash" />
+<img src="https://img.shields.io/docker/v/lightdash/lightdash?label=latest%20image" />
+<img src="https://img.shields.io/github/package-json/dependency-version/lightdash/lightdash/react?filename=packages%2Ffrontend%2Fpackage.json" />
+<img src="https://img.shields.io/github/package-json/dependency-version/lightdash/lightdash/express?filename=packages%2Fbackend%2Fpackage.json" />
+</div>
 
 Lightdash is a BI tool that is fully integrated with your dbt project, allowing you to define metrics alongside your data models.
+
 ## Features
-- [x] Quickly create data visualisations
-- [x] All URLs are shareable links to share your work 
-- [x] Export data as CSV to use in any tools you want
-- [x] dbt metadata available in UI
+
+* [x] 🙏 Familiar interface for your users to self-serve using pre-defined metrics
+* [x] 👩‍💻 Declare dimensions and metrics in yaml alongside your dbt project
+* [x] 🤖 Automatically creates dimensions from your dbt models
+* [x] 📖 All dbt descriptions synced for your users
+* [x] 📊 Simple data visualisations for your metrics
+* [x] 🚀 Share your work as a URL or export results to use in any other tool
+
+## Get started
+
+Start learning Lightdash:
+
+* [Play with a UI demo](https://demo.lightdash.com) (*no setup*)
+* [Setup your own lightdash with demo data](https://docs.lightdash.com/get-started/setup-the-demo-project) (*run locally with docker*)
+* [Setup Lightdash with your existing dbt project](https://docs.lightdash.com/get-started/setup-an-existing-dbt-project) (*requires your own dbt project*)
 
 ## About Lightdash
 
@@ -31,43 +56,35 @@ Lightdash integrates with your dbt project and gives a framework for defining me
 - No more time spent trying to maintain data changes in both dbt and and your data viz tools.  
 - No more context lost between your data transformation and your data visualization layer.
 
-## Getting Started
+## Run the demo
 
-### Quickstart with docker
-
-The fastest way to get started is to use [docker](https://docs.docker.com/get-docker/)
+Get started with a demo dbt project and launch Lightdash on your machine:
 
 ```shell
-# Clone the lightdash repo
-git clone https://github.com/lightdash/lightdash
-
-# Enter the repo directory
-cd lightdash
-
-# Specify the path to your dbt project
-# (i.e. the directory containing dbt_project.yml)
-# You MUST use the absolute path (i.e no ../../myrepo)
-export DBT_PROJECT_DIR=/Users/myuser/dbtrepo
+git clone --recurse-submodules https://github.com/lightdash/lightdash
+cd lightdash/examples/full-jaffle-shop-demo
+docker compose up
 ```
 
-### Launching Lightdash:
-#### If you're NOT using BigQuery:
-```
-# Build and launch Lightdash
-docker-compose -f docker-compose.yml up
+Open lightdash at `https://localhost:8080`
 
-# Ready on http://localhost:8080 !
+## Run with your own dbt project
+
+*Bigquery users should read the [additional docs here](https://docs.lightdash.com/get-started/setup-an-existing-dbt-project)*
+
+```shell
+cd path/to/your/dbt/project
+
+export DBT_PROJECT_DIR=${PWD}
+export DBT_PROFILES_DIR=${HOME}/.dbt
+export LIGHTDASH_PORT=8080
+
+docker run -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" lightdash/lightdash
 ```
 
-#### If you're using BigQuery:
-```
-# Build and launch Lightdash
-docker-compose -f docker-compose.yml -f docker-compose.gcloud.yml up
+Open lightdash at `https://localhost:8080`
 
-# Ready on http://localhost:8080 !
-```
----
-### Installation from source
+## Installation from source
 
 Lightdash requires node.js and yarn.
 
@@ -103,10 +120,13 @@ yarn start
 
 # Press ALLOW when asked to "accept incoming connections from python"
 ```
+
 ## Docs
+
 ---
 Have a question about a feature? Or maybe fancy some light reading? Head on over to our [Lightdash documentation](https://docs.lightdash.com/) to check out some tutorials, reference docs, FAQs and more.
 
 ## Reporting bugs and feature requests
+
 ---
 - Want to report a bug or request a feature? Open an [issue](https://github.com/lightdash/lightdash/issues/new/choose).

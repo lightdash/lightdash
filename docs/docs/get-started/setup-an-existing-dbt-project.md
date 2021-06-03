@@ -1,109 +1,114 @@
 ---
 sidebar_position: 2
+sidebar_label: Setup an existing dbt project
 ---
 
-# Setup your project
+# Setup Lightdash with your existing dbt project
 
-Now that you've successfully installed lightdash (💪) here are a few tips on how you can get the most out of our favourite features!
+In this tutorial, you'll setup Lightdash and connect it to your existing dbt project. You should already be familiar
+with dbt. At the end of the tutorial you'll be able to use the Lightdash UI to start exploring your dbt project and
+run queries.
 
----
+**Prerequisites**
+* You need an existing [dbt](https://www.getdbt.com/) project on your local machine
+* Your dbt project [profiles.yml file needs to be configured](https://docs.getdbt.com/dbt-cli/configure-your-profile) to access your database / data warehouse.
+* You must know where your `profiles.yml` file is. This is usually `~/.dbt/profiles.yml` unless you've changed it.
 
-lightdash's configuration is fully defined in your dbt project. For example, your project's metrics and joins sit in your models' YAML files.
+## 1. Install docker
 
-Below, we'll walk you through some of the key features you can add to your project to get started. We also have an [example model YAML file](https://github.com/lightdash/lightdash/blob/main/examples/simple-dbt-model/example_model.yml) if you ever need something to reference and see lightdash in action!
+You can install docker for your system [here](https://docs.docker.com/get-docker/). Once you've installed Docker, you must also [run the docker application](https://docs.docker.com/get-docker/).
 
-## Dimensions in lightdash come from the columns defined in your dbt project
+Check docker is running by this in your terminal:
 
-Once you've built and launched your lightdash project by running either `docker compose up` or `yarn start` from within your `lightdash` directory, you should be able to see a list of all of the models from your connected dbt project.
+```shell
+# Check docker is running
+docker info
 
-![screenshot-tables-view](assets/screenshot-tables-view.png)
-
-If you click on any of the models within your lightdash project, you'll see the dimensions and metrics for that model listed on the left side.
-
-The dimensions you see in lightdash are the columns that you've defined in your model's dbt YAML file. If you include descriptions for your columns, these will be pulled into lightdash automatically!
-
-:::info
-
-For a dimension to appear in lightdash, you need to declare it as a column in your YAML file.
-
-:::
-
-```yaml
-version: 2
-
-models:
-  - name: users
-    description: "One row per user_id. This is a list of all users and aggregated information for these users."
-    columns:
-      - name: user_id
-        description: 'Unique identifier for a user.'
+# If the output shows:
+# > Server: 
+# >   ERROR...
+# then docker isn't running
 ```
 
-![screenshot-dimension-info](assets/screenshot-dimension-info.png)
+## 2. Open your dbt project in a terminal
 
+Navigate to the dbt project you want to explore with Lightdash
 
-## Metrics are defined in your model's YAML file, right beside your columns!
+```shell
+# Go to your project
+cd /path/to/my/dbt/project
 
-Now that you've gotten all of the dimensions in your project sorted, you can start to add metrics to your YAML files.
-
-Metrics are quantitative measurements. You can think of them as "actions" that you take on dimensions. For example, num unique user ids is a metric that counts the unique number user_id values.
-
-You add metrics to your YAML files under the `meta` tag at the column level.
-
-```yaml
-version: 2
-
-models:
-  - name: my_model
-    columns:
-      - name: user_id # dimension name of your metric
-        meta:
-          metrics:
-            num_unique_user_ids: # name of your metric
-              type: count_distinct # metric type
-            num_user_ids:
-              type: count
+# List the files, it should contain your dbt_project.yml
+ls 
+# > dbt_project.yml
 ```
 
-:::info
+## 3. Start Lightdash service
 
-For more information on the types of metrics you can add, check out the metrics reference page.
+### For bigquery users
 
-:::
+Launch Lightdash with docker, which accepts the following options:
 
-Once you've added a metric to your dbt project, you can sync the changes in lightdash by clicking on the refresh button in the app.
+* Your dbt project location, we set this to the current directory `${PWD}`
+* Your dbt `profiles.yml` location, by default we use `${HOME}/.dbt` if you know that it's different please update this value below
+* If your [bigquery profile](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile) uses `method: oauth` you need to know your gcloud sdk config location. By default we use `${HOME}/.config/gcloud`.
+* A port to expose Lightdash on. By default we use `8080`.
 
-![screenshot-do-refresh](assets/screenshot-do-refresh.png)
+```shell
+export DBT_PROJECT_DIR=${PWD}
+export DBT_PROFILES_DIR=${HOME}/.dbt
+export GCLOUD_CONFIG_DIR=${HOME}/.config/gcloud
+export LIGHTDASH_PORT=8080
 
-Your new metrics will appear in the list above dimensions in your table!
-
-![screenshot-metrics-view](assets/screenshot-metrics-view.png)
-
-## Add joins to your YAML files to connect different models to each other
-
-Joins let you to connect different models to each other so that you can explore more than one model at the same time in lightdash and see how different parts of your data relate to each other.
-
-You add joins to your YAML files under the `meta` tag at the model level:
-
-```yaml
-version: 2
-
-models:
-  - name: users
-    meta:
-      joins:
-        - join: segment_web_sessions
-          sql_on: ${segment_web_sessions.user_id} = ${users.user_id}
-
-    columns:
+docker run -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" -v "${GCLOUD_CONFIG_DIR}:/root/.config/gcloud" lightdash/lightdash
 ```
 
-Once you've added a join, you can refresh lightdash to see your changes in action. The dimensions and metrics of the joined model are included in the list on the left, right below the original model:
+### For all other users
 
-![screenshot-joined-tables](assets/screenshot-joined-tables.png)
+Launch Lightdash with docker, which accepts the following options:
 
-## If you're ever stuck or in need of inspiration, check out our example model YAML file:
+* Your dbt project location, we set this to the current directory `${PWD}`
+* Your dbt `profiles.yml` location, by default we use `${HOME}/.dbt` if you know that it's different please update this value below
+* A port to expose Lightdash on. By default we use `8080`.
 
-We have an example model YAML file if you ever need something to reference and see lightdash in action!
+```shell
+export DBT_PROJECT_DIR=${PWD}
+export DBT_PROFILES_DIR=${HOME}/.dbt
+export LIGHTDASH_PORT=8080
 
-If you have specific questions about a feature or a problem, check out our reference pages and our FAQs.
+docker run -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" lightdash/lightdash
+```
+
+## 4. Launch the Lightdash app
+
+When you see the following in your terminal, open up the app at [http://localhost:8080](http://localhost:8080).
+
+```text
+lightdash_1  | ------------------------------------------
+lightdash_1  | Launch lightdash at http://localhost:8080
+lightdash_1  | ------------------------------------------
+lightdash_1  | {"timestamp": "2021-06-02T16:03:33.770878Z", "message": "Running with dbt=0.19.1", "channel": "dbt", "l...
+lightdash_1  | {"timestamp": "2021-06-02T16:03:34.300057Z", "message": "Serving RPC server at 0.0.0.0:8580, pid=35", "...
+lightdash_1  | {"timestamp": "2021-06-02T16:03:34.303841Z", "message": "Supported methods: ['cli_args', 'compile', 'co...
+lightdash_1  | {"timestamp": "2021-06-02T16:03:34.305703Z", "message": "Send requests to http://localhost:8580/jsonrpc...
+```
+
+
+If you see the following error message:
+```text
+Error response from daemon: Ports are not available: listen tcp 0.0.0.0:8080: bind: address already in use"
+```
+Then change `LIGHTDASH_PORT` and reopen the app at `http://localhost:xxxx` where `xxxx` is the port you choose.
+
+## Next steps
+
+Start adding dimensions, metrics, and joins to your dbt tables:
+
+* [How to create dimensions](../guides/how-to-create-dimensions.md)
+* [How to create metrics](../guides/how-to-create-metrics.md)
+* [How to join tables](../guides/how-to-join-tables.md)
+
+Learn how to start exploring data with Lightdash:
+* Run a query
+* Create a chart
+* Export query results
