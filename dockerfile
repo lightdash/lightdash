@@ -2,15 +2,27 @@ FROM nikolaik/python-nodejs:python3.8-nodejs14 AS base
 
 WORKDIR /usr/app
 
-# Stage 1: install dbt
+# Stage 1: install dbt - with bigquery oauth and sqlserver odbc support
 FROM base AS dbt-builder
-RUN python -m venv /usr/local/venv
-RUN /usr/local/venv/bin/pip install dbt
+RUN \
+export ACCEPT_EULA='Y' && \
+  # odbc
+  apt-get update && \
+  apt-get install -y --no-install-recommends curl g++ unixodbc-dev && \
+  curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
+  curl https://packages.microsoft.com/config/debian/9/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
+  apt-get update && \
+  apt-get install -y --no-install-recommends msodbcsql17 && \
 
-# Install gcloud tool
-RUN apt-get update && apt-get install -y --no-install-recommends curl
-RUN curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-341.0.0-linux-x86_64.tar.gz > /tmp/gcloud-sdk.tar.gz
-RUN mkdir /usr/local/gcloud && tar -C /usr/local/gcloud -xvf /tmp/gcloud-sdk.tar.gz
+  # gcloud sdk
+  curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-341.0.0-linux-x86_64.tar.gz > /tmp/gcloud-sdk.tar.gz && \
+  mkdir /usr/local/gcloud && \
+  tar -C /usr/local/gcloud -xvf /tmp/gcloud-sdk.tar.gz && \
+
+  # dbt
+  python -m venv /usr/local/venv && \
+  /usr/local/venv/bin/pip install dbt dbt-sqlserver
+
 
 # Stage 2: build the common, backend, and frontend distributions
 FROM base AS builder
@@ -43,6 +55,9 @@ FROM base as executor
 
 # Copy in dbt
 COPY --from=dbt-builder /usr/local/venv /usr/local/venv
+COPY --from=dbt-builder /usr/lib/x86_64-linux-gnu/libodbc* /usr/lib/x86_64-linux-gnu/
+COPY --from=dbt-builder /etc/odbcinst.ini /etc/odbcinst.ini
+COPY --from=dbt-builder /opt/microsoft /opt/microsoft
 ENV PATH $PATH:/usr/local/venv/bin
 
 # Copy in gcloud
