@@ -6,7 +6,7 @@ sidebar_position: 1
 
 **Dimensions in lightdash come from the columns defined in your dbt project**
 
-## Declare columnns in your dbt projects
+## Declare columns in your dbt projects
 
 Once you've launched your lightdash project you should be able to see a list of all of the models from your connected dbt project.
 
