@@ -35,6 +35,15 @@
         "doc",
         "design"
       ]
+    },
+    {
+      "login": "hamzahc1",
+      "name": "Hamzah Chaudhary",
+      "avatar_url": "https://avatars.githubusercontent.com/u/14341285?v=4",
+      "profile": "http://www.hamzahchaudhary.com",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
