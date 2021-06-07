@@ -1,6 +1,6 @@
 <h1 align="center">
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-2-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-3-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
         <a href="https://www.lightdash.com">⚡️ Lightdash </a>
 </h1>
@@ -145,6 +145,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   <tr>
     <td align="center"><a href="https://www.linkedin.com/in/rahul-jain-83055b45/"><img src="https://avatars.githubusercontent.com/u/370587?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Rahul Jain</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=rahulj51" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/owlas"><img src="https://avatars.githubusercontent.com/u/11660098?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Oliver Laslett</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=owlas" title="Code">💻</a> <a href="https://github.com/lightdash/lightdash/commits?author=owlas" title="Documentation">📖</a> <a href="https://github.com/lightdash/lightdash/issues?q=author%3Aowlas" title="Bug reports">🐛</a></td>
+    <td align="center"><a href="https://github.com/TuringLovesDeathMetal"><img src="https://avatars.githubusercontent.com/u/31848148?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Katie Hindson</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3ATuringLovesDeathMetal" title="Bug reports">🐛</a> <a href="https://github.com/lightdash/lightdash/commits?author=TuringLovesDeathMetal" title="Documentation">📖</a> <a href="#design-TuringLovesDeathMetal" title="Design">🎨</a></td>
   </tr>
 </table>
 
