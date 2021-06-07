@@ -24,6 +24,17 @@
         "doc",
         "bug"
       ]
+    },
+    {
+      "login": "TuringLovesDeathMetal",
+      "name": "Katie Hindson",
+      "avatar_url": "https://avatars.githubusercontent.com/u/31848148?v=4",
+      "profile": "https://github.com/TuringLovesDeathMetal",
+      "contributions": [
+        "bug",
+        "doc",
+        "design"
+      ]
     }
   ],
   "contributorsPerLine": 7,
