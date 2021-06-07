@@ -1,0 +1,24 @@
+{
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "contributors": [
+    {
+      "login": "rahulj51",
+      "name": "Rahul Jain",
+      "avatar_url": "https://avatars.githubusercontent.com/u/370587?v=4",
+      "profile": "https://www.linkedin.com/in/rahul-jain-83055b45/",
+      "contributions": [
+        "doc"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "projectName": "lightdash",
+  "projectOwner": "lightdash",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "skipCi": true
+}
