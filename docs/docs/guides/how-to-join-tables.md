@@ -8,7 +8,7 @@ sidebar_position: 3
 
 ## Declare joins in schema.yml files
 
-Joins let you to connect different models to each other so that you can explore more than one model at the same time in lightdash and see how different parts of your data relate to each other.
+Joins let you to connect different models to each other so that you can explore more than one model at the same time in Lightdash and see how different parts of your data relate to each other.
 
 You add joins to your YAML files under the `meta` tag at the model level:
 
@@ -25,7 +25,7 @@ models:
     columns:
 ```
 
-Once you've added a join, you can refresh lightdash to see your changes in action. The dimensions and metrics of the joined model are included in the list on the left, right below the original model:
+Once you've added a join, you can refresh Lightdash to see your changes in action. The dimensions and metrics of the joined model are included in the list on the left, right below the original model:
 
 ![screenshot-joined-tables](assets/screenshot-joined-tables.png)
 

@@ -39,7 +39,7 @@ In your terminal, run the following (replacing the path with the path to your db
 export DBT_PROJECT_DIR=/Users/myuser/dbtrepo
 ```
 
-## lightdash crashed! How can I find out what happened?
+## Lightdash crashed! How can I find out what happened?
 ---
 If you launched via `yarn start`:
 1. Check the javascript console in your browser
@@ -47,19 +47,19 @@ If you launched via `yarn start`:
 
 2. Check the terminal where you ran yarn start
   - Errors from the dbt server will show in json blobs with a "state": "ERROR" flag
-  - Errors from the lightdash server are anything that doesn't look like a json blob
+  - Errors from the Lightdash server are anything that doesn't look like a json blob
 
 ## Command "docker-compose" not found
 ---
-When trying to launch lightdash, if you get a `docker-compose not found` error message, this is likely because the Docker app isn't running.
+When trying to launch Lightdash, if you get a `docker-compose not found` error message, this is likely because the Docker app isn't running.
 
-Docker needs to be running on your device before you can launch lightdash. To do this, just open the Docker app.
+Docker needs to be running on your device before you can launch Lightdash. To do this, just open the Docker app.
 
 ## ECONNREFUSED error (port already in use)
 If you get an error message that looks something like:
 `Couldn't connect to dbt: FetchError: request to http://0.0.0.0.:8580/jsonrpc failed, reason: connect ECONNREFUSED 0.0.0.:8580`
 
-This is likely because the 8080 port that is used to launch lightdash locally is in use. To fix this error, run the following command in your terminal:
+This is likely because the 8080 port that is used to launch Lightdash locally is in use. To fix this error, run the following command in your terminal:
 ```
 lsof -i tcp:8080 # this will find the process using 8080
 ```

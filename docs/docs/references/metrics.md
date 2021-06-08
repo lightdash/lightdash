@@ -10,7 +10,7 @@ Metrics are quantitative measurements. You can think of them as "actions" that y
 
 ## Adding metrics to your project
 
-To add a metric to lightdash, you define it in your dbt project under the dimension name you're applying the measurement on.
+To add a metric to Lightdash, you define it in your dbt project under the dimension name you're applying the measurement on.
 
 ```version: 2
 
