@@ -28,7 +28,7 @@ models:
 
 For more information on the types of metrics you can add, check out the [metrics reference page](../references/metrics.md).
 
-Once you've added a metric to your dbt project, you can sync the changes in lightdash by clicking on the refresh button in the app.
+Once you've added a metric to your dbt project, you can sync the changes in Lightdash by clicking on the refresh button in the app.
 
 ![screenshot-do-refresh](assets/screenshot-do-refresh.png)
 

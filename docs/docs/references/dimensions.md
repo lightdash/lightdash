@@ -10,7 +10,7 @@ Dimensions are the columns in your table. They are the "attributes" of your data
 
 ## Adding dimensions to your project
 
-For a dimension to appear in lightdash, you just need to declare it in your dbt model's YAML file.
+For a dimension to appear in Lightdash, you just need to declare it in your dbt model's YAML file.
 
 ```
 version: 2
@@ -22,13 +22,13 @@ models:
         description: 'Unique identifier for a user."
 ```
 
-Column descriptions in your YAML file are automatically pulled into lightdash and you can spot them if you hover over the dimension name 👀
+Column descriptions in your YAML file are automatically pulled into Lightdash and you can spot them if you hover over the dimension name 👀
 
 ![screenshot-column-descriptions](assets/screenshot-column-descriptions.png)
 
 ## Dimension types
 
-Dimension types are automatically pulled from your tables schemas in lightdash. We currently support these dimension types:
+Dimension types are automatically pulled from your tables schemas in Lightdash. We currently support these dimension types:
 
 | Dimension Types |
 | --------------- |

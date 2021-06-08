@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Joins
 
-Joins let you to connect different models to each other so that you can explore more than one model at the same time in lightdash and see how different parts of your data relate to each other.
+Joins let you to connect different models to each other so that you can explore more than one model at the same time in Lightdash and see how different parts of your data relate to each other.
 
 ---
 
@@ -37,6 +37,6 @@ models:
               type: count_distinct
 ```
 
-When you open lightdash, your joined models' dimensions and metrics will appear below the ones in your selected model.
+When you open Lightdash, your joined models' dimensions and metrics will appear below the ones in your selected model.
 
 ![screenshot-joined-table](assets/screenshot-joined-table.png)
