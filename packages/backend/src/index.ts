@@ -3,6 +3,7 @@ import path from "path";
 import {errorHandler}from "./errors";
 import morgan from 'morgan'
 import {apiV1Router} from "./apiV1";
+import {refreshAllTables} from "./lightdash";
 
 const app = express();
 app.use(express.json())
@@ -25,6 +26,11 @@ app.use(async (error: Error, req: Request, res: Response, next: NextFunction) =>
     await errorHandler(error, res)
 })
 
+// Update all resources on startup
+refreshAllTables()
+    .catch(console.log)
+
+// Run the server
 const port = process.env.PORT || 8080
 app.listen(port, () => {
     console.log(`   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |  \n \\ | / \\ | / \\ | / \\ | / \\ | / \\ | / \\ | /\n  \\|/   \\|/   \\|/   \\|/   \\|/   \\|/   \\|/\n------------------------------------------\nLaunch lightdash at http://localhost:8080\n------------------------------------------\n  /|\\   /|\\   /|\\   /|\\   /|\\   /|\\   /|\\\n / | \\ / | \\ / | \\ / | \\ / | \\ / | \\ / | \\\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |`)
