@@ -4,6 +4,14 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.2.2]
+### Changed
+ - improved error messages in the UI when dbt fails
+ - improved docs for dbt failures, most common are profile and project misconfigurations
+
+### Fixed
+ - error where the server would crash when dbt fails
+
 ## [0.2.1] - 2021-06-02
 ### Changed
  - increased timeouts while waiting for larger dbt projects to compile
