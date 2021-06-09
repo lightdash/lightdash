@@ -18,11 +18,19 @@ import {waitForDbtServerReady} from "./dbt/rpcClient";
 let cachedTables: Promise<Explore[]> | undefined = undefined
 let tablesIsLoading = false
 
-export const getStatus = () => {
+export const getStatus = async () => {
     if (spawnDbt && !isDbtProcessRunning())
         return 'error'
     if (tablesIsLoading)
         return 'loading'
+    if (cachedTables === undefined)
+        return 'error'
+    try {
+        await cachedTables
+    }
+    catch (e) {
+        return 'error'
+    }
     return 'ready'
 }
 
@@ -30,18 +38,22 @@ const updateAllTablesFromDbt = async () => {
     // Refresh dbt server to re-parse dbt project directory
     // throws NetworkError or ParseError
     // Might also crash the dbt process, we'll restart on next refresh
-    tablesIsLoading = true
-    await refreshDbtChildProcess()
-    await waitForDbtServerReady()
+    let models
+    try {
+        await refreshDbtChildProcess()
+        await waitForDbtServerReady()
 
-    // Get the models from dbt - throws ParseError
-    const models = await getDbtModels()
+        // Get the models from dbt - throws ParseError
+        models = await getDbtModels()
+    }
+    catch (e) {
+       throw e
+    }
 
     // Be lazy and try to type the models without refreshing the catalog
     try {
         const lazyTypedModels = await attachTypesToModels(models, cache.get('catalog') || {nodes: {}})
         const lazyExplores = await convertExplores(lazyTypedModels)
-        tablesIsLoading = false
         return lazyExplores
     } catch (e) {
         if (e instanceof MissingCatalogEntryError) {
@@ -51,17 +63,21 @@ const updateAllTablesFromDbt = async () => {
             await cache.set('catalog', catalog)
             const typedModels = await attachTypesToModels(models, catalog)
             const explores = await convertExplores(typedModels)
-            tablesIsLoading = false
             return explores
         }
-        tablesIsLoading = false
         throw e
     }
 }
 
 export const refreshAllTables = async () => {
+    tablesIsLoading = true
     cachedTables = updateAllTablesFromDbt()
-    await cachedTables
+    try {
+        await cachedTables
+    }
+    finally {
+        tablesIsLoading = false
+    }
     return cachedTables
 }
 

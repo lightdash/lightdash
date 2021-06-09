@@ -84,14 +84,12 @@ apiV1Router.post('/refresh', async (req, res) => {
 })
 
 apiV1Router.get('/status', async (req, res, next) => {
-    try {
-        const status = getStatus()
-        res.json({
-            status: 'ok',
-            results: status,
+    getStatus()
+        .then(status => {
+            res.json({
+                status: 'ok',
+                results: status,
+            })
         })
-    }
-    catch (e) {
-        next(e)
-    }
+        .catch(next)
 })
