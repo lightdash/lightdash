@@ -4,6 +4,10 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+# [0.2.3]
+### Fixed
+ - bug in the UI where the refresh button was disabled
+
 ## [0.2.2]
 ### Changed
  - improved error messages in the UI when dbt fails
