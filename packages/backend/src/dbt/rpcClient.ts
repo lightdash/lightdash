@@ -30,7 +30,7 @@ const postDbtSyncRpc = async (method: string, params: Object) => {
     if (data === undefined)
         throw new NetworkError(dbtUnreachableErrorMessage, {})
     else if (data.error)
-        throw new DbtError(`Error returned from dbt while executing method '${method}'`, data.error.data)
+        throw new DbtError(`Error returned from dbt while executing method '${method}': ${data.error.data.message || data.error.data}`, data.error.data)
     else if (data.result?.error)
         throw new DbtError(`Error returned from dbt while executing method '${method}'`, data.result.error)
     return data
