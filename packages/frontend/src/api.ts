@@ -12,9 +12,9 @@ const handleError = (err: any): ApiError => {
     return {
         status: 'error',
         error: {
-            name: 'ServerError',
+            name: 'NetworkError',
             statusCode: 500,
-            message: `Unexpected error from backend ${err}`,
+            message: `Could not connect to Lightdash server. The server may have crashed or be running on an incorrect host and port configuration.`,
             data: err
         }
     }

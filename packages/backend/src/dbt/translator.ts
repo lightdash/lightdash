@@ -1,50 +1,9 @@
-import {v4 as uuidv4} from 'uuid';
-import {
-    Dimension,
-    DimensionType,
-    Explore,
-    mapColumnTypeToLightdashType,
-    Metric,
-    MetricType,
-    Table,
-} from "common";
-import fetch from 'node-fetch'
-import modelJsonSchema from './schema.json'
-import {DbtError, MissingCatalogEntryError, NetworkError, ParseError, QueryError} from "./errors"
+import {Dimension, DimensionType, Explore, mapColumnTypeToLightdashType, Metric, MetricType, Table,} from "common";
+import modelJsonSchema from '../schema.json'
+import {MissingCatalogEntryError, ParseError} from "../errors"
 import Ajv from "ajv"
 import addFormats from "ajv-formats"
-import {ChildProcess} from "child_process";
-import execa from "execa";
-
-const spawnDbt = process.env.LIGHTDASH_SPAWN_DBT === undefined ? true : process.env.LIGHTDASH_SPAWN_DBT === 'true'
-const dbtHost = process.env.LIGHTDASH_DBT_HOST || '0.0.0.0'
-const dbtPort = process.env.LIGHTDASH_DBT_PORT || '8580'
-const DBT_RPC_URL = `http://${dbtHost}:${dbtPort}/jsonrpc`
-const dbtProfilesDir = process.env.DBT_PROFILES_DIR || '~/.dbt'
-
-if (spawnDbt && !process.env.DBT_PROJECT_DIR) {
-    throw Error('Must specify DBT_PROJECT_DIR')
-}
-
-let dbtChildProcess: undefined | ChildProcess = undefined
-const runDbt = () => execa('dbt', ['rpc', '--host', dbtHost, '--port', dbtPort, '--profiles-dir', dbtProfilesDir], {cwd: process.env.DBT_PROJECT_DIR})
-const respawnDbt = (childProcess: ChildProcess) => {
-    dbtChildProcess = childProcess
-    if (childProcess.stdout)
-        childProcess.stdout.pipe(process.stdout)
-    if (childProcess.stderr)
-        childProcess.stderr.pipe(process.stderr)
-    childProcess.on('exit', () => {
-        respawnDbt(runDbt())
-    })
-}
-export const refreshDbtChildProcess = async () => {
-    dbtChildProcess && dbtChildProcess.kill(1) // send SIGHUP
-}
-
-if (spawnDbt) {
-    respawnDbt(runDbt())
-}
+import {postDbtAsyncRpc} from "./rpcClient";
 
 // Config validator
 const ajv = new Ajv()
@@ -156,58 +115,6 @@ export const convertExplores = async (models: DbtModelNode[]): Promise<Explore[]
     return explores
 }
 
-// DBT RPC API
-const postDbtSyncRpc = async (method: string, params: Object) => {
-    const requestId = uuidv4()
-    const payload = {
-        method,
-        params,
-        jsonrpc: '2.0',
-        id: requestId,
-    }
-    const headers = {
-        'Content-Type': 'application-json',
-    }
-    const response = await fetch (DBT_RPC_URL, {method: 'POST', headers: headers, body: JSON.stringify(payload)})
-    const data = await response.json()
-    if (data === undefined)
-        throw new NetworkError(`Failed to connect to dbt on ${DBT_RPC_URL}`, {})
-    else if (data.error)
-        throw new DbtError(`Error returned from dbt while executing method '${method}'`, data.error.data)
-    else if (data.result?.error)
-        throw new DbtError(`Error returned from dbt while executing method '${method}'`, data.result.error)
-    return data
-}
-
-
-const postDbtAsyncRpc = async (method: string, params: object) => {
-    const response = await postDbtSyncRpc(method, params)
-    const requestToken = response.result.request_token
-    return await pollDbtServer(requestToken)
-}
-
-export const runQueryOnDbtAdapter = async (query: string): Promise<{[col: string]: any}> => {
-    const params = {
-        name: 'lightdash query',
-        timeout: 60,
-        sql: Buffer.from(query).toString('base64'),
-    }
-    try {
-        const response = await postDbtAsyncRpc('run_sql', params)
-        const columns: string[] = response.results[0].table.column_names
-        const rows: any[][] = response.results[0].table.rows
-        return rows.map(row => Object.fromEntries(row.map((value: any, index: number) => ([columns[index], value]))))
-    }
-    catch (e) {
-        if ((e instanceof DbtError)) {
-            const errorData = {
-                databaseResponse: (e.data?.message || '').split('\n').map((s: string) => s.trim()).slice(1).join('\n')
-            }
-            throw new QueryError('Error running on Dbt adapter', errorData)
-        }
-        throw e
-    }
-}
 
 export const getDbtCatalog = async (): Promise<DbtCatalog> => {
     const params = {
@@ -296,64 +203,6 @@ export const attachTypesToModels = async (models: DbtModelNode[], catalog: DbtCa
     return typedModels
 }
 
-
-export const waitForDbtServerReady = async (): Promise<boolean> => {
-    const intervalFactor = 1.5
-    const maxInterval = 30000
-    const startInterval = 100
-    const poll = (interval: number) => (
-        async (resolve: (value: boolean) => void, reject: (reason: any) => void): Promise<any> => {
-            try {
-                const response = await postDbtSyncRpc('status', {})
-                const status = response.result.state
-                if (status === 'ready')
-                    return resolve(true)
-                else if (status === 'compiling') {
-                    const nextInterval = (interval * intervalFactor > maxInterval) ? maxInterval : interval * 1.5
-                    setTimeout(poll(nextInterval), nextInterval, resolve, reject)
-                }
-                else if (status === 'error')
-                    reject(response.result.error)
-                else
-                    reject(`Unknown status code received from dbt: ${JSON.stringify(response)}`)
-            }
-            catch (e) {
-                reject(e)
-            }
-        }
-    )
-    return new Promise(poll(startInterval))
-}
-
-const pollDbtServer = async (requestToken: string): Promise<any> => {
-    let attemptCount = 0
-    const maxAttempts = 50
-    const interval = 1000  // 1 second
-    const params = {
-        request_token: requestToken
-    }
-
-    const poll = async (resolve: (value: any) => void, reject: (reason: any) => void): Promise<any> => {
-        attemptCount++
-        try {
-            const response = await postDbtSyncRpc('poll', params)
-            if (response.result.state === 'success') {
-                return resolve(response.result)
-            }
-            else if (attemptCount === maxAttempts) {
-                return reject(new Error('Exceeded'))
-            }
-            else {
-                setTimeout(poll, interval, resolve, reject)
-            }
-        }
-        catch (e) {
-            reject(e)
-        }
-
-    }
-    return new Promise(poll)
-}
 
 export interface DbtCatalogNode {
     metadata: DbtCatalogNodeMetadata;
