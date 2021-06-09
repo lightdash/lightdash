@@ -1,23 +1,36 @@
-import NodeCache from "node-cache";
 import {
     attachTypesToModels,
     convertExplores,
     getDbtCatalog,
-    getDbtModels,
-    refreshDbtChildProcess,
-    waitForDbtServerReady
-} from "./dbt";
+    getDbtModels
+} from "./dbt/translator";
+import {
+    isDbtProcessRunning,
+    refreshDbtChildProcess, spawnDbt
+} from "./dbt/childProcess";
 import {MissingCatalogEntryError, NotExistsError} from "./errors";
 import {Explore} from "common";
+import {cache} from "./cache";
+import {waitForDbtServerReady} from "./dbt/rpcClient";
 
-const cache = new NodeCache()
-cache.set('status', 'ready')
 
-export const getStatus = () => cache.get('status') || 'loading'
+// Shared promise
+let cachedTables: Promise<Explore[]> | undefined = undefined
+let tablesIsLoading = false
+
+export const getStatus = () => {
+    if (spawnDbt && !isDbtProcessRunning())
+        return 'error'
+    if (tablesIsLoading)
+        return 'loading'
+    return 'ready'
+}
 
 const updateAllTablesFromDbt = async () => {
     // Refresh dbt server to re-parse dbt project directory
     // throws NetworkError or ParseError
+    // Might also crash the dbt process, we'll restart on next refresh
+    tablesIsLoading = true
     await refreshDbtChildProcess()
     await waitForDbtServerReady()
 
@@ -28,34 +41,34 @@ const updateAllTablesFromDbt = async () => {
     try {
         const lazyTypedModels = await attachTypesToModels(models, cache.get('catalog') || {nodes: {}})
         const lazyExplores = await convertExplores(lazyTypedModels)
+        tablesIsLoading = false
         return lazyExplores
     } catch (e) {
         if (e instanceof MissingCatalogEntryError) {
             // Some types were missing so refresh the catalog
+
             const catalog = await getDbtCatalog()
             await cache.set('catalog', catalog)
             const typedModels = await attachTypesToModels(models, catalog)
             const explores = await convertExplores(typedModels)
+            tablesIsLoading = false
             return explores
         }
+        tablesIsLoading = false
         throw e
     }
 }
 
-export const refreshAllTables = () => {
-    cache.set('status', 'loading')
-    const refreshed = updateAllTablesFromDbt()
-    refreshed
-        .then(() => {
-            cache.set('status', 'ready')
-        })
-    cache.set<Promise<Explore[]>>('tables', refreshed)
-    return refreshed
+export const refreshAllTables = async () => {
+    cachedTables = updateAllTablesFromDbt()
+    await cachedTables
+    return cachedTables
 }
 
-export const getAllTables = (): Promise<Explore[]> => {
-    const cachedTables = cache.get<Promise<Explore[]>>('tables')
-    return cachedTables === undefined ? refreshAllTables() : cachedTables
+export const getAllTables = async (): Promise<Explore[]> => {
+    if (cachedTables === undefined)
+        return await refreshAllTables()
+    return await cachedTables
 }
 
 export const getTable = async (tableId: string): Promise<Explore> => {

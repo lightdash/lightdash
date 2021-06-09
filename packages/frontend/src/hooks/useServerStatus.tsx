@@ -18,6 +18,8 @@ export const useServerStatus = () => {
     const query = useQuery<ApiStatusResults, ApiError>({
         queryKey,
         queryFn: getStatus,
+        refetchInterval: 5000,
+        refetchIntervalInBackground: false,
     })
 
     useEffect(() => {
@@ -27,8 +29,5 @@ export const useServerStatus = () => {
         }
     }, [query.error, setError])
 
-    // Invalidate cache
-    if (query.data && query.data === 'loading')
-        setTimeout(query.refetch, 5000)
     return query
 }

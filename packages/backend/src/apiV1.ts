@@ -2,7 +2,7 @@ import express from 'express'
 import {getAllTables, getStatus, getTable, refreshAllTables} from "./lightdash";
 import {MetricQuery} from "common";
 import {buildQuery} from "./queryBuilder";
-import {runQueryOnDbtAdapter} from "./dbt";
+import {runQueryOnDbtAdapter} from "./dbt/rpcClient";
 
 export const apiV1Router = express.Router()
 
@@ -77,6 +77,7 @@ apiV1Router.post('/tables/:tableId/runQuery', async (req, res, next) => {
 
 apiV1Router.post('/refresh', async (req, res) => {
     refreshAllTables()
+        .catch(e => console.log(`Error running refresh: ${e}`))
     res.json({
         status: 'ok',
     })
