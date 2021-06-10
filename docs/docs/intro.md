@@ -17,9 +17,9 @@ Lightdash integrates with your dbt project and gives a framework for defining me
 ---
 ## Check out Lightdash in action
 
-We've [set up an example project](http://demo.lightdash.com/) where you can click around and see Lightdash in action - no installation required! Also, we've made the [demo dbt project available on GitHub](https://github.com/lightdash/jaffle_shop), so you can dig through the code right here.
-
-Demos are fun and all, but to get the full Lightdash experience, we recommend working through our [installation guide](https://docsite.onrender.com/getting-started/installation) and hooking it up to your own project 😊
+1. [Check out the example project](http://demo.lightdash.com/) where you can click around and see Lightdash in action - no installation required! 
+2. [Try the demo dbt and Lightdash project](./get-started/setup-the-demo-project.md), so you can dig through a full example with code..
+3. Demos are fun and all, but to get the full Lightdash experience, we recommend working through our [getting started guide](./get-started/setup-an-existing-dbt-project.md) and hooking it up to your own project 😊
 
 ---
 ## Reporting bugs and feature requests
