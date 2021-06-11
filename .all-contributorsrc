@@ -53,6 +53,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "TkDodo",
+      "name": "Dominik Dorfmeister",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1021430?v=4",
+      "profile": "http://tkdodo.eu",
+      "contributions": [
+        "design"
+      ]
     }
   ],
   "contributorsPerLine": 7,
