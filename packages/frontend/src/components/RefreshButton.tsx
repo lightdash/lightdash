@@ -1,11 +1,15 @@
 import {useExploreConfig} from "../hooks/useExploreConfig";
 import {Button} from "@blueprintjs/core";
 import React from "react";
-import {useQueryResults} from "../hooks/useQueryResults";
+import {UseQueryResult} from "react-query";
+import {ApiError, ApiQueryResults} from "common";
 
-export const RefreshButton = () => {
+type RefreshButtonProps = {
+    queryResults: UseQueryResult<ApiQueryResults, ApiError>,
+}
+export const RefreshButton = ({ queryResults }: RefreshButtonProps) => {
     const {validQuery} = useExploreConfig()
-    const {refetch, isFetching} = useQueryResults()
+    const { refetch, isFetching } = queryResults
     return (
         <Button
             intent={"primary"}
