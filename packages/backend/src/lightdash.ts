@@ -9,9 +9,10 @@ import {
     refreshDbtChildProcess, spawnDbt
 } from "./dbt/childProcess";
 import {MissingCatalogEntryError, NotExistsError} from "./errors";
-import {Explore} from "common";
+import {Explore, MetricQuery} from "common";
 import {cache} from "./cache";
-import {waitForDbtServerReady} from "./dbt/rpcClient";
+import {runQueryOnDbtAdapter, waitForDbtServerReady} from "./dbt/rpcClient";
+import {buildQuery} from "./queryBuilder";
 
 
 // Shared promise
@@ -93,4 +94,14 @@ export const getTable = async (tableId: string): Promise<Explore> => {
     if (table === undefined)
         throw new NotExistsError(`Table ${tableId} does not exist.`)
     return table
+}
+
+export const runQuery = async (tableId: string, metricQuery: MetricQuery) => {
+    const explore = await getTable(tableId)
+    const sql = await buildQuery({explore, metricQuery})
+    const rows = await runQueryOnDbtAdapter(sql)
+    return {
+        metricQuery,
+        rows,
+    }
 }

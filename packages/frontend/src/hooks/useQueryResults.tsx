@@ -4,13 +4,14 @@ import {useExploreConfig} from "./useExploreConfig";
 import {useQuery} from "react-query";
 import {useEffect} from "react";
 
-const getQueryResults = async (tableId: string, query: MetricQuery) => {
+export const getQueryResults = async (tableId: string, query: MetricQuery) => {
     return await lightdashApi<ApiQueryResults>({
         url: `/tables/${tableId}/runQuery`,
         method: 'POST',
         body: JSON.stringify(query)
     })
 }
+
 export const useQueryResults = () => {
     const {
         setError,
@@ -20,6 +21,7 @@ export const useQueryResults = () => {
         sortFields: sorts,
         activeFilters: filters,
         resultsRowLimit: limit,
+
     } = useExploreConfig()
     const metricQuery = {
         dimensions: Array.from(dimensions),

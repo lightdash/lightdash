@@ -1,6 +1,6 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {useHistory, useLocation, useParams} from "react-router-dom";
-import { FilterGroup, SortField} from "common";
+import {FilterGroup, SortField} from "common";
 
 type SidebarPanel = 'base' | 'explores'
 
@@ -209,7 +209,6 @@ export const ExploreConfigContext: React.FC = ({ children }) => {
         if (sortFields.some(sf => !activeFields.has(sf.fieldId)))
             setSortFields([])
     }, [sortFields, setSortFields, activeFields])
-
 
     const contextValue = {
         activeTableName,

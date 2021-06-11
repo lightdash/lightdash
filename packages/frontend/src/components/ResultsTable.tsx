@@ -1,13 +1,13 @@
 import {useExploreConfig} from "../hooks/useExploreConfig";
 import {usePagination, useTable as useReactTable} from "react-table";
 import {Button, Colors, HTMLTable, Icon, NonIdealState, Spinner, Tag} from "@blueprintjs/core";
-import {DimensionType} from "common";
+import {ApiError, ApiQueryResults, DimensionType} from "common";
 import React from "react";
 import {CSVLink} from "react-csv";
 import {useColumns} from "../hooks/useColumns";
 import {useTable} from "../hooks/useTable";
 import {RefreshButton} from "./RefreshButton";
-import {useQueryResults} from "../hooks/useQueryResults";
+import {UseQueryResult} from "react-query";
 
 const hexToRGB = (hex: string, alpha: number) => {
     const h = parseInt('0x' + hex.substring(1))
@@ -27,12 +27,15 @@ const EmptyStateNoColumns = () => (
     </div>
 )
 
-const EmptyStateNoTableData = () => {
+type EmptyStateNoTableDataProps = {
+    queryResults: UseQueryResult<ApiQueryResults, ApiError>,
+}
+const EmptyStateNoTableData = ({ queryResults }: EmptyStateNoTableDataProps) => {
     return (
         <div style={{padding: '50px 0'}}>
             <NonIdealState
                 description="Click run query to see your results"
-                action={<RefreshButton />}
+                action={<RefreshButton queryResults={queryResults}/>}
             />
         </div>
     )
@@ -52,12 +55,14 @@ const EmptyStateNoRows = () => (
     />
 )
 
-export const ResultsTable = () => {
+type ResultsTableProps = {
+    queryResults: UseQueryResult<ApiQueryResults, ApiError>
+}
+export const ResultsTable = ({ queryResults }: ResultsTableProps) => {
     const columns = useColumns()
     const {activeTableName} = useExploreConfig()
     const activeExplore = useTable()
-    const queryResults = useQueryResults()
-    const safeData = React.useMemo(() => queryResults.status === 'success' ? queryResults.data : [], [queryResults.status, queryResults.data])
+    const safeData = React.useMemo(() => queryResults.status === 'success' ? queryResults.data.rows : [], [queryResults.status, queryResults.data])
 
     const tableInstance = useReactTable({
         columns: columns,
@@ -126,8 +131,8 @@ export const ResultsTable = () => {
         }}>
             <div style={{display: 'block', maxWidth: '100%'}}>
                 <HTMLTable bordered condensed {...tableInstance.getTableProps()} style={{width: '100%'}}>
-                    {tableInstance.headerGroups.map(headerGroup => (
-                        <colgroup>
+                    {tableInstance.headerGroups.map((headerGroup, idx) => (
+                        <colgroup key={idx}>
                             {headerGroup.headers.map(column => (
                                 <col {...column.getHeaderProps([getColumnStyle(column.isDimension)])} />
                             ))}
@@ -172,9 +177,9 @@ export const ResultsTable = () => {
                     </React.Fragment>
                 )}
                 {queryResults.isIdle && (
-                    <EmptyStateNoTableData />
+                    <EmptyStateNoTableData queryResults={queryResults}/>
                 )}
-                {queryResults.status === 'success' && queryResults.data.length === 0 && (
+                {queryResults.status === 'success' && queryResults.data.rows.length === 0 && (
                     <EmptyStateNoRows />
                 )}
             </div>

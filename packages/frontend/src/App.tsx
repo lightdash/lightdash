@@ -10,6 +10,7 @@ import {ExploreConfigContext, useExploreConfig} from "./hooks/useExploreConfig";
 import {QueryClient, QueryClientProvider} from "react-query";
 import {ExploreSideBar} from "./components/ExploreSideBar";
 import {AppToaster} from "./components/AppToaster";
+import {ReactQueryDevtools} from "react-query/devtools";
 
 const queryClient = new QueryClient()
 
@@ -79,6 +80,7 @@ const InnerApp = () => {
               }}>
                   <Explorer />
               </div>
+              <ReactQueryDevtools initialIsOpen={true} />
           </div>
   );
 }

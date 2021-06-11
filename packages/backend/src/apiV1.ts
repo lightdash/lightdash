@@ -1,5 +1,5 @@
 import express from 'express'
-import {getAllTables, getStatus, getTable, refreshAllTables} from "./lightdash";
+import {getAllTables, getStatus, getTable, refreshAllTables, runQuery} from "./lightdash";
 import {MetricQuery} from "common";
 import {buildQuery} from "./queryBuilder";
 import {runQueryOnDbtAdapter} from "./dbt/rpcClient";
@@ -54,18 +54,13 @@ apiV1Router.post('/tables/:tableId/compileQuery', async (req, res, next) => {
 
 apiV1Router.post('/tables/:tableId/runQuery', async (req, res, next) => {
     const body : MetricQuery = req.body
-    getTable(req.params.tableId)
-        .then(table => buildQuery({
-            explore: table,
-            metricQuery: {
-                dimensions: body.dimensions,
-                metrics: body.metrics,
-                filters: body.filters,
-                sorts: body.sorts,
-                limit: body.limit,
-            },
-        }))
-        .then(runQueryOnDbtAdapter)
+    runQuery(req.params.tableId, {
+        dimensions: body.dimensions,
+        metrics: body.metrics,
+        filters: body.filters,
+        sorts: body.sorts,
+        limit: body.limit,
+    })
         .then(results => {
             res.json({
                 status: 'ok',

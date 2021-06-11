@@ -351,7 +351,10 @@ export type ApiError = {
     status: 'error'
     error: ApiErrorDetail
 }
-export type ApiQueryResults = {[col: string]: any}[]
+export type ApiQueryResults = {
+    metricQuery: MetricQuery,
+    rows: { [col: string]: any }[]
+}
 export type ApiQueryResponse = ApiError | {
     status: 'ok'
     results: ApiQueryResults
