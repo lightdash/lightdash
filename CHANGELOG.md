@@ -4,7 +4,15 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
-# [0.2.3]
+## [0.2.4] - 2021-06-15
+### Added
+ - plot multiple metrics
+ - select which dimension to show on x-axis or group by
+
+### Fixed
+ - fixed problem where charts would change when preparing a new query
+
+## [0.2.3]
 ### Fixed
  - bug in the UI where the refresh button was disabled
 
