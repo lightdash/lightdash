@@ -21,8 +21,6 @@ export const Explorer = () => {
     // child components unmount: https://github.com/tannerlinsley/react-query/issues/2363
     const queryResults = useQueryResults()
     const chartConfig = useChartConfig(queryResults)
-    console.log(queryResults.data)
-    console.log(chartConfig)
 
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false)
     const [resultsIsOpen, setResultsIsOpen] = useState<boolean>(true)
