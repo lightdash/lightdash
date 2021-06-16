@@ -50,7 +50,11 @@ services:
           type: pserv
           property: port
       - key: LIGHTDASH_SPAWN_DBT
-        value: false 
+        value: false
+      - key: REACT_APP_RUDDERSTACK_WRITE_KEY
+        sync: false
+      - key: REACT_APP_RUDDERSTACK_DATAPLANE_URL
+        sync: false
 
   - type: web
     name: docsite
@@ -58,3 +62,8 @@ services:
     buildCommand: cd docs; yarn install; yarn build
     staticPublishPath: docs/build
     pullRequestPreviewsEnabled: true
+    envVars:
+      - key: RUDDERSTACK_DATAPLANE_URL
+        sync: false
+      - key: RUDDERSTACK_WRITE_KEY
+        sync: false

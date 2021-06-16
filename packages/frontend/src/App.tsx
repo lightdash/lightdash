@@ -11,6 +11,7 @@ import {QueryClient, QueryClientProvider} from "react-query";
 import {ExploreSideBar} from "./components/ExploreSideBar";
 import {AppToaster} from "./components/AppToaster";
 import {ReactQueryDevtools} from "react-query/devtools";
+import {rudderAnalytics} from "./components/Analytics";
 
 const queryClient = new QueryClient()
 
@@ -51,6 +52,10 @@ const InnerApp = () => {
             setError(undefined)
         }
     }, [error, setError])
+
+    useEffect(() => {
+        rudderAnalytics.page(undefined, 'Home')
+    }, [])
 
     return (
           <div style={{
