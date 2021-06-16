@@ -15,8 +15,8 @@ module.exports = {
       [
           path.resolve(__dirname, 'docusaurus-rudderstack-plugin'),
           {
-              dataplaneUrl: 'https://analytics.lightdash.com',
-              writeKey: '1tLM5JN9u3GhRUidt5zjU0Uc5Qf',
+              dataplaneUrl: process.env.RUDDERSTACK_DATAPLANE_URL,
+              writeKey: process.env.RUDDERSTACK_WRITE_KEY,
           }
       ],
   ],

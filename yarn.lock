@@ -10332,6 +10332,11 @@ rsvp@^4.8.4:
   resolved "https://registry.yarnpkg.com/rsvp/-/rsvp-4.8.5.tgz#c8f155311d167f68f21e168df71ec5b083113734"
   integrity sha512-nfMOlASu9OnRJo1mbEk2cz0D56a1MBNrJ7orjRZQG10XDyuvwksKbuXNp6qa+kbn839HwjwhBzhFmdsaEAfauA==
 
+rudder-sdk-js@^1.0.16:
+  version "1.0.16"
+  resolved "https://registry.yarnpkg.com/rudder-sdk-js/-/rudder-sdk-js-1.0.16.tgz#6d129b24e638de2bcc164ace01e373f4c5c599a6"
+  integrity sha512-LbxFZBRpgOKp83EDzwSSjfOavj66vwQwdUZ5+h6BYOLLtnWPxiXTKXegoEujNhej6hTLQMVFLktsMoIkzYojCQ==
+
 run-parallel@^1.1.9:
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/run-parallel/-/run-parallel-1.2.0.tgz#66d1368da7bdf921eb9d95bd1a9229e7f21a43ee"

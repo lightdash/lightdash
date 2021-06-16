@@ -2,10 +2,6 @@ const path = require('path')
 
 module.exports = function (context, options) {
     const { writeKey, dataplaneUrl } = options
-    if (!writeKey)
-        throw new Error('You must specify a writeKey in the plugin options to use docusaurus-rudderstack-plugin')
-    if (!dataplaneUrl)
-        throw new Error('You must specify a dataplaneUrl in the plugin options to use docusaurus-rudderstack-plugin')
     const isProd = process.env.NODE_ENV === 'production'
     return {
         name: 'docusaurus-rudderstack-plugin',
@@ -13,7 +9,7 @@ module.exports = function (context, options) {
             return isProd ? [path.resolve(__dirname, './rudderstack')] : []
         },
         injectHtmlTags() {
-            if (!isProd)
+            if (!isProd || !writeKey || !dataplaneUrl)
                 return {}
             return {
                 headTags: [
