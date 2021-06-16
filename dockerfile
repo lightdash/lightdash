@@ -35,6 +35,8 @@ COPY packages/backend/src/ ./packages/backend/src
 RUN yarn --cwd ./packages/backend/ build
 
 # Build frontend
+ARG REACT_APP_RUDDERSTACK_DATAPLANE_URL
+ARG REACT_APP_RUDDERSTACK_WRITE_KEY
 COPY packages/frontend ./packages/frontend
 RUN yarn --cwd ./packages/frontend/ build
 
