@@ -2,8 +2,8 @@
 const path = require('path');
 
 module.exports = {
-  title: 'Documentation | lightdash',
-  tagline: 'Documentation. Learn how to use lightdash and setup the BI tool for the modern data stack.',
+  title: 'Documentation | Lightdash',
+  tagline: 'Documentation. Learn how to use Lightdash and setup the BI tool for the modern data stack.',
   url: 'https://docs.lightdash.com',
   baseUrl: '/',
   onBrokenLinks: 'throw',
