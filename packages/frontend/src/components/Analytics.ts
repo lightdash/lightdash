@@ -3,8 +3,11 @@ const isProd = process.env.NODE_ENV === 'production'
 const writeKey = process.env.REACT_APP_RUDDERSTACK_WRITE_KEY
 const dataplaneUrl = process.env.REACT_APP_RUDDERSTACK_DATAPLANE_URL
 
+
 // Analytics is disabled by default unless rudderstack config is provided
-if (isProd && writeKey && dataplaneUrl)
+if (isProd && writeKey && dataplaneUrl) {
     rudderAnalytics.load(writeKey, dataplaneUrl)
+    rudderAnalytics.ready(() => console.log('Rudderstack ready'))
+}
 
 export { rudderAnalytics }
