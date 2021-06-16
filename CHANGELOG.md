@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Added
+ - Documentation to deploy Lightdash to production (GCP Cloud Run)
 
 ## [0.2.4] - 2021-06-15
 ### Added
