@@ -46,6 +46,12 @@ Start learning Lightdash:
 * [Setup your own lightdash with demo data](https://docs.lightdash.com/get-started/setup-the-demo-project) (*run locally with docker*)
 * [Setup Lightdash with your existing dbt project](https://docs.lightdash.com/get-started/setup-an-existing-dbt-project) (*requires your own dbt project*)
 
+## Community Support
+Join our community if you need help, want to chat or have any other questions. We're here to help and need your support to make Lightdash better all the time:
+- [Discord](https://discord.gg/WnPB98Wk) - Live chat with the Lightdash team and our community members
+- [Discourse](https://community.lightdash.com/) - Discussion forums and updates from the Lightdash team 
+- [Twitter](https://twitter.com/lightdash_devs) - For all the latest Lightdash news
+
 ## About Lightdash
 
 Lightdash removes the gap between your data transformation layer and your data visualization layer. It enables data analysts and engineers to control all of their business intelligence (data transformations/business logic as well as data visualization) in a single place.
