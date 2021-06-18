@@ -1,4 +1,4 @@
-import {Alert, Button, Code, Divider, H3, HTMLTable, Menu, MenuDivider, MenuItem, Text} from "@blueprintjs/core";
+import {Alert, Button, Divider, H3, Menu, MenuDivider, MenuItem, Text} from "@blueprintjs/core";
 import React, {useState} from "react";
 import {useExploreConfig} from "../hooks/useExploreConfig";
 import {friendlyName, getFields} from "common";

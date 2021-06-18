@@ -1,4 +1,4 @@
-import {Popover2} from "@blueprintjs/popover2";
+import {Popover2, Tooltip2} from "@blueprintjs/popover2";
 import {Button, Colors} from "@blueprintjs/core";
 import React, {useState} from "react";
 import {useTable} from "../hooks/useTable";
@@ -115,7 +115,9 @@ export const LineageButton = () => {
             lazy={true}
             fill={true}
         >
-            <Button minimal={true} icon={'data-lineage'} text='Show lineage' />
+            <Tooltip2 content="View a partial lineage graph for this table">
+                <Button minimal={true} icon={'data-lineage'} text='Show lineage' />
+            </Tooltip2>
         </Popover2>
     )
 }
