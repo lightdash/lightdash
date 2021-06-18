@@ -1,4 +1,4 @@
-import {Alert, Button, Code, Divider, H3, Menu, MenuDivider, MenuItem, Text} from "@blueprintjs/core";
+import {Alert, Button, Code, Divider, H3, HTMLTable, Menu, MenuDivider, MenuItem, Text} from "@blueprintjs/core";
 import React, {useState} from "react";
 import {useExploreConfig} from "../hooks/useExploreConfig";
 import {friendlyName, getFields} from "common";
@@ -6,7 +6,7 @@ import Fuse from "fuse.js";
 import {SideTree} from "./SideTree";
 import {useTables} from "../hooks/useTables";
 import {useTable} from "../hooks/useTable";
-import {ShowDagButton} from "./ShowDagButton";
+import {LineageButton} from "./LineageButton";
 
 const SideBarLoadingState = () => (
     <Menu large={true}>
@@ -121,6 +121,7 @@ const ExplorePanel = ({onBack}: ExplorePanelProps) => {
     const activeExplore = exploresResult.data
     const fields = getFields(activeExplore)
     const fuse = new Fuse(fields, {keys: ['name', 'description']})
+    const [databaseName, schemaName, tableName] = activeExplore.tables[activeExplore.baseTable].sqlTable.replace(/["'`]/g, "").split('.')
     return (
         <div style={{height: '100%', overflow: 'hidden'}}>
             <div style={{
@@ -133,18 +134,15 @@ const ExplorePanel = ({onBack}: ExplorePanelProps) => {
                 <Button onClick={onBack} icon='chevron-left'/>
                 <H3 style={{marginBottom: 0, marginLeft: '10px'}}>{friendlyName(activeExplore.name)}</H3>
             </div>
-            <div style={{display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
-                <Code>
-                    {activeExplore.tables[activeExplore.baseTable].sqlTable.replaceAll('`', '')}
-                </Code>
-                <ShowDagButton />
+            <Divider/>
+            <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                <p style={{paddingTop: 10}}><b>Table</b>: {tableName}</p>
+                <LineageButton />
             </div>
-
-            <div style={{paddingBottom: '10px'}}/>
-            <Text>
-                {activeExplore.tables[activeExplore.baseTable].description}
-            </Text>
-            <div style={{paddingBottom: '10px'}}/>
+            <p><b>Schema</b>: {schemaName}</p>
+            <p><b>Database</b>: {databaseName}</p>
+            <p><b>Description</b>: {activeExplore.tables[activeExplore.baseTable].description}</p>
+            <div style={{paddingBottom: '5px'}}/>
             <Divider/>
             <div style={{paddingBottom: '10px'}}/>
             <SideTree
