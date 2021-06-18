@@ -3,7 +3,10 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+
+## [0.2.5] - 2021-06-18
 ### Added
+ - table lineage visualisation showing the source and dependent tables for each table in the UI
  - documentation to deploy Lightdash to production (GCP Cloud Run)
  - added rudderstack analytics, which is off by default, allowing you to send analytics data to any rudderstack server of your choice
 
