@@ -18,7 +18,9 @@ export type PartialTable = {
 
 export type Table = PartialTable & {
     dimensions: {[fieldName: string]: Dimension}, // Field names must be unique across dims and metrics
-    metrics: {[fieldName: string]: Metric},     //
+    metrics: {[fieldName: string]: Metric},       //
+    sourceTables: string[],                       // list of tables that this table depends on
+    dependentTables: string[],                    // list of tables that depend on this table
 }
 
 // Helper function to get a list of all dimensions in an explore

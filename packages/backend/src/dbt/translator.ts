@@ -21,7 +21,11 @@ type DbtModelNode = DbtNode & {
     schema: string,
     name: string,
     relation_name: string,
+    depends_on: DbtTableDependency,
     description?: string,
+}
+type DbtTableDependency = {
+    nodes: string[]
 }
 type DbtModelColumn = {
     name: string,
@@ -85,19 +89,22 @@ const convertMetrics = (modelName: string, column: DbtModelColumn): Metric[] => 
     }))
 }
 
-const convertTables = (model: DbtModelNode): Table => {
+const convertTables = (allModels: DbtModelNode[], model: DbtModelNode): Table => {
+    const dependentTables = allModels.filter(m => m.depends_on.nodes.find(idx => idx === model.unique_id)).map(m => m.name)
     return {
         name: model.name,
         sqlTable: model.relation_name,
         description: model.description || `${model.name} table`,
         dimensions: Object.fromEntries(Object.values(model.columns).map(col => convertDimension(model.name, col)).map(d => [d.name, d])),
         metrics: Object.fromEntries(Object.values(model.columns).map(col => convertMetrics(model.name, col)).flatMap(ms => ms.map(m => [m.name, m]))),
+        sourceTables: model.depends_on.nodes.map(nodeId => nodeId.split('.')[2]),
+        dependentTables: dependentTables,
     }
 }
 
 export const convertExplores = async (models: DbtModelNode[]): Promise<Explore[]> => {
     const relations = Object.fromEntries(models.map(model => {
-        return [model.name, convertTables(model)]
+        return [model.name, convertTables(models, model)]
     })) as {[modelId: string]: Table}
 
     const explores = models.map(model => {
