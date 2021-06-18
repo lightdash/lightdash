@@ -152,6 +152,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="http://www.hamzahchaudhary.com"><img src="https://avatars.githubusercontent.com/u/14341285?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Hamzah Chaudhary</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=hamzahc1" title="Documentation">📖</a></td>
     <td align="center"><a href="https://www.linkedin.com/in/harry-grieve-81427771/"><img src="https://avatars.githubusercontent.com/u/28747142?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Harry Grieve</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=h-grieve" title="Documentation">📖</a></td>
     <td align="center"><a href="http://tkdodo.eu"><img src="https://avatars.githubusercontent.com/u/1021430?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Dominik Dorfmeister</b></sub></a><br /><a href="#design-TkDodo" title="Design">🎨</a></td>
+    <td align="center"><a href="https://github.com/amin-nejad"><img src="https://avatars.githubusercontent.com/u/44096034?v=4?s=100" width="100px;" alt=""/><br /><sub><b>amin-nejad</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Aamin-nejad" title="Bug reports">🐛</a></td>
   </tr>
 </table>
 
