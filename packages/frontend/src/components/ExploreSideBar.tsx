@@ -6,6 +6,7 @@ import Fuse from "fuse.js";
 import {SideTree} from "./SideTree";
 import {useTables} from "../hooks/useTables";
 import {useTable} from "../hooks/useTable";
+import {ShowDagButton} from "./ShowDagButton";
 
 const SideBarLoadingState = () => (
     <Menu large={true}>
@@ -132,9 +133,13 @@ const ExplorePanel = ({onBack}: ExplorePanelProps) => {
                 <Button onClick={onBack} icon='chevron-left'/>
                 <H3 style={{marginBottom: 0, marginLeft: '10px'}}>{friendlyName(activeExplore.name)}</H3>
             </div>
-            <Code>
-                {activeExplore.tables[activeExplore.baseTable].sqlTable.replaceAll('`', '')}
-            </Code>
+            <div style={{display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+                <Code>
+                    {activeExplore.tables[activeExplore.baseTable].sqlTable.replaceAll('`', '')}
+                </Code>
+                <ShowDagButton />
+            </div>
+
             <div style={{paddingBottom: '10px'}}/>
             <Text>
                 {activeExplore.tables[activeExplore.baseTable].description}
