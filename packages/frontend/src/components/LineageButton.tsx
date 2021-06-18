@@ -103,7 +103,7 @@ const Content = () => {
         <span>Hello</span>
     )
 }
-export const ShowDagButton = () => {
+export const LineageButton = () => {
     const [isOpen, setIsOpen] = useState(false)
     return (
         <Popover2
@@ -115,7 +115,7 @@ export const ShowDagButton = () => {
             lazy={true}
             fill={true}
         >
-            <Button minimal={true} icon={'data-lineage'} text='Lineage' />
+            <Button minimal={true} icon={'data-lineage'} text='Show lineage' />
         </Popover2>
     )
 }
