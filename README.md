@@ -155,7 +155,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/amin-nejad"><img src="https://avatars.githubusercontent.com/u/44096034?v=4?s=100" width="100px;" alt=""/><br /><sub><b>amin-nejad</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Aamin-nejad" title="Bug reports">🐛</a></td>
   </tr>
   <tr>
-    <td align="center"><a href="https://github.com/mitjapotocin"><img src="https://avatars.githubusercontent.com/u/36345162?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Mitja Potočin</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=mitjapotocin" title="Tests">⚠️</a> <a href="https://github.com/lightdash/lightdash/commits?author=mitjapotocin" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/mitjapotocin"><img src="https://avatars.githubusercontent.com/u/36345162?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Mitja Potočin</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=mitjapotocin" title="Code">💻</a></td>
   </tr>
 </table>
 
