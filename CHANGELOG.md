@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Fixed
+ - bug where long lists of table were not scrollable in the side bar
 
 ## [0.2.5] - 2021-06-18
 ### Added
