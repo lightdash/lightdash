@@ -46,7 +46,11 @@ const BasePanel = () => {
     if (exploresResult.isLoading)
         return <SideBarLoadingState/>
     return (
-        <div>
+        <div style={{
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column'
+        }}>
             <div style={{height: '100px'}}>
                 <div style={{
                     display: 'flex',
@@ -63,7 +67,10 @@ const BasePanel = () => {
                 </div>
                 <Divider/>
             </div>
-            <Menu>
+            <Menu style={{
+                flex: '1',
+                overflow: 'scroll'
+            }}>
                 {(exploresResult.data || []).map((explore, idx) => (
                     <React.Fragment key={idx}>
                         <MenuItem
