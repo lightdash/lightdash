@@ -115,7 +115,7 @@ export const LineageButton = () => {
             lazy={true}
             fill={true}
         >
-            <Tooltip2 content="View a partial lineage graph for this table">
+            <Tooltip2 content="View this table's upstream and downstream dependencies.">
                 <Button minimal={true} icon={'data-lineage'} text='Show lineage' />
             </Tooltip2>
         </Popover2>
