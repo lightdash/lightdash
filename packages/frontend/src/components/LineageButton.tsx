@@ -99,9 +99,6 @@ const Content = () => {
             />
         </div>
     )
-    return (
-        <span>Hello</span>
-    )
 }
 export const LineageButton = () => {
     const [isOpen, setIsOpen] = useState(false)
