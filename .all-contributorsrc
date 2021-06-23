@@ -81,6 +81,17 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "Jose",
+      "name": "José Campos",
+      "avatar_url": "https://avatars.githubusercontent.com/u/763676?v=4",
+      "profile": "http://jose.github.io",
+      "contributions": [
+        "code",
+        "design",
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
