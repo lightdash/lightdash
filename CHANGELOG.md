@@ -3,9 +3,11 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+
+## [0.2.6] - 2021-06-23
 ### Fixed
  - bug where long lists of table were not scrollable in the side bar
- - handle empty chart
+ - improved chart UI when there isn't enough data to create a chart
 
 ## [0.2.5] - 2021-06-18
 ### Added
