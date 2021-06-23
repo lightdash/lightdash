@@ -81,6 +81,17 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "ZeRego",
+      "name": "Jose Rego",
+      "avatar_url": "https://avatars.githubusercontent.com/u/9117144?v=4",
+      "profile": "https://github.com/ZeRego",
+      "contributions": [
+        "code",
+        "design",
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
