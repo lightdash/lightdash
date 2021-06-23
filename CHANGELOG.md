@@ -3,6 +3,7 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+- bug where we could group the only dimension available making the chart inaccessible  
 
 ## [0.2.6] - 2021-06-23
 ### Fixed
