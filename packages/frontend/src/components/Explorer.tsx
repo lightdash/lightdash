@@ -29,6 +29,7 @@ export const Explorer = () => {
     const totalActiveFilters = activeFilters.flatMap(filterGroup => filterGroup.filters.length).reduce((p, t) => p + t, 0)
     const [activeVizTab, setActiveVizTab] = useState<ChartType>('column')
 
+    const isChartEmpty: boolean = !chartConfig.plotData;
     return (
         <React.Fragment>
             <div style={{display: "flex", flexDirection: "row", justifyContent: "flex-end"}}>
@@ -56,11 +57,11 @@ export const Explorer = () => {
                     </div>
                     {vizIsOpen &&
                         <ButtonGroup minimal={true}>
-                            <Button active={activeVizTab === 'column' } icon={'timeline-bar-chart'} onClick={() => setActiveVizTab('column')}>Column</Button>
-                            <Button active={activeVizTab === 'bar' } icon={'horizontal-bar-chart'} onClick={() => setActiveVizTab('bar')}>Bar</Button>
-                            <Button active={activeVizTab === 'line' } icon={'timeline-line-chart'} onClick={() => setActiveVizTab('line')}>Line</Button>
-                            <Button active={activeVizTab === 'scatter' } icon={'scatter-plot'} onClick={() => setActiveVizTab('scatter')}>Scatter</Button>
-                            <ChartConfigPanel chartConfig={chartConfig}/>
+                            <Button active={activeVizTab === 'column' } icon={'timeline-bar-chart'} onClick={() => setActiveVizTab('column')} disabled={isChartEmpty}>Column</Button>
+                            <Button active={activeVizTab === 'bar' } icon={'horizontal-bar-chart'} onClick={() => setActiveVizTab('bar')} disabled={isChartEmpty}>Bar</Button>
+                            <Button active={activeVizTab === 'line' } icon={'timeline-line-chart'} onClick={() => setActiveVizTab('line')} disabled={isChartEmpty}>Line</Button>
+                            <Button active={activeVizTab === 'scatter' } icon={'scatter-plot'} onClick={() => setActiveVizTab('scatter')} disabled={isChartEmpty}>Scatter</Button>
+                            <ChartConfigPanel chartConfig={chartConfig} disabled={isChartEmpty}/>
                         </ButtonGroup>
                     }
                 </div>

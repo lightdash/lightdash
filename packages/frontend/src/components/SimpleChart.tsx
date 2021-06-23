@@ -2,6 +2,7 @@ import EChartsReact from "echarts-for-react";
 import React from "react";
 import {friendlyName} from "common";
 import {ChartConfig} from "../hooks/useChartConfig";
+import {NonIdealState} from "@blueprintjs/core";
 
 export type ChartType = 'line' | 'column' | 'bar' | 'scatter'
 const flipXFromChartType = (chartType: ChartType) => {
@@ -40,7 +41,7 @@ type SimpleChartProps = {
 }
 export const SimpleChart = ({chartType, chartConfig}: SimpleChartProps) => {
     if(chartConfig.plotData === undefined)
-        return null
+        return <EmptyChart/>
     const xlabel = friendlyName(chartConfig.seriesLayout.xDimension)
     const ylabel = chartConfig.seriesLayout.groupDimension && friendlyName(chartConfig.seriesLayout.yMetrics[0])
     const xType = 'category'
@@ -80,3 +81,13 @@ export const SimpleChart = ({chartType, chartConfig}: SimpleChartProps) => {
         <EChartsReact option={options} notMerge={true}/>
     </div>
 }
+
+const EmptyChart = () => (
+    <div style={{padding: '50px 0'}}>
+        <NonIdealState
+            title="No data available"
+            description="Query metrics and dimensions with results."
+            icon='chart'
+        />
+    </div>
+)

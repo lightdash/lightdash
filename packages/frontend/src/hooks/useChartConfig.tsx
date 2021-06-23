@@ -52,6 +52,11 @@ const defaultLayout = (queryResults: UseQueryResult<ApiQueryResults, ApiError>):
         groupDimension: undefined,
     }
 }
+
+const isValidSeriesLayout = (seriesLayout: SeriesLayout): seriesLayout is ValidSeriesLayout => {
+    return !!seriesLayout.xDimension && !!seriesLayout.yMetrics && seriesLayout.yMetrics.length > 0;
+}
+
 export const useChartConfig = (queryResults: UseQueryResult<ApiQueryResults, ApiError>): ChartConfig => {
     const [seriesLayout, setSeriesLayout] = useState<SeriesLayout>(defaultLayout(queryResults))
     const dimensionOptions = queryResults.data?.metricQuery.dimensions || []
@@ -94,7 +99,7 @@ export const useChartConfig = (queryResults: UseQueryResult<ApiQueryResults, Api
             })
     }
 
-    if (queryResults.data && seriesLayout.xDimension && seriesLayout.yMetrics){
+    if (queryResults.data && isValidSeriesLayout(seriesLayout)){
         const plotData = seriesLayout.groupDimension
             ? pivot(queryResults.data.rows, seriesLayout.xDimension, seriesLayout.groupDimension, seriesLayout.yMetrics[0])
             : queryResults.data.rows
@@ -106,7 +111,7 @@ export const useChartConfig = (queryResults: UseQueryResult<ApiQueryResults, Api
             setXDimension,
             setGroupDimension,
             toggleYMetric,
-            seriesLayout: {xDimension: seriesLayout.xDimension, yMetrics: seriesLayout.yMetrics, groupDimension: seriesLayout.groupDimension},  // verbose to help typescript
+            seriesLayout,
             plotData,
             eChartDimensions: [
                 {name: seriesLayout.xDimension, displayName: friendlyName(seriesLayout.xDimension)},

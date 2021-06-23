@@ -15,7 +15,7 @@ type ContentProps = {
     chartConfig: ChartConfig,
 }
 
-const Content = ({ chartConfig }: ContentProps) => {
+const Content: React.FC<ContentProps> = ({ chartConfig }) => {
     return (
         <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start', width: '300px'}}>
             <span><b>Metrics</b></span>
@@ -56,9 +56,10 @@ const Content = ({ chartConfig }: ContentProps) => {
 }
 
 type ChartConfigPanelProps = {
-    chartConfig: ChartConfig,
+    chartConfig: ChartConfig;
+    disabled: boolean;
 }
-export const ChartConfigPanel = ({ chartConfig }: ChartConfigPanelProps) => {
+export const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({ chartConfig, disabled }) => {
     const [isOpen, setIsOpen] = useState(false)
     return (
         <Popover2
@@ -69,8 +70,9 @@ export const ChartConfigPanel = ({ chartConfig }: ChartConfigPanelProps) => {
             onInteraction={setIsOpen}
             position={'bottom'}
             lazy={false}
+            disabled={disabled}
         >
-            <Button icon={'settings'} rightIcon={'caret-down'} text='Configure' />
+            <Button icon={'settings'} rightIcon={'caret-down'} text='Configure' disabled={disabled}/>
         </Popover2>
     )
 }
