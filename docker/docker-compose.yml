@@ -16,8 +16,7 @@ services:
     volumes:
       - "../examples/full-jaffle-shop-demo/profiles:/usr/app/profiles"
       - "../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt"
-      - "../packages/frontend:/usr/app/src/packages/frontend"
-      - "../packages/backend:/usr/app/src/packages/backend"
+      - "../packages:/usr/app/packages"
     ports:
       - 3000:3000
       - 8080:8080
