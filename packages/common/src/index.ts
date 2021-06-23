@@ -19,8 +19,13 @@ export type PartialTable = {
 export type Table = PartialTable & {
     dimensions: {[fieldName: string]: Dimension}, // Field names must be unique across dims and metrics
     metrics: {[fieldName: string]: Metric},       //
-    sourceTables: string[],                       // list of tables that this table depends on
-    dependentTables: string[],                    // list of tables that depend on this table
+    lineageGraph: LineageGraph,                  // DAG structure representing the lineage of the table
+}
+
+export type LineageGraph = Record<string, LineageNodeDependency[]>
+export type LineageNodeDependency = {
+    type: 'model' | 'seed' | 'source',
+    name: string
 }
 
 // Helper function to get a list of all dimensions in an explore
