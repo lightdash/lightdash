@@ -1,9 +1,19 @@
-import {Dimension, DimensionType, Explore, mapColumnTypeToLightdashType, Metric, MetricType, Table,} from "common";
+import {
+    Dimension,
+    DimensionType,
+    Explore,
+    LineageGraph, LineageNodeDependency,
+    mapColumnTypeToLightdashType,
+    Metric,
+    MetricType,
+    Table,
+} from "common";
 import modelJsonSchema from '../schema.json'
 import {MissingCatalogEntryError, ParseError} from "../errors"
 import Ajv from "ajv"
 import addFormats from "ajv-formats"
 import {postDbtAsyncRpc} from "./rpcClient";
+import { DepGraph } from "dependency-graph"
 
 // Config validator
 const ajv = new Ajv()
@@ -89,23 +99,54 @@ const convertMetrics = (modelName: string, column: DbtModelColumn): Metric[] => 
     }))
 }
 
-const convertTables = (allModels: DbtModelNode[], model: DbtModelNode): Table => {
-    const dependentTables = allModels.filter(m => m.depends_on.nodes.find(idx => idx === model.unique_id)).map(m => m.name)
+const convertTable = (model: DbtModelNode, depGraph: DepGraph<LineageNodeDependency>): Table => {
+    // Generate lineage for this table
+    const modelFamily = [...depGraph.dependantsOf(model.name), ...depGraph.dependenciesOf(model.name), model.name]
+    const lineage: LineageGraph = modelFamily.reduce<LineageGraph>((prev, modelName) => {
+        return {
+            ...prev,
+            [modelName]: depGraph.directDependenciesOf(modelName).map(d => depGraph.getNodeData(d))
+        }
+    }, {})
+
     return {
         name: model.name,
         sqlTable: model.relation_name,
         description: model.description || `${model.name} table`,
         dimensions: Object.fromEntries(Object.values(model.columns).map(col => convertDimension(model.name, col)).map(d => [d.name, d])),
         metrics: Object.fromEntries(Object.values(model.columns).map(col => convertMetrics(model.name, col)).flatMap(ms => ms.map(m => [m.name, m]))),
-        sourceTables: model.depends_on.nodes.map(nodeId => nodeId.split('.')[2]),
-        dependentTables: dependentTables,
+        lineageGraph: lineage,
     }
 }
 
+const modelGraph = (allModels: DbtModelNode[]): DepGraph<LineageNodeDependency> => {
+    const depGraph = new DepGraph<LineageNodeDependency>()
+    allModels.forEach(model => {
+        const [type, project, name] = model.unique_id.split('.')
+        if (type === 'model') {
+            depGraph.addNode(name, {type, name})
+        }
+        // Only use models, seeds, and sources for graph.
+        model.depends_on.nodes.forEach(nodeId => {
+            const [type, project, name] = nodeId.split('.')
+            if (type === 'model' || type === 'seed' || type === 'source') {
+                depGraph.addNode(name, {type, name})
+                depGraph.addDependency(model.name, name)
+            }
+        })
+    })
+    return depGraph
+}
+
+const convertTables = (allModels: DbtModelNode[]): Table[] => {
+    const graph = modelGraph(allModels)
+    return allModels.map(model => convertTable(model, graph))
+}
+
 export const convertExplores = async (models: DbtModelNode[]): Promise<Explore[]> => {
-    const relations = Object.fromEntries(models.map(model => {
-        return [model.name, convertTables(models, model)]
-    })) as {[modelId: string]: Table}
+    const tables: Record<string, Table> = convertTables(models).reduce((prev, relation) => {
+        return {...prev, [relation.name]: relation}
+    }, {})
 
     const explores = models.map(model => {
         const tableNames = [model.name, ...(model.meta.joins || []).map(j => j.join)]
@@ -116,7 +157,7 @@ export const convertExplores = async (models: DbtModelNode[]): Promise<Explore[]
                 table: join.join,
                 sqlOn: join.sql_on,
             })),
-            tables: Object.fromEntries(tableNames.map(n => [n, relations[n]])),
+            tables: Object.fromEntries(tableNames.map(n => [n, tables[n]])),
         } as Explore
     })
     return explores
