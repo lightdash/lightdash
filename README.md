@@ -157,7 +157,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/mitjapotocin"><img src="https://avatars.githubusercontent.com/u/36345162?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Mitja Potočin</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=mitjapotocin" title="Code">💻</a></td>
-    <td align="center"><a href="https://github.com/ZeRego"><img src="https://avatars.githubusercontent.com/u/9117144?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Jose Rego</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=ZeRego" title="Code">💻</a> <a href="#design-ZeRego" title="Design">🎨</a> <a href="https://github.com/lightdash/lightdash/commits?author=ZeRego" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/ZeRego"><img src="https://avatars.githubusercontent.com/u/9117144?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Jose Rego</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=ZeRego" title="Code">💻</a> <a href="#design-ZeRego" title="Design">🎨</a> <a href="https://github.com/lightdash/lightdash/commits?author=ZeRego" title="Documentation">📖</a> <a href="https://github.com/lightdash/lightdash/issues?q=author%3AZeRego" title="Bug reports">🐛</a></td>
   </tr>
 </table>
 
