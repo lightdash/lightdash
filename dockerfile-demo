@@ -105,3 +105,14 @@ RUN yarn install --pure-lockfile --non-interactive --production
 WORKDIR /usr/app/packages/backend
 EXPOSE 8080
 CMD ["yarn", "start"]
+
+# -------------------------
+# Stage 5: Extend with demo
+# -------------------------
+FROM prod as demo
+
+COPY ./examples/full-jaffle-shop-demo/dbt /usr/app/dbt
+COPY ./examples/full-jaffle-shop-demo/profiles /usr/app/profiles
+COPY ./examples/full-jaffle-shop-demo/entrypoint.sh /usr/bin/entrypoint.sh
+ENTRYPOINT ["/usr/bin/entrypoint.sh"]
+CMD ["yarn", "start"]

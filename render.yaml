@@ -6,11 +6,11 @@ databases:
 
 
 services:
-  - type: pserv
-    name: dbt-server
+  - type: web
     env: docker
-    dockerContext: ./examples/full-jaffle-shop-demo
-    dockerfilePath: ./examples/full-jaffle-shop-demo/dockerfile-dbt-demo
+    name: lightdash
+    dockerContext: .
+    dockerfilePath: dockerfile-demo
     envVars:
       - key: POSTGRES_PASSWORD
         fromDatabase:
@@ -32,25 +32,6 @@ services:
         fromDatabase:
           name: jaffle_db
           property: database
-
-  - type: web
-    env: docker
-    name: lightdash
-    dockerContext: .
-    dockerfilePath: dockerfile
-    envVars:
-      - key: LIGHTDASH_DBT_HOST
-        fromService:
-          name: dbt-server
-          type: pserv
-          property: host
-      - key: LIGHTDASH_DBT_PORT
-        fromService:
-          name: dbt-server
-          type: pserv
-          property: port
-      - key: LIGHTDASH_SPAWN_DBT
-        value: false
       - key: REACT_APP_RUDDERSTACK_WRITE_KEY
         sync: false
       - key: REACT_APP_RUDDERSTACK_DATAPLANE_URL

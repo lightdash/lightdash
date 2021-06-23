@@ -1,5 +1,5 @@
 FROM lightdash/lightdash:latest
 
-COPY ./lightdash-entrypoint.sh /usr/bin/entrypoint.sh
+COPY ./entrypoint.sh /usr/bin/entrypoint.sh
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
 CMD ["yarn", "start"]
