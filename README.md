@@ -156,6 +156,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/mitjapotocin"><img src="https://avatars.githubusercontent.com/u/36345162?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Mitja Potočin</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=mitjapotocin" title="Code">💻</a></td>
+    <td align="center"><a href="http://jose.github.io"><img src="https://avatars.githubusercontent.com/u/763676?v=4?s=100" width="100px;" alt=""/><br /><sub><b>José Campos</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=Jose" title="Code">💻</a> <a href="#design-Jose" title="Design">🎨</a> <a href="https://github.com/lightdash/lightdash/commits?author=Jose" title="Documentation">📖</a></td>
   </tr>
 </table>
 
