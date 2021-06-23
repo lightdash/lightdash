@@ -90,7 +90,8 @@
       "contributions": [
         "code",
         "design",
-        "doc"
+        "doc",
+        "bug"
       ]
     }
   ],
