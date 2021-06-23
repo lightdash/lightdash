@@ -46,7 +46,7 @@ const Content: React.FC<ContentProps> = ({ chartConfig }) => {
                             outlined={true}
                             active={dimension === chartConfig.seriesLayout.groupDimension}
                             onClick={() => chartConfig.setGroupDimension(dimension === chartConfig.seriesLayout.groupDimension ? undefined : dimension)}
-                            disabled={chartConfig.seriesLayout.yMetrics && chartConfig.seriesLayout.yMetrics.length > 1}
+                            disabled={chartConfig.seriesLayout.yMetrics && chartConfig.seriesLayout.yMetrics.length > 1 || chartConfig.dimensionOptions.length <= 1}
                         >Group</Button>
                     </ButtonGroup>
                 </div>
