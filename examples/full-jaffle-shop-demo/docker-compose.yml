@@ -3,11 +3,10 @@ services:
   lightdash:
     build:
       context: .
-      dockerfile: dockerfile-lightdash-demo
+      dockerfile: dockerfile
     depends_on: 
       - db
     environment:
-      - LIGHTDASH_SPAWN_DBT=true
       - POSTGRES_HOST=db
       - POSTGRES_PASSWORD=password
       - POSTGRES_USER=postgres

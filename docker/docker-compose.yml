@@ -1,0 +1,29 @@
+version: "3.9"
+services:
+  lightdash-dev:
+    build:
+      context: ..
+      dockerfile: dockerfile
+      target: dev
+    depends_on: 
+      - db-dev
+    environment:
+      - POSTGRES_HOST=db-dev
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DATABASE=postgres
+    volumes:
+      - "../examples/full-jaffle-shop-demo/profiles:/usr/app/profiles"
+      - "../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt"
+      - "../packages/frontend:/usr/app/src/packages/frontend"
+      - "../packages/backend:/usr/app/src/packages/backend"
+    ports:
+      - 3000:3000
+      - 8080:8080
+
+  db-dev:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: password

@@ -92,7 +92,7 @@ Open lightdash at `https://localhost:8080`
 
 ## Installation from source
 
-Lightdash requires node.js and yarn.
+Lightdash requires node.js, yarn and dbt.
 
 **Install dependencies for Mac OS**
 ```shell
@@ -120,6 +120,7 @@ yarn build
 # (i.e. the directory containing dbt_project.yml)
 # You MUST use the absolute path (i.e no ../../myrepo)
 export DBT_PROJECT_DIR=/Users/myuser/dbtrepo
+export DBT_PROFILES_DIR=/Users/myuser/.dbt
 
 # Build and run Lightdash
 yarn start

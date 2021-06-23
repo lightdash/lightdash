@@ -22,6 +22,6 @@ export const RefreshServerButton = () => {
         )
     }
     return (
-        <Button icon={'refresh'} onClick={onClick}>Refresh dbt</Button>
+        <Button icon={'refresh'} onClick={onClick}>Refresh h</Button>
     )
 }
