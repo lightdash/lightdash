@@ -19,7 +19,7 @@ import {
 
 const lightdashVariablePattern = /\$\{([a-zA-Z0-9_.]+)\}/g
 
-const renderDimensionReference = (ref: string, explore: Explore, currentTable: string): string => {
+const renderDimensionReference = (ref: string, explore: Pick<Explore, 'tables'>, currentTable: string): string => {
     // Reference to current table
     if (ref === 'TABLE') {
         return currentTable
@@ -73,14 +73,14 @@ const renderMetricSql = (metric: Metric, explore: Explore): string => {
 }
 
 
-const renderDimensionSql = (dimension: Dimension, explore: Explore): string => {
+const renderDimensionSql = (dimension: Dimension, explore: Pick<Explore, 'tables'>): string => {
     // Dimension might have references to other dimensions
     return dimension.sql.replace(lightdashVariablePattern, (_, p1) => renderDimensionReference(p1, explore, dimension.table))
 }
 
-const renderExploreJoinSql = (join: ExploreJoin, explore: Explore): string => {
+export const renderExploreJoinSql = (table: string, sqlOn: string, explore: Pick<Explore, 'tables'>): string => {
     // Sql join contains references to dimensions
-    return join.sqlOn.replace(lightdashVariablePattern, (_, p1) => renderDimensionReference(p1, explore, join.table))
+    return sqlOn.replace(lightdashVariablePattern, (_, p1) => renderDimensionReference(p1, explore, table))
 }
 
 const renderStringFilterSql = (dimension: StringDimension, filter: StringFilter, explore: Explore): string => {
@@ -183,7 +183,7 @@ export const buildQuery = ({ explore, metricQuery }: BuildQueryProps) => {
     const sqlJoins = explore.joinedTables.map(join => {
         const joinTable = explore.tables[join.table].sqlTable
         const alias = join.table
-        return `LEFT JOIN ${joinTable} AS ${alias}\n  ON ${renderExploreJoinSql(join, explore)}`
+        return `LEFT JOIN ${joinTable} AS ${alias}\n  ON ${join.sqlOn}`
     }).join('\n')
 
     const dimensionSelects = dimensions.map(field => {

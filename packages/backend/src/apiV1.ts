@@ -2,7 +2,6 @@ import express from 'express'
 import {getAllTables, getStatus, getTable, refreshAllTables, runQuery} from "./lightdash";
 import {MetricQuery} from "common";
 import {buildQuery} from "./queryBuilder";
-import {runQueryOnDbtAdapter} from "./dbt/rpcClient";
 
 export const apiV1Router = express.Router()
 
