@@ -8,8 +8,10 @@ Recent and upcoming changes to lightdash
  - improve table tree to show join details
 
 ### Fixed
- - bug where we could group the only dimension available making the chart inaccessible  
+ - bug where we could group the only dimension available making the chart inaccessible
  - only show scroll bar in sidebar when content is scrollable
+ - Stick sidebar on top left 
+ - The stuck problem with scrollbar that shows only limited content on overflow
 
 ## [0.2.6] - 2021-06-23
 ### Fixed
