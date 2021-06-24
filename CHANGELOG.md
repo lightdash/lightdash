@@ -8,7 +8,8 @@ Recent and upcoming changes to lightdash
  - improve table tree to show join details
 
 ### Fixed
- - bug where we could group the only dimension available making the chart inaccessible
+ - bug where we could group the only dimension available making the chart inaccessible  
+ - only show scroll bar in sidebar when content is scrollable
 
 ## [0.2.6] - 2021-06-23
 ### Fixed
