@@ -151,13 +151,13 @@ export const convertExplores = async (models: DbtModelNode[]): Promise<Explore[]
 
     const explores = models.map(model => {
         const tableNames = [model.name, ...(model.meta.joins || []).map(j => j.join)]
-        const tables = Object.fromEntries(tableNames.map(n => [n, allTables[n]]));
+        const tables: Record<string, Table> = Object.fromEntries(tableNames.map(n => [n, allTables[n]]));
         return {
             name: model.name,
             baseTable: model.name,
             joinedTables: (model.meta.joins || []).map(join => ({
                 table: join.join,
-                sqlOn: renderExploreJoinSql(join.join, join.sql_on, {tables})
+                sqlOn: renderExploreJoinSql(join.join, join.sql_on, tables)
             })),
             tables,
         } as Explore
