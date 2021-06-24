@@ -5,9 +5,10 @@ Recent and upcoming changes to lightdash
 ## Unreleased
 ### Added
  - lineage graph can now be toggled to show the entire lineage of a table or just it's direct dependencies
+ - improve table tree to show join details
 
 ### Fixed
- - bug where we could group the only dimension available making the chart inaccessible  
+ - bug where we could group the only dimension available making the chart inaccessible
 
 ## [0.2.6] - 2021-06-23
 ### Fixed
