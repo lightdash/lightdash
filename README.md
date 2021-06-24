@@ -10,7 +10,7 @@
 <br>
 <p align="center">
     <a href="http://www.lightdash.com"><b>Website</b></a> •
-    <a href="https://www.loom.com/share/f3725e98ce4840bda3f719da647f58b0"><b>Watch demo</b></a> • 
+    <a href="https://www.loom.com/share/f3725e98ce4840bda3f719da647f58b0"><b>Watch demo</b></a> •
     <a href="http://docs.lightdash.com/"><b>Docs</b></a>
 </p>
 <div align="center">
@@ -47,9 +47,9 @@ Start learning Lightdash:
 * [Setup Lightdash with your existing dbt project](https://docs.lightdash.com/get-started/setup-an-existing-dbt-project) (*requires your own dbt project*)
 
 ## Community Support
-Join our community if you need help, want to chat or have any other questions for us: 
+Join our community if you need help, want to chat or have any other questions for us:
 - [Discord](https://discord.gg/WnPB98Wk) - Live chat with the Lightdash team and our community members
-- [Discourse](https://community.lightdash.com/) - Discussion forums and updates from the Lightdash team 
+- [Discourse](https://community.lightdash.com/) - Discussion forums and updates from the Lightdash team
 - [Twitter](https://twitter.com/lightdash_devs) - For all the latest Lightdash news
 
 ## About Lightdash
@@ -79,7 +79,7 @@ Open lightdash at `https://localhost:8080`
 *Bigquery users should read the [additional docs here](https://docs.lightdash.com/get-started/setup-an-existing-dbt-project)*
 
 ```shell
-cd path/to/your/dbt/project
+cd path/to/your/dbt/project # e.g. /Users/katie/my-project-repo/dbt
 
 export DBT_PROJECT_DIR=${PWD}
 export DBT_PROFILES_DIR=${HOME}/.dbt
