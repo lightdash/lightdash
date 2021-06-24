@@ -6,12 +6,14 @@ Recent and upcoming changes to lightdash
 ### Added
  - lineage graph can now be toggled to show the entire lineage of a table or just it's direct dependencies
  - improve table tree to show join details
+ - dimension and metrics are compiled on "dbt refresh" surfacing errors in the UI
 
 ### Fixed
  - bug where we could group the only dimension available making the chart inaccessible
  - only show scroll bar in sidebar when content is scrollable
  - Stick sidebar on top left 
  - The stuck problem with scrollbar that shows only limited content on overflow
+ - Errors in `meta` tags (such as invalid references to other dimensions) no longer crash the server and errors are shown in the UI
 
 ## [0.2.6] - 2021-06-23
 ### Fixed

@@ -53,6 +53,17 @@ export class ParseError extends LightdashError {
     }
 }
 
+export class CompileError extends LightdashError {
+    constructor(message = 'Error compiling sql from Lightdash configuration', data: Record<string, any>) {
+        super({
+            message,
+            name: 'CompileError',
+            statusCode: 500,
+            data,
+        })
+    }
+}
+
 export class QueryError extends LightdashError {
     constructor(message = 'Error running query on external service', data: {[key: string]: any}) {
         super({

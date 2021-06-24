@@ -1,13 +1,17 @@
 export type Explore = {
     name: string,                           // Friendly name any characters
     baseTable: string,                      // Must match a tableName in tables
-    joinedTables: ExploreJoin[],            // Must match a tableName in tables
-    tables: {[tableName: string]: Table} // All tables in this explore
+    joinedTables: CompiledExploreJoin[],            // Must match a tableName in tables
+    tables: {[tableName: string]: CompiledTable} // All tables in this explore
 }
 
 export type ExploreJoin = {
     table: string,              // Must match a tableName in containing Explore
     sqlOn: string,              // Built sql
+}
+
+export type CompiledExploreJoin = ExploreJoin & {
+    compiledSqlOn: string,   // Sql on clause with template variables resolved
 }
 
 export type PartialTable = {
@@ -22,6 +26,12 @@ export type Table = PartialTable & {
     lineageGraph: LineageGraph,                  // DAG structure representing the lineage of the table
 }
 
+export type CompiledTable = PartialTable & {
+    dimensions: Record<string, CompiledDimension>,
+    metrics: Record<string, CompiledMetric>
+    lineageGraph: LineageGraph,
+}
+
 export type LineageGraph = Record<string, LineageNodeDependency[]>
 export type LineageNodeDependency = {
     type: 'model' | 'seed' | 'source',
@@ -29,12 +39,12 @@ export type LineageNodeDependency = {
 }
 
 // Helper function to get a list of all dimensions in an explore
-export const getDimensions = (explore: Explore) => (
+export const getDimensions = (explore: Explore): CompiledDimension[] => (
     Object.values(explore.tables).flatMap(t => Object.values(t.dimensions))
 )
 
 // Helper function to get a list of all metrics in an explore
-export const getMetrics = (explore: Explore) => (
+export const getMetrics = (explore: Explore): CompiledMetric[] => (
     Object.values(explore.tables).flatMap(t => Object.values(t.metrics))
 )
 
@@ -50,7 +60,7 @@ export type StringDimension = {
     type: 'string'            // Discriminator field
     name: string              // Field names are unique within a table
     table: string             // Table names are unique within the project
-    sql: string               // Templated sql to access this dimension in a tabl
+    sql: string               // Templated sql to access this dimension in a table
     description?: string      // Optional description of the field
 }
 export type NumberDimension = {
@@ -89,10 +99,13 @@ export type Dimension =
     | DateDimension
     | BooleanDimension
 
+export type CompiledDimension = Dimension & {
+    compiledSql: string,  // sql string with resolved template variables
+}
+
 export type DimensionType = Dimension["type"]
 
 export const isDimension = (field: Field) => {
-    const fieldType = field.type
     switch (field.type) {
         // Dimensions
         case "number": return true
@@ -170,6 +183,10 @@ export type Metric =
     | MinMetric
     | MaxMetric
 
+export type CompiledMetric = Metric & {
+    compiledSql: string,
+}
+
 export type MetricType = Metric["type"]
 
 // Object used to query an explore. Queries only happen within a single explore
@@ -233,7 +250,6 @@ export type FilterGroup =
 export const fieldIdFromFilterGroup = (fg: FilterGroup) => `${fg.tableName}_${fg.fieldName}`
 
 export type FilterableDimension = StringDimension | NumberDimension
-export type FilterType = FilterGroup["type"]
 export const assertFilterableDimension = (dimension: Dimension): FilterableDimension | undefined => {
     switch (dimension.type) {
         case "string": return dimension
