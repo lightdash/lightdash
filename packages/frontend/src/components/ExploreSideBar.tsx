@@ -68,7 +68,7 @@ const BasePanel = () => {
             </div>
             <Menu style={{
                 flex: '1',
-                overflow: 'scroll'
+                overflow: 'auto'
             }}>
                 {(exploresResult.data || []).map((explore, idx) => (
                     <React.Fragment key={idx}>
