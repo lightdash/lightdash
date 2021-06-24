@@ -1,9 +1,8 @@
 import {Alert, Button, Divider, H3, Menu, MenuDivider, MenuItem, Text} from "@blueprintjs/core";
 import React, {useState} from "react";
 import {useExploreConfig} from "../hooks/useExploreConfig";
-import {friendlyName, getFields} from "common";
-import Fuse from "fuse.js";
-import {SideTree} from "./SideTree";
+import {friendlyName} from "common";
+import ExploreTree from "./ExploreTree";
 import {useTables} from "../hooks/useTables";
 import {useTable} from "../hooks/useTable";
 import {LineageButton} from "./LineageButton";
@@ -126,8 +125,6 @@ const ExplorePanel = ({onBack}: ExplorePanelProps) => {
     }
     // Success
     const activeExplore = exploresResult.data
-    const fields = getFields(activeExplore)
-    const fuse = new Fuse(fields, {keys: ['name', 'description']})
     const [databaseName, schemaName, tableName] = activeExplore.tables[activeExplore.baseTable].sqlTable.replace(/["'`]/g, "").split('.')
     return (
         <div style={{height: '100%', overflow: 'hidden'}}>
@@ -152,11 +149,10 @@ const ExplorePanel = ({onBack}: ExplorePanelProps) => {
             <div style={{paddingBottom: '5px'}}/>
             <Divider/>
             <div style={{paddingBottom: '10px'}}/>
-            <SideTree
-                fields={fields}
+            <ExploreTree
+                explore={activeExplore}
                 selectedNodes={activeFields}
                 onSelectedNodeChange={toggleActiveField}
-                fuse={fuse}
             />
         </div>
     )

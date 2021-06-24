@@ -7,7 +7,7 @@ export type Explore = {
 
 export type ExploreJoin = {
     table: string,              // Must match a tableName in containing Explore
-    sqlOn: string,              // Templated sql on clause
+    sqlOn: string,              // Built sql
 }
 
 export type PartialTable = {
