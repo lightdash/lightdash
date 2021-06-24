@@ -13,13 +13,13 @@ import {
     NumberFilter,
     getDimensions,
     fieldIdFromFilterGroup,
-    FieldId, getMetrics,
+    FieldId, getMetrics, Table,
 } from "common";
 
 
 const lightdashVariablePattern = /\$\{([a-zA-Z0-9_.]+)\}/g
 
-const renderDimensionReference = (ref: string, explore: Pick<Explore, 'tables'>, currentTable: string): string => {
+const renderDimensionReference = (ref: string, tables: Record<string, Table>, currentTable: string): string => {
     // Reference to current table
     if (ref === 'TABLE') {
         return currentTable
@@ -31,10 +31,10 @@ const renderDimensionReference = (ref: string, explore: Pick<Explore, 'tables'>,
     }
     const refTable = split.length === 1 ? currentTable : split[0]
     const refName = split.length === 1 ? split[0] : split[1]
-    const dimension = explore.tables[refTable]?.dimensions[refName]
+    const dimension = tables[refTable]?.dimensions[refName]
     if (dimension === undefined)
         throw Error(`Model ${currentTable} has a dimension reference: \${${ref}} which matches no dimension`)
-    return `(${renderDimensionSql(dimension, explore)})`
+    return `(${renderDimensionSql(dimension, tables)})`
 }
 
 const renderMetricReference = (ref: string, explore: Explore, currentTable: string): string => {
@@ -57,7 +57,7 @@ const renderMetricReference = (ref: string, explore: Explore, currentTable: stri
 
 const renderMetricSql = (metric: Metric, explore: Explore): string => {
     // Metric might have references to other dimensions
-    const renderedSql = metric.sql.replace(lightdashVariablePattern, (_, p1) => renderDimensionReference(p1, explore, metric.table))
+    const renderedSql = metric.sql.replace(lightdashVariablePattern, (_, p1) => renderDimensionReference(p1, explore.tables, metric.table))
     const metricType = metric.type
     switch(metricType) {
         case "average": return `AVG(${renderedSql})`
@@ -73,18 +73,18 @@ const renderMetricSql = (metric: Metric, explore: Explore): string => {
 }
 
 
-const renderDimensionSql = (dimension: Dimension, explore: Pick<Explore, 'tables'>): string => {
+const renderDimensionSql = (dimension: Dimension, tables: Record<string, Table>): string => {
     // Dimension might have references to other dimensions
-    return dimension.sql.replace(lightdashVariablePattern, (_, p1) => renderDimensionReference(p1, explore, dimension.table))
+    return dimension.sql.replace(lightdashVariablePattern, (_, p1) => renderDimensionReference(p1, tables, dimension.table))
 }
 
-export const renderExploreJoinSql = (table: string, sqlOn: string, explore: Pick<Explore, 'tables'>): string => {
+export const renderExploreJoinSql = (table: string, sqlOn: string, tables: Record<string, Table>): string => {
     // Sql join contains references to dimensions
-    return sqlOn.replace(lightdashVariablePattern, (_, p1) => renderDimensionReference(p1, explore, table))
+    return sqlOn.replace(lightdashVariablePattern, (_, p1) => renderDimensionReference(p1, tables, table))
 }
 
 const renderStringFilterSql = (dimension: StringDimension, filter: StringFilter, explore: Explore): string => {
-    const dimensionSql = renderDimensionSql(dimension, explore)
+    const dimensionSql = renderDimensionSql(dimension, explore.tables)
     const filterType = filter.operator
     switch (filter.operator) {
         case "equals":
@@ -104,7 +104,7 @@ const renderStringFilterSql = (dimension: StringDimension, filter: StringFilter,
 }
 
 const renderNumberFilterSql = (dimension: NumberDimension, filter: NumberFilter, explore: Explore): string => {
-    const dimensionSql = renderDimensionSql(dimension, explore)
+    const dimensionSql = renderDimensionSql(dimension, explore.tables)
     const filterType = filter.operator
     switch (filter.operator) {
         case "equals":
@@ -189,7 +189,7 @@ export const buildQuery = ({ explore, metricQuery }: BuildQueryProps) => {
     const dimensionSelects = dimensions.map(field => {
         const alias = field
         const dimension = getDimensionFromId(field, explore)
-        return `  ${renderDimensionSql(dimension, explore)} AS ${q}${alias}${q}`
+        return `  ${renderDimensionSql(dimension, explore.tables)} AS ${q}${alias}${q}`
     })
 
     const metricSelects = metrics.map(field => {
