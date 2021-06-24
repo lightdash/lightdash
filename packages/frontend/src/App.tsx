@@ -72,6 +72,8 @@ const InnerApp = () => {
                   width: '400px',
                   marginRight: '10px',
                   overflow: 'hidden',
+                  position: 'sticky',
+                  top: '0',
               }} elevation={1}>
                   <ExploreSideBar />
               </Card>
