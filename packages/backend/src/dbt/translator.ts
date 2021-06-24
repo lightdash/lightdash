@@ -14,7 +14,7 @@ import Ajv from "ajv"
 import addFormats from "ajv-formats"
 import {postDbtAsyncRpc} from "./rpcClient";
 import { DepGraph } from "dependency-graph"
-import {renderExploreJoinSql} from "../queryBuilder";
+import {compileExplore} from "../exploreCompiler";
 
 // Config validator
 const ajv = new Ajv()
@@ -145,23 +145,18 @@ const convertTables = (allModels: DbtModelNode[]): Table[] => {
 }
 
 export const convertExplores = async (models: DbtModelNode[]): Promise<Explore[]> => {
-    const allTables: Record<string, Table> = convertTables(models).reduce((prev, relation) => {
+    const tables: Record<string, Table> = convertTables(models).reduce((prev, relation) => {
         return {...prev, [relation.name]: relation}
     }, {})
-
-    const explores = models.map(model => {
-        const tableNames = [model.name, ...(model.meta.joins || []).map(j => j.join)]
-        const tables: Record<string, Table> = Object.fromEntries(tableNames.map(n => [n, allTables[n]]));
-        return {
-            name: model.name,
-            baseTable: model.name,
-            joinedTables: (model.meta.joins || []).map(join => ({
-                table: join.join,
-                sqlOn: renderExploreJoinSql(join.join, join.sql_on, tables)
-            })),
-            tables,
-        } as Explore
-    })
+    const explores = models.map(model => compileExplore({
+        name: model.name,
+        baseTable: model.name,
+        joinedTables: (model.meta.joins || []).map(join => ({
+            table: join.join,
+            sqlOn: join.sql_on,
+        })),
+        tables: tables,
+    }))
     return explores
 }
 

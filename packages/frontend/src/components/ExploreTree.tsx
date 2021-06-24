@@ -1,5 +1,5 @@
 import {FC, useCallback, useMemo, useState} from "react";
-import {Dimension, Explore, FieldId, fieldId, friendlyName, Metric, Table} from "common";
+import {CompiledTable, Dimension, Explore, FieldId, fieldId, friendlyName, Metric} from "common";
 import {Button, Classes, Colors, Icon, InputGroup, Intent, Tree, Dialog} from "@blueprintjs/core";
 import {Tooltip2} from "@blueprintjs/popover2";
 import Fuse from 'fuse.js';
@@ -37,7 +37,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({explore, selectedNodes, onSelectedNo
                         key={table.name}
                         search={search}
                         table={table}
-                        joinSql={explore.joinedTables.find(joinTable => joinTable.table === table.name)?.sqlOn}
+                        joinSql={explore.joinedTables.find(joinTable => joinTable.table === table.name)?.compiledSqlOn}
                         selectedNodes={selectedNodes}
                         onSelectedNodeChange={onSelectedNodeChange}
                     />
@@ -49,7 +49,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({explore, selectedNodes, onSelectedNo
 
 type TableTreeProps = {
     search: string;
-    table: Table;
+    table: CompiledTable;
     joinSql?: string;
     selectedNodes: ExploreTreeProps['selectedNodes'];
     onSelectedNodeChange: ExploreTreeProps['onSelectedNodeChange'];
@@ -165,7 +165,7 @@ const JoinDetailsButton: FC<{ joinSql: string }> = ({joinSql}) => {
             >
                 <div className={Classes.DIALOG_BODY}>
                     <p>
-                        FULL OUTER JOIN <b>{joinSql}</b>
+                        LEFT JOIN <b>{joinSql}</b>
                     </p>
                 </div>
             </Dialog>
