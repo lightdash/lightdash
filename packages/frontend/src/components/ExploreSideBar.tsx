@@ -127,7 +127,7 @@ const ExplorePanel = ({onBack}: ExplorePanelProps) => {
     const activeExplore = exploresResult.data
     const [databaseName, schemaName, tableName] = activeExplore.tables[activeExplore.baseTable].sqlTable.replace(/["'`]/g, "").split('.')
     return (
-        <div style={{height: '100%', overflow: 'hidden',display: 'flex',flexDirection: 'column'}}>
+        <div style={{height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column'}}>
             <div style={{
                 paddingBottom: '10px',
                 display: 'flex',
