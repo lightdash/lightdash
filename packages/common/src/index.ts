@@ -24,12 +24,28 @@ export type Table = PartialTable & {
     dimensions: {[fieldName: string]: Dimension}, // Field names must be unique across dims and metrics
     metrics: {[fieldName: string]: Metric},       //
     lineageGraph: LineageGraph,                  // DAG structure representing the lineage of the table
+    source: Source;
+}
+
+export type Source = {
+    path: string;
+    range: {
+        start: SourcePosition;
+        end: SourcePosition;
+    };
+    content: string;
+}
+
+type SourcePosition = {
+    line: number;
+    character: number;
 }
 
 export type CompiledTable = PartialTable & {
     dimensions: Record<string, CompiledDimension>,
     metrics: Record<string, CompiledMetric>
     lineageGraph: LineageGraph,
+    source: Source;
 }
 
 export type LineageGraph = Record<string, LineageNodeDependency[]>
@@ -62,6 +78,7 @@ export type StringDimension = {
     table: string             // Table names are unique within the project
     sql: string               // Templated sql to access this dimension in a table
     description?: string      // Optional description of the field
+    source: Source;
 }
 export type NumberDimension = {
     type: 'number'
@@ -69,6 +86,7 @@ export type NumberDimension = {
     table: string
     sql: string
     description?: string
+    source: Source;
 }
 export type TimestampDimension = {
     type: 'timestamp'
@@ -76,6 +94,7 @@ export type TimestampDimension = {
     table: string
     sql: string
     description?: string
+    source: Source;
 }
 export type DateDimension = {
     type: 'date'
@@ -83,6 +102,7 @@ export type DateDimension = {
     table: string
     sql: string
     description?: string
+    source: Source;
 }
 export type BooleanDimension = {
     type: 'boolean'
@@ -90,6 +110,7 @@ export type BooleanDimension = {
     table: string
     sql: string
     description?: string
+    source: Source;
 }
 
 export type Dimension =
@@ -139,6 +160,7 @@ export type AverageMetric = {
     table: string,
     sql: string
     description?: string
+    source: Source;
 }
 export type CountMetric = {
     type: 'count',
@@ -146,6 +168,7 @@ export type CountMetric = {
     table: string,
     sql: string
     description?: string
+    source: Source;
 }
 export type CountDistinctMetric = {
     type: 'count_distinct',
@@ -153,6 +176,7 @@ export type CountDistinctMetric = {
     table: string,
     sql: string
     description?: string
+    source: Source;
 }
 export type SumMetric = {
     type: 'sum',
@@ -160,6 +184,7 @@ export type SumMetric = {
     table: string,
     sql: string
     description?: string
+    source: Source;
 }
 export type MinMetric = {
     type: 'min',
@@ -167,6 +192,7 @@ export type MinMetric = {
     table: string,
     sql: string
     description?: string
+    source: Source;
 }
 export type MaxMetric = {
     type: 'max',
@@ -174,6 +200,7 @@ export type MaxMetric = {
     table: string,
     sql: string
     description?: string
+    source: Source;
 }
 export type Metric =
     | AverageMetric

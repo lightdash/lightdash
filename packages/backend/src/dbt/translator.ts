@@ -5,7 +5,7 @@ import {
     LineageGraph, LineageNodeDependency,
     mapColumnTypeToLightdashType,
     Metric,
-    MetricType,
+    MetricType, Source,
     Table,
 } from "common";
 import modelJsonSchema from '../schema.json'
@@ -15,6 +15,8 @@ import addFormats from "ajv-formats"
 import {postDbtAsyncRpc} from "./rpcClient";
 import { DepGraph } from "dependency-graph"
 import {compileExplore} from "../exploreCompiler";
+import { parseWithPointers, getLocationForJsonPath } from "@stoplight/yaml";
+import fs from 'fs';
 
 // Config validator
 const ajv = new Ajv()
@@ -34,6 +36,8 @@ type DbtModelNode = DbtNode & {
     relation_name: string,
     depends_on: DbtTableDependency,
     description?: string,
+    root_path: string,
+    patch_path: string,
 }
 type DbtTableDependency = {
     nodes: string[]
@@ -76,7 +80,7 @@ type DbtColumnLightdashMetric = {
 }
 
 // MAPPINGS FROM DBT CONFIG TO LIGHTDASH MODELS
-const convertDimension = (modelName: string, column: DbtModelColumn): Dimension => {
+const convertDimension = (modelName: string, column: DbtModelColumn, source: Source): Dimension => {
     return {
         name: column.meta.dimension?.name || column.name,
         sql: column.meta.dimension?.sql || `\$\{TABLE\}.${column.name}`,
@@ -86,19 +90,27 @@ const convertDimension = (modelName: string, column: DbtModelColumn): Dimension 
             (column.data_type && mapColumnTypeToLightdashType(column.data_type))
             || 'string'
         ),
-        description: column.meta.dimension?.description || column.description
+        description: column.meta.dimension?.description || column.description,
+        source,
     }
 }
 
-const convertMetrics = (modelName: string, column: DbtModelColumn): Metric[] => {
-    return Object.entries(column.meta.metrics || {}).map(([name, m]) => ({
-        name: name,
-        sql: m.sql || `\$\{TABLE\}.${column.name}`,
-        table: modelName,
-        type: m.type,
-        description: m.description || `${m.type} of ${column.description}`,
-    }))
+type ConvertMetricArgs = {
+    modelName: string,
+    columnName: string,
+    columnDescription?: string,
+    name: string,
+    metric: DbtColumnLightdashMetric,
+    source: Source;
 }
+const convertMetric = ({modelName, columnName, columnDescription, name, metric, source}: ConvertMetricArgs): Metric => ({
+    name,
+    sql: metric.sql || `\$\{TABLE\}.${columnName}`,
+    table: modelName,
+    type: metric.type,
+    description: metric.description || `${metric.type} of ${columnDescription}`,
+    source
+})
 
 const convertTable = (model: DbtModelNode, depGraph: DepGraph<LineageNodeDependency>): Table => {
     // Generate lineage for this table
@@ -110,13 +122,81 @@ const convertTable = (model: DbtModelNode, depGraph: DepGraph<LineageNodeDepende
         }
     }, {})
 
+    const schemaPath = `${model.root_path}/${model.patch_path}`;
+
+    let ymlFile: string;
+    try {
+        ymlFile = fs.readFileSync(schemaPath, 'utf-8');
+    } catch {
+        throw new ParseError(`It was not possible to read the dbt schema ${schemaPath}`, {})
+    }
+
+    const lines = ymlFile.split(/\r?\n/);
+    const parsedFile = parseWithPointers<{models:DbtModelNode[]}>(ymlFile.toString());
+
+    if(!parsedFile.data){
+        throw new ParseError(`It was not possible to parse the dbt schema ${schemaPath}`, {});
+    }
+
+    const modelIndex = parsedFile.data.models.findIndex((m: DbtModelNode) => m.name === model.name);
+    const modelRange = getLocationForJsonPath(parsedFile, ['models', modelIndex])?.range;
+
+    if(!modelRange){
+        throw new ParseError(`It was not possible to find the dbt model "${model.name}" in ${schemaPath}`, {});
+    }
+
+    const tableSource: Source = {
+        path: model.patch_path,
+        range: modelRange,
+        content: lines.slice(modelRange.start.line, modelRange.end.line + 1).join('\r\n'),
+    }
+
+    const [dimensions, metrics]: [Record<string, Dimension>, Record<string, Metric>] = Object.values(model.columns).reduce(([prevDimensions, prevMetrics], column, columnIndex) => {
+        const columnRange = getLocationForJsonPath(parsedFile, ['models', modelIndex, 'columns', columnIndex])?.range;
+        if (!columnRange) {
+            throw new ParseError(`It was not possible to find the column "${column.name}" for the model "${model.name}" in ${schemaPath}`, {});
+        }
+        const dimensionSource: Source = {
+            path: model.patch_path,
+            range: columnRange,
+            content: lines.slice(columnRange.start.line, columnRange.end.line + 1).join('\r\n'),
+        };
+
+        const columnMetrics = Object.entries(column.meta.metrics || {}).map(([name, metric]) => {
+            const metricRange = getLocationForJsonPath(parsedFile, ['models', modelIndex, 'columns', columnIndex, 'meta', 'metrics', name])?.range;
+            if (!metricRange) {
+                throw new ParseError(`It was not possible to find the metric "${name}" for the model "${model.name}" in ${schemaPath}`, {});
+            }
+            const metricSource: Source = {
+                path: model.patch_path,
+                range: metricRange,
+                content: lines.slice(metricRange.start.line, metricRange.end.line + 1).join('\r\n'),
+            };
+
+            return convertMetric({
+                modelName: model.name,
+                columnName: column.name,
+                columnDescription: column.description,
+                name,
+                metric,
+                source: metricSource
+            });
+        });
+
+        return [
+            {...prevDimensions, [column.name]: convertDimension(model.name, column, dimensionSource)},
+            {...prevMetrics, ...columnMetrics}
+        ]
+    }, [{}, {}]);
+
     return {
         name: model.name,
         sqlTable: model.relation_name,
         description: model.description || `${model.name} table`,
-        dimensions: Object.fromEntries(Object.values(model.columns).map(col => convertDimension(model.name, col)).map(d => [d.name, d])),
-        metrics: Object.fromEntries(Object.values(model.columns).map(col => convertMetrics(model.name, col)).flatMap(ms => ms.map(m => [m.name, m]))),
+        dimensions,
+        metrics,
         lineageGraph: lineage,
+        source: tableSource
     }
 }
 

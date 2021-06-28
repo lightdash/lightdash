@@ -15,6 +15,7 @@
     "typescript": "^4.2.3"
   },
   "dependencies": {
+    "@stoplight/yaml": "^4.2.2",
     "@types/morgan": "^1.9.2",
     "ajv": "^8.3.0",
     "ajv-formats": "^2.1.0",
@@ -29,6 +30,7 @@
   },
   "scripts": {
     "dev": "nodemon src/index.ts",
+    "debug": "nodemon --exec \"node --inspect-brk=0.0.0.0:9229 --require ts-node/register src/index.ts\"",
     "build": "tsc --build tsconfig.json",
     "start": "node dist/index.js",
     "test": "jest"
