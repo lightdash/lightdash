@@ -1,6 +1,6 @@
 {
   "name": "backend",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "main": "dist/index",
   "license": "MIT",
   "devDependencies": {
@@ -18,7 +18,7 @@
     "@types/morgan": "^1.9.2",
     "ajv": "^8.3.0",
     "ajv-formats": "^2.1.0",
-    "common": "^0.2.6",
+    "common": "^0.2.7",
     "dependency-graph": "^0.11.0",
     "execa": "^5.0.0",
     "express": "^4.17.1",
