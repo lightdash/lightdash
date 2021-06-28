@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Fixed
+ - UI bug where the search box in the sidebar was cutoff
 
 ## [0.2.7] - 2021-06-28
 ### Added

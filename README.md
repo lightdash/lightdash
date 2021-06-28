@@ -76,7 +76,7 @@ Open lightdash at `https://localhost:8080`
 
 ## Run with your own dbt project
 
-*Bigquery users should read the [additional docs here](https://docs.lightdash.com/get-started/setup-an-existing-dbt-project)*
+*BigQuery users should read the [additional docs here](https://docs.lightdash.com/get-started/setup-an-existing-dbt-project)*
 
 ```shell
 cd path/to/your/dbt/project # e.g. /Users/katie/my-project-repo/dbt

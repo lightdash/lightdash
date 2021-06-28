@@ -22,7 +22,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({explore, selectedNodes, onSelectedNo
 
     return (
         <div style={{height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
-            <div style={{padding: '0 15px 15px 10px'}}>
+            <div style={{padding: '10px 15px 15px 10px'}}>
                 <InputGroup
                     leftIcon={'search'}
                     rightElement={<Button minimal={true} icon={'cross'} onClick={() => setSearch('')}/>}
