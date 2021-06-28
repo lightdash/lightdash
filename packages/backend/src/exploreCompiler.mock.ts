@@ -1,5 +1,20 @@
-import {Explore} from "common";
+import {Explore, Source} from "common";
 import {UncompiledExplore} from "./exploreCompiler";
+
+const sourceMock: Source = {
+    path: '',
+    content: '',
+    range: {
+        start: {
+            line: 0,
+            character: 0,
+        },
+        end: {
+            line: 0,
+            character: 0,
+        }
+    }
+}
 
 export const exploreOneEmptyTable: UncompiledExplore = {
     name: '',
@@ -11,7 +26,8 @@ export const exploreOneEmptyTable: UncompiledExplore = {
             sqlTable: 'test.table',
             dimensions: {},
             metrics: {},
-            lineageGraph: {} ,
+            lineageGraph: {},
+            source: sourceMock
         }
     }
 }
@@ -26,7 +42,8 @@ export const exploreOneEmptyTableCompiled: Explore = {
             sqlTable: 'test.table',
             dimensions: {},
             metrics: {},
-            lineageGraph: {} ,
+            lineageGraph: {},
+            source: sourceMock
         }
     }
 }
@@ -51,7 +68,8 @@ export const exploreMissingJoinTable: UncompiledExplore = {
             sqlTable: 'test.table',
             dimensions: {},
             metrics: {},
-            lineageGraph: {} ,
+            lineageGraph: {},
+            source: sourceMock
         }
     }
 }
@@ -70,10 +88,12 @@ export const exploreCircularReference: UncompiledExplore = {
                     name: 'dim1',
                     table: 'a',
                     sql: '${a.dim1}', // circular reference
+                    source: sourceMock
                 }
             },
             metrics: {},
             lineageGraph: {} ,
+            source: sourceMock
         }
     }
 }
@@ -92,10 +112,12 @@ export const exploreTableSelfReference: UncompiledExplore = {
                     name: 'dim1',
                     table: 'a',
                     sql: '${TABLE}.dim1',
+                    source: sourceMock
                 }
             },
             metrics: {},
             lineageGraph: {} ,
+            source: sourceMock
         }
     }
 }
@@ -114,11 +136,13 @@ export const exploreTableSelfReferenceCompiled: Explore = {
                     name: 'dim1',
                     table: 'a',
                     sql: '${TABLE}.dim1',
-                    compiledSql: 'a.dim1'
+                    compiledSql: 'a.dim1',
+                    source: sourceMock
                 }
             },
             metrics: {},
-            lineageGraph: {} ,
+            lineageGraph: {},
+            source: sourceMock
         }
     }
 }
@@ -137,16 +161,19 @@ export const exploreReferenceDimension: UncompiledExplore= {
                     name: 'dim1',
                     table: 'a',
                     sql: '${TABLE}.dim1',
+                    source: sourceMock
                 },
                 dim2: {
                     type: 'string',
                     name: 'dim2',
                     table: 'a',
                     sql: '${a.dim1}',
+                    source: sourceMock
                 }
             },
             metrics: {},
-            lineageGraph: {} ,
+            lineageGraph: {},
+            source: sourceMock
         }
     },
 }
@@ -165,7 +192,8 @@ export const exploreReferenceDimensionCompiled: Explore = {
                     name: 'dim1',
                     table: 'a',
                     sql: '${TABLE}.dim1',
-                    compiledSql: 'a.dim1'
+                    compiledSql: 'a.dim1',
+                    source: sourceMock
                 },
                 dim2: {
                     type: 'string',
@@ -173,10 +201,12 @@ export const exploreReferenceDimensionCompiled: Explore = {
                     table: 'a',
                     sql: '${a.dim1}',
                     compiledSql: '(a.dim1)',
+                    source: sourceMock
                 }
             },
             metrics: {},
-            lineageGraph: {} ,
+            lineageGraph: {},
+            source: sourceMock
         }
     },
 }
@@ -194,18 +224,21 @@ export const exploreComplexReference: UncompiledExplore = {
                     name: 'dim1',
                     table: 'a',
                     sql: '${TABLE}.dim1',
+                    source: sourceMock
                 },
                 dim2: {
                     type: 'number',
                     name: 'dim2',
                     table: 'a',
                     sql: '${a.dim1}',
+                    source: sourceMock
                 },
                 dim3: {
                     type: 'number',
                     name: 'dim3',
                     table: 'a',
                     sql: '${TABLE}.dim3 + ${a.dim2} + ${dim1}',
+                    source: sourceMock
                 }
             },
             metrics: {
@@ -213,10 +246,12 @@ export const exploreComplexReference: UncompiledExplore = {
                     type: 'average',
                     name: 'm1',
                     table: 'a',
-                    sql: '${dim3}'
+                    sql: '${dim3}',
+                    source: sourceMock
                 }
             },
-            lineageGraph: {} ,
+            lineageGraph: {},
+            source: sourceMock
         }
     },
 }
@@ -235,7 +270,8 @@ export const exploreComplexReferenceCompiled: Explore = {
                     name: 'dim1',
                     table: 'a',
                     sql: '${TABLE}.dim1',
-                    compiledSql: 'a.dim1'
+                    compiledSql: 'a.dim1',
+                    source: sourceMock
                 },
                 dim2: {
                     type: 'number',
@@ -243,13 +279,15 @@ export const exploreComplexReferenceCompiled: Explore = {
                     table: 'a',
                     sql: '${a.dim1}',
                     compiledSql: '(a.dim1)',
+                    source: sourceMock
                 },
                 dim3: {
                     type: 'number',
                     name: 'dim3',
                     table: 'a',
                     sql: '${TABLE}.dim3 + ${a.dim2} + ${dim1}',
-                    compiledSql: 'a.dim3 + ((a.dim1)) + (a.dim1)'
+                    compiledSql: 'a.dim3 + ((a.dim1)) + (a.dim1)',
+                    source: sourceMock
                 }
             },
             metrics: {
@@ -258,10 +296,12 @@ export const exploreComplexReferenceCompiled: Explore = {
                     name: 'm1',
                     table: 'a',
                     sql: '${dim3}',
-                    compiledSql: 'AVG((a.dim3 + ((a.dim1)) + (a.dim1)))'
+                    compiledSql: 'AVG((a.dim3 + ((a.dim1)) + (a.dim1)))',
+                    source: sourceMock
                 }
             },
-            lineageGraph: {} ,
+            lineageGraph: {},
+            source: sourceMock
         }
     },
 }
@@ -283,10 +323,12 @@ export const exploreReferenceInJoin: UncompiledExplore = {
                     name: 'dim1',
                     table: 'a',
                     sql: '${TABLE}.dim1',
+                    source: sourceMock
                 }
             },
             metrics: {},
-            lineageGraph: {} ,
+            lineageGraph: {},
+            source: sourceMock
         },
         b: {
             name: 'b',
@@ -296,17 +338,20 @@ export const exploreReferenceInJoin: UncompiledExplore = {
                     type: 'string',
                     name: 'dim1',
                     table: 'b',
-                    sql: '${TABLE}.dim1'
+                    sql: '${TABLE}.dim1',
+                    source: sourceMock
                 },
                 dim2: {
                     type: 'string',
                     name: 'dim2',
                     table: 'b',
                     sql: '${a.dim1}',
+                    source: sourceMock
                 }
             },
             metrics: {},
             lineageGraph: {},
+            source: sourceMock
         }
     }
 }
@@ -330,10 +375,12 @@ export const exploreReferenceInJoinCompiled: Explore = {
                     table: 'a',
                     sql: '${TABLE}.dim1',
                     compiledSql: 'a.dim1',
+                    source: sourceMock
                 }
             },
             metrics: {},
-            lineageGraph: {} ,
+            lineageGraph: {},
+            source: sourceMock
         },
         b: {
             name: 'b',
@@ -345,6 +392,7 @@ export const exploreReferenceInJoinCompiled: Explore = {
                     table: 'b',
                     sql: '${TABLE}.dim1',
                     compiledSql: 'b.dim1',
+                    source: sourceMock
                 },
                 dim2: {
                     type: 'string',
@@ -352,10 +400,12 @@ export const exploreReferenceInJoinCompiled: Explore = {
                     table: 'b',
                     sql: '${a.dim1}',
                     compiledSql: '(a.dim1)',
+                    source: sourceMock
                 }
             },
             metrics: {},
             lineageGraph: {},
+            source: sourceMock
         }
     }
 }
