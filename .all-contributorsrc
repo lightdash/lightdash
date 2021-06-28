@@ -105,6 +105,15 @@
         "code",
         "doc"
       ]
+    },
+    {
+      "login": "jeshuamaxey",
+      "name": "Jeshua Maxey",
+      "avatar_url": "https://avatars.githubusercontent.com/u/2297823?v=4",
+      "profile": "http://jeshua.co",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
