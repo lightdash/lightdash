@@ -3,6 +3,10 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Added
+ - Add options menu for each table/dimension/metric
+ - Add dialog with the relative file path and code relevant for each table/dimension/metric
+
 ### Fixed
  - UI bug where the search box in the sidebar was cutoff
 
