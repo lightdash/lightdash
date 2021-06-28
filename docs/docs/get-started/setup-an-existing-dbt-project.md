@@ -45,6 +45,26 @@ ls
 
 ## 3. Start Lightdash service
 
+### For users using a local database
+
+You must modify your `profiles.yml` file to connect to a local database (e.g. postgres running on your laptop).
+
+1. Copy your profiles directory. For example if your `profiles.yml` is at `~/.dbt/profiles.yml` run `cp ~/.dbt ~/.lightdash`
+2. Edit `~/.lightdash/profiles.yml` by replacing `localhost` with `host.docker.internal`. These usually appear under the `host:` field. 
+3. Launch Lightdash with docker, which accepts the following options:
+
+* Your dbt project location, we set this to the current directory `${PWD}`
+* Your new dbt `profiles.yml` location `~/.lightdash`
+* A port to expose Lightdash on. By default we use `8080`.
+
+```shell
+export DBT_PROJECT_DIR=${PWD}
+export DBT_PROFILES_DIR=${HOME}/.lightdash
+export LIGHTDASH_PORT=8080
+
+docker run -it -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" -v lightdash/lightdash
+```
+
 ### For bigquery users
 
 Launch Lightdash with docker, which accepts the following options:
