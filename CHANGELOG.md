@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+
+## [0.2.7] - 2021-06-28
 ### Added
  - lineage graph can now be toggled to show the entire lineage of a table or just it's direct dependencies
  - improve table tree to show join details
