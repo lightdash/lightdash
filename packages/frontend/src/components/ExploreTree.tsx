@@ -1,14 +1,30 @@
-import {FC, useCallback, useMemo, useState} from "react";
-import {CompiledTable, Dimension, Explore, FieldId, fieldId, friendlyName, Metric} from "common";
-import {Button, Classes, Colors, Icon, InputGroup, Intent, Tree, Dialog} from "@blueprintjs/core";
-import {Tooltip2} from "@blueprintjs/popover2";
+import React, {FC, useCallback, useMemo, useState} from "react";
+import {CompiledTable, Dimension, Explore, FieldId, fieldId, friendlyName, Metric, Source} from "common";
+import {
+    Button,
+    Classes,
+    Colors,
+    Icon,
+    InputGroup,
+    Intent,
+    Tree,
+    Dialog,
+    Menu,
+    MenuItem,
+    PopoverPosition,
+} from "@blueprintjs/core";
+import {Popover2, Tooltip2} from "@blueprintjs/popover2";
 import Fuse from 'fuse.js';
 import {TreeEventHandler} from "@blueprintjs/core/src/components/tree/tree";
-import {TreeNodeInfo} from "@blueprintjs/core/src/components/tree/treeNode";
+import { TreeNodeInfo} from "@blueprintjs/core/src/components/tree/treeNode";
+import SyntaxHighlighter from "react-syntax-highlighter";
+import { a11yDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import {CopyToClipboard} from 'react-copy-to-clipboard';
 
 type NodeDataProps = {
     fieldId: FieldId,
     isDimension: boolean,
+    source: Source,
 }
 
 type ExploreTreeProps = {
@@ -19,6 +35,7 @@ type ExploreTreeProps = {
 
 const ExploreTree: FC<ExploreTreeProps> = ({explore, selectedNodes, onSelectedNodeChange}) => {
     const [search, setSearch] = useState<string>('');
+    const [source, setSource] = useState<Source>();
 
     return (
         <div style={{height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
@@ -40,9 +57,13 @@ const ExploreTree: FC<ExploreTreeProps> = ({explore, selectedNodes, onSelectedNo
                         joinSql={explore.joinedTables.find(joinTable => joinTable.table === table.name)?.compiledSqlOn}
                         selectedNodes={selectedNodes}
                         onSelectedNodeChange={onSelectedNodeChange}
+                        onOpenSourceDialog={setSource}
                     />
                 ))}
             </div>
+            {source && (
+                <SourceDialog source={source} onClose={() => setSource(undefined)}/>
+            )}
         </div>
     )
 }
@@ -53,9 +74,10 @@ type TableTreeProps = {
     joinSql?: string;
     selectedNodes: ExploreTreeProps['selectedNodes'];
     onSelectedNodeChange: ExploreTreeProps['onSelectedNodeChange'];
+    onOpenSourceDialog: (source: Source) => void;
 }
 
-const TableTree: FC<TableTreeProps> = ({search, table, joinSql, selectedNodes, onSelectedNodeChange}) => {
+const TableTree: FC<TableTreeProps> = ({search, table, joinSql, selectedNodes, onSelectedNodeChange, onOpenSourceDialog}) => {
     const [expanded, setExpanded] = useState<boolean>(true);
     const {metrics, dimensions} = table;
 
@@ -73,15 +95,13 @@ const TableTree: FC<TableTreeProps> = ({search, table, joinSql, selectedNodes, o
         return Object.values(dimensions);
     }, [dimensions, search]);
 
-    const contents = [{
-        key: table.name,
+    const contents: TreeNodeInfo<NodeDataProps>[] = [{
         id: table.name,
         label: friendlyName(table.name),
         isExpanded: expanded,
-        secondaryLabel: (joinSql && <JoinDetailsButton joinSql={joinSql}/>),
+        secondaryLabel: <TableButtons joinSql={joinSql} table={table} onOpenSourceDialog={onOpenSourceDialog}/>,
         childNodes: [
             {
-                key: "Metrics",
                 id: "metrics",
                 label: (<span style={{color: Colors.ORANGE1}}><strong>Metrics</strong></span>),
                 icon: (
@@ -92,18 +112,13 @@ const TableTree: FC<TableTreeProps> = ({search, table, joinSql, selectedNodes, o
                 childNodes: filteredMetrics.map(metric => ({
                     key: metric.name,
                     id: metric.name,
-                    label: friendlyName(metric.name),
+                    label: (<Tooltip2 content={metric.description}>{friendlyName(metric.name)}</Tooltip2>),
                     nodeData: {fieldId: fieldId(metric), isDimension: false} as NodeDataProps,
                     isSelected: selectedNodes.has(fieldId(metric)),
-                    secondaryLabel: metric.description ? (
-                        <Tooltip2 content={metric.description}>
-                            <Icon icon="info-sign" iconSize={12}/>
-                        </Tooltip2>
-                    ) : null
+                    secondaryLabel: <NodeItemButtons node={metric} onOpenSourceDialog={onOpenSourceDialog}/>
                 }))
             },
             {
-                key: "dimensions",
                 id: "dimensions",
                 label: (<span style={{color: Colors.BLUE1}}><strong>Dimensions</strong></span>),
                 icon: (
@@ -114,21 +129,10 @@ const TableTree: FC<TableTreeProps> = ({search, table, joinSql, selectedNodes, o
                 childNodes: filteredDimensions.map(dimension => ({
                     key: dimension.name,
                     id: dimension.name,
-                    label: friendlyName(dimension.name),
+                    label: (<Tooltip2 content={dimension.description}>{friendlyName(dimension.name)}</Tooltip2>),
                     nodeData: {fieldId: fieldId(dimension), isDimension: true} as NodeDataProps,
                     isSelected: selectedNodes.has(fieldId(dimension)),
-                    secondaryLabel: dimension.description ? (
-                        <div style={{
-                            display: 'flex',
-                            flexDirection: 'row',
-                            justifyContent: 'flex-start',
-                            alignItems: 'center'
-                        }}>
-                            <Tooltip2 content={dimension.description}>
-                                <Icon icon="info-sign" iconSize={12}/>
-                            </Tooltip2>
-                        </div>
-                    ) : null
+                    secondaryLabel: <NodeItemButtons node={dimension} onOpenSourceDialog={onOpenSourceDialog}/>
                 }))
             },
         ]
@@ -150,18 +154,58 @@ const TableTree: FC<TableTreeProps> = ({search, table, joinSql, selectedNodes, o
     )
 }
 
-const JoinDetailsButton: FC<{ joinSql: string }> = ({joinSql}) => {
-    const [isOpen, setIsOpen] = useState(false);
+const TableButtons: FC<{ joinSql?: string, table: CompiledTable, onOpenSourceDialog: (source: Source) => void }> = ({
+                                                                                                                joinSql,
+                                                                                                                table: {source},
+                                                                                                                onOpenSourceDialog
+                                                                                                            }) => {
+    const [isOpen, setIsOpen] = useState<boolean>();
+    const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
     return (
-        <>
-            <Tooltip2 content="See join details">
-                <Icon icon="intersection" onClick={() => setIsOpen(true)}/>
-            </Tooltip2>
-            <Dialog
+        <div style={{display: 'inline-flex', gap: '10px'}}>
+            <Popover2
                 isOpen={isOpen}
+                onInteraction={setIsOpen}
+                content={(
+                    <Menu>
+                        <MenuItem
+                            icon={<Icon icon="console"/>}
+                            text="Source"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenSourceDialog(source);
+                                setIsOpen(false);
+                            }}
+                        />
+                        {joinSql && (
+                            <MenuItem
+                                icon={<Icon icon="intersection"/>}
+                                text="Join details"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsJoinDialogOpen(true);
+                                    setIsOpen(false);
+                                }}
+                            />
+                        )}
+                    </Menu>
+                )}
+                position={PopoverPosition.BOTTOM_LEFT}
+                lazy={true}
+            >
+                <Tooltip2 content="View options">
+                    <Button minimal={true} icon={'more'} onClick={(e) => {
+                        e.stopPropagation();
+                        setIsOpen(true);
+                    }}/>
+                </Tooltip2>
+            </Popover2>
+            <Dialog
+                isOpen={isJoinDialogOpen}
                 icon="intersection"
-                onClose={() => setIsOpen(false)}
+                onClose={() => setIsJoinDialogOpen(false)}
                 title="Join details"
+                lazy={true}
             >
                 <div className={Classes.DIALOG_BODY}>
                     <p>
@@ -169,7 +213,81 @@ const JoinDetailsButton: FC<{ joinSql: string }> = ({joinSql}) => {
                     </p>
                 </div>
             </Dialog>
-        </>
+        </div>
+    )
+}
+
+const NodeItemButtons: FC<{node: Metric | Dimension, onOpenSourceDialog: (source: Source) => void}> = ({ node: {description, source} , onOpenSourceDialog}) => {
+    const [isOpen, setIsOpen] = useState<boolean>();
+    return (
+        <div style={{display: 'inline-flex', gap: '10px'}}>
+            <Popover2
+                isOpen={isOpen}
+                onInteraction={setIsOpen}
+                content={(
+                    <Menu>
+                        <MenuItem
+                            icon={<Icon icon="console"/>}
+                            text="Source"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenSourceDialog(source);
+                                setIsOpen(false);
+                            }}
+                        />
+                    </Menu>
+                )}
+                position={PopoverPosition.BOTTOM_LEFT}
+                lazy={true}
+            >
+                <Tooltip2 content="View options">
+                    <Button minimal={true} icon={'more'} onClick={(e) => {
+                        e.stopPropagation();
+                        setIsOpen(true);
+                    }}/>
+                </Tooltip2>
+            </Popover2>
+        </div>
+    )
+}
+
+const SourceDialog: FC<{source: Source, onClose: () => void}> = ({source, onClose}) => {
+    const [copied, setCopied] = useState(false);
+    return (
+        <Dialog
+            isOpen={true}
+            icon="console"
+            onClose={onClose}
+            lazy={true}
+            title="Source"
+            style={{width: '800px'}}
+        >
+            <div className={Classes.DIALOG_BODY}>
+                <Tooltip2 isOpen={copied} content="Copied path!" intent={'success'} position={PopoverPosition.RIGHT}>
+                    <InputGroup
+                        readOnly={true}
+                        type={"text"}
+                        defaultValue={source.path}
+                        rightElement={(
+                            <CopyToClipboard
+                                text={source.path}
+                                options={{message: 'Copied!'}}
+                                onCopy={() => setCopied(true)}
+                            >
+                                <Button minimal={true} icon={'clipboard'}/>
+                            </CopyToClipboard>
+                        )}
+                    />
+                </Tooltip2>
+                <SyntaxHighlighter
+                    language="yml" showLineNumbers={true}
+                    startingLineNumber={source.range.start.line}
+                    style={a11yDark}
+                >
+                    {source.content}
+                </SyntaxHighlighter>
+            </div>
+        </Dialog>
     )
 }
 
