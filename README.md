@@ -85,7 +85,7 @@ export DBT_PROJECT_DIR=${PWD}
 export DBT_PROFILES_DIR=${HOME}/.dbt
 export LIGHTDASH_PORT=8080
 
-docker run -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" lightdash/lightdash
+docker run -it -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" lightdash/lightdash
 ```
 
 Open lightdash at `https://localhost:8080`

@@ -60,7 +60,7 @@ export DBT_PROFILES_DIR=${HOME}/.dbt
 export GCLOUD_CONFIG_DIR=${HOME}/.config/gcloud
 export LIGHTDASH_PORT=8080
 
-docker run -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" -v "${GCLOUD_CONFIG_DIR}:/root/.config/gcloud" lightdash/lightdash
+docker run -it -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" -v "${GCLOUD_CONFIG_DIR}:/root/.config/gcloud" lightdash/lightdash
 ```
 
 ### For all other users
@@ -76,7 +76,7 @@ export DBT_PROJECT_DIR=${PWD}
 export DBT_PROFILES_DIR=${HOME}/.dbt
 export LIGHTDASH_PORT=8080
 
-docker run -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" lightdash/lightdash
+docker run -it -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" lightdash/lightdash
 ```
 
 ## 4. Launch the Lightdash app
