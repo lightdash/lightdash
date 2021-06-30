@@ -76,6 +76,10 @@
     "src/**/*.ts",
     "src/**/*.json",
   ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.mock.ts",
+  ],
   "references": [
     {
       "path": "../common"
