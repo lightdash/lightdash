@@ -66,155 +66,72 @@ export const getMetrics = (explore: Explore): CompiledMetric[] => (
 
 export const getFields = (explore: Explore): Field[] => [...getDimensions(explore), ...getMetrics(explore)]
 
+export enum FieldType {
+    METRIC = 'metric',
+    DIMENSION = 'dimension'
+}
+
 // Every dimension and metric is a field
-export type Field =
-    | Dimension
-    | Metric
-
-// Dimensions can have different types (UI behaviour and filter options)
-export type StringDimension = {
-    type: 'string'            // Discriminator field
-    name: string              // Field names are unique within a table
-    table: string             // Table names are unique within the project
-    sql: string               // Templated sql to access this dimension in a table
-    description?: string      // Optional description of the field
-    source: Source;
-}
-export type NumberDimension = {
-    type: 'number'
-    name: string
-    table: string
-    sql: string
-    description?: string
-    source: Source;
-}
-export type TimestampDimension = {
-    type: 'timestamp'
-    name: string
-    table: string
-    sql: string
-    description?: string
-    source: Source;
-}
-export type DateDimension = {
-    type: 'date'
-    name: string
-    table: string
-    sql: string
-    description?: string
-    source: Source;
-}
-export type BooleanDimension = {
-    type: 'boolean'
-    name: string
-    table: string
-    sql: string
-    description?: string
+export interface Field {
+    fieldType: FieldType;
+    type: string;              // Discriminator field
+    name: string;              // Field names are unique within a table
+    table: string;             // Table names are unique within the project
+    sql: string;               // Templated sql
+    description?: string;
     source: Source;
 }
 
-export type Dimension =
-    | StringDimension
-    | NumberDimension
-    | TimestampDimension
-    | DateDimension
-    | BooleanDimension
+export enum DimensionType {
+    STRING = 'string',
+    NUMBER = 'number',
+    TIMESTAMP = 'timestamp',
+    DATE = 'date',
+    BOOLEAN = 'boolean',
+}
 
-export type CompiledDimension = Dimension & {
+export interface Dimension extends Field {
+    fieldType: FieldType.DIMENSION;
+    type: DimensionType;
+}
+
+interface StringDimension extends Dimension {
+    type: DimensionType.STRING;
+}
+
+interface NumberDimension extends Dimension {
+    type: DimensionType.NUMBER;
+}
+
+export interface CompiledDimension extends Dimension {
     compiledSql: string,  // sql string with resolved template variables
 }
 
-export type DimensionType = Dimension["type"]
-
-export const isDimension = (field: Field) => {
-    switch (field.type) {
-        // Dimensions
-        case "number": return true
-        case "string": return true
-        case "boolean": return true
-        case "date": return true
-        case "timestamp": return true
-
-        // Metrics
-        case "average": return false
-        case "sum": return false
-        case "min": return false
-        case "max": return false
-        case "count_distinct": return false
-        case "count": return false
-        default: {
-            const nope: never = field
-            throw Error(`Is dimension not implemented for type ${field}`)
-        }
-    }
+export const isDimension = (field: Field): field is Dimension => {
+    return field.fieldType === FieldType.DIMENSION;
 }
 
 // Field ids are unique across the project
 export type FieldId = string
 export const fieldId = (field: Field): FieldId => `${field.table}_${field.name}`
 
-// Metrics
-export type AverageMetric = {
-    type: 'average',
-    name: string,
-    table: string,
-    sql: string
-    description?: string
-    source: Source;
-}
-export type CountMetric = {
-    type: 'count',
-    name: string,
-    table: string,
-    sql: string
-    description?: string
-    source: Source;
-}
-export type CountDistinctMetric = {
-    type: 'count_distinct',
-    name: string,
-    table: string,
-    sql: string
-    description?: string
-    source: Source;
-}
-export type SumMetric = {
-    type: 'sum',
-    name: string,
-    table: string,
-    sql: string
-    description?: string
-    source: Source;
-}
-export type MinMetric = {
-    type: 'min',
-    name: string,
-    table: string,
-    sql: string
-    description?: string
-    source: Source;
-}
-export type MaxMetric = {
-    type: 'max',
-    name: string,
-    table: string,
-    sql: string
-    description?: string
-    source: Source;
-}
-export type Metric =
-    | AverageMetric
-    | CountMetric
-    | CountDistinctMetric
-    | SumMetric
-    | MinMetric
-    | MaxMetric
-
-export type CompiledMetric = Metric & {
-    compiledSql: string,
+export enum MetricType {
+    AVERAGE = 'average',
+    COUNT = 'count',
+    COUNT_DISTINCT = 'count_distinct',
+    SUM = 'sum',
+    MIN = 'min',
+    MAX = 'max',
 }
 
-export type MetricType = Metric["type"]
+export interface Metric extends Field {
+    fieldType: FieldType.METRIC;
+    type: MetricType;
+}
+
+export interface CompiledMetric extends Metric {
+    compiledSql: string;
+}
 
 // Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {
@@ -277,16 +194,13 @@ export type FilterGroup =
 export const fieldIdFromFilterGroup = (fg: FilterGroup) => `${fg.tableName}_${fg.fieldName}`
 
 export type FilterableDimension = StringDimension | NumberDimension
-export const assertFilterableDimension = (dimension: Dimension): FilterableDimension | undefined => {
-    switch (dimension.type) {
-        case "string": return dimension
-        case "number": return dimension
-        default:
-            return undefined
-    }
+
+const isFilterableDimension = (dimension: Dimension): dimension is FilterableDimension => {
+    return [DimensionType.STRING, DimensionType.NUMBER].includes(dimension.type);
 }
+
 export const filterableDimensionsOnly = (dimensions: Dimension[]): FilterableDimension[] => {
-    return dimensions.map(assertFilterableDimension).filter(d => d !== undefined) as FilterableDimension[]
+    return dimensions.filter(isFilterableDimension);
 }
 
 // Map native database types to sensible dimension types in lightdash
@@ -296,66 +210,66 @@ export const mapColumnTypeToLightdashType = (columnType: string): DimensionType 
 }
 
 const lightdashTypeMap: {[columnType: string]: DimensionType} = {
-    'INTEGER':   'number',
-    'INT32':     'number',
-    'INT64':     'number',
-    'FLOAT':     'number',
-    'FLOAT32':   'number',
-    'FLOAT64':   'number',
-    'NUMERIC':   'number',
-    'BOOLEAN':   'boolean',
-    'STRING':    'string',
-    'TIMESTAMP': 'timestamp',
-    'DATETIME':  'string',
-    'DATE':      'date',
-    'TIME':      'string',
-    'BOOL':      'boolean',
-    'ARRAY':     'string',
-    'GEOGRAPHY': 'string',
-    'NUMBER': 'number',
-    'DECIMAL': 'number',
-    'INT': 'number',
-    'BIGINT': 'number',
-    'SMALLINT': 'number',
-    'FLOAT4': 'number',
-    'FLOAT8': 'number',
-    'DOUBLE': 'number',
-    'DOUBLE PRECISION': 'number',
-    'REAL': 'number',
-    'VARCHAR': 'string',
-    'CHAR': 'string',
-    'CHARACTER': 'string',
-    'TEXT': 'string',
-    'BINARY': 'string',
-    'VARBINARY': 'string',
-    'TIMESTAMP_NTZ': 'timestamp',
-    'VARIANT': 'string',
-    'OBJECT': 'string',
-    'INT2': 'number',
-    'INT4': 'number',
-    'INT8': 'number',
-    'NCHAR': 'string',
-    'BPCHAR': 'string',
-    'CHARACTER VARYING': 'string',
-    'NVARCHAR': 'string',
-    'TIMESTAMP WITHOUT TIME ZONE': 'timestamp',
-    'GEOMETRY': 'string',
-    'TIME WITHOUT TIME ZONE': 'string',
-    'XML': 'string',
-    'UUID': 'string',
-    'PG_LSN': 'string',
-    'MACADDR': 'string',
-    'JSON': 'string',
-    'JSONB': 'string',
-    'CIDR': 'string',
-    'INET': 'string',
-    'MONEY': 'number',
-    'SMALLSERIAL': 'number',
-    'SERIAL2': 'number',
-    'SERIAL': 'number',
-    'SERIAL4': 'number',
-    'BIGSERIAL': 'number',
-    'SERIAL8': 'number',
+    'INTEGER':   DimensionType.NUMBER,
+    'INT32':     DimensionType.NUMBER,
+    'INT64':     DimensionType.NUMBER,
+    'FLOAT':     DimensionType.NUMBER,
+    'FLOAT32':   DimensionType.NUMBER,
+    'FLOAT64':   DimensionType.NUMBER,
+    'NUMERIC':   DimensionType.NUMBER,
+    'BOOLEAN':   DimensionType.BOOLEAN,
+    'STRING':    DimensionType.STRING,
+    'TIMESTAMP': DimensionType.TIMESTAMP,
+    'DATETIME':  DimensionType.STRING,
+    'DATE':      DimensionType.DATE,
+    'TIME':      DimensionType.STRING,
+    'BOOL':      DimensionType.BOOLEAN,
+    'ARRAY':     DimensionType.STRING,
+    'GEOGRAPHY': DimensionType.STRING,
+    'NUMBER': DimensionType.NUMBER,
+    'DECIMAL': DimensionType.NUMBER,
+    'INT': DimensionType.NUMBER,
+    'BIGINT': DimensionType.NUMBER,
+    'SMALLINT': DimensionType.NUMBER,
+    'FLOAT4': DimensionType.NUMBER,
+    'FLOAT8': DimensionType.NUMBER,
+    'DOUBLE': DimensionType.NUMBER,
+    'DOUBLE PRECISION': DimensionType.NUMBER,
+    'REAL': DimensionType.NUMBER,
+    'VARCHAR': DimensionType.STRING,
+    'CHAR': DimensionType.STRING,
+    'CHARACTER': DimensionType.STRING,
+    'TEXT': DimensionType.STRING,
+    'BINARY': DimensionType.STRING,
+    'VARBINARY': DimensionType.STRING,
+    'TIMESTAMP_NTZ': DimensionType.TIMESTAMP,
+    'VARIANT': DimensionType.STRING,
+    'OBJECT': DimensionType.STRING,
+    'INT2': DimensionType.NUMBER,
+    'INT4': DimensionType.NUMBER,
+    'INT8': DimensionType.NUMBER,
+    'NCHAR': DimensionType.STRING,
+    'BPCHAR': DimensionType.STRING,
+    'CHARACTER VARYING': DimensionType.STRING,
+    'NVARCHAR': DimensionType.STRING,
+    'TIMESTAMP WITHOUT TIME ZONE': DimensionType.TIMESTAMP,
+    'GEOMETRY': DimensionType.STRING,
+    'TIME WITHOUT TIME ZONE': DimensionType.STRING,
+    'XML': DimensionType.STRING,
+    'UUID': DimensionType.STRING,
+    'PG_LSN': DimensionType.STRING,
+    'MACADDR': DimensionType.STRING,
+    'JSON': DimensionType.STRING,
+    'JSONB': DimensionType.STRING,
+    'CIDR': DimensionType.STRING,
+    'INET': DimensionType.STRING,
+    'MONEY': DimensionType.NUMBER,
+    'SMALLSERIAL': DimensionType.NUMBER,
+    'SERIAL2': DimensionType.NUMBER,
+    'SERIAL': DimensionType.NUMBER,
+    'SERIAL4': DimensionType.NUMBER,
+    'BIGSERIAL': DimensionType.NUMBER,
+    'SERIAL8': DimensionType.NUMBER,
 }
 
 // THESE ALL GET DEFAULT CONVERTED TO STRINGS (SO NO SPECIAL TREATMENT)

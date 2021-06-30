@@ -2,10 +2,13 @@ import {
     Dimension,
     DimensionType,
     Explore,
-    LineageGraph, LineageNodeDependency,
+    FieldType,
+    LineageGraph,
+    LineageNodeDependency,
     mapColumnTypeToLightdashType,
     Metric,
-    MetricType, Source,
+    MetricType,
+    Source,
     Table,
 } from "common";
 import modelJsonSchema from '../schema.json'
@@ -82,13 +85,14 @@ type DbtColumnLightdashMetric = {
 // MAPPINGS FROM DBT CONFIG TO LIGHTDASH MODELS
 const convertDimension = (modelName: string, column: DbtModelColumn, source: Source): Dimension => {
     return {
+        fieldType: FieldType.DIMENSION,
         name: column.meta.dimension?.name || column.name,
         sql: column.meta.dimension?.sql || `\$\{TABLE\}.${column.name}`,
         table: modelName,
         type: (
             column.meta.dimension?.type ||
             (column.data_type && mapColumnTypeToLightdashType(column.data_type))
-            || 'string'
+            || DimensionType.STRING
         ),
         description: column.meta.dimension?.description || column.description,
         source,
@@ -104,6 +108,7 @@ type ConvertMetricArgs = {
     source: Source;
 }
 const convertMetric = ({modelName, columnName, columnDescription, name, metric, source}: ConvertMetricArgs): Metric => ({
+    fieldType: FieldType.METRIC,
     name,
     sql: metric.sql || `\$\{TABLE\}.${columnName}`,
     table: modelName,

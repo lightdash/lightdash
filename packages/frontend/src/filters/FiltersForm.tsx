@@ -1,5 +1,7 @@
 import {
-    fieldId, fieldIdFromFilterGroup,
+    DimensionType,
+    fieldId,
+    fieldIdFromFilterGroup,
     filterableDimensionsOnly,
     FilterGroup,
     FilterGroupOperator,
@@ -104,7 +106,7 @@ const AddFilterGroup = () => {
         // Add a default filter group as a placeholder for the new filter group
         const dimensionType = dimension.type
         switch (dimension.type) {
-            case "string":
+            case DimensionType.STRING:
                 onAdd({
                     type: 'string',
                     tableName: dimension.table,
@@ -113,7 +115,7 @@ const AddFilterGroup = () => {
                     filters: [defaultValuesForNewStringFilter['equals']] // Default empty equals filter
                 })
                 break
-            case "number":
+            case DimensionType.NUMBER:
                 onAdd({
                     type: 'number',
                     tableName: dimension.table,

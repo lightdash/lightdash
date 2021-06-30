@@ -7,6 +7,7 @@ import {
     Explore,
     ExploreJoin,
     Metric,
+    MetricType,
     Table
 } from "common";
 import {CompileError} from "./errors";
@@ -111,23 +112,23 @@ const compileDimensionReference = (ref: string, tables: Record<string, Table>, c
 export const compileMetricSql = (metric: Metric, tables: Record<string, Table>): string => {
     // Metric might have references to other dimensions
     const renderedSql = metric.sql.replace(lightdashVariablePattern, (_, p1) => compileDimensionReference(p1, tables, metric.table))
-    const metricType = metric.type
+    const metricType = metric.type;
     switch (metricType) {
-        case "average":
+        case MetricType.AVERAGE:
             return `AVG(${renderedSql})`
-        case "count":
+        case MetricType.COUNT:
             return `COUNT(${renderedSql})`
-        case "count_distinct":
+        case MetricType.COUNT_DISTINCT:
             return `COUNT(DISTINCT ${renderedSql})`
-        case "max":
+        case MetricType.MAX:
             return `MAX(${renderedSql})`
-        case "min":
+        case MetricType.MIN:
             return `MIN(${renderedSql})`
-        case "sum":
+        case MetricType.SUM:
             return `SUM(${renderedSql})`
         default:
             const nope: never = metricType
-            throw new CompileError(`No SQL render function implemented for metric with type ${metric.type}`, {})
+            throw new CompileError(`No SQL render function implemented for metric with type ${metricType}`, {})
     }
 }
 
