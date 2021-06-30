@@ -32,11 +32,10 @@ export const Explorer = () => {
     const isChartEmpty: boolean = !chartConfig.plotData;
     return (
         <React.Fragment>
-            <div style={{display: "flex", flexDirection: "row", justifyContent: "flex-end"}}>
+            <div style={{display: "flex", flexDirection: "row", justifyContent: "flex-end", position: 'sticky', top:'0', zIndex: 10, background: 'hsla(204, 33.3%, 97.1%, 0.8)', padding: '10px 0', margin: '0 -1px 1px 0'}}>
                 <RefreshButton queryResults={queryResults}/>
                 <RefreshServerButton />
             </div>
-            <div style={{paddingTop: '10px'}} />
             <Card style={{padding: 5}} elevation={1}>
                 <div style={{display: 'flex', flexDirection: 'row', alignItems: 'center'}}>
                     <Button icon={filterIsOpen ? 'chevron-down' : 'chevron-right'} minimal={true} onClick={() => setFilterIsOpen(f => !f)} />

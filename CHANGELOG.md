@@ -9,6 +9,7 @@ Recent and upcoming changes to lightdash
  - Add footer with Lightdash version
  - Add Lightdash about dialog
  - Warn user when there is a new version available
+ - UI improvements 'run+refresh query fixed on top-right for batter rich onScroll, sql query background'
 
 ### Fixed
  - UI bug where the search box in the sidebar was cutoff
