@@ -27,7 +27,7 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
         // this will also start up the dbt server if it previously crashed.
         await this.dbtChildProcess.restart()
         try {
-            return await super.compileAllExplores();
+            return await super.compileAllExplores(true);
         }
         catch (e) {
             throw this._handleError(e);
