@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "$id": "https://schemas.lightdash.com/lightdashConfig/v1.json",
+  "title": "Lightdash Config",
+  "description": "Configuration for a Lightdash project",
+  "type": "object",
+  "additionalItems": false,
+  "required": ["version", "projects"],
+  "properties": {
+    "version": {
+      "description": "Schema version for the config file",
+      "const": "1.0"
+    },
+    "projects": {
+      "description": "A list of dbt projects configurations. Lightdash will attempt to compile and visualise these dbt projects.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/definitions/DbtProjectConfig"
+          },
+          {
+            "$ref": "#/definitions/DbtCloudProjectConfig"
+          },
+          {
+            "$ref": "#/definitions/DbtRemoteServerProjectConfig"
+          }
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "DbtProjectConfig": {
+      "required": ["type", "name", "profiles_dir", "project_dir"],
+      "properties": {
+        "type": {
+          "const": "dbt"
+        },
+        "name": {
+          "description": "Name to identify the project",
+          "type": "string"
+        },
+        "project_dir": {
+          "description": "File path to your dbt project directory containing a dbt_project.yml file",
+          "type": "string"
+        },
+        "profiles_dir": {
+          "description": "File path to your dbt profiles directory containing a profiles.yml file",
+          "type": "string"
+        },
+        "gcloud_config_dir": {
+          "description": "File path to your gcloud sdk configuration directory. Only required for bigquery users authenticating with oauth.",
+          "type": "string"
+        }
+      }
+    },
+    "DbtCloudProjectConfig": {
+      "required": ["type", "api_key", "account_id", "environment_id"],
+      "properties": {
+        "type": {
+          "const": "dbt_cloud"
+        },
+        "rpc_server_url": {
+          "description": "URL base path for the dbt cloud remote server",
+          "type": "string",
+          "format": "uri"
+        },
+        "api_key": {
+          "description": "API key for your dbt cloud account",
+          "type": "string"
+        },
+        "account_id": {
+          "description": "Unique id for your dbt cloud account",
+          "type": "string"
+        },
+        "environment_id": {
+          "description": "Unique id for an environment in your dbt cloud account. This must be authenticated with your data warehouse. Lightdash will execute queries against this environment.",
+          "type": "string"
+        }
+      }
+    },
+    "DbtRemoteServerProjectConfig": {
+      "properties": {
+        "type": {
+          "const": "dbt_remote_server"
+        },
+        "host": {
+          "description": "Hostname of the remote dbt server",
+          "type": "string",
+          "format": "hostname"
+        },
+        "port": {
+          "description": "Port of the remote dbt server",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

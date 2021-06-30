@@ -1,81 +1,19 @@
 import {
+    DbtCatalog,
+    DbtModelColumn,
+    DbtModelNode,
     Dimension,
-    DimensionType,
     Explore,
-    LineageGraph, LineageNodeDependency,
+    LineageGraph,
+    LineageNodeDependency,
     mapColumnTypeToLightdashType,
     Metric,
-    MetricType,
     Table,
 } from "common";
-import modelJsonSchema from '../schema.json'
-import {MissingCatalogEntryError, ParseError} from "../errors"
-import Ajv from "ajv"
-import addFormats from "ajv-formats"
-import {postDbtAsyncRpc} from "./rpcClient";
-import { DepGraph } from "dependency-graph"
+import {MissingCatalogEntryError} from "../errors"
+import {DepGraph} from "dependency-graph"
 import {compileExplore} from "../exploreCompiler";
 
-// Config validator
-const ajv = new Ajv()
-addFormats(ajv)
-
-// DBT CONFIG
-type DbtNode = {
-    unique_id: string
-    resource_type: string,
-}
-type DbtModelNode = DbtNode & {
-    columns: { [name: string]: DbtModelColumn },
-    meta: DbtModelMetadata,
-    database: string,
-    schema: string,
-    name: string,
-    relation_name: string,
-    depends_on: DbtTableDependency,
-    description?: string,
-}
-type DbtTableDependency = {
-    nodes: string[]
-}
-type DbtModelColumn = {
-    name: string,
-    description?: string,
-    meta: DbtColumnMetadata,
-    data_type?: string,
-}
-
-
-// CUSTOM LIGHTDASH CONFIG IN DBT
-type DbtModelMetadata = DbtModelLightdashConfig & {}
-
-type DbtModelLightdashConfig = {
-    joins?: DbtModelJoin[]
-}
-type DbtModelJoin = {
-    join: string,
-    sql_on: string,
-}
-type DbtColumnMetadata = DbtColumnLightdashConfig & {}
-type DbtColumnLightdashConfig = {
-    dimension?: DbtColumnLightdashDimension,
-    metrics?: {[metricName: string]: DbtColumnLightdashMetric}
-}
-
-type DbtColumnLightdashDimension = {
-    name?: string,
-    type?: DimensionType,
-    description?: string,
-    sql?: string,
-}
-
-type DbtColumnLightdashMetric = {
-    type: MetricType,
-    description?: string,
-    sql?: string,
-}
-
-// MAPPINGS FROM DBT CONFIG TO LIGHTDASH MODELS
 const convertDimension = (modelName: string, column: DbtModelColumn): Dimension => {
     return {
         name: column.meta.dimension?.name || column.name,
@@ -161,51 +99,6 @@ export const convertExplores = async (models: DbtModelNode[]): Promise<Explore[]
 }
 
 
-export const getDbtCatalog = async (): Promise<DbtCatalog> => {
-    const params = {
-        'compile': false
-    }
-    return await postDbtAsyncRpc('docs.generate', params)
-}
-
-const getDbtManifest = async (): Promise<{results: {node: DbtNode}[]}> => {
-    const manifest = await postDbtAsyncRpc('compile', {})
-    return manifest
-}
-
-export const getDbtModels = async (): Promise<DbtModelNode[]> => {
-    const manifest = await getDbtManifest()
-    const nodes = manifest.results.map(result => result.node)
-    const models = nodes.filter(node => node.resource_type === 'model') as DbtModelNode[]
-    const validator = ajv.compile(modelJsonSchema)
-    const validateModel = (model: DbtModelNode) => {
-        const valid = validator(model)
-        if (!valid) {
-            const lineErrorMessages = (validator.errors || []).map(err => `Field at ${err.instancePath} ${err.message}`).join('\n')
-            throw new ParseError(
-                `Cannot parse lightdash metadata from schema.yml for '${model.name}' model:\n${lineErrorMessages}`,
-                {
-                    schema: modelJsonSchema.$id,
-                    errors: validator.errors
-                }
-            )
-        }
-    }
-    models.forEach(validateModel)
-
-    // Foreign key checks
-    const validModelNames = new Set(models.map(model => model.name))
-    const validateForeignKeys = (model: DbtModelNode) => {
-        const joins = model.meta?.joins?.map(j => j.join) || []
-        joins.forEach(join => {
-            if (!validModelNames.has(join))
-                throw new ParseError(`Cannot parse lightdash metadata from schema.yml for '${model.name}' model:\n  Contains a join reference to another dbt model '${join}' which couldn't be found in the current dbt project.`, {})
-        })
-    }
-    models.forEach(validateForeignKeys)
-    return models
-}
-
 export const attachTypesToModels = async (models: DbtModelNode[], catalog: DbtCatalog): Promise<DbtModelNode[]> => {
     // Check that all models appear in the catalog
     models.forEach(model => {
@@ -249,31 +142,3 @@ export const attachTypesToModels = async (models: DbtModelNode[], catalog: DbtCa
 }
 
 
-export interface DbtCatalogNode {
-    metadata: DbtCatalogNodeMetadata;
-    columns: {
-        [k: string]: DbtCatalogNodeColumn;
-    };
-}
-
-export interface DbtCatalogNodeMetadata {
-    type: string;
-    database: string;
-    schema: string;
-    name: string;
-    comment?: string;
-    owner?: string;
-}
-
-export interface DbtCatalogNodeColumn {
-    type: string;
-    comment?: string;
-    index: number;
-    name: string;
-}
-
-export interface DbtCatalog {
-    nodes: {
-        [k: string]: DbtCatalogNode;
-    };
-}

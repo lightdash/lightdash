@@ -15,7 +15,6 @@ import {
 } from "./exploreCompiler.mock";
 import {compileExplore} from "./exploreCompiler";
 import {CompileError} from "./errors";
-import {compile} from "morgan";
 
 test('Should compile empty table', () => {
     expect(compileExplore(exploreOneEmptyTable)).toStrictEqual(exploreOneEmptyTableCompiled)
