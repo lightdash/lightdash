@@ -13,6 +13,7 @@ import {
     UNRECOGNISED_PROJECT,
     wrapProject,
     WRONG_VERSION,
+    DBT_CLOUD_IDE_PROJECT,
 } from './parseConfig.mock';
 import { ParseError } from '../errors';
 import { parseConfig } from './parseConfig';
@@ -90,4 +91,9 @@ test('Should throw ParseError for invalid hostname', () => {
     expect(() =>
         parseConfig(wrapProject(REMOTE_PROJECT_INVALID_HOST)),
     ).toThrowError(ParseError);
+});
+
+test('Should parse dbt cloud ide config', () => {
+    const expected = wrapProject(DBT_CLOUD_IDE_PROJECT);
+    expect(parseConfig(expected)).toEqual(expected);
 });

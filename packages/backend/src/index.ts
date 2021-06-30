@@ -29,7 +29,9 @@ app.use(
 );
 
 // Update all resources on startup
-refreshAllTables().catch((e) => console.error(e.message || e));
+refreshAllTables().catch((e) =>
+    console.error(`Error from dbt on Lightdash startup:\n${e.message || e}`),
+);
 
 // Run the server
 const port = process.env.PORT || 8080;

@@ -34,6 +34,7 @@ export const useQueryResults = () => {
         queryFn: () => getQueryResults(tableId || '', metricQuery),
         enabled: false, // don't run automatically
         keepPreviousData: true, // changing the query won't update results until fetch
+        retry: false,
     });
 
     useEffect(() => {

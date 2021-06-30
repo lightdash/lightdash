@@ -559,8 +559,64 @@ export interface DbtCatalogNodeColumn {
     name: string;
 }
 
-export interface DbtCatalog {
+export interface DbtRpcDocsGenerateResults {
     nodes: {
         [k: string]: DbtCatalogNode;
     };
 }
+
+export const isDbtRpcDocsGenerateResults = (
+    results: Record<string, any>,
+): results is DbtRpcDocsGenerateResults =>
+    'nodes' in results &&
+    typeof results.nodes === 'object' &&
+    results.nodes !== null &&
+    Object.values(results.nodes).every(
+        (node) =>
+            typeof node === 'object' &&
+            node !== null &&
+            'metadata' in node &&
+            'columns' in node,
+    );
+
+export interface DbtRpcCompileResults {
+    results: { node: DbtNode }[];
+}
+export const isDbtRpcCompileResults = (
+    results: Record<string, any>,
+): results is DbtRpcCompileResults =>
+    'results' in results &&
+    Array.isArray(results.results) &&
+    results.results.every(
+        (result) =>
+            typeof result === 'object' &&
+            result !== null &&
+            'node' in result &&
+            typeof result.node === 'object' &&
+            result.node !== null &&
+            'unique_id' in result.node &&
+            'resource_type' in result.node,
+    );
+
+export interface DbtRpcRunSqlResults {
+    results: {
+        table: { column_names: string[]; rows: any[][] };
+    }[];
+}
+export const isDbtRpcRunSqlResults = (
+    results: Record<string, any>,
+): results is DbtRpcRunSqlResults =>
+    'results' in results &&
+    Array.isArray(results.results) &&
+    results.results.every(
+        (result) =>
+            typeof result === 'object' &&
+            result !== null &&
+            'table' in result &&
+            typeof result.table === 'object' &&
+            result.table !== null &&
+            'column_names' in result.table &&
+            Array.isArray(result.table.column_names) &&
+            'rows' in result.table &&
+            Array.isArray(result.table.rows),
+    );

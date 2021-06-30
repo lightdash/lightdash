@@ -9,7 +9,7 @@ default supplied `lightdash.yml` (used automatically) is just fine.
 
 A `lightdash.yml` file can only contain one project.
 
-Here is are two examples of a valid `lightdash.yml` containing two different types of projects:
+Here are two examples of valid `lightdash.yml` files for each of the three project types:
 ```yaml
 version: '1.0'
 
@@ -29,6 +29,18 @@ projects:
     name: myotherproject
     rpc_server_host: localhost
     rpc_server_port: 8580
+```
+
+```yaml
+version: '1.0'
+
+projects:
+  - type: 'dbt_cloud_ide'
+    name: mycloudproject
+    account_id: '11111'
+    environment_id: '22222'
+    project_id: '33333'
+    api_key: 'axx1xxbxx2xx'
 ```
 
 ## Environment variables

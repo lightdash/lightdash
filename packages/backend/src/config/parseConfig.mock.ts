@@ -63,6 +63,15 @@ export const REMOTE_PROJECT_INVALID_HOST = {
     rpc_server_host: 'localhost!!',
 };
 
+export const DBT_CLOUD_IDE_PROJECT = {
+    type: 'dbt_cloud_ide',
+    name: 'project',
+    account_id: '11111',
+    project_id: '11111',
+    environment_id: '11111',
+    api_key: 'abcdef123456',
+};
+
 export const wrapProject = (project: object) => ({
     version: '1.0',
     projects: [project],

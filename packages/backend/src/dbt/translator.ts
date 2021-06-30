@@ -1,5 +1,5 @@
 import {
-    DbtCatalog,
+    DbtRpcDocsGenerateResults,
     DbtModelColumn,
     DbtModelNode,
     Dimension,
@@ -328,7 +328,7 @@ export const convertExplores = async (
 
 export const attachTypesToModels = async (
     models: DbtModelNode[],
-    catalog: DbtCatalog,
+    catalog: DbtRpcDocsGenerateResults,
 ): Promise<DbtModelNode[]> => {
     // Check that all models appear in the catalog
     models.forEach((model) => {
