@@ -5,9 +5,20 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/*sidebar-menus*/
+.bp3-tree-node-content-0:hover,
+.bp3-tree-node-content-1:hover{
+  background: none;
+}
+
+.bp3-tree-node-content-2{
+ cursor: pointer;
 }

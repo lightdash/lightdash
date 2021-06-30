@@ -10,6 +10,8 @@ Recent and upcoming changes to lightdash
 ### Fixed
  - UI bug where the search box in the sidebar was cutoff
  - UI bug input fields overlapping at filterblock if used more than one
+ - UI Intraction sidebar menu hierarchy makes it hard to read
+ - UI bug where small scroll flicker happens while configure charts
 
 ## [0.2.7] - 2021-06-28
 ### Added
