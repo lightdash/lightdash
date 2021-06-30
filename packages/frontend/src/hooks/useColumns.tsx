@@ -1,4 +1,4 @@
-import {Dimension, fieldId, friendlyName, getDimensions, getMetrics, SortField} from "common";
+import {Dimension, DimensionType, fieldId, friendlyName, getDimensions, getMetrics, SortField} from "common";
 import {useExploreConfig} from "./useExploreConfig";
 import React, {useMemo} from "react";
 import {useTable} from "./useTable";
@@ -21,15 +21,15 @@ const formatWrapper = (formatter: (value: any) => string) => {
 const getDimensionFormatter = (d: Dimension) => {
     const dimensionType = d.type
     switch (dimensionType) {
-        case "string":
+        case DimensionType.STRING:
             return formatWrapper(formatString)
-        case "number":
+        case DimensionType.NUMBER:
             return formatWrapper(formatNumber)
-        case "boolean":
+        case DimensionType.BOOLEAN:
             return formatWrapper(formatBoolean)
-        case "date":
+        case DimensionType.DATE:
             return formatWrapper(formatDate)
-        case "timestamp":
+        case DimensionType.TIMESTAMP:
             return formatWrapper(formatTimestamp)
         default:
             // eslint-disable-next-line
