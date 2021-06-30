@@ -15,6 +15,7 @@ Recent and upcoming changes to lightdash
  - UI bug input fields overlapping at filterblock if used more than one
  - UI Intraction sidebar menu hierarchy makes it hard to read
  - UI bug where small scroll flicker happens while configure charts
+ - UI bug where the metric description was concatenating the dimension description instead of the dimension name
 
 ## [0.2.7] - 2021-06-28
 ### Added
