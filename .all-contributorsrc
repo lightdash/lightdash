@@ -114,6 +114,15 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "srjonemed",
+      "name": "Sreejith Madhavan",
+      "avatar_url": "https://avatars.githubusercontent.com/u/34316602?v=4",
+      "profile": "https://github.com/srjonemed",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
