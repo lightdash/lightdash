@@ -37,7 +37,7 @@ export const FiltersForm = () => {
             }}>
                 {activeFilters.map( (filterGroup, idx) => (
                     <React.Fragment key={idx}>
-                        <div style={{paddingLeft: '15px', width: '100%', paddingBottom: '20px'}}>
+                        <div style={{paddingLeft: '15px', width: '100%', paddingBottom: '20px', display: 'flex', flexDirection: 'column', gap: '5px'}}>
                             <FilterGroupForm filterGroup={filterGroup} key={idx} onDelete={() => onDeleteFilterGroup(idx)} onChange={filterGroup => onChangeFilterGroup(idx, filterGroup)}/>
                         </div>
                     </React.Fragment>
