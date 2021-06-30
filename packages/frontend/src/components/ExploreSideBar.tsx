@@ -6,9 +6,10 @@ import ExploreTree from "./ExploreTree";
 import {useTables} from "../hooks/useTables";
 import {useTable} from "../hooks/useTable";
 import {LineageButton} from "./LineageButton";
+import AboutFooter from "./AboutFooter";
 
 const SideBarLoadingState = () => (
-    <Menu large={true}>
+    <Menu large={true} style={{flex: 1}}>
         {[0, 1, 2, 3, 4].map(idx => (
             <React.Fragment key={idx}>
                 <MenuItem
@@ -45,11 +46,7 @@ const BasePanel = () => {
     if (exploresResult.isLoading)
         return <SideBarLoadingState/>
     return (
-        <div style={{
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column'
-        }}>
+        <>
             <div style={{height: '100px'}}>
                 <div style={{
                     display: 'flex',
@@ -99,7 +96,7 @@ const BasePanel = () => {
                     {`Start exploring ${friendlyName(selectedExploreName || '')}? You will lose your current work on ${friendlyName(activeTableName || '')}.`}
                 </Text>
             </Alert>
-        </div>
+        </>
     )
 }
 type ExplorePanelProps = {
@@ -127,7 +124,7 @@ const ExplorePanel = ({onBack}: ExplorePanelProps) => {
     const activeExplore = exploresResult.data
     const [databaseName, schemaName, tableName] = activeExplore.tables[activeExplore.baseTable].sqlTable.replace(/["'`]/g, "").split('.')
     return (
-        <div style={{height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column'}}>
+        <>
             <div style={{
                 paddingBottom: '10px',
                 display: 'flex',
@@ -154,7 +151,7 @@ const ExplorePanel = ({onBack}: ExplorePanelProps) => {
                 selectedNodes={activeFields}
                 onSelectedNodeChange={toggleActiveField}
             />
-        </div>
+        </>
     )
 }
 export const ExploreSideBar = () => {
@@ -163,10 +160,15 @@ export const ExploreSideBar = () => {
         setSidebarPanel('base')
     }
 
-    switch (sidebarPanel) {
-        case "base":
-            return <BasePanel />
-        case "explores":
-            return <ExplorePanel onBack={onBack}/>
-    }
+    return (
+        <div style={{height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column'}}>
+            {sidebarPanel === 'base' && (
+                <BasePanel />
+            )}
+            {sidebarPanel === 'explores' && (
+                <ExplorePanel onBack={onBack}/>
+            )}
+            <AboutFooter />
+        </div>
+    )
 }

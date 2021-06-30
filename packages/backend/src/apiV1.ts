@@ -2,8 +2,18 @@ import express from 'express'
 import {getAllTables, getStatus, getTable, refreshAllTables, runQuery} from "./lightdash";
 import {MetricQuery} from "common";
 import {buildQuery} from "./queryBuilder";
+import {getHealthState} from "./health";
 
 export const apiV1Router = express.Router()
+
+apiV1Router.get('/health', async (req, res, next) => {
+    getHealthState()
+        .then(state => res.json({
+            status: 'ok',
+            results: state
+        }))
+        .catch(next)
+})
 
 apiV1Router.get('/tables', async (req, res, next) => {
     getAllTables()

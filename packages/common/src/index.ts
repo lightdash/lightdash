@@ -446,6 +446,12 @@ export type ApiRefreshResponse = ApiError | {
     results: ApiRefreshResults,
 }
 
+export type ApiHealthResults = HealthState
+export type ApiHealthResponse = ApiError | {
+    status: 'ok',
+    results: ApiHealthResults,
+}
+
 export type ApiResults =
     ApiQueryResults
     | ApiCompiledQueryResults
@@ -454,6 +460,7 @@ export type ApiResults =
     | ApiTableResults
     | ApiStatusResults
     | ApiRefreshResults
+    | ApiHealthResults
 
 export type ApiResponse =
     ApiQueryResponse
@@ -463,3 +470,12 @@ export type ApiResponse =
     | ApiTableResponse
     | ApiStatusResponse
     | ApiRefreshResponse
+    | ApiHealthResponse
+
+export type HealthState = {
+    healthy: boolean;
+    version: string;
+    latest: {
+        version?: string;
+    };
+}
