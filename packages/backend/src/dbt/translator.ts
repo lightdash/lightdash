@@ -11,7 +11,6 @@ import {
     LineageNodeDependency,
     mapColumnTypeToLightdashType,
     Metric,
-    MetricType,
     Source,
     Table, DbtColumnLightdashMetric,
 } from "common";
@@ -21,7 +20,7 @@ import {compileExplore} from "../exploreCompiler";
 import { parseWithPointers, getLocationForJsonPath } from "@stoplight/yaml";
 import fs from 'fs';
 
-const convertDimension = (modelName: string, column: DbtModelColumn, source: Source): Dimension => {
+const convertDimension = (modelName: string, column: DbtModelColumn, source?: Source): Dimension => {
     return {
         fieldType: FieldType.DIMENSION,
         name: column.meta.dimension?.name || column.name,
@@ -42,7 +41,7 @@ type ConvertMetricArgs = {
     columnName: string,
     name: string,
     metric: DbtColumnLightdashMetric,
-    source: Source;
+    source?: Source;
 }
 const convertMetric = ({modelName, columnName, name, metric, source}: ConvertMetricArgs): Metric => ({
     fieldType: FieldType.METRIC,
@@ -54,15 +53,49 @@ const convertMetric = ({modelName, columnName, name, metric, source}: ConvertMet
     source
 })
 
-const convertTable = (model: DbtModelNode, depGraph: DepGraph<LineageNodeDependency>): Table => {
-    // Generate lineage for this table
-    const modelFamily = [...depGraph.dependantsOf(model.name), ...depGraph.dependenciesOf(model.name), model.name]
-    const lineage: LineageGraph = modelFamily.reduce<LineageGraph>((prev, modelName) => {
+const generateTableLineage = (model: DbtModelNode, depGraph: DepGraph<LineageNodeDependency>): LineageGraph => {
+    const modelFamily = [...depGraph.dependantsOf(model.name), ...depGraph.dependenciesOf(model.name), model.name];
+    return modelFamily.reduce<LineageGraph>((prev, modelName) => {
         return {
             ...prev,
             [modelName]: depGraph.directDependenciesOf(modelName).map(d => depGraph.getNodeData(d))
         }
-    }, {})
+    }, {});
+}
+
+
+const convertTable = (model: DbtModelNode, depGraph: DepGraph<LineageNodeDependency>): Table => {
+    const lineage = generateTableLineage(model, depGraph);
+
+    const [dimensions, metrics]: [Record<string, Dimension>, Record<string, Metric>] = Object.values(model.columns).reduce(([prevDimensions, prevMetrics], column, columnIndex) => {
+        const columnMetrics = Object.entries(column.meta.metrics || {}).map(([name, metric]) => {
+            return convertMetric({
+                modelName: model.name,
+                columnName: column.name,
+                name,
+                metric,
+            });
+        });
+
+        return [
+            {...prevDimensions, [column.name]: convertDimension(model.name, column)},
+            {...prevMetrics, ...columnMetrics}
+        ]
+    }, [{}, {}]);
+
+    return {
+        name: model.name,
+        sqlTable: model.relation_name,
+        description: model.description || `${model.name} table`,
+        dimensions,
+        metrics,
+        lineageGraph: lineage,
+    }
+
+}
+
+const convertTableWithSources = (model: DbtModelNode, depGraph: DepGraph<LineageNodeDependency>): Table => {
+    const lineage = generateTableLineage(model, depGraph);
 
     const schemaPath = `${model.root_path}/${model.patch_path}`;
 
@@ -160,13 +193,16 @@ const modelGraph = (allModels: DbtModelNode[]): DepGraph<LineageNodeDependency> 
     return depGraph
 }
 
-const convertTables = (allModels: DbtModelNode[]): Table[] => {
+const convertTables = (allModels: DbtModelNode[], loadSources: boolean): Table[] => {
     const graph = modelGraph(allModels)
+    if (loadSources) {
+        return allModels.map(model => convertTableWithSources(model, graph))
+    }
     return allModels.map(model => convertTable(model, graph))
 }
 
-export const convertExplores = async (models: DbtModelNode[]): Promise<Explore[]> => {
-    const tables: Record<string, Table> = convertTables(models).reduce((prev, relation) => {
+export const convertExplores = async (models: DbtModelNode[], loadSources: boolean): Promise<Explore[]> => {
+    const tables: Record<string, Table> = convertTables(models, loadSources).reduce((prev, relation) => {
         return {...prev, [relation.name]: relation}
     }, {})
     const explores = models.map(model => compileExplore({

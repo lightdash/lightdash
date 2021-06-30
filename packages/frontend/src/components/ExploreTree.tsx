@@ -99,7 +99,7 @@ const TableTree: FC<TableTreeProps> = ({search, table, joinSql, selectedNodes, o
         id: table.name,
         label: friendlyName(table.name),
         isExpanded: expanded,
-        secondaryLabel: <TableButtons joinSql={joinSql} table={table} onOpenSourceDialog={onOpenSourceDialog}/>,
+        secondaryLabel: table.source && <TableButtons joinSql={joinSql} table={table} onOpenSourceDialog={onOpenSourceDialog}/>,
         childNodes: [
             {
                 id: "metrics",
@@ -115,7 +115,7 @@ const TableTree: FC<TableTreeProps> = ({search, table, joinSql, selectedNodes, o
                     label: (<Tooltip2 content={metric.description}>{friendlyName(metric.name)}</Tooltip2>),
                     nodeData: {fieldId: fieldId(metric), isDimension: false} as NodeDataProps,
                     isSelected: selectedNodes.has(fieldId(metric)),
-                    secondaryLabel: <NodeItemButtons node={metric} onOpenSourceDialog={onOpenSourceDialog}/>
+                    secondaryLabel: metric.source && <NodeItemButtons node={metric} onOpenSourceDialog={onOpenSourceDialog}/>
                 }))
             },
             {
@@ -132,7 +132,7 @@ const TableTree: FC<TableTreeProps> = ({search, table, joinSql, selectedNodes, o
                     label: (<Tooltip2 content={dimension.description}>{friendlyName(dimension.name)}</Tooltip2>),
                     nodeData: {fieldId: fieldId(dimension), isDimension: true} as NodeDataProps,
                     isSelected: selectedNodes.has(fieldId(dimension)),
-                    secondaryLabel: <NodeItemButtons node={dimension} onOpenSourceDialog={onOpenSourceDialog}/>
+                    secondaryLabel: dimension.source && <NodeItemButtons node={dimension} onOpenSourceDialog={onOpenSourceDialog}/>
                 }))
             },
         ]
@@ -155,10 +155,10 @@ const TableTree: FC<TableTreeProps> = ({search, table, joinSql, selectedNodes, o
 }
 
 const TableButtons: FC<{ joinSql?: string, table: CompiledTable, onOpenSourceDialog: (source: Source) => void }> = ({
-                                                                                                                joinSql,
-                                                                                                                table: {source},
-                                                                                                                onOpenSourceDialog
-                                                                                                            }) => {
+                                                                                                                        joinSql,
+                                                                                                                        table: {source},
+                                                                                                                        onOpenSourceDialog
+                                                                                                                    }) => {
     const [isOpen, setIsOpen] = useState<boolean>();
     const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
     return (
@@ -172,6 +172,9 @@ const TableButtons: FC<{ joinSql?: string, table: CompiledTable, onOpenSourceDia
                             icon={<Icon icon="console"/>}
                             text="Source"
                             onClick={(e) => {
+                                if (source === undefined) {
+                                    return;
+                                }
                                 e.stopPropagation();
                                 onOpenSourceDialog(source);
                                 setIsOpen(false);
@@ -230,6 +233,9 @@ const NodeItemButtons: FC<{node: Metric | Dimension, onOpenSourceDialog: (source
                             icon={<Icon icon="console"/>}
                             text="Source"
                             onClick={(e) => {
+                                if (source === undefined) {
+                                    return;
+                                }
                                 e.stopPropagation();
                                 onOpenSourceDialog(source);
                                 setIsOpen(false);

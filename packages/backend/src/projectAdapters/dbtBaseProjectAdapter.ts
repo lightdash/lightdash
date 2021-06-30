@@ -18,14 +18,14 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         this.rpcClient = new DbtRpcClient(rpcServerUrl);
     }
 
-    public async compileAllExplores (): Promise<Explore[]> {
+    public async compileAllExplores (loadSources: boolean = false): Promise<Explore[]> {
         // Compile models from dbt - may throw ParseError
         const models = await this._getDbtModels();
 
         // Be lazy and try to type the models without refreshing the catalog
         try {
             const lazyTypedModels = await attachTypesToModels(models, this.catalog || {nodes: {}});
-            const lazyExplores = await convertExplores(lazyTypedModels);
+            const lazyExplores = await convertExplores(lazyTypedModels, loadSources);
             return lazyExplores;
         } catch (e) {
             if (e instanceof MissingCatalogEntryError) {
@@ -33,7 +33,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 const catalog = await this.rpcClient.getDbtCatalog();
                 this.catalog = catalog;
                 const typedModels = await attachTypesToModels(models, catalog);
-                const explores = await convertExplores(typedModels);
+                const explores = await convertExplores(typedModels, loadSources);
                 return explores;
             }
             throw e;

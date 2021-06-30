@@ -24,7 +24,7 @@ export type Table = PartialTable & {
     dimensions: {[fieldName: string]: Dimension}, // Field names must be unique across dims and metrics
     metrics: {[fieldName: string]: Metric},       //
     lineageGraph: LineageGraph,                  // DAG structure representing the lineage of the table
-    source: Source;
+    source?: Source;
 }
 
 export type Source = {
@@ -45,7 +45,7 @@ export type CompiledTable = PartialTable & {
     dimensions: Record<string, CompiledDimension>,
     metrics: Record<string, CompiledMetric>
     lineageGraph: LineageGraph,
-    source: Source;
+    source?: Source;
 }
 
 export type LineageGraph = Record<string, LineageNodeDependency[]>
@@ -79,7 +79,7 @@ export interface Field {
     table: string;             // Table names are unique within the project
     sql: string;               // Templated sql
     description?: string;
-    source: Source;
+    source?: Source;
 }
 
 export enum DimensionType {
