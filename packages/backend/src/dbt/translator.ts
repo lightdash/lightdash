@@ -2,6 +2,7 @@ import {
     Dimension,
     DimensionType,
     Explore,
+    friendlyName,
     FieldType,
     LineageGraph,
     LineageNodeDependency,
@@ -102,18 +103,17 @@ const convertDimension = (modelName: string, column: DbtModelColumn, source: Sou
 type ConvertMetricArgs = {
     modelName: string,
     columnName: string,
-    columnDescription?: string,
     name: string,
     metric: DbtColumnLightdashMetric,
     source: Source;
 }
-const convertMetric = ({modelName, columnName, columnDescription, name, metric, source}: ConvertMetricArgs): Metric => ({
+const convertMetric = ({modelName, columnName, name, metric, source}: ConvertMetricArgs): Metric => ({
     fieldType: FieldType.METRIC,
     name,
     sql: metric.sql || `\$\{TABLE\}.${columnName}`,
     table: modelName,
     type: metric.type,
-    description: metric.description || `${metric.type} of ${columnDescription}`,
+    description: metric.description || `${friendlyName(metric.type)} of ${friendlyName(columnName)}`,
     source
 })
 
@@ -181,7 +181,6 @@ const convertTable = (model: DbtModelNode, depGraph: DepGraph<LineageNodeDepende
             return convertMetric({
                 modelName: model.name,
                 columnName: column.name,
-                columnDescription: column.description,
                 name,
                 metric,
                 source: metricSource
