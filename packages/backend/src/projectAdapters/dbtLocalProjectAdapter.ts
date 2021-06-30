@@ -1,9 +1,12 @@
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 import { DbtChildProcess } from '../dbt/dbtChildProcess';
 import { NetworkError } from '../errors';
+import { DbtRpcClient } from '../dbt/dbtRpcClient';
 
 export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
     dbtChildProcess: DbtChildProcess;
+
+    rpcClient: DbtRpcClient;
 
     constructor(projectDir: string, profilesDir: string, port: number) {
         const dbtChildProcess = new DbtChildProcess(
@@ -11,7 +14,9 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
             profilesDir,
             port,
         );
-        super(`http://${DbtChildProcess.host}:${dbtChildProcess.port}/jsonrpc`);
+        super();
+        const serverUrl = `http://${DbtChildProcess.host}:${dbtChildProcess.port}/jsonrpc`;
+        this.rpcClient = new DbtRpcClient(serverUrl);
         this.dbtChildProcess = dbtChildProcess;
     }
 

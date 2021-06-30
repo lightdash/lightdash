@@ -7,7 +7,7 @@ type LightdashErrorParams = {
     data: { [key: string]: any };
 };
 
-class LightdashError extends Error {
+export class LightdashError extends Error {
     statusCode: number;
 
     data: { [key: string]: any };
@@ -70,20 +70,6 @@ export class CompileError extends LightdashError {
     }
 }
 
-export class QueryError extends LightdashError {
-    constructor(
-        message = 'Error running query on external service',
-        data: { [key: string]: any },
-    ) {
-        super({
-            message,
-            name: 'ExternalQueryError',
-            statusCode: 400,
-            data,
-        });
-    }
-}
-
 export class NetworkError extends LightdashError {
     constructor(
         message = 'Error connecting to external service',
@@ -109,8 +95,18 @@ export class DbtError extends LightdashError {
     }
 }
 
+export class RetryableNetworkError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'RetryableNetworkError',
+            statusCode: 503,
+            data: {},
+        });
+    }
+}
+
 export const errorHandler = async (error: Error, res: Response) => {
-    // console.error(error.stack)
     if (error instanceof LightdashError) {
         res.status(error.statusCode).send({
             status: 'error',

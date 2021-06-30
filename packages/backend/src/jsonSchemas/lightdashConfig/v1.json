@@ -71,6 +71,35 @@
                                 "default": 8580
                             }
                         }
+                    },
+                    {
+                        "type": "object",
+                        "required": ["type", "name"],
+                        "properties": {
+                            "type": {
+                                "const": "dbt_cloud_ide"
+                            },
+                            "name": {
+                                "description": "Name to identify the project",
+                                "type": "string"
+                            },
+                            "api_key": {
+                                "description": "API key for your dbt cloud account",
+                                "type": "string"
+                            },
+                            "account_id": {
+                                "description": "Unique ID for your dbt cloud account",
+                                "type": ["string", "integer"]
+                            },
+                            "environment_id": {
+                                "description": "Unique ID for an environment in your dbt cloud account. Lightdash will run queries against the data warehouse connected to this environment in dbt cloud.",
+                                "type": ["string", "integer"]
+                            },
+                            "project_id": {
+                                "description": "Unique ID for a dbt cloud project.",
+                                "type": ["string", "integer"]
+                            }
+                        }
                     }
                 ]
             }

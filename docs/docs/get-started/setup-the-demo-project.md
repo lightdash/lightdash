@@ -78,10 +78,6 @@ When you see the following in your terminal, open up the app at [http://localhos
 lightdash_1  | ------------------------------------------
 lightdash_1  | Launch Lightdash at http://localhost:8080
 lightdash_1  | ------------------------------------------
-lightdash_1  | {"timestamp": "2021-06-02T16:03:33.770878Z", "message": "Running with dbt=0.19.1", "channel": "dbt", "l...
-lightdash_1  | {"timestamp": "2021-06-02T16:03:34.300057Z", "message": "Serving RPC server at 0.0.0.0:8580, pid=35", "...
-lightdash_1  | {"timestamp": "2021-06-02T16:03:34.303841Z", "message": "Supported methods: ['cli_args', 'compile', 'co...
-lightdash_1  | {"timestamp": "2021-06-02T16:03:34.305703Z", "message": "Send requests to http://localhost:8580/jsonrpc...
 ```
 
 
@@ -89,9 +85,7 @@ If you see the following error message:
 ```text
 Error response from daemon: Ports are not available: listen tcp 0.0.0.0:8080: bind: address already in use"
 ```
-
-you'll need to run
-read more about how to change ports here.
+Then change `LIGHTDASH_PORT` and reopen the app at `http://localhost:xxxx` where `xxxx` is the port you choose.
 
 
 ## Next steps

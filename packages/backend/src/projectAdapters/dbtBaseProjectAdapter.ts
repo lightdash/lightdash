@@ -1,7 +1,7 @@
-import { DbtCatalog, DbtModelNode, Explore } from 'common';
+import { DbtRpcDocsGenerateResults, DbtModelNode, Explore } from 'common';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
-import { DbtRpcClient } from '../dbt/dbtRpcClient';
+import { DbtRpcClientBase } from '../dbt/dbtRpcClientBase';
 import { attachTypesToModels, convertExplores } from '../dbt/translator';
 import { MissingCatalogEntryError, ParseError } from '../errors';
 import modelJsonSchema from '../schema.json';
@@ -10,14 +10,10 @@ import { ProjectAdapter } from '../types';
 const ajv = new Ajv();
 addFormats(ajv);
 
-export class DbtBaseProjectAdapter implements ProjectAdapter {
-    rpcClient: DbtRpcClient;
+export abstract class DbtBaseProjectAdapter implements ProjectAdapter {
+    abstract rpcClient: DbtRpcClientBase;
 
-    catalog: DbtCatalog | undefined;
-
-    constructor(rpcServerUrl: string) {
-        this.rpcClient = new DbtRpcClient(rpcServerUrl);
-    }
+    catalog: DbtRpcDocsGenerateResults | undefined;
 
     public async compileAllExplores(
         loadSources: boolean = false,

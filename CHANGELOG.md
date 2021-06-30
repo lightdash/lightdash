@@ -5,6 +5,7 @@ Recent and upcoming changes to lightdash
 ## Unreleased
 ### Added
  - Add date filters
+ - Integration with dbt cloud IDE. Lightdash can now connect to your development environment on https://cloud.getdbt.com
 
 ## [0.3.2] - 2021-07-07
 ### Added

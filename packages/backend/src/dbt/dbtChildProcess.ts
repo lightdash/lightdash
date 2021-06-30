@@ -61,9 +61,10 @@ export class DbtChildProcess {
                     `${this.port}`,
                     '--profiles-dir',
                     this.profilesDir,
+                    '--project-dir',
+                    this.projectDir,
                 ],
                 {
-                    cwd: this.projectDir,
                     stdio: ['pipe', 'pipe', process.stderr],
                 },
             );
