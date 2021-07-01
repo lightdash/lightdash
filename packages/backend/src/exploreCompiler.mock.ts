@@ -430,3 +430,74 @@ export const exploreReferenceInJoinCompiled: Explore = {
         }
     }
 }
+
+export const exploreWithMetricNumber: UncompiledExplore = {
+    name: '',
+    baseTable: 'a',
+    joinedTables: [],
+    tables: {
+        a: {
+            name: 'a',
+            sqlTable: 'test.table',
+            dimensions: {
+                dim1: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.NUMBER,
+                    name: 'dim1',
+                    table: 'a',
+                    sql: '${TABLE}.dim1',
+                    source: sourceMock
+                }
+            },
+            metrics: {
+                m1: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.SUM,
+                    name: 'm1',
+                    table: 'a',
+                    sql: '${dim1}',
+                    source: sourceMock
+                },
+                m2: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.NUMBER,
+                    name: 'm2',
+                    table: 'a',
+                    sql: '2 + ${m1}',
+                    source: sourceMock
+                }
+            },
+            lineageGraph: {},
+            source: sourceMock
+        }
+    },
+}
+
+export const exploreWithMetricNumberCompiled: Explore = {
+    ...exploreWithMetricNumber,
+    joinedTables: [],
+    tables: {
+        a: {
+            name: 'a',
+            sqlTable: 'test.table',
+            dimensions: {
+                dim1: {
+                    ...exploreWithMetricNumber.tables['a'].dimensions['dim1'],
+                    compiledSql: 'a.dim1',
+                },
+            },
+            metrics: {
+                m1: {
+                    ...exploreWithMetricNumber.tables['a'].metrics['m1'],
+                    compiledSql: 'SUM((a.dim1))',
+                },
+                m2: {
+                    ...exploreWithMetricNumber.tables['a'].metrics['m2'],
+                    compiledSql: '2 + (SUM((a.dim1)))',
+                }
+            },
+            lineageGraph: {},
+            source: sourceMock
+        }
+    },
+}
