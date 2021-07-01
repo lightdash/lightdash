@@ -99,7 +99,7 @@ const TableTree: FC<TableTreeProps> = ({search, table, joinSql, selectedNodes, o
         id: table.name,
         label: friendlyName(table.name),
         isExpanded: expanded,
-        secondaryLabel: table.source && <TableButtons joinSql={joinSql} table={table} onOpenSourceDialog={onOpenSourceDialog}/>,
+        secondaryLabel: <TableButtons joinSql={joinSql} table={table} onOpenSourceDialog={onOpenSourceDialog}/>,
         childNodes: [
             {
                 id: "metrics",
@@ -161,14 +161,15 @@ const TableButtons: FC<{ joinSql?: string, table: CompiledTable, onOpenSourceDia
                                                                                                                     }) => {
     const [isOpen, setIsOpen] = useState<boolean>();
     const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
+    console.log(`${joinSql} - ${source}`)
     return (
         <div style={{display: 'inline-flex', gap: '10px'}}>
-            <Popover2
+            {(source || joinSql) && <Popover2
                 isOpen={isOpen}
                 onInteraction={setIsOpen}
                 content={(
                     <Menu>
-                        <MenuItem
+                        {source && <MenuItem
                             icon={<Icon icon="console"/>}
                             text="Source"
                             onClick={(e) => {
@@ -179,7 +180,7 @@ const TableButtons: FC<{ joinSql?: string, table: CompiledTable, onOpenSourceDia
                                 onOpenSourceDialog(source);
                                 setIsOpen(false);
                             }}
-                        />
+                        />}
                         {joinSql && (
                             <MenuItem
                                 icon={<Icon icon="intersection"/>}
@@ -202,7 +203,7 @@ const TableButtons: FC<{ joinSql?: string, table: CompiledTable, onOpenSourceDia
                         setIsOpen(true);
                     }}/>
                 </Tooltip2>
-            </Popover2>
+            </Popover2>}
             <Dialog
                 isOpen={isJoinDialogOpen}
                 icon="intersection"
