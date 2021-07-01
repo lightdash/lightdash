@@ -28,7 +28,7 @@ app.use(async (error: Error, req: Request, res: Response, next: NextFunction) =>
 
 // Update all resources on startup
 refreshAllTables()
-    .catch(console.log)
+    .catch(e => console.error(e.message || e))
 
 // Run the server
 const port = process.env.PORT || 8080

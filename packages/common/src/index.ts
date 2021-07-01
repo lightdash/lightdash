@@ -305,6 +305,64 @@ export const friendlyName = (text: string): string => {
     return [capitalize(first), ...rest].join(' ')
 }
 
+
+// DBT CONFIG
+export type DbtNode = {
+    unique_id: string
+    resource_type: string,
+}
+export type DbtModelNode = DbtNode & {
+    columns: { [name: string]: DbtModelColumn },
+    meta: DbtModelMetadata,
+    database: string,
+    schema: string,
+    name: string,
+    relation_name: string,
+    depends_on: DbtTableDependency,
+    description?: string,
+    root_path: string,
+    patch_path: string,
+}
+type DbtTableDependency = {
+    nodes: string[]
+}
+export type DbtModelColumn = {
+    name: string,
+    description?: string,
+    meta: DbtColumnMetadata,
+    data_type?: string,
+}
+
+
+// CUSTOM LIGHTDASH CONFIG IN DBT
+type DbtModelMetadata = DbtModelLightdashConfig & {}
+
+type DbtModelLightdashConfig = {
+    joins?: DbtModelJoin[]
+}
+type DbtModelJoin = {
+    join: string,
+    sql_on: string,
+}
+type DbtColumnMetadata = DbtColumnLightdashConfig & {}
+type DbtColumnLightdashConfig = {
+    dimension?: DbtColumnLightdashDimension,
+    metrics?: {[metricName: string]: DbtColumnLightdashMetric}
+}
+
+type DbtColumnLightdashDimension = {
+    name?: string,
+    type?: DimensionType,
+    description?: string,
+    sql?: string,
+}
+
+export type DbtColumnLightdashMetric = {
+    type: MetricType,
+    description?: string,
+    sql?: string,
+}
+
 type ApiErrorDetail = {
     name: string,
     statusCode: number,
@@ -391,5 +449,34 @@ export type HealthState = {
     version: string;
     latest: {
         version?: string;
+    };
+}
+
+export interface DbtCatalogNode {
+    metadata: DbtCatalogNodeMetadata;
+    columns: {
+        [k: string]: DbtCatalogNodeColumn;
+    };
+}
+
+export interface DbtCatalogNodeMetadata {
+    type: string;
+    database: string;
+    schema: string;
+    name: string;
+    comment?: string;
+    owner?: string;
+}
+
+export interface DbtCatalogNodeColumn {
+    type: string;
+    comment?: string;
+    index: number;
+    name: string;
+}
+
+export interface DbtCatalog {
+    nodes: {
+        [k: string]: DbtCatalogNode;
     };
 }

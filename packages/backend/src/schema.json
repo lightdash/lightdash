@@ -4956,5 +4956,5 @@
     }
   },
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://schemas.lightdash.io/dbt/dbtModel/v1.json"
+  "$id": "https://schemas.lightdash.com/dbt/dbtModel/v1.json"
 }
