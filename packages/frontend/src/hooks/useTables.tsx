@@ -18,6 +18,7 @@ export const useTables = () => {
     const query = useQuery<PartialTable[], ApiError>({
         queryKey,
         queryFn: getTables,
+        retry: false,
     })
 
     useEffect(() => {

@@ -1,27 +1,40 @@
-import {
-    attachTypesToModels,
-    convertExplores,
-    getDbtCatalog,
-    getDbtModels
-} from "./dbt/translator";
-import {
-    isDbtProcessRunning,
-    refreshDbtChildProcess, spawnDbt
-} from "./dbt/childProcess";
-import {MissingCatalogEntryError, NotExistsError} from "./errors";
+import {NotExistsError} from "./errors";
 import {Explore, MetricQuery} from "common";
-import {cache} from "./cache";
-import {runQueryOnDbtAdapter, waitForDbtServerReady} from "./dbt/rpcClient";
 import {buildQuery} from "./queryBuilder";
+import {DbtLocalProjectAdapter} from "./projectAdapters/dbtLocalProjectAdapter";
+import {DbtRemoteProjectAdapter} from "./projectAdapters/dbtRemoteProjectAdapter";
+import {ProjectAdapter} from "./types";
 
+// TODO: WIP FOR REFACTOR OF CONFIG FILES
+// Setup dbt adapter
+let adapter: ProjectAdapter;
+const spawnDbt = process.env.LIGHTDASH_SPAWN_DBT === 'false' ? false : true;
+const port = parseInt(process.env.LIGHTDASH_DBT_PORT || '8580');
+if (isNaN(port)) {
+    throw new Error('Must specify a valid LIGHTDASH_DBT_PORT');
+}
+if (spawnDbt) {
+    const dbtProfilesDir = process.env.DBT_PROFILES_DIR;
+    if (dbtProfilesDir === undefined) {
+        throw new Error('Must specify DBT_PROFILES_DIR');
+    }
+    const dbtProjectDir = process.env.DBT_PROJECT_DIR;
+    if (dbtProjectDir === undefined) {
+        throw new Error('Must specify DBT_PROJECT_DIR');
+    }
+    adapter = new DbtLocalProjectAdapter(dbtProjectDir, dbtProfilesDir, port);
+}
+else {
+    const host = process.env.LIGHTDASH_DBT_HOST || 'localhost';
+    adapter = new DbtRemoteProjectAdapter(host, port);
+}
 
 // Shared promise
-let cachedTables: Promise<Explore[]> | undefined = undefined
-let tablesIsLoading = false
+let cachedTables: Promise<Explore[]> | undefined = undefined;
+let tablesIsLoading = false;
+
 
 export const getStatus = async () => {
-    if (spawnDbt && !isDbtProcessRunning())
-        return 'error'
     if (tablesIsLoading)
         return 'loading'
     if (cachedTables === undefined)
@@ -35,44 +48,9 @@ export const getStatus = async () => {
     return 'ready'
 }
 
-const updateAllTablesFromDbt = async () => {
-    // Refresh dbt server to re-parse dbt project directory
-    // throws NetworkError or ParseError
-    // Might also crash the dbt process, we'll restart on next refresh
-    let models
-    try {
-        await refreshDbtChildProcess()
-        await waitForDbtServerReady()
-
-        // Get the models from dbt - throws ParseError
-        models = await getDbtModels()
-    }
-    catch (e) {
-       throw e
-    }
-
-    // Be lazy and try to type the models without refreshing the catalog
-    try {
-        const lazyTypedModels = await attachTypesToModels(models, cache.get('catalog') || {nodes: {}})
-        const lazyExplores = await convertExplores(lazyTypedModels)
-        return lazyExplores
-    } catch (e) {
-        if (e instanceof MissingCatalogEntryError) {
-            // Some types were missing so refresh the catalog
-
-            const catalog = await getDbtCatalog()
-            await cache.set('catalog', catalog)
-            const typedModels = await attachTypesToModels(models, catalog)
-            const explores = await convertExplores(typedModels)
-            return explores
-        }
-        throw e
-    }
-}
-
 export const refreshAllTables = async () => {
     tablesIsLoading = true
-    cachedTables = updateAllTablesFromDbt()
+    cachedTables = adapter.compileAllExplores()
     try {
         await cachedTables
     }
@@ -99,7 +77,7 @@ export const getTable = async (tableId: string): Promise<Explore> => {
 export const runQuery = async (tableId: string, metricQuery: MetricQuery) => {
     const explore = await getTable(tableId)
     const sql = await buildQuery({explore, metricQuery})
-    const rows = await runQueryOnDbtAdapter(sql)
+    const rows = await adapter.runQuery(sql)
     return {
         metricQuery,
         rows,

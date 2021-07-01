@@ -19,6 +19,7 @@ export const useTable = () => {
         queryKey,
         queryFn: () => getTable(activeTableName || ''),
         enabled: activeTableName !== undefined,
+        retry: false,
     })
 
     useEffect(() => {
