@@ -8,7 +8,7 @@ import {ProjectAdapter} from "./types";
 // TODO: WIP FOR REFACTOR OF CONFIG FILES
 // Setup dbt adapter
 let adapter: ProjectAdapter;
-const spawnDbt = process.env.LIGHTDASH_SPAWN_DBT === 'false' ? false : true;
+const spawnDbt = process.env.LIGHTDASH_SPAWN_DBT === undefined ? true : process.env.LIGHTDASH_SPAWN_DBT === 'true';
 const port = parseInt(process.env.LIGHTDASH_DBT_PORT || '8580');
 if (isNaN(port)) {
     throw new Error('Must specify a valid LIGHTDASH_DBT_PORT');
