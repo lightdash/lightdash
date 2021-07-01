@@ -11,6 +11,9 @@ Recent and upcoming changes to lightdash
  - Warn user when there is a new version available
  - Add non-aggregate metric types and support metric references in sql
 
+### Changed
+ - Moved lightdash configuration to a `lightdash.yml`, replacing environment variables
+
 ### Fixed
  - UI bug where the search box in the sidebar was cutoff
  - UI bug input fields overlapping at filterblock if used more than one

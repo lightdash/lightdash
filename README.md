@@ -111,18 +111,9 @@ cd lightdash
 # Install Lightdash dependencies and build
 yarn install
 yarn build
-```
 
-### Launching Lightdash
-
-```shell
-# Specify the path to your dbt project
-# (i.e. the directory containing dbt_project.yml)
-# You MUST use the absolute path (i.e no ../../myrepo)
-export DBT_PROJECT_DIR=/Users/myuser/dbtrepo
-export DBT_PROFILES_DIR=/Users/myuser/.dbt
-
-# Build and run Lightdash
+# Run Lightdash
+export LIGHTDASH_CONFIG_FILE=${PWD}/lightdash.yml
 yarn start
 
 # Press ALLOW when asked to "accept incoming connections from python"

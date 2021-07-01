@@ -23,6 +23,7 @@
     },
     "dependencies": {
         "@stoplight/yaml": "^4.2.2",
+        "@types/js-yaml": "^4.0.1",
         "@types/morgan": "^1.9.2",
         "@typescript-eslint/eslint-plugin": "^4.4.1",
         "ajv": "^8.3.0",
@@ -32,6 +33,7 @@
         "execa": "^5.0.0",
         "express": "^4.17.1",
         "fuse.js": "^6.4.6",
+        "js-yaml": "^4.1.0",
         "morgan": "^1.10.0",
         "node-cache": "^5.1.2",
         "node-fetch": "^2.6.1",
