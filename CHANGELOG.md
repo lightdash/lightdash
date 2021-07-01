@@ -9,6 +9,7 @@ Recent and upcoming changes to lightdash
  - Add footer with Lightdash version
  - Add Lightdash about dialog
  - Warn user when there is a new version available
+ - Add non-aggregate metric types and support metric references in sql
 
 ### Fixed
  - UI bug where the search box in the sidebar was cutoff

@@ -39,7 +39,11 @@
             "count_distinct",
             "sum",
             "min",
-            "max"
+            "max",
+            "number",
+            "string",
+            "date",
+            "boolean"
           ]
         },
         "description": {

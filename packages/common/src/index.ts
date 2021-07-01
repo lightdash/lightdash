@@ -82,6 +82,10 @@ export interface Field {
     source: Source;
 }
 
+export const isField = (field: any): field is Field => {
+    return field?.fieldType;
+}
+
 export enum DimensionType {
     STRING = 'string',
     NUMBER = 'number',
@@ -122,6 +126,16 @@ export enum MetricType {
     SUM = 'sum',
     MIN = 'min',
     MAX = 'max',
+    NUMBER = 'number',
+    STRING = ' string',
+    DATE = ' date',
+    BOOLEAN = ' boolean',
+}
+
+const NonAggregateMetricTypes = [MetricType.STRING, MetricType.NUMBER, MetricType.DATE, MetricType.BOOLEAN];
+
+export const isNonAggregateMetric = (field: Field): boolean => {
+    return isMetric(field) && NonAggregateMetricTypes.includes(field.type);
 }
 
 export interface Metric extends Field {
@@ -131,6 +145,10 @@ export interface Metric extends Field {
 
 export interface CompiledMetric extends Metric {
     compiledSql: string;
+}
+
+export const isMetric = (field: Field): field is Metric => {
+    return field.fieldType === FieldType.METRIC;
 }
 
 // Object used to query an explore. Queries only happen within a single explore

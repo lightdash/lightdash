@@ -167,7 +167,7 @@ const convertTable = (model: DbtModelNode, depGraph: DepGraph<LineageNodeDepende
             content: lines.slice(columnRange.start.line, columnRange.end.line + 1).join('\r\n'),
         };
 
-        const columnMetrics = Object.entries(column.meta.metrics || {}).map(([name, metric]) => {
+        const columnMetrics = Object.entries(column.meta.metrics || {}).reduce((sum, [name, metric]) => {
             const metricRange = getLocationForJsonPath(parsedFile, ['models', modelIndex, 'columns', columnIndex, 'meta', 'metrics', name])?.range;
             if (!metricRange) {
                 throw new ParseError(`It was not possible to find the metric "${name}" for the model "${model.name}" in ${schemaPath}`, {});
@@ -178,14 +178,17 @@ const convertTable = (model: DbtModelNode, depGraph: DepGraph<LineageNodeDepende
                 content: lines.slice(metricRange.start.line, metricRange.end.line + 1).join('\r\n'),
             };
 
-            return convertMetric({
-                modelName: model.name,
-                columnName: column.name,
-                name,
-                metric,
-                source: metricSource
-            });
-        });
+            return {
+                ...sum,
+                [name]: convertMetric({
+                    modelName: model.name,
+                    columnName: column.name,
+                    name,
+                    metric,
+                    source: metricSource
+                })
+            };
+        }, {});
 
         return [
             {...prevDimensions, [column.name]: convertDimension(model.name, column, dimensionSource)},

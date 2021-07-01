@@ -6,6 +6,9 @@ import {
     Dimension,
     Explore,
     ExploreJoin,
+    Field,
+    isField,
+    isNonAggregateMetric,
     Metric,
     MetricType,
     Table
@@ -91,7 +94,7 @@ const compileJoin = (join: ExploreJoin, tables: Record<string, Table>): Compiled
     }
 }
 
-const compileDimensionReference = (ref: string, tables: Record<string, Table>, currentTable: string): string => {
+const compileReference = (self: Field | ExploreJoin, ref: string, tables: Record<string, Table>, currentTable: string): string => {
     // Reference to current table
     if (ref === 'TABLE') {
         return currentTable
@@ -103,15 +106,30 @@ const compileDimensionReference = (ref: string, tables: Record<string, Table>, c
     }
     const refTable = split.length === 1 ? currentTable : split[0]
     const refName = split.length === 1 ? split[0] : split[1]
-    const dimension = tables[refTable]?.dimensions[refName]
-    if (dimension === undefined)
-        throw new CompileError(`Model ${currentTable} has a dimension reference: \${${ref}} which matches no dimension`, {})
-    return `(${compileDimensionSql(dimension, tables)})`
+
+    let compiledReference: string;
+
+    if(isField(self) && isNonAggregateMetric(self)){
+        const referencedMetric = tables[refTable]?.metrics[refName];
+        if (referencedMetric === undefined) {
+            throw new CompileError(`Model ${currentTable} has a metric reference: \${${ref}} which matches no metric`, {})
+        }
+
+        compiledReference = compileMetricSql(referencedMetric, tables);
+    } else {
+        const referencedDimension = tables[refTable]?.dimensions[refName];
+        if (referencedDimension === undefined) {
+            throw new CompileError(`Model ${currentTable} has a dimension reference: \${${ref}} which matches no dimension`, {})
+        }
+        compiledReference = compileDimensionSql(referencedDimension, tables)
+    }
+
+    return `(${compiledReference})`;
 }
 
 export const compileMetricSql = (metric: Metric, tables: Record<string, Table>): string => {
     // Metric might have references to other dimensions
-    const renderedSql = metric.sql.replace(lightdashVariablePattern, (_, p1) => compileDimensionReference(p1, tables, metric.table))
+    const renderedSql = metric.sql.replace(lightdashVariablePattern, (_, p1) => compileReference(metric, p1, tables, metric.table))
     const metricType = metric.type;
     switch (metricType) {
         case MetricType.AVERAGE:
@@ -126,6 +144,11 @@ export const compileMetricSql = (metric: Metric, tables: Record<string, Table>):
             return `MIN(${renderedSql})`
         case MetricType.SUM:
             return `SUM(${renderedSql})`
+        case MetricType.NUMBER:
+        case MetricType.STRING:
+        case MetricType.DATE:
+        case MetricType.BOOLEAN:
+            return renderedSql
         default:
             const nope: never = metricType
             throw new CompileError(`No SQL render function implemented for metric with type ${metricType}`, {})
@@ -140,11 +163,11 @@ export const compileDimensionSql = (dimension: Dimension, tables: Record<string,
         if (p1 === currentRef) {
             throw new CompileError(`Dimension ${dimension.name} in table ${dimension.table} has a sql string referencing itself: "${dimension.sql}"`, {})
         }
-        return compileDimensionReference(p1, tables, dimension.table)
+        return compileReference(dimension, p1, tables, dimension.table)
     })
 }
 
 export const compileExploreJoinSql = (join: ExploreJoin, tables: Record<string, Table>): string => {
     // Sql join contains references to dimensions
-    return join.sqlOn.replace(lightdashVariablePattern, (_, p1) => compileDimensionReference(p1, tables, join.table))
+    return join.sqlOn.replace(lightdashVariablePattern, (_, p1) => compileReference(join, p1, tables, join.table))
 }

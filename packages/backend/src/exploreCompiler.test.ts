@@ -11,7 +11,9 @@ import {
     exploreReferenceInJoin,
     exploreReferenceInJoinCompiled,
     exploreTableSelfReference,
-    exploreTableSelfReferenceCompiled
+    exploreTableSelfReferenceCompiled,
+    exploreWithMetricNumber,
+    exploreWithMetricNumberCompiled
 } from "./exploreCompiler.mock";
 import {compileExplore} from "./exploreCompiler";
 import {CompileError} from "./errors";
@@ -47,4 +49,8 @@ test('Should compile table with nested references in dimensions and metrics', ()
 
 test('Should compile with a reference to a dimension in a joined table', () => {
     expect(compileExplore(exploreReferenceInJoin)).toStrictEqual(exploreReferenceInJoinCompiled)
+})
+
+test('Should compile with a reference to a metric in a non-aggregate metric', () => {
+    expect(compileExplore(exploreWithMetricNumber)).toStrictEqual(exploreWithMetricNumberCompiled)
 })
