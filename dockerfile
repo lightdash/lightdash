@@ -30,9 +30,8 @@ COPY --from=dbt-builder /usr/local/gcloud /usr/local/gcloud
 ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
 
 # Setup common config
-ENV DBT_PROJECT_DIR /usr/app/dbt
-ENV DBT_PROFILES_DIR /usr/app/profiles
-ENV LIGHTDASH_SPAWN_DBT true
+COPY lightdash.yml /usr/app/lightdash.yml
+ENV LIGHTDASH_CONFIG_FILE /usr/app/lightdash.yml
 
 
 # -------------------------

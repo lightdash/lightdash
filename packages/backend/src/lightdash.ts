@@ -1,35 +1,12 @@
 import { Explore, MetricQuery } from 'common';
 import { NotExistsError } from './errors';
 import { buildQuery } from './queryBuilder';
-import { DbtLocalProjectAdapter } from './projectAdapters/dbtLocalProjectAdapter';
-import { DbtRemoteProjectAdapter } from './projectAdapters/dbtRemoteProjectAdapter';
-import { ProjectAdapter } from './types';
+import { projectAdapterFromConfig } from './projectAdapters/projectAdapter';
+import { lightdashConfig } from './config/lightdashConfig';
 
-// TODO: WIP FOR REFACTOR OF CONFIG FILES
 // Setup dbt adapter
-let adapter: ProjectAdapter;
-const spawnDbt =
-    process.env.LIGHTDASH_SPAWN_DBT === undefined
-        ? true
-        : process.env.LIGHTDASH_SPAWN_DBT === 'true';
-const port = parseInt(process.env.LIGHTDASH_DBT_PORT || '8580', 10);
-if (Number.isNaN(port)) {
-    throw new Error('Must specify a valid LIGHTDASH_DBT_PORT');
-}
-if (spawnDbt) {
-    const dbtProfilesDir = process.env.DBT_PROFILES_DIR;
-    if (dbtProfilesDir === undefined) {
-        throw new Error('Must specify DBT_PROFILES_DIR');
-    }
-    const dbtProjectDir = process.env.DBT_PROJECT_DIR;
-    if (dbtProjectDir === undefined) {
-        throw new Error('Must specify DBT_PROJECT_DIR');
-    }
-    adapter = new DbtLocalProjectAdapter(dbtProjectDir, dbtProfilesDir, port);
-} else {
-    const host = process.env.LIGHTDASH_DBT_HOST || 'localhost';
-    adapter = new DbtRemoteProjectAdapter(host, port);
-}
+const projectConfig = lightdashConfig.projects[0];
+const adapter = projectAdapterFromConfig(projectConfig);
 
 // Shared promise
 let cachedTables: Promise<Explore[]> | undefined;
