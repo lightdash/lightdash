@@ -1,39 +1,47 @@
 {
-  "name": "backend",
-  "version": "0.2.7",
-  "main": "dist/index",
-  "license": "MIT",
-  "devDependencies": {
-    "@types/express": "^4.17.11",
-    "@types/jest": "^26.0.23",
-    "@types/node": "^14.14.35",
-    "@types/node-fetch": "^2.5.10",
-    "jest": "^27.0.5",
-    "jest-fetch-mock": "^3.0.3",
-    "nodemon": "^2.0.7",
-    "ts-jest": "^27.0.3",
-    "ts-node": "^9.1.1",
-    "typescript": "^4.2.3"
-  },
-  "dependencies": {
-    "@stoplight/yaml": "^4.2.2",
-    "@types/morgan": "^1.9.2",
-    "ajv": "^8.3.0",
-    "ajv-formats": "^2.1.0",
-    "common": "^0.2.7",
-    "dependency-graph": "^0.11.0",
-    "execa": "^5.0.0",
-    "express": "^4.17.1",
-    "fuse.js": "^6.4.6",
-    "morgan": "^1.10.0",
-    "node-cache": "^5.1.2",
-    "node-fetch": "^2.6.1"
-  },
-  "scripts": {
-    "dev": "nodemon src/index.ts",
-    "debug": "nodemon --exec \"node --inspect-brk=0.0.0.0:9229 --require ts-node/register src/index.ts\"",
-    "build": "tsc --build tsconfig.json",
-    "start": "node dist/index.js",
-    "test": "jest"
-  }
+    "name": "backend",
+    "version": "0.2.7",
+    "main": "dist/index",
+    "license": "MIT",
+    "devDependencies": {
+        "@types/express": "^4.17.11",
+        "@types/jest": "^26.0.23",
+        "@types/node": "^14.14.35",
+        "@types/node-fetch": "^2.5.10",
+        "eslint": "^7.29.0",
+        "eslint-config-airbnb-base": "^14.2.1",
+        "eslint-config-prettier": "^8.3.0",
+        "eslint-plugin-import": "^2.23.4",
+        "eslint-plugin-json": "^3.0.0",
+        "jest": "^27.0.5",
+        "jest-fetch-mock": "^3.0.3",
+        "nodemon": "^2.0.7",
+        "prettier": "2.3.2",
+        "ts-jest": "^27.0.3",
+        "ts-node": "^9.1.1",
+        "typescript": "^4.2.3"
+    },
+    "dependencies": {
+        "@stoplight/yaml": "^4.2.2",
+        "@types/morgan": "^1.9.2",
+        "@typescript-eslint/eslint-plugin": "^4.4.1",
+        "ajv": "^8.3.0",
+        "ajv-formats": "^2.1.0",
+        "common": "^0.2.7",
+        "dependency-graph": "^0.11.0",
+        "execa": "^5.0.0",
+        "express": "^4.17.1",
+        "fuse.js": "^6.4.6",
+        "morgan": "^1.10.0",
+        "node-cache": "^5.1.2",
+        "node-fetch": "^2.6.1",
+        "uuid": "^8.3.2"
+    },
+    "scripts": {
+        "dev": "nodemon src/index.ts",
+        "debug": "nodemon --exec \"node --inspect-brk=0.0.0.0:9229 --require ts-node/register src/index.ts\"",
+        "build": "tsc --build tsconfig.json",
+        "start": "node dist/index.js",
+        "test": "jest"
+    }
 }

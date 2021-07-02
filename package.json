@@ -10,17 +10,31 @@
     ]
   },
   "devDependencies": {
+    "husky": "^7.0.0",
+    "lint-staged": "^11.0.0",
     "npm-run-all": "^4.1.5"
   },
   "scripts": {
     "common-build": "yarn workspace common build",
+    "common-lint": "yarn workspace common lint",
+    "common-lint:ci": "yarn workspace common lint:ci",
     "backend-dev": "yarn workspace backend dev",
     "backend-build": "yarn workspace backend build",
     "backend-start": "yarn workspace backend start",
+    "backend-lint": "yarn workspace backend lint",
+    "backend-lint:ci": "yarn workspace backend lint:ci",
     "frontend-dev": "yarn workspace frontend start",
     "frontend-build": "yarn workspace frontend build",
+    "frontend-lint": "yarn workspace frontend lint",
+    "frontend-lint:ci": "yarn workspace frontend lint:ci",
     "dev": "run-p backend-dev frontend-dev",
     "build": "run-p backend-build frontend-build",
-    "start": "run-p backend-start"
+    "start": "run-p backend-start",
+    "prepare": "husky install"
+  },
+  "lint-staged": {
+    "packages/frontend/src/**/*.(ts|tsx|json)": ["yarn workspace frontend prettier --write --ignore-unknown", "yarn workspace frontend eslint --fix"],
+    "packages/backend/src/**/*.(ts|tsx|json)": ["yarn workspace backend prettier --write --ignore-unknown", "yarn workspace backend eslint --fix"],
+    "packages/common/src/**/*.(ts|tsx|json)": ["yarn workspace common prettier --write --ignore-unknown", "yarn workspace common eslint --fix"]
   }
 }

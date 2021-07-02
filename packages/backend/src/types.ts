@@ -1,4 +1,4 @@
-import {Explore} from "common";
+import { Explore } from 'common';
 
 export interface ProjectAdapter {
     compileAllExplores(): Promise<Explore[]>;

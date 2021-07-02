@@ -1,68 +1,79 @@
-import express from 'express'
-import {getAllTables, getStatus, getTable, refreshAllTables, runQuery} from "./lightdash";
-import {MetricQuery} from "common";
-import {buildQuery} from "./queryBuilder";
-import {getHealthState} from "./health";
+import express from 'express';
+import {
+    getAllTables,
+    getStatus,
+    getTable,
+    refreshAllTables,
+    runQuery,
+} from './lightdash';
+import { buildQuery } from './queryBuilder';
+import { getHealthState } from './health';
 
-export const apiV1Router = express.Router()
+export const apiV1Router = express.Router();
 
 apiV1Router.get('/health', async (req, res, next) => {
     getHealthState()
-        .then(state => res.json({
-            status: 'ok',
-            results: state
-        }))
-        .catch(next)
-})
+        .then((state) =>
+            res.json({
+                status: 'ok',
+                results: state,
+            }),
+        )
+        .catch(next);
+});
 
 apiV1Router.get('/tables', async (req, res, next) => {
     getAllTables()
-        .then(tables => res.json({
-            status: 'ok',
-            results: tables.map(table => ({
-                name: table.tables[table.baseTable].name,
-                description: table.tables[table.baseTable].description,
-                sql: table.tables[table.baseTable].sqlTable,
-            }))
-        }))
-        .catch(next)
-})
+        .then((tables) =>
+            res.json({
+                status: 'ok',
+                results: tables.map((table) => ({
+                    name: table.tables[table.baseTable].name,
+                    description: table.tables[table.baseTable].description,
+                    sql: table.tables[table.baseTable].sqlTable,
+                })),
+            }),
+        )
+        .catch(next);
+});
 
 apiV1Router.get('/tables/:tableId', async (req, res, next) => {
     getTable(req.params.tableId)
-        .then(table => {
+        .then((table) => {
             res.json({
                 status: 'ok',
                 results: table,
-            })
+            });
         })
-        .catch(next)
-})
+        .catch(next);
+});
 
 apiV1Router.post('/tables/:tableId/compileQuery', async (req, res, next) => {
-    const body : MetricQuery = req.body
+    const { body } = req;
     getTable(req.params.tableId)
-        .then(table => buildQuery({
-            explore: table,
-            metricQuery: {
-                dimensions: body.dimensions,
-                metrics: body.metrics,
-                filters: body.filters,
-                sorts: body.sorts,
-                limit: body.limit,
-            },
-        }))
-        .then(sql => {
+        .then((table) =>
+            buildQuery({
+                explore: table,
+                metricQuery: {
+                    dimensions: body.dimensions,
+                    metrics: body.metrics,
+                    filters: body.filters,
+                    sorts: body.sorts,
+                    limit: body.limit,
+                },
+            }),
+        )
+        .then((sql) => {
             res.json({
                 status: 'ok',
                 results: sql,
-            })
+            });
         })
-        .catch(next)
-})
+        .catch(next);
+});
 
 apiV1Router.post('/tables/:tableId/runQuery', async (req, res, next) => {
-    const body : MetricQuery = req.body
+    const { body } = req;
     runQuery(req.params.tableId, {
         dimensions: body.dimensions,
         metrics: body.metrics,
@@ -70,30 +81,29 @@ apiV1Router.post('/tables/:tableId/runQuery', async (req, res, next) => {
         sorts: body.sorts,
         limit: body.limit,
     })
-        .then(results => {
+        .then((results) => {
             res.json({
                 status: 'ok',
                 results,
-            })
+            });
         })
-        .catch(next)
-})
+        .catch(next);
+});
 
 apiV1Router.post('/refresh', async (req, res) => {
-    refreshAllTables()
-        .catch(e => console.log(`Error running refresh: ${e}`))
+    refreshAllTables().catch((e) => console.log(`Error running refresh: ${e}`));
     res.json({
         status: 'ok',
-    })
-})
+    });
+});
 
 apiV1Router.get('/status', async (req, res, next) => {
     getStatus()
-        .then(status => {
+        .then((status) => {
             res.json({
                 status: 'ok',
                 results: status,
-            })
+            });
         })
-        .catch(next)
-})
+        .catch(next);
+});
