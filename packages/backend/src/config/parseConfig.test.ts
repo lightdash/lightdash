@@ -2,7 +2,7 @@ import {
     EMPTY_CONFIG,
     LOCAL_PROJECT,
     LOCAL_PROJECT_MISSING_PROFILES_DIR,
-    LOCAL_PROJECT_MISSING_PROJECT_DIR,
+    LOCAL_PROJECT_UNDEFINED_PROJECT_DIR,
     LOCAL_PROJECT_NO_PORT,
     LOCAL_PROJECT_NON_INT_PORT,
     LOCAL_PROJECT_PORT_AS_STRING,
@@ -65,16 +65,19 @@ test('Should throw ParseError for missing profiles dir', () => {
     ).toThrowError(ParseError);
 });
 
-test('Should throw ParseError for missing project dir', () => {
+test('Should throw ParseError for undefined project dir', () => {
     expect(() =>
-        parseConfig(wrapProject(LOCAL_PROJECT_MISSING_PROJECT_DIR)),
+        parseConfig(wrapProject(LOCAL_PROJECT_UNDEFINED_PROJECT_DIR)),
     ).toThrowError(ParseError);
 });
 
 test('Should parse local config merged with environment variable', () => {
-    const expected = wrapProject(LOCAL_PROJECT);
-    const actual = wrapProject(LOCAL_PROJECT_MISSING_PROJECT_DIR);
-    process.env.LIGHTDASH_PROJECT_0_PROJECT_DIR = LOCAL_PROJECT.project_dir;
+    const expected = wrapProject({
+        ...LOCAL_PROJECT_MISSING_PROFILES_DIR,
+        profiles_dir: LOCAL_PROJECT.profiles_dir,
+    });
+    const actual = wrapProject(LOCAL_PROJECT_MISSING_PROFILES_DIR);
+    process.env.LIGHTDASH_PROJECT_0_PROFILES_DIR = LOCAL_PROJECT.profiles_dir;
     expect(parseConfig(actual)).toEqual(expected);
 });
 
