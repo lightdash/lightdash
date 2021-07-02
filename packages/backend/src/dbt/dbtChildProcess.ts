@@ -72,6 +72,7 @@ export class DbtChildProcess {
                 }
                 catch (e) {
                     console.log('Cannot parse message from dbt');
+                    console.log(data)
                 }
             })
         });
