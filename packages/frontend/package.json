@@ -1,68 +1,82 @@
 {
-  "name": "frontend",
-  "version": "0.2.7",
-  "private": true,
-  "proxy": "http://localhost:8080",
-  "dependencies": {
-    "@blueprintjs/core": "^3.41.0",
-    "@blueprintjs/popover2": "^0.10.1",
-    "@blueprintjs/select": "^3.16.0",
-    "@blueprintjs/table": "^3.8.26",
-    "@testing-library/jest-dom": "^5.11.4",
-    "@testing-library/react": "^11.1.0",
-    "@testing-library/user-event": "^12.1.10",
-    "@types/dagre": "^0.7.44",
-    "@types/jest": "^26.0.15",
-    "@types/react": "^17.0.0",
-    "@types/react-csv": "^1.1.1",
-    "@types/react-dom": "^17.0.0",
-    "@types/react-router-dom": "^5.1.7",
-    "@types/react-table": "^7.0.29",
-    "@types/uuid": "^8.3.0",
-    "common": "^0.2.7",
-    "dagre": "^0.8.5",
-    "echarts": "^5.1.1",
-    "echarts-for-react": "^3.0.1",
-    "react": "^17.0.1",
-    "react-copy-to-clipboard": "^5.0.3",
-    "react-csv": "^2.0.3",
-    "react-dom": "^17.0.1",
-    "react-query": "^3.16.0",
-    "react-router-dom": "^5.2.0",
-    "react-scripts": "4.0.3",
-    "react-syntax-highlighter": "^15.4.3",
-    "react-table": "^7.6.3",
-    "rudder-sdk-js": "^1.0.16",
-    "typescript": "^4.1.2",
-    "uuid": "^8.3.2",
-    "web-vitals": "^1.0.1"
-  },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "devDependencies": {
-    "@types/react-copy-to-clipboard": "^5.0.0",
-    "@types/react-syntax-highlighter": "^13.5.1"
-  }
+    "name": "frontend",
+    "version": "0.2.7",
+    "private": true,
+    "proxy": "http://localhost:8080",
+    "dependencies": {
+        "@blueprintjs/core": "^3.41.0",
+        "@blueprintjs/popover2": "^0.10.1",
+        "@blueprintjs/select": "^3.16.0",
+        "@blueprintjs/table": "^3.8.26",
+        "@testing-library/jest-dom": "^5.11.4",
+        "@testing-library/react": "^11.1.0",
+        "@testing-library/user-event": "^12.1.10",
+        "@types/dagre": "^0.7.44",
+        "@types/jest": "^26.0.15",
+        "@types/react": "^17.0.0",
+        "@types/react-csv": "^1.1.1",
+        "@types/react-dom": "^17.0.0",
+        "@types/react-router-dom": "^5.1.7",
+        "@types/react-table": "^7.0.29",
+        "@types/uuid": "^8.3.0",
+        "common": "^0.2.7",
+        "dagre": "^0.8.5",
+        "echarts": "^5.1.1",
+        "echarts-for-react": "^3.0.1",
+        "fuse.js": "^6.4.6",
+        "react": "^17.0.1",
+        "react-copy-to-clipboard": "^5.0.3",
+        "react-csv": "^2.0.3",
+        "react-dom": "^17.0.1",
+        "react-query": "^3.16.0",
+        "react-router-dom": "^5.2.0",
+        "react-scripts": "4.0.3",
+        "react-syntax-highlighter": "^15.4.3",
+        "react-table": "^7.6.3",
+        "rudder-sdk-js": "^1.0.16",
+        "typescript": "^4.1.2",
+        "uuid": "^8.3.2",
+        "web-vitals": "^1.0.1"
+    },
+    "scripts": {
+        "start": "react-scripts start",
+        "build": "react-scripts build",
+        "test": "react-scripts test",
+        "eject": "react-scripts eject"
+    },
+    "eslintConfig": {
+        "extends": [
+            "react-app",
+            "react-app/jest"
+        ]
+    },
+    "browserslist": {
+        "production": [
+            ">0.2%",
+            "not dead",
+            "not op_mini all"
+        ],
+        "development": [
+            "last 1 chrome version",
+            "last 1 firefox version",
+            "last 1 safari version"
+        ]
+    },
+    "devDependencies": {
+        "@types/react-copy-to-clipboard": "^5.0.0",
+        "@types/react-syntax-highlighter": "^13.5.1",
+        "@typescript-eslint/eslint-plugin": "^4.4.1",
+        "eslint": "^7.29.0",
+        "eslint-config-airbnb": "^18.2.1",
+        "eslint-config-airbnb-typescript": "^12.3.1",
+        "eslint-config-prettier": "^8.3.0",
+        "eslint-plugin-css-modules": "^2.11.0",
+        "eslint-plugin-import": "^2.23.4",
+        "eslint-plugin-json": "^3.0.0",
+        "eslint-plugin-jsx-a11y": "^6.4.1",
+        "eslint-plugin-prettier": "^3.4.0",
+        "eslint-plugin-react": "^7.24.0",
+        "eslint-plugin-react-hooks": "^4.2.0",
+        "prettier": "^2.3.2"
+    }
 }

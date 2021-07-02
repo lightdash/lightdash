@@ -1,8 +1,7 @@
-import {DbtBaseProjectAdapter} from "./dbtBaseProjectAdapter";
-import {Explore} from "common";
+import { Explore } from 'common';
+import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
 export class DbtRemoteProjectAdapter extends DbtBaseProjectAdapter {
-
     constructor(host: string, port: number) {
         super(`http://${host}:${port}/jsonrpc`);
     }
@@ -10,5 +9,4 @@ export class DbtRemoteProjectAdapter extends DbtBaseProjectAdapter {
     public async compileAllExplores(): Promise<Explore[]> {
         return super.compileAllExplores(false);
     }
-
 }
