@@ -18,7 +18,8 @@ import { RefreshButton } from './RefreshButton';
 import { useExploreConfig } from '../hooks/useExploreConfig';
 
 const hexToRGB = (hex: string, alpha: number) => {
-    const h = parseInt(`0x${hex.substring(1)}`, 10);
+    // eslint-disable-next-line radix
+    const h = parseInt(`0x${hex.substring(1)}`);
     // eslint-disable-next-line no-bitwise
     const r = (h >> 16) & 0xff;
     // eslint-disable-next-line no-bitwise
