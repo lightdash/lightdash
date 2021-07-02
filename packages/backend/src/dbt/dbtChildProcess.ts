@@ -63,7 +63,7 @@ export class DbtChildProcess {
 
             this.dbtChildProcess.stdout?.on('data', (data) => {
                 try {
-                    const message = data.toString('utf8');
+                    const message = data.toString();
                     const payload = JSON.parse(message);
                     this._storeErrorMessage(payload);
                     if (this._logMessageShowsServerReady(payload)) {
@@ -72,7 +72,7 @@ export class DbtChildProcess {
                 }
                 catch (e) {
                     console.log('Cannot parse message from dbt');
-                    console.log(data.toString('utf8'))
+                    console.log(data.toString())
                 }
             })
         });
