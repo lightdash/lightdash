@@ -225,10 +225,9 @@ const convertTableWithSources = (
                 }
                 const metricSource: Source = {
                     path: model.patch_path,
-                    range: metricRange,
-                    content: lines
-                        .slice(metricRange.start.line, metricRange.end.line + 1)
-                        .join('\r\n'),
+                    range: dimensionSource.range,
+                    highlight: metricRange,
+                    content: dimensionSource.content,
                 };
 
                 return {
