@@ -1,0 +1,32 @@
+name: Test and build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install modules
+      run: yarn
+      
+    - name: Lint all packages
+      run: yarn list
+    - name: Check formatting all packages
+      run: yarn format
+
+    - name: Build common
+      run: yarn common-build
+
+    - name: Test backend
+      run: yarn workspace backend test
+      
+    - name: Build the Docker image
+      run: docker build . --file dockerfile --tag lightdash:$(date +%s)
