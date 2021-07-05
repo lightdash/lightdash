@@ -79,10 +79,11 @@ export class DbtChildProcess {
             this.dbtChildProcess.stdout?.on('data', (data) => {
                 try {
                     const messages: string[] = data.toString().split(/\r?\n/);
+                    const nonEmptyMessages = messages.filter((s) => s !== '');
 
-                    const isServerReady = messages.reduce(
+                    const isServerReady = nonEmptyMessages.reduce(
                         (isReady, message) => {
-                            const payload = JSON.parse(message);
+                            const payload = JSON.parse(message || '{}');
                             this._storeErrorMessage(payload);
                             return DbtChildProcess._logMessageShowsServerReady(
                                 payload,
@@ -95,6 +96,7 @@ export class DbtChildProcess {
                         resolve();
                     }
                 } catch (e) {
+                    // Note: assume any log that isn't json parse-able from dbt is an error
                     console.log('Cannot parse message from dbt:', e.message);
                     console.log(data.toString());
                     reject(
@@ -109,7 +111,7 @@ export class DbtChildProcess {
     }
 
     public async restart() {
-        this.dbtChildProcess?.kill(2); // .kill(2) interrupts without auto-restart
+        this.dbtChildProcess?.kill(2); // .kill(2) sends SIGINT - kills dbt process without auto-restart
         await this._start();
     }
 }
