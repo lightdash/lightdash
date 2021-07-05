@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Fixed
+- Fix bug where the dbt child process handler couldn't handle event with multiple logs
 
 ## [0.3.0] - 2021-07-05
 ### Added
