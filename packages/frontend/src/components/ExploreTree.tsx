@@ -100,6 +100,20 @@ const SourceDialog: FC<{ source: Source; onClose: () => void }> = ({
                     showLineNumbers
                     startingLineNumber={source.range.start.line}
                     style={a11yDark}
+                    wrapLines
+                    lineProps={(lineNumber) =>
+                        source.highlight &&
+                        lineNumber >= source.highlight?.start.line &&
+                        lineNumber <= source.highlight?.end.line
+                            ? {
+                                  style: {
+                                      background: 'rgba(252, 254, 120, 0.3)',
+                                      display: 'block',
+                                      width: '100%',
+                                  },
+                              }
+                            : {}
+                    }
                 >
                     {source.content}
                 </SyntaxHighlighter>

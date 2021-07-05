@@ -33,6 +33,10 @@ export type Source = {
         start: SourcePosition;
         end: SourcePosition;
     };
+    highlight?: {
+        start: SourcePosition;
+        end: SourcePosition;
+    };
     content: string;
 };
 
