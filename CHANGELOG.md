@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+
+## [0.3.0] - 2021-07-05
 ### Added
  - Add options menu for each table/dimension/metric
  - Add dialog with the relative file path and code relevant for each table/dimension/metric
