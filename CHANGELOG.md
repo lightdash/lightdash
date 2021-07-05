@@ -17,6 +17,7 @@ Recent and upcoming changes to lightdash
  - UI Intraction sidebar menu hierarchy makes it hard to read
  - UI bug where small scroll flicker happens while configure charts
  - UI bug where the metric description was concatenating the dimension description instead of the dimension name
+ - Show specific error when GCP credentials are missing instead of timeout
 
 ## [0.2.7] - 2021-06-28
 ### Added
