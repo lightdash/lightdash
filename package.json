@@ -1,6 +1,6 @@
 {
   "name": "lightdash",
-  "version": "0.2.7",
+  "version": "0.3.0",
   "main": "index.js",
   "license": "MIT",
   "private": true,
@@ -37,8 +37,17 @@
     "prepare": "husky install"
   },
   "lint-staged": {
-    "packages/frontend/src/**/*.(ts|tsx|json)": ["yarn workspace frontend prettier --write --ignore-unknown", "yarn workspace frontend eslint --fix"],
-    "packages/backend/src/**/*.(ts|tsx|json)": ["yarn workspace backend prettier --write --ignore-unknown", "yarn workspace backend eslint --fix"],
-    "packages/common/src/**/*.(ts|tsx|json)": ["yarn workspace common prettier --write --ignore-unknown", "yarn workspace common eslint --fix"]
+    "packages/frontend/src/**/*.(ts|tsx|json)": [
+      "yarn workspace frontend prettier --write --ignore-unknown",
+      "yarn workspace frontend eslint --fix"
+    ],
+    "packages/backend/src/**/*.(ts|tsx|json)": [
+      "yarn workspace backend prettier --write --ignore-unknown",
+      "yarn workspace backend eslint --fix"
+    ],
+    "packages/common/src/**/*.(ts|tsx|json)": [
+      "yarn workspace common prettier --write --ignore-unknown",
+      "yarn workspace common eslint --fix"
+    ]
   }
 }
