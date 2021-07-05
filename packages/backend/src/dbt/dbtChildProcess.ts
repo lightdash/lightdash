@@ -34,11 +34,10 @@ export class DbtChildProcess {
         }
     }
 
-    private static _logMessageShowsServerReady(payload: { message?: string }) {
-        if (payload.message) {
-            return payload.message.startsWith('Send requests to ');
-        }
-        return false;
+    private static _logMessageShowsServerReady(payload: {
+        message?: string;
+    }): boolean {
+        return !!payload.message?.startsWith('Send requests to ');
     }
 
     public isProcessLive(): boolean {
@@ -79,15 +78,31 @@ export class DbtChildProcess {
 
             this.dbtChildProcess.stdout?.on('data', (data) => {
                 try {
-                    const message = data.toString();
-                    const payload = JSON.parse(message);
-                    this._storeErrorMessage(payload);
-                    if (DbtChildProcess._logMessageShowsServerReady(payload)) {
+                    const messages: string[] = data.toString().split(/\r?\n/);
+
+                    const isServerReady = messages.reduce(
+                        (isReady, message) => {
+                            const payload = JSON.parse(message);
+                            this._storeErrorMessage(payload);
+                            return DbtChildProcess._logMessageShowsServerReady(
+                                payload,
+                            );
+                        },
+                        false,
+                    );
+
+                    if (isServerReady) {
                         resolve();
                     }
                 } catch (e) {
-                    console.log('Cannot parse message from dbt');
+                    console.log('Cannot parse message from dbt:', e.message);
                     console.log(data.toString());
+                    reject(
+                        new DbtError('Cannot parse message from dbt:', {
+                            error: e,
+                            event: data.toString(),
+                        }),
+                    );
                 }
             });
         });
