@@ -21,6 +21,7 @@ import {
     Menu,
     MenuItem,
     PopoverPosition,
+    FormGroup,
 } from '@blueprintjs/core';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import Fuse from 'fuse.js';
@@ -72,20 +73,27 @@ const SourceDialog: FC<{ source: Source; onClose: () => void }> = ({
                     intent="success"
                     position={PopoverPosition.RIGHT}
                 >
-                    <InputGroup
-                        readOnly
-                        type="text"
-                        defaultValue={source.path}
-                        rightElement={
-                            <CopyToClipboard
-                                text={source.path}
-                                options={{ message: 'Copied!' }}
-                                onCopy={() => setCopied(true)}
-                            >
-                                <Button minimal icon="clipboard" />
-                            </CopyToClipboard>
-                        }
-                    />
+                    <FormGroup
+                        label="Path to schema file:"
+                        labelFor="source-path"
+                        inline
+                    >
+                        <InputGroup
+                            readOnly
+                            id="source-path"
+                            type="text"
+                            defaultValue={source.path}
+                            rightElement={
+                                <CopyToClipboard
+                                    text={source.path}
+                                    options={{ message: 'Copied!' }}
+                                    onCopy={() => setCopied(true)}
+                                >
+                                    <Button minimal icon="clipboard" />
+                                </CopyToClipboard>
+                            }
+                        />
+                    </FormGroup>
                 </Tooltip2>
                 <SyntaxHighlighter
                     language="yml"
