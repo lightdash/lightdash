@@ -49,6 +49,16 @@ export class DbtRpcClient {
                 `Error returned from dbt while executing method '${method}'`,
                 data.result.error,
             );
+        else if (
+            data.result?.logs?.some(
+                (log: any) => log.message === 'Please log into GCP to continue',
+            )
+        ) {
+            throw new DbtError(
+                `Lightdash cannot connect to dbt because of missing GCP credentials. This error happened because your profiles.yml contains a bigquery profile with method: oauth`,
+                {},
+            );
+        }
         return data;
     }
 
