@@ -3,6 +3,9 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Added
+- Allow users to download the chart as JPEG, PNG, SVG, PDF
+
 ### Fixed
  - Fix bug where environment variables for lightdash.yml where ignored
 
