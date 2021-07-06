@@ -1,5 +1,5 @@
 import EChartsReact from 'echarts-for-react';
-import React from 'react';
+import React, { RefObject, FC } from 'react';
 import { friendlyName } from 'common';
 import { NonIdealState } from '@blueprintjs/core';
 import { ChartConfig } from '../hooks/useChartConfig';
@@ -49,10 +49,15 @@ const EmptyChart = () => (
 );
 
 type SimpleChartProps = {
+    chartRef: RefObject<EChartsReact>;
     chartType: ChartType;
     chartConfig: ChartConfig;
 };
-export const SimpleChart = ({ chartType, chartConfig }: SimpleChartProps) => {
+export const SimpleChart: FC<SimpleChartProps> = ({
+    chartRef,
+    chartType,
+    chartConfig,
+}) => {
     if (chartConfig.plotData === undefined) return <EmptyChart />;
     const xlabel = friendlyName(chartConfig.seriesLayout.xDimension);
     const ylabel =
@@ -98,7 +103,12 @@ export const SimpleChart = ({ chartType, chartConfig }: SimpleChartProps) => {
     };
     return (
         <div style={{ padding: 10 }}>
-            <EChartsReact option={options} notMerge />
+            <EChartsReact
+                ref={chartRef}
+                option={options}
+                notMerge
+                opts={{ renderer: 'svg' }}
+            />
         </div>
     );
 };

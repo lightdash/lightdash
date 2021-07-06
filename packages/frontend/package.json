@@ -24,6 +24,7 @@
         "echarts": "^5.1.1",
         "echarts-for-react": "^3.0.1",
         "fuse.js": "^6.4.6",
+        "jspdf": "^2.3.1",
         "react": "^17.0.1",
         "react-copy-to-clipboard": "^5.0.3",
         "react-csv": "^2.0.3",

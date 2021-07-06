@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
     Button,
     ButtonGroup,
@@ -9,6 +9,7 @@ import {
     NumericInput,
     Tag,
 } from '@blueprintjs/core';
+import EChartsReact from 'echarts-for-react';
 import { FiltersForm } from '../filters/FiltersForm';
 import { useExploreConfig } from '../hooks/useExploreConfig';
 import { ResultsTable } from './ResultsTable';
@@ -19,8 +20,10 @@ import { RefreshButton } from './RefreshButton';
 import { ChartConfigPanel } from './ChartConfigPanel';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useChartConfig } from '../hooks/useChartConfig';
+import { ChartDownloadMenu } from './ChartDownload';
 
 export const Explorer = () => {
+    const chartRef = useRef<EChartsReact>(null);
     const { activeFilters, resultsRowLimit, setResultsRowLimit } =
         useExploreConfig();
     // queryResults are used here for prop-drill because the keepPreviousData: true option doesn't persist when
@@ -137,11 +140,16 @@ export const Explorer = () => {
                                 chartConfig={chartConfig}
                                 disabled={isChartEmpty}
                             />
+                            <ChartDownloadMenu
+                                chartRef={chartRef}
+                                disabled={isChartEmpty}
+                            />
                         </ButtonGroup>
                     )}
                 </div>
                 <Collapse isOpen={vizIsOpen}>
                     <SimpleChart
+                        chartRef={chartRef}
                         chartType={activeVizTab}
                         chartConfig={chartConfig}
                     />

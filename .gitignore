@@ -8,6 +8,9 @@
 # testing
 /coverage
 
+# development
+lightdash_dev.yml
+
 # production
 /packages/frontend/build
 /packages/common/dist
