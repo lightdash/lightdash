@@ -5,6 +5,7 @@ Recent and upcoming changes to lightdash
 ## Unreleased
 ### Fixed
  - Fix bug where environment variables for lightdash.yml where ignored
+ - Fix error where quote characters in generated sql strings were incorrectly determined for some unofficial dbt adapters
 
 ## [0.3.1] - 2021-07-05
 ### Fixed
