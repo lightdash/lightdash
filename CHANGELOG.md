@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Added
+ - Add date filters
 
 ## [0.3.2] - 2021-07-07
 ### Added

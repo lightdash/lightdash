@@ -18,6 +18,10 @@ import {
     defaultValuesForNewNumberFilter,
     NumberFilterGroupForm,
 } from './NumberFilterForm';
+import {
+    defaultValuesForNewDateFilter,
+    DateFilterGroupForm,
+} from './DateFilterForm';
 import { useExploreConfig } from '../hooks/useExploreConfig';
 import { useTable } from '../hooks/useTable';
 
@@ -47,6 +51,13 @@ const FilterGroupForm = ({
         case 'number':
             return (
                 <NumberFilterGroupForm
+                    filterGroup={filterGroup}
+                    onChange={onChange}
+                />
+            );
+        case 'date':
+            return (
+                <DateFilterGroupForm
                     filterGroup={filterGroup}
                     onChange={onChange}
                 />
@@ -96,7 +107,7 @@ const AddFilterGroup = () => {
 
         // Add a default filter group as a placeholder for the new filter group
         const dimensionType = dimension.type;
-        switch (dimension.type) {
+        switch (dimensionType) {
             case DimensionType.STRING:
                 onAdd({
                     type: 'string',
@@ -115,9 +126,18 @@ const AddFilterGroup = () => {
                     filters: [defaultValuesForNewNumberFilter.equals], // Default empty equals filter
                 });
                 break;
+            case DimensionType.DATE:
+                onAdd({
+                    type: 'date',
+                    tableName: dimension.table,
+                    fieldName: dimension.name,
+                    operator: FilterGroupOperator.and,
+                    filters: [defaultValuesForNewDateFilter.equals], // Default empty equals filter
+                });
+                break;
             default:
-                // eslint-disable-next-line
-                const _nope: never = dimension;
+                // eslint-disable-next-line no-case-declarations
+                const nope: never = dimensionType;
                 throw Error(
                     `No default filter group implemented for filter group with type ${dimensionType}`,
                 );

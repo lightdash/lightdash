@@ -1218,6 +1218,17 @@
     resize-observer-polyfill "^1.5.1"
     tslib "~1.13.0"
 
+"@blueprintjs/datetime@^3.23.5":
+  version "3.23.5"
+  resolved "https://registry.yarnpkg.com/@blueprintjs/datetime/-/datetime-3.23.5.tgz#720c6e3718278ea24a57e94a080db4ec8710f317"
+  integrity sha512-akSG8xzF3rk4tuLav5woqMK7hwmINiwRCCzG9hZfUtLLBhhcKXHRPKIore2a83YJSNyjNG4DmRtTgy8W5XnUuQ==
+  dependencies:
+    "@blueprintjs/core" "^3.46.0"
+    classnames "^2.2"
+    react-day-picker "7.4.9"
+    react-lifecycles-compat "^3.0.4"
+    tslib "~1.13.0"
+
 "@blueprintjs/icons@^3.27.0":
   version "3.27.0"
   resolved "https://registry.yarnpkg.com/@blueprintjs/icons/-/icons-3.27.0.tgz#f4c03e8bc2f9310f7eaefaab26dd91f65935da43"
@@ -10879,6 +10890,13 @@ react-csv@^2.0.3:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/react-csv/-/react-csv-2.0.3.tgz#f5d17a3c71107d9bcbe580049350200debdc042a"
   integrity sha512-exyAdFLAxtuM4wNwLYrlKyPYLiJ7e0mv9tqPAd3kq+k1CiJFtznevR3yP0icv5q/y200w+lzNgi7TQn1Wrhu0w==
+
+react-day-picker@7.4.9:
+  version "7.4.9"
+  resolved "https://registry.yarnpkg.com/react-day-picker/-/react-day-picker-7.4.9.tgz#ab556df9e838caa5bc988e55d1cb15318564149e"
+  integrity sha512-CcXf0p7p6gTYnG0+n/4wNGljZuQDXl4HhgcxsXB0nX+8D4LnRho9EclPA/aLz4WlvvVpfY+AEgj2ylgPj4nm/g==
+  dependencies:
+    prop-types "^15.6.2"
 
 react-dev-utils@^11.0.3:
   version "11.0.4"
