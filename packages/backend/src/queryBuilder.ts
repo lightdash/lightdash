@@ -139,6 +139,16 @@ const getMetricFromId = (metricId: FieldId, explore: Explore) => {
     return metric;
 };
 
+const getQuoteChar = (quotedExample: string): string => {
+    const char = quotedExample.slice(0, 1);
+    switch (char) {
+        case '"':
+            return '"';
+        default:
+            return '`';
+    }
+};
+
 export type BuildQueryProps = {
     explore: Explore;
     metricQuery: MetricQuery;
@@ -147,7 +157,7 @@ export const buildQuery = ({ explore, metricQuery }: BuildQueryProps) => {
     const { dimensions, metrics, filters, sorts, limit } = metricQuery;
     const baseTable = explore.tables[explore.baseTable].sqlTable;
     const sqlFrom = `FROM ${baseTable} AS ${explore.baseTable}`;
-    const q = baseTable.slice(0, 1); // quote char
+    const q = getQuoteChar(baseTable); // quote char
 
     const sqlJoins = explore.joinedTables
         .map((join) => {
