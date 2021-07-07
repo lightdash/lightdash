@@ -1,10 +1,12 @@
 import {
+    DateFilter,
     Explore,
     fieldId,
     FieldId,
     fieldIdFromFilterGroup,
     FilterGroup,
     FilterGroupOperator,
+    formatDate,
     getDimensions,
     getMetrics,
     MetricQuery,
@@ -74,6 +76,36 @@ const renderNumberFilterSql = (
     }
 };
 
+const renderDateFilterSql = (
+    dimensionSql: string,
+    filter: DateFilter,
+): string => {
+    const filterType = filter.operator;
+    switch (filter.operator) {
+        case 'equals':
+            return `(${dimensionSql}) = ('${formatDate(filter.value)}')`;
+        case 'notEquals':
+            return `(${dimensionSql}) != ('${formatDate(filter.value)}')`;
+        case 'isNull':
+            return `(${dimensionSql}) IS NULL`;
+        case 'notNull':
+            return `(${dimensionSql}) IS NOT NULL`;
+        case 'greaterThan':
+            return `(${dimensionSql}) > ('${formatDate(filter.value)}')`;
+        case 'greaterThanOrEqual':
+            return `(${dimensionSql}) >= ('${formatDate(filter.value)}')`;
+        case 'lessThan':
+            return `(${dimensionSql}) < ('${formatDate(filter.value)}')`;
+        case 'lessThanOrEqual':
+            return `(${dimensionSql}) <= ('${formatDate(filter.value)}')`;
+        default:
+            const nope: never = filter;
+            throw Error(
+                `No function implemented to render sql for filter type ${filterType} on dimension of string type`,
+            );
+    }
+};
+
 const renderFilterGroupSql = (
     filterGroup: FilterGroup,
     explore: Explore,
@@ -108,6 +140,19 @@ const renderFilterGroupSql = (
                     .join(`\n   ${operator} `);
             throw new Error(
                 `NumberFilterGroup has a reference to an unknown number field ${fieldIdFromFilterGroup(
+                    filterGroup,
+                )}`,
+            );
+        case 'date':
+            if (dimension?.type === 'date') {
+                return filterGroup.filters
+                    .map((filter) =>
+                        renderDateFilterSql(dimension.compiledSql, filter),
+                    )
+                    .join(`\n   ${operator} `);
+            }
+            throw new Error(
+                `DateFilterGroup has a reference to an unknown date field ${fieldIdFromFilterGroup(
                     filterGroup,
                 )}`,
             );

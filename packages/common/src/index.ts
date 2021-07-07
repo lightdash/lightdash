@@ -102,14 +102,6 @@ export interface Dimension extends Field {
     type: DimensionType;
 }
 
-interface StringDimension extends Dimension {
-    type: DimensionType.STRING;
-}
-
-interface NumberDimension extends Dimension {
-    type: DimensionType.NUMBER;
-}
-
 export interface CompiledDimension extends Dimension {
     compiledSql: string; // sql string with resolved template variables
 }
@@ -211,17 +203,58 @@ export type NumberFilter =
     | { operator: 'isNull' }
     | { operator: 'notNull' };
 
-export type FilterGroup = StringFilterGroup | NumberFilterGroup;
+export type DateFilterGroup = {
+    type: 'date';
+    tableName: string;
+    fieldName: string;
+    operator: FilterGroupOperator;
+    filters: DateFilter[];
+};
+
+export type DateFilter =
+    | { operator: 'equals'; value: Date }
+    | { operator: 'notEquals'; value: Date }
+    | { operator: 'greaterThan'; value: Date }
+    | { operator: 'greaterThanOrEqual'; value: Date }
+    | { operator: 'lessThan'; value: Date }
+    | { operator: 'lessThanOrEqual'; value: Date }
+    | { operator: 'isNull' }
+    | { operator: 'notNull' };
+
+export type FilterGroup =
+    | StringFilterGroup
+    | NumberFilterGroup
+    | DateFilterGroup;
+
+export function formatDate(date: Date) {
+    const d = new Date(date);
+    let month = `${d.getMonth() + 1}`;
+    let day = `${d.getDate()}`;
+    const year = d.getFullYear();
+
+    if (month.length < 2) month = `0${month}`;
+    if (day.length < 2) day = `0${day}`;
+
+    return [year, month, day].join('-');
+}
+
+export function parseDate(formattedDate: string) {
+    return new Date(formattedDate);
+}
 
 export const fieldIdFromFilterGroup = (fg: FilterGroup) =>
     `${fg.tableName}_${fg.fieldName}`;
 
-export type FilterableDimension = StringDimension | NumberDimension;
+export interface FilterableDimension extends Dimension {
+    type: DimensionType.STRING | DimensionType.NUMBER | DimensionType.DATE;
+}
 
 const isFilterableDimension = (
     dimension: Dimension,
 ): dimension is FilterableDimension =>
-    [DimensionType.STRING, DimensionType.NUMBER].includes(dimension.type);
+    [DimensionType.STRING, DimensionType.NUMBER, DimensionType.DATE].includes(
+        dimension.type,
+    );
 
 export const filterableDimensionsOnly = (
     dimensions: Dimension[],

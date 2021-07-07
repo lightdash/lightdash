@@ -37,7 +37,7 @@
     "prepare": "husky install"
   },
   "lint-staged": {
-    "packages/frontend/src/**/*.(ts|tsx|json)": [
+    "packages/frontend/src/**/*.(ts|tsx|json|css)": [
       "yarn workspace frontend prettier --write --ignore-unknown",
       "yarn workspace frontend eslint --fix"
     ],
