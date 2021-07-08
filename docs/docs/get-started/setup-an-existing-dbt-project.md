@@ -68,11 +68,15 @@ You must modify your `profiles.yml` file to connect to a local database (e.g. po
 * Your new dbt `profiles.yml` location `~/.lightdash`
 * A port to expose Lightdash on. By default we use `8080`.
 
+**Set your variables (you only need to do this the first time you launch Lightdash!):**
 ```shell
 export DBT_PROJECT_DIR=${PWD}
 export DBT_PROFILES_DIR=${HOME}/.lightdash
 export LIGHTDASH_PORT=8080
+```
 
+**Launch Lightdash:**
+```
 docker run -it -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" -v lightdash/lightdash
 ```
 
@@ -85,12 +89,16 @@ Launch Lightdash with docker, which accepts the following options:
 * If your [bigquery profile](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile) uses `method: oauth` you need to know your gcloud sdk config location. By default we use `${HOME}/.config/gcloud`.
 * A port to expose Lightdash on. By default we use `8080`.
 
+**Set your variables (you only need to do this the first time you launch Lightdash!):**
 ```shell
 export DBT_PROJECT_DIR=${PWD}
 export DBT_PROFILES_DIR=${HOME}/.dbt
 export GCLOUD_CONFIG_DIR=${HOME}/.config/gcloud
 export LIGHTDASH_PORT=8080
+```
 
+**Launch Lightdash:**
+```shell
 docker run -it -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" -v "${GCLOUD_CONFIG_DIR}:/root/.config/gcloud" lightdash/lightdash
 ```
 
@@ -102,11 +110,15 @@ Launch Lightdash with docker, which accepts the following options:
 * Your dbt `profiles.yml` location, by default we use `${HOME}/.dbt` if you know that it's different please update this value below
 * A port to expose Lightdash on. By default we use `8080`.
 
+**Set your variables (you only need to do this the first time you launch Lightdash!):**
 ```shell
 export DBT_PROJECT_DIR=${PWD}
 export DBT_PROFILES_DIR=${HOME}/.dbt
 export LIGHTDASH_PORT=8080
+```
 
+**Launch Lightdash:**
+```
 docker run -it -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" lightdash/lightdash
 ```
 
