@@ -1,3 +1,17 @@
+import moment from 'moment';
+
+const DATE_FORMAT = 'YYYY-MM-DD';
+export const formatDate = (date: Date): string =>
+    moment(date).format(DATE_FORMAT);
+export const parseDate = (str: string): Date =>
+    moment(str, DATE_FORMAT).toDate();
+
+const TIMESTAMP_FORMAT = 'YYYY-MM-DD HH:mm:ss';
+export const formatTimestamp = (date: Date): string =>
+    moment(date).format(TIMESTAMP_FORMAT);
+export const parseTimestamp = (str: string): Date =>
+    moment(str, TIMESTAMP_FORMAT).toDate();
+
 export type Explore = {
     name: string; // Friendly name any characters
     baseTable: string; // Must match a tableName in tables
@@ -208,10 +222,18 @@ export type DateFilterGroup = {
     tableName: string;
     fieldName: string;
     operator: FilterGroupOperator;
-    filters: DateFilter[];
+    filters: DateAndTimestampFilter[];
 };
 
-export type DateFilter =
+export type TimestampFilterGroup = {
+    type: 'timestamp';
+    tableName: string;
+    fieldName: string;
+    operator: FilterGroupOperator;
+    filters: DateAndTimestampFilter[];
+};
+
+export type DateAndTimestampFilter =
     | { operator: 'equals'; value: Date }
     | { operator: 'notEquals'; value: Date }
     | { operator: 'greaterThan'; value: Date }
@@ -224,37 +246,29 @@ export type DateFilter =
 export type FilterGroup =
     | StringFilterGroup
     | NumberFilterGroup
+    | TimestampFilterGroup
     | DateFilterGroup;
-
-export function formatDate(date: Date) {
-    const d = new Date(date);
-    let month = `${d.getMonth() + 1}`;
-    let day = `${d.getDate()}`;
-    const year = d.getFullYear();
-
-    if (month.length < 2) month = `0${month}`;
-    if (day.length < 2) day = `0${day}`;
-
-    return [year, month, day].join('-');
-}
-
-export function parseDate(formattedDate: string) {
-    return new Date(formattedDate);
-}
 
 export const fieldIdFromFilterGroup = (fg: FilterGroup) =>
     `${fg.tableName}_${fg.fieldName}`;
 
 export interface FilterableDimension extends Dimension {
-    type: DimensionType.STRING | DimensionType.NUMBER | DimensionType.DATE;
+    type:
+        | DimensionType.STRING
+        | DimensionType.NUMBER
+        | DimensionType.DATE
+        | DimensionType.TIMESTAMP;
 }
 
 const isFilterableDimension = (
     dimension: Dimension,
 ): dimension is FilterableDimension =>
-    [DimensionType.STRING, DimensionType.NUMBER, DimensionType.DATE].includes(
-        dimension.type,
-    );
+    [
+        DimensionType.STRING,
+        DimensionType.NUMBER,
+        DimensionType.DATE,
+        DimensionType.TIMESTAMP,
+    ].includes(dimension.type);
 
 export const filterableDimensionsOnly = (
     dimensions: Dimension[],

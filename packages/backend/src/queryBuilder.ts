@@ -1,5 +1,5 @@
 import {
-    DateFilter,
+    DateAndTimestampFilter,
     Explore,
     fieldId,
     FieldId,
@@ -7,6 +7,7 @@ import {
     FilterGroup,
     FilterGroupOperator,
     formatDate,
+    formatTimestamp,
     getDimensions,
     getMetrics,
     MetricQuery,
@@ -78,26 +79,27 @@ const renderNumberFilterSql = (
 
 const renderDateFilterSql = (
     dimensionSql: string,
-    filter: DateFilter,
+    filter: DateAndTimestampFilter,
+    dateFormatter = formatDate,
 ): string => {
     const filterType = filter.operator;
     switch (filter.operator) {
         case 'equals':
-            return `(${dimensionSql}) = ('${formatDate(filter.value)}')`;
+            return `(${dimensionSql}) = ('${dateFormatter(filter.value)}')`;
         case 'notEquals':
-            return `(${dimensionSql}) != ('${formatDate(filter.value)}')`;
+            return `(${dimensionSql}) != ('${dateFormatter(filter.value)}')`;
         case 'isNull':
             return `(${dimensionSql}) IS NULL`;
         case 'notNull':
             return `(${dimensionSql}) IS NOT NULL`;
         case 'greaterThan':
-            return `(${dimensionSql}) > ('${formatDate(filter.value)}')`;
+            return `(${dimensionSql}) > ('${dateFormatter(filter.value)}')`;
         case 'greaterThanOrEqual':
-            return `(${dimensionSql}) >= ('${formatDate(filter.value)}')`;
+            return `(${dimensionSql}) >= ('${dateFormatter(filter.value)}')`;
         case 'lessThan':
-            return `(${dimensionSql}) < ('${formatDate(filter.value)}')`;
+            return `(${dimensionSql}) < ('${dateFormatter(filter.value)}')`;
         case 'lessThanOrEqual':
-            return `(${dimensionSql}) <= ('${formatDate(filter.value)}')`;
+            return `(${dimensionSql}) <= ('${dateFormatter(filter.value)}')`;
         default:
             const nope: never = filter;
             throw Error(
@@ -148,6 +150,23 @@ const renderFilterGroupSql = (
                 return filterGroup.filters
                     .map((filter) =>
                         renderDateFilterSql(dimension.compiledSql, filter),
+                    )
+                    .join(`\n   ${operator} `);
+            }
+            throw new Error(
+                `DateFilterGroup has a reference to an unknown date field ${fieldIdFromFilterGroup(
+                    filterGroup,
+                )}`,
+            );
+        case 'timestamp':
+            if (dimension?.type === 'timestamp') {
+                return filterGroup.filters
+                    .map((filter) =>
+                        renderDateFilterSql(
+                            dimension.compiledSql,
+                            filter,
+                            formatTimestamp,
+                        ),
                     )
                     .join(`\n   ${operator} `);
             }
