@@ -25,12 +25,23 @@ Check docker is running by this in your terminal:
 docker info
 
 # If the output shows:
-# > Server: 
+# > Server:
 # >   ERROR...
 # then docker isn't running
 ```
 
-## 2. Open your dbt project in a terminal
+## 2. Clone the Lightdash repository
+
+Clone the Lightdash code to your local machine. This will create a new directory called `./lightdash` (the Lightdash directory).
+
+```bash
+# Clone the Lightdash repo
+git clone --recurse-submodules https://github.com/lightdash/lightdash
+
+# A new directory called "lightdash" should appear
+```
+
+## 3. Open your dbt project in a terminal
 
 Navigate to the dbt project you want to explore with Lightdash
 
@@ -39,18 +50,18 @@ Navigate to the dbt project you want to explore with Lightdash
 cd /path/to/my/dbt/project
 
 # List the files, it should contain your dbt_project.yml
-ls 
+ls
 # > dbt_project.yml
 ```
 
-## 3. Start Lightdash service
+## 4. Start Lightdash service
 
 ### For users using a local database
 
 You must modify your `profiles.yml` file to connect to a local database (e.g. postgres running on your laptop).
 
 1. Copy your profiles directory. For example if your `profiles.yml` is at `~/.dbt/profiles.yml` run `cp ~/.dbt ~/.lightdash`
-2. Edit `~/.lightdash/profiles.yml` by replacing `localhost` with `host.docker.internal`. These usually appear under the `host:` field. 
+2. Edit `~/.lightdash/profiles.yml` by replacing `localhost` with `host.docker.internal`. These usually appear under the `host:` field.
 3. Launch Lightdash with docker, which accepts the following options:
 
 * Your dbt project location, we set this to the current directory `${PWD}`
@@ -99,7 +110,7 @@ export LIGHTDASH_PORT=8080
 docker run -it -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" lightdash/lightdash
 ```
 
-## 4. Launch the Lightdash app
+## 5. Launch the Lightdash app
 
 When you see the following in your terminal, open up the app at [http://localhost:8080](http://localhost:8080).
 
