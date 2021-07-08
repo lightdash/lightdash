@@ -56,6 +56,7 @@ const FilterGroupForm = ({
                 />
             );
         case 'date':
+        case 'timestamp':
             return (
                 <DateFilterGroupForm
                     filterGroup={filterGroup}
@@ -129,6 +130,15 @@ const AddFilterGroup = () => {
             case DimensionType.DATE:
                 onAdd({
                     type: 'date',
+                    tableName: dimension.table,
+                    fieldName: dimension.name,
+                    operator: FilterGroupOperator.and,
+                    filters: [defaultValuesForNewDateFilter.equals], // Default empty equals filter
+                });
+                break;
+            case DimensionType.TIMESTAMP:
+                onAdd({
+                    type: 'timestamp',
                     tableName: dimension.table,
                     fieldName: dimension.name,
                     operator: FilterGroupOperator.and,
