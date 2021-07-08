@@ -36,7 +36,7 @@ Clone the Lightdash code to your local machine. This will create a new directory
 
 ```bash
 # Clone the Lightdash repo
-git clone --recurse-submodules https://github.com/lightdash/lightdash
+git clone git@github.com:lightdash/lightdash.git
 
 # A new directory called "lightdash" should appear
 ```
