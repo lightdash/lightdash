@@ -28,8 +28,12 @@
     "frontend-build": "yarn workspace frontend build",
     "frontend-lint": "yarn workspace frontend lint",
     "frontend-format": "yarn workspace frontend format",
-    "lint": "run-s common-lint backend-lint frontend-lint",
-    "format": "run-s common-format backend-format frontend-format",
+    "e2e-open": "yarn workspace e2e cypress:open",
+    "e2e-run": "yarn workspace e2e cypress:run",
+    "e2e-lint": "yarn workspace e2e lint",
+    "e2e-format": "yarn workspace e2e format",
+    "lint": "run-s common-lint backend-lint frontend-lint e2e-lint",
+    "format": "run-s common-format backend-format frontend-format e2e-format",
     "test": "run-s backend-test",
     "dev": "run-p backend-dev frontend-dev",
     "build": "run-p backend-build frontend-build",
@@ -48,6 +52,10 @@
     "packages/common/src/**/*.(ts|tsx|json)": [
       "yarn workspace common prettier --write --ignore-unknown",
       "yarn workspace common eslint --fix"
+    ],
+    "packages/e2e/src/**/*.(ts|json)": [
+      "yarn workspace e2e prettier --write --ignore-unknown",
+      "yarn workspace e2e eslint --fix"
     ]
   }
 }
