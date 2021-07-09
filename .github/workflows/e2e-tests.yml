@@ -14,9 +14,11 @@ jobs:
           regex_flags: 'gm'
           search_string: ${{github.event.deployment.environment}}
       - name: Get deployment url
-        uses: allenevans/set-env@v2.0.0
-        with:
+        id: deployment_url
+        env:
           DEPLOYMENT_URL: 'https://lightdash-pr-${{steps.regex.outputs.first_match}}.onrender.com'
+        run:
+          echo "::set-output name=url::$DEPLOYMENT_URL"
       - name: Checkout
         uses: actions/checkout@v2
       # Install NPM dependencies, cache them correctly
@@ -26,7 +28,7 @@ jobs:
         with:
           project: ./packages/e2e
           # Set the PR deployment url
-          config: 'baseUrl=${DEPLOYMENT_URL}'
+          config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
       # After the test run completes
       # store videos and any screenshots
       - uses: actions/upload-artifact@v1
