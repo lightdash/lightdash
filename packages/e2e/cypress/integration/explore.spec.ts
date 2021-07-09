@@ -1,5 +1,5 @@
-describe('Smoke Test', () => {
-    it('Query orders', () => {
+describe('Explore', () => {
+    it('Should query orders', () => {
         cy.visit('/');
 
         // Close query dev tools
