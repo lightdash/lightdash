@@ -1,0 +1,41 @@
+name: End-to-end tests
+on: [deployment_status]
+jobs:
+  cypress-run:
+    # if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Dump env context
+        env:
+          ENV_CONTEXT: ${{ toJSON(env) }}
+        run: echo "ENV_CONTEXT"
+      - name: Dump job context
+        env:
+          JOB_CONTEXT: ${{ toJSON(job) }}
+        run: echo "$JOB_CONTEXT"
+      - name: Dump runner context
+        env:
+          RUNNER_CONTEXT: ${{ toJSON(runner) }}
+        run: echo "$RUNNER_CONTEXT"
+      - name: Dump strategy context
+        env:
+          STRATEGY_CONTEXT: ${{ toJSON(strategy) }}
+        run: echo "$STRATEGY_CONTEXT"
+      - name: Checkout
+        uses: actions/checkout@v2
+      # Install NPM dependencies, cache them correctly
+      # and run all Cypress tests
+#      - name: Cypress run
+#        uses: cypress-io/github-action@v2
+#        with:
+#          project: ./packages/e2e
+#          # Set the PR deployment url
+#          config: pageLoadTimeout=100000,baseUrl=http://localhost:3000
+#      # After the test run completes
+#      # store videos and any screenshots
+#      # only on failures
+#      - uses: actions/upload-artifact@v1
+#        if: failure()
+#        with:
+#          name: cypress-screenshots
+#          path: cypress/screenshots
