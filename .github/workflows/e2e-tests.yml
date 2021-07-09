@@ -1,31 +1,29 @@
 name: End-to-end tests
 on: [deployment_status]
 jobs:
+  # github.event.deployment.ref
   cypress-run:
     if: ${{ github.event.deployment_status.state == 'success'}}
     runs-on: ubuntu-20.04
     steps:
       - name: Dump GitHub context
         env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-        run: |
+          GITHUB_CONTEXT: ${{ toJson(github.event.deployment_status) }}
+        run:
           echo "$GITHUB_CONTEXT"
-      - name: Dump env context
+      - name: Check is correct deployment
+        id: check
+        uses: AsasInnab/regex-action@v1
+        with:
+          regex_pattern: '^.* lightdash PR #([0-9]+)$'
+          regex_flags: 'gm'
+          search_string: github.event.deployment.environment
+      - name: Get deployment url
         env:
-          ENV_CONTEXT: ${{ toJSON(env) }}
-        run: echo "ENV_CONTEXT"
-      - name: Dump job context
-        env:
-          JOB_CONTEXT: ${{ toJSON(job) }}
-        run: echo "$JOB_CONTEXT"
-      - name: Dump runner context
-        env:
-          RUNNER_CONTEXT: ${{ toJSON(runner) }}
-        run: echo "$RUNNER_CONTEXT"
-      - name: Dump strategy context
-        env:
-          STRATEGY_CONTEXT: ${{ toJSON(strategy) }}
-        run: echo "$STRATEGY_CONTEXT"
+          DEPLOYMENT_URL: ${{ 'https://lightdash-pr-'+ steps.pr.outputs.first_match +'.onrender.com/'}}
+        run:
+          echo "$DEPLOYMENT_URL"
+
       - name: Checkout
         uses: actions/checkout@v2
       # Install NPM dependencies, cache them correctly
