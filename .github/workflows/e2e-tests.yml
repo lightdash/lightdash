@@ -20,7 +20,7 @@ jobs:
           search_string: github.event.deployment.environment
       - name: Get deployment url
         env:
-          DEPLOYMENT_URL: ${{ 'https://lightdash-pr-'+ steps.pr.outputs.first_match +'.onrender.com/'}}
+          DEPLOYMENT_URL: 'https://lightdash-pr-${{steps.pr.outputs.first_match}}.onrender.com/'
         run:
           echo "$DEPLOYMENT_URL"
 
