@@ -6,23 +6,16 @@ jobs:
     if: ${{ github.event.deployment_status.state == 'success' && contains(github.event.deployment.environment, '- lightdash PR ')}}
     runs-on: ubuntu-20.04
     steps:
-      - name: Dump GitHub context
-        env:
-          DEPLOYMENT_CONTEXT: ${{ toJson(github.event.deployment) }}
-          DEPLOYMENT_STATUS_CONTEXT: ${{ toJson(github.event.deployment_status) }}
-        run:
-          echo "$DEPLOYMENT_CONTEXT"
-          echo "$DEPLOYMENT_STATUS_CONTEXT"
       - name: Get PR number
-        id: check
+        id: regex
         uses: AsasInnab/regex-action@v1
         with:
-          regex_pattern: '#([0-9]+)'
+          regex_pattern: '[0-9]+$'
           regex_flags: 'gm'
           search_string: ${{github.event.deployment.environment}}
       - name: Get deployment url
         env:
-          DEPLOYMENT_URL: 'https://lightdash-pr-${{steps.pr.outputs.first_match}}.onrender.com'
+          DEPLOYMENT_URL: 'https://lightdash-pr-${{steps.regex.outputs.first_match}}.onrender.com'
         run:
           echo "$DEPLOYMENT_URL"
 
