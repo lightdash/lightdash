@@ -18,7 +18,7 @@ jobs:
       run: yarn
       
     - name: Lint all packages
-      run: yarn list
+      run: yarn lint
     - name: Check formatting all packages
       run: yarn format
 
