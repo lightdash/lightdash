@@ -26,7 +26,7 @@ jobs:
         with:
           project: ./packages/e2e
           # Set the PR deployment url
-          config: baseUrl=${{ DEPLOYMENT_URL }}
+          config: 'baseUrl=${{DEPLOYMENT_URL}}'
       # After the test run completes
       # store videos and any screenshots
       - uses: actions/upload-artifact@v1
