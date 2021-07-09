@@ -5,6 +5,11 @@ jobs:
     # if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-20.04
     steps:
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: |
+          echo "$GITHUB_CONTEXT"
       - name: Dump env context
         env:
           ENV_CONTEXT: ${{ toJSON(env) }}
