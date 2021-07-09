@@ -1,0 +1,36 @@
+name: Manual trigger end-to-end tests
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Deployment url'
+        required: true
+        default: 'https://demo.lightdash.com'
+jobs:
+  cypress-run:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Get deployment url
+        run: echo "Deployment url - ${{ github.event.inputs.url }}"
+      - name: Checkout
+        uses: actions/checkout@v2
+      # Install NPM dependencies, cache them correctly
+      # and run all Cypress tests
+      - name: Cypress run
+        uses: cypress-io/github-action@v2
+        with:
+          project: ./packages/e2e
+          # Set the PR deployment url
+          config: 'baseUrl=${{github.event.inputs.url}}'
+      # After the test run completes
+      # store videos and any screenshots
+      - uses: actions/upload-artifact@v1
+        if: always()
+        with:
+          name: cypress-screenshots
+          path: packages/e2e/cypress/screenshots
+      - uses: actions/upload-artifact@v1
+        if: always()
+        with:
+          name: cypress-videos
+          path: packages/e2e/cypress/videos

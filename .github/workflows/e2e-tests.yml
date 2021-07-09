@@ -1,0 +1,43 @@
+name: End-to-end tests
+on: [ deployment_status ]
+jobs:
+  cypress-run:
+    # Only trigger for correct environment and status
+    if: ${{ github.event.deployment_status.state == 'success' && contains(github.event.deployment.environment, '- lightdash PR ')}}
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Get PR number
+        id: regex
+        uses: AsasInnab/regex-action@v1
+        with:
+          regex_pattern: '[0-9]+$'
+          regex_flags: 'gm'
+          search_string: ${{github.event.deployment.environment}}
+      - name: Get deployment url
+        id: deployment_url
+        env:
+          DEPLOYMENT_URL: 'https://lightdash-pr-${{steps.regex.outputs.first_match}}.onrender.com'
+        run:
+          echo "::set-output name=url::$DEPLOYMENT_URL"
+      - name: Checkout
+        uses: actions/checkout@v2
+      # Install NPM dependencies, cache them correctly
+      # and run all Cypress tests
+      - name: Cypress run
+        uses: cypress-io/github-action@v2
+        with:
+          project: ./packages/e2e
+          # Set the PR deployment url
+          config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
+      # After the test run completes
+      # store videos and any screenshots
+      - uses: actions/upload-artifact@v1
+        if: always()
+        with:
+          name: cypress-screenshots
+          path: packages/e2e/cypress/screenshots
+      - uses: actions/upload-artifact@v1
+        if: always()
+        with:
+          name: cypress-videos
+          path: packages/e2e/cypress/videos
