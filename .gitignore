@@ -29,7 +29,6 @@ yarn-error.log*
 
 .idea
 node_modules
-.nyc_output
 
 # typescript
 *.tsbuildinfo
