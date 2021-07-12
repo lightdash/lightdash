@@ -36,6 +36,11 @@ services:
         sync: false
       - key: REACT_APP_RUDDERSTACK_DATAPLANE_URL
         sync: false
+      - key: DOCS_HOST # force lightdash to build after docs
+        fromService:
+          name: docsite
+          type: web
+          property: host
 
   - type: web
     name: docsite
