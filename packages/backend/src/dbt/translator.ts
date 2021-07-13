@@ -19,7 +19,21 @@ import { DepGraph } from 'dependency-graph';
 import { parseWithPointers, getLocationForJsonPath } from '@stoplight/yaml';
 import fs from 'fs';
 import { compileExplore } from '../exploreCompiler';
-import { MissingCatalogEntryError, ParseError } from '../errors';
+import { DbtError, MissingCatalogEntryError, ParseError } from '../errors';
+
+const patchPathParts = (patchPath: string) => {
+    const [project, ...rest] = patchPath.split('://');
+    if (rest.length === 0) {
+        throw new DbtError(
+            'Could not parse dbt manifest. It looks like you might be using an old version of dbt. You must be using dbt version 0.20.0 or above.',
+            {},
+        );
+    }
+    return {
+        project,
+        path: rest.join('://'),
+    };
+};
 
 const convertDimension = (
     modelName: string,
@@ -133,7 +147,8 @@ const convertTableWithSources = (
 ): Table => {
     const lineage = generateTableLineage(model, depGraph);
 
-    const schemaPath = `${model.root_path}/${model.patch_path}`;
+    const modelPath = patchPathParts(model.patch_path).path;
+    const schemaPath = `${model.root_path}/${modelPath}`;
 
     let ymlFile: string;
     try {
@@ -173,7 +188,7 @@ const convertTableWithSources = (
     }
 
     const tableSource: Source = {
-        path: model.patch_path,
+        path: patchPathParts(model.patch_path).path,
         range: modelRange,
         content: lines
             .slice(modelRange.start.line, modelRange.end.line + 1)
@@ -198,7 +213,7 @@ const convertTableWithSources = (
                 );
             }
             const dimensionSource: Source = {
-                path: model.patch_path,
+                path: patchPathParts(model.patch_path).path,
                 range: columnRange,
                 content: lines
                     .slice(columnRange.start.line, columnRange.end.line + 1)
@@ -224,7 +239,7 @@ const convertTableWithSources = (
                     );
                 }
                 const metricSource: Source = {
-                    path: model.patch_path,
+                    path: patchPathParts(model.patch_path).path,
                     range: dimensionSource.range,
                     highlight: metricRange,
                     content: dimensionSource.content,

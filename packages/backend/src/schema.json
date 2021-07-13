@@ -92,16 +92,16 @@
             "properties": {
                 "dbt_schema_version": {
                     "type": "string",
-                    "default": "https://schemas.getdbt.com/dbt/manifest/v1.json"
+                    "default": "https://schemas.getdbt.com/dbt/manifest/v2.json"
                 },
                 "dbt_version": {
                     "type": "string",
-                    "default": "0.19.0"
+                    "default": "0.20.0rc1"
                 },
                 "generated_at": {
                     "type": "string",
                     "format": "date-time",
-                    "default": "2021-02-10T04:42:33.683996Z"
+                    "default": "2021-06-07T14:49:01.099700Z"
                 },
                 "invocation_id": {
                     "oneOf": [
@@ -246,8 +246,6 @@
                         "enabled": true,
                         "materialized": "view",
                         "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
                         "vars": {},
                         "quoting": {},
                         "column_types": {},
@@ -255,7 +253,9 @@
                         "schema": null,
                         "database": null,
                         "tags": [],
-                        "full_refresh": null
+                        "full_refresh": null,
+                        "post-hook": [],
+                        "pre-hook": []
                     }
                 },
                 "tags": {
@@ -320,6 +320,16 @@
                         }
                     ]
                 },
+                "compiled_path": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "build_path": {
                     "oneOf": [
                         {
@@ -337,6 +347,10 @@
                 "unrendered_config": {
                     "type": "object",
                     "default": {}
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 },
                 "compiled_sql": {
                     "oneOf": [
@@ -371,7 +385,7 @@
                 }
             },
             "additionalProperties": false,
-            "description": "CompiledAnalysisNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None)"
+            "description": "CompiledAnalysisNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, compiled_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: int = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None, _pre_injected_sql: Union[str, NoneType] = None)"
         },
         "FileHash": {
             "type": "object",
@@ -485,7 +499,7 @@
                 }
             },
             "additionalProperties": true,
-            "description": "NodeConfig(*args, **kwds)"
+            "description": "NodeConfig(_extra: Dict[str, Any] = <factory>, enabled: bool = True, materialized: str = 'view', persist_docs: Dict[str, Any] = <factory>, post_hook: List[dbt.contracts.graph.model_config.Hook] = <factory>, pre_hook: List[dbt.contracts.graph.model_config.Hook] = <factory>, vars: Dict[str, Any] = <factory>, quoting: Dict[str, Any] = <factory>, column_types: Dict[str, Any] = <factory>, alias: Union[str, NoneType] = None, schema: Union[str, NoneType] = None, database: Union[str, NoneType] = None, tags: Union[List[str], str] = <factory>, full_refresh: Union[bool, NoneType] = None)"
         },
         "Hook": {
             "type": "object",
@@ -684,17 +698,23 @@
                         "enabled": true,
                         "materialized": "test",
                         "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
                         "vars": {},
                         "quoting": {},
                         "column_types": {},
                         "alias": null,
-                        "schema": null,
+                        "schema": "dbt_test__audit",
                         "database": null,
                         "tags": [],
                         "full_refresh": null,
-                        "severity": "ERROR"
+                        "severity": "ERROR",
+                        "store_failures": null,
+                        "where": null,
+                        "limit": null,
+                        "fail_calc": "count(*)",
+                        "warn_if": "!= 0",
+                        "error_if": "!= 0",
+                        "post-hook": [],
+                        "pre-hook": []
                     }
                 },
                 "tags": {
@@ -759,6 +779,16 @@
                         }
                     ]
                 },
+                "compiled_path": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "build_path": {
                     "oneOf": [
                         {
@@ -776,6 +806,10 @@
                 "unrendered_config": {
                     "type": "object",
                     "default": {}
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 },
                 "compiled_sql": {
                     "oneOf": [
@@ -810,7 +844,7 @@
                 }
             },
             "additionalProperties": false,
-            "description": "CompiledDataTestNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.TestConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None)"
+            "description": "CompiledDataTestNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.TestConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, compiled_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: int = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None, _pre_injected_sql: Union[str, NoneType] = None)"
         },
         "TestConfig": {
             "type": "object",
@@ -872,7 +906,8 @@
                         {
                             "type": "null"
                         }
-                    ]
+                    ],
+                    "default": "dbt_test__audit"
                 },
                 "database": {
                     "oneOf": [
@@ -912,10 +947,52 @@
                     "type": "string",
                     "pattern": "^([Ww][Aa][Rr][Nn]|[Ee][Rr][Rr][Oo][Rr])$",
                     "default": "ERROR"
+                },
+                "store_failures": {
+                    "oneOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "where": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "limit": {
+                    "oneOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "fail_calc": {
+                    "type": "string",
+                    "default": "count(*)"
+                },
+                "warn_if": {
+                    "type": "string",
+                    "default": "!= 0"
+                },
+                "error_if": {
+                    "type": "string",
+                    "default": "!= 0"
                 }
             },
             "additionalProperties": true,
-            "description": "TestConfig(*args, **kwds)"
+            "description": "TestConfig(_extra: Dict[str, Any] = <factory>, enabled: bool = True, materialized: str = 'test', persist_docs: Dict[str, Any] = <factory>, post_hook: List[dbt.contracts.graph.model_config.Hook] = <factory>, pre_hook: List[dbt.contracts.graph.model_config.Hook] = <factory>, vars: Dict[str, Any] = <factory>, quoting: Dict[str, Any] = <factory>, column_types: Dict[str, Any] = <factory>, alias: Union[str, NoneType] = None, schema: Union[str, NoneType] = 'dbt_test__audit', database: Union[str, NoneType] = None, tags: Union[List[str], str] = <factory>, full_refresh: Union[bool, NoneType] = None, severity: dbt.contracts.graph.model_config.Severity = 'ERROR', store_failures: Union[bool, NoneType] = None, where: Union[str, NoneType] = None, limit: Union[int, NoneType] = None, fail_calc: str = 'count(*)', warn_if: str = '!= 0', error_if: str = '!= 0')"
         },
         "CompiledModelNode": {
             "type": "object",
@@ -994,8 +1071,6 @@
                         "enabled": true,
                         "materialized": "view",
                         "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
                         "vars": {},
                         "quoting": {},
                         "column_types": {},
@@ -1003,7 +1078,9 @@
                         "schema": null,
                         "database": null,
                         "tags": [],
-                        "full_refresh": null
+                        "full_refresh": null,
+                        "post-hook": [],
+                        "pre-hook": []
                     }
                 },
                 "tags": {
@@ -1069,6 +1146,16 @@
                         }
                     ]
                 },
+                "compiled_path": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "build_path": {
                     "oneOf": [
                         {
@@ -1086,6 +1173,10 @@
                 "unrendered_config": {
                     "type": "object",
                     "default": {}
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 },
                 "compiled_sql": {
                     "oneOf": [
@@ -1120,7 +1211,7 @@
                 }
             },
             "additionalProperties": false,
-            "description": "CompiledModelNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None)"
+            "description": "CompiledModelNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, compiled_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: int = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None, _pre_injected_sql: Union[str, NoneType] = None)"
         },
         "CompiledHookNode": {
             "type": "object",
@@ -1199,8 +1290,6 @@
                         "enabled": true,
                         "materialized": "view",
                         "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
                         "vars": {},
                         "quoting": {},
                         "column_types": {},
@@ -1208,7 +1297,9 @@
                         "schema": null,
                         "database": null,
                         "tags": [],
-                        "full_refresh": null
+                        "full_refresh": null,
+                        "post-hook": [],
+                        "pre-hook": []
                     }
                 },
                 "tags": {
@@ -1273,6 +1364,16 @@
                         }
                     ]
                 },
+                "compiled_path": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "build_path": {
                     "oneOf": [
                         {
@@ -1290,6 +1391,10 @@
                 "unrendered_config": {
                     "type": "object",
                     "default": {}
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 },
                 "compiled_sql": {
                     "oneOf": [
@@ -1334,7 +1439,7 @@
                 }
             },
             "additionalProperties": false,
-            "description": "CompiledHookNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None, index: Union[int, NoneType] = None)"
+            "description": "CompiledHookNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, compiled_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: int = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None, _pre_injected_sql: Union[str, NoneType] = None, index: Union[int, NoneType] = None)"
         },
         "CompiledRPCNode": {
             "type": "object",
@@ -1413,8 +1518,6 @@
                         "enabled": true,
                         "materialized": "view",
                         "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
                         "vars": {},
                         "quoting": {},
                         "column_types": {},
@@ -1422,7 +1525,9 @@
                         "schema": null,
                         "database": null,
                         "tags": [],
-                        "full_refresh": null
+                        "full_refresh": null,
+                        "post-hook": [],
+                        "pre-hook": []
                     }
                 },
                 "tags": {
@@ -1487,6 +1592,16 @@
                         }
                     ]
                 },
+                "compiled_path": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "build_path": {
                     "oneOf": [
                         {
@@ -1504,6 +1619,10 @@
                 "unrendered_config": {
                     "type": "object",
                     "default": {}
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 },
                 "compiled_sql": {
                     "oneOf": [
@@ -1538,7 +1657,7 @@
                 }
             },
             "additionalProperties": false,
-            "description": "CompiledRPCNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None)"
+            "description": "CompiledRPCNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, compiled_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: int = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None, _pre_injected_sql: Union[str, NoneType] = None)"
         },
         "CompiledSchemaTestNode": {
             "type": "object",
@@ -1621,17 +1740,23 @@
                         "enabled": true,
                         "materialized": "test",
                         "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
                         "vars": {},
                         "quoting": {},
                         "column_types": {},
                         "alias": null,
-                        "schema": null,
+                        "schema": "dbt_test__audit",
                         "database": null,
                         "tags": [],
                         "full_refresh": null,
-                        "severity": "ERROR"
+                        "severity": "ERROR",
+                        "store_failures": null,
+                        "where": null,
+                        "limit": null,
+                        "fail_calc": "count(*)",
+                        "warn_if": "!= 0",
+                        "error_if": "!= 0",
+                        "post-hook": [],
+                        "pre-hook": []
                     }
                 },
                 "tags": {
@@ -1696,6 +1821,16 @@
                         }
                     ]
                 },
+                "compiled_path": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "build_path": {
                     "oneOf": [
                         {
@@ -1713,6 +1848,10 @@
                 "unrendered_config": {
                     "type": "object",
                     "default": {}
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 },
                 "compiled_sql": {
                     "oneOf": [
@@ -1757,12 +1896,19 @@
                 }
             },
             "additionalProperties": false,
-            "description": "CompiledSchemaTestNode(raw_sql: str, test_metadata: dbt.contracts.graph.parsed.TestMetadata, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.TestConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None, column_name: Union[str, NoneType] = None)"
+            "description": "CompiledSchemaTestNode(raw_sql: str, test_metadata: dbt.contracts.graph.parsed.TestMetadata, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.TestConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, compiled_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: int = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None, _pre_injected_sql: Union[str, NoneType] = None, column_name: Union[str, NoneType] = None)"
         },
         "TestMetadata": {
             "type": "object",
-            "required": ["name", "kwargs"],
+            "required": ["name"],
             "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "kwargs": {
+                    "type": "object",
+                    "default": {}
+                },
                 "namespace": {
                     "oneOf": [
                         {
@@ -1772,16 +1918,10 @@
                             "type": "null"
                         }
                     ]
-                },
-                "name": {
-                    "type": "string"
-                },
-                "kwargs": {
-                    "type": "object"
                 }
             },
             "additionalProperties": false,
-            "description": "TestMetadata(namespace: Union[str, NoneType], name: str, kwargs: Dict[str, Any])"
+            "description": "TestMetadata(name: str, kwargs: Dict[str, Any] = <factory>, namespace: Union[str, NoneType] = None)"
         },
         "CompiledSeedNode": {
             "type": "object",
@@ -1860,8 +2000,6 @@
                         "enabled": true,
                         "materialized": "seed",
                         "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
                         "vars": {},
                         "quoting": {},
                         "column_types": {},
@@ -1870,7 +2008,9 @@
                         "database": null,
                         "tags": [],
                         "full_refresh": null,
-                        "quote_columns": null
+                        "quote_columns": null,
+                        "post-hook": [],
+                        "pre-hook": []
                     }
                 },
                 "tags": {
@@ -1935,6 +2075,16 @@
                         }
                     ]
                 },
+                "compiled_path": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "build_path": {
                     "oneOf": [
                         {
@@ -1952,6 +2102,10 @@
                 "unrendered_config": {
                     "type": "object",
                     "default": {}
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 },
                 "compiled_sql": {
                     "oneOf": [
@@ -1986,7 +2140,7 @@
                 }
             },
             "additionalProperties": false,
-            "description": "CompiledSeedNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.SeedConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None)"
+            "description": "CompiledSeedNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.SeedConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, compiled_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: int = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None, _pre_injected_sql: Union[str, NoneType] = None)"
         },
         "SeedConfig": {
             "type": "object",
@@ -2096,7 +2250,7 @@
                 }
             },
             "additionalProperties": true,
-            "description": "SeedConfig(*args, **kwds)"
+            "description": "SeedConfig(_extra: Dict[str, Any] = <factory>, enabled: bool = True, materialized: str = 'seed', persist_docs: Dict[str, Any] = <factory>, post_hook: List[dbt.contracts.graph.model_config.Hook] = <factory>, pre_hook: List[dbt.contracts.graph.model_config.Hook] = <factory>, vars: Dict[str, Any] = <factory>, quoting: Dict[str, Any] = <factory>, column_types: Dict[str, Any] = <factory>, alias: Union[str, NoneType] = None, schema: Union[str, NoneType] = None, database: Union[str, NoneType] = None, tags: Union[List[str], str] = <factory>, full_refresh: Union[bool, NoneType] = None, quote_columns: Union[bool, NoneType] = None)"
         },
         "CompiledSnapshotNode": {
             "type": "object",
@@ -2175,8 +2329,6 @@
                         "enabled": true,
                         "materialized": "view",
                         "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
                         "vars": {},
                         "quoting": {},
                         "column_types": {},
@@ -2184,7 +2336,9 @@
                         "schema": null,
                         "database": null,
                         "tags": [],
-                        "full_refresh": null
+                        "full_refresh": null,
+                        "post-hook": [],
+                        "pre-hook": []
                     }
                 },
                 "tags": {
@@ -2249,6 +2403,16 @@
                         }
                     ]
                 },
+                "compiled_path": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "build_path": {
                     "oneOf": [
                         {
@@ -2266,6 +2430,10 @@
                 "unrendered_config": {
                     "type": "object",
                     "default": {}
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 },
                 "compiled_sql": {
                     "oneOf": [
@@ -2300,7 +2468,7 @@
                 }
             },
             "additionalProperties": false,
-            "description": "CompiledSnapshotNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None)"
+            "description": "CompiledSnapshotNode(raw_sql: str, compiled: bool, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, compiled_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: int = <factory>, compiled_sql: Union[str, NoneType] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Union[str, NoneType] = None, _pre_injected_sql: Union[str, NoneType] = None)"
         },
         "ParsedAnalysisNode": {
             "type": "object",
@@ -2375,8 +2543,6 @@
                         "enabled": true,
                         "materialized": "view",
                         "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
                         "vars": {},
                         "quoting": {},
                         "column_types": {},
@@ -2384,7 +2550,9 @@
                         "schema": null,
                         "database": null,
                         "tags": [],
-                        "full_refresh": null
+                        "full_refresh": null,
+                        "post-hook": [],
+                        "pre-hook": []
                     }
                 },
                 "tags": {
@@ -2449,6 +2617,16 @@
                         }
                     ]
                 },
+                "compiled_path": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "build_path": {
                     "oneOf": [
                         {
@@ -2466,10 +2644,14 @@
                 "unrendered_config": {
                     "type": "object",
                     "default": {}
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 }
             },
             "additionalProperties": false,
-            "description": "ParsedAnalysisNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>)"
+            "description": "ParsedAnalysisNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, compiled_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: int = <factory>)"
         },
         "ParsedDataTestNode": {
             "type": "object",
@@ -2544,17 +2726,23 @@
                         "enabled": true,
                         "materialized": "test",
                         "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
                         "vars": {},
                         "quoting": {},
                         "column_types": {},
                         "alias": null,
-                        "schema": null,
+                        "schema": "dbt_test__audit",
                         "database": null,
                         "tags": [],
                         "full_refresh": null,
-                        "severity": "ERROR"
+                        "severity": "ERROR",
+                        "store_failures": null,
+                        "where": null,
+                        "limit": null,
+                        "fail_calc": "count(*)",
+                        "warn_if": "!= 0",
+                        "error_if": "!= 0",
+                        "post-hook": [],
+                        "pre-hook": []
                     }
                 },
                 "tags": {
@@ -2619,6 +2807,16 @@
                         }
                     ]
                 },
+                "compiled_path": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "build_path": {
                     "oneOf": [
                         {
@@ -2636,10 +2834,14 @@
                 "unrendered_config": {
                     "type": "object",
                     "default": {}
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 }
             },
             "additionalProperties": false,
-            "description": "ParsedDataTestNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.TestConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>)"
+            "description": "ParsedDataTestNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.TestConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, compiled_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: int = <factory>)"
         },
         "ParsedHookNode": {
             "type": "object",
@@ -2714,8 +2916,6 @@
                         "enabled": true,
                         "materialized": "view",
                         "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
                         "vars": {},
                         "quoting": {},
                         "column_types": {},
@@ -2723,7 +2923,9 @@
                         "schema": null,
                         "database": null,
                         "tags": [],
-                        "full_refresh": null
+                        "full_refresh": null,
+                        "post-hook": [],
+                        "pre-hook": []
                     }
                 },
                 "tags": {
@@ -2788,6 +2990,16 @@
                         }
                     ]
                 },
+                "compiled_path": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "build_path": {
                     "oneOf": [
                         {
@@ -2806,6 +3018,10 @@
                     "type": "object",
                     "default": {}
                 },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
+                },
                 "index": {
                     "oneOf": [
                         {
@@ -2818,7 +3034,7 @@
                 }
             },
             "additionalProperties": false,
-            "description": "ParsedHookNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, index: Union[int, NoneType] = None)"
+            "description": "ParsedHookNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, compiled_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: int = <factory>, index: Union[int, NoneType] = None)"
         },
         "ParsedModelNode": {
             "type": "object",
@@ -2893,8 +3109,6 @@
                         "enabled": true,
                         "materialized": "view",
                         "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
                         "vars": {},
                         "quoting": {},
                         "column_types": {},
@@ -2902,7 +3116,9 @@
                         "schema": null,
                         "database": null,
                         "tags": [],
-                        "full_refresh": null
+                        "full_refresh": null,
+                        "post-hook": [],
+                        "pre-hook": []
                     }
                 },
                 "tags": {
@@ -2967,6 +3183,16 @@
                         }
                     ]
                 },
+                "compiled_path": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "build_path": {
                     "oneOf": [
                         {
@@ -2984,10 +3210,14 @@
                 "unrendered_config": {
                     "type": "object",
                     "default": {}
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 }
             },
             "additionalProperties": false,
-            "description": "ParsedModelNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>)"
+            "description": "ParsedModelNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, compiled_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: int = <factory>)"
         },
         "ParsedRPCNode": {
             "type": "object",
@@ -3062,8 +3292,6 @@
                         "enabled": true,
                         "materialized": "view",
                         "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
                         "vars": {},
                         "quoting": {},
                         "column_types": {},
@@ -3071,7 +3299,9 @@
                         "schema": null,
                         "database": null,
                         "tags": [],
-                        "full_refresh": null
+                        "full_refresh": null,
+                        "post-hook": [],
+                        "pre-hook": []
                     }
                 },
                 "tags": {
@@ -3136,6 +3366,16 @@
                         }
                     ]
                 },
+                "compiled_path": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "build_path": {
                     "oneOf": [
                         {
@@ -3153,10 +3393,14 @@
                 "unrendered_config": {
                     "type": "object",
                     "default": {}
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 }
             },
             "additionalProperties": false,
-            "description": "ParsedRPCNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>)"
+            "description": "ParsedRPCNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, compiled_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: int = <factory>)"
         },
         "ParsedSchemaTestNode": {
             "type": "object",
@@ -3235,17 +3479,23 @@
                         "enabled": true,
                         "materialized": "test",
                         "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
                         "vars": {},
                         "quoting": {},
                         "column_types": {},
                         "alias": null,
-                        "schema": null,
+                        "schema": "dbt_test__audit",
                         "database": null,
                         "tags": [],
                         "full_refresh": null,
-                        "severity": "ERROR"
+                        "severity": "ERROR",
+                        "store_failures": null,
+                        "where": null,
+                        "limit": null,
+                        "fail_calc": "count(*)",
+                        "warn_if": "!= 0",
+                        "error_if": "!= 0",
+                        "post-hook": [],
+                        "pre-hook": []
                     }
                 },
                 "tags": {
@@ -3310,6 +3560,16 @@
                         }
                     ]
                 },
+                "compiled_path": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "build_path": {
                     "oneOf": [
                         {
@@ -3328,6 +3588,10 @@
                     "type": "object",
                     "default": {}
                 },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
+                },
                 "column_name": {
                     "oneOf": [
                         {
@@ -3340,7 +3604,7 @@
                 }
             },
             "additionalProperties": false,
-            "description": "ParsedSchemaTestNode(raw_sql: str, test_metadata: dbt.contracts.graph.parsed.TestMetadata, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.TestConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, column_name: Union[str, NoneType] = None)"
+            "description": "ParsedSchemaTestNode(raw_sql: str, test_metadata: dbt.contracts.graph.parsed.TestMetadata, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.TestConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, compiled_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: int = <factory>, column_name: Union[str, NoneType] = None)"
         },
         "ParsedSeedNode": {
             "type": "object",
@@ -3415,8 +3679,6 @@
                         "enabled": true,
                         "materialized": "seed",
                         "persist_docs": {},
-                        "post-hook": [],
-                        "pre-hook": [],
                         "vars": {},
                         "quoting": {},
                         "column_types": {},
@@ -3425,7 +3687,9 @@
                         "database": null,
                         "tags": [],
                         "full_refresh": null,
-                        "quote_columns": null
+                        "quote_columns": null,
+                        "post-hook": [],
+                        "pre-hook": []
                     }
                 },
                 "tags": {
@@ -3490,6 +3754,16 @@
                         }
                     ]
                 },
+                "compiled_path": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "build_path": {
                     "oneOf": [
                         {
@@ -3507,10 +3781,14 @@
                 "unrendered_config": {
                     "type": "object",
                     "default": {}
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 }
             },
             "additionalProperties": false,
-            "description": "ParsedSeedNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.SeedConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>)"
+            "description": "ParsedSeedNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.SeedConfig = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, compiled_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: int = <factory>)"
         },
         "ParsedSnapshotNode": {
             "type": "object",
@@ -3581,17 +3859,7 @@
                     "$ref": "#/definitions/FileHash"
                 },
                 "config": {
-                    "oneOf": [
-                        {
-                            "$ref": "#/definitions/TimestampSnapshotConfig"
-                        },
-                        {
-                            "$ref": "#/definitions/CheckSnapshotConfig"
-                        },
-                        {
-                            "$ref": "#/definitions/GenericSnapshotConfig"
-                        }
-                    ]
+                    "$ref": "#/definitions/SnapshotConfig"
                 },
                 "tags": {
                     "type": "array",
@@ -3655,6 +3923,16 @@
                         }
                     ]
                 },
+                "compiled_path": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "build_path": {
                     "oneOf": [
                         {
@@ -3672,19 +3950,18 @@
                 "unrendered_config": {
                     "type": "object",
                     "default": {}
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 }
             },
             "additionalProperties": false,
-            "description": "ParsedSnapshotNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: Union[ForwardRef('TimestampSnapshotConfig'), ForwardRef('CheckSnapshotConfig'), ForwardRef('GenericSnapshotConfig')], tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>)"
+            "description": "ParsedSnapshotNode(raw_sql: str, database: Union[str, NoneType], schema: str, fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.SnapshotConfig, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[Any]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, compiled_path: Union[str, NoneType] = None, build_path: Union[str, NoneType] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: int = <factory>)"
         },
-        "TimestampSnapshotConfig": {
+        "SnapshotConfig": {
             "type": "object",
-            "required": [
-                "unique_key",
-                "target_schema",
-                "strategy",
-                "updated_at"
-            ],
+            "required": [],
             "properties": {
                 "enabled": {
                     "type": "boolean",
@@ -3778,11 +4055,35 @@
                         }
                     ]
                 },
+                "strategy": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "unique_key": {
-                    "type": "string"
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
                 },
                 "target_schema": {
-                    "type": "string"
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
                 },
                 "target_database": {
                     "oneOf": [
@@ -3793,66 +4094,8 @@
                             "type": "null"
                         }
                     ]
-                },
-                "strategy": {
-                    "type": "string",
-                    "enum": ["timestamp"]
                 },
                 "updated_at": {
-                    "type": "string"
-                }
-            },
-            "additionalProperties": true,
-            "description": "TimestampSnapshotConfig(*args, **kwds)"
-        },
-        "CheckSnapshotConfig": {
-            "type": "object",
-            "required": [
-                "unique_key",
-                "target_schema",
-                "strategy",
-                "check_cols"
-            ],
-            "properties": {
-                "enabled": {
-                    "type": "boolean",
-                    "default": true
-                },
-                "materialized": {
-                    "type": "string",
-                    "default": "snapshot"
-                },
-                "persist_docs": {
-                    "type": "object",
-                    "default": {}
-                },
-                "post-hook": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/Hook"
-                    },
-                    "default": []
-                },
-                "pre-hook": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/Hook"
-                    },
-                    "default": []
-                },
-                "vars": {
-                    "type": "object",
-                    "default": {}
-                },
-                "quoting": {
-                    "type": "object",
-                    "default": {}
-                },
-                "column_types": {
-                    "type": "object",
-                    "default": {}
-                },
-                "alias": {
                     "oneOf": [
                         {
                             "type": "string"
@@ -3861,163 +4104,12 @@
                             "type": "null"
                         }
                     ]
-                },
-                "schema": {
-                    "oneOf": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ]
-                },
-                "database": {
-                    "oneOf": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ]
-                },
-                "tags": {
-                    "oneOf": [
-                        {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        },
-                        {
-                            "type": "string"
-                        }
-                    ],
-                    "default": []
-                },
-                "full_refresh": {
-                    "oneOf": [
-                        {
-                            "type": "boolean"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ]
-                },
-                "unique_key": {
-                    "type": "string"
-                },
-                "target_schema": {
-                    "type": "string"
-                },
-                "target_database": {
-                    "oneOf": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ]
-                },
-                "strategy": {
-                    "type": "string",
-                    "enum": ["check"]
                 },
                 "check_cols": {
                     "oneOf": [
                         {
-                            "type": "string",
-                            "enum": ["all"]
-                        },
-                        {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
-                    ]
-                }
-            },
-            "additionalProperties": true,
-            "description": "CheckSnapshotConfig(*args, **kwds)"
-        },
-        "GenericSnapshotConfig": {
-            "type": "object",
-            "required": ["unique_key", "target_schema", "strategy"],
-            "properties": {
-                "enabled": {
-                    "type": "boolean",
-                    "default": true
-                },
-                "materialized": {
-                    "type": "string",
-                    "default": "snapshot"
-                },
-                "persist_docs": {
-                    "type": "object",
-                    "default": {}
-                },
-                "post-hook": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/Hook"
-                    },
-                    "default": []
-                },
-                "pre-hook": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/Hook"
-                    },
-                    "default": []
-                },
-                "vars": {
-                    "type": "object",
-                    "default": {}
-                },
-                "quoting": {
-                    "type": "object",
-                    "default": {}
-                },
-                "column_types": {
-                    "type": "object",
-                    "default": {}
-                },
-                "alias": {
-                    "oneOf": [
-                        {
                             "type": "string"
                         },
-                        {
-                            "type": "null"
-                        }
-                    ]
-                },
-                "schema": {
-                    "oneOf": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ]
-                },
-                "database": {
-                    "oneOf": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ]
-                },
-                "tags": {
-                    "oneOf": [
                         {
                             "type": "array",
                             "items": {
@@ -4025,59 +4117,13 @@
                             }
                         },
                         {
-                            "type": "string"
-                        }
-                    ],
-                    "default": []
-                },
-                "full_refresh": {
-                    "oneOf": [
-                        {
-                            "type": "boolean"
-                        },
-                        {
                             "type": "null"
-                        }
-                    ]
-                },
-                "unique_key": {
-                    "type": "string"
-                },
-                "target_schema": {
-                    "type": "string"
-                },
-                "target_database": {
-                    "oneOf": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ]
-                },
-                "strategy": {
-                    "allOf": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "not": {
-                                "type": "string",
-                                "enum": ["timestamp"]
-                            }
-                        },
-                        {
-                            "not": {
-                                "type": "string",
-                                "enum": ["check"]
-                            }
                         }
                     ]
                 }
             },
             "additionalProperties": true,
-            "description": "GenericSnapshotConfig(*args, **kwds)"
+            "description": "SnapshotConfig(_extra: Dict[str, Any] = <factory>, enabled: bool = True, materialized: str = 'snapshot', persist_docs: Dict[str, Any] = <factory>, post_hook: List[dbt.contracts.graph.model_config.Hook] = <factory>, pre_hook: List[dbt.contracts.graph.model_config.Hook] = <factory>, vars: Dict[str, Any] = <factory>, quoting: Dict[str, Any] = <factory>, column_types: Dict[str, Any] = <factory>, alias: Union[str, NoneType] = None, schema: Union[str, NoneType] = None, database: Union[str, NoneType] = None, tags: Union[List[str], str] = <factory>, full_refresh: Union[bool, NoneType] = None, strategy: Union[str, NoneType] = None, unique_key: Union[str, NoneType] = None, target_schema: Union[str, NoneType] = None, target_database: Union[str, NoneType] = None, updated_at: Union[str, NoneType] = None, check_cols: Union[str, List[str], NoneType] = None)"
         },
         "ParsedSourceDefinition": {
             "type": "object",
@@ -4244,10 +4290,14 @@
                             "type": "null"
                         }
                     ]
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 }
             },
             "additionalProperties": false,
-            "description": "ParsedSourceDefinition(fqn: List[str], database: Union[str, NoneType], schema: str, unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, source_name: str, source_description: str, loader: str, identifier: str, resource_type: dbt.node_types.NodeType, quoting: dbt.contracts.graph.unparsed.Quoting = <factory>, loaded_at_field: Union[str, NoneType] = None, freshness: Union[dbt.contracts.graph.unparsed.FreshnessThreshold, NoneType] = None, external: Union[dbt.contracts.graph.unparsed.ExternalTable, NoneType] = None, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, source_meta: Dict[str, Any] = <factory>, tags: List[str] = <factory>, config: dbt.contracts.graph.model_config.SourceConfig = <factory>, patch_path: Union[pathlib.Path, NoneType] = None, unrendered_config: Dict[str, Any] = <factory>, relation_name: Union[str, NoneType] = None)"
+            "description": "ParsedSourceDefinition(fqn: List[str], database: Union[str, NoneType], schema: str, unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, source_name: str, source_description: str, loader: str, identifier: str, resource_type: dbt.node_types.NodeType, quoting: dbt.contracts.graph.unparsed.Quoting = <factory>, loaded_at_field: Union[str, NoneType] = None, freshness: Union[dbt.contracts.graph.unparsed.FreshnessThreshold, NoneType] = None, external: Union[dbt.contracts.graph.unparsed.ExternalTable, NoneType] = None, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, source_meta: Dict[str, Any] = <factory>, tags: List[str] = <factory>, config: dbt.contracts.graph.model_config.SourceConfig = <factory>, patch_path: Union[pathlib.Path, NoneType] = None, unrendered_config: Dict[str, Any] = <factory>, relation_name: Union[str, NoneType] = None, created_at: int = <factory>)"
         },
         "Quoting": {
             "type": "object",
@@ -4345,12 +4395,12 @@
                 },
                 "dbt_version": {
                     "type": "string",
-                    "default": "0.19.0"
+                    "default": "0.20.0rc1"
                 },
                 "generated_at": {
                     "type": "string",
                     "format": "date-time",
-                    "default": "2021-02-10T04:42:33.675309Z"
+                    "default": "2021-06-07T14:49:01.095724Z"
                 },
                 "invocation_id": {
                     "oneOf": [
@@ -4371,7 +4421,7 @@
                 }
             },
             "additionalProperties": false,
-            "description": "FreshnessMetadata(dbt_schema_version: str = <factory>, dbt_version: str = '0.19.0', generated_at: datetime.datetime = <factory>, invocation_id: Union[str, NoneType] = <factory>, env: Dict[str, str] = <factory>)"
+            "description": "FreshnessMetadata(dbt_schema_version: str = <factory>, dbt_version: str = '0.20.0rc1', generated_at: datetime.datetime = <factory>, invocation_id: Union[str, NoneType] = <factory>, env: Dict[str, str] = <factory>)"
         },
         "SourceFreshnessRuntimeError": {
             "type": "object",
@@ -4551,7 +4601,7 @@
                 }
             },
             "additionalProperties": true,
-            "description": "SourceConfig(*args, **kwds)"
+            "description": "SourceConfig(_extra: Dict[str, Any] = <factory>, enabled: bool = True)"
         },
         "ParsedMacro": {
             "type": "object",
@@ -4634,10 +4684,14 @@
                         "$ref": "#/definitions/MacroArgument"
                     },
                     "default": []
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 }
             },
             "additionalProperties": false,
-            "description": "ParsedMacro(unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, macro_sql: str, resource_type: dbt.node_types.NodeType, tags: List[str] = <factory>, depends_on: dbt.contracts.graph.parsed.MacroDependsOn = <factory>, description: str = '', meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, arguments: List[dbt.contracts.graph.unparsed.MacroArgument] = <factory>)"
+            "description": "ParsedMacro(unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, macro_sql: str, resource_type: dbt.node_types.NodeType, tags: List[str] = <factory>, depends_on: dbt.contracts.graph.parsed.MacroDependsOn = <factory>, description: str = '', meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Union[str, NoneType] = None, arguments: List[dbt.contracts.graph.unparsed.MacroArgument] = <factory>, created_at: int = <factory>)"
         },
         "MacroDependsOn": {
             "type": "object",
@@ -4799,6 +4853,17 @@
                         }
                     ]
                 },
+                "meta": {
+                    "type": "object",
+                    "default": {}
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": []
+                },
                 "url": {
                     "oneOf": [
                         {
@@ -4835,10 +4900,14 @@
                         }
                     },
                     "default": []
+                },
+                "created_at": {
+                    "type": "integer",
+                    "default": 1623077341
                 }
             },
             "additionalProperties": false,
-            "description": "ParsedExposure(fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, type: dbt.contracts.graph.unparsed.ExposureType, owner: dbt.contracts.graph.unparsed.ExposureOwner, resource_type: dbt.node_types.NodeType = <NodeType.Exposure: 'exposure'>, description: str = '', maturity: Union[dbt.contracts.graph.unparsed.MaturityType, NoneType] = None, url: Union[str, NoneType] = None, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, refs: List[List[str]] = <factory>, sources: List[List[str]] = <factory>)"
+            "description": "ParsedExposure(fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, type: dbt.contracts.graph.unparsed.ExposureType, owner: dbt.contracts.graph.unparsed.ExposureOwner, resource_type: dbt.node_types.NodeType = <NodeType.Exposure: 'exposure'>, description: str = '', maturity: Union[dbt.contracts.graph.unparsed.MaturityType, NoneType] = None, meta: Dict[str, Any] = <factory>, tags: List[str] = <factory>, url: Union[str, NoneType] = None, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, refs: List[List[str]] = <factory>, sources: List[List[str]] = <factory>, created_at: int = <factory>)"
         },
         "ExposureOwner": {
             "type": "object",
@@ -4863,5 +4932,5 @@
         }
     },
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://schemas.lightdash.com/dbt/dbtModel/v1.json"
+    "$id": "https://schemas.lightdash.com/dbt/dbtModel/v2.json"
 }
