@@ -7,6 +7,9 @@ Recent and upcoming changes to lightdash
  - Add date filters
  - Integration with dbt cloud IDE. Lightdash can now connect to your development environment on https://cloud.getdbt.com
 
+### Changed
+ - Lightdash requires your dbt project to use dbt version 0.20.0 or higher
+
 ## [0.3.2] - 2021-07-07
 ### Added
  - Allow users to download the chart as JPEG, PNG, SVG, PDF

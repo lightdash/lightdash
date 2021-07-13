@@ -10,7 +10,7 @@ with dbt. At the end of the tutorial you'll be able to use the Lightdash UI to s
 run queries.
 
 **Prerequisites**
-* You need an existing [dbt](https://www.getdbt.com/) project on your local machine
+* You need an existing [dbt](https://www.getdbt.com/) project on your local machine. The project should be compatible with dbt version `0.20.0` or higher.
 * Your dbt project [profiles.yml file needs to be configured](https://docs.getdbt.com/dbt-cli/configure-your-profile) to access your database / data warehouse.
 * You must know where your `profiles.yml` file is. This is usually `~/.dbt/profiles.yml` unless you've changed it.
 

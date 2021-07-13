@@ -103,3 +103,8 @@ credentials at `~/.config/gcloud`
 * You're running dbt in a separate process using the flag `LIGHTDASH_SPAWN_DBT=false`. In this case please check whether
 the dbt process process is running correctly.
 * If neither apply please [open an issue](https://github.com/lightdash/lightdash/issues/new/choose)
+
+## I'm using an old version of dbt, is Lightdash supported?
+
+---
+We only support dbt version `0.20.0`. Before using Lightdash, please check your project is compatible with the latest version.
