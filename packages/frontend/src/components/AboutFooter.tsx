@@ -36,25 +36,44 @@ const AboutFooter = () => {
             <footer
                 style={{
                     display: 'inline-flex',
-                    gap: '10px',
-                    cursor: 'pointer',
                     alignItems: 'center',
                     marginTop: '20px',
                 }}
-                onClick={() => setIsOpen(true)}
             >
-                <img
-                    src={`${process.env.PUBLIC_URL}/favicon-16x16.png`}
-                    alt="Lightdash"
-                />
-                <H6 style={{ margin: 0 }}>
-                    Lightdash - v{healthState.data?.version}
-                </H6>
-                {hasUpdate && (
-                    <Tag minimal intent={Intent.PRIMARY}>
-                        New version available!
-                    </Tag>
-                )}
+                <div
+                    role="button"
+                    tabIndex={0}
+                    style={{
+                        display: 'inline-flex',
+                        gap: '10px',
+                        alignItems: 'center',
+                        flex: 1,
+                        cursor: 'pointer',
+                    }}
+                    onClick={() => setIsOpen(true)}
+                >
+                    <img
+                        src={`${process.env.PUBLIC_URL}/favicon-16x16.png`}
+                        alt="Lightdash"
+                    />
+                    <H6 style={{ margin: 0 }}>
+                        Lightdash
+                        {healthState.data && ` - v${healthState.data.version}`}
+                    </H6>
+                    {hasUpdate && (
+                        <Tag minimal intent={Intent.PRIMARY}>
+                            New version available!
+                        </Tag>
+                    )}
+                </div>
+                <AnchorButton
+                    href="https://docs.lightdash.com/"
+                    target="_blank"
+                    minimal
+                    icon="lifesaver"
+                >
+                    Help
+                </AnchorButton>
             </footer>
             <Dialog
                 isOpen={isOpen}
@@ -64,14 +83,17 @@ const AboutFooter = () => {
             >
                 <div className={Classes.DIALOG_BODY}>
                     <H5>
-                        <b>Version:</b> v{healthState.data?.version}
+                        <b>Version:</b>{' '}
+                        {healthState.data
+                            ? `v${healthState.data.version}`
+                            : 'n/a'}
                     </H5>
                     {hasUpdate && (
                         <Callout
                             title="New version available!"
                             intent={Intent.PRIMARY}
                         >
-                            The version v{healthState.data?.latest.version}) is
+                            The version v{healthState.data?.latest.version} is
                             now available. Please follow the instructions in the{' '}
                             <a
                                 href="https://docs.lightdash.com/guides/how-to-update-docker-image"
