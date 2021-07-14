@@ -137,7 +137,11 @@ If you see the following error message:
 ```text
 Error response from daemon: Ports are not available: listen tcp 0.0.0.0:8080: bind: address already in use"
 ```
-Then change `LIGHTDASH_PORT` and reopen the app at `http://localhost:xxxx` where `xxxx` is the port you choose.
+Then change `LIGHTDASH_PORT` and reopen the app at `http://localhost:xxxx` where `xxxx` is the port you choose:
+
+```shell
+export LIGHTDASH_PORT=xxxx
+```
 
 ## Next steps
 
