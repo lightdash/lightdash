@@ -12,4 +12,4 @@ You can get the latest release by pulling the latest docker image:
 docker pull lightdash/lightdash
 ```
 
-Once this is complete you can [run Lightdash](../get-started/setup-an-existing-dbt-project.md) as usual. 
+Once this is complete you can [run Lightdash](../get-started/setup-a-local-dbt-project.md) as usual. 
