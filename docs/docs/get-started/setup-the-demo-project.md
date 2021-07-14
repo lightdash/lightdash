@@ -100,4 +100,4 @@ Get familiar with customising dimensions and metrics by editing the demo files:
 * [How to create metrics](../guides/how-to-create-metrics.md)
 
 Or connect up your own dbt project:
-* [Setup an existing dbt project](setup-an-existing-dbt-project.md)
+* [Setup an existing dbt project](setup-a-local-dbt-project.md)
