@@ -134,6 +134,15 @@
         "bug",
         "design"
       ]
+    },
+    {
+      "login": "sgoley",
+      "name": "sgoley",
+      "avatar_url": "https://avatars.githubusercontent.com/u/10283176?v=4",
+      "profile": "https://www.linkedin.com/in/sgoley",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
