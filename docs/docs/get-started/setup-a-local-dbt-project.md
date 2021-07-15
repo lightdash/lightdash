@@ -1,6 +1,6 @@
 ---
 sidebar_position: 2
-sidebar_label: Setup an existing dbt project
+sidebar_label: Setup a local dbt project
 ---
 
 # Setup Lightdash with your existing dbt project
