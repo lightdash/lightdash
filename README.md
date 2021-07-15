@@ -157,6 +157,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="http://jeshua.co"><img src="https://avatars.githubusercontent.com/u/2297823?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Jeshua Maxey</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Ajeshuamaxey" title="Bug reports">🐛</a></td>
     <td align="center"><a href="https://github.com/srjonemed"><img src="https://avatars.githubusercontent.com/u/34316602?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Sreejith Madhavan</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Asrjonemed" title="Bug reports">🐛</a></td>
     <td align="center"><a href="https://github.com/skame"><img src="https://avatars.githubusercontent.com/u/1732972?v=4?s=100" width="100px;" alt=""/><br /><sub><b>skame</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Askame" title="Bug reports">🐛</a> <a href="#design-skame" title="Design">🎨</a></td>
+    <td align="center"><a href="https://www.linkedin.com/in/sgoley"><img src="https://avatars.githubusercontent.com/u/10283176?v=4?s=100" width="100px;" alt=""/><br /><sub><b>sgoley</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=sgoley" title="Documentation">📖</a></td>
   </tr>
 </table>
 
