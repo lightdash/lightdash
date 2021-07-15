@@ -45,7 +45,8 @@ Start learning Lightdash:
 
 * [Play with a UI demo](https://demo.lightdash.com) (*no setup*)
 * [Setup your own lightdash with demo data](https://docs.lightdash.com/get-started/setup-the-demo-project) (*run locally with docker*)
-* [Setup Lightdash with your existing dbt project](https://docs.lightdash.com/get-started/setup-an-existing-dbt-project) (*requires your own dbt project*)
+* [Setup Lightdash with your existing local dbt project](https://docs.lightdash.com/get-started/setup-a-local-dbt-project) (*requires your own dbt project*)
+* [Setup Lightdash with your existing cloud dbt project](https://docs.lightdash.com/get-started/setup-a-dbt-cloud-project) (*requires your own dbt project on dbtCloud*)
 
 ## Community Support
 Join our community if you need help, want to chat or have any other questions for us:
