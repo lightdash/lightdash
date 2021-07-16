@@ -24,18 +24,23 @@ describe('DbtChildProcess', () => {
     });
     it('should kill process on second restart', async () => {
         // @ts-ignore
-        execaMock.mockImplementation(() => childProcessWithSuccessEvent);
-
+        execaMock.mockImplementation(() => ({
+            ...childProcessWithSuccessEvent,
+            on: jest
+                .fn()
+                .mockImplementationOnce(() => undefined) // ignore first exit
+                .mockImplementationOnce((_: string, callback: () => void) =>
+                    callback(),
+                ) // trigger second exit
+                .mockImplementation(() => undefined), // ignore rest
+        }));
         const process = new DbtChildProcess('', '', 80);
-
         // start process
         await process.restart();
-
         // kills & start process
         await process.restart();
-
         expect(childProcessWithSuccessEvent.kill).toBeCalledTimes(1);
-        expect(childProcessWithSuccessEvent.kill).toBeCalledWith(2);
+        expect(childProcessWithSuccessEvent.kill).toBeCalledWith(15);
         expect(process.isProcessLive()).toBe(true);
     });
     it('should handle event with 2 logs', async () => {

@@ -112,7 +112,15 @@ export class DbtChildProcess {
     }
 
     public async restart() {
-        this.dbtChildProcess?.kill(2); // .kill(2) sends SIGINT - kills dbt process without auto-restart
+        const waitForKill = new Promise<true>((resolve) => {
+            if (this.dbtChildProcess === undefined) {
+                resolve(true);
+            } else {
+                this.dbtChildProcess.on('exit', () => resolve(true));
+            }
+        });
+        this.dbtChildProcess?.kill(15); // .kill(15) sends TERM - kills dbt process without auto-restart
+        await waitForKill;
         await this._start();
     }
 }
