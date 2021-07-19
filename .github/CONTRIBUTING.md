@@ -26,7 +26,7 @@ All types of contributions are encouraged and valued. See the [Table of Contents
 ## Code of Conduct
 
 This project and everyone participating in it is governed by the
-[Lightdash Code of Conduct](https://github.com/lightdash/lightdash/blob/master/CODE_OF_CONDUCT.md).
+[Lightdash Code of Conduct](https://github.com/lightdash/lightdash/blob/main/.github/CODE_OF_CONDUCT.md).
 By participating, you are expected to uphold this code. Please report unacceptable behavior
 to <support@lightdash.com>.
 
@@ -115,21 +115,51 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/lightd
 Lightdash requires node.js, yarn and dbt. 
 
 ```shell
-# Step 1: Clone the Lightdash repo
+# Install node with homebrew
+brew install node
+
+# Install yarn with node package manager
+npm install -g yarn
+
+# Clone the Lightdash repo
 git clone https://github.com/lightdash/lightdash
+
+# Enter the repo directory
 cd lightdash
 
-# Step 2: Expose Lightdash configuration 
+# Install Lightdash dependencies
+yarn install
+
+# Start DB
+docker run --name lightdash-db -p "5432:5432" -e POSTGRES_PASSWORD=mysecretpassword -d postgres
+yarn workspace backend migrate
+
+# Expose Lightdash configuration 
 # Note: Edit lightdash.yml to point to your dbt project and profile
 export LIGHTDASH_CONFIG_FILE=${PWD}/lightdash.yml
+export LIGHTDASH_DB_HOST=127.0.0.1
+export LIGHTDASH_DB_PORT=5432
+export LIGHTDASH_DB_DATABASE=postgres
+export LIGHTDASH_DB_USER=postgres
+export LIGHTDASH_DB_PASSWORD=mysecretpassword
 
-# Step 3: Install Lightdash dependencies and run in development mode
-yarn install
+# Run app in development mode in http://localhost:3000
 yarn common-build
 yarn dev
+
+# Or run in production mode in http://localhost:8080 with the commands bellow
+# yarn build
+# yarn start
 ```
 
-> If you change files inside `/packages/common` you should run `yarn common-build` before `yarn dev` or `yarn build`.
+> If you change files inside `/packages/common` you should run `yarn common-build` before `yarn dev`.
+
+#### How to debug Postgres DB
+
+```shell
+docker run --name db-admin-panel --link lightdash-db:db -p 8181:8080 adminer
+# Open browser tab: http://localhost:8181
+```
 
 #### How to run unit tests
 

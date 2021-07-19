@@ -20,6 +20,34 @@ export class LightdashError extends Error {
     }
 }
 
+export class ForbiddenError extends LightdashError {
+    constructor(
+        message = 'Forbidden error',
+        data: { [key: string]: any } = {},
+    ) {
+        super({
+            message,
+            name: 'ForbiddenError',
+            statusCode: 403,
+            data,
+        });
+    }
+}
+
+export class AuthorizationError extends LightdashError {
+    constructor(
+        message = 'Authorization error',
+        data: { [key: string]: any } = {},
+    ) {
+        super({
+            message,
+            name: 'AuthorizationError',
+            statusCode: 401,
+            data,
+        });
+    }
+}
+
 export class NotExistsError extends LightdashError {
     constructor(message: string) {
         super({
@@ -27,6 +55,20 @@ export class NotExistsError extends LightdashError {
             name: 'NotExistsError',
             statusCode: 404,
             data: {},
+        });
+    }
+}
+
+export class ParameterError extends LightdashError {
+    constructor(
+        message: string = 'Incorrect parameters',
+        data: Record<string, any> = {},
+    ) {
+        super({
+            message,
+            name: 'ParameterError',
+            statusCode: 400,
+            data,
         });
     }
 }
@@ -101,6 +143,17 @@ export class RetryableNetworkError extends LightdashError {
             message,
             name: 'RetryableNetworkError',
             statusCode: 503,
+            data: {},
+        });
+    }
+}
+
+export class NotFoundError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'NotFoundError',
+            statusCode: 404,
             data: {},
         });
     }
