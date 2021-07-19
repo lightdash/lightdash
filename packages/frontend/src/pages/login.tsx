@@ -10,7 +10,7 @@ import {
 } from '@blueprintjs/core';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
-import { LightdashMode, USER_SEED } from 'common';
+import { ApiError, LightdashMode, LightdashUser, USER_SEED } from 'common';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';
 import { useApp } from '../providers/AppProvider';
@@ -19,7 +19,7 @@ import PageSpinner from '../components/PageSpinner';
 import PasswordInput from '../components/PasswordInput';
 
 const loginQuery = async (data: { email: string; password: string }) =>
-    lightdashApi({
+    lightdashApi<LightdashUser>({
         url: `/login`,
         method: 'POST',
         body: JSON.stringify(data),
@@ -30,12 +30,16 @@ const Login: FC = () => {
     const { health } = useApp();
     const [email, setEmail] = useState<string>();
     const [password, setPassword] = useState<string>();
+    const { rudder } = useApp();
 
     const { isLoading, status, error, mutate } = useMutation<
-        any,
-        any,
+        LightdashUser,
+        ApiError,
         { email: string; password: string }
-    >(loginQuery, { mutationKey: ['login'] });
+    >(loginQuery, {
+        mutationKey: ['login'],
+        onSuccess: (data) => rudder.identify(data.userUuid),
+    });
 
     useEffect(() => {
         if (error) {
@@ -71,6 +75,10 @@ const Login: FC = () => {
             setPassword(USER_SEED.password);
         }
     }, [health]);
+
+    useEffect(() => {
+        rudder.page(undefined, 'login');
+    }, [rudder.page]);
 
     const handleLogin = () => {
         if (email && password) {

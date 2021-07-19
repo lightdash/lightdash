@@ -9,8 +9,9 @@ import {
     updateUser,
 } from '../database/entities/users';
 import database from '../database/database';
-import { AuthorizationError, ForbiddenError, NotExistsError } from '../errors';
+import { AuthorizationError, ForbiddenError } from '../errors';
 import { updatePassword } from '../database/entities/passwordLogins';
+import { analytics, identifyUser } from '../analytics/client';
 
 const mapDbUserDetailsToLightdashUser = (
     user: DbUserDetails,
@@ -29,7 +30,13 @@ export const UserModel = {
         const user = await getUserDetailsByPrimaryEmail(database, email);
         const match = await bcrypt.compare(password, user.password_hash || '');
         if (match) {
-            return mapDbUserDetailsToLightdashUser(user);
+            const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+            identifyUser(lightdashUser);
+            analytics.track({
+                userId: lightdashUser.userUuid,
+                event: 'user_logged_in',
+            });
+            return lightdashUser;
         }
         throw new AuthorizationError('Email and password not recognized.');
     },
@@ -37,20 +44,41 @@ export const UserModel = {
         if (await hasUsers(database)) {
             throw new ForbiddenError('User already registered');
         }
-        await createInitialUser(...data);
+        const user = await createInitialUser(...data);
+        const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+        identifyUser(lightdashUser);
+        analytics.track({
+            event: 'user_created',
+            userId: lightdashUser.userUuid,
+        });
+        analytics.track({
+            event: 'organization_created',
+            userId: lightdashUser.userUuid,
+        });
+        return lightdashUser;
     },
-    findById: async (uuid: string): Promise<SessionUser> => {
+    findSessionUserByUUID: async (uuid: string): Promise<SessionUser> => {
         const user = await getUserDetailsByUuid(database, uuid);
         return {
             userId: user.user_id,
             ...mapDbUserDetailsToLightdashUser(user),
         };
     },
+    lightdashUserFromSession: (sessionUser: SessionUser): LightdashUser => {
+        const { userId, ...lightdashUser } = sessionUser;
+        return lightdashUser;
+    },
     updateProfile: async (
         ...data: ArgumentsOf<typeof updateUser>
     ): Promise<LightdashUser> => {
         const user = await updateUser(...data);
-        return mapDbUserDetailsToLightdashUser(user);
+        const lightdashUser = await mapDbUserDetailsToLightdashUser(user);
+        identifyUser(lightdashUser);
+        analytics.track({
+            userId: lightdashUser.userUuid,
+            event: 'user_updated',
+        });
+        return lightdashUser;
     },
     updatePassword: async (
         userId: number,

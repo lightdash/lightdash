@@ -1,0 +1,37 @@
+version: "3.9"
+services:
+  lightdash-dev:
+    build:
+      context: ..
+      dockerfile: dockerfile
+      target: ${DOCKERFILE_TARGET}
+    depends_on:
+      - db-dev
+    environment:
+      - LIGHTDASH_DB_HOST=${LIGHTDASH_DB_HOST}
+      - LIGHTDASH_DB_PORT=${LIGHTDASH_DB_PORT}
+      - LIGHTDASH_DB_USER=${LIGHTDASH_DB_USER}
+      - LIGHTDASH_DB_PASSWORD=${LIGHTDASH_DB_PASSWORD}
+      - LIGHTDASH_DB_DATABASE=${LIGHTDASH_DB_DATABASE}
+      - POSTGRES_HOST=${LIGHTDASH_DB_HOST}
+      - POSTGRES_PORT=${LIGHTDASH_DB_PORT}
+      - POSTGRES_USER=${LIGHTDASH_DB_USER}
+      - POSTGRES_PASSWORD=${LIGHTDASH_DB_PASSWORD}
+      - POSTGRES_DATABASE=${LIGHTDASH_DB_DATABASE}
+      - RUDDERSTACK_WRITE_KEY=${RUDDERSTACK_WRITE_KEY}
+      - RUDDERSTACK_DATA_PLANE_URL=${RUDDERSTACK_DATA_PLANE_URL}
+    volumes:
+      - "${DEMO_PROFILES_DIR}:/usr/app/profiles"
+      - "${DEMO_PROJECT_DIR}:/usr/app/dbt"
+      - "../packages:/usr/app/packages"
+    ports:
+      - ${PORT}:8080
+      - 3000:3000
+
+  db-dev:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: ${LIGHTDASH_DB_PASSWORD}
+    ports:
+      - 5432:${LIGHTDASH_DB_PORT}

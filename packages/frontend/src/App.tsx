@@ -14,11 +14,10 @@ import {
 } from './hooks/useExploreConfig';
 import { ExploreSideBar } from './components/ExploreSideBar';
 import { AppToaster } from './components/AppToaster';
-import { rudderAnalytics } from './components/Analytics';
 import Login from './pages/login';
 import PrivateRoute from './components/PrivateRoute';
 import AppBar from './components/AppBar';
-import { AppProvider } from './providers/AppProvider';
+import { AppProvider, useApp } from './providers/AppProvider';
 import Register from './pages/register';
 
 const queryClient = new QueryClient({
@@ -31,6 +30,7 @@ const queryClient = new QueryClient({
 
 const InnerApp = () => {
     const { error, setError } = useExploreConfig();
+    const { rudder } = useApp();
 
     useEffect(() => {
         if (error) {
@@ -53,8 +53,8 @@ const InnerApp = () => {
     }, [error, setError]);
 
     useEffect(() => {
-        rudderAnalytics.page(undefined, 'Home');
-    }, []);
+        rudder.page(undefined, 'explore');
+    }, [rudder]);
 
     return (
         <div
