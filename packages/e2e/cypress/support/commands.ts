@@ -24,3 +24,21 @@
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 import '@testing-library/cypress/add-commands';
+import { USER_SEED } from 'common';
+
+declare namespace Cypress {
+    interface Chainable<AUTWindow> {
+        login(): Chainable<AUTWindow>;
+    }
+}
+
+Cypress.Commands.add('login', () => {
+    cy.request({
+        url: 'api/v1/login',
+        method: 'POST',
+        body: {
+            email: USER_SEED.email,
+            password: USER_SEED.password,
+        },
+    });
+});

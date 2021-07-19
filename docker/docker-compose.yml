@@ -8,6 +8,11 @@ services:
     depends_on: 
       - db-dev
     environment:
+      - LIGHTDASH_DB_HOST=db-dev
+      - LIGHTDASH_DB_PORT=5432
+      - LIGHTDASH_DB_DATABASE=postgres
+      - LIGHTDASH_DB_USER=postgres
+      - LIGHTDASH_DB_PASSWORD=password
       - POSTGRES_HOST=db-dev
       - POSTGRES_PASSWORD=password
       - POSTGRES_USER=postgres
@@ -26,3 +31,5 @@ services:
     restart: always
     environment:
       POSTGRES_PASSWORD: password
+    ports:
+      - 5432:5432

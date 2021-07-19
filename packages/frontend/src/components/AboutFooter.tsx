@@ -1,6 +1,4 @@
-import { ApiError, ApiHealthResults, HealthState } from 'common';
 import React, { useState } from 'react';
-import { useQuery } from 'react-query';
 import {
     AnchorButton,
     Callout,
@@ -11,22 +9,11 @@ import {
     Intent,
     Tag,
 } from '@blueprintjs/core';
-import { lightdashApi } from '../api';
-
-const getHealthState = async () =>
-    lightdashApi<ApiHealthResults>({
-        url: `/health`,
-        method: 'GET',
-        body: undefined,
-    });
+import { useApp } from '../providers/AppProvider';
 
 const AboutFooter = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const healthState = useQuery<HealthState, ApiError>({
-        queryKey: 'health',
-        queryFn: getHealthState,
-    });
-
+    const { health: healthState } = useApp();
     const hasUpdate =
         healthState.data?.latest.version &&
         healthState.data.version !== healthState.data.latest.version;
@@ -37,7 +24,9 @@ const AboutFooter = () => {
                 style={{
                     display: 'inline-flex',
                     alignItems: 'center',
+                    margin: '0 auto',
                     marginTop: '20px',
+                    width: '100%',
                 }}
             >
                 <div
@@ -56,7 +45,7 @@ const AboutFooter = () => {
                         src={`${process.env.PUBLIC_URL}/favicon-16x16.png`}
                         alt="Lightdash"
                     />
-                    <H6 style={{ margin: 0 }}>
+                    <H6 style={{ margin: 0, whiteSpace: 'nowrap' }}>
                         Lightdash
                         {healthState.data && ` - v${healthState.data.version}`}
                     </H6>

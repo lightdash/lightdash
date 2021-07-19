@@ -12,6 +12,28 @@ export const formatTimestamp = (date: Date): string =>
 export const parseTimestamp = (str: string): Date =>
     moment(str, TIMESTAMP_FORMAT).toDate();
 
+export const validateEmail = (email: string): boolean => {
+    const re =
+        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    return re.test(String(email).toLowerCase());
+};
+
+export const USER_SEED: CreateInitialUserArgs = {
+    firstName: 'Jane',
+    lastName: 'Doe',
+    organizationName: 'Lightdash',
+    email: 'demo@lightdash.com',
+    password: 'demo_password!',
+    isMarketingOptedIn: true,
+    isTrackingAnonymized: false,
+};
+
+export type ArgumentsOf<F extends Function> = F extends (
+    ...args: infer A
+) => any
+    ? A
+    : never;
+
 export type Explore = {
     name: string; // Friendly name any characters
     baseTable: string; // Must match a tableName in tables
@@ -500,6 +522,40 @@ export type ApiRefreshResponse =
           results: ApiRefreshResults;
       };
 
+export type ApiRegisterResponse =
+    | ApiError
+    | {
+          status: 'ok';
+          results: undefined;
+      };
+
+export interface LightdashUser {
+    userUuid: string;
+    email: string | undefined;
+    firstName: string;
+    lastName: string;
+    organizationUuid: string | undefined;
+    organizationName: string | undefined;
+    isTrackingAnonymized: boolean;
+}
+
+export type CreateInitialUserArgs = {
+    firstName: string;
+    lastName: string;
+    organizationName: string;
+    email: string;
+    password: string;
+    isMarketingOptedIn: boolean;
+    isTrackingAnonymized: boolean;
+};
+
+export type ApiUserResponse =
+    | ApiError
+    | {
+          status: 'ok';
+          results: LightdashUser;
+      };
+
 export type ApiHealthResults = HealthState;
 export type ApiHealthResponse =
     | ApiError
@@ -516,7 +572,8 @@ export type ApiResults =
     | ApiTableResults
     | ApiStatusResults
     | ApiRefreshResults
-    | ApiHealthResults;
+    | ApiHealthResults
+    | LightdashUser;
 
 export type ApiResponse =
     | ApiQueryResponse
@@ -526,11 +583,20 @@ export type ApiResponse =
     | ApiTableResponse
     | ApiStatusResponse
     | ApiRefreshResponse
-    | ApiHealthResponse;
+    | ApiHealthResponse
+    | ApiUserResponse
+    | ApiRegisterResponse;
 
+export enum LightdashEnv {
+    DEV = 'development',
+    PROD = 'production',
+}
 export type HealthState = {
     healthy: boolean;
+    env: LightdashEnv;
     version: string;
+    needsSetup: boolean;
+    isAuthenticated: boolean;
     latest: {
         version?: string;
     };

@@ -96,32 +96,7 @@ Open lightdash at `https://localhost:8080`
 
 ## Installation from source
 
-Lightdash requires node.js, yarn and dbt.
-
-**Install dependencies for Mac OS**
-```shell
-# Install node with homebrew
-brew install node
-
-# Install yarn with node package manager
-npm install -g yarn
-
-# Clone the Lightdash repo
-git clone https://github.com/lightdash/lightdash
-
-# Enter the repo directory
-cd lightdash
-
-# Install Lightdash dependencies and build
-yarn install
-yarn build
-
-# Run Lightdash
-export LIGHTDASH_CONFIG_FILE=${PWD}/lightdash.yml
-yarn start
-
-# Press ALLOW when asked to "accept incoming connections from python"
-```
+You can check the instructions in our [contribution guidelines](https://github.com/lightdash/lightdash/blob/main/.github/CONTRIBUTING.md#your-first-code-contribution)
 
 ## Docs
 

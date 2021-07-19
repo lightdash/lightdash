@@ -20,6 +20,7 @@
     "dependencies": {
         "@testing-library/cypress": "^7.0.6",
         "@types/node": "^16.0.1",
-        "cypress": "^7.7.0"
+        "cypress": "^7.7.0",
+        "common": "^0.4.0"
     }
 }

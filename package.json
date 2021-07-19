@@ -36,7 +36,7 @@
     "format": "run-s common-format backend-format frontend-format e2e-format",
     "test": "run-s backend-test",
     "dev": "run-p backend-dev frontend-dev",
-    "build": "run-p backend-build frontend-build",
+    "build": "run-s common-build frontend-build backend-build",
     "start": "run-p backend-start",
     "prepare": "husky install"
   },

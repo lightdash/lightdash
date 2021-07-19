@@ -3,8 +3,11 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Added
+ - Add login and register pages
+
 ### Fixed
-- Fix bug where refresh would not detect file changes in local deployments
+ - Fix bug where refresh would not detect file changes in local deployments
 
 ## [0.4.0] - 2021-07-14
 ### Added

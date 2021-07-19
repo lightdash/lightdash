@@ -1,5 +1,7 @@
-import { HealthState } from 'common';
+import { HealthState, LightdashEnv } from 'common';
 import fetch from 'node-fetch';
+import database from './database/database';
+import { hasUsers } from './database/entities/users';
 // Cannot be `import` as it's not under TS root dir
 const { version: VERSION } = require('../package.json');
 
@@ -12,7 +14,9 @@ const sorterByDate = (
 ): number =>
     Number(new Date(b.last_updated)) - Number(new Date(a.last_updated));
 
-export const getHealthState = async (): Promise<HealthState> => {
+export const getHealthState = async (
+    isAuthenticated: boolean,
+): Promise<HealthState> => {
     let latestVersion: string | undefined;
     try {
         const response = await fetch(
@@ -26,9 +30,18 @@ export const getHealthState = async (): Promise<HealthState> => {
         latestVersion = undefined;
     }
 
+    const env: LightdashEnv =
+        process.env.LIGHTDASH_ENV &&
+        Object.values(LightdashEnv).includes(process.env.LIGHTDASH_ENV as any)
+            ? (process.env.LIGHTDASH_ENV as LightdashEnv)
+            : LightdashEnv.PROD;
+
     return {
         healthy: true,
+        env,
         version: VERSION,
+        needsSetup: !(await hasUsers(database)),
+        isAuthenticated,
         latest: { version: latestVersion },
     };
 };

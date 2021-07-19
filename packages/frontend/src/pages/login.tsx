@@ -1,0 +1,171 @@
+import React, { FC, useState, useEffect } from 'react';
+import {
+    Button,
+    Colors,
+    FormGroup,
+    InputGroup,
+    Intent,
+    Card,
+    H2,
+} from '@blueprintjs/core';
+import { useMutation } from 'react-query';
+import { Redirect, useLocation } from 'react-router-dom';
+import { LightdashEnv, USER_SEED } from 'common';
+import { lightdashApi } from '../api';
+import { AppToaster } from '../components/AppToaster';
+import { useApp } from '../providers/AppProvider';
+import AboutFooter from '../components/AboutFooter';
+import PageSpinner from '../components/PageSpinner';
+
+const loginQuery = async (data: { email: string; password: string }) =>
+    lightdashApi({
+        url: `/login`,
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+const Login: FC = () => {
+    const location = useLocation<{ from?: Location } | undefined>();
+    const { health } = useApp();
+    const [email, setEmail] = useState<string>();
+    const [password, setPassword] = useState<string>();
+
+    const { isLoading, status, error, mutate } = useMutation<
+        any,
+        any,
+        { email: string; password: string }
+    >(loginQuery, { mutationKey: ['login'] });
+
+    useEffect(() => {
+        if (error) {
+            const [first, ...rest] = error.error.message.split('\n');
+            AppToaster.show(
+                {
+                    intent: 'danger',
+                    message: (
+                        <div>
+                            <b>{first}</b>
+                            <p>{rest.join('\n')}</p>
+                        </div>
+                    ),
+                    timeout: 0,
+                    icon: 'error',
+                },
+                first,
+            );
+        }
+    }, [error]);
+
+    useEffect(() => {
+        if (status === 'success') {
+            window.location.href = location.state?.from
+                ? `${location.state.from.pathname}${location.state.from.search}`
+                : '/';
+        }
+    }, [status, location]);
+
+    useEffect(() => {
+        if (health.data?.env === LightdashEnv.DEV) {
+            setEmail(USER_SEED.email);
+            setPassword(USER_SEED.password);
+        }
+    }, [health]);
+
+    const handleLogin = () => {
+        if (email && password) {
+            mutate({ email, password });
+        } else {
+            const message = 'Required fields: email and password';
+            AppToaster.show(
+                {
+                    intent: 'danger',
+                    message: (
+                        <div>
+                            <b>{message}</b>
+                        </div>
+                    ),
+                    timeout: 3000,
+                    icon: 'error',
+                },
+                message,
+            );
+        }
+    };
+
+    if (health.isLoading) {
+        return <PageSpinner />;
+    }
+
+    if (health.status === 'success' && health.data?.needsSetup) {
+        return (
+            <Redirect
+                to={{
+                    pathname: '/register',
+                }}
+            />
+        );
+    }
+
+    return (
+        <div
+            style={{
+                height: '100vh',
+                display: 'grid',
+                justifyContent: 'center',
+                background: Colors.LIGHT_GRAY4,
+            }}
+        >
+            <div
+                style={{
+                    width: '400px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                }}
+            >
+                <Card
+                    style={{
+                        padding: 25,
+                        display: 'flex',
+                        flexDirection: 'column',
+                    }}
+                    elevation={2}
+                >
+                    <H2 style={{ marginBottom: 25 }}>Login</H2>
+                    <FormGroup label="Email" labelFor="email-input">
+                        <InputGroup
+                            id="email-input"
+                            placeholder="Email"
+                            type="email"
+                            required
+                            disabled={isLoading}
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                        />
+                    </FormGroup>
+                    <FormGroup label="Password" labelFor="password-input">
+                        <InputGroup
+                            id="password-input"
+                            placeholder="Password"
+                            type="password"
+                            required
+                            disabled={isLoading}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
+                    </FormGroup>
+                    <Button
+                        style={{ alignSelf: 'flex-end', marginTop: 20 }}
+                        intent={Intent.PRIMARY}
+                        text="Login"
+                        onClick={handleLogin}
+                        loading={isLoading}
+                    />
+                </Card>
+                <AboutFooter />
+            </div>
+        </div>
+    );
+};
+
+export default Login;
