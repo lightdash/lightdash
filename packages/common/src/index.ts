@@ -612,6 +612,10 @@ export type HealthState = {
     latest: {
         version?: string;
     };
+    rudder: {
+        writeKey: string;
+        dataPlaneUrl: string;
+    };
 };
 
 export interface DbtCatalogNode {

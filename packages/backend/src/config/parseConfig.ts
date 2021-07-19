@@ -53,8 +53,14 @@ export type LightdashConfigIn = {
 
 export type LightdashConfig = {
     version: '1.0';
+    rudder: RudderConfig;
     mode: LightdashMode;
     projects: Array<DbtProjectConfig>;
+};
+
+export type RudderConfig = {
+    writeKey: string;
+    dataPlaneUrl: string;
 };
 
 const dbtLocalProjectConfigRequiredFields: Array<keyof DbtLocalProjectConfig> =
@@ -120,6 +126,14 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
     return {
         ...config,
         projects: mergedProjects,
+        rudder: {
+            writeKey:
+                process.env.RUDDERSTACK_WRITE_KEY ||
+                '1vqkSlWMVtYOl70rk3QSE0v1fqY',
+            dataPlaneUrl:
+                process.env.RUDDERSTACK_DATA_PLANE_URL ||
+                'https://analytics.lightdash.com',
+        },
     };
 };
 

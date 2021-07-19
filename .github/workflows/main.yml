@@ -41,6 +41,3 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            REACT_APP_RUDDERSTACK_DATAPLANE_URL=${{ secrets.REACT_APP_RUDDERSTACK_DATAPLANE_URL }}
-            REACT_APP_RUDDERSTACK_WRITE_KEY=${{ secrets.REACT_APP_RUDDERSTACK_WRITE_KEY }}

@@ -10,7 +10,13 @@ import {
     Switch,
 } from '@blueprintjs/core';
 import { useMutation } from 'react-query';
-import { ApiError, CreateInitialUserArgs, validateEmail } from 'common';
+import {
+    ApiError,
+    ApiUserResponse,
+    CreateInitialUserArgs,
+    LightdashUser,
+    validateEmail,
+} from 'common';
 import { Redirect } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';
@@ -20,7 +26,7 @@ import PageSpinner from '../components/PageSpinner';
 import PasswordInput from '../components/PasswordInput';
 
 const registerQuery = async (data: CreateInitialUserArgs) =>
-    lightdashApi<undefined>({
+    lightdashApi<LightdashUser>({
         url: `/register`,
         method: 'POST',
         body: JSON.stringify(data),
@@ -34,12 +40,18 @@ const Register: FC = () => {
     const [email, setEmail] = useState<string>();
     const [password, setPassword] = useState<string>();
     const [isMarketingOptedIn, setIsMarketingOptedIn] = useState<boolean>(true);
+    const [isTrackingAnonymized, setIsTrackingAnonymized] =
+        useState<boolean>(false);
+    const { rudder } = useApp();
 
     const { isLoading, status, error, mutate } = useMutation<
-        undefined,
+        LightdashUser,
         ApiError,
         CreateInitialUserArgs
-    >(registerQuery, { mutationKey: ['login'] });
+    >(registerQuery, {
+        mutationKey: ['login'],
+        onSuccess: (data) => rudder.identify(data.userUuid),
+    });
 
     useEffect(() => {
         if (error) {
@@ -67,6 +79,10 @@ const Register: FC = () => {
         }
     }, [status]);
 
+    useEffect(() => {
+        rudder.page(undefined, 'register');
+    }, [rudder.page]);
+
     const handleLogin = () => {
         if (
             firstName &&
@@ -83,7 +99,7 @@ const Register: FC = () => {
                 email,
                 password,
                 isMarketingOptedIn,
-                isTrackingAnonymized: true,
+                isTrackingAnonymized,
             });
         } else {
             const message =
@@ -220,6 +236,14 @@ const Register: FC = () => {
                         label="Keep me updated on new Lightdash features"
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             setIsMarketingOptedIn(e.target.checked)
+                        }
+                    />
+                    <Switch
+                        style={{ marginTop: '20px' }}
+                        disabled={isLoading}
+                        label="Anonymize my usage data. We collect data for measuring product usage."
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setIsTrackingAnonymized(e.target.checked)
                         }
                     />
                     <Button

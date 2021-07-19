@@ -104,6 +104,6 @@ passport.serializeUser((user, done) => {
 });
 
 passport.deserializeUser(async (id: string, done) => {
-    const user = await UserModel.findById(id);
+    const user = await UserModel.findSessionUserByUUID(id);
     done(null, user);
 });

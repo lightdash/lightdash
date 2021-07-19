@@ -13,7 +13,7 @@ import { useApp } from '../providers/AppProvider';
 
 const AboutFooter = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const { health: healthState } = useApp();
+    const { health: healthState, rudder } = useApp();
     const hasUpdate =
         healthState.data?.latest.version &&
         healthState.data.version !== healthState.data.latest.version;
@@ -66,6 +66,7 @@ const AboutFooter = () => {
             </footer>
             <Dialog
                 isOpen={isOpen}
+                onOpened={() => rudder.page('modal', 'about_lightdash')}
                 onClose={() => setIsOpen(false)}
                 icon="info-sign"
                 title="About Lightdash"

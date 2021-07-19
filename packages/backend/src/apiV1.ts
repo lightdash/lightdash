@@ -74,11 +74,12 @@ apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
         isMarketingOptedIn: !!req.body.isMarketingOptedIn,
         isTrackingAnonymized: !!req.body.isTrackingAnonymized,
     })
-        .then(() =>
+        .then((user) => {
             res.json({
                 status: 'ok',
-            }),
-        )
+                results: user,
+            });
+        })
         .catch(next);
 });
 
@@ -89,6 +90,7 @@ apiV1Router.post('/login', passport.authenticate('local'), (req, res, next) => {
         } else {
             res.json({
                 status: 'ok',
+                results: UserModel.lightdashUserFromSession(req.user!),
             });
         }
     });
@@ -110,7 +112,7 @@ apiV1Router.get('/logout', (req, res, next) => {
 apiV1Router.get('/user', isAuthenticated, async (req, res) => {
     res.json({
         status: 'ok',
-        results: req.user,
+        results: UserModel.lightdashUserFromSession(req.user!),
     });
 });
 
@@ -118,7 +120,7 @@ apiV1Router.patch(
     '/user/me',
     isAuthenticated,
     unauthorisedInDemo,
-    async (req, res, next) =>
+    async (req, res, next) => {
         UserModel.updateProfile(req.user!.userId, req.user!.email, req.body)
             .then((user) => {
                 res.json({
@@ -126,7 +128,8 @@ apiV1Router.patch(
                     results: user,
                 });
             })
-            .catch(next),
+            .catch(next);
+    },
 );
 
 apiV1Router.post(
@@ -156,10 +159,9 @@ apiV1Router.patch(
     unauthorisedInDemo,
     async (req, res, next) =>
         OrgModel.updateOrg(req.user!.organizationUuid, req.body)
-            .then((user) => {
+            .then(() => {
                 res.json({
                     status: 'ok',
-                    results: user,
                 });
             })
             .catch(next),

@@ -28,6 +28,7 @@
         "typescript": "^4.2.3"
     },
     "dependencies": {
+        "@rudderstack/rudder-sdk-node": "^1.0.2",
         "@stoplight/yaml": "^4.2.2",
         "@types/bcrypt": "^5.0.0",
         "@typescript-eslint/eslint-plugin": "^4.4.1",
