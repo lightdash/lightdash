@@ -1,7 +1,8 @@
 import { Knex } from 'knex';
 
 export async function up(knex: Knex): Promise<void> {
-    await knex.raw(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    await knex.raw(`
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE IF NOT EXISTS users (
     user_id integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
@@ -45,5 +46,13 @@ CREATE TABLE IF NOT EXISTS organization_memberships (
 ); `);
 }
 export async function down(knex: Knex): Promise<void> {
-    await knex.raw(``);
+    await knex.raw(`
+DROP INDEX IF EXISTS user_id_unique_for_primary_emails_idx;
+DROP TABLE IF EXISTS 
+    organization_memberships, 
+    organizations, 
+    password_logins,
+    emails,
+    users CASCADE;
+    `);
 }

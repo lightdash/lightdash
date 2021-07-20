@@ -61,6 +61,10 @@
         "lint": "eslint ./src",
         "format": "prettier --check --ignore-unknown ./src",
         "migrate": "knex migrate:up --knexfile src/database/knexfile.ts",
-        "seed": "knex seed:run --knexfile src/database/knexfile.ts"
+        "migrate-production": "knex migrate:up --knexfile dist/database/knexfile.js",
+        "seed": "knex seed:run --knexfile src/database/knexfile.ts",
+        "seed-production": "knex seed:run --knexfile dist/database/knexfile.js",
+        "rollback-all": "knex migrate:rollback --all --knexfile src/database/knexfile.ts",
+        "rollback-all-production": "knex migrate:rollback --all --knexfile dist/database/knexfile.js"
     }
 }

@@ -56,6 +56,27 @@ services:
         sync: false
       - key: REACT_APP_RUDDERSTACK_DATAPLANE_URL
         sync: false
+      - key: LIGHTDASH_DB_HOST
+        fromDatabase:
+          name: jaffle_db
+          property: host
+      - key: LIGHTDASH_DB_PORT
+        fromDatabase:
+          name: jaffle_db
+          property: port
+      - key: LIGHTDASH_DB_DATABASE
+        fromDatabase:
+          name: jaffle_db
+          property: database
+      - key: LIGHTDASH_DB_USER
+        fromDatabase:
+          name: jaffle_db
+          property: user
+      - key: LIGHTDASH_DB_PASSWORD
+        fromDatabase:
+          name: jaffle_db
+          property: password
+
       - key: DOCS_HOST # force lightdash to build after docs
         fromService:
           name: docsite
