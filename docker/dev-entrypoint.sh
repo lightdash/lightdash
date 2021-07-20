@@ -10,6 +10,7 @@ yarn install
 yarn common-build
 
 # Setup dev database
+yarn workspace backend rollback-all
 yarn workspace backend migrate
 yarn workspace backend seed
 

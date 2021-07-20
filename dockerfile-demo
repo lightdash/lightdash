@@ -83,6 +83,7 @@ RUN yarn --cwd ./packages/frontend/ build
 FROM base-dependencies as prod
 
 ENV NODE_ENV production
+ENV LIGHTDASH_ENV production
 
 # Copy distributions into environment
 COPY --from=prod-builder /usr/app/packages/common/package.json /usr/app/packages/common/package.json
@@ -102,14 +103,17 @@ COPY yarn.lock .
 RUN yarn install --pure-lockfile --non-interactive --production
 
 # Run backend
+COPY ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
 WORKDIR /usr/app/packages/backend
 EXPOSE 8080
-CMD ["yarn", "start"]
+ENTRYPOINT ["/usr/bin/prod-entrypoint.sh"]
 
 # -------------------------
 # Stage 5: Extend with demo
 # -------------------------
 FROM prod as demo
+
+ENV LIGHTDASH_ENV development
 
 COPY ./examples/full-jaffle-shop-demo/dbt /usr/app/dbt
 COPY ./examples/full-jaffle-shop-demo/profiles /usr/app/profiles

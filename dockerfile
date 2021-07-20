@@ -83,6 +83,7 @@ RUN yarn --cwd ./packages/frontend/ build
 FROM base-dependencies as prod
 
 ENV NODE_ENV production
+ENV LIGHTDASH_ENV production
 
 # Copy distributions into environment
 COPY --from=prod-builder /usr/app/packages/common/package.json /usr/app/packages/common/package.json
@@ -102,6 +103,8 @@ COPY yarn.lock .
 RUN yarn install --pure-lockfile --non-interactive --production
 
 # Run backend
+COPY ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
 WORKDIR /usr/app/packages/backend
 EXPOSE 8080
+ENTRYPOINT ["/usr/bin/prod-entrypoint.sh"]
 CMD ["yarn", "start"]
