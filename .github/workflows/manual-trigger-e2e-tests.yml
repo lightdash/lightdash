@@ -14,6 +14,11 @@ jobs:
         run: echo "Deployment url - ${{ github.event.inputs.url }}"
       - name: Checkout
         uses: actions/checkout@v2
+      # Install and build Common package
+      - name: Install packages/common modules
+        run: yarn workspace common install
+      - name: Build packages/common module
+        run: yarn common-build
       # Install NPM dependencies, cache them correctly
       # and run all Cypress tests
       - name: Cypress run
