@@ -1,14 +1,15 @@
-import knex, { Knex } from 'knex';
+import { Knex } from 'knex';
 import bcrypt from 'bcrypt';
-import { CreateInitialUserArgs } from 'common';
+import { CreateInitialUserArgs, UpdateUserArgs } from 'common';
 import { NotFoundError } from '../../errors';
 import { createOrganization } from './organizations';
-import { createEmail } from './emails';
+import { createEmail, deleteEmail } from './emails';
 import database from '../database';
 import { createPasswordLogin } from './passwordLogins';
 import { createOrganizationMembership } from './organizationMemberships';
 
-type DbUserDetails = {
+export type DbUserDetails = {
+    user_id: number;
     user_uuid: string;
     first_name: string;
     last_name: string;
@@ -30,12 +31,14 @@ type DbUser = {
     is_tracking_anonymized: boolean;
 };
 
-type DbUserIn = {
-    first_name: string;
-    last_name: string;
-    is_marketing_opted_in: boolean;
-    is_tracking_anonymized: boolean;
-};
+type DbUserIn = Pick<
+    DbUser,
+    | 'first_name'
+    | 'last_name'
+    | 'is_marketing_opted_in'
+    | 'is_tracking_anonymized'
+>;
+type DbUserUpdate = Pick<DbUser, 'first_name' | 'last_name'>;
 
 export const createUser = async (
     db: Knex,
@@ -64,6 +67,7 @@ const userDetailsQueryBuilder = (db: Knex) =>
             'organizations.organization_id',
         )
         .select<DbUserDetails[]>([
+            'users.user_id',
             'users.user_uuid',
             'users.first_name',
             'users.last_name',
@@ -127,7 +131,10 @@ export const createInitialUser = async ({
             });
             await createPasswordLogin(trx, {
                 user_id: newUser.user_id,
-                password_hash: bcrypt.hashSync(password, bcrypt.genSaltSync()),
+                password_hash: await bcrypt.hash(
+                    password,
+                    await bcrypt.genSalt(),
+                ),
             });
             await createOrganizationMembership(trx, {
                 organization_id: newOrg.organization_id,
@@ -139,11 +146,45 @@ export const createInitialUser = async ({
             throw e;
         }
     });
-    const fullUser = await getUserDetailsByUuid(database, user.user_uuid);
-    return fullUser;
+    return getUserDetailsByUuid(database, user.user_uuid);
 };
 
 export const hasUsers = async (db: Knex): Promise<boolean> => {
     const results = await userDetailsQueryBuilder(db);
     return results.length > 0;
+};
+
+export const updateUser = async (
+    userId: number,
+    currentEmail: string | undefined,
+    { firstName, lastName, email }: UpdateUserArgs,
+): Promise<DbUserDetails> => {
+    await database.transaction(async (trx) => {
+        try {
+            await database<DbUser>('users')
+                .where('user_id', userId)
+                .update<DbUserUpdate>({
+                    first_name: firstName,
+                    last_name: lastName,
+                });
+
+            if (currentEmail !== email) {
+                if (currentEmail) {
+                    await deleteEmail(trx, {
+                        user_id: userId,
+                        email: currentEmail,
+                    });
+                }
+                await createEmail(trx, {
+                    user_id: userId,
+                    email,
+                    is_primary: true,
+                });
+            }
+        } catch (e) {
+            await trx.rollback(e);
+            throw e;
+        }
+    });
+    return getUserDetailsByPrimaryEmail(database, email);
 };

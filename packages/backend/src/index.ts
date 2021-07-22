@@ -5,7 +5,7 @@ import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import expressSession from 'express-session';
 import cookieParser from 'cookie-parser';
-import { LightdashUser } from 'common';
+import { SessionUser } from 'common';
 import bodyParser from 'body-parser';
 import { AuthorizationError, errorHandler } from './errors';
 import { apiV1Router } from './apiV1';
@@ -63,7 +63,7 @@ app.listen(port, () => {
 // We need to override this interface to have our user typing
 declare global {
     namespace Express {
-        interface User extends LightdashUser {}
+        interface User extends SessionUser {}
     }
 }
 

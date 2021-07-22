@@ -10,12 +10,13 @@ import {
 } from '@blueprintjs/core';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
-import { LightdashEnv, USER_SEED } from 'common';
+import { LightdashMode, USER_SEED } from 'common';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';
 import { useApp } from '../providers/AppProvider';
 import AboutFooter from '../components/AboutFooter';
 import PageSpinner from '../components/PageSpinner';
+import PasswordInput from '../components/PasswordInput';
 
 const loginQuery = async (data: { email: string; password: string }) =>
     lightdashApi({
@@ -65,7 +66,7 @@ const Login: FC = () => {
     }, [status, location]);
 
     useEffect(() => {
-        if (health.data?.env === LightdashEnv.DEV) {
+        if (health.data?.mode === LightdashMode.DEMO) {
             setEmail(USER_SEED.email);
             setPassword(USER_SEED.password);
         }
@@ -143,17 +144,14 @@ const Login: FC = () => {
                             onChange={(e) => setEmail(e.target.value)}
                         />
                     </FormGroup>
-                    <FormGroup label="Password" labelFor="password-input">
-                        <InputGroup
-                            id="password-input"
-                            placeholder="Password"
-                            type="password"
-                            required
-                            disabled={isLoading}
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                        />
-                    </FormGroup>
+                    <PasswordInput
+                        label="Password"
+                        placeholder="Enter your password..."
+                        required
+                        disabled={isLoading}
+                        value={password}
+                        onChange={setPassword}
+                    />
                     <Button
                         style={{ alignSelf: 'flex-end', marginTop: 20 }}
                         intent={Intent.PRIMARY}

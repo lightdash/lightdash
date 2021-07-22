@@ -10,6 +10,12 @@
             "description": "Schema version for the config file",
             "const": "1.0"
         },
+        "mode": {
+            "description": "App mode",
+            "type": "string",
+            "enum": ["default", "demo", "pr"],
+            "default": "default"
+        },
         "projects": {
             "description": "A list of dbt projects configurations. Lightdash will attempt to compile and visualise these dbt projects.",
             "type": "array",

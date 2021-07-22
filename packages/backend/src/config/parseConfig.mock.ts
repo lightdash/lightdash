@@ -1,3 +1,5 @@
+import { LightdashMode } from 'common';
+
 export const UNDEFINED_CONFIG = undefined;
 
 export const EMPTY_CONFIG = {};
@@ -74,5 +76,6 @@ export const DBT_CLOUD_IDE_PROJECT = {
 
 export const wrapProject = (project: object) => ({
     version: '1.0',
+    mode: LightdashMode.DEFAULT,
     projects: [project],
 });

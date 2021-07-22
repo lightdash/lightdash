@@ -539,6 +539,10 @@ export interface LightdashUser {
     isTrackingAnonymized: boolean;
 }
 
+export interface SessionUser extends LightdashUser {
+    userId: number;
+}
+
 export type CreateInitialUserArgs = {
     firstName: string;
     lastName: string;
@@ -547,6 +551,12 @@ export type CreateInitialUserArgs = {
     password: string;
     isMarketingOptedIn: boolean;
     isTrackingAnonymized: boolean;
+};
+
+export type UpdateUserArgs = {
+    firstName: string;
+    lastName: string;
+    email: string;
 };
 
 export type ApiUserResponse =
@@ -587,13 +597,15 @@ export type ApiResponse =
     | ApiUserResponse
     | ApiRegisterResponse;
 
-export enum LightdashEnv {
-    DEV = 'development',
-    PROD = 'production',
+export enum LightdashMode {
+    DEFAULT = 'default',
+    DEMO = 'demo',
+    PR = 'pr',
 }
+
 export type HealthState = {
     healthy: boolean;
-    env: LightdashEnv;
+    mode: LightdashMode;
     version: string;
     needsSetup: boolean;
     isAuthenticated: boolean;

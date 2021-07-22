@@ -41,7 +41,6 @@ FROM base-dependencies as dev
 
 COPY . .
 COPY ./docker/dev-entrypoint.sh /usr/bin/dev-entrypoint.sh
-ENV LIGHTDASH_ENV development
 ENTRYPOINT ["/usr/bin/dev-entrypoint.sh"]
 EXPOSE 3000
 EXPOSE 8080
@@ -83,7 +82,6 @@ RUN yarn --cwd ./packages/frontend/ build
 FROM base-dependencies as prod
 
 ENV NODE_ENV production
-ENV LIGHTDASH_ENV production
 
 # Copy distributions into environment
 COPY --from=prod-builder /usr/app/packages/common/package.json /usr/app/packages/common/package.json

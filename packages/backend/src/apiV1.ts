@@ -1,7 +1,7 @@
 import express from 'express';
 import passport from 'passport';
 import { RequestHandler } from 'express-serve-static-core';
-import { validateEmail } from 'common';
+import { validateEmail, LightdashMode } from 'common';
 import {
     getAllTables,
     getStatus,
@@ -13,6 +13,8 @@ import { buildQuery } from './queryBuilder';
 import { getHealthState } from './health';
 import { UserModel } from './models/User';
 import { AuthorizationError, ParameterError } from './errors';
+import { OrgModel } from './models/Org';
+import { lightdashConfig } from './config/lightdashConfig';
 
 export const apiV1Router = express.Router();
 
@@ -21,6 +23,14 @@ const isAuthenticated: RequestHandler = (req, res, next) => {
         next();
     } else {
         next(new AuthorizationError(`Failed to authorize user`));
+    }
+};
+
+const unauthorisedInDemo: RequestHandler = (req, res, next) => {
+    if (lightdashConfig.mode === LightdashMode.DEMO) {
+        throw new AuthorizationError('Action not available in demo');
+    } else {
+        next();
     }
 };
 
@@ -35,7 +45,7 @@ apiV1Router.get('/health', async (req, res, next) => {
         .catch(next);
 });
 
-apiV1Router.post('/register', async (req, res, next) => {
+apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
     const sanitizeStringField = (value: any) => {
         if (!value || typeof value !== 'string') {
             throw new ParameterError();
@@ -103,6 +113,57 @@ apiV1Router.get('/user', isAuthenticated, async (req, res) => {
         results: req.user,
     });
 });
+
+apiV1Router.patch(
+    '/user/me',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) =>
+        UserModel.updateProfile(req.user!.userId, req.user!.email, req.body)
+            .then((user) => {
+                res.json({
+                    status: 'ok',
+                    results: user,
+                });
+            })
+            .catch(next),
+);
+
+apiV1Router.post(
+    '/user/password',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) =>
+        UserModel.updatePassword(req.user!.userId, req.user!.userUuid, req.body)
+            .then(() => {
+                req.logout();
+                req.session.save((err) => {
+                    if (err) {
+                        next(err);
+                    } else {
+                        res.json({
+                            status: 'ok',
+                        });
+                    }
+                });
+            })
+            .catch(next),
+);
+
+apiV1Router.patch(
+    '/org',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) =>
+        OrgModel.updateOrg(req.user!.organizationUuid, req.body)
+            .then((user) => {
+                res.json({
+                    status: 'ok',
+                    results: user,
+                });
+            })
+            .catch(next),
+);
 
 apiV1Router.get('/tables', isAuthenticated, async (req, res, next) => {
     getAllTables()
