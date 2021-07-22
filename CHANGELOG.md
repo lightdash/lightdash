@@ -5,6 +5,7 @@ Recent and upcoming changes to lightdash
 ## Unreleased
 ### Added
  - Add login and register pages
+ - Allow user to edit their profile, password and organization name
 
 ### Fixed
  - Fix bug where refresh would not detect file changes in local deployments

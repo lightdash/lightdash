@@ -1,7 +1,9 @@
-import { HealthState, LightdashEnv } from 'common';
+import { HealthState } from 'common';
 import fetch from 'node-fetch';
 import database from './database/database';
 import { hasUsers } from './database/entities/users';
+import { lightdashConfig } from './config/lightdashConfig';
+
 // Cannot be `import` as it's not under TS root dir
 const { version: VERSION } = require('../package.json');
 
@@ -30,15 +32,9 @@ export const getHealthState = async (
         latestVersion = undefined;
     }
 
-    const env: LightdashEnv =
-        process.env.LIGHTDASH_ENV &&
-        Object.values(LightdashEnv).includes(process.env.LIGHTDASH_ENV as any)
-            ? (process.env.LIGHTDASH_ENV as LightdashEnv)
-            : LightdashEnv.PROD;
-
     return {
         healthy: true,
-        env,
+        mode: lightdashConfig.mode,
         version: VERSION,
         needsSetup: !(await hasUsers(database)),
         isAuthenticated,

@@ -9,7 +9,6 @@ import {
     H2,
     Switch,
 } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
 import { useMutation } from 'react-query';
 import { ApiError, CreateInitialUserArgs, validateEmail } from 'common';
 import { Redirect } from 'react-router-dom';
@@ -18,6 +17,7 @@ import { AppToaster } from '../components/AppToaster';
 import { useApp } from '../providers/AppProvider';
 import AboutFooter from '../components/AboutFooter';
 import PageSpinner from '../components/PageSpinner';
+import PasswordInput from '../components/PasswordInput';
 
 const registerQuery = async (data: CreateInitialUserArgs) =>
     lightdashApi<undefined>({
@@ -33,7 +33,6 @@ const Register: FC = () => {
     const [organizationName, setOrganizationName] = useState<string>();
     const [email, setEmail] = useState<string>();
     const [password, setPassword] = useState<string>();
-    const [showPassword, setShowPassword] = useState<boolean>(false);
     const [isMarketingOptedIn, setIsMarketingOptedIn] = useState<boolean>(true);
 
     const { isLoading, status, error, mutate } = useMutation<
@@ -206,45 +205,14 @@ const Register: FC = () => {
                             onChange={(e) => setEmail(e.target.value.trim())}
                         />
                     </FormGroup>
-                    <FormGroup
+                    <PasswordInput
                         label="Password"
-                        labelFor="password-input"
-                        labelInfo="(required)"
-                    >
-                        <InputGroup
-                            id="password-input"
-                            placeholder="Enter your password..."
-                            type={showPassword ? 'text' : 'password'}
-                            required
-                            disabled={isLoading}
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value.trim())}
-                            rightElement={
-                                <Tooltip2
-                                    content={`${
-                                        showPassword ? 'Hide' : 'Show'
-                                    } Password`}
-                                    disabled={isLoading}
-                                >
-                                    <Button
-                                        minimal
-                                        disabled={isLoading}
-                                        icon={
-                                            showPassword
-                                                ? 'eye-off'
-                                                : 'eye-open'
-                                        }
-                                        intent={Intent.WARNING}
-                                        onClick={() =>
-                                            setShowPassword(
-                                                (prevState) => !prevState,
-                                            )
-                                        }
-                                    />
-                                </Tooltip2>
-                            }
-                        />
-                    </FormGroup>
+                        placeholder="Enter your password..."
+                        required
+                        disabled={isLoading}
+                        value={password}
+                        onChange={setPassword}
+                    />
                     <Switch
                         style={{ marginTop: '20px' }}
                         defaultChecked

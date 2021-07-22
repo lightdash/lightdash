@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Alignment,
     Button,
@@ -11,6 +11,7 @@ import { Tooltip2 } from '@blueprintjs/popover2';
 import { useMutation } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
+import UserSettingsModal from './UserSettingsModal/UserSettingsModal';
 
 const logoutQuery = async () =>
     lightdashApi({
@@ -21,24 +22,31 @@ const logoutQuery = async () =>
 
 const AppBar = () => {
     const { user } = useApp();
-    const { isLoading, status, mutate } = useMutation(logoutQuery, {
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const { isLoading, mutate } = useMutation(logoutQuery, {
         mutationKey: ['logout'],
-    });
-
-    useEffect(() => {
-        if (status === 'success') {
+        onSuccess: () => {
             window.location.href = '/login';
-        }
-    }, [status]);
+        },
+    });
 
     return (
         <>
             <Navbar style={{ position: 'sticky', top: 0 }}>
                 <NavbarGroup align={Alignment.RIGHT}>
-                    <NavbarHeading>
+                    <NavbarHeading style={{ marginRight: 5 }}>
                         {user.data?.firstName} {user.data?.lastName}
                     </NavbarHeading>
                     <NavbarDivider />
+                    <Tooltip2 content="Settings">
+                        <Button
+                            icon="cog"
+                            minimal
+                            intent="none"
+                            loading={isLoading}
+                            onClick={() => setIsSettingsOpen(true)}
+                        />
+                    </Tooltip2>
                     <Tooltip2 content="Logout">
                         <Button
                             icon="log-out"
@@ -50,6 +58,10 @@ const AppBar = () => {
                     </Tooltip2>
                 </NavbarGroup>
             </Navbar>
+            <UserSettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+            />
         </>
     );
 };

@@ -20,7 +20,7 @@ const handleError = (err: any): ApiError => {
 };
 
 type LightdashApiProps = {
-    method: 'GET' | 'POST';
+    method: 'GET' | 'POST' | 'PATCH';
     url: string;
     body: BodyInit | null | undefined;
 };

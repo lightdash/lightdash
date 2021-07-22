@@ -1,5 +1,6 @@
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
+import { LightdashMode } from 'common';
 import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
 import { ParseError } from '../errors';
 
@@ -46,11 +47,13 @@ export type DbtProjectConfigIn<T extends DbtProjectConfig> = Partial<T> &
 
 export type LightdashConfigIn = {
     version: '1.0';
+    mode: LightdashMode;
     projects: Array<Partial<DbtProjectConfig> & DbtProjectConfigBase>;
 };
 
 export type LightdashConfig = {
     version: '1.0';
+    mode: LightdashMode;
     projects: Array<DbtProjectConfig>;
 };
 

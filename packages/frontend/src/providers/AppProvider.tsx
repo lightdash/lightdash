@@ -1,6 +1,14 @@
-import React, { FC, useContext, createContext, useEffect } from 'react';
+import React, {
+    FC,
+    useContext,
+    createContext,
+    useEffect,
+    useCallback,
+} from 'react';
 import { ApiError, ApiHealthResults, HealthState, LightdashUser } from 'common';
 import { useQuery } from 'react-query';
+import { IToastProps } from '@blueprintjs/core/src/components/toast/toast';
+import { Intent } from '@blueprintjs/core';
 import { UseQueryResult } from 'react-query/types/react/types';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';
@@ -19,9 +27,17 @@ const getUserState = async () =>
         body: undefined,
     });
 
+interface Message extends Omit<IToastProps, 'message'> {
+    title: string;
+    subtitle?: string;
+    key?: string;
+}
+
 interface AppContext {
     health: UseQueryResult<HealthState, ApiError>;
     user: UseQueryResult<LightdashUser, ApiError>;
+    showMessage: (props: Message) => void;
+    showError: (props: Message) => void;
 }
 
 const Context = createContext<AppContext>(undefined as any);
@@ -38,9 +54,43 @@ export const AppProvider: FC = ({ children }) => {
         retry: false,
     });
 
+    const showMessage = useCallback<AppContext['showMessage']>(
+        ({ title, subtitle, key, ...rest }) => {
+            AppToaster.show(
+                {
+                    intent: Intent.SUCCESS,
+                    icon: 'tick-circle',
+                    timeout: 5000,
+                    message: (
+                        <div>
+                            <b>{title}</b>
+                            {subtitle && <p>{subtitle}</p>}
+                        </div>
+                    ),
+                    ...rest,
+                },
+                key || title,
+            );
+        },
+        [],
+    );
+
+    const showError = useCallback<AppContext['showError']>(
+        (props) => {
+            showMessage({
+                intent: Intent.DANGER,
+                icon: 'error',
+                ...props,
+            });
+        },
+        [showMessage],
+    );
+
     const value = {
         health,
         user,
+        showMessage,
+        showError,
     };
 
     useEffect(() => {

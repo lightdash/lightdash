@@ -1,4 +1,6 @@
 import { Knex } from 'knex';
+import bcrypt from 'bcrypt';
+import database from '../database';
 
 export type DbPasswordLogin = {
     user_id: number;
@@ -6,10 +8,10 @@ export type DbPasswordLogin = {
     created_at: Date;
 };
 
-export type DbPasswordLoginIn = {
-    user_id: number;
-    password_hash: string;
-};
+export type DbPasswordLoginIn = Pick<
+    DbPasswordLogin,
+    'user_id' | 'password_hash'
+>;
 
 // DB Errors:
 // user_id does not exist (foreign key)
@@ -21,4 +23,20 @@ export const createPasswordLogin = async (
     await db<DbPasswordLogin>('password_logins').insert<DbPasswordLoginIn>(
         passwordLoginIn,
     );
+};
+
+export const updatePassword = async (
+    userId: number,
+    newPassword: string,
+): Promise<void> => {
+    await database<DbPasswordLogin>('password_logins')
+        .where({
+            user_id: userId,
+        })
+        .update({
+            password_hash: await bcrypt.hash(
+                newPassword,
+                await bcrypt.genSalt(),
+            ),
+        });
 };

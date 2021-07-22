@@ -1,4 +1,5 @@
 import fetchMock from 'jest-fetch-mock';
+import { LightdashMode } from 'common';
 import { getHealthState } from './health';
 import { ImagesResponse, Image } from './health.mock';
 import { hasUsers } from './database/entities/users';
@@ -9,6 +10,10 @@ jest.mock('../package.json', () => ({
 
 jest.mock('./database/entities/users', () => ({
     hasUsers: jest.fn(),
+}));
+
+jest.mock('./config/lightdashConfig', () => ({
+    lightdashConfig: { mode: LightdashMode.DEFAULT },
 }));
 
 describe('health', () => {
@@ -23,7 +28,7 @@ describe('health', () => {
         expect(await getHealthState(false)).toEqual({
             healthy: true,
             version: '0.1.0',
-            env: 'production',
+            mode: LightdashMode.DEFAULT,
             isAuthenticated: false,
             needsSetup: false,
             latest: { version: Image.name },
@@ -35,7 +40,7 @@ describe('health', () => {
         expect(await getHealthState(false)).toEqual({
             healthy: true,
             version: '0.1.0',
-            env: 'production',
+            mode: LightdashMode.DEFAULT,
             isAuthenticated: false,
             needsSetup: false,
             latest: { version: undefined },
@@ -47,7 +52,7 @@ describe('health', () => {
         expect(await getHealthState(false)).toEqual({
             healthy: true,
             version: '0.1.0',
-            env: 'production',
+            mode: LightdashMode.DEFAULT,
             isAuthenticated: false,
             needsSetup: true,
             latest: { version: Image.name },
@@ -57,7 +62,7 @@ describe('health', () => {
         expect(await getHealthState(true)).toEqual({
             healthy: true,
             version: '0.1.0',
-            env: 'production',
+            mode: LightdashMode.DEFAULT,
             isAuthenticated: true,
             needsSetup: false,
             latest: { version: Image.name },
