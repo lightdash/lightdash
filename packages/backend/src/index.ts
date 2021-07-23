@@ -6,12 +6,22 @@ import { Strategy as LocalStrategy } from 'passport-local';
 import expressSession from 'express-session';
 import cookieParser from 'cookie-parser';
 import { SessionUser } from 'common';
+import connectSessionKnex from 'connect-session-knex';
 import bodyParser from 'body-parser';
 import { AuthorizationError, errorHandler } from './errors';
 import { apiV1Router } from './apiV1';
 import { refreshAllTables } from './lightdash';
 import { UserModel } from './models/User';
+import database from './database/database';
 
+const KnexSessionStore = connectSessionKnex(expressSession);
+
+const store = new KnexSessionStore({
+    knex: database as any,
+    createtable: false,
+    tablename: 'sessions',
+    sidfieldname: 'sid',
+});
 const app = express();
 app.use(express.json());
 
@@ -23,8 +33,12 @@ app.use(cookieParser());
 app.use(
     expressSession({
         secret: 'lightdash session',
+        cookie: {
+            maxAge: 86400000, // 1 day
+        },
         resave: false,
         saveUninitialized: false,
+        store,
     }),
 );
 app.use(passport.initialize());

@@ -6,6 +6,7 @@ Recent and upcoming changes to lightdash
 ### Added
  - Add login and register pages
  - Allow user to edit their profile, password and organization name
+ - Save user sessions in DB instead of memory
 
 ### Fixed
  - Fix bug where refresh would not detect file changes in local deployments
