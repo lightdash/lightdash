@@ -56,7 +56,6 @@ Start learning Lightdash:
 
 ## Community Support
 Join our community if you need help, want to chat or have any other questions for us:
-- [Discord](https://discord.gg/WnPB98Wk) - Live chat with the Lightdash team and our community members
 - [Discourse](https://community.lightdash.com/) - Discussion forums and updates from the Lightdash team
 - [Twitter](https://twitter.com/lightdash_devs) - For all the latest Lightdash news
 
