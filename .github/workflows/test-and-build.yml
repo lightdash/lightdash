@@ -1,4 +1,4 @@
-name: Test and build
+name: Test
 
 on:
   push:
@@ -27,6 +27,3 @@ jobs:
 
     - name: Test backend
       run: yarn workspace backend test
-      
-    - name: Build the Docker image
-      run: docker build . --file dockerfile --tag lightdash:$(date +%s)
