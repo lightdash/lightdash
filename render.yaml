@@ -53,6 +53,11 @@ services:
           name: jaffle_db
           property: password
       - fromGroup: rudder-settings
+      - key: LIGHTDASH_SECRET
+        generatedValue: true
+      - key: SECURE_COOKIES
+        value: true
+
       - key: DOCS_HOST # force lightdash to build after docs
         fromService:
           name: docsite
