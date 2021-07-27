@@ -18,6 +18,10 @@ import {
 import { ParseError } from '../errors';
 import { parseConfig } from './parseConfig';
 
+beforeAll(() => {
+    process.env.LIGHTDASH_SECRET = 'not very secret';
+});
+
 test('Should throw ParseError for undefined config', () => {
     expect(() => parseConfig(UNDEFINED_CONFIG)).toThrowError(ParseError);
 });
@@ -108,4 +112,18 @@ test('Should parse rudder config from env', () => {
     process.env.RUDDERSTACK_DATA_PLANE_URL = 'customurl';
     process.env.RUDDERSTACK_WRITE_KEY = 'customkey';
     expect(parseConfig(wrapProject(LOCAL_PROJECT)).rudder).toEqual(expected);
+});
+
+test('Should throw error when secret missing', () => {
+    delete process.env.LIGHTDASH_SECRET;
+    expect(() => parseConfig(wrapProject(LOCAL_PROJECT))).toThrowError(
+        ParseError,
+    );
+});
+
+test('Should include secret in output', () => {
+    process.env.LIGHTDASH_SECRET = 'so very secret';
+    expect(parseConfig(wrapProject(LOCAL_PROJECT)).lightdashSecret).toEqual(
+        'so very secret',
+    );
 });

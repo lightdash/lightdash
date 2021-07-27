@@ -53,6 +53,8 @@ export type LightdashConfigIn = {
 
 export type LightdashConfig = {
     version: '1.0';
+    lightdashSecret: string;
+    secureCookies: boolean;
     rudder: RudderConfig;
     mode: LightdashMode;
     projects: Array<DbtProjectConfig>;
@@ -123,6 +125,13 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             }
         }
     });
+    const lightdashSecret = process.env.LIGHTDASH_SECRET;
+    if (!lightdashSecret) {
+        throw new ParseError(
+            `Must specify environment variable LIGHTDASH_SECRET. Keep this value hidden!`,
+            {},
+        );
+    }
     return {
         ...config,
         projects: mergedProjects,
@@ -134,6 +143,8 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 process.env.RUDDERSTACK_DATA_PLANE_URL ||
                 'https://analytics.lightdash.com',
         },
+        lightdashSecret,
+        secureCookies: process.env.SECURE_COOKIES === 'true',
     };
 };
 
