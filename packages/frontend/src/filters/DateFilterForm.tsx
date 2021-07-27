@@ -60,6 +60,7 @@ const FilterForm: FC<FilterFormProps> = ({
         case 'greaterThanOrEqual':
             return (
                 <DateInput
+                    value={filter.value}
                     timePrecision={
                         filterGroupType === 'timestamp'
                             ? TimePrecision.MILLISECOND
