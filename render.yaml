@@ -52,10 +52,7 @@ services:
         fromDatabase:
           name: jaffle_db
           property: password
-      - key: RUDDERSTACK_WRITE_KEY
-        sync: false
-      - key: RUDDERSTACK_DATA_PLANE_URL
-        sync: false
+      - fromGroup: rudder-settings
       - key: DOCS_HOST # force lightdash to build after docs
         fromService:
           name: docsite
@@ -72,4 +69,12 @@ services:
       - key: RUDDERSTACK_DATAPLANE_URL
         sync: false
       - key: RUDDERSTACK_WRITE_KEY
+        sync: false
+
+envVarGroups:
+  - name: rudder-settings
+    envVars:
+      - key: RUDDERSTACK_WRITE_KEY
+        sync: false
+      - key: RUDDERSTACK_DATA_PLANE_URL
         sync: false
