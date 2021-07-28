@@ -54,7 +54,7 @@ services:
           property: password
       - fromGroup: rudder-settings
       - key: LIGHTDASH_SECRET
-        generatedValue: true
+        generateValue: true
       - key: SECURE_COOKIES
         value: true
 
