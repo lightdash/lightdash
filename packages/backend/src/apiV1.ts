@@ -65,23 +65,31 @@ apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
         }
         return email;
     };
-
-    return UserModel.register({
-        firstName: sanitizeStringField(req.body.firstName),
-        lastName: sanitizeStringField(req.body.lastName),
-        organizationName: sanitizeStringField(req.body.organizationName),
-        email: sanitizeEmailField(req.body.email),
-        password: sanitizeStringField(req.body.password),
-        isMarketingOptedIn: !!req.body.isMarketingOptedIn,
-        isTrackingAnonymized: !!req.body.isTrackingAnonymized,
-    })
-        .then((user) => {
+    try {
+        const lightdashUser = await UserModel.register({
+            firstName: sanitizeStringField(req.body.firstName),
+            lastName: sanitizeStringField(req.body.lastName),
+            organizationName: sanitizeStringField(req.body.organizationName),
+            email: sanitizeEmailField(req.body.email),
+            password: sanitizeStringField(req.body.password),
+            isMarketingOptedIn: !!req.body.isMarketingOptedIn,
+            isTrackingAnonymized: !!req.body.isTrackingAnonymized,
+        });
+        const sessionUser = await UserModel.findSessionUserByUUID(
+            lightdashUser.userUuid,
+        );
+        req.login(sessionUser, (err) => {
+            if (err) {
+                next(err);
+            }
             res.json({
                 status: 'ok',
-                results: user,
+                results: lightdashUser,
             });
-        })
-        .catch(next);
+        });
+    } catch (e) {
+        next(e);
+    }
 });
 
 apiV1Router.post('/login', passport.authenticate('local'), (req, res, next) => {

@@ -78,7 +78,7 @@ const Login: FC = () => {
 
     useEffect(() => {
         rudder.page(undefined, 'login');
-    }, [rudder.page]);
+    }, [rudder]);
 
     const handleLogin = () => {
         if (email && password) {
@@ -110,6 +110,7 @@ const Login: FC = () => {
             <Redirect
                 to={{
                     pathname: '/register',
+                    state: { from: location.state?.from },
                 }}
             />
         );

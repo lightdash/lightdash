@@ -12,12 +12,11 @@ import {
 import { useMutation } from 'react-query';
 import {
     ApiError,
-    ApiUserResponse,
     CreateInitialUserArgs,
     LightdashUser,
     validateEmail,
 } from 'common';
-import { Redirect } from 'react-router-dom';
+import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';
 import { useApp } from '../providers/AppProvider';
@@ -33,6 +32,7 @@ const registerQuery = async (data: CreateInitialUserArgs) =>
     });
 
 const Register: FC = () => {
+    const location = useLocation<{ from?: Location } | undefined>();
     const { health } = useApp();
     const [firstName, setFirstName] = useState<string>();
     const [lastName, setLastName] = useState<string>();
@@ -75,13 +75,15 @@ const Register: FC = () => {
 
     useEffect(() => {
         if (status === 'success') {
-            window.location.href = '/login';
+            window.location.href = location.state?.from
+                ? `${location.state.from.pathname}${location.state.from.search}`
+                : '/';
         }
-    }, [status]);
+    }, [status, location]);
 
     useEffect(() => {
         rudder.page(undefined, 'register');
-    }, [rudder.page]);
+    }, [rudder]);
 
     const handleLogin = () => {
         if (
