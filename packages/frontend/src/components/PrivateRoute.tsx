@@ -22,6 +22,7 @@ const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
                         <Redirect
                             to={{
                                 pathname: '/register',
+                                state: { from: location },
                             }}
                         />
                     );
