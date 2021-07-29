@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+
+## [0.5.0] - 2021-07-29
 ### Added
  - Add login and register pages
  - Allow user to edit their profile, password and organization name
