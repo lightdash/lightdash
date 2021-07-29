@@ -55,6 +55,7 @@ export type LightdashConfig = {
     version: '1.0';
     lightdashSecret: string;
     secureCookies: boolean;
+    trustProxy: boolean;
     rudder: RudderConfig;
     mode: LightdashMode;
     projects: Array<DbtProjectConfig>;
@@ -145,6 +146,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         },
         lightdashSecret,
         secureCookies: process.env.SECURE_COOKIES === 'true',
+        trustProxy: process.env.TRUST_PROXY === 'true',
     };
 };
 
