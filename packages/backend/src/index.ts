@@ -34,6 +34,7 @@ app.use(cookieParser());
 app.use(
     expressSession({
         secret: lightdashConfig.lightdashSecret,
+        proxy: lightdashConfig.trustProxy,
         cookie: {
             maxAge: 86400000, // 1 day
             secure: lightdashConfig.secureCookies,

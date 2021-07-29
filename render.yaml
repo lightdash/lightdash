@@ -57,6 +57,8 @@ services:
         generateValue: true
       - key: SECURE_COOKIES
         value: true
+      - key: TRUST_PROXY
+        value: true
 
       - key: DOCS_HOST # force lightdash to build after docs
         fromService:
@@ -80,6 +82,6 @@ envVarGroups:
   - name: rudder-settings
     envVars:
       - key: RUDDERSTACK_WRITE_KEY
-        sync: false
+        value: 1vikeGadtB0Y0oRDFNL2Prdhkbp
       - key: RUDDERSTACK_DATA_PLANE_URL
-        sync: false
+        value: https://analytics.lightdash.com
