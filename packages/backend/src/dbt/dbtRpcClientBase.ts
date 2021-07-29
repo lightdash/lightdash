@@ -114,7 +114,7 @@ export class DbtRpcClientBase {
                     messages.push(data.error.message);
                 }
                 if (data.error.data?.message) {
-                    messages.push(data.error.message);
+                    messages.push(data.error.data.message);
                 }
                 const combinedMessage = messages.join('\n');
                 throw new DbtError(combinedMessage, data.error);
