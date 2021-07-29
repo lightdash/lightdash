@@ -11,6 +11,7 @@ Recent and upcoming changes to lightdash
 
 ### Fixed
  - Fix bug where refresh would not detect file changes in local deployments
+ - Fix bug where database errors would not show in the UI
 
 ## [0.4.0] - 2021-07-14
 ### Added
