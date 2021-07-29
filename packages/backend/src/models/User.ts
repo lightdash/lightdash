@@ -97,5 +97,9 @@ export const UserModel = {
             throw new AuthorizationError('Password not recognized.');
         }
         await updatePassword(userId, data.newPassword);
+        analytics.track({
+            userId: user.user_uuid,
+            event: 'password_updated',
+        });
     },
 };
