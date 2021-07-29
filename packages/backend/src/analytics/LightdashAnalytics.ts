@@ -34,11 +34,19 @@ type TrackUserLoggedIn = BaseTrack & {
 type TrackUserUpdated = BaseTrack & {
     event: 'user_updated';
 };
+type TrackPasswordUpdated = BaseTrack & {
+    event: 'password_updated';
+};
+type TrackOrganizationUpdated = BaseTrack & {
+    event: 'organization_updated';
+};
 type Track =
     | TrackUserCreated
     | TrackOrganizationCreated
     | TrackUserLoggedIn
-    | TrackUserUpdated;
+    | TrackUserUpdated
+    | TrackPasswordUpdated
+    | TrackOrganizationUpdated;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {

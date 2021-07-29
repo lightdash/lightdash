@@ -15,6 +15,7 @@ import { UserModel } from './models/User';
 import { AuthorizationError, ParameterError } from './errors';
 import { OrgModel } from './models/Org';
 import { lightdashConfig } from './config/lightdashConfig';
+import { analytics } from './analytics/client';
 
 export const apiV1Router = express.Router();
 
@@ -160,6 +161,10 @@ apiV1Router.patch(
     async (req, res, next) =>
         OrgModel.updateOrg(req.user!.organizationUuid, req.body)
             .then(() => {
+                analytics.track({
+                    userId: req.user!.userUuid,
+                    event: 'organization_updated',
+                });
                 res.json({
                     status: 'ok',
                 });
