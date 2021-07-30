@@ -13,6 +13,7 @@ import {
     ButtonGroup,
     NonIdealState,
     Dialog,
+    Spinner,
 } from '@blueprintjs/core';
 import { useQuery } from 'react-query';
 import { ApiError, Space, SpaceQuery } from 'common';
@@ -90,7 +91,7 @@ const SavedListItem: FC<{ savedQuery: SpaceQuery }> = ({ savedQuery }) => {
                 canOutsideClickClose={false}
             >
                 <div className={Classes.DIALOG_BODY}>
-                    <p>Are you sure you want to delete this saved query ?</p>
+                    <p>Are you sure you want to delete this chart ?</p>
                 </div>
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>
@@ -145,7 +146,14 @@ const Saved: FC = () => {
         rudder.page(undefined, 'saved');
     }, [rudder]);
 
-    if (isLoading) return <div>loading</div>;
+    if (isLoading) {
+        return (
+            <div style={{ marginTop: '20px' }}>
+                <NonIdealState title="Loading charts" icon={<Spinner />} />
+            </div>
+        );
+    }
+
     return (
         <div
             style={{
@@ -175,11 +183,11 @@ const Saved: FC = () => {
                             alignItems: 'center',
                         }}
                     >
-                        <H3>Saved</H3>
+                        <H3>Saved charts</H3>
                     </div>
                     <div style={{ padding: '10px' }}>
                         <Text>
-                            Select a space to start exploring your saved queries
+                            Select a space to start exploring your charts
                         </Text>
                     </div>
                     <Divider />

@@ -72,7 +72,7 @@ export const useDeleteMutation = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries('spaces');
             showMessage({
-                title: `Query deleted with success`,
+                title: `Chart deleted with success`,
             });
             history.push({
                 pathname: `/saved`,
@@ -80,7 +80,7 @@ export const useDeleteMutation = () => {
         },
         onError: (error) => {
             showError({
-                title: `Failed to delete query`,
+                title: `Failed to delete chart`,
                 subtitle: error.error.message,
             });
         },
@@ -98,12 +98,12 @@ export const useUpdateMutation = (savedQueryUuid: string) => {
                 await queryClient.invalidateQueries('spaces');
                 queryClient.setQueryData(['saved_query', data.uuid], data);
                 showMessage({
-                    title: `Query saved with success`,
+                    title: `Chart saved with success`,
                 });
             },
             onError: (error) => {
                 showError({
-                    title: `Failed to save query`,
+                    title: `Failed to save chart`,
                     subtitle: error.error.message,
                 });
             },
@@ -122,7 +122,7 @@ export const useCreateMutation = () => {
             onSuccess: (data) => {
                 queryClient.setQueryData(['saved_query', data.uuid], data);
                 showMessage({
-                    title: `Query updated with success`,
+                    title: `Chart updated with success`,
                 });
                 history.push({
                     pathname: `/saved/${data.uuid}`,
@@ -130,7 +130,7 @@ export const useCreateMutation = () => {
             },
             onError: (error) => {
                 showError({
-                    title: `Failed to save query`,
+                    title: `Failed to save chart`,
                     subtitle: error.error.message,
                 });
             },
@@ -150,12 +150,12 @@ export const useAddVersionMutation = () => {
         onSuccess: (data) => {
             queryClient.setQueryData(['saved_query', data.uuid], data);
             showMessage({
-                title: `Query saved with success`,
+                title: `Chart saved with success`,
             });
         },
         onError: (error) => {
             showError({
-                title: `Failed to save query`,
+                title: `Failed to save chart`,
                 subtitle: error.error.message,
             });
         },

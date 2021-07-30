@@ -113,13 +113,13 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             {savedQueryUuid && (
                                 <MenuItem
                                     icon="saved"
-                                    text="Save"
+                                    text="Save chart"
                                     onClick={handleSavedQueryUpdate}
                                 />
                             )}
                             <MenuItem
                                 icon="add"
-                                text="Save as"
+                                text="Save chart as"
                                 onClick={() => setIsQueryModalOpen(true)}
                             />
                         </Menu>

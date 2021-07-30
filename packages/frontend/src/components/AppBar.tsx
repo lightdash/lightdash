@@ -45,7 +45,7 @@ const AppBar = () => {
                         <Button minimal icon="database" text="Explore" />
                     </NavLink>
                     <NavLink to="/saved">
-                        <Button minimal icon="saved" text="Saved" />
+                        <Button minimal icon="saved" text="Saved charts" />
                     </NavLink>
                 </NavbarGroup>
                 <NavbarGroup align={Alignment.RIGHT}>
