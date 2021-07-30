@@ -21,7 +21,7 @@ export const validateEmail = (email: string): boolean => {
 export const USER_SEED: CreateInitialUserArgs = {
     firstName: 'Jane',
     lastName: 'Doe',
-    organizationName: 'Lightdash',
+    organizationName: 'Jaffle Shop',
     email: 'demo@lightdash.com',
     password: 'demo_password!',
     isMarketingOptedIn: true,
@@ -734,6 +734,8 @@ export type Space = {
 export type CreateSavedQuery = Omit<SavedQuery, 'uuid'>;
 
 export type CreateSavedQueryVersion = Omit<SavedQuery, 'uuid' | 'name'>;
+
+export type UpdateSavedQuery = Pick<SavedQuery, 'name'>;
 
 export enum DBFieldTypes {
     DIMENSION = 'dimension',

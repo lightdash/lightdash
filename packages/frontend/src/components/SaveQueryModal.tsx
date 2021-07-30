@@ -9,7 +9,11 @@ import {
 } from '@blueprintjs/core';
 import { SavedQuery } from 'common';
 import { useApp } from '../providers/AppProvider';
-import { useCreateMutation } from '../hooks/useSavedQuery';
+import {
+    useCreateMutation,
+    useSavedQuery,
+    useUpdateMutation,
+} from '../hooks/useSavedQuery';
 
 interface Props {
     isOpen: boolean;
@@ -29,6 +33,10 @@ const SaveQueryModal: FC<Props> = ({
     const { showError } = useApp();
     const [name, setName] = useState<string | undefined>(initialName);
 
+    useEffect(() => {
+        setName(initialName);
+    }, [initialName]);
+
     const handleSave = () => {
         if (name) {
             onSave(name);
@@ -43,7 +51,7 @@ const SaveQueryModal: FC<Props> = ({
     return (
         <Dialog
             isOpen={isOpen}
-            onClose={onClose}
+            onClose={() => (!isDisabled ? onClose() : undefined)}
             title="Save"
             lazy
             canOutsideClickClose
@@ -108,6 +116,42 @@ export const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
             isOpen={isOpen}
             isDisabled={isLoading}
             onSave={onCreate}
+            onClose={onClose}
+        />
+    );
+};
+
+interface UpdateSavedQueryModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    savedQueryId: string;
+}
+export const UpdateSavedQueryModal: FC<UpdateSavedQueryModalProps> = ({
+    isOpen,
+    onClose,
+    savedQueryId,
+}) => {
+    const { data, isLoading } = useSavedQuery({ id: savedQueryId });
+    const {
+        status,
+        isLoading: isUpdating,
+        mutate,
+    } = useUpdateMutation(savedQueryId);
+    const onUpdate = (name: string) => {
+        mutate({ name });
+    };
+    useEffect(() => {
+        if (status === 'success') {
+            onClose();
+        }
+    }, [onClose, status]);
+
+    return (
+        <SaveQueryModal
+            isOpen={isOpen}
+            initialName={data?.name}
+            isDisabled={isLoading || isUpdating}
+            onSave={onUpdate}
             onClose={onClose}
         />
     );

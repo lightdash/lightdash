@@ -3,6 +3,7 @@ import {
     CreateSavedQuery,
     CreateSavedQueryVersion,
     SavedQuery,
+    UpdateSavedQuery,
 } from 'common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
@@ -21,6 +22,13 @@ const deleteSavedQuery = async (id: string) =>
         url: `/saved/${id}`,
         method: 'DELETE',
         body: undefined,
+    });
+
+const updateSavedQuery = async (id: string, data: UpdateSavedQuery) =>
+    lightdashApi<SavedQuery>({
+        url: `/saved/${id}`,
+        method: 'PATCH',
+        body: JSON.stringify({ savedQuery: data }),
     });
 
 const getSavedQuery = async (id: string) =>
@@ -77,6 +85,30 @@ export const useDeleteMutation = () => {
             });
         },
     });
+};
+
+export const useUpdateMutation = (savedQueryUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showMessage, showError } = useApp();
+    return useMutation<SavedQuery, ApiError, UpdateSavedQuery>(
+        (data) => updateSavedQuery(savedQueryUuid, data),
+        {
+            mutationKey: ['saved_query_create'],
+            onSuccess: async (data) => {
+                await queryClient.invalidateQueries('spaces');
+                queryClient.setQueryData(['saved_query', data.uuid], data);
+                showMessage({
+                    title: `Query saved with success`,
+                });
+            },
+            onError: (error) => {
+                showError({
+                    title: `Failed to save query`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
 };
 
 export const useCreateMutation = () => {
