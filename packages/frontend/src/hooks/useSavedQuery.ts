@@ -16,6 +16,13 @@ const createSavedQuery = async (data: CreateSavedQuery) =>
         body: JSON.stringify({ savedQuery: data }),
     });
 
+const deleteSavedQuery = async (id: string) =>
+    lightdashApi<undefined>({
+        url: `/saved/${id}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
 const getSavedQuery = async (id: string) =>
     lightdashApi<SavedQuery>({
         url: `/saved/${id}`,
@@ -47,6 +54,30 @@ export const useSavedQuery = ({ id }: Args = {}) =>
         enabled: id !== undefined,
         retry: false,
     });
+
+export const useDeleteMutation = () => {
+    const history = useHistory();
+    const queryClient = useQueryClient();
+    const { showMessage, showError } = useApp();
+    return useMutation<undefined, ApiError, string>(deleteSavedQuery, {
+        mutationKey: ['saved_query_create'],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries('spaces');
+            showMessage({
+                title: `Query deleted with success`,
+            });
+            history.push({
+                pathname: `/saved`,
+            });
+        },
+        onError: (error) => {
+            showError({
+                title: `Failed to delete query`,
+                subtitle: error.error.message,
+            });
+        },
+    });
+};
 
 export const useCreateMutation = () => {
     const history = useHistory();

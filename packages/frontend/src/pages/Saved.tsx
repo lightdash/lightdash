@@ -1,5 +1,6 @@
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import {
+    Classes,
     Card,
     Divider,
     H3,
@@ -11,12 +12,14 @@ import {
     Button,
     ButtonGroup,
     NonIdealState,
+    Dialog,
 } from '@blueprintjs/core';
 import { useQuery } from 'react-query';
 import { ApiError, Space, SpaceQuery } from 'common';
 import { useHistory } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
+import { useDeleteMutation } from '../hooks/useSavedQuery';
 
 const getSpaces = async () =>
     lightdashApi<Space[]>({
@@ -27,6 +30,8 @@ const getSpaces = async () =>
 
 const SavedListItem: FC<{ savedQuery: SpaceQuery }> = ({ savedQuery }) => {
     const history = useHistory();
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const { mutate, isLoading: isDeleting } = useDeleteMutation();
 
     return (
         <Card
@@ -67,12 +72,42 @@ const SavedListItem: FC<{ savedQuery: SpaceQuery }> = ({ savedQuery }) => {
                         icon="delete"
                         intent="danger"
                         outlined
-                        onClick={() => undefined}
-                        text="Remove"
-                        disabled
+                        onClick={() => setIsDeleteDialogOpen(true)}
+                        text="Delete"
                     />
                 </ButtonGroup>
             </div>
+            <Dialog
+                isOpen={isDeleteDialogOpen}
+                icon="cog"
+                onClose={() =>
+                    !isDeleting ? setIsDeleteDialogOpen(false) : undefined
+                }
+                title="Settings"
+                lazy
+                canOutsideClickClose={false}
+            >
+                <div className={Classes.DIALOG_BODY}>
+                    <p>Are you sure you want to delete this saved query ?</p>
+                </div>
+                <div className={Classes.DIALOG_FOOTER}>
+                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+                        <Button
+                            disabled={isDeleting}
+                            onClick={() => setIsDeleteDialogOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={isDeleting}
+                            intent="danger"
+                            onClick={() => mutate(savedQuery.uuid)}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                </div>
+            </Dialog>
         </Card>
     );
 };
