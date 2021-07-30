@@ -191,6 +191,15 @@ const createSavedQueryVersionYMetric = async (
     return results[0];
 };
 
+export const deleteSavedQuery = async (
+    db: Knex,
+    savedQueryUuid: string,
+): Promise<void> => {
+    await db<DbSavedQueryVersionField>('saved_queries')
+        .where('saved_query_uuid', savedQueryUuid)
+        .delete();
+};
+
 const createSavedQueryVersionField = async (
     db: Knex,
     data: CreateDbSavedQueryVersionField,

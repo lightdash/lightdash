@@ -8,6 +8,7 @@ import {
     addSavedQueryVersion,
     createSavedQuery,
     getSavedQueryByUuid,
+    deleteSavedQuery,
 } from '../database/entities/savedQueries';
 import database from '../database/database';
 import { getSpaceWithQueries } from '../database/entities/spaces';
@@ -34,7 +35,16 @@ export const SavedQueriesModel = {
     },
     getById: async (savedQueryUuid: string): Promise<SavedQuery> =>
         getSavedQueryByUuid(database, savedQueryUuid),
-
+    delete: async (userUuid: string, savedQueryUuid: string): Promise<void> => {
+        await deleteSavedQuery(database, savedQueryUuid);
+        analytics.track({
+            event: 'saved_query_deleted',
+            userId: userUuid,
+            properties: {
+                savedQueryId: savedQueryUuid,
+            },
+        });
+    },
     addVersion: async (
         userUuid: string,
         savedQueryUuid: string,
