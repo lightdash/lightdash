@@ -1,7 +1,8 @@
 import { ApiError, ApiTableResults, Explore } from 'common';
 import { useQuery } from 'react-query';
 import { useEffect } from 'react';
-import { useExploreConfig } from './useExploreConfig';
+import { useExplorer } from '../providers/ExplorerProvider';
+import { useApp } from '../providers/AppProvider';
 import { lightdashApi } from '../api';
 
 const getTable = async (tableId: string) =>
@@ -12,7 +13,10 @@ const getTable = async (tableId: string) =>
     });
 
 export const useTable = () => {
-    const { activeTableName, setError } = useExploreConfig();
+    const { showError } = useApp();
+    const {
+        state: { tableName: activeTableName },
+    } = useExplorer();
     const queryKey = ['tables', activeTableName];
     const query = useQuery<Explore, ApiError>({
         queryKey,
@@ -24,9 +28,9 @@ export const useTable = () => {
     useEffect(() => {
         if (query.error) {
             const [first, ...rest] = query.error.error.message.split('\n');
-            setError({ title: first, text: rest.join('\n') });
+            showError({ title: first, subtitle: rest.join('\n') });
         }
-    }, [query.error, setError]);
+    }, [query.error, showError]);
 
     return query;
 };

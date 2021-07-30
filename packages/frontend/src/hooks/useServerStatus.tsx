@@ -2,7 +2,7 @@ import { ApiError, ApiStatusResults } from 'common';
 import { useQuery } from 'react-query';
 import { useEffect } from 'react';
 import { lightdashApi } from '../api';
-import { useExploreConfig } from './useExploreConfig';
+import { useApp } from '../providers/AppProvider';
 
 const getStatus = async () =>
     lightdashApi<ApiStatusResults>({
@@ -13,7 +13,7 @@ const getStatus = async () =>
 
 export const useServerStatus = () => {
     const queryKey = 'status';
-    const { setError } = useExploreConfig();
+    const { showError } = useApp();
     const query = useQuery<ApiStatusResults, ApiError>({
         queryKey,
         queryFn: getStatus,
@@ -24,9 +24,9 @@ export const useServerStatus = () => {
     useEffect(() => {
         if (query.error) {
             const [first, ...rest] = query.error.error.message.split('\n');
-            setError({ title: first, text: rest.join('\n') });
+            showError({ title: first, subtitle: rest.join('\n') });
         }
-    }, [query.error, setError]);
+    }, [query.error, showError]);
 
     return query;
 };

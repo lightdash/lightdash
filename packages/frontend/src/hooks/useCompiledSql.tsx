@@ -2,7 +2,8 @@ import { ApiCompiledQueryResults, ApiError, MetricQuery } from 'common';
 import { useQuery } from 'react-query';
 import { useEffect } from 'react';
 import { lightdashApi } from '../api';
-import { useExploreConfig } from './useExploreConfig';
+import { useApp } from '../providers/AppProvider';
+import { useExplorer } from '../providers/ExplorerProvider';
 
 const getCompiledQuery = async (tableId: string, query: MetricQuery) =>
     lightdashApi<ApiCompiledQueryResults>({
@@ -13,14 +14,16 @@ const getCompiledQuery = async (tableId: string, query: MetricQuery) =>
 
 export const useCompliedSql = () => {
     const {
-        setError,
-        activeTableName: tableId,
-        activeDimensions: dimensions,
-        activeMetrics: metrics,
-        sortFields: sorts,
-        activeFilters: filters,
-        resultsRowLimit: limit,
-    } = useExploreConfig();
+        state: {
+            tableName: tableId,
+            dimensions,
+            metrics,
+            sorts,
+            filters,
+            limit,
+        },
+    } = useExplorer();
+    const { showError } = useApp();
     const metricQuery = {
         dimensions: Array.from(dimensions),
         metrics: Array.from(metrics),
@@ -38,9 +41,9 @@ export const useCompliedSql = () => {
     useEffect(() => {
         if (query.error) {
             const [first, ...rest] = query.error.error.message.split('\n');
-            setError({ title: first, text: rest.join('\n') });
+            showError({ title: first, subtitle: rest.join('\n') });
         }
-    }, [query.error, setError]);
+    }, [query.error, showError]);
 
     return query;
 };

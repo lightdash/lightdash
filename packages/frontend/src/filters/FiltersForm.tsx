@@ -22,7 +22,7 @@ import {
     defaultValuesForNewDateFilter,
     DateFilterGroupForm,
 } from './DateFilterForm';
-import { useExploreConfig } from '../hooks/useExploreConfig';
+import { useExplorer } from '../providers/ExplorerProvider';
 import { useTable } from '../hooks/useTable';
 
 type FilterGroupFormProps = {
@@ -71,7 +71,10 @@ const FilterGroupForm = ({
 };
 
 const AddFilterGroup = () => {
-    const { activeFilters, setActiveFilters } = useExploreConfig();
+    const {
+        state: { filters: activeFilters },
+        actions: { setFilters: setActiveFilters },
+    } = useExplorer();
     const [showButton, setShowButton] = useState<boolean>(true);
     const explore = useTable();
     if (explore.status !== 'success') return null;
@@ -177,7 +180,10 @@ const AddFilterGroup = () => {
 };
 
 export const FiltersForm = () => {
-    const { activeFilters, setActiveFilters } = useExploreConfig();
+    const {
+        state: { filters: activeFilters },
+        actions: { setFilters: setActiveFilters },
+    } = useExplorer();
 
     const onDeleteFilterGroup = (index: number) => {
         setActiveFilters([

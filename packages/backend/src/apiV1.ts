@@ -16,6 +16,7 @@ import { AuthorizationError, ParameterError } from './errors';
 import { OrgModel } from './models/Org';
 import { lightdashConfig } from './config/lightdashConfig';
 import { analytics } from './analytics/client';
+import { SavedQueriesModel } from './models/savedQueries';
 
 export const apiV1Router = express.Router();
 
@@ -274,3 +275,65 @@ apiV1Router.get('/status', isAuthenticated, async (req, res, next) => {
         })
         .catch(next);
 });
+
+apiV1Router.get('/spaces', isAuthenticated, async (req, res, next) => {
+    SavedQueriesModel.getAllSpaces()
+        .then((results) => {
+            res.json({
+                status: 'ok',
+                results,
+            });
+        })
+        .catch(next);
+});
+
+apiV1Router.get(
+    '/saved/:savedQueryUuid',
+    isAuthenticated,
+    async (req, res, next) => {
+        SavedQueriesModel.getById(req.params.savedQueryUuid)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
+apiV1Router.post(
+    '/saved',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        SavedQueriesModel.create(req.user!.userUuid, req.body.savedQuery)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
+apiV1Router.post(
+    '/saved/:savedQueryUuid/version',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        SavedQueriesModel.addVersion(
+            req.user!.userUuid,
+            req.params.savedQueryUuid,
+            req.body.savedQuery,
+        )
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);

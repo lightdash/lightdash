@@ -2,14 +2,16 @@ import { Button } from '@blueprintjs/core';
 import React from 'react';
 import { UseQueryResult } from 'react-query';
 import { ApiError, ApiQueryResults } from 'common';
-import { useExploreConfig } from '../hooks/useExploreConfig';
 import { useApp } from '../providers/AppProvider';
+import { useExplorer } from '../providers/ExplorerProvider';
 
 type RefreshButtonProps = {
     queryResults: UseQueryResult<ApiQueryResults, ApiError>;
 };
 export const RefreshButton = ({ queryResults }: RefreshButtonProps) => {
-    const { validQuery } = useExploreConfig();
+    const {
+        state: { isValidQuery },
+    } = useExplorer();
     const { refetch, isFetching } = queryResults;
     const { rudder } = useApp();
     return (
@@ -20,7 +22,7 @@ export const RefreshButton = ({ queryResults }: RefreshButtonProps) => {
                 refetch();
                 rudder.track('query_executed');
             }}
-            disabled={!validQuery}
+            disabled={!isValidQuery}
             loading={isFetching}
         >
             Run query

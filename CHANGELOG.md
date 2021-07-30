@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Added
+ - Allow user to save queries  
 
 ## [0.5.0] - 2021-07-29
 ### Added

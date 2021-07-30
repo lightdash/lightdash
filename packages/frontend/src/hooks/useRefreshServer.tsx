@@ -2,7 +2,7 @@ import { ApiError, ApiRefreshResults } from 'common';
 import { useMutation, useQueryClient } from 'react-query';
 import { useEffect } from 'react';
 import { lightdashApi } from '../api';
-import { useExploreConfig } from './useExploreConfig';
+import { useApp } from '../providers/AppProvider';
 
 const refresh = async () => {
     await lightdashApi<ApiRefreshResults>({
@@ -13,7 +13,7 @@ const refresh = async () => {
 };
 
 export const useRefreshServer = () => {
-    const { setError } = useExploreConfig();
+    const { showError } = useApp();
     const queryClient = useQueryClient();
     const refreshMutation = useMutation<void, ApiError>({
         mutationKey: 'refresh',
@@ -29,9 +29,9 @@ export const useRefreshServer = () => {
         if (refreshMutation.error) {
             const [first, ...rest] =
                 refreshMutation.error.error.message.split('\n');
-            setError({ title: first, text: rest.join('\n') });
+            showError({ title: first, subtitle: rest.join('\n') });
         }
-    }, [refreshMutation.error, setError]);
+    }, [refreshMutation.error, showError]);
 
     return refreshMutation;
 };
