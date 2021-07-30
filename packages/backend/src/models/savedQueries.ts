@@ -3,12 +3,14 @@ import {
     CreateSavedQueryVersion,
     SavedQuery,
     Space,
+    UpdateSavedQuery,
 } from 'common';
 import {
     addSavedQueryVersion,
     createSavedQuery,
     getSavedQueryByUuid,
     deleteSavedQuery,
+    updateSavedQuery,
 } from '../database/entities/savedQueries';
 import database from '../database/database';
 import { getSpaceWithQueries } from '../database/entities/spaces';
@@ -44,6 +46,21 @@ export const SavedQueriesModel = {
                 savedQueryId: savedQueryUuid,
             },
         });
+    },
+    update: async (
+        userUuid: string,
+        savedQueryUuid: string,
+        data: UpdateSavedQuery,
+    ): Promise<SavedQuery> => {
+        const savedQuery = await updateSavedQuery(savedQueryUuid, data);
+        analytics.track({
+            event: 'saved_query_updated',
+            userId: userUuid,
+            properties: {
+                savedQueryId: savedQueryUuid,
+            },
+        });
+        return savedQuery;
     },
     addVersion: async (
         userUuid: string,

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+    Classes,
     Alignment,
     Button,
     Navbar,
@@ -33,11 +34,14 @@ const AppBar = () => {
 
     return (
         <>
-            <Navbar style={{ position: 'sticky', top: 0 }}>
+            <Navbar
+                style={{ position: 'sticky', top: 0 }}
+                className={Classes.DARK}
+            >
                 <NavbarGroup align={Alignment.LEFT}>
                     <NavbarHeading>{user.data?.organizationName}</NavbarHeading>
                     <NavbarDivider />
-                    <NavLink to="/tables">
+                    <NavLink to="/tables" style={{ marginRight: 10 }}>
                         <Button minimal icon="database" text="Explore" />
                     </NavLink>
                     <NavLink to="/saved">

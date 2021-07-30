@@ -334,6 +334,26 @@ apiV1Router.delete(
     },
 );
 
+apiV1Router.patch(
+    '/saved/:savedQueryUuid',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        SavedQueriesModel.update(
+            req.user!.userUuid,
+            req.params.savedQueryUuid,
+            req.body.savedQuery,
+        )
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
 apiV1Router.post(
     '/saved/:savedQueryUuid/version',
     isAuthenticated,

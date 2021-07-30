@@ -6,6 +6,7 @@ import {
     DBFieldTypes,
     SavedQuery,
     SortField,
+    UpdateSavedQuery,
 } from 'common';
 import database from '../database';
 import { getSpace } from './spaces';
@@ -195,9 +196,19 @@ export const deleteSavedQuery = async (
     db: Knex,
     savedQueryUuid: string,
 ): Promise<void> => {
-    await db<DbSavedQueryVersionField>('saved_queries')
+    await db<DbSavedQuery>('saved_queries')
         .where('saved_query_uuid', savedQueryUuid)
         .delete();
+};
+
+export const updateSavedQuery = async (
+    savedQueryUuid: string,
+    data: UpdateSavedQuery,
+): Promise<SavedQuery> => {
+    await database<DbSavedQuery>('saved_queries')
+        .update<UpdateSavedQuery>(data)
+        .where('saved_query_uuid', savedQueryUuid);
+    return getSavedQueryByUuid(database, savedQueryUuid);
 };
 
 const createSavedQueryVersionField = async (

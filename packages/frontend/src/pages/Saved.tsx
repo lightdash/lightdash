@@ -20,6 +20,7 @@ import { useHistory } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 import { useDeleteMutation } from '../hooks/useSavedQuery';
+import { UpdateSavedQueryModal } from '../components/SaveQueryModal';
 
 const getSpaces = async () =>
     lightdashApi<Space[]>({
@@ -31,6 +32,7 @@ const getSpaces = async () =>
 const SavedListItem: FC<{ savedQuery: SpaceQuery }> = ({ savedQuery }) => {
     const history = useHistory();
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
     const { mutate, isLoading: isDeleting } = useDeleteMutation();
 
     return (
@@ -66,7 +68,7 @@ const SavedListItem: FC<{ savedQuery: SpaceQuery }> = ({ savedQuery }) => {
                         intent="warning"
                         outlined
                         text="Edit"
-                        disabled
+                        onClick={() => setIsUpdateDialogOpen(true)}
                     />
                     <Button
                         icon="delete"
@@ -108,6 +110,13 @@ const SavedListItem: FC<{ savedQuery: SpaceQuery }> = ({ savedQuery }) => {
                     </div>
                 </div>
             </Dialog>
+            {isUpdateDialogOpen && (
+                <UpdateSavedQueryModal
+                    isOpen={isUpdateDialogOpen}
+                    savedQueryId={savedQuery.uuid}
+                    onClose={() => setIsUpdateDialogOpen(false)}
+                />
+            )}
         </Card>
     );
 };
@@ -170,7 +179,7 @@ const Saved: FC = () => {
                     </div>
                     <div style={{ padding: '10px' }}>
                         <Text>
-                            Select a space to start exploring your saved
+                            Select a space to start exploring your saved queries
                         </Text>
                     </div>
                     <Divider />

@@ -1,12 +1,13 @@
-import React, { FC } from 'react';
+import React, { CSSProperties, FC } from 'react';
 import { Link, Route } from 'react-router-dom';
 
 interface Props {
     to: string;
+    style?: CSSProperties;
     exact?: boolean;
 }
 
-const NavLink: FC<Props> = ({ to, exact, children }) => (
+const NavLink: FC<Props> = ({ to, style, exact, children }) => (
     <Route
         path={to}
         exact={exact}
@@ -14,7 +15,7 @@ const NavLink: FC<Props> = ({ to, exact, children }) => (
         children={({ match }) => {
             const isActive = !!match;
             return (
-                <Link to={to}>
+                <Link to={to} style={{ color: 'inherit', ...style }}>
                     {typeof children === 'function'
                         ? children(isActive)
                         : React.Children.map(children, (child) => {
