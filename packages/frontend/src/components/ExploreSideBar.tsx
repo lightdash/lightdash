@@ -10,12 +10,13 @@ import {
 } from '@blueprintjs/core';
 import React, { useState } from 'react';
 import { friendlyName } from 'common';
-import { useExploreConfig } from '../hooks/useExploreConfig';
 import ExploreTree from './ExploreTree';
 import { useTables } from '../hooks/useTables';
 import { useTable } from '../hooks/useTable';
 import { LineageButton } from './LineageButton';
 import AboutFooter from './AboutFooter';
+import { useExplorer } from '../providers/ExplorerProvider';
+import { useApp } from '../providers/AppProvider';
 
 const SideBarLoadingState = () => (
     <Menu large style={{ flex: 1 }}>
@@ -33,15 +34,12 @@ const BasePanel = () => {
         useState(false);
     const [selectedExploreName, setSelectedExploreName] = useState('');
     const {
-        activeTableName,
-        setActiveTableName,
-        activeFields,
-        setSidebarPanel,
-    } = useExploreConfig();
+        state: { tableName: activeTableName, activeFields },
+        actions: { setTableName: setActiveTableName },
+    } = useExplorer();
 
     const onCancelConfirmation = () => {
         setShowChangeExploreConfirmation(false);
-        setSidebarPanel('explores');
     };
 
     const onSubmitConfirmation = () => {
@@ -55,7 +53,7 @@ const BasePanel = () => {
     };
 
     // TODO: render error
-    if (exploresResult.isLoading) return <SideBarLoadingState />;
+    if (exploresResult.status !== 'success') return <SideBarLoadingState />;
     return (
         <>
             <div style={{ height: '100px' }}>
@@ -126,21 +124,22 @@ const BasePanel = () => {
 type ExplorePanelProps = {
     onBack: () => void;
 };
-const ExplorePanel = ({ onBack }: ExplorePanelProps) => {
-    const { activeFields, toggleActiveField, setError } = useExploreConfig();
+export const ExplorePanel = ({ onBack }: ExplorePanelProps) => {
+    const { showError } = useApp();
+    const {
+        state: { activeFields },
+        actions: { toggleActiveField },
+    } = useExplorer();
     const exploresResult = useTable();
     switch (exploresResult.status) {
-        case 'idle': {
-            onBack();
-            return null;
-        }
         case 'error': {
             onBack();
             const [title, ...lines] =
                 exploresResult.error.error.message.split('\n');
-            setError({ title, text: lines.join('\n') });
+            showError({ title, subtitle: lines.join('\n') });
             return null;
         }
+        case 'idle':
         case 'loading': {
             return <SideBarLoadingState />;
         }
@@ -199,9 +198,12 @@ const ExplorePanel = ({ onBack }: ExplorePanelProps) => {
     );
 };
 export const ExploreSideBar = () => {
-    const { sidebarPanel, setSidebarPanel } = useExploreConfig();
+    const {
+        state: { tableName },
+        actions: { reset },
+    } = useExplorer();
     const onBack = () => {
-        setSidebarPanel('base');
+        reset();
     };
 
     return (
@@ -213,8 +215,7 @@ export const ExploreSideBar = () => {
                 flexDirection: 'column',
             }}
         >
-            {sidebarPanel === 'base' && <BasePanel />}
-            {sidebarPanel === 'explores' && <ExplorePanel onBack={onBack} />}
+            {!tableName ? <BasePanel /> : <ExplorePanel onBack={onBack} />}
             <AboutFooter />
         </div>
     );

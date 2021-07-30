@@ -583,7 +583,9 @@ export type ApiResults =
     | ApiStatusResults
     | ApiRefreshResults
     | ApiHealthResults
-    | LightdashUser;
+    | LightdashUser
+    | SavedQuery
+    | Space[];
 
 export type ApiResponse =
     | ApiQueryResponse
@@ -702,3 +704,45 @@ export const isDbtRpcRunSqlResults = (
             'rows' in result.table &&
             Array.isArray(result.table.rows),
     );
+
+type ValidSeriesLayout = {
+    xDimension: string;
+    yMetrics: string[];
+    groupDimension: string | undefined;
+};
+type SeriesLayout = Partial<ValidSeriesLayout>;
+
+export type SavedQuery = {
+    uuid: string;
+    name: string;
+    tableName: string;
+    metricQuery: MetricQuery;
+    chartConfig: {
+        chartType: DBChartTypes;
+        seriesLayout: SeriesLayout;
+    };
+};
+
+export type SpaceQuery = Pick<SavedQuery, 'uuid' | 'name'>;
+
+export type Space = {
+    uuid: string;
+    name: string;
+    queries: SpaceQuery[];
+};
+
+export type CreateSavedQuery = Omit<SavedQuery, 'uuid'>;
+
+export type CreateSavedQueryVersion = Omit<SavedQuery, 'uuid' | 'name'>;
+
+export enum DBFieldTypes {
+    DIMENSION = 'dimension',
+    METRIC = 'metric',
+}
+
+export enum DBChartTypes {
+    COLUMN = 'column',
+    BAR = 'bar',
+    LINE = 'line',
+    SCATTER = 'scatter',
+}

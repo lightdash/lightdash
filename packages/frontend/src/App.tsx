@@ -1,24 +1,25 @@
-import React, { useEffect } from 'react';
-import { Card } from '@blueprintjs/core';
-import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+import React from 'react';
+import {
+    BrowserRouter as Router,
+    Redirect,
+    Route,
+    Switch,
+} from 'react-router-dom';
 import '@blueprintjs/core/lib/css/blueprint.css';
 import '@blueprintjs/table/lib/css/table.css';
 import '@blueprintjs/popover2/lib/css/blueprint-popover2.css';
 import { ReactQueryDevtools } from 'react-query/devtools';
 import { QueryClient, QueryClientProvider } from 'react-query';
-import { Explorer } from './components/Explorer';
 import './App.css';
-import {
-    ExploreConfigContext,
-    useExploreConfig,
-} from './hooks/useExploreConfig';
-import { ExploreSideBar } from './components/ExploreSideBar';
-import { AppToaster } from './components/AppToaster';
 import Login from './pages/login';
 import PrivateRoute from './components/PrivateRoute';
 import AppBar from './components/AppBar';
-import { AppProvider, useApp } from './providers/AppProvider';
 import Register from './pages/register';
+import { AppProvider } from './providers/AppProvider';
+import Saved from './pages/Saved';
+import Explorer from './pages/Explorer';
+import { ExplorerProvider } from './providers/ExplorerProvider';
+import SavedExplorer from './pages/SavedExplorer';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -27,81 +28,6 @@ const queryClient = new QueryClient({
         },
     },
 });
-
-const InnerApp = () => {
-    const { error, setError } = useExploreConfig();
-    const { rudder } = useApp();
-
-    useEffect(() => {
-        if (error) {
-            AppToaster.show(
-                {
-                    intent: 'danger',
-                    message: (
-                        <div>
-                            <b>{error.title}</b>
-                            <p>{error.text}</p>
-                        </div>
-                    ),
-                    timeout: 0,
-                    icon: 'error',
-                },
-                error.title,
-            );
-            setError(undefined);
-        }
-    }, [error, setError]);
-
-    useEffect(() => {
-        rudder.page(undefined, 'explore');
-    }, [rudder]);
-
-    return (
-        <div
-            style={{
-                minHeight: '100vh',
-            }}
-        >
-            <AppBar />
-            <div
-                style={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    flexWrap: 'nowrap',
-                    justifyContent: 'stretch',
-                    alignItems: 'flex-start',
-                }}
-            >
-                <Card
-                    style={{
-                        height: 'calc(100vh - 50px)',
-                        width: '400px',
-                        marginRight: '10px',
-                        overflow: 'hidden',
-                        position: 'sticky',
-                        top: '50px',
-                    }}
-                    elevation={1}
-                >
-                    <ExploreSideBar />
-                </Card>
-                <div
-                    style={{
-                        padding: '10px 10px',
-                        flexGrow: 1,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'flex-start',
-                        alignItems: 'stretch',
-                    }}
-                >
-                    <Explorer />
-                </div>
-            </div>
-            <ReactQueryDevtools />
-        </div>
-    );
-};
 
 const App = () => (
     <QueryClientProvider client={queryClient}>
@@ -114,15 +40,36 @@ const App = () => (
                     <Route path="/login">
                         <Login />
                     </Route>
-                    <PrivateRoute path="/tables/:tableId">
-                        <ExploreConfigContext>
-                            <InnerApp />
-                        </ExploreConfigContext>
-                    </PrivateRoute>
                     <PrivateRoute path="/">
-                        <ExploreConfigContext>
-                            <InnerApp />
-                        </ExploreConfigContext>
+                        <div
+                            style={{
+                                minHeight: '100vh',
+                            }}
+                        >
+                            <AppBar />
+                            <Switch>
+                                <Route path="/saved/:savedQueryUuid">
+                                    <ExplorerProvider>
+                                        <SavedExplorer />
+                                    </ExplorerProvider>
+                                </Route>
+                                <Route path="/saved">
+                                    <Saved />
+                                </Route>
+                                <Route path="/tables/:tableId">
+                                    <ExplorerProvider>
+                                        <Explorer />
+                                    </ExplorerProvider>
+                                </Route>
+                                <Route path="/tables">
+                                    <ExplorerProvider>
+                                        <Explorer />
+                                    </ExplorerProvider>
+                                </Route>
+                                <Redirect to="/tables" />
+                            </Switch>
+                            <ReactQueryDevtools />
+                        </div>
                     </PrivateRoute>
                 </Switch>
             </Router>

@@ -15,7 +15,7 @@ import { UseQueryResult } from 'react-query';
 import { useColumns } from '../hooks/useColumns';
 import { useTable } from '../hooks/useTable';
 import { RefreshButton } from './RefreshButton';
-import { useExploreConfig } from '../hooks/useExploreConfig';
+import { useExplorer } from '../providers/ExplorerProvider';
 
 const hexToRGB = (hex: string, alpha: number) => {
     // eslint-disable-next-line radix
@@ -69,7 +69,9 @@ type ResultsTableProps = {
 };
 export const ResultsTable = ({ queryResults }: ResultsTableProps) => {
     const columns = useColumns();
-    const { activeTableName } = useExploreConfig();
+    const {
+        state: { tableName: activeTableName },
+    } = useExplorer();
     const activeExplore = useTable();
     const safeData = React.useMemo(
         () => (queryResults.status === 'success' ? queryResults.data.rows : []),

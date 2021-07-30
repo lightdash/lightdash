@@ -1,5 +1,7 @@
 /// <reference path="../rudder-sdk-node.d.ts" />
-import Analytics from '@rudderstack/rudder-sdk-node';
+import Analytics, {
+    Track as AnalyticsTrack,
+} from '@rudderstack/rudder-sdk-node';
 import { VERSION } from '../version';
 
 type Identify = {
@@ -11,10 +13,7 @@ type Identify = {
         is_tracking_anonymized: boolean;
     };
 };
-type BaseTrack = {
-    userId: string;
-    event: string;
-};
+type BaseTrack = Omit<AnalyticsTrack, 'context'>;
 type Group = {
     userId: string;
     groupId: string;
@@ -40,13 +39,25 @@ type TrackPasswordUpdated = BaseTrack & {
 type TrackOrganizationUpdated = BaseTrack & {
     event: 'organization_updated';
 };
+type TrackSavedQuery = BaseTrack & {
+    event:
+        | 'saved_query_created'
+        | 'saved_query_updated'
+        | 'saved_query_deleted'
+        | 'saved_query_version_created';
+    properties: {
+        savedQueryId: string;
+    };
+};
+
 type Track =
     | TrackUserCreated
     | TrackOrganizationCreated
     | TrackUserLoggedIn
     | TrackUserUpdated
     | TrackPasswordUpdated
-    | TrackOrganizationUpdated;
+    | TrackOrganizationUpdated
+    | TrackSavedQuery;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {

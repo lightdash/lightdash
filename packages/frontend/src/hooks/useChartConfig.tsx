@@ -1,6 +1,7 @@
-import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ApiError, ApiQueryResults, friendlyName } from 'common';
 import { UseQueryResult } from 'react-query';
+import { useSavedQuery } from './useSavedQuery';
 
 const pivot = (
     values: { [key: string]: any }[],
@@ -80,13 +81,21 @@ const isValidSeriesLayout = (
     seriesLayout.yMetrics.length > 0;
 
 export const useChartConfig = (
+    savedQueryUuid: string | undefined,
     queryResults: UseQueryResult<ApiQueryResults, ApiError>,
 ): ChartConfig => {
+    const { data } = useSavedQuery({ id: savedQueryUuid });
     const [seriesLayout, setSeriesLayout] = useState<SeriesLayout>(
         defaultLayout(queryResults),
     );
     const dimensionOptions = queryResults.data?.metricQuery.dimensions || [];
     const metricOptions = queryResults.data?.metricQuery.metrics || [];
+
+    useEffect(() => {
+        if (data?.chartConfig) {
+            setSeriesLayout(data?.chartConfig.seriesLayout);
+        }
+    }, [data]);
 
     useEffect(() => {
         if (queryResults.data) {

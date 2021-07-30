@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
     Alignment,
     Button,
@@ -12,6 +12,7 @@ import { useMutation } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 import UserSettingsModal from './UserSettingsModal/UserSettingsModal';
+import NavLink from './NavLink';
 
 const logoutQuery = async () =>
     lightdashApi({
@@ -33,6 +34,16 @@ const AppBar = () => {
     return (
         <>
             <Navbar style={{ position: 'sticky', top: 0 }}>
+                <NavbarGroup align={Alignment.LEFT}>
+                    <NavbarHeading>{user.data?.organizationName}</NavbarHeading>
+                    <NavbarDivider />
+                    <NavLink to="/tables">
+                        <Button minimal icon="database" text="Explore" />
+                    </NavLink>
+                    <NavLink to="/saved">
+                        <Button minimal icon="saved" text="Saved" />
+                    </NavLink>
+                </NavbarGroup>
                 <NavbarGroup align={Alignment.RIGHT}>
                     <NavbarHeading style={{ marginRight: 5 }}>
                         {user.data?.firstName} {user.data?.lastName}

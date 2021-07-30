@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { FC, useRef, useState, useEffect } from 'react';
 import {
     Button,
     ButtonGroup,
@@ -6,14 +6,17 @@ import {
     Collapse,
     FormGroup,
     H5,
+    Menu,
+    MenuItem,
     NumericInput,
     Tag,
 } from '@blueprintjs/core';
+import { Popover2 } from '@blueprintjs/popover2';
+import { SavedQuery, DBChartTypes } from 'common';
 import EChartsReact from 'echarts-for-react';
 import { FiltersForm } from '../filters/FiltersForm';
-import { useExploreConfig } from '../hooks/useExploreConfig';
 import { ResultsTable } from './ResultsTable';
-import { ChartType, SimpleChart } from './SimpleChart';
+import { SimpleChart } from './SimpleChart';
 import { RenderedSql } from './RenderedSql';
 import { RefreshServerButton } from './RefreshServerButton';
 import { RefreshButton } from './RefreshButton';
@@ -21,24 +24,76 @@ import { ChartConfigPanel } from './ChartConfigPanel';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useChartConfig } from '../hooks/useChartConfig';
 import { ChartDownloadMenu } from './ChartDownload';
+import { useExplorer } from '../providers/ExplorerProvider';
+import { CreateSavedQueryModal } from './SaveQueryModal';
+import { useAddVersionMutation, useSavedQuery } from '../hooks/useSavedQuery';
 
-export const Explorer = () => {
+interface Props {
+    savedQueryUuid?: string;
+}
+
+export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
+    const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const chartRef = useRef<EChartsReact>(null);
-    const { activeFilters, resultsRowLimit, setResultsRowLimit } =
-        useExploreConfig();
+    const {
+        state: { tableName, dimensions, metrics, sorts, limit, filters },
+        actions: { setRowLimit: setResultsRowLimit },
+    } = useExplorer();
     // queryResults are used here for prop-drill because the keepPreviousData: true option doesn't persist when
     // child components unmount: https://github.com/tannerlinsley/react-query/issues/2363
     const queryResults = useQueryResults();
-    const chartConfig = useChartConfig(queryResults);
+    const chartConfig = useChartConfig(savedQueryUuid, queryResults);
+    const { data } = useSavedQuery({ id: savedQueryUuid });
+    const update = useAddVersionMutation();
 
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false);
     const [resultsIsOpen, setResultsIsOpen] = useState<boolean>(true);
     const [sqlIsOpen, setSqlIsOpen] = useState<boolean>(false);
-    const [vizIsOpen, setVizisOpen] = useState<boolean>(false);
-    const totalActiveFilters = activeFilters
+    const [vizIsOpen, setVizisOpen] = useState<boolean>(!!savedQueryUuid);
+    const totalActiveFilters = filters
         .flatMap((filterGroup) => filterGroup.filters.length)
         .reduce((p, t) => p + t, 0);
-    const [activeVizTab, setActiveVizTab] = useState<ChartType>('column');
+    const [activeVizTab, setActiveVizTab] = useState<DBChartTypes>(
+        DBChartTypes.COLUMN,
+    );
+
+    const queryData: Omit<SavedQuery, 'uuid' | 'name'> | undefined = tableName
+        ? {
+              tableName,
+              metricQuery: {
+                  dimensions,
+                  metrics,
+                  sorts,
+                  filters,
+                  limit,
+              },
+              chartConfig: {
+                  chartType: activeVizTab,
+                  seriesLayout: chartConfig.seriesLayout,
+              },
+          }
+        : undefined;
+
+    const handleSavedQueryUpdate = () => {
+        if (savedQueryUuid && queryData) {
+            update.mutate({
+                uuid: savedQueryUuid,
+                data: queryData,
+            });
+        }
+    };
+
+    useEffect(() => {
+        if (data?.chartConfig.chartType) {
+            setActiveVizTab(data.chartConfig.chartType);
+        }
+    }, [data]);
+
+    useEffect(() => {
+        if (queryResults.isIdle && savedQueryUuid && tableName) {
+            queryResults.refetch();
+        }
+    }, [savedQueryUuid, queryResults, tableName]);
 
     const isChartEmpty: boolean = !chartConfig.plotData;
     return (
@@ -52,6 +107,36 @@ export const Explorer = () => {
             >
                 <RefreshButton queryResults={queryResults} />
                 <RefreshServerButton />
+                <Popover2
+                    content={
+                        <Menu>
+                            {savedQueryUuid && (
+                                <MenuItem
+                                    icon="saved"
+                                    text="Save"
+                                    onClick={handleSavedQueryUpdate}
+                                />
+                            )}
+                            <MenuItem
+                                icon="add"
+                                text="Save as"
+                                onClick={() => setIsQueryModalOpen(true)}
+                            />
+                        </Menu>
+                    }
+                    placement="bottom"
+                    disabled={!tableName}
+                >
+                    <Button
+                        icon="more"
+                        disabled={!tableName}
+                        style={{
+                            height: 40,
+                            width: 40,
+                            marginLeft: '10px',
+                        }}
+                    />
+                </Popover2>
             </div>
             <div style={{ paddingTop: '10px' }} />
             <Card style={{ padding: 5 }} elevation={1}>
@@ -105,33 +190,41 @@ export const Explorer = () => {
                     {vizIsOpen && (
                         <ButtonGroup minimal>
                             <Button
-                                active={activeVizTab === 'column'}
+                                active={activeVizTab === DBChartTypes.COLUMN}
                                 icon="timeline-bar-chart"
-                                onClick={() => setActiveVizTab('column')}
+                                onClick={() =>
+                                    setActiveVizTab(DBChartTypes.COLUMN)
+                                }
                                 disabled={isChartEmpty}
                             >
                                 Column
                             </Button>
                             <Button
-                                active={activeVizTab === 'bar'}
+                                active={activeVizTab === DBChartTypes.BAR}
                                 icon="horizontal-bar-chart"
-                                onClick={() => setActiveVizTab('bar')}
+                                onClick={() =>
+                                    setActiveVizTab(DBChartTypes.BAR)
+                                }
                                 disabled={isChartEmpty}
                             >
                                 Bar
                             </Button>
                             <Button
-                                active={activeVizTab === 'line'}
+                                active={activeVizTab === DBChartTypes.LINE}
                                 icon="timeline-line-chart"
-                                onClick={() => setActiveVizTab('line')}
+                                onClick={() =>
+                                    setActiveVizTab(DBChartTypes.LINE)
+                                }
                                 disabled={isChartEmpty}
                             >
                                 Line
                             </Button>
                             <Button
-                                active={activeVizTab === 'scatter'}
+                                active={activeVizTab === DBChartTypes.SCATTER}
                                 icon="scatter-plot"
-                                onClick={() => setActiveVizTab('scatter')}
+                                onClick={() =>
+                                    setActiveVizTab(DBChartTypes.SCATTER)
+                                }
                                 disabled={isChartEmpty}
                             >
                                 Scatter
@@ -191,9 +284,9 @@ export const Explorer = () => {
                                 style={{ width: 100 }}
                                 min={0}
                                 buttonPosition="none"
-                                value={resultsRowLimit}
-                                onValueChange={(valueAsNumber, valueAsString) =>
-                                    setResultsRowLimit(valueAsString)
+                                value={limit}
+                                onValueChange={(valueAsNumber) =>
+                                    setResultsRowLimit(valueAsNumber)
                                 }
                             />
                         </FormGroup>
@@ -226,6 +319,13 @@ export const Explorer = () => {
                     <RenderedSql />
                 </Collapse>
             </Card>
+            {queryData && (
+                <CreateSavedQueryModal
+                    isOpen={isQueryModalOpen}
+                    queryData={queryData}
+                    onClose={() => setIsQueryModalOpen(false)}
+                />
+            )}
         </>
     );
 };

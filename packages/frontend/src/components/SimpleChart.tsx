@@ -1,35 +1,32 @@
 import EChartsReact from 'echarts-for-react';
 import React, { RefObject, FC } from 'react';
-import { friendlyName } from 'common';
+import { friendlyName, DBChartTypes } from 'common';
 import { NonIdealState } from '@blueprintjs/core';
 import { ChartConfig } from '../hooks/useChartConfig';
 
-export type ChartType = 'line' | 'column' | 'bar' | 'scatter';
-const flipXFromChartType = (chartType: ChartType) => {
+const flipXFromChartType = (chartType: DBChartTypes) => {
     switch (chartType) {
-        case 'column':
+        case DBChartTypes.COLUMN:
+        case DBChartTypes.LINE:
+        case DBChartTypes.SCATTER:
             return false;
-        case 'bar':
+        case DBChartTypes.BAR:
             return true;
-        case 'line':
-            return false;
-        case 'scatter':
-            return false;
         default:
             // eslint-disable-next-line
             const nope: never = chartType;
             return undefined;
     }
 };
-const echartType = (chartType: ChartType) => {
+const echartType = (chartType: DBChartTypes) => {
     switch (chartType) {
-        case 'line':
+        case DBChartTypes.LINE:
             return 'line';
-        case 'bar':
+        case DBChartTypes.BAR:
             return 'bar';
-        case 'column':
+        case DBChartTypes.COLUMN:
             return 'bar';
-        case 'scatter':
+        case DBChartTypes.SCATTER:
             return 'scatter';
         default:
             // eslint-disable-next-line
@@ -50,7 +47,7 @@ const EmptyChart = () => (
 
 type SimpleChartProps = {
     chartRef: RefObject<EChartsReact>;
-    chartType: ChartType;
+    chartType: DBChartTypes;
     chartConfig: ChartConfig;
 };
 export const SimpleChart: FC<SimpleChartProps> = ({
