@@ -6,6 +6,9 @@ Recent and upcoming changes to lightdash
 ### Added
  - Allow user to save queries  
 
+### Fixed
+ - Filter date value doesn't match the date value in the url
+
 ## [0.5.0] - 2021-07-29
 ### Added
  - Add login and register pages
