@@ -36,99 +36,31 @@ Clone the Lightdash code to your local machine. This will create a new directory
 
 ```bash
 # Clone the Lightdash repo
-git clone git@github.com:lightdash/lightdash.git
-
+git clone https://github.com/lightdash/lightdash
+cd lightdash
 # A new directory called "lightdash" should appear
 ```
 
-## 3. Open your dbt project in a terminal
+## 3. Launch Lightdash
 
-Navigate to the dbt project you want to explore with Lightdash
+:::info
 
+If you're using dbt with bigquery or a local database (e.g. postgres running on your laptop) follow the steps at the end of this tutorial to launch Lightdash.
+
+:::
+
+Before you launch Lightdash you'll need the following info:
+
+* Your dbt project location
+* Your dbt `profiles.yml` location, by default this is `${HOME}/.dbt` if you know that it's different please update this value below
+
+Fill in the two variables below and start lightdash:
 ```shell
-# Go to your project
-cd /path/to/my/dbt/project
-
-# List the files, it should contain your dbt_project.yml
-ls
-# > dbt_project.yml
-```
-
-## 4. Start Lightdash service
-
-### For users using a local database
-
-You must modify your `profiles.yml` file to connect to a local database (e.g. postgres running on your laptop).
-
-1. Copy your profiles directory. For example if your `profiles.yml` is at `~/.dbt/profiles.yml` run `cp ~/.dbt ~/.lightdash`
-2. Edit `~/.lightdash/profiles.yml` by replacing `localhost` with `host.docker.internal`. These usually appear under the `host:` field.
-3. Launch Lightdash with docker, which accepts the following options:
-
-* Your dbt project location, we set this to the current directory `${PWD}`
-* Your new dbt `profiles.yml` location `~/.lightdash`
-* A port to expose Lightdash on. By default we use `8080`.
-
-**Set your variables (you only need to do this the first time you launch Lightdash!):**
-```shell
-export DBT_PROJECT_DIR=${PWD}
-export DBT_PROFILES_DIR=${HOME}/.lightdash
-export LIGHTDASH_PORT=8080
-```
-
-**Launch Lightdash:**
-```
-docker run -it -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" -v lightdash/lightdash
-```
-
-### For bigquery users
-
-Launch Lightdash with docker, which accepts the following options:
-
-* Your dbt project location, we set this to the current directory `${PWD}`
-* Your dbt `profiles.yml` location, by default we use `${HOME}/.dbt` if you know that it's different please update this value below
-* A port to expose Lightdash on. By default we use `8080`
-* If your [bigquery profile](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile) uses `method: oauth` you need to know your gcloud sdk config location. By default we use `${HOME}/.config/gcloud`.
-* If your [bigquery profile](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile) uses `method: service-account` you need to know your key file location.
-
-**Launch Lightdash with method: oauth:**
-```shell
-export DBT_PROJECT_DIR=${PWD}
+export DBT_PROJECT_DIR=/path/to/dbt/project
 export DBT_PROFILES_DIR=${HOME}/.dbt
-export LIGHTDASH_PORT=8080
-export GCLOUD_CONFIG_DIR=${HOME}/.config/gcloud
-docker run -it -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" -v "${GCLOUD_CONFIG_DIR}:/root/.config/gcloud" lightdash/lightdash
+
+docker compose up
 ```
-
-**Launch Lightdash with method: service-account:**
-```shell
-export DBT_PROJECT_DIR=${PWD}
-export DBT_PROFILES_DIR=${HOME}/.dbt
-export LIGHTDASH_PORT=8080
-export KEY_FILE_PATH=/path/to/file.json # the same path you have in the dbt profiles.yml
-docker run -it -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" -v "${KEY_FILE_PATH}:${KEY_FILE_PATH}" lightdash/lightdash
-```
-
-### For all other users
-
-Launch Lightdash with docker, which accepts the following options:
-
-* Your dbt project location, we set this to the current directory `${PWD}`
-* Your dbt `profiles.yml` location, by default we use `${HOME}/.dbt` if you know that it's different please update this value below
-* A port to expose Lightdash on. By default we use `8080`.
-
-**Set your variables (you only need to do this the first time you launch Lightdash!):**
-```shell
-export DBT_PROJECT_DIR=${PWD}
-export DBT_PROFILES_DIR=${HOME}/.dbt
-export LIGHTDASH_PORT=8080
-```
-
-**Launch Lightdash:**
-```
-docker run -it -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" lightdash/lightdash
-```
-
-## 5. Launch the Lightdash app
 
 When you see the following in your terminal, open up the app at [http://localhost:8080](http://localhost:8080).
 
@@ -138,15 +70,14 @@ lightdash_1  | Launch lightdash at http://localhost:8080
 lightdash_1  | ------------------------------------------
 ```
 
-
 If you see the following error message:
 ```text
 Error response from daemon: Ports are not available: listen tcp 0.0.0.0:8080: bind: address already in use"
 ```
-Then change `LIGHTDASH_PORT` and reopen the app at `http://localhost:xxxx` where `xxxx` is the port you choose:
+Then set the `PORT` variable to any port of your choice and reopen the app at `http://localhost:xxxx` where `xxxx` is the port you choose:
 
 ```shell
-export LIGHTDASH_PORT=xxxx
+PORT=xxxx docker compose up
 ```
 
 ## Next steps
@@ -161,3 +92,50 @@ Learn how to start exploring data with Lightdash:
 * Run a query
 * Create a chart
 * Export query results
+
+## Launch lightdash for a local databases
+
+To launch Lightdash, you'll need to modify your `profiles.yml` file to connect to a local database (e.g. postgres running on your laptop).
+
+1. Copy your profiles directory. For example if your `profiles.yml` is at `~/.dbt/profiles.yml` run `cp ~/.dbt ~/.lightdash`
+2. Edit `~/.lightdash/profiles.yml` by replacing `localhost` with `host.docker.internal`. These usually appear under the `host:` field.
+3. Before you launch Lightdash you'll need the following info:
+
+* Your dbt project location
+* Your dbt `profiles.yml` location, by default this is `${HOME}/.dbt` if you know that it's different please update this value below
+
+Fill in the two variables below and start lightdash:
+```shell
+export DBT_PROJECT_DIR=/path/to/dbt/project
+export DBT_PROFILES_DIR=${HOME}/.dbt
+
+docker compose up
+```
+
+## Launch lightdash for bigquery users
+
+Before you launch Lightdash you'll need the following info:
+
+* Your dbt project location
+* Your dbt `profiles.yml` location, by default this is `${HOME}/.dbt` if you know that it's different please update this value below
+* If your [bigquery profile](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile) uses `method: oauth` you need to know your gcloud sdk config location. By default we use `${HOME}/.config/gcloud`.
+* If your [bigquery profile](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile) uses `method: service-account` you need to know your key file location.
+
+**Launch Lightdash with method: oauth:**
+
+```shell
+export DBT_PROJECT_DIR=/path/to/dbt/project
+export DBT_PROFILES_DIR=${HOME}/.dbt
+export GCLOUD_CONFIG_DIR=${HOME}/.config/gcloud
+
+docker compose -f docker-compose.yml docker-compose.oauth.yml up
+```
+
+**Launch Lightdash with method: service-account:**
+```shell
+export DBT_PROJECT_DIR=/path/to/dbt/project
+export DBT_PROFILES_DIR=${HOME}/.dbt
+export KEY_FILE_PATH=/path/to/file.json # the same path you have in the dbt profiles.yml
+
+docker compose -f docker-compose.yml docker-compose.service-account.yml up
+```

@@ -1,0 +1,5 @@
+version: "3.9"
+services:
+  lightdash:
+    volumes:
+      - "${GCLOUD_CONFIG_DIR}:/root/.config/gcloud"
