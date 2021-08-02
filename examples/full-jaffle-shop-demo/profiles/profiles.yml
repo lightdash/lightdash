@@ -7,9 +7,9 @@ jaffle_shop:
     jaffle:
       type: postgres
       threads: 1
-      host: "{{ env_var('POSTGRES_HOST') }}"
-      port: "{{ env_var('POSTGRES_PORT') | as_number }}"
-      user: "{{ env_var('POSTGRES_USER') }}"
-      pass: "{{ env_var('POSTGRES_PASSWORD') }}"
-      dbname: "{{ env_var('POSTGRES_DATABASE') }}"
+      host: "{{ env_var('PGHOST') }}"
+      port: "{{ env_var('PGPORT') | as_number }}"
+      user: "{{ env_var('PGUSER') }}"
+      pass: "{{ env_var('PGPASSWORD') }}"
+      dbname: "{{ env_var('PGDATABASE') }}"
       schema: jaffle

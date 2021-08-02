@@ -7,11 +7,11 @@ services:
     depends_on: 
       - db
     environment:
-      - POSTGRES_HOST=db
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_USER=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_DATABASE=postgres
+      - PGHOST=db
+      - PGPASSWORD=password
+      - PGUSER=postgres
+      - PGPORT=5432
+      - PGDATABASE=postgres
     volumes:
       - "./profiles:/usr/app/profiles"
       - "./dbt:/usr/app/dbt"

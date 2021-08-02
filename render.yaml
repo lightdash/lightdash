@@ -12,26 +12,6 @@ services:
     dockerContext: .
     dockerfilePath: dockerfile-demo
     envVars:
-      - key: POSTGRES_PASSWORD
-        fromDatabase:
-          name: jaffle_db
-          property: password
-      - key: POSTGRES_USER
-        fromDatabase:
-          name: jaffle_db
-          property: user
-      - key: POSTGRES_HOST
-        fromDatabase:
-          name: jaffle_db
-          property: host
-      - key: POSTGRES_PORT
-        fromDatabase:
-          name: jaffle_db
-          property: port
-      - key: POSTGRES_DATABASE
-        fromDatabase:
-          name: jaffle_db
-          property: database
       - key: PGHOST
         fromDatabase:
           name: jaffle_db
