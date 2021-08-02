@@ -5,16 +5,16 @@ services:
     depends_on:
       - db
     environment:
-      - LIGHTDASH_DB_HOST=${LIGHTDASH_DB_HOST:-db}
-      - LIGHTDASH_DB_PORT=${LIGHTDASH_DB_PORT:-5432}
-      - LIGHTDASH_DB_USER=${LIGHTDASH_DB_USER:-postgres}
-      - LIGHTDASH_DB_PASSWORD=${LIGHTDASH_DB_PASSWORD}
-      - LIGHTDASH_DB_DATABASE=${LIGHTDASH_DB_DATABASE:-postgres}
-      - POSTGRES_HOST=${LIGHTDASH_DB_HOST:-db}
-      - POSTGRES_PORT=${LIGHTDASH_DB_PORT:-5432}
-      - POSTGRES_USER=${LIGHTDASH_DB_USER:-postgres}
-      - POSTGRES_PASSWORD=${LIGHTDASH_DB_PASSWORD}
-      - POSTGRES_DATABASE=${LIGHTDASH_DB_DATABASE:-postgres}
+      - PGHOST=${PGHOST:-db}
+      - PGPORT=${PGPORT:-5432}
+      - PGUSER=${PGUSER:-postgres}
+      - PGPASSWORD=${PGPASSWORD}
+      - PGDATABASE=${PGDATABASE:-postgres}
+      - POSTGRES_HOST=${PGHOST:-db}
+      - POSTGRES_PORT=${PGPORT:-5432}
+      - POSTGRES_USER=${PGUSER:-postgres}
+      - POSTGRES_PASSWORD=${PGPASSWORD}
+      - POSTGRES_DATABASE=${PGDATABASE:-postgres}
       - SECURE_COOKIES=${SECURE_COOKIES:-false}
       - TRUST_PROXY=${TRUST_PROXY:-false}
       - LIGHTDASH_SECRET=${LIGHTDASH_SECRET}
@@ -29,6 +29,6 @@ services:
     image: postgres
     restart: always
     environment:
-      POSTGRES_PASSWORD: ${LIGHTDASH_DB_PASSWORD}
-      POSTGRES_USER: ${LIGHTDASH_DB_USER:-postgres}
-      POSTGRES_DB: ${LIGHTDASH_DB_DATABASE:-postgres}
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+      POSTGRES_USER: ${PGUSER:-postgres}
+      POSTGRES_DB: ${PGDATABASE:-postgres}

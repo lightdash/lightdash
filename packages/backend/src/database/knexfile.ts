@@ -1,17 +1,16 @@
 /**
  * Switch behaviour of database connector depending on environment
  */
+import { parse } from 'pg-connection-string';
+import { lightdashConfig } from '../config/lightdashConfig';
+
+const CONNECTION = lightdashConfig.databaseConnectionUri
+    ? parse(lightdashConfig.databaseConnectionUri)
+    : {};
 
 export const development = {
     client: 'pg',
-    connection: {
-        host: process.env.LIGHTDASH_DB_HOST,
-        port: parseInt(process.env.LIGHTDASHDB_PORT || '', 10),
-        database: process.env.LIGHTDASH_DB_DATABASE,
-        user: process.env.LIGHTDASH_DB_USER,
-        password: process.env.LIGHTDASH_DB_PASSWORD,
-        charset: 'utf8',
-    },
+    connection: CONNECTION,
     pool: {
         min: 2,
         max: 10,
