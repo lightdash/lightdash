@@ -32,23 +32,23 @@ services:
         fromDatabase:
           name: jaffle_db
           property: database
-      - key: LIGHTDASH_DB_HOST
+      - key: PGHOST
         fromDatabase:
           name: jaffle_db
           property: host
-      - key: LIGHTDASH_DB_PORT
+      - key: PGPORT
         fromDatabase:
           name: jaffle_db
           property: port
-      - key: LIGHTDASH_DB_DATABASE
+      - key: PGDATABASE
         fromDatabase:
           name: jaffle_db
           property: database
-      - key: LIGHTDASH_DB_USER
+      - key: PGUSER
         fromDatabase:
           name: jaffle_db
           property: user
-      - key: LIGHTDASH_DB_PASSWORD
+      - key: PGPASSWORD
         fromDatabase:
           name: jaffle_db
           property: password

@@ -137,11 +137,11 @@ yarn workspace backend migrate
 # Expose Lightdash configuration 
 # Note: Edit lightdash.yml to point to your dbt project and profile
 export LIGHTDASH_CONFIG_FILE=${PWD}/lightdash.yml
-export LIGHTDASH_DB_HOST=127.0.0.1
-export LIGHTDASH_DB_PORT=5432
-export LIGHTDASH_DB_DATABASE=postgres
-export LIGHTDASH_DB_USER=postgres
-export LIGHTDASH_DB_PASSWORD=mysecretpassword
+export PGHOST=127.0.0.1
+export PGPORT=5432
+export PGDATABASE=postgres
+export PGUSER=postgres
+export PGPASSWORD=mysecretpassword
 
 # Run app in development mode in http://localhost:3000
 yarn common-build

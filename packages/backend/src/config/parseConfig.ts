@@ -1,6 +1,8 @@
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { LightdashMode } from 'common';
+import { Data } from 'node-cache';
+import { parse } from 'pg-connection-string';
 import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
 import { ParseError } from '../errors';
 
@@ -56,6 +58,7 @@ export type LightdashConfig = {
     lightdashSecret: string;
     secureCookies: boolean;
     trustProxy: boolean;
+    databaseConnectionUri?: string;
     rudder: RudderConfig;
     mode: LightdashMode;
     projects: Array<DbtProjectConfig>;
@@ -147,6 +150,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         lightdashSecret,
         secureCookies: process.env.SECURE_COOKIES === 'true',
         trustProxy: process.env.TRUST_PROXY === 'true',
+        databaseConnectionUri: process.env.PGCONNECTIONURI,
     };
 };
 
