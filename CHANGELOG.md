@@ -4,7 +4,11 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 ### Added
- - Allow user to save queries  
+ - Allow user to save queries
+ - Can specify database connection using a URI (including unix sockets or `postgresql://` schemes)
+
+### Changed
+ - Environment variables for database connections have changed names
 
 ### Fixed
  - Filter date value doesn't match the date value in the url
