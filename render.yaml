@@ -60,12 +60,6 @@ services:
       - key: TRUST_PROXY
         value: true
 
-      - key: DOCS_HOST # force lightdash to build after docs
-        fromService:
-          name: docsite
-          type: web
-          property: host
-
   - type: web
     name: docsite
     env: static
