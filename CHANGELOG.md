@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+
+## [0.6.0] - 2021-08-03
 ### Added
  - Allow user to save queries
  - Can specify database connection using a URI (including unix sockets or `postgresql://` schemes)
