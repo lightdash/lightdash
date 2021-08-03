@@ -145,9 +145,13 @@ const convertTableWithSources = (
     model: DbtModelNode,
     depGraph: DepGraph<LineageNodeDependency>,
 ): Table => {
+    const patchPath = model.patch_path;
+    if (patchPath === null) {
+        return convertTable(model, depGraph);
+    }
     const lineage = generateTableLineage(model, depGraph);
 
-    const modelPath = patchPathParts(model.patch_path).path;
+    const modelPath = patchPathParts(patchPath).path;
     const schemaPath = `${model.root_path}/${modelPath}`;
 
     let ymlFile: string;
@@ -188,7 +192,7 @@ const convertTableWithSources = (
     }
 
     const tableSource: Source = {
-        path: patchPathParts(model.patch_path).path,
+        path: patchPathParts(patchPath).path,
         range: modelRange,
         content: lines
             .slice(modelRange.start.line, modelRange.end.line + 1)
@@ -213,7 +217,7 @@ const convertTableWithSources = (
                 );
             }
             const dimensionSource: Source = {
-                path: patchPathParts(model.patch_path).path,
+                path: patchPathParts(patchPath).path,
                 range: columnRange,
                 content: lines
                     .slice(columnRange.start.line, columnRange.end.line + 1)
@@ -239,7 +243,7 @@ const convertTableWithSources = (
                     );
                 }
                 const metricSource: Source = {
-                    path: patchPathParts(model.patch_path).path,
+                    path: patchPathParts(patchPath).path,
                     range: dimensionSource.range,
                     highlight: metricRange,
                     content: dimensionSource.content,

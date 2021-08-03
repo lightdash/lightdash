@@ -412,7 +412,7 @@ export type DbtModelNode = DbtNode & {
     depends_on: DbtTableDependency;
     description?: string;
     root_path: string;
-    patch_path: string;
+    patch_path: string | null;
 };
 type DbtTableDependency = {
     nodes: string[];
