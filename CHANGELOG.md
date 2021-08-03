@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Fixed
+ - Fix bug where models with missing schema.yml entries would stop Lightdash projects from compiling
 
 ## [0.6.0] - 2021-08-03
 ### Added
