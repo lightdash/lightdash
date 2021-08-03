@@ -12,6 +12,10 @@ services:
       - PGUSER=postgres
       - PGPORT=5432
       - PGDATABASE=postgres
+      - SECURE_COOKIES=false
+      - TRUST_PROXY=false
+      - LIGHTDASH_SECRET='not very secret'
+
     volumes:
       - "./profiles:/usr/app/profiles"
       - "./dbt:/usr/app/dbt"
