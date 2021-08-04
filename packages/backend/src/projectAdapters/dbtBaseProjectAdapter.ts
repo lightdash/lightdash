@@ -53,6 +53,7 @@ export abstract class DbtBaseProjectAdapter implements ProjectAdapter {
     }
 
     private async _getDbtModels(): Promise<DbtModelNode[]> {
+        await this.rpcClient.installDeps();
         const manifest = await this.rpcClient.getDbtManifest();
         const nodes = manifest.results.map((result) => result.node);
         const models = nodes.filter(

@@ -3,6 +3,7 @@ import { ProjectAdapter } from '../types';
 import { DbtLocalProjectAdapter } from './dbtLocalProjectAdapter';
 import { DbtRemoteProjectAdapter } from './dbtRemoteProjectAdapter';
 import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
+import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
 
 export const projectAdapterFromConfig = (
     config: DbtProjectConfig,
@@ -26,6 +27,15 @@ export const projectAdapterFromConfig = (
                 `${config.environment_id}`,
                 `${config.project_id}`,
                 config.api_key,
+            );
+        case ProjectType.GITHUB:
+            return new DbtGithubProjectAdapter(
+                config.personal_access_token,
+                config.repository,
+                config.branch,
+                config.project_sub_path,
+                config.profiles_sub_path,
+                config.rpc_server_port,
             );
         default:
             const never: never = config;

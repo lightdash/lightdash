@@ -135,6 +135,23 @@ export class DbtRpcClientBase {
         throw new NetworkError('Unexpected response from dbt rpc server', data);
     }
 
+    private async _isServerResponding(): Promise<boolean> {
+        const result = await this._post('status', {});
+        switch (result?.state) {
+            case 'ready':
+            case 'error':
+            case null:
+                return true;
+            case 'compiling':
+                return false;
+            default:
+                throw new NetworkError(
+                    'Unexpected result from dbt status',
+                    result,
+                );
+        }
+    }
+
     async _isServerReady(): Promise<boolean> {
         const result = await this._post('status', {});
         switch (result?.state) {
@@ -165,6 +182,18 @@ export class DbtRpcClientBase {
     private async _waitForServerReady(): Promise<true> {
         await pollOverNetwork({
             func: () => this._isServerReady(),
+            condition: async (x) => x,
+            startInterval: 200,
+            maxInterval: 1000,
+            intervalMultiplier: 1.5,
+            maxAttempts: 25,
+        });
+        return true;
+    }
+
+    private async _waitForServerResponding(): Promise<true> {
+        await pollOverNetwork({
+            func: () => this._isServerResponding(),
             condition: async (x) => x,
             startInterval: 200,
             maxInterval: 1000,
@@ -247,6 +276,13 @@ export class DbtRpcClientBase {
             'Unknown response received from dbt when generating docs',
             jobResults,
         );
+    }
+
+    public async installDeps(): Promise<boolean> {
+        await this._waitForServerResponding();
+        const requestToken = await this._submitJob('deps', {});
+        await this._waitForJobComplete(requestToken);
+        return true;
     }
 
     public async getDbtManifest(): Promise<DbtRpcCompileResults> {

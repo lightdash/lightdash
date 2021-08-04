@@ -1,8 +1,6 @@
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { LightdashMode } from 'common';
-import { Data } from 'node-cache';
-import { parse } from 'pg-connection-string';
 import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
 import { ParseError } from '../errors';
 
@@ -10,6 +8,7 @@ export enum ProjectType {
     DBT = 'dbt',
     DBT_REMOTE_SERVER = 'dbt_remote_server',
     DBT_CLOUD_IDE = 'dbt_cloud_ide',
+    GITHUB = 'github',
 }
 
 interface DbtProjectConfigBase {
@@ -39,10 +38,21 @@ interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
     project_id: string | number;
 }
 
+interface DbtGithubProjectConfig extends DbtProjectConfigBase {
+    type: ProjectType.GITHUB;
+    personal_access_token: string;
+    repository: string;
+    branch: string;
+    project_sub_path: string;
+    profiles_sub_path: string;
+    rpc_server_port: number;
+}
+
 export type DbtProjectConfig =
     | DbtLocalProjectConfig
     | DbtRemoteProjectConfig
-    | DbtCloudIDEProjectConfig;
+    | DbtCloudIDEProjectConfig
+    | DbtGithubProjectConfig;
 
 export type DbtProjectConfigIn<T extends DbtProjectConfig> = Partial<T> &
     DbtProjectConfigBase;
@@ -77,6 +87,16 @@ const dbtRemoteProjectConfigRequiredFields: Array<
 const dbtCloudIdeProjectConfigRequiredFields: Array<
     keyof DbtCloudIDEProjectConfig
 > = ['api_key', 'account_id', 'environment_id', 'project_id'];
+const dbtGithubProjectConfigRequiredFields: Array<
+    keyof DbtGithubProjectConfig
+> = [
+    'personal_access_token',
+    'repository',
+    'branch',
+    'project_sub_path',
+    'profiles_sub_path',
+    'rpc_server_port',
+];
 
 const mergeProjectWithEnvironment = <T extends DbtProjectConfig>(
     projectIndex: number,
@@ -119,6 +139,12 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                     idx,
                     project,
                     dbtCloudIdeProjectConfigRequiredFields,
+                );
+            case ProjectType.GITHUB:
+                return mergeProjectWithEnvironment(
+                    idx,
+                    project,
+                    dbtGithubProjectConfigRequiredFields,
                 );
             default: {
                 const never: never = project;
