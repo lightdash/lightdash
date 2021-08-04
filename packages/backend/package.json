@@ -44,6 +44,7 @@
         "express": "^4.17.1",
         "express-session": "^1.17.2",
         "fuse.js": "^6.4.6",
+        "isomorphic-git": "^1.9.2",
         "js-yaml": "^4.1.0",
         "knex": "^0.95.7",
         "morgan": "^1.10.0",
@@ -53,6 +54,7 @@
         "passport-local": "^1.0.0",
         "pg": "^8.6.0",
         "pg-connection-string": "^2.5.0",
+        "tempy": "^1.0.1",
         "uuid": "^8.3.2"
     },
     "scripts": {

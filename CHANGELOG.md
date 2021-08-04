@@ -3,6 +3,9 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Added
+ - Projects can now connect to github. Pull your dbt project files straight from a public or private github repository.
+  
 ### Fixed
  - Fix bug where models with missing schema.yml entries would stop Lightdash projects from compiling
 

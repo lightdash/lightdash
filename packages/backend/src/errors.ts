@@ -84,6 +84,17 @@ export class MissingCatalogEntryError extends LightdashError {
     }
 }
 
+export class UnexpectedServerError extends LightdashError {
+    constructor(message = 'Unexpected error in Lightdash server') {
+        super({
+            message,
+            name: 'UnexpectedServerError',
+            statusCode: 500,
+            data: {},
+        });
+    }
+}
+
 export class ParseError extends LightdashError {
     constructor(
         message = 'Error parsing dbt project and lightdash metadata',
