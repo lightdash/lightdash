@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+
+## [0.6.1] - 2021-08-05
 ### Added
  - Projects can now connect to github. Pull your dbt project files straight from a public or private github repository.
   
