@@ -24,6 +24,7 @@ services:
     ports:
       - ${PORT}:8080
       - 3000:3000
+      - 8580:8580
 
   db-dev:
     image: postgres

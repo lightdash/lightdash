@@ -1,4 +1,9 @@
-import { DbtRpcDocsGenerateResults, DbtModelNode, Explore } from 'common';
+import {
+    DbtRpcDocsGenerateResults,
+    DbtModelNode,
+    Explore,
+    DbtExposure,
+} from 'common';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { DbtRpcClientBase } from '../dbt/dbtRpcClientBase';
@@ -76,6 +81,18 @@ export abstract class DbtBaseProjectAdapter implements ProjectAdapter {
             }
         };
         models.forEach(validateModel);
+
+        const exposures = nodes.filter(
+            (node) => node.resource_type === 'exposure',
+        ) as DbtExposure[];
+
+        console.log(
+            nodes.filter(
+                (node) =>
+                    node.resource_type !== 'model' &&
+                    node.resource_type !== 'test',
+            ),
+        );
 
         // Foreign key checks
         const validModelNames = new Set(models.map((model) => model.name));

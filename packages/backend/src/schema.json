@@ -86,6 +86,30 @@
             },
             "default": {}
         },
+        "LightdashExposureMetadata": {
+            "type": "object",
+            "required": [],
+            "properties": {
+                "base": {
+                    "type": "string"
+                },
+                "joins": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["join", "sql_on"],
+                        "properties": {
+                            "join": {
+                                "type": "string"
+                            },
+                            "sql_on": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "ManifestMetadata": {
             "type": "object",
             "required": [],

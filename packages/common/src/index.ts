@@ -403,6 +403,7 @@ export type DbtNode = {
     resource_type: string;
 };
 export type DbtModelNode = DbtNode & {
+    resource_type: 'model';
     columns: { [name: string]: DbtModelColumn };
     meta: DbtModelMetadata;
     database: string;
@@ -413,6 +414,22 @@ export type DbtModelNode = DbtNode & {
     description?: string;
     root_path: string;
     patch_path: string | null;
+};
+export type ExposureOwner = {
+    email: string;
+    name?: string;
+};
+export type DbtExposure = {
+    unique_id: string;
+    root_path: string;
+    resource_type: 'exposure';
+    name: string;
+    owner: ExposureOwner;
+    type: 'application' | 'dashboard' | 'notebook' | 'analysis' | 'ml';
+    description?: string;
+    meta: DbtExposureLightdashConfig;
+    depends_on: DbtTableDependency;
+    original_file_path: string;
 };
 type DbtTableDependency = {
     nodes: string[];
@@ -426,6 +443,11 @@ export type DbtModelColumn = {
 
 // CUSTOM LIGHTDASH CONFIG IN DBT
 type DbtModelMetadata = DbtModelLightdashConfig & {};
+
+type DbtExposureLightdashConfig = {
+    base?: string;
+    joins?: DbtModelJoin[];
+};
 
 type DbtModelLightdashConfig = {
     joins?: DbtModelJoin[];
