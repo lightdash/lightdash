@@ -41,9 +41,15 @@ Lightdash is a BI tool that is fully integrated with your dbt project, allowing 
 
 ## 1-click deploy
 
-Deploy your own hosted Lightdash instance with Heroku (free account available). _This is currently only supported for dbt cloud projects_.
+Deploy your own hosted Lightdash instance with Heroku (free account available).
+
+**Deploy for dbt projects on dbt cloud**
 
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/lightdash/lightdash-deploy-heroku)
+
+**Deploy for dbt projects on github**
+
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/lightdash/lightdash-deploy-heroku-github)
 
 ## Get started
 
