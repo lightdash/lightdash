@@ -68,7 +68,7 @@ const SavedListItem: FC<{ savedQuery: SpaceQuery }> = ({ savedQuery }) => {
                         icon="edit"
                         intent="warning"
                         outlined
-                        text="Edit"
+                        text="Rename"
                         onClick={() => setIsUpdateDialogOpen(true)}
                     />
                     <Button
