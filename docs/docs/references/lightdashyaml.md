@@ -43,6 +43,21 @@ projects:
     api_key: 'axx1xxbxx2xx'
 ```
 
+```yaml
+version: '1.0'
+           
+projects:
+  - type: 'github'
+    name: mygithubproject
+    repository: lightdash/my-dbt-project
+    personal_access_token: xxxxx
+    branch: main
+    project_sub_path: /
+    profiles_sub_path: /profiles
+    rpc_server_port: 8580
+}
+```
+
 ## Environment variables
 
 You can override any project config item using environment variables. 
