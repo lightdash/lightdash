@@ -21,6 +21,7 @@ export const useRefreshServer = () => {
         onSettled: () => {
             queryClient.invalidateQueries('status');
             queryClient.invalidateQueries('table');
+            queryClient.invalidateQueries('tables');
             queryClient.setQueryData('status', 'loading');
         },
     });

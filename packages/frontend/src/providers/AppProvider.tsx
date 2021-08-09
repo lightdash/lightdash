@@ -5,6 +5,7 @@ import React, {
     useEffect,
     useCallback,
 } from 'react';
+import Markdown from 'markdown-to-jsx';
 import * as rudderSDK from 'rudder-sdk-js';
 import { ApiError, ApiHealthResults, HealthState, LightdashUser } from 'common';
 import { useQuery } from 'react-query';
@@ -14,6 +15,7 @@ import { UseQueryResult } from 'react-query/types/react/types';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';
 import { useRudder } from '../hooks/useRudder';
+import { ErrorLogs, useErrorLogs } from '../hooks/useErrorLogs';
 
 const getHealthState = async () =>
     lightdashApi<ApiHealthResults>({
@@ -38,13 +40,15 @@ interface Message extends Omit<IToastProps, 'message'> {
 interface AppContext {
     health: UseQueryResult<HealthState, ApiError>;
     user: UseQueryResult<LightdashUser, ApiError>;
-    showMessage: (props: Message) => void;
+    showToastSuccess: (props: Message) => void;
+    showToastError: (props: Message) => void;
     showError: (props: Message) => void;
     rudder: {
         page: typeof rudderSDK.page;
         track: typeof rudderSDK.track;
         identify: typeof rudderSDK.identify;
     };
+    errorLogs: ErrorLogs;
 }
 
 const Context = createContext<AppContext>(undefined as any);
@@ -61,7 +65,7 @@ export const AppProvider: FC = ({ children }) => {
         retry: false,
     });
 
-    const showMessage = useCallback<AppContext['showMessage']>(
+    const showToastSuccess = useCallback<AppContext['showToastSuccess']>(
         ({ title, subtitle, key, ...rest }) => {
             AppToaster.show(
                 {
@@ -70,8 +74,24 @@ export const AppProvider: FC = ({ children }) => {
                     timeout: 5000,
                     message: (
                         <div>
-                            <b>{title}</b>
-                            {subtitle && <p>{subtitle}</p>}
+                            <p style={{ fontWeight: 'bold', marginBottom: 0 }}>
+                                {title}
+                            </p>
+                            {subtitle && (
+                                <Markdown
+                                    options={{
+                                        overrides: {
+                                            a: {
+                                                props: {
+                                                    target: '_blank',
+                                                },
+                                            },
+                                        },
+                                    }}
+                                >
+                                    {subtitle}
+                                </Markdown>
+                            )}
                         </div>
                     ),
                     ...rest,
@@ -82,15 +102,25 @@ export const AppProvider: FC = ({ children }) => {
         [],
     );
 
-    const showError = useCallback<AppContext['showError']>(
+    const showToastError = useCallback<AppContext['showToastError']>(
         (props) => {
-            showMessage({
+            showToastSuccess({
                 intent: Intent.DANGER,
                 icon: 'error',
                 ...props,
             });
         },
-        [showMessage],
+        [showToastSuccess],
+    );
+    const errorLogs = useErrorLogs();
+    const showError = useCallback<AppContext['showError']>(
+        (props) => {
+            errorLogs.showError({
+                title: props.title,
+                body: props.subtitle,
+            });
+        },
+        [errorLogs.showError],
     );
 
     const rudder = useRudder(
@@ -103,9 +133,11 @@ export const AppProvider: FC = ({ children }) => {
     const value = {
         health,
         user,
-        showMessage,
+        showToastSuccess,
+        showToastError,
         showError,
         rudder,
+        errorLogs,
     };
 
     useEffect(() => {

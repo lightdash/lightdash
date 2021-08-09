@@ -17,7 +17,7 @@ const updateUserPasswordQuery = async (data: {
     });
 
 const PasswordPanel: FC = () => {
-    const { showError } = useApp();
+    const { showError, showToastError } = useApp();
     const [password, setPassword] = useState<string>();
     const [newPassword, setNewPassword] = useState<string>();
 
@@ -49,7 +49,7 @@ const PasswordPanel: FC = () => {
                 newPassword,
             });
         } else {
-            showError({
+            showToastError({
                 title: 'Required fields: password and new password',
                 timeout: 3000,
             });

@@ -66,12 +66,12 @@ export const useSavedQuery = ({ id }: Args = {}) =>
 export const useDeleteMutation = () => {
     const history = useHistory();
     const queryClient = useQueryClient();
-    const { showMessage, showError } = useApp();
+    const { showToastSuccess, showToastError } = useApp();
     return useMutation<undefined, ApiError, string>(deleteSavedQuery, {
         mutationKey: ['saved_query_create'],
         onSuccess: async () => {
             await queryClient.invalidateQueries('spaces');
-            showMessage({
+            showToastSuccess({
                 title: `Chart deleted with success`,
             });
             history.push({
@@ -79,7 +79,7 @@ export const useDeleteMutation = () => {
             });
         },
         onError: (error) => {
-            showError({
+            showToastError({
                 title: `Failed to delete chart`,
                 subtitle: error.error.message,
             });
@@ -89,7 +89,7 @@ export const useDeleteMutation = () => {
 
 export const useUpdateMutation = (savedQueryUuid: string) => {
     const queryClient = useQueryClient();
-    const { showMessage, showError } = useApp();
+    const { showToastSuccess, showToastError } = useApp();
     return useMutation<SavedQuery, ApiError, UpdateSavedQuery>(
         (data) => updateSavedQuery(savedQueryUuid, data),
         {
@@ -97,12 +97,12 @@ export const useUpdateMutation = (savedQueryUuid: string) => {
             onSuccess: async (data) => {
                 await queryClient.invalidateQueries('spaces');
                 queryClient.setQueryData(['saved_query', data.uuid], data);
-                showMessage({
+                showToastSuccess({
                     title: `Chart saved with success`,
                 });
             },
             onError: (error) => {
-                showError({
+                showToastError({
                     title: `Failed to save chart`,
                     subtitle: error.error.message,
                 });
@@ -114,14 +114,14 @@ export const useUpdateMutation = (savedQueryUuid: string) => {
 export const useCreateMutation = () => {
     const history = useHistory();
     const queryClient = useQueryClient();
-    const { showMessage, showError } = useApp();
+    const { showToastSuccess, showToastError } = useApp();
     return useMutation<SavedQuery, ApiError, CreateSavedQuery>(
         createSavedQuery,
         {
             mutationKey: ['saved_query_create'],
             onSuccess: (data) => {
                 queryClient.setQueryData(['saved_query', data.uuid], data);
-                showMessage({
+                showToastSuccess({
                     title: `Chart updated with success`,
                 });
                 history.push({
@@ -129,7 +129,7 @@ export const useCreateMutation = () => {
                 });
             },
             onError: (error) => {
-                showError({
+                showToastError({
                     title: `Failed to save chart`,
                     subtitle: error.error.message,
                 });
@@ -140,7 +140,7 @@ export const useCreateMutation = () => {
 
 export const useAddVersionMutation = () => {
     const queryClient = useQueryClient();
-    const { showMessage, showError } = useApp();
+    const { showToastSuccess, showToastError } = useApp();
     return useMutation<
         SavedQuery,
         ApiError,
@@ -149,12 +149,12 @@ export const useAddVersionMutation = () => {
         mutationKey: ['saved_query_version'],
         onSuccess: (data) => {
             queryClient.setQueryData(['saved_query', data.uuid], data);
-            showMessage({
+            showToastSuccess({
                 title: `Chart saved with success`,
             });
         },
         onError: (error) => {
-            showError({
+            showToastError({
                 title: `Failed to save chart`,
                 subtitle: error.error.message,
             });

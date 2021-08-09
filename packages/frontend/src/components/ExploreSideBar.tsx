@@ -6,6 +6,7 @@ import {
     Menu,
     MenuDivider,
     MenuItem,
+    NonIdealState,
     Text,
 } from '@blueprintjs/core';
 import React, { useState } from 'react';
@@ -17,6 +18,7 @@ import { LineageButton } from './LineageButton';
 import AboutFooter from './AboutFooter';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useApp } from '../providers/AppProvider';
+import { ShowErrorsButton } from './ShowErrorsButton';
 
 const SideBarLoadingState = () => (
     <Menu large style={{ flex: 1 }}>
@@ -37,6 +39,7 @@ const BasePanel = () => {
         state: { tableName: activeTableName, activeFields },
         actions: { setTableName: setActiveTableName },
     } = useExplorer();
+    const { errorLogs } = useApp();
 
     const onCancelConfirmation = () => {
         setShowChangeExploreConfirmation(false);
@@ -52,73 +55,96 @@ const BasePanel = () => {
         setShowChangeExploreConfirmation(true);
     };
 
-    // TODO: render error
-    if (exploresResult.status !== 'success') return <SideBarLoadingState />;
-    return (
-        <>
-            <div style={{ height: '100px' }}>
-                <div
+    if (exploresResult.data) {
+        return (
+            <>
+                <div style={{ height: '100px' }}>
+                    <div
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                        }}
+                    >
+                        <H3>Tables</H3>
+                    </div>
+                    <div style={{ padding: '10px' }}>
+                        <Text>
+                            Select a table to start exploring your metrics
+                        </Text>
+                    </div>
+                    <Divider />
+                </div>
+                <Menu
                     style={{
-                        display: 'flex',
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
+                        flex: '1',
+                        overflow: 'auto',
                     }}
                 >
-                    <H3>Tables</H3>
-                </div>
-                <div style={{ padding: '10px' }}>
-                    <Text>Select a table to start exploring your metrics</Text>
-                </div>
-                <Divider />
-            </div>
-            <Menu
-                style={{
-                    flex: '1',
-                    overflow: 'auto',
-                }}
-            >
-                {(exploresResult.data || []).map((explore) => (
-                    <React.Fragment key={explore.name}>
-                        <MenuItem
-                            icon="database"
-                            text={friendlyName(explore.name)}
-                            onClick={() => {
-                                if (
-                                    activeFields.size > 0 &&
-                                    activeTableName !== explore.name
-                                )
-                                    confirm(explore.name);
-                                else {
-                                    setActiveTableName(explore.name);
-                                }
-                            }}
-                        />
-                        <MenuDivider />
-                    </React.Fragment>
-                ))}
-            </Menu>
-            <Alert
-                isOpen={showChangeExploreConfirmation}
-                onCancel={onCancelConfirmation}
-                onConfirm={() => onSubmitConfirmation()}
-                intent="primary"
-                cancelButtonText={`Go back to ${friendlyName(
-                    activeTableName || '',
-                )}`}
-                confirmButtonText={`Explore ${friendlyName(
-                    selectedExploreName || '',
-                )}`}
-            >
-                <Text>
-                    {`Start exploring ${friendlyName(
-                        selectedExploreName || '',
-                    )}? You will lose your current work on ${friendlyName(
+                    {(exploresResult.data || []).map((explore) => (
+                        <React.Fragment key={explore.name}>
+                            <MenuItem
+                                icon="database"
+                                text={friendlyName(explore.name)}
+                                onClick={() => {
+                                    if (
+                                        activeFields.size > 0 &&
+                                        activeTableName !== explore.name
+                                    )
+                                        confirm(explore.name);
+                                    else {
+                                        setActiveTableName(explore.name);
+                                    }
+                                }}
+                            />
+                            <MenuDivider />
+                        </React.Fragment>
+                    ))}
+                </Menu>
+                <Alert
+                    isOpen={showChangeExploreConfirmation}
+                    onCancel={onCancelConfirmation}
+                    onConfirm={() => onSubmitConfirmation()}
+                    intent="primary"
+                    cancelButtonText={`Go back to ${friendlyName(
                         activeTableName || '',
-                    )}.`}
-                </Text>
-            </Alert>
-        </>
+                    )}`}
+                    confirmButtonText={`Explore ${friendlyName(
+                        selectedExploreName || '',
+                    )}`}
+                >
+                    <Text>
+                        {`Start exploring ${friendlyName(
+                            selectedExploreName || '',
+                        )}? You will lose your current work on ${friendlyName(
+                            activeTableName || '',
+                        )}.`}
+                    </Text>
+                </Alert>
+            </>
+        );
+    }
+    if (exploresResult.status === 'loading') {
+        return <SideBarLoadingState />;
+    }
+    if (exploresResult.status === 'error') {
+        return (
+            <NonIdealState
+                icon="error"
+                title="Could not load explores"
+                description="Check error logs for more details"
+                action={
+                    <ShowErrorsButton
+                        errorLogs={errorLogs.errorLogs}
+                        setErrorLogsVisible={errorLogs.setErrorLogsVisible}
+                    />
+                }
+            />
+        );
+    }
+    return (
+        <NonIdealState icon="warning-sign" title="Could not load explores" />
     );
 };
 type ExplorePanelProps = {
@@ -131,71 +157,70 @@ export const ExplorePanel = ({ onBack }: ExplorePanelProps) => {
         actions: { toggleActiveField },
     } = useExplorer();
     const exploresResult = useTable();
-    switch (exploresResult.status) {
-        case 'error': {
-            onBack();
-            const [title, ...lines] =
-                exploresResult.error.error.message.split('\n');
-            showError({ title, subtitle: lines.join('\n') });
-            return null;
-        }
-        case 'idle':
-        case 'loading': {
-            return <SideBarLoadingState />;
-        }
-        default:
-            break;
-    }
-    // Success
-    const activeExplore = exploresResult.data;
-    const [databaseName, schemaName, tableName] = activeExplore.tables[
-        activeExplore.baseTable
-    ].sqlTable
-        .replace(/["'`]/g, '')
-        .split('.');
-    return (
-        <>
-            <div
-                style={{
-                    paddingBottom: '10px',
-                    display: 'flex',
-                    flexDirection: 'row',
-                    justifyContent: 'flex-start',
-                    alignItems: 'center',
-                }}
-            >
-                <Button onClick={onBack} icon="chevron-left" />
-                <H3 style={{ marginBottom: 0, marginLeft: '10px' }}>
-                    {friendlyName(activeExplore.name)}
-                </H3>
-            </div>
-            <Divider />
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <p style={{ paddingTop: 10 }}>
-                    <b>Table</b>: {tableName}
+    if (exploresResult.data) {
+        const activeExplore = exploresResult.data;
+        const [databaseName, schemaName, tableName] = activeExplore.tables[
+            activeExplore.baseTable
+        ].sqlTable
+            .replace(/["'`]/g, '')
+            .split('.');
+        return (
+            <>
+                <div
+                    style={{
+                        paddingBottom: '10px',
+                        display: 'flex',
+                        flexDirection: 'row',
+                        justifyContent: 'flex-start',
+                        alignItems: 'center',
+                    }}
+                >
+                    <Button onClick={onBack} icon="chevron-left" />
+                    <H3 style={{ marginBottom: 0, marginLeft: '10px' }}>
+                        {friendlyName(activeExplore.name)}
+                    </H3>
+                </div>
+                <Divider />
+                <div
+                    style={{ display: 'flex', justifyContent: 'space-between' }}
+                >
+                    <p style={{ paddingTop: 10 }}>
+                        <b>Table</b>: {tableName}
+                    </p>
+                    <LineageButton />
+                </div>
+                <p>
+                    <b>Schema</b>: {schemaName}
                 </p>
-                <LineageButton />
-            </div>
-            <p>
-                <b>Schema</b>: {schemaName}
-            </p>
-            <p>
-                <b>Database</b>: {databaseName}
-            </p>
-            <p>
-                <b>Description</b>:{' '}
-                {activeExplore.tables[activeExplore.baseTable].description}
-            </p>
-            <div style={{ paddingBottom: '5px' }} />
-            <Divider />
-            <div style={{ paddingBottom: '10px' }} />
-            <ExploreTree
-                explore={activeExplore}
-                selectedNodes={activeFields}
-                onSelectedNodeChange={toggleActiveField}
-            />
-        </>
-    );
+                <p>
+                    <b>Database</b>: {databaseName}
+                </p>
+                <p>
+                    <b>Description</b>:{' '}
+                    {activeExplore.tables[activeExplore.baseTable].description}
+                </p>
+                <div style={{ paddingBottom: '5px' }} />
+                <Divider />
+                <div style={{ paddingBottom: '10px' }} />
+                <ExploreTree
+                    explore={activeExplore}
+                    selectedNodes={activeFields}
+                    onSelectedNodeChange={toggleActiveField}
+                />
+            </>
+        );
+    }
+    if (exploresResult.status === 'error') {
+        onBack();
+        const [title, ...lines] =
+            exploresResult.error.error.message.split('\n');
+        showError({ title, subtitle: lines.join('\n') });
+        return null;
+    }
+    if (exploresResult.status === 'loading') {
+        return <SideBarLoadingState />;
+    }
+    return <span>Cannot load explore</span>;
 };
 export const ExploreSideBar = () => {
     const {

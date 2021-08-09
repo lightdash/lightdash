@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import {
-    Classes,
     Alignment,
     Button,
+    Classes,
     Navbar,
     NavbarDivider,
     NavbarGroup,
@@ -14,6 +14,8 @@ import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 import UserSettingsModal from './UserSettingsModal/UserSettingsModal';
 import NavLink from './NavLink';
+import { ErrorLogsDrawer } from './ErrorLogsDrawer';
+import { ShowErrorsButton } from './ShowErrorsButton';
 
 const logoutQuery = async () =>
     lightdashApi({
@@ -23,7 +25,10 @@ const logoutQuery = async () =>
     });
 
 const AppBar = () => {
-    const { user } = useApp();
+    const {
+        user,
+        errorLogs: { errorLogs, setErrorLogsVisible },
+    } = useApp();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { isLoading, mutate } = useMutation(logoutQuery, {
         mutationKey: ['logout'],
@@ -49,6 +54,10 @@ const AppBar = () => {
                     </NavLink>
                 </NavbarGroup>
                 <NavbarGroup align={Alignment.RIGHT}>
+                    <ShowErrorsButton
+                        errorLogs={errorLogs}
+                        setErrorLogsVisible={setErrorLogsVisible}
+                    />
                     <NavbarHeading style={{ marginRight: 5 }}>
                         {user.data?.firstName} {user.data?.lastName}
                     </NavbarHeading>
@@ -77,6 +86,7 @@ const AppBar = () => {
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
             />
+            <ErrorLogsDrawer />
         </>
     );
 };
