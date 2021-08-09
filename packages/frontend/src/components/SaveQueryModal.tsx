@@ -30,7 +30,7 @@ const SaveQueryModal: FC<Props> = ({
     onSave,
     onClose,
 }) => {
-    const { showError } = useApp();
+    const { showToastError } = useApp();
     const [name, setName] = useState<string | undefined>(initialName);
 
     useEffect(() => {
@@ -41,7 +41,7 @@ const SaveQueryModal: FC<Props> = ({
         if (name) {
             onSave(name);
         } else {
-            showError({
+            showToastError({
                 title: 'Required fields: name',
                 timeout: 3000,
             });

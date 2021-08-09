@@ -14,7 +14,7 @@ const updateUserQuery = async (data: UpdateUserArgs) =>
 
 const ProfilePanel: FC = () => {
     const queryClient = useQueryClient();
-    const { showError, showMessage, user } = useApp();
+    const { showToastError, showError, showToastSuccess, user } = useApp();
     const [firstName, setFirstName] = useState<string | undefined>(
         user.data?.firstName,
     );
@@ -31,7 +31,7 @@ const ProfilePanel: FC = () => {
         mutationKey: ['user_update'],
         onSuccess: (data) => {
             queryClient.setQueryData(['user'], data);
-            showMessage({
+            showToastSuccess({
                 title: 'User updated with success',
             });
         },
@@ -59,7 +59,7 @@ const ProfilePanel: FC = () => {
                 email && !validateEmail(email)
                     ? 'Invalid email'
                     : 'Required fields: first name, last name and email';
-            showError({
+            showToastError({
                 title,
                 timeout: 3000,
             });

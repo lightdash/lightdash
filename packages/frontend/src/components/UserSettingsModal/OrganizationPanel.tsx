@@ -14,7 +14,7 @@ const updateOrgQuery = async (data: { organizationName: string }) =>
 
 const OrganizationPanel: FC = () => {
     const queryClient = useQueryClient();
-    const { showError, showMessage, user } = useApp();
+    const { showError, showToastError, showToastSuccess, user } = useApp();
     const [organizationName, setOrganizationName] = useState<
         string | undefined
     >(user.data?.organizationName);
@@ -27,7 +27,7 @@ const OrganizationPanel: FC = () => {
         mutationKey: ['user_update'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(['user']);
-            showMessage({
+            showToastSuccess({
                 title: 'Organization name updated with success',
             });
         },
@@ -49,7 +49,7 @@ const OrganizationPanel: FC = () => {
                 organizationName,
             });
         } else {
-            showError({
+            showToastError({
                 title: 'Required fields: organization name',
                 timeout: 3000,
             });

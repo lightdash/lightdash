@@ -7,9 +7,15 @@ Recent and upcoming changes to lightdash
 ## [0.6.1] - 2021-08-05
 ### Added
  - Projects can now connect to github. Pull your dbt project files straight from a public or private github repository.
-  
+
+### Changed
+ - dbt errors now show in a permanent error inbox making it easier to search through long error messages
+ 
 ### Fixed
  - Fix bug where models with missing schema.yml entries would stop Lightdash projects from compiling
+ - Fix bug where errors messages would disappear quickly
+ - Fix bug where sidebar and errors would not update after a dbt refresh
+ - Fix bug where links in error messages were not clickable
 
 ## [0.6.0] - 2021-08-03
 ### Added

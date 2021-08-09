@@ -18,7 +18,7 @@ export class DbtCloudV2RpcClient extends DbtRpcClientBase {
         );
         const ideUrl = `https://cloud.getdbt.com/#/accounts/${accountId}/projects/${projectId}/develop/`;
         const credentialsUrl = `https://cloud.getdbt.com/#/accounts/${accountId}/projects/${projectId}/environments/${environmentId}/`;
-        this.unreachableMessage = `Cannot connect to dbt Cloud development environment. You must have your project open at ${ideUrl} and have correctly configured developer credentials: ${credentialsUrl}`;
+        this.unreachableMessage = `Cannot connect to dbt Cloud development environment. You must have your project open at ${ideUrl} and have correctly configured developer credentials: ${credentialsUrl}. Please refresh dbt to try again.`;
     }
 
     // Extend _post to improve error messsages

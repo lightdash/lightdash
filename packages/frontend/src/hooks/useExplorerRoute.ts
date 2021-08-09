@@ -5,7 +5,7 @@ import { useExplorer } from '../providers/ExplorerProvider';
 import { useApp } from '../providers/AppProvider';
 
 export const useExplorerRoute = () => {
-    const { showError } = useApp();
+    const { showToastError } = useApp();
     const { search } = useLocation();
     const history = useHistory();
     const pathParams = useParams<{ tableId: string | undefined }>();
@@ -45,7 +45,7 @@ export const useExplorerRoute = () => {
                     limit,
                 });
             } catch (e) {
-                showError({ title: 'Error parsing url', subtitle: e });
+                showToastError({ title: 'Error parsing url', subtitle: e });
             }
         } else {
             reset();
