@@ -28,12 +28,7 @@
                 "oneOf": [
                     {
                         "type": "object",
-                        "required": [
-                            "type",
-                            "name",
-                            "personal_access_token",
-                            "repository"
-                        ],
+                        "required": ["type", "name"],
                         "properties": {
                             "type": {
                                 "const": "github"
