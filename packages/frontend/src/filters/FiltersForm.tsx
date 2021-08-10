@@ -24,6 +24,7 @@ import {
 } from './DateFilterForm';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useTable } from '../hooks/useTable';
+import { assertFilterId } from './FilterRow';
 
 type FilterGroupFormProps = {
     filterGroup: FilterGroup;
@@ -37,6 +38,14 @@ const FilterGroupForm = ({
 }: FilterGroupFormProps) => {
     // Delete the whole filter group if it has no filters
     if (filterGroup.filters.length === 0) onDelete();
+
+    // assert all filters have an id
+    if (filterGroup.filters.some((filter) => filter.id === undefined)) {
+        const newGroup = filterGroup;
+        const newFilters = filterGroup.filters.map(assertFilterId);
+        newGroup.filters = newFilters as typeof newGroup.filters; // typescript can't map union type
+        onChange(newGroup);
+    }
 
     // Render form for each filter type
     const groupType = filterGroup.type;

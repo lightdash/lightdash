@@ -217,11 +217,11 @@ export type StringFilterGroup = {
 };
 
 export type StringFilter =
-    | { operator: 'equals'; values: string[] }
-    | { operator: 'notEquals'; values: string[] }
-    | { operator: 'startsWith'; value: string }
-    | { operator: 'isNull' }
-    | { operator: 'notNull' };
+    | { operator: 'equals'; values: string[]; id?: string }
+    | { operator: 'notEquals'; values: string[]; id?: string }
+    | { operator: 'startsWith'; value: string; id?: string }
+    | { operator: 'isNull'; id?: string }
+    | { operator: 'notNull'; id?: string };
 
 export type NumberFilterGroup = {
     type: 'number';
@@ -232,12 +232,12 @@ export type NumberFilterGroup = {
 };
 
 export type NumberFilter =
-    | { operator: 'equals'; values: number[] }
-    | { operator: 'notEquals'; values: number[] }
-    | { operator: 'greaterThan'; value: number }
-    | { operator: 'lessThan'; value: number }
-    | { operator: 'isNull' }
-    | { operator: 'notNull' };
+    | { operator: 'equals'; values: number[]; id?: string }
+    | { operator: 'notEquals'; values: number[]; id?: string }
+    | { operator: 'greaterThan'; value: number; id?: string }
+    | { operator: 'lessThan'; value: number; id?: string }
+    | { operator: 'isNull'; id?: string }
+    | { operator: 'notNull'; id?: string };
 
 export type DateFilterGroup = {
     type: 'date';
@@ -256,14 +256,14 @@ export type TimestampFilterGroup = {
 };
 
 export type DateAndTimestampFilter =
-    | { operator: 'equals'; value: Date }
-    | { operator: 'notEquals'; value: Date }
-    | { operator: 'greaterThan'; value: Date }
-    | { operator: 'greaterThanOrEqual'; value: Date }
-    | { operator: 'lessThan'; value: Date }
-    | { operator: 'lessThanOrEqual'; value: Date }
-    | { operator: 'isNull' }
-    | { operator: 'notNull' };
+    | { operator: 'equals'; value: Date; id?: string }
+    | { operator: 'notEquals'; value: Date; id?: string }
+    | { operator: 'greaterThan'; value: Date; id?: string }
+    | { operator: 'greaterThanOrEqual'; value: Date; id?: string }
+    | { operator: 'lessThan'; value: Date; id?: string }
+    | { operator: 'lessThanOrEqual'; value: Date; id?: string }
+    | { operator: 'isNull'; id?: string }
+    | { operator: 'notNull'; id?: string };
 
 export type FilterGroup =
     | StringFilterGroup

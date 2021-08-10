@@ -112,11 +112,7 @@ export const StringFilterGroupForm = ({
     <>
         {filterGroup.filters.map((filter, index) => (
             <FilterRow
-                key={
-                    filterGroup.tableName +
-                    filterGroup.fieldName +
-                    filter.operator
-                }
+                key={filter.id}
                 isFirst={index === 0}
                 isLast={index === filterGroup.filters.length - 1}
                 tableName={filterGroup.tableName}

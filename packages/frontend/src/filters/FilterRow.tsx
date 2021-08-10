@@ -1,6 +1,23 @@
-import { friendlyName } from 'common';
+import {
+    DateAndTimestampFilter,
+    friendlyName,
+    NumberFilter,
+    StringFilter,
+} from 'common';
 import { Button, HTMLSelect } from '@blueprintjs/core';
 import React, { ReactNode } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+
+type Filter = NumberFilter | StringFilter | DateAndTimestampFilter;
+export const assertFilterId = <T extends Filter>(
+    filter: T,
+): T & { id: string } => {
+    const { id } = filter;
+    if (id !== undefined) {
+        return { ...filter, id };
+    }
+    return { ...filter, id: uuidv4() };
+};
 
 type FilterRowProps = {
     isFirst: boolean;
