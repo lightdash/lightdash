@@ -134,7 +134,7 @@ const TableButtons: FC<{
         <div style={{ display: 'inline-flex', gap: '10px' }}>
             {(source || joinSql) && (
                 <Popover2
-                    isOpen={isOpen}
+                    isOpen={isOpen === undefined ? false : isOpen}
                     onInteraction={setIsOpen}
                     content={
                         <Menu>
@@ -205,7 +205,7 @@ const NodeItemButtons: FC<{
     return (
         <div style={{ display: 'inline-flex', gap: '10px' }}>
             <Popover2
-                isOpen={isOpen}
+                isOpen={isOpen === undefined ? false : isOpen}
                 onInteraction={setIsOpen}
                 content={
                     <Menu>
