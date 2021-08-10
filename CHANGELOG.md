@@ -3,6 +3,7 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+## [0.6.3] - 2021-08-10
 ### Fixed
 - Fixed bugs with filters when selecting multiple filters on the same column
 
