@@ -23,7 +23,9 @@ export const useQueryResults = () => {
             limit,
         },
     } = useExplorer();
-    const { showError } = useApp();
+    const {
+        errorLogs: { showError },
+    } = useApp();
     const metricQuery = {
         dimensions: Array.from(dimensions),
         metrics: Array.from(metrics),
@@ -43,7 +45,7 @@ export const useQueryResults = () => {
     useEffect(() => {
         if (query.error) {
             const [first, ...rest] = query.error.error.message.split('\n');
-            showError({ title: first, subtitle: rest.join('\n') });
+            showError({ title: first, body: rest.join('\n') });
         }
     }, [query.error, showError]);
 

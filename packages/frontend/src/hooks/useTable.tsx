@@ -13,7 +13,9 @@ const getTable = async (tableId: string) =>
     });
 
 export const useTable = () => {
-    const { showError } = useApp();
+    const {
+        errorLogs: { showError },
+    } = useApp();
     const {
         state: { tableName: activeTableName },
     } = useExplorer();
@@ -28,7 +30,7 @@ export const useTable = () => {
     useEffect(() => {
         if (query.error) {
             const [first, ...rest] = query.error.error.message.split('\n');
-            showError({ title: first, subtitle: rest.join('\n') });
+            showError({ title: first, body: rest.join('\n') });
         }
     }, [query.error, showError]);
 

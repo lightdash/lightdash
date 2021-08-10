@@ -12,7 +12,9 @@ const getTables = async () =>
     });
 
 export const useTables = () => {
-    const { showError } = useApp();
+    const {
+        errorLogs: { showError },
+    } = useApp();
     const queryKey = 'tables';
     const query = useQuery<PartialTable[], ApiError>({
         queryKey,
@@ -23,7 +25,7 @@ export const useTables = () => {
     useEffect(() => {
         if (query.error) {
             const [first, ...rest] = query.error.error.message.split('\n');
-            showError({ title: first, subtitle: rest.join('\n') });
+            showError({ title: first, body: rest.join('\n') });
         }
     }, [query.error, showError]);
 

@@ -17,7 +17,10 @@ const updateUserPasswordQuery = async (data: {
     });
 
 const PasswordPanel: FC = () => {
-    const { showError, showToastError } = useApp();
+    const {
+        errorLogs: { showError },
+        showToastError,
+    } = useApp();
     const [password, setPassword] = useState<string>();
     const [newPassword, setNewPassword] = useState<string>();
 
@@ -37,7 +40,7 @@ const PasswordPanel: FC = () => {
             const [title, ...rest] = error.error.message.split('\n');
             showError({
                 title,
-                subtitle: rest.join('\n'),
+                body: rest.join('\n'),
             });
         }
     }, [error, showError]);
