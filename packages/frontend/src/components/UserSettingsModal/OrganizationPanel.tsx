@@ -14,7 +14,12 @@ const updateOrgQuery = async (data: { organizationName: string }) =>
 
 const OrganizationPanel: FC = () => {
     const queryClient = useQueryClient();
-    const { showError, showToastError, showToastSuccess, user } = useApp();
+    const {
+        errorLogs: { showError },
+        showToastError,
+        showToastSuccess,
+        user,
+    } = useApp();
     const [organizationName, setOrganizationName] = useState<
         string | undefined
     >(user.data?.organizationName);
@@ -38,7 +43,7 @@ const OrganizationPanel: FC = () => {
             const [title, ...rest] = error.error.message.split('\n');
             showError({
                 title,
-                subtitle: rest.join('\n'),
+                body: rest.join('\n'),
             });
         }
     }, [error, showError]);

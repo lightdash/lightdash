@@ -13,7 +13,9 @@ const refresh = async () => {
 };
 
 export const useRefreshServer = () => {
-    const { showError } = useApp();
+    const {
+        errorLogs: { showError },
+    } = useApp();
     const queryClient = useQueryClient();
     const refreshMutation = useMutation<void, ApiError>({
         mutationKey: 'refresh',
@@ -30,7 +32,7 @@ export const useRefreshServer = () => {
         if (refreshMutation.error) {
             const [first, ...rest] =
                 refreshMutation.error.error.message.split('\n');
-            showError({ title: first, subtitle: rest.join('\n') });
+            showError({ title: first, body: rest.join('\n') });
         }
     }, [refreshMutation.error, showError]);
 

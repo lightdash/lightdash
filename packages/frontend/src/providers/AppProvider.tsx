@@ -42,7 +42,6 @@ interface AppContext {
     user: UseQueryResult<LightdashUser, ApiError>;
     showToastSuccess: (props: Message) => void;
     showToastError: (props: Message) => void;
-    showError: (props: Message) => void;
     rudder: {
         page: typeof rudderSDK.page;
         track: typeof rudderSDK.track;
@@ -113,15 +112,6 @@ export const AppProvider: FC = ({ children }) => {
         [showToastSuccess],
     );
     const errorLogs = useErrorLogs();
-    const showError = useCallback<AppContext['showError']>(
-        (props) => {
-            errorLogs.showError({
-                title: props.title,
-                body: props.subtitle,
-            });
-        },
-        [errorLogs.showError],
-    );
 
     const rudder = useRudder(
         health.data?.mode,
@@ -135,7 +125,6 @@ export const AppProvider: FC = ({ children }) => {
         user,
         showToastSuccess,
         showToastError,
-        showError,
         rudder,
         errorLogs,
     };

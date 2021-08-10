@@ -151,7 +151,9 @@ type ExplorePanelProps = {
     onBack: () => void;
 };
 export const ExplorePanel = ({ onBack }: ExplorePanelProps) => {
-    const { showError } = useApp();
+    const {
+        errorLogs: { showError },
+    } = useApp();
     const {
         state: { activeFields },
         actions: { toggleActiveField },
@@ -214,7 +216,7 @@ export const ExplorePanel = ({ onBack }: ExplorePanelProps) => {
         onBack();
         const [title, ...lines] =
             exploresResult.error.error.message.split('\n');
-        showError({ title, subtitle: lines.join('\n') });
+        showError({ title, body: lines.join('\n') });
         return null;
     }
     if (exploresResult.status === 'loading') {

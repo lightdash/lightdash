@@ -52,7 +52,7 @@ export const useErrorLogs = (): ErrorLogs => {
                 return [...logs.slice(-MAX_LOG_ENTRIES), errorLog];
             });
         },
-        [setErrorLogs, MAX_LOG_ENTRIES],
+        [setErrorLogs],
     );
 
     const showError = useCallback<ErrorLogs['showError']>(

@@ -14,7 +14,12 @@ const updateUserQuery = async (data: UpdateUserArgs) =>
 
 const ProfilePanel: FC = () => {
     const queryClient = useQueryClient();
-    const { showToastError, showError, showToastSuccess, user } = useApp();
+    const {
+        showToastError,
+        errorLogs: { showError },
+        showToastSuccess,
+        user,
+    } = useApp();
     const [firstName, setFirstName] = useState<string | undefined>(
         user.data?.firstName,
     );
@@ -42,7 +47,7 @@ const ProfilePanel: FC = () => {
             const [title, ...rest] = error.error.message.split('\n');
             showError({
                 title,
-                subtitle: rest.join('\n'),
+                body: rest.join('\n'),
             });
         }
     }, [error, showError]);
