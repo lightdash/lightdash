@@ -1,9 +1,11 @@
 import React, { FC, useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from 'react-query';
-import { ApiError } from 'common';
+import { ApiError, formatTimestamp } from 'common';
 import { Button, FormGroup, InputGroup, Intent } from '@blueprintjs/core';
+import CopyToClipboard from 'react-copy-to-clipboard';
 import { useApp } from '../../providers/AppProvider';
 import { lightdashApi } from '../../api';
+import { useInviteLink } from '../../hooks/useInviteLink';
 
 const updateOrgQuery = async (data: { organizationName: string }) =>
     lightdashApi<undefined>({
@@ -23,7 +25,7 @@ const OrganizationPanel: FC = () => {
     const [organizationName, setOrganizationName] = useState<
         string | undefined
     >(user.data?.organizationName);
-
+    const inviteLink = useInviteLink();
     const { isLoading, error, mutate } = useMutation<
         undefined,
         ApiError,
@@ -80,6 +82,45 @@ const OrganizationPanel: FC = () => {
                     onChange={(e) => setOrganizationName(e.target.value)}
                 />
             </FormGroup>
+            <div>
+                <FormGroup label="Invite users" labelFor="invite-link-input">
+                    {inviteLink.data ? (
+                        <>
+                            <InputGroup
+                                id="invite-link-input"
+                                type="text"
+                                readOnly
+                                value={`${window.location.protocol}//${window.location.host}/invite?${inviteLink.data.inviteCode}`}
+                                rightElement={
+                                    <CopyToClipboard
+                                        text={`${window.location.protocol}//${window.location.host}/invite?${inviteLink.data.inviteCode}`}
+                                        options={{ message: 'Copied' }}
+                                        onCopy={() =>
+                                            showToastSuccess({
+                                                title: 'Invite link copied',
+                                            })
+                                        }
+                                    >
+                                        <Button minimal icon="clipboard" />
+                                    </CopyToClipboard>
+                                }
+                            />
+                            <span>
+                                Share this link with your colleagues and they
+                                can join your organization. This link will
+                                expire at{' '}
+                                {formatTimestamp(inviteLink.data.expiresAt)}
+                            </span>
+                        </>
+                    ) : (
+                        <Button
+                            text="Invite users to your organization"
+                            loading={inviteLink.isLoading}
+                            onClick={() => inviteLink.mutate()}
+                        />
+                    )}
+                </FormGroup>
+            </div>
             <div style={{ flex: 1 }} />
             <Button
                 style={{ alignSelf: 'flex-end', marginTop: 20 }}

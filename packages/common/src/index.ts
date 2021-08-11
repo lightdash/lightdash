@@ -573,6 +573,17 @@ export type ApiHealthResponse =
           status: 'ok';
           results: ApiHealthResults;
       };
+export type InviteLink = {
+    expiresAt: Date;
+    inviteCode: string;
+};
+export type CreateInviteLink = Omit<InviteLink, 'inviteCode'>;
+export type ApiInviteLinkResponse =
+    | ApiError
+    | {
+          status: 'ok';
+          results: InviteLink;
+      };
 
 export type ApiResults =
     | ApiQueryResults
@@ -585,7 +596,8 @@ export type ApiResults =
     | ApiHealthResults
     | LightdashUser
     | SavedQuery
-    | Space[];
+    | Space[]
+    | InviteLink;
 
 export type ApiResponse =
     | ApiQueryResponse
@@ -597,7 +609,8 @@ export type ApiResponse =
     | ApiRefreshResponse
     | ApiHealthResponse
     | ApiUserResponse
-    | ApiRegisterResponse;
+    | ApiRegisterResponse
+    | ApiInviteLinkResponse;
 
 export enum LightdashMode {
     DEFAULT = 'default',
