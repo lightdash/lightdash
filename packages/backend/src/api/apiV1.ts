@@ -16,6 +16,7 @@ import { OrgModel } from '../models/Org';
 import { analytics } from '../analytics/client';
 import { SavedQueriesModel } from '../models/savedQueries';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
+import { inviteLinksRouter } from './inviteLinksRouter';
 
 export const apiV1Router = express.Router();
 
@@ -356,3 +357,5 @@ apiV1Router.post(
             .catch(next);
     },
 );
+
+apiV1Router.use('/invite-links', inviteLinksRouter);
