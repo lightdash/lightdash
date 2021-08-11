@@ -9,7 +9,7 @@ import { SessionUser } from 'common';
 import connectSessionKnex from 'connect-session-knex';
 import bodyParser from 'body-parser';
 import { AuthorizationError, errorHandler } from './errors';
-import { apiV1Router } from './apiV1';
+import { apiV1Router } from './api/apiV1';
 import { refreshAllTables } from './lightdash';
 import { UserModel } from './models/User';
 import database from './database/database';

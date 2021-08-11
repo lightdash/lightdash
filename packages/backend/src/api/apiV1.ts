@@ -1,40 +1,23 @@
 import express from 'express';
 import passport from 'passport';
-import { RequestHandler } from 'express-serve-static-core';
-import { validateEmail, LightdashMode } from 'common';
+import { validateEmail } from 'common';
 import {
     getAllTables,
     getStatus,
     getTable,
     refreshAllTables,
     runQuery,
-} from './lightdash';
-import { buildQuery } from './queryBuilder';
-import { getHealthState } from './health';
-import { UserModel } from './models/User';
-import { AuthorizationError, ParameterError } from './errors';
-import { OrgModel } from './models/Org';
-import { lightdashConfig } from './config/lightdashConfig';
-import { analytics } from './analytics/client';
-import { SavedQueriesModel } from './models/savedQueries';
+} from '../lightdash';
+import { buildQuery } from '../queryBuilder';
+import { getHealthState } from '../health';
+import { UserModel } from '../models/User';
+import { ParameterError } from '../errors';
+import { OrgModel } from '../models/Org';
+import { analytics } from '../analytics/client';
+import { SavedQueriesModel } from '../models/savedQueries';
+import { isAuthenticated, unauthorisedInDemo } from './authentication';
 
 export const apiV1Router = express.Router();
-
-const isAuthenticated: RequestHandler = (req, res, next) => {
-    if (req.user?.userUuid) {
-        next();
-    } else {
-        next(new AuthorizationError(`Failed to authorize user`));
-    }
-};
-
-const unauthorisedInDemo: RequestHandler = (req, res, next) => {
-    if (lightdashConfig.mode === LightdashMode.DEMO) {
-        throw new AuthorizationError('Action not available in demo');
-    } else {
-        next();
-    }
-};
 
 apiV1Router.get('/health', async (req, res, next) => {
     getHealthState(!!req.user?.userUuid)
