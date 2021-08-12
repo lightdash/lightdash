@@ -1,4 +1,4 @@
-/// <reference path="../rudder-sdk-node.d.ts" />
+/// <reference path="../@types/rudder-sdk-node.d.ts" />
 import Analytics, {
     Track as AnalyticsTrack,
 } from '@rudderstack/rudder-sdk-node';
