@@ -47,7 +47,6 @@ Note if you don't have a Heroku account, you'll be prompted to signup. It's free
 
 After you hit deploy, you'll be asked to provide some credentials to connect to your dbt project in GitHub:
 
-### These fields are required:
 #### GITHUB_BRANCH
 This is the branch in your GitHub repo that Lightdash should sync to. e.g. `main` or `dev`
 
@@ -65,18 +64,24 @@ This should be in the format `my-org/my-repo`. e.g. `lightdash/lightdash-analyti
 
 #### LIGHTDASH_SECRET
 Heroku generates a secret key for us. This is to secure everyone’s individual deployment (it encrypts the session tokens used to log you in).
+
 You can't access this key and you can't change this key (so don't worry if you're not able to click on it!)
 
 Just leave this field as it is.
 
 #### PROFILES_SUB_PATH
-This is the location of your dbt profiles folder in the `GITHUB_REPO` you entered above. By default, we've set this to be in the main folder of your dbt project.
+This is the location of your dbt profiles folder in the `GITHUB_REPO` you entered above.
+
+By default, we've set this to be in the main folder of your dbt project.
+
 If your `profiles.yml` file is in a sub-folder of your dbt project, then you'll need to include the relative path to the sub-folder where your profiles.yml file is (relative to `GITHUB_REPO`).
 
 #### PROJECT_SUB_PATH
 This is the location of your dbt project in the `GITHUB_REPO`.
+
 If your dbt project is in the main folder of your repo (e.g. `lightdash/lightdash-analytics/dbt`), then you don't need to change anything in here. You can just leave the `/` we've put in by default.
-If your dbt project is in a sub-folder in your repo, then you'll need to include the relative path to the sub-folder where your dbt project is (relative to `GITHUB_REPO`).
+
+If your dbt project is in a sub-folder in your repo (e.g. `lightdash/lightdash-analytics/data_modelling/dbt`), then you'll need to include the path to the sub-folder where your dbt project is relative to `GITHUB_REPO` (e.g. `/data_modelling`).
 
 ## 4. Deploy your Lightdash app instance
 
