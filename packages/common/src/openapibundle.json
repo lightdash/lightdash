@@ -1,0 +1,164 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "Lightdash API",
+        "description": "API spec for Lightdash server",
+        "contact": {
+            "email": "support@lightdash.com"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://github.com/lightdash/lightdash/blob/main/LICENSE"
+        },
+        "version": "1.0.0"
+    },
+    "externalDocs": {
+        "description": "Lightdash documentation",
+        "url": "https://docs.lightdash.com"
+    },
+    "servers": [
+        {
+            "url": "/api/v1"
+        }
+    ],
+    "tags": [
+        {
+            "name": "user",
+            "description": "User operation"
+        }
+    ],
+    "paths": {
+        "/invite-links": {
+            "post": {
+                "summary": "Create a new invite link",
+                "tags": ["user"],
+                "operationId": "createInviteLink",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateInviteLink"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successfully created invite link",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/InviteLink"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        }
+    },
+    "security": [
+        {
+            "cookieAuth": []
+        }
+    ],
+    "components": {
+        "securitySchemes": {
+            "cookieAuth": {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "connect.sid"
+            }
+        },
+        "schemas": {
+            "CreateInviteLink": {
+                "type": "object",
+                "properties": {
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": ["expiresAt"]
+            },
+            "Error": {
+                "type": "object",
+                "required": ["status", "error"],
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["error"]
+                    },
+                    "error": {
+                        "type": "object",
+                        "required": ["name", "statusCode", "message"],
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "statusCode": {
+                                "type": "number"
+                            },
+                            "message": {
+                                "type": "string"
+                            },
+                            "data": {
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            },
+            "Success": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"]
+                    }
+                }
+            },
+            "InviteLink": {
+                "type": "object",
+                "properties": {
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "inviteCode": {
+                        "type": "string"
+                    }
+                },
+                "required": ["expiresAt", "inviteCode"]
+            }
+        },
+        "responses": {
+            "ErrorResponse": {
+                "description": "Error",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Error"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

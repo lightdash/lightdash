@@ -8,6 +8,8 @@ import cookieParser from 'cookie-parser';
 import { SessionUser } from 'common';
 import connectSessionKnex from 'connect-session-knex';
 import bodyParser from 'body-parser';
+import * as OpenApiValidator from 'express-openapi-validator';
+import apiSpec from 'common/dist/openapibundle.json';
 import { AuthorizationError, errorHandler } from './errors';
 import { apiV1Router } from './api/apiV1';
 import { refreshAllTables } from './lightdash';
@@ -48,7 +50,20 @@ app.use(
 );
 app.use(passport.initialize());
 app.use(passport.session());
-
+app.use(
+    OpenApiValidator.middleware({
+        // @ts-ignore
+        apiSpec,
+        validateRequests: {
+            removeAdditional: 'all',
+        },
+        validateResponses: true,
+        validateApiSpec: true,
+        validateSecurity: false,
+        operationHandlers: false,
+        ignorePaths: (p: string) => !p.endsWith('invite-links'),
+    }),
+);
 // api router
 app.use('/api/v1', apiV1Router);
 
