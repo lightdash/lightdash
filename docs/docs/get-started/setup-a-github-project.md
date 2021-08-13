@@ -6,7 +6,7 @@ sidebar_label: Setup a GitHub project
 # Setup Lightdash to connect to your dbt project on GitHub
 
 In this tutorial, you'll setup Lightdash and connect it to your dbt project on [GitHub](https://github.com).
-Using GitHub as the backend is the recommended way to connect Lightdash to your production dbt project. This way, 
+Using GitHub as the backend is the recommended way to connect Lightdash to your production dbt project. This way,
 Lightdash will only update when you merge code changes into your production branch (e.g. `main`).
 
 **Prerequisites**
@@ -47,14 +47,36 @@ Note if you don't have a Heroku account, you'll be prompted to signup. It's free
 
 After you hit deploy, you'll be asked to provide some credentials to connect to your dbt project in GitHub:
 
-The following are required:
- * **GITHUB_REPO** should be in the format `my-org/myrepo`
- * **GITHUB_PERSONAL_ACCESS_TOKEN** used to access your repo. [See instructions here](https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token)
+### These fields are required:
+#### GITHUB_BRANCH
+This is the branch in your GitHub repo that Lightdash should sync to. e.g. `main` or `dev`
 
-Optionally you can change the git branch and the location of your dbt project in the repo (in case you use a sub-folder).
+By default, we've set this to `main` but you can change it to whatever you'd like.
 
-![screenshot](assets/heroku-github-envvar.png)
+#### GITHUB_PERSONAL_ACCESS_TOKEN
+This is used to access your repo. See the [instructions for creating a personal access token here](https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token).
 
+Select `repo` scope when you're creating the token.
+
+![screenshot](assets/oauth-scope.png)
+
+#### GITHUB_REPO
+This should be in the format `my-org/my-repo`. e.g. `lightdash/lightdash-analytics`
+
+#### LIGHTDASH_SECRET
+Heroku generates a secret key for us. This is to secure everyone’s individual deployment (it encrypts the session tokens used to log you in).
+You can't access this key and you can't change this key (so don't worry if you're not able to click on it!)
+
+Just leave this field as it is.
+
+#### PROFILES_SUB_PATH
+This is the location of your dbt profiles folder in the `GITHUB_REPO` you entered above. By default, we've set this to be in the main folder of your dbt project.
+If your `profiles.yml` file is in a sub-folder of your dbt project, then you'll need to include the relative path to the sub-folder where your profiles.yml file is (relative to `GITHUB_REPO`).
+
+#### PROJECT_SUB_PATH
+This is the location of your dbt project in the `GITHUB_REPO`.
+If your dbt project is in the main folder of your repo (e.g. `lightdash/lightdash-analytics/dbt`), then you don't need to change anything in here. You can just leave the `/` we've put in by default.
+If your dbt project is in a sub-folder in your repo, then you'll need to include the relative path to the sub-folder where your dbt project is (relative to `GITHUB_REPO`).
 
 ## 4. Deploy your Lightdash app instance
 
@@ -66,7 +88,7 @@ your Lightdash app. Click here to see the Heroku dashboard for you Lightdash ins
 ## 5. Add the secrets for your `profiles.yml`
 
 If you open your Lightdash app now, it will show an error because we haven't added the `profiles.yml` environment
-variables. 
+variables.
 
 In your heroku app settings, open the config vars tab:
 
