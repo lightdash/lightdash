@@ -1,0 +1,45 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "Lightdash API",
+        "description": "API spec for Lightdash server",
+        "contact": {
+            "email": "support@lightdash.com"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://github.com/lightdash/lightdash/blob/main/LICENSE"
+        },
+        "version": "1.0.0"
+    },
+    "externalDocs": {
+        "description": "Lightdash documentation",
+        "url": "https://docs.lightdash.com"
+    },
+    "servers": [
+        {
+            "url": "/api/v1"
+        }
+    ],
+    "tags": [
+        {
+            "name": "user",
+            "description": "User operation"
+        }
+    ],
+    "paths": {
+        "/invite-links": {
+            "$ref": "./paths/inviteLinks.json"
+        }
+    },
+    "security": [{ "cookieAuth": [] }],
+    "components": {
+        "securitySchemes": {
+            "cookieAuth": {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "connect.sid"
+            }
+        }
+    }
+}

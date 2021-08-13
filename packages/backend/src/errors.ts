@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { HttpError } from 'express-openapi-validator/dist/framework/types';
 
 type LightdashErrorParams = {
     message: string;
@@ -179,6 +180,16 @@ export const errorHandler = async (error: Error, res: Response) => {
                 name: error.name,
                 message: error.message,
                 data: error.data,
+            },
+        });
+    } else if (error instanceof HttpError) {
+        res.status(error.status).send({
+            status: 'error',
+            error: {
+                statusCode: error.status,
+                name: error.name,
+                message: error.message,
+                data: error.errors,
             },
         });
     } else {
