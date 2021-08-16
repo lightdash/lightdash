@@ -8,6 +8,10 @@ Recent and upcoming changes to lightdash
 - Users can create new accounts using invite link
 - Show list of users in the organization
 
+### Fixed
+- Fixed boolean value formatter to show yes/no values correctly.
+- Fixed chart dimensions formatting issues, should format date and boolean correctly now
+
 ## [0.6.3] - 2021-08-10
 ### Fixed
 - Fixed bugs with filters when selecting multiple filters on the same column
