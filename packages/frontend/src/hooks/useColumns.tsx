@@ -18,7 +18,7 @@ const formatTimestamp = (datetime: string | Date) =>
 const formatNumber = (v: number) => `${v}`;
 const formatString = (v: string) => `${v}`;
 const formatBoolean = (v: boolean | string) =>
-    `${v}` in ['True', 'true', 'yes', 'Yes', '1', 'T'] ? 'Yes' : 'No';
+    ['True', 'true', 'yes', 'Yes', '1', 'T'].includes(`${v}`) ? 'Yes' : 'No';
 const formatWrapper =
     (formatter: (value: any) => string) =>
     ({ value }: any) => {
