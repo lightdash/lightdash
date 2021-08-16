@@ -26,7 +26,7 @@ const formatWrapper =
         if (value === undefined) return '-';
         return formatter(value);
     };
-const getDimensionFormatter = (d: Dimension) => {
+export const getDimensionFormatter = (d: Dimension) => {
     const dimensionType = d.type;
     switch (dimensionType) {
         case DimensionType.STRING:

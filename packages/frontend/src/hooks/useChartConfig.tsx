@@ -1,7 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { ApiError, ApiQueryResults, friendlyName } from 'common';
+import {
+    ApiError,
+    ApiQueryResults,
+    CompiledDimension,
+    fieldId as getFieldId,
+    friendlyName,
+    getDimensions
+} from "common";
 import { UseQueryResult } from 'react-query';
 import { useSavedQuery } from './useSavedQuery';
+import {useTable} from "./useTable";
+import {getDimensionFormatter} from "./useColumns";
 
 const pivot = (
     values: { [key: string]: any }[],
@@ -88,6 +97,11 @@ export const useChartConfig = (
     const [seriesLayout, setSeriesLayout] = useState<SeriesLayout>(
         defaultLayout(queryResults),
     );
+    const activeExplore = useTable();
+    const dimensions =
+        activeExplore.data
+            ? getDimensions(activeExplore.data)
+            : [];
     const dimensionOptions = queryResults.data?.metricQuery.dimensions || [];
     const metricOptions = queryResults.data?.metricQuery.metrics || [];
 
@@ -163,10 +177,11 @@ export const useChartConfig = (
               )
             : queryResults.data.rows;
         const { groupDimension } = seriesLayout;
+        const dimensionFormatter = groupDimension ? getDimensionFormatter(dimensions.find(value => getFieldId(value) === groupDimension) as CompiledDimension) : null;
+
         const series = groupDimension
-            ? Array.from(
-                  new Set(queryResults.data.rows.map((r) => r[groupDimension])),
-              )
+            ? Object.values(queryResults.data.rows.reduce(
+                (coll, row) => ({...coll, [row[groupDimension as string]]:{name: row[groupDimension as string], displayName: dimensionFormatter?.({value: (row[groupDimension as string])}) ?? row[groupDimension as string]}}), {}))
             : seriesLayout.yMetrics;
         return {
             setXDimension,
@@ -179,16 +194,11 @@ export const useChartConfig = (
                     name: seriesLayout.xDimension,
                     displayName: friendlyName(seriesLayout.xDimension),
                 },
-                ...series.map((s) => ({
-                    name: s,
-                    displayName: seriesLayout.groupDimension
-                        ? s
-                        : friendlyName(s),
-                })),
+                ...series,
             ],
             metricOptions,
             dimensionOptions,
-            series,
+            series: series.map(value => value.name),
         };
     }
     return {
