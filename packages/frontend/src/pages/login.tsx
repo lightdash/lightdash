@@ -38,7 +38,8 @@ const Login: FC = () => {
         { email: string; password: string }
     >(loginQuery, {
         mutationKey: ['login'],
-        onSuccess: (data) => rudder.identify(data.userUuid),
+        onSuccess: (data) =>
+            rudder.identify({ id: data.userUuid, page: { name: 'login' } }),
     });
 
     useEffect(() => {
@@ -77,7 +78,7 @@ const Login: FC = () => {
     }, [health]);
 
     useEffect(() => {
-        rudder.page(undefined, 'login');
+        rudder.page({ name: 'login' });
     }, [rudder]);
 
     const handleLogin = () => {

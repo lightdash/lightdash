@@ -5,6 +5,7 @@ import EChartsReact from 'echarts-for-react';
 import { friendlyName, LineageNodeDependency } from 'common';
 import * as dagre from 'dagre';
 import { useTable } from '../hooks/useTable';
+import { useApp } from '../providers/AppProvider';
 
 const Content = () => {
     const [showAll, setShowAll] = useState(false);
@@ -118,6 +119,7 @@ const Content = () => {
 
 export const LineageButton = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const { rudder } = useApp();
     return (
         <Popover2
             content={<Content />}
@@ -129,7 +131,20 @@ export const LineageButton = () => {
             fill
         >
             <Tooltip2 content="View this table's upstream and downstream dependencies.">
-                <Button minimal icon="data-lineage" text="Show lineage" />
+                <Button
+                    minimal
+                    icon="data-lineage"
+                    text="Show lineage"
+                    onClick={() => {
+                        rudder.track({
+                            name: 'show_lineage_button.clicked',
+                            page: {
+                                name: 'explorer',
+                            },
+                            sectionName: 'sidebar',
+                        });
+                    }}
+                />
             </Tooltip2>
         </Popover2>
     );

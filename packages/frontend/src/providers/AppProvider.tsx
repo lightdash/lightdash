@@ -14,7 +14,7 @@ import { Intent } from '@blueprintjs/core';
 import { UseQueryResult } from 'react-query/types/react/types';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';
-import { useRudder } from '../hooks/useRudder';
+import { Rudder, useRudder } from '../hooks/useRudder';
 import { ErrorLogs, useErrorLogs } from '../hooks/useErrorLogs';
 
 const getHealthState = async () =>
@@ -42,11 +42,7 @@ interface AppContext {
     user: UseQueryResult<LightdashUser, ApiError>;
     showToastSuccess: (props: Message) => void;
     showToastError: (props: Message) => void;
-    rudder: {
-        page: typeof rudderSDK.page;
-        track: typeof rudderSDK.track;
-        identify: typeof rudderSDK.identify;
-    };
+    rudder: Rudder;
     errorLogs: ErrorLogs;
 }
 

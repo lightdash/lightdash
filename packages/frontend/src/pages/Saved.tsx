@@ -143,7 +143,7 @@ const Saved: FC = () => {
     }, [selectedMenu, data]);
 
     useEffect(() => {
-        rudder.page(undefined, 'saved');
+        rudder.page({ name: 'saved_charts' });
     }, [rudder]);
 
     if (isLoading) {

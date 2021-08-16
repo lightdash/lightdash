@@ -10,7 +10,7 @@ const ExplorerPage = () => {
     const { rudder } = useApp();
 
     useEffect(() => {
-        rudder.page(undefined, 'explore');
+        rudder.page({ name: 'explorer' });
     }, [rudder]);
 
     return (

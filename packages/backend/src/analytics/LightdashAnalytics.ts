@@ -21,43 +21,29 @@ type Group = {
         name?: string;
     };
 };
-type TrackUserCreated = BaseTrack & {
-    event: 'user_created';
-};
-type TrackOrganizationCreated = BaseTrack & {
-    event: 'organization_created';
-};
-type TrackUserLoggedIn = BaseTrack & {
-    event: 'user_logged_in';
-};
-type TrackUserUpdated = BaseTrack & {
-    event: 'user_updated';
-};
-type TrackPasswordUpdated = BaseTrack & {
-    event: 'password_updated';
-};
-type TrackOrganizationUpdated = BaseTrack & {
-    event: 'organization_updated';
+type TrackSimpleEvent = BaseTrack & {
+    event:
+        | 'user.created'
+        | 'user.logged_in'
+        | 'user.updated'
+        | 'password.updated'
+        | 'organization.created'
+        | 'organization.updated'
+        | 'invite_link.created'
+        | 'query.executed';
 };
 type TrackSavedQuery = BaseTrack & {
     event:
-        | 'saved_query_created'
-        | 'saved_query_updated'
-        | 'saved_query_deleted'
-        | 'saved_query_version_created';
+        | 'saved_query.created'
+        | 'saved_query.updated'
+        | 'saved_query.deleted'
+        | 'saved_query_version.created';
     properties: {
         savedQueryId: string;
     };
 };
 
-type Track =
-    | TrackUserCreated
-    | TrackOrganizationCreated
-    | TrackUserLoggedIn
-    | TrackUserUpdated
-    | TrackPasswordUpdated
-    | TrackOrganizationUpdated
-    | TrackSavedQuery;
+type Track = TrackSimpleEvent | TrackSavedQuery;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {
@@ -78,6 +64,7 @@ export class LightdashAnalytics extends Analytics {
     track(payload: Track) {
         super.track({
             ...payload,
+            event: `${LightdashAnalytics.lightdashContext.app.name}.${payload.event}`,
             context: LightdashAnalytics.lightdashContext,
         });
     }

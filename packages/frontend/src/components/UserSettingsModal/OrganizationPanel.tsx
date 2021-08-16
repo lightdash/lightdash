@@ -17,6 +17,7 @@ const updateOrgQuery = async (data: { organizationName: string }) =>
 const OrganizationPanel: FC = () => {
     const queryClient = useQueryClient();
     const {
+        rudder,
         errorLogs: { showError },
         showToastError,
         showToastSuccess,
@@ -116,7 +117,17 @@ const OrganizationPanel: FC = () => {
                         <Button
                             text="Invite users to your organization"
                             loading={inviteLink.isLoading}
-                            onClick={() => inviteLink.mutate()}
+                            onClick={() => {
+                                rudder.track({
+                                    name: 'invite_users_to_organisation_button.clicked',
+                                    page: {
+                                        name: 'settings_organization',
+                                        category: 'settings',
+                                        type: 'modal',
+                                    },
+                                });
+                                inviteLink.mutate();
+                            }}
                         />
                     )}
                 </FormGroup>

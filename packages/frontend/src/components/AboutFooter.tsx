@@ -66,7 +66,9 @@ const AboutFooter = () => {
             </footer>
             <Dialog
                 isOpen={isOpen}
-                onOpened={() => rudder.page('modal', 'about_lightdash')}
+                onOpened={() =>
+                    rudder.page({ name: 'about_lightdash', type: 'modal' })
+                }
                 onClose={() => setIsOpen(false)}
                 icon="info-sign"
                 title="About Lightdash"

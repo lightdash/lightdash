@@ -3,6 +3,7 @@ import { SessionUser, CreateInviteLink, InviteLink } from 'common';
 import { nanoid } from 'nanoid';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { NotExistsError } from '../errors';
+import { analytics } from '../analytics/client';
 
 type UserServiceDependencies = {
     inviteLinkModel: InviteLinkModel;
@@ -30,6 +31,10 @@ export class UserService {
             expiresAt,
             organizationUuid,
         );
+        analytics.track({
+            userId: user.userUuid,
+            event: 'invite_link.created',
+        });
         return {
             inviteCode,
             expiresAt,

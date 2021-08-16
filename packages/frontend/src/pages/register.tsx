@@ -50,7 +50,8 @@ const Register: FC = () => {
         CreateInitialUserArgs
     >(registerQuery, {
         mutationKey: ['login'],
-        onSuccess: (data) => rudder.identify(data.userUuid),
+        onSuccess: (data) =>
+            rudder.identify({ id: data.userUuid, page: { name: 'register' } }),
     });
 
     useEffect(() => {
@@ -82,7 +83,7 @@ const Register: FC = () => {
     }, [status, location]);
 
     useEffect(() => {
-        rudder.page(undefined, 'register');
+        rudder.page({ name: 'register' });
     }, [rudder]);
 
     const handleLogin = () => {

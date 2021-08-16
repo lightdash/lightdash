@@ -27,7 +27,7 @@ export const SavedQueriesModel = {
     ): Promise<SavedQuery> => {
         const newSavedQuery = await createSavedQuery(savedQuery);
         analytics.track({
-            event: 'saved_query_created',
+            event: 'saved_query.created',
             userId: userUuid,
             properties: {
                 savedQueryId: newSavedQuery.uuid,
@@ -40,7 +40,7 @@ export const SavedQueriesModel = {
     delete: async (userUuid: string, savedQueryUuid: string): Promise<void> => {
         await deleteSavedQuery(database, savedQueryUuid);
         analytics.track({
-            event: 'saved_query_deleted',
+            event: 'saved_query.deleted',
             userId: userUuid,
             properties: {
                 savedQueryId: savedQueryUuid,
@@ -54,7 +54,7 @@ export const SavedQueriesModel = {
     ): Promise<SavedQuery> => {
         const savedQuery = await updateSavedQuery(savedQueryUuid, data);
         analytics.track({
-            event: 'saved_query_updated',
+            event: 'saved_query.updated',
             userId: userUuid,
             properties: {
                 savedQueryId: savedQueryUuid,
@@ -69,7 +69,7 @@ export const SavedQueriesModel = {
     ): Promise<SavedQuery> => {
         const savedQuery = await addSavedQueryVersion(savedQueryUuid, data);
         analytics.track({
-            event: 'saved_query_version_created',
+            event: 'saved_query_version.created',
             userId: userUuid,
             properties: {
                 savedQueryId: savedQuery.uuid,
