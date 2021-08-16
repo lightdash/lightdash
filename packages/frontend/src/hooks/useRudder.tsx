@@ -2,12 +2,39 @@ import { useEffect, useMemo, useState } from 'react';
 import * as rudderSDK from 'rudder-sdk-js';
 import { LightdashMode } from 'common';
 
+type PageType = 'page' | 'modal';
+
+type RudderTrackEvent = {
+    name: string;
+    page: RudderPageEvent;
+    sectionName?: string | undefined;
+    properties?: Record<string, any>;
+};
+
+type RudderPageEvent = {
+    name: string;
+    category?: string | undefined;
+    type?: PageType;
+};
+
+type RudderIdentifyEvent = {
+    id: string;
+    traits?: Record<string, any>;
+    page: RudderPageEvent;
+};
+
+export type Rudder = {
+    track: (event: RudderTrackEvent) => void;
+    page: (event: RudderPageEvent) => void;
+    identify: (event: RudderIdentifyEvent) => void;
+};
+
 export const useRudder = (
     lightdashMode: LightdashMode | undefined,
     appVersion: string | undefined,
     writeKey: string | undefined,
     dataPlaneUrl: string | undefined,
-) => {
+): Rudder => {
     const [rudderAnalytics, setRudderAnalytics] = useState<typeof rudderSDK>();
     useEffect(() => {
         if (writeKey && dataPlaneUrl) {
@@ -25,7 +52,14 @@ export const useRudder = (
             version: appVersion,
             build: appVersion,
         };
-        const lightdashPageProperties = () => ({
+        const lightdashPageProperties = ({
+            name,
+            category,
+            type = 'page',
+        }: RudderPageEvent) => ({
+            name,
+            category,
+            type,
             hostname: window.location.hostname,
             url: null,
             path: null,
@@ -33,25 +67,44 @@ export const useRudder = (
             initial_referrer: null,
             search: null,
         });
-        const lightdashContext = () => ({
+        const lightdashContext = (rudderPageEvent: RudderPageEvent) => ({
             app: lightdashApp,
-            page: lightdashPageProperties(),
+            page: lightdashPageProperties(rudderPageEvent),
         });
 
-        const page: typeof rudderSDK.page = (category, name) => {
+        const page = (rudderPageEvent: RudderPageEvent): void => {
             rudderAnalytics?.page(
-                category,
-                name,
-                lightdashPageProperties(),
-                lightdashContext(),
+                rudderPageEvent.category,
+                rudderPageEvent.name,
+                lightdashPageProperties(rudderPageEvent),
+                lightdashContext(rudderPageEvent),
             );
         };
-        const track: typeof rudderSDK.track = (event, properties) => {
-            rudderAnalytics?.track(event, properties, lightdashContext());
+        const track = ({
+            name,
+            sectionName = undefined,
+            page: pageEvent,
+            properties = {},
+        }: RudderTrackEvent): void => {
+            const context = lightdashContext(pageEvent);
+            rudderAnalytics?.track(`${lightdashApp.name}.${name}`, properties, {
+                ...context,
+                section: {
+                    name: sectionName,
+                },
+            });
         };
-        const identify: typeof rudderSDK.identify = (id, traits) => {
+        const identify = ({
+            id,
+            page: pageEvent,
+            traits,
+        }: RudderIdentifyEvent) => {
             if (lightdashMode && lightdashMode !== LightdashMode.DEMO) {
-                rudderAnalytics?.identify(id, traits, lightdashContext());
+                rudderAnalytics?.identify(
+                    id,
+                    traits,
+                    lightdashContext(pageEvent),
+                );
             }
         };
 

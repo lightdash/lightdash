@@ -34,7 +34,7 @@ export const UserModel = {
             identifyUser(lightdashUser);
             analytics.track({
                 userId: lightdashUser.userUuid,
-                event: 'user_logged_in',
+                event: 'user.logged_in',
             });
             return lightdashUser;
         }
@@ -48,11 +48,11 @@ export const UserModel = {
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         identifyUser(lightdashUser);
         analytics.track({
-            event: 'user_created',
+            event: 'user.created',
             userId: lightdashUser.userUuid,
         });
         analytics.track({
-            event: 'organization_created',
+            event: 'organization.created',
             userId: lightdashUser.userUuid,
         });
         return lightdashUser;
@@ -76,7 +76,7 @@ export const UserModel = {
         identifyUser(lightdashUser);
         analytics.track({
             userId: lightdashUser.userUuid,
-            event: 'user_updated',
+            event: 'user.updated',
         });
         return lightdashUser;
     },
@@ -99,7 +99,7 @@ export const UserModel = {
         await updatePassword(userId, data.newPassword);
         analytics.track({
             userId: user.user_uuid,
-            event: 'password_updated',
+            event: 'password.updated',
         });
     },
 };

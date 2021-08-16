@@ -7,8 +7,12 @@ import { useExplorer } from '../providers/ExplorerProvider';
 
 type RefreshButtonProps = {
     queryResults: UseQueryResult<ApiQueryResults, ApiError>;
+    onClick: () => void;
 };
-export const RefreshButton = ({ queryResults }: RefreshButtonProps) => {
+export const RefreshButton = ({
+    queryResults,
+    onClick,
+}: RefreshButtonProps) => {
     const {
         state: { isValidQuery },
     } = useExplorer();
@@ -20,7 +24,7 @@ export const RefreshButton = ({ queryResults }: RefreshButtonProps) => {
             style={{ height: '40px', width: 150, marginRight: '10px' }}
             onClick={() => {
                 refetch();
-                rudder.track('query_executed');
+                onClick();
             }}
             disabled={!isValidQuery}
             loading={isFetching}

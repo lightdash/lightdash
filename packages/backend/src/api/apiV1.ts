@@ -156,7 +156,7 @@ apiV1Router.patch(
             .then(() => {
                 analytics.track({
                     userId: req.user!.userUuid,
-                    event: 'organization_updated',
+                    event: 'organization.updated',
                 });
                 res.json({
                     status: 'ok',
@@ -224,7 +224,10 @@ apiV1Router.post(
     isAuthenticated,
     async (req, res, next) => {
         const { body } = req;
-        console.log('unQuery body', body);
+        await analytics.track({
+            userId: req.user!.userUuid,
+            event: 'query.executed',
+        });
         runQuery(req.params.tableId, {
             dimensions: body.dimensions,
             metrics: body.metrics,

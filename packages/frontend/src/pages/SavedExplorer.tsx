@@ -25,7 +25,7 @@ const SavedExplorer = () => {
     };
 
     useEffect(() => {
-        rudder.page(undefined, 'saved_explorer');
+        rudder.page({ name: 'explorer' });
     }, [rudder]);
 
     useEffect(() => {

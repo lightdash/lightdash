@@ -27,12 +27,14 @@ import { ChartDownloadMenu } from './ChartDownload';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { CreateSavedQueryModal } from './SaveQueryModal';
 import { useAddVersionMutation, useSavedQuery } from '../hooks/useSavedQuery';
+import { useApp } from '../providers/AppProvider';
 
 interface Props {
     savedQueryUuid?: string;
 }
 
 export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
+    const { rudder } = useApp();
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const chartRef = useRef<EChartsReact>(null);
     const {
@@ -56,7 +58,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [activeVizTab, setActiveVizTab] = useState<DBChartTypes>(
         DBChartTypes.COLUMN,
     );
-
     const queryData: Omit<SavedQuery, 'uuid' | 'name'> | undefined = tableName
         ? {
               tableName,
@@ -105,7 +106,18 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     justifyContent: 'flex-end',
                 }}
             >
-                <RefreshButton queryResults={queryResults} />
+                <RefreshButton
+                    queryResults={queryResults}
+                    onClick={() => {
+                        rudder.track({
+                            name: 'run_query_button.clicked',
+                            page: {
+                                name: 'explorer',
+                            },
+                            sectionName: 'top_bar',
+                        });
+                    }}
+                />
                 <RefreshServerButton />
                 <Popover2
                     content={
