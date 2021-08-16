@@ -5,12 +5,12 @@ import {
     CompiledDimension,
     fieldId as getFieldId,
     friendlyName,
-    getDimensions
-} from "common";
+    getDimensions,
+} from 'common';
 import { UseQueryResult } from 'react-query';
 import { useSavedQuery } from './useSavedQuery';
-import {useTable} from "./useTable";
-import {getDimensionFormatter} from "./useColumns";
+import { useTable } from './useTable';
+import { getDimensionFormatter } from './useColumns';
 
 const pivot = (
     values: { [key: string]: any }[],
@@ -98,10 +98,9 @@ export const useChartConfig = (
         defaultLayout(queryResults),
     );
     const activeExplore = useTable();
-    const dimensions =
-        activeExplore.data
-            ? getDimensions(activeExplore.data)
-            : [];
+    const dimensions = activeExplore.data
+        ? getDimensions(activeExplore.data)
+        : [];
     const dimensionOptions = queryResults.data?.metricQuery.dimensions || [];
     const metricOptions = queryResults.data?.metricQuery.metrics || [];
 
@@ -177,28 +176,61 @@ export const useChartConfig = (
               )
             : queryResults.data.rows;
         const { groupDimension } = seriesLayout;
-        const dimensionFormatter = groupDimension ? getDimensionFormatter(dimensions.find(value => getFieldId(value) === groupDimension) as CompiledDimension) : null;
-
-        const series = groupDimension
-            ? Object.values(queryResults.data.rows.reduce(
-                (coll, row) => ({...coll, [row[groupDimension as string]]:{name: row[groupDimension as string], displayName: dimensionFormatter?.({value: (row[groupDimension as string])}) ?? row[groupDimension as string]}}), {}))
-            : seriesLayout.yMetrics;
+        let series: string[];
+        const eChartDimensions = [
+            {
+                name: seriesLayout.xDimension,
+                displayName: friendlyName(seriesLayout.xDimension),
+            },
+        ];
+        // add more chart dimensions
+        if (groupDimension) {
+            series = Array.from(
+                new Set(queryResults.data.rows.map((r) => r[groupDimension])),
+            );
+            const dimensionFormatter = getDimensionFormatter(
+                dimensions.find(
+                    (value) => getFieldId(value) === groupDimension,
+                ) as CompiledDimension,
+            );
+            // Convert to dictionary to get unique set.
+            const groupChartDimensions: {
+                name: string;
+                displayName: string;
+            }[] = Object.values(
+                queryResults.data.rows.reduce(
+                    (coll, row) => ({
+                        ...coll,
+                        [row[groupDimension as string]]: {
+                            name: row[groupDimension as string],
+                            displayName:
+                                dimensionFormatter({
+                                    value: row[groupDimension],
+                                }) ?? row[groupDimension],
+                        },
+                    }),
+                    {},
+                ),
+            );
+            eChartDimensions.push(...groupChartDimensions);
+        } else {
+            series = seriesLayout.yMetrics;
+            const yMetricChartDimensions = series.map((s) => ({
+                name: s,
+                displayName: friendlyName(s),
+            }));
+            eChartDimensions.push(...yMetricChartDimensions);
+        }
         return {
             setXDimension,
             setGroupDimension,
             toggleYMetric,
             seriesLayout,
             plotData,
-            eChartDimensions: [
-                {
-                    name: seriesLayout.xDimension,
-                    displayName: friendlyName(seriesLayout.xDimension),
-                },
-                ...series,
-            ],
+            eChartDimensions,
             metricOptions,
             dimensionOptions,
-            series: series.map(value => value.name),
+            series,
         };
     }
     return {
