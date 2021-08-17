@@ -15,7 +15,14 @@ Lightdash you can also visualise your dbt models while developing you code.
  - Your dbt cloud account should have at least one environment (data warehouse) configured
  - Your dbt cloud account environment should be using dbt version `0.20.0` or higher
 
-<iframe src="https://www.youtube.com/embed/joQD47r6-A4" title="Develop metrics in dbt Cloud with Lightdash" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen width="100%"></iframe>
+<iframe
+    width="640"
+    height="480"
+    src="https://www.youtube.com/embed/joQD47r6-A4" title="Develop metrics in dbt Cloud with Lightdash" frameborder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    allowfullscreen
+  >
+  </iframe>
 
 ## 1. One-click deploy to Heroku
 
