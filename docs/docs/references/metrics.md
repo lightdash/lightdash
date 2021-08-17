@@ -279,7 +279,7 @@ metrics:
   is_num_unique_users_above_100:
     type: boolean
     sql: "IF(${num_unique_users} > 100, TRUE, FALSE)"
-  user_growth_daily:
+  percentage_user_growth_daily:
     type: number
-    sql: "${num_unique_users} - ${growth_model.num_unique_users_lag_1d}"
+    sql: "(${num_unique_users} - ${growth_model.num_unique_users_lag_1d}) / NULLIF(${growth_model.num_unique_users_lag_1d}, 0)"
 ```
