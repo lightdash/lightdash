@@ -55,7 +55,7 @@ Numbers and booleans are examples of non-aggregate metrics. These metric types p
 | [sum](#sum)                       | Aggregate | Generates a sum of values within a column                   |
 
 
-## average
+### average
 Takes the average (mean) of the values in the given field. Like SQL's `AVG` function.
 
 The `average` metric can be used on any numeric dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a numeric table column.
@@ -71,7 +71,7 @@ columns:
           type: average
 ```
 
-## boolean
+### boolean
 Tells you whether something is True or False.
 
 The `boolean` metric can be used on any valid SQL expression that gives you a `TRUE` or `FALSE` value. It can only be used on aggregations, which means either aggregate metrics *or* [custom SQL that references other metrics](#using-custom-sql-in-non-aggregate-metrics). You cannot build a `boolean` metric by referencing other unaggregated dimensions from your model.
@@ -92,7 +92,7 @@ columns:
           sql: "IF({$avg_price} > 20, TRUE, FALSE)"
 ```
 
-## count
+### count
 Does a table count, like SQL’s `COUNT` function.
 
 The `count` metric can be used on any dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a set of values.
@@ -108,7 +108,7 @@ columns:
           type: count
 ```
 
-## count_distinct
+### count_distinct
 Counts the number of distinct values in a given field. It's like SQL’s `COUNT DISTINCT` function.
 
 The `count_distinct` metric can be used on any dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a set of values.
@@ -124,7 +124,7 @@ columns:
           type: count_distinct
 ```
 
-## date
+### date
 Gives you a date value from an expression.
 
 The `date` metric can be used on any valid SQL expression that gives you a date value. It can only be used on aggregations, which means either aggregate metrics *or* [custom SQL that references other metrics](#using-custom-sql-in-non-aggregate-metrics). You cannot build a `date` metric by referencing other unaggregated dimensions from your model.
@@ -141,7 +141,7 @@ columns:
           sql: "MAX(${date_updated})"
 ```
 
-## max
+### max
 Max gives you the largest value in a given field. It's like SQL’s `MAX` function.
 
 The `max` metric can be used on any dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a set of values.
@@ -157,7 +157,7 @@ columns:
           type: max
 ```
 
-## min
+### min
 Min gives you the smallest value in a given field. It's like SQL’s `MIN` function.
 
 The `min` metric can be used on any dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a set of values.
@@ -173,7 +173,7 @@ columns:
           type: min
 ```
 
-## number
+### number
 Used with numbers or integers. A `number` metric doesn't perform any aggregation but can be used to perform simple transformations on other metrics.
 
 The `number` metric can be used on any valid SQL expression that gives you a numeric or integer value. It can only be used on aggregations, which means either aggregate metrics *or* [custom SQL that references other metrics](#using-custom-sql-in-non-aggregate-metrics). You cannot build a `number` metric by referencing other unaggregated dimensions from your model.
@@ -199,7 +199,7 @@ columns:
 
 The example above also uses the NULLIF() SQL function to avoid division-by-zero errors.
 
-## sum
+### sum
 Adds up the values in a given field. Like SQL’s `SUM` function.
 
 The `sum` metric can be used on any numeric dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a numeric table column.
@@ -215,7 +215,7 @@ columns:
           type: sum
 ```
 
-## string
+### string
 Used with fields that include letters or special characters.
 
 The `string` metric can be used on any valid SQL expression that gives you a string value. It can only be used on aggregations, which means either aggregate metrics *or* [custom SQL that references other metrics](#using-custom-sql-in-non-aggregate-metrics). You cannot build a `string` metric by referencing other unaggregated dimensions from your model.
