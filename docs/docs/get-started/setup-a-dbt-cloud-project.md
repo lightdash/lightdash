@@ -15,6 +15,8 @@ Lightdash you can also visualise your dbt models while developing you code.
  - Your dbt cloud account should have at least one environment (data warehouse) configured
  - Your dbt cloud account environment should be using dbt version `0.20.0` or higher
 
+<iframe src="https://www.youtube.com/watch?v=joQD47r6-A4" frameborder="0" allowfullscreen width="100%"></iframe>
+
 ## 1. One-click deploy to Heroku
 
 Click to deploy the latest version of Lightdash to heroku. This provides a secure, production-ready deployment connected
