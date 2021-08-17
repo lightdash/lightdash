@@ -145,6 +145,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/skame"><img src="https://avatars.githubusercontent.com/u/1732972?v=4?s=100" width="100px;" alt=""/><br /><sub><b>skame</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Askame" title="Bug reports">🐛</a> <a href="#design-skame" title="Design">🎨</a></td>
     <td align="center"><a href="https://www.linkedin.com/in/sgoley"><img src="https://avatars.githubusercontent.com/u/10283176?v=4?s=100" width="100px;" alt=""/><br /><sub><b>sgoley</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=sgoley" title="Documentation">📖</a></td>
   </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/djayatillake"><img src="https://avatars.githubusercontent.com/u/54331742?v=4?s=100" width="100px;" alt=""/><br /><sub><b>djayatillake</b></sub></a><br /><a href="#design-djayatillake" title="Design">🎨</a></td>
+  </tr>
 </table>
 
 <!-- markdownlint-restore -->
