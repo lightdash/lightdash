@@ -40,4 +40,16 @@ export class UserService {
             expiresAt,
         };
     }
+
+    async revokeAllInviteLinks(user: SessionUser) {
+        const { organizationUuid } = user;
+        if (organizationUuid === undefined) {
+            throw new NotExistsError('Organization not found');
+        }
+        await this.inviteLinkModel.deleteByOrganization(organizationUuid);
+        analytics.track({
+            userId: user.userUuid,
+            event: 'invite_link.all_revoked',
+        });
+    }
 }

@@ -29,6 +29,19 @@
     ],
     "paths": {
         "/invite-links": {
+            "delete": {
+                "summary": "Delete all invite links",
+                "tags": ["user"],
+                "operationId": "deleteInviteLinks",
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/SuccessResponse"
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            },
             "post": {
                 "summary": "Create a new invite link",
                 "tags": ["user"],
@@ -155,6 +168,16 @@
                     "application/json": {
                         "schema": {
                             "$ref": "#/components/schemas/Error"
+                        }
+                    }
+                }
+            },
+            "SuccessResponse": {
+                "description": "Success",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Success"
                         }
                     }
                 }

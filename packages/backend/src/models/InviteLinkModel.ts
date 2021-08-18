@@ -32,4 +32,17 @@ export class InviteLinkModel {
             expires_at: expiresAt,
         });
     }
+
+    async deleteByOrganization(organizationUuid: string) {
+        const orgs = await this.database('organizations')
+            .where('organization_uuid', organizationUuid)
+            .select('*');
+        if (orgs.length === 0) {
+            throw new NotExistsError('Cannot find organization');
+        }
+        const org = orgs[0];
+        await this.database('invite_links')
+            .delete()
+            .where('organization_id', org.organization_id);
+    }
 }
