@@ -1,0 +1,15 @@
+{
+    "patch": {
+        "summary": "Update organization",
+        "tags": ["organization"],
+        "operationId": "updateOrganization",
+        "responses": {
+            "200": {
+                "$ref": "../responses/SuccessResponse.json"
+            },
+            "default": {
+                "$ref": "../responses/ErrorResponse.json"
+            }
+        }
+    }
+}

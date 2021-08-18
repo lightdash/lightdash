@@ -28,6 +28,12 @@
         }
     ],
     "paths": {
+        "/org": {
+            "$ref": "./paths/organization.json"
+        },
+        "/org/users": {
+            "$ref": "./paths/organizationUsers.json"
+        },
         "/invite-links": {
             "$ref": "./paths/inviteLinks.json"
         }

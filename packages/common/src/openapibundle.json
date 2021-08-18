@@ -28,6 +28,58 @@
         }
     ],
     "paths": {
+        "/org": {
+            "patch": {
+                "summary": "Update organization",
+                "tags": ["organization"],
+                "operationId": "updateOrganization",
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/SuccessResponse"
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
+        "/org/users": {
+            "get": {
+                "summary": "Get organization users",
+                "tags": ["organization"],
+                "operationId": "getOrganizationUsers",
+                "responses": {
+                    "201": {
+                        "description": "Successfully get organization users",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/OrganizationUser"
+                                                    }
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
         "/invite-links": {
             "delete": {
                 "summary": "Delete all invite links",
@@ -100,16 +152,6 @@
             }
         },
         "schemas": {
-            "CreateInviteLink": {
-                "type": "object",
-                "properties": {
-                    "expiresAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    }
-                },
-                "required": ["expiresAt"]
-            },
             "Error": {
                 "type": "object",
                 "required": ["status", "error"],
@@ -146,6 +188,34 @@
                         "enum": ["ok"]
                     }
                 }
+            },
+            "OrganizationUser": {
+                "type": "object",
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    }
+                },
+                "required": ["userUuid", "firstName", "lastName"]
+            },
+            "CreateInviteLink": {
+                "type": "object",
+                "properties": {
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": ["expiresAt"]
             },
             "InviteLink": {
                 "type": "object",

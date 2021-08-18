@@ -2,7 +2,12 @@ import { Knex } from 'knex';
 import bcrypt from 'bcrypt';
 import { CreateInitialUserArgs, UpdateUserArgs } from 'common';
 import { NotFoundError } from '../../errors';
-import { createOrganization } from './organizations';
+import {
+    createOrganization,
+    DbOrganization,
+    DbOrganizationIn,
+    DbOrganizationUpdate,
+} from './organizations';
 import { createEmail, deleteEmail } from './emails';
 import database from '../database';
 import { createPasswordLogin } from './passwordLogins';
@@ -41,6 +46,10 @@ type DbUserIn = Pick<
     | 'is_tracking_anonymized'
 >;
 type DbUserUpdate = Pick<DbUser, 'first_name' | 'last_name'>;
+
+export type UserTable = Knex.CompositeTableType<DbUser, DbUserIn, DbUserUpdate>;
+
+export const UserTableName = 'users';
 
 export const createUser = async (
     db: Knex,

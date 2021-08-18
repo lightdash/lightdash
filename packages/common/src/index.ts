@@ -543,6 +543,11 @@ export interface SessionUser extends LightdashUser {
     userId: number;
 }
 
+export type OrganizationUser = Pick<
+    LightdashUser,
+    'userUuid' | 'firstName' | 'lastName' | 'email'
+>;
+
 export type CreateInitialUserArgs = {
     firstName: string;
     lastName: string;
@@ -584,6 +589,12 @@ export type ApiInviteLinkResponse =
           status: 'ok';
           results: InviteLink;
       };
+export type ApiOrganizationUsersResponse =
+    | ApiError
+    | {
+          status: 'ok';
+          results: OrganizationUser[];
+      };
 
 export type ApiResults =
     | ApiQueryResults
@@ -597,7 +608,8 @@ export type ApiResults =
     | LightdashUser
     | SavedQuery
     | Space[]
-    | InviteLink;
+    | InviteLink
+    | OrganizationUser[];
 
 export type ApiResponse =
     | ApiQueryResponse
@@ -610,7 +622,8 @@ export type ApiResponse =
     | ApiHealthResponse
     | ApiUserResponse
     | ApiRegisterResponse
-    | ApiInviteLinkResponse;
+    | ApiInviteLinkResponse
+    | ApiOrganizationUsersResponse;
 
 export enum LightdashMode {
     DEFAULT = 'default',

@@ -1,0 +1,37 @@
+{
+    "get": {
+        "summary": "Get organization users",
+        "tags": ["organization"],
+        "operationId": "getOrganizationUsers",
+        "responses": {
+            "201": {
+                "description": "Successfully get organization users",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "../schemas/Success.json"
+                                },
+                                {
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "../schemas/OrganizationUser.json"
+                                            }
+                                        }
+                                    },
+                                    "required": ["results"]
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "default": {
+                "$ref": "../responses/ErrorResponse.json"
+            }
+        }
+    }
+}

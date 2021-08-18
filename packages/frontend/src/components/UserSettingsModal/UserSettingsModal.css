@@ -1,5 +1,13 @@
+.user-settings {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
 .user-settings .bp3-vertical {
     flex: 1;
+    overflow: hidden;
 }
 
 .user-settings .bp3-vertical .bp3-tab-list {
@@ -10,4 +18,5 @@
 .user-settings .bp3-tab-panel {
     padding: 20px;
     flex: 1;
+    overflow: auto;
 }
