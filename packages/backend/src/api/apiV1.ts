@@ -12,11 +12,11 @@ import { buildQuery } from '../queryBuilder';
 import { getHealthState } from '../health';
 import { UserModel } from '../models/User';
 import { ParameterError } from '../errors';
-import { OrgModel } from '../models/Org';
 import { analytics } from '../analytics/client';
 import { SavedQueriesModel } from '../models/savedQueries';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { inviteLinksRouter } from './inviteLinksRouter';
+import { organizationService } from '../services/services';
 
 export const apiV1Router = express.Router();
 
@@ -152,12 +152,9 @@ apiV1Router.patch(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) =>
-        OrgModel.updateOrg(req.user!.organizationUuid, req.body)
+        organizationService
+            .updateOrg(req.user!, req.body)
             .then(() => {
-                analytics.track({
-                    userId: req.user!.userUuid,
-                    event: 'organization.updated',
-                });
                 res.json({
                     status: 'ok',
                 });
