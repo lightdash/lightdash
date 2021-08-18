@@ -26,3 +26,19 @@ inviteLinksRouter.post(
         }
     },
 );
+
+inviteLinksRouter.delete(
+    '/',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        try {
+            await userService.revokeAllInviteLinks(req.user!);
+            res.status(200).json({
+                status: 'ok',
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);

@@ -30,6 +30,7 @@ type TrackSimpleEvent = BaseTrack & {
         | 'organization.created'
         | 'organization.updated'
         | 'invite_link.created'
+        | 'invite_link.all_revoked'
         | 'query.executed';
 };
 type TrackSavedQuery = BaseTrack & {

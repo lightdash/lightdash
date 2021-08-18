@@ -1,11 +1,20 @@
 import React, { FC, useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from 'react-query';
 import { ApiError, formatTimestamp } from 'common';
-import { Button, FormGroup, InputGroup, Intent } from '@blueprintjs/core';
+import {
+    Button,
+    FormGroup,
+    InputGroup,
+    Intent,
+    Callout,
+} from '@blueprintjs/core';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useApp } from '../../providers/AppProvider';
 import { lightdashApi } from '../../api';
-import { useInviteLink } from '../../hooks/useInviteLink';
+import {
+    useInviteLink,
+    useRevokeInvitesMutation,
+} from '../../hooks/useInviteLink';
 
 const updateOrgQuery = async (data: { organizationName: string }) =>
     lightdashApi<undefined>({
@@ -27,6 +36,7 @@ const OrganizationPanel: FC = () => {
         string | undefined
     >(user.data?.organizationName);
     const inviteLink = useInviteLink();
+    const revokeInvitesMutation = useRevokeInvitesMutation();
     const { isLoading, error, mutate } = useMutation<
         undefined,
         ApiError,
@@ -84,7 +94,10 @@ const OrganizationPanel: FC = () => {
                 />
             </FormGroup>
             <div>
-                <FormGroup label="Invite users" labelFor="invite-link-input">
+                <FormGroup
+                    label="Invite users to your organization"
+                    labelFor="invite-link-input"
+                >
                     {inviteLink.data ? (
                         <>
                             <InputGroup
@@ -106,16 +119,19 @@ const OrganizationPanel: FC = () => {
                                     </CopyToClipboard>
                                 }
                             />
-                            <span>
+                            <Callout intent="primary" style={{ marginTop: 10 }}>
                                 Share this link with your colleagues and they
                                 can join your organization. This link will
                                 expire at{' '}
-                                {formatTimestamp(inviteLink.data.expiresAt)}
-                            </span>
+                                <b>
+                                    {formatTimestamp(inviteLink.data.expiresAt)}
+                                </b>
+                            </Callout>
                         </>
                     ) : (
                         <Button
-                            text="Invite users to your organization"
+                            text="Create invite link"
+                            style={{ marginTop: 10 }}
                             loading={inviteLink.isLoading}
                             onClick={() => {
                                 rudder.track({
@@ -131,6 +147,29 @@ const OrganizationPanel: FC = () => {
                         />
                     )}
                 </FormGroup>
+                <Callout intent="warning" style={{ marginTop: 20 }}>
+                    <p>
+                        This action will remove all active and expired invites
+                        links.
+                    </p>
+                    <Button
+                        intent="danger"
+                        text="Revoke all invites"
+                        loading={inviteLink.isLoading}
+                        onClick={() => {
+                            rudder.track({
+                                name: 'revoke_invites_button.clicked',
+                                page: {
+                                    name: 'settings_organization',
+                                    category: 'settings',
+                                    type: 'modal',
+                                },
+                            });
+                            revokeInvitesMutation.mutate();
+                            inviteLink.reset();
+                        }}
+                    />
+                </Callout>
             </div>
             <div style={{ flex: 1 }} />
             <Button
