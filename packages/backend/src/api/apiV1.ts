@@ -17,6 +17,7 @@ import { SavedQueriesModel } from '../models/savedQueries';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { inviteLinksRouter } from './inviteLinksRouter';
 import { organizationService } from '../services/services';
+import { organizationRouter } from './organizationRouter';
 
 export const apiV1Router = express.Router();
 
@@ -142,21 +143,6 @@ apiV1Router.post(
                             status: 'ok',
                         });
                     }
-                });
-            })
-            .catch(next),
-);
-
-apiV1Router.patch(
-    '/org',
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) =>
-        organizationService
-            .updateOrg(req.user!, req.body)
-            .then(() => {
-                res.json({
-                    status: 'ok',
                 });
             })
             .catch(next),
@@ -359,3 +345,4 @@ apiV1Router.post(
 );
 
 apiV1Router.use('/invite-links', inviteLinksRouter);
+apiV1Router.use('/org', organizationRouter);

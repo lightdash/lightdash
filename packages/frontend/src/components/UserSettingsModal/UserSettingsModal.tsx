@@ -5,6 +5,7 @@ import ProfilePanel from './ProfilePanel';
 import PasswordPanel from './PasswordPanel';
 import OrganizationPanel from './OrganizationPanel';
 import { useApp } from '../../providers/AppProvider';
+import UserManagementPanel from './UserManagementPanel';
 
 interface Props {
     isOpen: boolean;
@@ -21,12 +22,9 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
             title="Settings"
             lazy
             canOutsideClickClose={false}
-            style={{ paddingBottom: 0, minWidth: 700, minHeight: 500 }}
+            style={{ paddingBottom: 0, minWidth: 700, height: 500 }}
         >
-            <div
-                className="user-settings"
-                style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-            >
+            <div className="user-settings">
                 <Tabs
                     id="user-settings"
                     renderActiveTabPanelOnly
@@ -54,6 +52,11 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                         id="organization"
                         title="Organization"
                         panel={<OrganizationPanel />}
+                    />
+                    <Tab
+                        id="userManagement"
+                        title="User management"
+                        panel={<UserManagementPanel />}
                     />
                     <Tabs.Expander />
                 </Tabs>

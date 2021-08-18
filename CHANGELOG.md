@@ -5,6 +5,7 @@ Recent and upcoming changes to lightdash
 ## Unreleased
 ### Added
 - Users can create and revoke invite links
+- Show list of users in the organization
 
 ## [0.6.3] - 2021-08-10
 ### Fixed
