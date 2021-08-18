@@ -1,5 +1,4 @@
 import { Knex } from 'knex';
-import database from '../database';
 
 export type DbOrganization = {
     organization_id: number;
@@ -11,6 +10,14 @@ export type DbOrganization = {
 export type DbOrganizationIn = Pick<DbOrganization, 'organization_name'>;
 export type DbOrganizationUpdate = Pick<DbOrganization, 'organization_name'>;
 
+export type OrganizationTable = Knex.CompositeTableType<
+    DbOrganization,
+    DbOrganizationIn,
+    DbOrganizationUpdate
+>;
+
+export const OrganizationTableName = 'organizations';
+
 // DB Errors: Unexpected response (no rows returned)
 export const createOrganization = async (
     db: Knex,
@@ -20,13 +27,4 @@ export const createOrganization = async (
         .insert<DbOrganizationIn>(organizationIn)
         .returning('*');
     return org[0];
-};
-
-export const updateOrganization = async (
-    organizationUuid: string,
-    organizationUpdate: DbOrganizationUpdate,
-): Promise<void> => {
-    await database<DbOrganization>('organizations')
-        .where('organization_uuid', organizationUuid)
-        .update<DbOrganizationUpdate>(organizationUpdate);
 };

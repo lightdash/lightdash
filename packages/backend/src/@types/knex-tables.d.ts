@@ -1,7 +1,15 @@
-import { InviteLinkTable } from '../database/entities/inviteLinks';
+import {
+    InviteLinkTable,
+    InviteLinkTableName,
+} from '../database/entities/inviteLinks';
+import {
+    OrganizationTableName,
+    OrganizationTable,
+} from '../database/entities/organizations';
 
 declare module 'knex/types/tables' {
     interface Tables {
-        invite_links: InviteLinkTable;
+        [InviteLinkTableName]: InviteLinkTable;
+        [OrganizationTableName]: OrganizationTable;
     }
 }

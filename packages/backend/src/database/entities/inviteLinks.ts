@@ -18,3 +18,5 @@ export type InviteLinkTable = Knex.CompositeTableType<
     DbInviteLinkInsert,
     DbInviteLinkUpdate
 >;
+
+export const InviteLinkTableName = 'invite_links';
