@@ -12,21 +12,38 @@ import { useSavedQuery } from './useSavedQuery';
 import { useTable } from './useTable';
 import { getDimensionFormatter } from './useColumns';
 
+const getDimensionFormatterByKey = (
+    dimensions: CompiledDimension[],
+    dimensionKey: string,
+) => {
+    const dimension = dimensions.find(
+        (value) => getFieldId(value) === dimensionKey,
+    );
+    return dimension ? getDimensionFormatter(dimension) : null;
+};
 const pivot = (
     values: { [key: string]: any }[],
+    dimensions: CompiledDimension[],
     indexKey: string,
     pivotKey: string,
     metricKey: string,
-) =>
-    Object.values(
+) => {
+    const indexDimensionFormatter = getDimensionFormatterByKey(
+        dimensions,
+        indexKey,
+    );
+    return Object.values(
         values.reduce((acc, value) => {
             acc[value[indexKey]] = acc[value[indexKey]] || {
-                [indexKey]: value[indexKey],
+                [indexKey]:
+                    indexDimensionFormatter?.({ value: value[indexKey] }) ??
+                    value[indexKey],
             };
             acc[value[indexKey]][value[pivotKey]] = value[metricKey];
             return acc;
         }, {}),
     );
+};
 
 type ChartConfigBase = {
     setXDimension: (x: string) => void;
@@ -170,6 +187,7 @@ export const useChartConfig = (
         const plotData = seriesLayout.groupDimension
             ? pivot(
                   queryResults.data.rows,
+                  dimensions,
                   seriesLayout.xDimension,
                   seriesLayout.groupDimension,
                   seriesLayout.yMetrics[0],
@@ -177,7 +195,7 @@ export const useChartConfig = (
             : queryResults.data.rows;
         const { groupDimension } = seriesLayout;
         let series: string[];
-        const eChartDimensions = [
+        const eChartDimensions: ChartConfig['eChartDimensions'] = [
             {
                 name: seriesLayout.xDimension,
                 displayName: friendlyName(seriesLayout.xDimension),
@@ -188,30 +206,21 @@ export const useChartConfig = (
             series = Array.from(
                 new Set(queryResults.data.rows.map((r) => r[groupDimension])),
             );
-            const dimensionFormatter = getDimensionFormatter(
-                dimensions.find(
-                    (value) => getFieldId(value) === groupDimension,
-                ) as CompiledDimension,
+            const dimensionFormatter = getDimensionFormatterByKey(
+                dimensions,
+                groupDimension,
             );
             // Convert to dictionary to get unique set.
             const groupChartDimensions: {
                 name: string;
                 displayName: string;
-            }[] = Object.values(
-                queryResults.data.rows.reduce(
-                    (coll, row) => ({
-                        ...coll,
-                        [row[groupDimension as string]]: {
-                            name: row[groupDimension as string],
-                            displayName:
-                                dimensionFormatter({
-                                    value: row[groupDimension],
-                                }) ?? row[groupDimension],
-                        },
-                    }),
-                    {},
-                ),
-            );
+            }[] = series.map((s) => ({
+                name: s,
+                displayName:
+                    dimensionFormatter?.({
+                        value: s,
+                    }) ?? friendlyName(s),
+            }));
             eChartDimensions.push(...groupChartDimensions);
         } else {
             series = seriesLayout.yMetrics;
