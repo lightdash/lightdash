@@ -13,7 +13,7 @@ import { AuthorizationError, ForbiddenError } from '../errors';
 import { updatePassword } from '../database/entities/passwordLogins';
 import { analytics, identifyUser } from '../analytics/client';
 
-const mapDbUserDetailsToLightdashUser = (
+export const mapDbUserDetailsToLightdashUser = (
     user: DbUserDetails,
 ): LightdashUser => ({
     userUuid: user.user_uuid,

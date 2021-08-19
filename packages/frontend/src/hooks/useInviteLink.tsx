@@ -4,7 +4,7 @@ import {
     ApiError,
     formatTimestamp,
 } from 'common';
-import { useMutation } from 'react-query';
+import { useMutation, useQuery } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 
@@ -35,7 +35,20 @@ const createInviteWith3DayExpiryQuery = async (): Promise<InviteLink> => {
     return response;
 };
 
-export const useInviteLink = () => {
+const inviteLinkQuery = async (inviteCode: string) =>
+    lightdashApi<InviteLink>({
+        url: `/invite-links/${inviteCode}`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useInviteLink = (inviteCode: string) =>
+    useQuery<InviteLink, ApiError>({
+        queryKey: ['invite_link', inviteCode],
+        queryFn: () => inviteLinkQuery(inviteCode),
+    });
+
+export const useCreateInviteLinkMutation = () => {
     const { showToastError, showToastSuccess } = useApp();
     const inviteLink = useMutation<InviteLink, ApiError>(
         createInviteWith3DayExpiryQuery,

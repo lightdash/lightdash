@@ -1,6 +1,18 @@
 import { Knex } from 'knex';
-import { NotExistsError } from '../errors';
-import { DbUserDetails, UserTableName } from '../database/entities/users';
+import bcrypt from 'bcrypt';
+import { CreateOrganizationUser } from 'common';
+import { NotExistsError, ParameterError } from '../errors';
+import {
+    createUser,
+    DbUserDetails,
+    getUserDetailsByUuid,
+    UserTableName,
+} from '../database/entities/users';
+import { createEmail, EmailTableName } from '../database/entities/emails';
+import { createPasswordLogin } from '../database/entities/passwordLogins';
+import { createOrganizationMembership } from '../database/entities/organizationMemberships';
+import { InviteLinkModel } from './InviteLinkModel';
+import { InviteLinkTableName } from '../database/entities/inviteLinks';
 
 type DbOrganizationUser = Pick<
     DbUserDetails,
@@ -12,6 +24,66 @@ export class UserModel {
 
     constructor(database: Knex) {
         this.database = database;
+    }
+
+    async createUser({
+        inviteCode,
+        firstName,
+        lastName,
+        email,
+        password,
+        isMarketingOptedIn,
+        isTrackingAnonymized,
+    }: CreateOrganizationUser): Promise<DbUserDetails> {
+        const inviteCodeHash = InviteLinkModel._hash(inviteCode);
+        const inviteLinks = await this.database(InviteLinkTableName).where(
+            'invite_code_hash',
+            inviteCodeHash,
+        );
+        if (inviteLinks.length === 0) {
+            throw new NotExistsError('No invite link found');
+        }
+        const inviteLink = inviteLinks[0];
+
+        const duplicatedEmails = await this.database(EmailTableName).where(
+            'email',
+            email,
+        );
+        if (duplicatedEmails.length > 0) {
+            throw new ParameterError('Email already exists');
+        }
+
+        const user = await this.database.transaction(async (trx) => {
+            try {
+                const newUser = await createUser(trx, {
+                    first_name: firstName.trim(),
+                    last_name: lastName.trim(),
+                    is_marketing_opted_in: isMarketingOptedIn,
+                    is_tracking_anonymized: isTrackingAnonymized,
+                });
+                await createEmail(trx, {
+                    user_id: newUser.user_id,
+                    email,
+                    is_primary: true,
+                });
+                await createPasswordLogin(trx, {
+                    user_id: newUser.user_id,
+                    password_hash: await bcrypt.hash(
+                        password,
+                        await bcrypt.genSalt(),
+                    ),
+                });
+                await createOrganizationMembership(trx, {
+                    organization_id: inviteLink.organization_id,
+                    user_id: newUser.user_id,
+                });
+                return newUser;
+            } catch (e) {
+                await trx.rollback(e);
+                throw e;
+            }
+        });
+        return getUserDetailsByUuid(this.database, user.user_uuid);
     }
 
     async getAllByOrganization(

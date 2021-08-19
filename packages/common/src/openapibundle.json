@@ -28,6 +28,50 @@
         }
     ],
     "paths": {
+        "/user": {
+            "post": {
+                "summary": "Create user",
+                "tags": ["user"],
+                "operationId": "createUser",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateUser"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successfully created user",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/LightdashUser"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
         "/org": {
             "patch": {
                 "summary": "Update organization",
@@ -136,6 +180,50 @@
                     }
                 }
             }
+        },
+        "/invite-links/{inviteLinkId}": {
+            "get": {
+                "summary": "Get an invite link",
+                "tags": ["user"],
+                "operationId": "getInviteLink",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "inviteLinkId",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got invite link",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/InviteLink"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
         }
     },
     "security": [
@@ -152,6 +240,41 @@
             }
         },
         "schemas": {
+            "CreateUser": {
+                "type": "object",
+                "properties": {
+                    "inviteCode": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "isMarketingOptedIn": {
+                        "type": "boolean"
+                    },
+                    "isTrackingAnonymized": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "inviteCode",
+                    "firstName",
+                    "lastName",
+                    "email",
+                    "password",
+                    "isMarketingOptedIn",
+                    "isTrackingAnonymized"
+                ]
+            },
             "Error": {
                 "type": "object",
                 "required": ["status", "error"],
@@ -188,6 +311,38 @@
                         "enum": ["ok"]
                     }
                 }
+            },
+            "LightdashUser": {
+                "type": "object",
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "organizationName": {
+                        "type": "string"
+                    },
+                    "isTrackingAnonymized": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "userUuid",
+                    "firstName",
+                    "lastName",
+                    "isTrackingAnonymized"
+                ]
             },
             "OrganizationUser": {
                 "type": "object",

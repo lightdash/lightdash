@@ -20,6 +20,7 @@ import Saved from './pages/Saved';
 import Explorer from './pages/Explorer';
 import { ExplorerProvider } from './providers/ExplorerProvider';
 import SavedExplorer from './pages/SavedExplorer';
+import Signup from './pages/Signup';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -39,6 +40,9 @@ const App = () => (
                     </Route>
                     <Route path="/login">
                         <Login />
+                    </Route>
+                    <Route path="/invite/:inviteCode">
+                        <Signup />
                     </Route>
                     <PrivateRoute path="/">
                         <div

@@ -1,0 +1,44 @@
+{
+    "post": {
+        "summary": "Create user",
+        "tags": ["user"],
+        "operationId": "createUser",
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "$ref": "../schemas/CreateUser.json"
+                    }
+                }
+            },
+            "required": true
+        },
+        "responses": {
+            "201": {
+                "description": "Successfully created user",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "../schemas/Success.json"
+                                },
+                                {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "../schemas/LightdashUser.json"
+                                        }
+                                    },
+                                    "required": ["results"]
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "default": {
+                "$ref": "../responses/ErrorResponse.json"
+            }
+        }
+    }
+}

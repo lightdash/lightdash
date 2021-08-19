@@ -9,7 +9,7 @@ const inviteLinkModel = new InviteLinkModel(database);
 const organizationModel = new OrganizationModel(database);
 const userModel = new UserModel(database);
 
-export const userService = new UserService({ inviteLinkModel });
+export const userService = new UserService({ inviteLinkModel, userModel });
 export const organizationService = new OrganizationService({
     organizationModel,
     userModel,

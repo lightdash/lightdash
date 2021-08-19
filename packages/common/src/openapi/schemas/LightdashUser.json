@@ -1,0 +1,27 @@
+{
+    "type": "object",
+    "properties": {
+        "userUuid": {
+            "type": "string"
+        },
+        "firstName": {
+            "type": "string"
+        },
+        "lastName": {
+            "type": "string"
+        },
+        "email": {
+            "type": "string"
+        },
+        "organizationUuid": {
+            "type": "string"
+        },
+        "organizationName": {
+            "type": "string"
+        },
+        "isTrackingAnonymized": {
+            "type": "boolean"
+        }
+    },
+    "required": ["userUuid", "firstName", "lastName", "isTrackingAnonymized"]
+}
