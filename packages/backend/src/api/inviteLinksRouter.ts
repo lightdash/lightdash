@@ -5,6 +5,23 @@ import { userService } from '../services/services';
 
 export const inviteLinksRouter = express.Router();
 
+inviteLinksRouter.get(
+    '/:inviteLinkCode',
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        try {
+            const { inviteLinkCode } = req.params;
+            const inviteLink = await userService.getInviteLink(inviteLinkCode);
+            res.status(200).json({
+                status: 'ok',
+                results: inviteLink,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
 inviteLinksRouter.post(
     '/',
     isAuthenticated,

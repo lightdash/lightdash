@@ -11,6 +11,10 @@ export type DbEmail = {
 export type DbEmailIn = Pick<DbEmail, 'user_id' | 'email' | 'is_primary'>;
 export type DbEmailRemove = Pick<DbEmail, 'user_id' | 'email'>;
 
+export type EmailTable = Knex.CompositeTableType<DbEmail, DbEmailIn>;
+
+export const EmailTableName = 'emails';
+
 // DB Errors:
 // user_id does not exist (foreign key)
 // email already exists (not unique)

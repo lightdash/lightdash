@@ -1,5 +1,6 @@
 import { Knex } from 'knex';
 import * as crypto from 'crypto';
+import { InviteLink } from 'common';
 import { NotExistsError } from '../errors';
 
 export class InviteLinkModel {
@@ -9,8 +10,31 @@ export class InviteLinkModel {
         this.database = database;
     }
 
-    private static _hash(s: string): string {
+    static _hash(s: string): string {
         return crypto.createHash('sha256').update(s).digest('hex');
+    }
+
+    async deleteByCode(inviteCode: string) {
+        const inviteCodeHash = InviteLinkModel._hash(inviteCode);
+        await this.database('invite_links')
+            .where('invite_code_hash', inviteCodeHash)
+            .delete();
+    }
+
+    async findByCode(inviteCode: string): Promise<InviteLink> {
+        const inviteCodeHash = InviteLinkModel._hash(inviteCode);
+        const inviteLinks = await this.database('invite_links').where(
+            'invite_code_hash',
+            inviteCodeHash,
+        );
+        if (inviteLinks.length === 0) {
+            throw new NotExistsError('No invite link found');
+        }
+        const inviteLink = inviteLinks[0];
+        return {
+            inviteCode,
+            expiresAt: inviteLink.expires_at,
+        };
     }
 
     async create(

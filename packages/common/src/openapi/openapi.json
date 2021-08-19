@@ -28,6 +28,9 @@
         }
     ],
     "paths": {
+        "/user": {
+            "$ref": "./paths/user.json"
+        },
         "/org": {
             "$ref": "./paths/organization.json"
         },
@@ -36,6 +39,9 @@
         },
         "/invite-links": {
             "$ref": "./paths/inviteLinks.json"
+        },
+        "/invite-links/{inviteLinkId}": {
+            "$ref": "./paths/inviteLink.json"
         }
     },
     "security": [{ "cookieAuth": [] }],

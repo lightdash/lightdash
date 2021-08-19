@@ -1,6 +1,6 @@
 import express from 'express';
 import passport from 'passport';
-import { validateEmail } from 'common';
+import { sanitizeStringParam, sanitizeEmailParam } from '../utils';
 import {
     getAllTables,
     getStatus,
@@ -11,13 +11,12 @@ import {
 import { buildQuery } from '../queryBuilder';
 import { getHealthState } from '../health';
 import { UserModel } from '../models/User';
-import { ParameterError } from '../errors';
 import { analytics } from '../analytics/client';
 import { SavedQueriesModel } from '../models/savedQueries';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { inviteLinksRouter } from './inviteLinksRouter';
-import { organizationService } from '../services/services';
 import { organizationRouter } from './organizationRouter';
+import { userRouter } from './userRouter';
 
 export const apiV1Router = express.Router();
 
@@ -33,31 +32,13 @@ apiV1Router.get('/health', async (req, res, next) => {
 });
 
 apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
-    const sanitizeStringField = (value: any) => {
-        if (!value || typeof value !== 'string') {
-            throw new ParameterError();
-        }
-        const trimmedValue = value.trim();
-        if (trimmedValue.length <= 0) {
-            throw new ParameterError();
-        }
-        return trimmedValue;
-    };
-
-    const sanitizeEmailField = (value: any) => {
-        const email = sanitizeStringField(value);
-        if (!validateEmail(email)) {
-            throw new ParameterError();
-        }
-        return email;
-    };
     try {
         const lightdashUser = await UserModel.register({
-            firstName: sanitizeStringField(req.body.firstName),
-            lastName: sanitizeStringField(req.body.lastName),
-            organizationName: sanitizeStringField(req.body.organizationName),
-            email: sanitizeEmailField(req.body.email),
-            password: sanitizeStringField(req.body.password),
+            firstName: sanitizeStringParam(req.body.firstName),
+            lastName: sanitizeStringParam(req.body.lastName),
+            organizationName: sanitizeStringParam(req.body.organizationName),
+            email: sanitizeEmailParam(req.body.email),
+            password: sanitizeStringParam(req.body.password),
             isMarketingOptedIn: !!req.body.isMarketingOptedIn,
             isTrackingAnonymized: !!req.body.isTrackingAnonymized,
         });
@@ -103,50 +84,6 @@ apiV1Router.get('/logout', (req, res, next) => {
         }
     });
 });
-
-apiV1Router.get('/user', isAuthenticated, async (req, res) => {
-    res.json({
-        status: 'ok',
-        results: UserModel.lightdashUserFromSession(req.user!),
-    });
-});
-
-apiV1Router.patch(
-    '/user/me',
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        UserModel.updateProfile(req.user!.userId, req.user!.email, req.body)
-            .then((user) => {
-                res.json({
-                    status: 'ok',
-                    results: user,
-                });
-            })
-            .catch(next);
-    },
-);
-
-apiV1Router.post(
-    '/user/password',
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) =>
-        UserModel.updatePassword(req.user!.userId, req.user!.userUuid, req.body)
-            .then(() => {
-                req.logout();
-                req.session.save((err) => {
-                    if (err) {
-                        next(err);
-                    } else {
-                        res.json({
-                            status: 'ok',
-                        });
-                    }
-                });
-            })
-            .catch(next),
-);
 
 apiV1Router.get('/tables', isAuthenticated, async (req, res, next) => {
     getAllTables()
@@ -346,3 +283,4 @@ apiV1Router.post(
 
 apiV1Router.use('/invite-links', inviteLinksRouter);
 apiV1Router.use('/org', organizationRouter);
+apiV1Router.use('/user', userRouter);

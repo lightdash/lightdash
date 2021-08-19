@@ -558,6 +558,11 @@ export type CreateInitialUserArgs = {
     isTrackingAnonymized: boolean;
 };
 
+export type CreateOrganizationUser = Omit<
+    CreateInitialUserArgs,
+    'organizationName'
+> & { inviteCode: string };
+
 export type UpdateUserArgs = {
     firstName: string;
     lastName: string;

@@ -12,7 +12,7 @@ import CopyToClipboard from 'react-copy-to-clipboard';
 import { useApp } from '../../providers/AppProvider';
 import { lightdashApi } from '../../api';
 import {
-    useInviteLink,
+    useCreateInviteLinkMutation,
     useRevokeInvitesMutation,
 } from '../../hooks/useInviteLink';
 
@@ -35,7 +35,7 @@ const OrganizationPanel: FC = () => {
     const [organizationName, setOrganizationName] = useState<
         string | undefined
     >(user.data?.organizationName);
-    const inviteLink = useInviteLink();
+    const inviteLink = useCreateInviteLinkMutation();
     const revokeInvitesMutation = useRevokeInvitesMutation();
     const { isLoading, error, mutate } = useMutation<
         undefined,
@@ -104,10 +104,10 @@ const OrganizationPanel: FC = () => {
                                 id="invite-link-input"
                                 type="text"
                                 readOnly
-                                value={`${window.location.protocol}//${window.location.host}/invite?${inviteLink.data.inviteCode}`}
+                                value={`${window.location.protocol}//${window.location.host}/invite/${inviteLink.data.inviteCode}`}
                                 rightElement={
                                     <CopyToClipboard
-                                        text={`${window.location.protocol}//${window.location.host}/invite?${inviteLink.data.inviteCode}`}
+                                        text={`${window.location.protocol}//${window.location.host}/invite/${inviteLink.data.inviteCode}`}
                                         options={{ message: 'Copied' }}
                                         onCopy={() =>
                                             showToastSuccess({
