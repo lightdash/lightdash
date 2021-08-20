@@ -152,6 +152,16 @@
       "contributions": [
         "design"
       ]
+    },
+    {
+      "login": "silentninja",
+      "name": "Mukesh",
+      "avatar_url": "https://avatars.githubusercontent.com/u/4469754?v=4",
+      "profile": "https://github.com/silentninja",
+      "contributions": [
+        "data",
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
