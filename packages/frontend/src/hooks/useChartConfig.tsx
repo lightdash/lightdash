@@ -184,16 +184,8 @@ export const useChartConfig = (
     };
 
     if (queryResults.data && isValidSeriesLayout(seriesLayout)) {
-        const plotData = seriesLayout.groupDimension
-            ? pivot(
-                  queryResults.data.rows,
-                  dimensions,
-                  seriesLayout.xDimension,
-                  seriesLayout.groupDimension,
-                  seriesLayout.yMetrics[0],
-              )
-            : queryResults.data.rows;
         const { groupDimension } = seriesLayout;
+        let plotData: any[];
         let series: string[];
         const eChartDimensions: ChartConfig['eChartDimensions'] = [
             {
@@ -201,7 +193,7 @@ export const useChartConfig = (
                 displayName: friendlyName(seriesLayout.xDimension),
             },
         ];
-        // add more chart dimensions
+
         if (groupDimension) {
             series = Array.from(
                 new Set(queryResults.data.rows.map((r) => r[groupDimension])),
@@ -210,18 +202,22 @@ export const useChartConfig = (
                 dimensions,
                 groupDimension,
             );
-            // Convert to dictionary to get unique set.
-            const groupChartDimensions: {
-                name: string;
-                displayName: string;
-            }[] = series.map((s) => ({
-                name: s,
-                displayName:
-                    dimensionFormatter?.({
-                        value: s,
-                    }) ?? friendlyName(s),
-            }));
+            const groupChartDimensions: ChartConfig['eChartDimensions'] =
+                series.map((s) => ({
+                    name: s,
+                    displayName:
+                        dimensionFormatter?.({
+                            value: s,
+                        }) ?? friendlyName(s),
+                }));
             eChartDimensions.push(...groupChartDimensions);
+            plotData = pivot(
+                queryResults.data.rows,
+                dimensions,
+                seriesLayout.xDimension,
+                groupDimension,
+                seriesLayout.yMetrics[0],
+            );
         } else {
             series = seriesLayout.yMetrics;
             const yMetricChartDimensions = series.map((s) => ({
@@ -229,6 +225,20 @@ export const useChartConfig = (
                 displayName: friendlyName(s),
             }));
             eChartDimensions.push(...yMetricChartDimensions);
+            const dimensionFormatter = getDimensionFormatterByKey(
+                dimensions,
+                seriesLayout.xDimension,
+            );
+            plotData = queryResults.data.rows.map((row) =>
+                dimensionFormatter
+                    ? {
+                          ...row,
+                          [seriesLayout.xDimension]: dimensionFormatter({
+                              value: row[seriesLayout.xDimension],
+                          }),
+                      }
+                    : row,
+            );
         }
         return {
             setXDimension,
