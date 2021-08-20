@@ -124,6 +124,21 @@
                 }
             }
         },
+        "/org/user/{userUuid}": {
+            "delete": {
+                "summary": "Delete organization user",
+                "tags": ["organization"],
+                "operationId": "deleteOrganizationUser",
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/SuccessResponse"
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
         "/invite-links": {
             "delete": {
                 "summary": "Delete all invite links",

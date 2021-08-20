@@ -26,6 +26,12 @@ export class UserModel {
         this.database = database;
     }
 
+    async delete(userUuid: string): Promise<void> {
+        await this.database(UserTableName)
+            .where('user_uuid', userUuid)
+            .delete();
+    }
+
     async createUser({
         inviteCode,
         firstName,

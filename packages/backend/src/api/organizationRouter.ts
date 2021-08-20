@@ -1,6 +1,7 @@
 import express from 'express';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
-import { organizationService } from '../services/services';
+import { organizationService, userService } from '../services/services';
+import { ForbiddenError } from '../errors';
 
 export const organizationRouter = express.Router();
 
@@ -29,4 +30,25 @@ organizationRouter.get('/users', isAuthenticated, async (req, res, next) =>
             });
         })
         .catch(next),
+);
+
+organizationRouter.delete(
+    '/user/:userUuid',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        if (req.user!.userUuid === req.params.userUuid) {
+            throw new ForbiddenError('User can not delete themself');
+        }
+
+        await userService
+            .delete(req.user!, req.params.userUuid)
+            .then(() => {
+                res.json({
+                    status: 'ok',
+                    results: undefined,
+                });
+            })
+            .catch(next);
+    },
 );

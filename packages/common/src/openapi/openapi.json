@@ -37,6 +37,9 @@
         "/org/users": {
             "$ref": "./paths/organizationUsers.json"
         },
+        "/org/user/{userUuid}": {
+            "$ref": "./paths/organizationUser.json"
+        },
         "/invite-links": {
             "$ref": "./paths/inviteLinks.json"
         },

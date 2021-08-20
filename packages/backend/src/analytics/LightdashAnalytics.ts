@@ -33,6 +33,14 @@ type TrackSimpleEvent = BaseTrack & {
         | 'invite_link.all_revoked'
         | 'query.executed';
 };
+
+type TrackUserDeletedEvent = BaseTrack & {
+    event: 'user.deleted';
+    properties: {
+        deletedUserUuid: string;
+    };
+};
+
 type TrackSavedQuery = BaseTrack & {
     event:
         | 'saved_query.created'
@@ -44,7 +52,7 @@ type TrackSavedQuery = BaseTrack & {
     };
 };
 
-type Track = TrackSimpleEvent | TrackSavedQuery;
+type Track = TrackSimpleEvent | TrackSavedQuery | TrackUserDeletedEvent;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {

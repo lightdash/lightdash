@@ -8,14 +8,16 @@ import {
 
 import { nanoid } from 'nanoid';
 import { InviteLinkModel } from '../models/InviteLinkModel';
-import { NotExistsError } from '../errors';
+import { ForbiddenError, NotExistsError } from '../errors';
 import { analytics, identifyUser } from '../analytics/client';
 import { UserModel } from '../models/UserModel';
 import { mapDbUserDetailsToLightdashUser } from '../models/User';
+import { SessionModel } from '../models/SessionModel';
 
 type UserServiceDependencies = {
     inviteLinkModel: InviteLinkModel;
     userModel: UserModel;
+    sessionModel: SessionModel;
 };
 
 export class UserService {
@@ -23,9 +25,16 @@ export class UserService {
 
     private readonly userModel: UserModel;
 
-    constructor({ inviteLinkModel, userModel }: UserServiceDependencies) {
+    private readonly sessionModel: SessionModel;
+
+    constructor({
+        inviteLinkModel,
+        userModel,
+        sessionModel,
+    }: UserServiceDependencies) {
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
+        this.sessionModel = sessionModel;
     }
 
     async create(
@@ -39,6 +48,32 @@ export class UserService {
             userId: lightdashUser.userUuid,
         });
         return lightdashUser;
+    }
+
+    async delete(user: SessionUser, userUuid: string): Promise<void> {
+        if (user.organizationUuid === undefined) {
+            throw new NotExistsError('Organization not found');
+        }
+
+        const users = await this.userModel.getAllByOrganization(
+            user.organizationUuid,
+        );
+        if (users.length <= 1) {
+            throw new ForbiddenError(
+                'Organization needs to have at least one user',
+            );
+        }
+
+        await this.sessionModel.deleteAllByUserUuid(userUuid);
+
+        await this.userModel.delete(userUuid);
+        analytics.track({
+            event: 'user.deleted',
+            userId: user.userUuid,
+            properties: {
+                deletedUserUuid: userUuid,
+            },
+        });
     }
 
     async createOrganizationInviteLink(

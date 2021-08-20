@@ -7,6 +7,7 @@ Recent and upcoming changes to lightdash
 - Users can create and revoke invite links
 - Users can create new accounts using invite link
 - Show list of users in the organization
+- Allow deleting users in the organization
 
 ### Fixed
 - Fixed boolean value formatter to show yes/no values correctly.
