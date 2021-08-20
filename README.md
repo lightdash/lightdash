@@ -147,6 +147,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/djayatillake"><img src="https://avatars.githubusercontent.com/u/54331742?v=4?s=100" width="100px;" alt=""/><br /><sub><b>djayatillake</b></sub></a><br /><a href="#design-djayatillake" title="Design">🎨</a></td>
+    <td align="center"><a href="https://github.com/silentninja"><img src="https://avatars.githubusercontent.com/u/4469754?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Mukesh</b></sub></a><br /><a href="#data-silentninja" title="Data">🔣</a> <a href="https://github.com/lightdash/lightdash/issues?q=author%3Asilentninja" title="Bug reports">🐛</a></td>
   </tr>
 </table>
 
