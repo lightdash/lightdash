@@ -7,6 +7,7 @@ import OrganizationPanel from './OrganizationPanel';
 import UserManagementPanel from './UserManagementPanel';
 import { Page } from '../../providers/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../types/Events';
+import InvitesPanel from './InvitesPanel';
 
 interface Props {
     isOpen: boolean;
@@ -66,6 +67,19 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => (
                             category={CategoryName.SETTINGS}
                         >
                             <OrganizationPanel />
+                        </Page>
+                    }
+                />
+                <Tab
+                    id="invites"
+                    title="Invites"
+                    panel={
+                        <Page
+                            name={PageName.INVITE_MANAGEMENT_SETTINGS}
+                            type={PageType.MODAL}
+                            category={CategoryName.SETTINGS}
+                        >
+                            <InvitesPanel />
                         </Page>
                     }
                 />

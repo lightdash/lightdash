@@ -15,6 +15,7 @@ export enum PageName {
     PASSWORD_SETTINGS = 'password_settings',
     ORGANIZATION_SETTINGS = 'organization_settings',
     USER_MANAGEMENT_SETTINGS = 'user_management_settings',
+    INVITE_MANAGEMENT_SETTINGS = 'invite_management_settings',
     ABOUT_LIGHTDASH = 'about_lightdash',
 }
 
