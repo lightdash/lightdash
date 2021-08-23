@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+
+## [0.6.4] - 2021-08-23
 ### Added
 - Users can create and revoke invite links
 - Users can create new accounts using invite link
