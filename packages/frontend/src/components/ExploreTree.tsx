@@ -303,26 +303,28 @@ const TableTree: FC<TableTreeProps> = ({
                     ),
                     isExpanded: true,
                     hasCaret: false,
-                    childNodes: filteredMetrics.map((metric) => ({
-                        key: metric.name,
-                        id: metric.name,
-                        label: (
-                            <Tooltip2 content={metric.description}>
-                                {friendlyName(metric.name)}
-                            </Tooltip2>
-                        ),
-                        nodeData: {
-                            fieldId: fieldId(metric),
-                            isDimension: false,
-                        } as NodeDataProps,
-                        isSelected: selectedNodes.has(fieldId(metric)),
-                        secondaryLabel: metric.source && (
-                            <NodeItemButtons
-                                node={metric}
-                                onOpenSourceDialog={onOpenSourceDialog}
-                            />
-                        ),
-                    })),
+                    childNodes: filteredMetrics
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((metric) => ({
+                            key: metric.name,
+                            id: metric.name,
+                            label: (
+                                <Tooltip2 content={metric.description}>
+                                    {friendlyName(metric.name)}
+                                </Tooltip2>
+                            ),
+                            nodeData: {
+                                fieldId: fieldId(metric),
+                                isDimension: false,
+                            } as NodeDataProps,
+                            isSelected: selectedNodes.has(fieldId(metric)),
+                            secondaryLabel: metric.source && (
+                                <NodeItemButtons
+                                    node={metric}
+                                    onOpenSourceDialog={onOpenSourceDialog}
+                                />
+                            ),
+                        })),
                 },
                 {
                     id: 'dimensions',
@@ -340,26 +342,28 @@ const TableTree: FC<TableTreeProps> = ({
                     ),
                     hasCaret: false,
                     isExpanded: true,
-                    childNodes: filteredDimensions.map((dimension) => ({
-                        key: dimension.name,
-                        id: dimension.name,
-                        label: (
-                            <Tooltip2 content={dimension.description}>
-                                {friendlyName(dimension.name)}
-                            </Tooltip2>
-                        ),
-                        nodeData: {
-                            fieldId: fieldId(dimension),
-                            isDimension: true,
-                        } as NodeDataProps,
-                        isSelected: selectedNodes.has(fieldId(dimension)),
-                        secondaryLabel: dimension.source && (
-                            <NodeItemButtons
-                                node={dimension}
-                                onOpenSourceDialog={onOpenSourceDialog}
-                            />
-                        ),
-                    })),
+                    childNodes: filteredDimensions
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((dimension) => ({
+                            key: dimension.name,
+                            id: dimension.name,
+                            label: (
+                                <Tooltip2 content={dimension.description}>
+                                    {friendlyName(dimension.name)}
+                                </Tooltip2>
+                            ),
+                            nodeData: {
+                                fieldId: fieldId(dimension),
+                                isDimension: true,
+                            } as NodeDataProps,
+                            isSelected: selectedNodes.has(fieldId(dimension)),
+                            secondaryLabel: dimension.source && (
+                                <NodeItemButtons
+                                    node={dimension}
+                                    onOpenSourceDialog={onOpenSourceDialog}
+                                />
+                            ),
+                        })),
                 },
             ],
         },
