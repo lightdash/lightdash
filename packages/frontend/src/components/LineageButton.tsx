@@ -5,7 +5,8 @@ import EChartsReact from 'echarts-for-react';
 import { friendlyName, LineageNodeDependency } from 'common';
 import * as dagre from 'dagre';
 import { useTable } from '../hooks/useTable';
-import { useApp } from '../providers/AppProvider';
+import { useTracking } from '../providers/TrackingProvider';
+import { EventName } from '../types/Events';
 
 const Content = () => {
     const [showAll, setShowAll] = useState(false);
@@ -119,7 +120,7 @@ const Content = () => {
 
 export const LineageButton = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const { rudder } = useApp();
+    const { track } = useTracking();
     return (
         <Popover2
             content={<Content />}
@@ -136,12 +137,8 @@ export const LineageButton = () => {
                     icon="data-lineage"
                     text="Show lineage"
                     onClick={() => {
-                        rudder.track({
-                            name: 'show_lineage_button.clicked',
-                            page: {
-                                name: 'explorer',
-                            },
-                            sectionName: 'sidebar',
+                        track({
+                            name: EventName.SHOW_LINEAGE_BUTTON_CLICKED,
                         });
                     }}
                 />

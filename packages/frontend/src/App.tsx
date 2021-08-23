@@ -21,6 +21,8 @@ import Explorer from './pages/Explorer';
 import { ExplorerProvider } from './providers/ExplorerProvider';
 import SavedExplorer from './pages/SavedExplorer';
 import Signup from './pages/Signup';
+import { Page, TrackingProvider } from './providers/TrackingProvider';
+import { PageName } from './types/Events';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -33,50 +35,68 @@ const queryClient = new QueryClient({
 const App = () => (
     <QueryClientProvider client={queryClient}>
         <AppProvider>
-            <Router>
-                <Switch>
-                    <Route path="/register">
-                        <Register />
-                    </Route>
-                    <Route path="/login">
-                        <Login />
-                    </Route>
-                    <Route path="/invite/:inviteCode">
-                        <Signup />
-                    </Route>
-                    <PrivateRoute path="/">
-                        <div
-                            style={{
-                                minHeight: '100vh',
-                            }}
-                        >
-                            <AppBar />
-                            <Switch>
-                                <Route path="/saved/:savedQueryUuid">
-                                    <ExplorerProvider>
-                                        <SavedExplorer />
-                                    </ExplorerProvider>
-                                </Route>
-                                <Route path="/saved">
-                                    <Saved />
-                                </Route>
-                                <Route path="/tables/:tableId">
-                                    <ExplorerProvider>
-                                        <Explorer />
-                                    </ExplorerProvider>
-                                </Route>
-                                <Route path="/tables">
-                                    <ExplorerProvider>
-                                        <Explorer />
-                                    </ExplorerProvider>
-                                </Route>
-                                <Redirect to="/tables" />
-                            </Switch>
-                            <ReactQueryDevtools />
-                        </div>
-                    </PrivateRoute>
-                </Switch>
-            </Router>
+            <TrackingProvider>
+                <Router>
+                    <Switch>
+                        <Route path="/register">
+                            <Page name={PageName.REGISTER}>
+                                <Register />
+                            </Page>
+                        </Route>
+                        <Route path="/login">
+                            <Page name={PageName.LOGIN}>
+                                <Login />
+                            </Page>
+                        </Route>
+                        <Route path="/invite/:inviteCode">
+                            <Page name={PageName.SIGNUP}>
+                                <Signup />
+                            </Page>
+                        </Route>
+                        <PrivateRoute path="/">
+                            <div
+                                style={{
+                                    minHeight: '100vh',
+                                }}
+                            >
+                                <AppBar />
+                                <Switch>
+                                    <Route path="/saved/:savedQueryUuid">
+                                        <Page
+                                            name={PageName.SAVED_QUERY_EXPLORER}
+                                        >
+                                            <ExplorerProvider>
+                                                <SavedExplorer />
+                                            </ExplorerProvider>
+                                        </Page>
+                                    </Route>
+                                    <Route path="/saved">
+                                        <Page name={PageName.SAVED_QUERIES}>
+                                            <Saved />
+                                        </Page>
+                                    </Route>
+                                    <Route path="/tables/:tableId">
+                                        <Page name={PageName.EXPLORER}>
+                                            <ExplorerProvider>
+                                                <Explorer />
+                                            </ExplorerProvider>
+                                        </Page>
+                                    </Route>
+                                    <Route path="/tables">
+                                        <Page name={PageName.EXPLORE_TABLES}>
+                                            <ExplorerProvider>
+                                                <Explorer />
+                                            </ExplorerProvider>
+                                        </Page>
+                                    </Route>
+                                    <Redirect to="/tables" />
+                                </Switch>
+                                <ReactQueryDevtools />
+                            </div>
+                        </PrivateRoute>
+                    </Switch>
+                </Router>
+            </TrackingProvider>
         </AppProvider>
     </QueryClientProvider>
 );

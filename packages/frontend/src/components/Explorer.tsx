@@ -1,4 +1,4 @@
-import React, { FC, useRef, useState, useEffect } from 'react';
+import React, { FC, useEffect, useRef, useState } from 'react';
 import {
     Button,
     ButtonGroup,
@@ -12,7 +12,7 @@ import {
     Tag,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import { SavedQuery, DBChartTypes } from 'common';
+import { DBChartTypes, SavedQuery } from 'common';
 import EChartsReact from 'echarts-for-react';
 import { FiltersForm } from '../filters/FiltersForm';
 import { ResultsTable } from './ResultsTable';
@@ -27,14 +27,14 @@ import { ChartDownloadMenu } from './ChartDownload';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { CreateSavedQueryModal } from './SaveQueryModal';
 import { useAddVersionMutation, useSavedQuery } from '../hooks/useSavedQuery';
-import { useApp } from '../providers/AppProvider';
+import { Section, useTracking } from '../providers/TrackingProvider';
+import { SectionName } from '../types/Events';
 
 interface Props {
     savedQueryUuid?: string;
 }
 
 export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
-    const { rudder } = useApp();
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const chartRef = useRef<EChartsReact>(null);
     const {
@@ -99,57 +99,48 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const isChartEmpty: boolean = !chartConfig.plotData;
     return (
         <>
-            <div
-                style={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    justifyContent: 'flex-end',
-                }}
-            >
-                <RefreshButton
-                    queryResults={queryResults}
-                    onClick={() => {
-                        rudder.track({
-                            name: 'run_query_button.clicked',
-                            page: {
-                                name: 'explorer',
-                            },
-                            sectionName: 'top_bar',
-                        });
+            <Section name={SectionName.EXPLORER_TOP_BUTTONS}>
+                <div
+                    style={{
+                        display: 'flex',
+                        flexDirection: 'row',
+                        justifyContent: 'flex-end',
                     }}
-                />
-                <RefreshServerButton />
-                <Popover2
-                    content={
-                        <Menu>
-                            {savedQueryUuid && (
-                                <MenuItem
-                                    icon="saved"
-                                    text="Save chart"
-                                    onClick={handleSavedQueryUpdate}
-                                />
-                            )}
-                            <MenuItem
-                                icon="add"
-                                text="Save chart as"
-                                onClick={() => setIsQueryModalOpen(true)}
-                            />
-                        </Menu>
-                    }
-                    placement="bottom"
-                    disabled={!tableName}
                 >
-                    <Button
-                        icon="more"
+                    <RefreshButton queryResults={queryResults} />
+                    <RefreshServerButton />
+                    <Popover2
+                        content={
+                            <Menu>
+                                {savedQueryUuid && (
+                                    <MenuItem
+                                        icon="saved"
+                                        text="Save chart"
+                                        onClick={handleSavedQueryUpdate}
+                                    />
+                                )}
+                                <MenuItem
+                                    icon="add"
+                                    text="Save chart as"
+                                    onClick={() => setIsQueryModalOpen(true)}
+                                />
+                            </Menu>
+                        }
+                        placement="bottom"
                         disabled={!tableName}
-                        style={{
-                            height: 40,
-                            width: 40,
-                            marginLeft: '10px',
-                        }}
-                    />
-                </Popover2>
-            </div>
+                    >
+                        <Button
+                            icon="more"
+                            disabled={!tableName}
+                            style={{
+                                height: 40,
+                                width: 40,
+                                marginLeft: '10px',
+                            }}
+                        />
+                    </Popover2>
+                </div>
+            </Section>
             <div style={{ paddingTop: '10px' }} />
             <Card style={{ padding: 5 }} elevation={1}>
                 <div

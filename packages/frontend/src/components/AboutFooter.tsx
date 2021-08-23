@@ -10,10 +10,12 @@ import {
     Tag,
 } from '@blueprintjs/core';
 import { useApp } from '../providers/AppProvider';
+import { Page } from '../providers/TrackingProvider';
+import { PageName, PageType } from '../types/Events';
 
 const AboutFooter = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const { health: healthState, rudder } = useApp();
+    const { health: healthState } = useApp();
     const hasUpdate =
         healthState.data?.latest.version &&
         healthState.data.version !== healthState.data.latest.version;
@@ -66,58 +68,58 @@ const AboutFooter = () => {
             </footer>
             <Dialog
                 isOpen={isOpen}
-                onOpened={() =>
-                    rudder.page({ name: 'about_lightdash', type: 'modal' })
-                }
                 onClose={() => setIsOpen(false)}
                 icon="info-sign"
                 title="About Lightdash"
             >
-                <div className={Classes.DIALOG_BODY}>
-                    <H5>
-                        <b>Version:</b>{' '}
-                        {healthState.data
-                            ? `v${healthState.data.version}`
-                            : 'n/a'}
-                    </H5>
-                    {hasUpdate && (
-                        <Callout
-                            title="New version available!"
-                            intent={Intent.PRIMARY}
-                        >
-                            The version v{healthState.data?.latest.version} is
-                            now available. Please follow the instructions in the{' '}
-                            <a
-                                href="https://docs.lightdash.com/guides/how-to-update-docker-image"
-                                target="_blank"
-                                rel="noreferrer"
+                <Page name={PageName.ABOUT_LIGHTDASH} type={PageType.MODAL}>
+                    <div className={Classes.DIALOG_BODY}>
+                        <H5>
+                            <b>Version:</b>{' '}
+                            {healthState.data
+                                ? `v${healthState.data.version}`
+                                : 'n/a'}
+                        </H5>
+                        {hasUpdate && (
+                            <Callout
+                                title="New version available!"
+                                intent={Intent.PRIMARY}
                             >
-                                How to update version
-                            </a>{' '}
-                            documentation.
-                        </Callout>
-                    )}
-                </div>
-                <div className={Classes.DIALOG_FOOTER}>
-                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                        <AnchorButton
-                            href="https://docs.lightdash.com/"
-                            target="_blank"
-                            outlined
-                            rightIcon="share"
-                        >
-                            Docs
-                        </AnchorButton>
-                        <AnchorButton
-                            href="https://github.com/lightdash/lightdash"
-                            target="_blank"
-                            outlined
-                            rightIcon="share"
-                        >
-                            Github
-                        </AnchorButton>
+                                The version v{healthState.data?.latest.version}{' '}
+                                is now available. Please follow the instructions
+                                in the{' '}
+                                <a
+                                    href="https://docs.lightdash.com/guides/how-to-update-docker-image"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    How to update version
+                                </a>{' '}
+                                documentation.
+                            </Callout>
+                        )}
                     </div>
-                </div>
+                    <div className={Classes.DIALOG_FOOTER}>
+                        <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+                            <AnchorButton
+                                href="https://docs.lightdash.com/"
+                                target="_blank"
+                                outlined
+                                rightIcon="share"
+                            >
+                                Docs
+                            </AnchorButton>
+                            <AnchorButton
+                                href="https://github.com/lightdash/lightdash"
+                                target="_blank"
+                                outlined
+                                rightIcon="share"
+                            >
+                                Github
+                            </AnchorButton>
+                        </div>
+                    </div>
+                </Page>
             </Dialog>
         </>
     );

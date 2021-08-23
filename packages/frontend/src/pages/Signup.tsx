@@ -1,4 +1,4 @@
-import React, { FC, useEffect } from 'react';
+import React, { FC } from 'react';
 import { Colors, Card, H2, NonIdealState } from '@blueprintjs/core';
 import { useMutation } from 'react-query';
 import {
@@ -14,6 +14,7 @@ import AboutFooter from '../components/AboutFooter';
 import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/CreateUserForm';
 import { useInviteLink } from '../hooks/useInviteLink';
+import { useTracking } from '../providers/TrackingProvider';
 
 const createUserQuery = async (data: CreateOrganizationUser) =>
     lightdashApi<LightdashUser>({
@@ -25,7 +26,8 @@ const createUserQuery = async (data: CreateOrganizationUser) =>
 const Signup: FC = () => {
     const { inviteCode } = useParams<{ inviteCode: string }>();
     const { health } = useApp();
-    const { rudder, showToastError } = useApp();
+    const { showToastError } = useApp();
+    const { identify } = useTracking();
     const { isLoading, mutate } = useMutation<
         LightdashUser,
         ApiError,
@@ -33,7 +35,7 @@ const Signup: FC = () => {
     >(createUserQuery, {
         mutationKey: ['create_user'],
         onSuccess: (data) => {
-            rudder.identify({ id: data.userUuid, page: { name: 'signup' } });
+            identify({ id: data.userUuid });
             window.location.href = '/';
         },
         onError: (error) => {
@@ -44,10 +46,6 @@ const Signup: FC = () => {
         },
     });
     const inviteLinkQuery = useInviteLink(inviteCode);
-
-    useEffect(() => {
-        rudder.page({ name: 'signup' });
-    }, [rudder]);
 
     if (health.isLoading || inviteLinkQuery.isLoading) {
         return <PageSpinner />;

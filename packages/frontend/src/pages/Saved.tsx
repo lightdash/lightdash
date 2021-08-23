@@ -19,7 +19,6 @@ import { useQuery } from 'react-query';
 import { ApiError, Space, SpaceQuery } from 'common';
 import { useHistory } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
 import { useDeleteMutation } from '../hooks/useSavedQuery';
 import { UpdateSavedQueryModal } from '../components/SaveQueryModal';
 
@@ -123,7 +122,6 @@ const SavedListItem: FC<{ savedQuery: SpaceQuery }> = ({ savedQuery }) => {
 };
 
 const Saved: FC = () => {
-    const { rudder } = useApp();
     const [selectedMenu, setSelectedMenu] = useState<string>();
 
     const { isLoading, data } = useQuery<Space[], ApiError>({
@@ -141,10 +139,6 @@ const Saved: FC = () => {
             setSelectedMenu(data[0].uuid);
         }
     }, [selectedMenu, data]);
-
-    useEffect(() => {
-        rudder.page({ name: 'saved_charts' });
-    }, [rudder]);
 
     if (isLoading) {
         return (

@@ -17,6 +17,7 @@ import { useApp } from '../providers/AppProvider';
 import AboutFooter from '../components/AboutFooter';
 import PageSpinner from '../components/PageSpinner';
 import PasswordInput from '../components/PasswordInput';
+import { useTracking } from '../providers/TrackingProvider';
 
 const loginQuery = async (data: { email: string; password: string }) =>
     lightdashApi<LightdashUser>({
@@ -30,7 +31,7 @@ const Login: FC = () => {
     const { health } = useApp();
     const [email, setEmail] = useState<string>();
     const [password, setPassword] = useState<string>();
-    const { rudder } = useApp();
+    const { identify } = useTracking();
 
     const { isLoading, status, error, mutate } = useMutation<
         LightdashUser,
@@ -38,8 +39,7 @@ const Login: FC = () => {
         { email: string; password: string }
     >(loginQuery, {
         mutationKey: ['login'],
-        onSuccess: (data) =>
-            rudder.identify({ id: data.userUuid, page: { name: 'login' } }),
+        onSuccess: (data) => identify({ id: data.userUuid }),
     });
 
     useEffect(() => {
@@ -76,10 +76,6 @@ const Login: FC = () => {
             setPassword(USER_SEED.password);
         }
     }, [health]);
-
-    useEffect(() => {
-        rudder.page({ name: 'login' });
-    }, [rudder]);
 
     const handleLogin = () => {
         if (email && password) {

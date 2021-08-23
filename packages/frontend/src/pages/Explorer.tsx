@@ -1,17 +1,11 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Card } from '@blueprintjs/core';
 import { ExploreSideBar } from '../components/ExploreSideBar';
 import { Explorer } from '../components/Explorer';
 import { useExplorerRoute } from '../hooks/useExplorerRoute';
-import { useApp } from '../providers/AppProvider';
 
 const ExplorerPage = () => {
     useExplorerRoute();
-    const { rudder } = useApp();
-
-    useEffect(() => {
-        rudder.page({ name: 'explorer' });
-    }, [rudder]);
 
     return (
         <div

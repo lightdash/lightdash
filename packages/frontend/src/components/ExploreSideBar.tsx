@@ -11,6 +11,7 @@ import {
 } from '@blueprintjs/core';
 import React, { useState } from 'react';
 import { friendlyName } from 'common';
+import { useHistory } from 'react-router-dom';
 import ExploreTree from './ExploreTree';
 import { useTables } from '../hooks/useTables';
 import { useTable } from '../hooks/useTable';
@@ -19,6 +20,8 @@ import AboutFooter from './AboutFooter';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useApp } from '../providers/AppProvider';
 import { ShowErrorsButton } from './ShowErrorsButton';
+import { Section } from '../providers/TrackingProvider';
+import { SectionName } from '../types/Events';
 
 const SideBarLoadingState = () => (
     <Menu large style={{ flex: 1 }}>
@@ -229,21 +232,27 @@ export const ExploreSideBar = () => {
         state: { tableName },
         actions: { reset },
     } = useExplorer();
+    const history = useHistory();
     const onBack = () => {
         reset();
+        history.push({
+            pathname: `/tables`,
+        });
     };
 
     return (
-        <div
-            style={{
-                height: '100%',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-            }}
-        >
-            {!tableName ? <BasePanel /> : <ExplorePanel onBack={onBack} />}
-            <AboutFooter />
-        </div>
+        <Section name={SectionName.SIDEBAR}>
+            <div
+                style={{
+                    height: '100%',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                }}
+            >
+                {!tableName ? <BasePanel /> : <ExplorePanel onBack={onBack} />}
+                <AboutFooter />
+            </div>
+        </Section>
     );
 };
