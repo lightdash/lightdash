@@ -15,6 +15,8 @@ import {
     useCreateInviteLinkMutation,
     useRevokeInvitesMutation,
 } from '../../hooks/useInviteLink';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
 
 const updateOrgQuery = async (data: { organizationName: string }) =>
     lightdashApi<undefined>({
@@ -26,12 +28,12 @@ const updateOrgQuery = async (data: { organizationName: string }) =>
 const OrganizationPanel: FC = () => {
     const queryClient = useQueryClient();
     const {
-        rudder,
         errorLogs: { showError },
         showToastError,
         showToastSuccess,
         user,
     } = useApp();
+    const { track } = useTracking();
     const [organizationName, setOrganizationName] = useState<
         string | undefined
     >(user.data?.organizationName);
@@ -134,13 +136,8 @@ const OrganizationPanel: FC = () => {
                             style={{ marginTop: 10 }}
                             loading={inviteLink.isLoading}
                             onClick={() => {
-                                rudder.track({
-                                    name: 'invite_users_to_organisation_button.clicked',
-                                    page: {
-                                        name: 'settings_organization',
-                                        category: 'settings',
-                                        type: 'modal',
-                                    },
+                                track({
+                                    name: EventName.INVITE_BUTTON_CLICKED,
                                 });
                                 inviteLink.mutate();
                             }}
@@ -157,13 +154,8 @@ const OrganizationPanel: FC = () => {
                         text="Revoke all invites"
                         loading={inviteLink.isLoading}
                         onClick={() => {
-                            rudder.track({
-                                name: 'revoke_invites_button.clicked',
-                                page: {
-                                    name: 'settings_organization',
-                                    category: 'settings',
-                                    type: 'modal',
-                                },
+                            track({
+                                name: EventName.REVOKE_INVITES_BUTTON_CLICKED,
                             });
                             revokeInvitesMutation.mutate();
                             inviteLink.reset();

@@ -6,7 +6,6 @@ import React, {
     useCallback,
 } from 'react';
 import Markdown from 'markdown-to-jsx';
-import * as rudderSDK from 'rudder-sdk-js';
 import { ApiError, ApiHealthResults, HealthState, LightdashUser } from 'common';
 import { useQuery } from 'react-query';
 import { IToastProps } from '@blueprintjs/core/src/components/toast/toast';
@@ -14,7 +13,6 @@ import { Intent } from '@blueprintjs/core';
 import { UseQueryResult } from 'react-query/types/react/types';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';
-import { Rudder, useRudder } from '../hooks/useRudder';
 import { ErrorLogs, useErrorLogs } from '../hooks/useErrorLogs';
 
 const getHealthState = async () =>
@@ -42,7 +40,6 @@ interface AppContext {
     user: UseQueryResult<LightdashUser, ApiError>;
     showToastSuccess: (props: Message) => void;
     showToastError: (props: Message) => void;
-    rudder: Rudder;
     errorLogs: ErrorLogs;
 }
 
@@ -109,19 +106,11 @@ export const AppProvider: FC = ({ children }) => {
     );
     const errorLogs = useErrorLogs();
 
-    const rudder = useRudder(
-        health.data?.mode,
-        health.data?.version,
-        health.data?.rudder.writeKey,
-        health.data?.rudder.dataPlaneUrl,
-    );
-
     const value = {
         health,
         user,
         showToastSuccess,
         showToastError,
-        rudder,
         errorLogs,
     };
 

@@ -16,7 +16,8 @@ import { useColumns } from '../hooks/useColumns';
 import { useTable } from '../hooks/useTable';
 import { RefreshButton } from './RefreshButton';
 import { useExplorer } from '../providers/ExplorerProvider';
-import { useApp } from '../providers/AppProvider';
+import { Section } from '../providers/TrackingProvider';
+import { SectionName } from '../types/Events';
 
 const hexToRGB = (hex: string, alpha: number) => {
     // eslint-disable-next-line radix
@@ -45,30 +46,16 @@ type EmptyStateNoTableDataProps = {
 };
 const EmptyStateNoTableData = ({
     queryResults,
-}: EmptyStateNoTableDataProps) => {
-    const { rudder } = useApp();
-    return (
+}: EmptyStateNoTableDataProps) => (
+    <Section name={SectionName.EMPTY_RESULTS_TABLE}>
         <div style={{ padding: '50px 0' }}>
             <NonIdealState
                 description="Click run query to see your results"
-                action={
-                    <RefreshButton
-                        queryResults={queryResults}
-                        onClick={() => {
-                            rudder.track({
-                                name: 'run_query_button.clicked',
-                                page: {
-                                    name: 'explorer',
-                                },
-                                sectionName: 'empty_results_table',
-                            });
-                        }}
-                    />
-                }
+                action={<RefreshButton queryResults={queryResults} />}
             />
         </div>
-    );
-};
+    </Section>
+);
 
 const EmptyStateExploreLoading = () => (
     <NonIdealState title="Loading tables" icon={<Spinner />} />

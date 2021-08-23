@@ -8,6 +8,7 @@ import { useApp } from '../providers/AppProvider';
 import AboutFooter from '../components/AboutFooter';
 import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/CreateUserForm';
+import { useTracking } from '../providers/TrackingProvider';
 
 const registerQuery = async (data: CreateInitialUserArgs) =>
     lightdashApi<LightdashUser>({
@@ -19,7 +20,7 @@ const registerQuery = async (data: CreateInitialUserArgs) =>
 const Register: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
     const { health, showToastError } = useApp();
-    const { rudder } = useApp();
+    const { identify } = useTracking();
     const { isLoading, mutate } = useMutation<
         LightdashUser,
         ApiError,
@@ -27,7 +28,7 @@ const Register: FC = () => {
     >(registerQuery, {
         mutationKey: ['login'],
         onSuccess: (data) => {
-            rudder.identify({ id: data.userUuid, page: { name: 'register' } });
+            identify({ id: data.userUuid });
             window.location.href = location.state?.from
                 ? `${location.state.from.pathname}${location.state.from.search}`
                 : '/';
@@ -39,10 +40,6 @@ const Register: FC = () => {
             });
         },
     });
-
-    useEffect(() => {
-        rudder.page({ name: 'register' });
-    }, [rudder]);
 
     if (health.isLoading) {
         return <PageSpinner />;

@@ -81,10 +81,6 @@ export const useExplorerRoute = () => {
                 pathname: `/tables/${state.tableName}`,
                 search: newParams.toString(),
             });
-        } else {
-            history.push({
-                pathname: `/tables`,
-            });
         }
     }, [state, history]);
 };

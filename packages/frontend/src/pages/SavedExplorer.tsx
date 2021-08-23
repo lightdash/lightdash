@@ -6,7 +6,6 @@ import { Explorer } from '../components/Explorer';
 import { useExplorer } from '../providers/ExplorerProvider';
 import AboutFooter from '../components/AboutFooter';
 import { useSavedQuery } from '../hooks/useSavedQuery';
-import { useApp } from '../providers/AppProvider';
 
 const SavedExplorer = () => {
     const history = useHistory();
@@ -15,7 +14,6 @@ const SavedExplorer = () => {
         actions: { setState, reset },
     } = useExplorer();
     const { data } = useSavedQuery({ id: pathParams.savedQueryUuid });
-    const { rudder } = useApp();
 
     const onBack = () => {
         reset();
@@ -23,10 +21,6 @@ const SavedExplorer = () => {
             pathname: `/saved`,
         });
     };
-
-    useEffect(() => {
-        rudder.page({ name: 'explorer' });
-    }, [rudder]);
 
     useEffect(() => {
         if (data) {
