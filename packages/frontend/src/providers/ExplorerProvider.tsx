@@ -112,12 +112,14 @@ function reducer(
             return {
                 ...state,
                 dimensions: toggleArrayValue(state.dimensions, action.payload),
+                sorts: state.sorts.filter((s) => s.fieldId !== action.payload),
             };
         }
         case ActionType.TOGGLE_METRIC: {
             return {
                 ...state,
                 metrics: toggleArrayValue(state.metrics, action.payload),
+                sorts: state.sorts.filter((s) => s.fieldId !== action.payload),
             };
         }
         case ActionType.TOGGLE_SORT_FIELD: {
