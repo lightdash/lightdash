@@ -13,6 +13,7 @@ Recent and upcoming changes to lightdash
 - Fixed boolean value formatter to show yes/no values correctly.
 - Fixed chart dimensions formatting issues, should format date and boolean correctly now
 - Fixed sort behaviour where removing a field would not remove it from the list of sort fields
+- Fixed bug where tables, metrics, and dimensions were ordered randomly (now alphabetical)
 
 ## [0.6.3] - 2021-08-10
 ### Fixed

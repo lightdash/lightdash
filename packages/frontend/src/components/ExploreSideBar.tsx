@@ -85,25 +85,27 @@ const BasePanel = () => {
                         overflow: 'auto',
                     }}
                 >
-                    {(exploresResult.data || []).map((explore) => (
-                        <React.Fragment key={explore.name}>
-                            <MenuItem
-                                icon="database"
-                                text={friendlyName(explore.name)}
-                                onClick={() => {
-                                    if (
-                                        activeFields.size > 0 &&
-                                        activeTableName !== explore.name
-                                    )
-                                        confirm(explore.name);
-                                    else {
-                                        setActiveTableName(explore.name);
-                                    }
-                                }}
-                            />
-                            <MenuDivider />
-                        </React.Fragment>
-                    ))}
+                    {(exploresResult.data || [])
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((explore) => (
+                            <React.Fragment key={explore.name}>
+                                <MenuItem
+                                    icon="database"
+                                    text={friendlyName(explore.name)}
+                                    onClick={() => {
+                                        if (
+                                            activeFields.size > 0 &&
+                                            activeTableName !== explore.name
+                                        )
+                                            confirm(explore.name);
+                                        else {
+                                            setActiveTableName(explore.name);
+                                        }
+                                    }}
+                                />
+                                <MenuDivider />
+                            </React.Fragment>
+                        ))}
                 </Menu>
                 <Alert
                     isOpen={showChangeExploreConfirmation}
