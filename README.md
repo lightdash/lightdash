@@ -39,7 +39,7 @@ Lightdash is a BI tool that is fully integrated with your dbt project, allowing 
 * [x] 📊 Simple data visualisations for your metrics
 * [x] 🚀 Share your work as a URL or export results to use in any other tool
 
-You can also check out our future plans for the product [in our roadmap.](https://www.notion.so/lightdash/Product-Roadmap-49e980c97bb44aa5a78ee2618851f11f)
+You can also check out our future plans for the product [in our roadmap.](https://lightdash.notion.site/Product-Roadmap-49e980c97bb44aa5a78ee2618851f11f)
 
 ## 1-click deploy
 
