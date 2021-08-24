@@ -36,6 +36,8 @@ export const useExplorerRoute = () => {
                     !Number.isNaN(parseInt(limitSearchParam, 10))
                         ? parseInt(limitSearchParam, 10)
                         : 500;
+                const columnOrder =
+                    searchParams.get('column_order')?.split(',') || [];
                 setState({
                     tableName: pathParams.tableId,
                     dimensions,
@@ -43,6 +45,7 @@ export const useExplorerRoute = () => {
                     filters,
                     sorts,
                     limit,
+                    columnOrder,
                 });
             } catch (e) {
                 showToastError({ title: 'Error parsing url', subtitle: e });
@@ -77,6 +80,11 @@ export const useExplorerRoute = () => {
                 newParams.set('filters', JSON.stringify(state.filters));
             }
             newParams.set('limit', `${state.limit}`);
+            if (state.columnOrder.length === 0) {
+                newParams.delete('column_order');
+            } else {
+                newParams.set('column_order', state.columnOrder.join(','));
+            }
             history.replace({
                 pathname: `/tables/${state.tableName}`,
                 search: newParams.toString(),

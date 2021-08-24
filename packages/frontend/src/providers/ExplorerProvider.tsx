@@ -18,6 +18,7 @@ export enum ActionType {
     SET_SORT_FIELDS,
     SET_ROW_LIMIT,
     SET_FILTERS,
+    SET_COLUMN_ORDER,
 }
 
 type Action =
@@ -42,6 +43,10 @@ type Action =
     | {
           type: ActionType.SET_FILTERS;
           payload: FilterGroup[];
+      }
+    | {
+          type: ActionType.SET_COLUMN_ORDER;
+          payload: string[];
       };
 
 interface ExplorerReduceState {
@@ -50,6 +55,7 @@ interface ExplorerReduceState {
     metrics: FieldId[];
     filters: FilterGroup[];
     sorts: SortField[];
+    columnOrder: string[];
     limit: number;
 }
 
@@ -69,6 +75,7 @@ interface ExplorerContext {
         setSortFields: (sortFields: SortField[]) => void;
         setRowLimit: (limit: number) => void;
         setFilters: (filters: FilterGroup[]) => void;
+        setColumnOrder: (order: string[]) => void;
     };
 }
 
@@ -91,6 +98,7 @@ const defaultState: ExplorerReduceState = {
     metrics: [],
     filters: [],
     sorts: [],
+    columnOrder: [],
     limit: 500,
 };
 
@@ -113,6 +121,9 @@ function reducer(
                 ...state,
                 dimensions: toggleArrayValue(state.dimensions, action.payload),
                 sorts: state.sorts.filter((s) => s.fieldId !== action.payload),
+                columnOrder: state.columnOrder.filter(
+                    (column) => column !== action.payload,
+                ),
             };
         }
         case ActionType.TOGGLE_METRIC: {
@@ -120,6 +131,9 @@ function reducer(
                 ...state,
                 metrics: toggleArrayValue(state.metrics, action.payload),
                 sorts: state.sorts.filter((s) => s.fieldId !== action.payload),
+                columnOrder: state.columnOrder.filter(
+                    (column) => column !== action.payload,
+                ),
             };
         }
         case ActionType.TOGGLE_SORT_FIELD: {
@@ -184,6 +198,18 @@ function reducer(
             return {
                 ...state,
                 filters: action.payload,
+            };
+        }
+        case ActionType.SET_COLUMN_ORDER: {
+            const activeFields = new Set([
+                ...state.dimensions,
+                ...state.metrics,
+            ]);
+            return {
+                ...state,
+                columnOrder: action.payload.filter((column) =>
+                    activeFields.has(column),
+                ),
             };
         }
         default: {
@@ -263,6 +289,13 @@ export const ExplorerProvider: FC = ({ children }) => {
         });
     }, []);
 
+    const setColumnOrder = useCallback((order: string[]) => {
+        dispatch({
+            type: ActionType.SET_COLUMN_ORDER,
+            payload: order,
+        });
+    }, []);
+
     const value: ExplorerContext = {
         state: useMemo(
             () => ({ ...reducerState, activeFields, isValidQuery }),
@@ -278,6 +311,7 @@ export const ExplorerProvider: FC = ({ children }) => {
                 setSortFields,
                 setFilters,
                 setRowLimit,
+                setColumnOrder,
             }),
             [
                 reset,
@@ -288,6 +322,7 @@ export const ExplorerProvider: FC = ({ children }) => {
                 setTableName,
                 toggleActiveField,
                 toggleSortField,
+                setColumnOrder,
             ],
         ),
     };
