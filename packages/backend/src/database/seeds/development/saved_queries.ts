@@ -26,5 +26,12 @@ export async function seed(knex: Knex): Promise<void> {
             chartType: DBChartTypes.COLUMN,
             seriesLayout: {},
         },
+        tableConfig: {
+            columnOrder: [
+                'payments_payment_method',
+                'payments_total_revenue',
+                'payments_payment_count',
+            ],
+        },
     });
 }

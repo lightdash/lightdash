@@ -752,6 +752,9 @@ export type SavedQuery = {
         chartType: DBChartTypes;
         seriesLayout: SeriesLayout;
     };
+    tableConfig: {
+        columnOrder: string[];
+    };
 };
 
 export type SpaceQuery = Pick<SavedQuery, 'uuid' | 'name'>;

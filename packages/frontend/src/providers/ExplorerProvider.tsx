@@ -102,6 +102,19 @@ const defaultState: ExplorerReduceState = {
     limit: 500,
 };
 
+const calcColumnOrder = (
+    columnOrder: FieldId[],
+    fieldIds: FieldId[],
+): FieldId[] => {
+    const cleanColumnOrder = columnOrder.filter((column) =>
+        fieldIds.includes(column),
+    );
+    const missingColumns = fieldIds.filter(
+        (fieldId) => !cleanColumnOrder.includes(fieldId),
+    );
+    return [...cleanColumnOrder, ...missingColumns];
+};
+
 function reducer(
     state: ExplorerReduceState,
     action: Action,
@@ -111,29 +124,42 @@ function reducer(
             return defaultState;
         }
         case ActionType.SET_STATE: {
-            return action.payload;
+            return {
+                ...action.payload,
+                columnOrder: calcColumnOrder(action.payload.columnOrder, [
+                    ...action.payload.dimensions,
+                    ...action.payload.metrics,
+                ]),
+            };
         }
         case ActionType.SET_TABLE_NAME: {
             return { ...state, tableName: action.payload };
         }
         case ActionType.TOGGLE_DIMENSION: {
+            const dimensions = toggleArrayValue(
+                state.dimensions,
+                action.payload,
+            );
             return {
                 ...state,
-                dimensions: toggleArrayValue(state.dimensions, action.payload),
+                dimensions,
                 sorts: state.sorts.filter((s) => s.fieldId !== action.payload),
-                columnOrder: state.columnOrder.filter(
-                    (column) => column !== action.payload,
-                ),
+                columnOrder: calcColumnOrder(state.columnOrder, [
+                    ...dimensions,
+                    ...state.metrics,
+                ]),
             };
         }
         case ActionType.TOGGLE_METRIC: {
+            const metrics = toggleArrayValue(state.metrics, action.payload);
             return {
                 ...state,
-                metrics: toggleArrayValue(state.metrics, action.payload),
+                metrics,
                 sorts: state.sorts.filter((s) => s.fieldId !== action.payload),
-                columnOrder: state.columnOrder.filter(
-                    (column) => column !== action.payload,
-                ),
+                columnOrder: calcColumnOrder(state.columnOrder, [
+                    ...state.dimensions,
+                    ...metrics,
+                ]),
             };
         }
         case ActionType.TOGGLE_SORT_FIELD: {
@@ -201,15 +227,12 @@ function reducer(
             };
         }
         case ActionType.SET_COLUMN_ORDER: {
-            const activeFields = new Set([
-                ...state.dimensions,
-                ...state.metrics,
-            ]);
             return {
                 ...state,
-                columnOrder: action.payload.filter((column) =>
-                    activeFields.has(column),
-                ),
+                columnOrder: calcColumnOrder(action.payload, [
+                    ...state.dimensions,
+                    ...state.metrics,
+                ]),
             };
         }
         default: {
