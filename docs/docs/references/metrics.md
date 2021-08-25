@@ -89,7 +89,7 @@ columns:
           type: average
         is_avg_price_above_20:
           type: boolean
-          sql: "IF({$avg_price} > 20, TRUE, FALSE)"
+          sql: "IF(${avg_price} > 20, TRUE, FALSE)"
 ```
 
 ### count
