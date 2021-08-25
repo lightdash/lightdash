@@ -177,6 +177,12 @@ export const getSavedQueryByUuid = async (
                 yMetrics: yMetrics.map((yMetric) => yMetric.field_name),
             },
         },
+        tableConfig: {
+            columnOrder: fields.reduce<string[]>(
+                (sum, { name }) => [...sum, name],
+                [],
+            ),
+        },
     };
 };
 
@@ -242,6 +248,7 @@ export const createSavedQueryVersion = async (
         tableName,
         metricQuery: { limit, filters, dimensions, metrics, sorts },
         chartConfig,
+        tableConfig,
     }: CreateSavedQueryVersion,
 ): Promise<void> => {
     await db.transaction(async (trx) => {
@@ -274,25 +281,29 @@ export const createSavedQueryVersion = async (
                     );
                 },
             );
-            dimensions.forEach((dimension, index) => {
+            dimensions.forEach((dimension) => {
                 promises.push(
                     createSavedQueryVersionField(trx, {
                         name: dimension,
                         field_type: DBFieldTypes.DIMENSION,
                         saved_queries_version_id:
                             version.saved_queries_version_id,
-                        order: index,
+                        order: tableConfig.columnOrder.findIndex(
+                            (column) => column === dimension,
+                        ),
                     }),
                 );
             });
-            metrics.forEach((metric, index) => {
+            metrics.forEach((metric) => {
                 promises.push(
                     createSavedQueryVersionField(trx, {
                         name: metric,
                         field_type: DBFieldTypes.METRIC,
                         saved_queries_version_id:
                             version.saved_queries_version_id,
-                        order: index,
+                        order: tableConfig.columnOrder.findIndex(
+                            (column) => column === metric,
+                        ),
                     }),
                 );
             });
@@ -321,6 +332,7 @@ export const createSavedQuery = async ({
     tableName,
     metricQuery,
     chartConfig,
+    tableConfig,
 }: CreateSavedQuery): Promise<SavedQuery> => {
     const newSavedQueryUuid = await database.transaction(async (trx) => {
         try {
@@ -338,6 +350,7 @@ export const createSavedQuery = async ({
                 tableName,
                 metricQuery,
                 chartConfig,
+                tableConfig,
             });
 
             return newSavedQuery.saved_query_uuid;

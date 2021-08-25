@@ -38,7 +38,15 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const chartRef = useRef<EChartsReact>(null);
     const {
-        state: { tableName, dimensions, metrics, sorts, limit, filters },
+        state: {
+            tableName,
+            dimensions,
+            metrics,
+            sorts,
+            limit,
+            filters,
+            columnOrder,
+        },
         actions: { setRowLimit: setResultsRowLimit },
     } = useExplorer();
     // queryResults are used here for prop-drill because the keepPreviousData: true option doesn't persist when
@@ -71,6 +79,9 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
               chartConfig: {
                   chartType: activeVizTab,
                   seriesLayout: chartConfig.seriesLayout,
+              },
+              tableConfig: {
+                  columnOrder,
               },
           }
         : undefined;
