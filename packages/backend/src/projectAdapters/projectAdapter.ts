@@ -15,6 +15,7 @@ export const projectAdapterFromConfig = (
                 config.project_dir,
                 config.profiles_dir,
                 config.rpc_server_port,
+                config.target,
             );
         case ProjectType.DBT_REMOTE_SERVER:
             return new DbtRemoteProjectAdapter(
@@ -36,6 +37,7 @@ export const projectAdapterFromConfig = (
                 config.project_sub_path,
                 config.profiles_sub_path,
                 config.rpc_server_port,
+                config.target,
             );
         default:
             const never: never = config;

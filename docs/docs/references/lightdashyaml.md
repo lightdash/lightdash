@@ -19,6 +19,7 @@ projects:
     project_dir: /path/to/your/dbt/project
     profiles_dir: /path/to/your/dbt/profiles
     rpc_server_port: 8580
+    target: dev # [Optional] Defaults to dbt profile target
 ```
 
 ```yaml
@@ -55,6 +56,7 @@ projects:
     project_sub_path: /
     profiles_sub_path: /profiles
     rpc_server_port: 8580
+    target: dev # [Optional] Defaults to dbt profile target
 }
 ```
 

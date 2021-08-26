@@ -65,6 +65,10 @@
                                 "type": "integer",
                                 "minimum": 1,
                                 "default": 8580
+                            },
+                            "target": {
+                                "description": "dbt profile target name",
+                                "type": "string"
                             }
                         }
                     },
@@ -92,6 +96,10 @@
                                 "type": "integer",
                                 "minimum": 1,
                                 "default": 8580
+                            },
+                            "target": {
+                                "description": "dbt profile target name",
+                                "type": "string"
                             }
                         }
                     },
