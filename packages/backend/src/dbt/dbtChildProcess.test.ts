@@ -14,16 +14,14 @@ jest.mock('execa', () => jest.fn(() => childProcessWithSuccessEvent));
 
 describe('DbtChildProcess', () => {
     it('should handle success event', async () => {
-        // @ts-ignore
         execaMock.mockImplementation(() => childProcessWithSuccessEvent);
 
-        const process = new DbtChildProcess('', '', 80);
+        const process = new DbtChildProcess('', '', 80, undefined);
 
         await expect(process.restart()).resolves.toEqual(undefined);
         expect(process.isProcessLive()).toBe(true);
     });
     it('should kill process on second restart', async () => {
-        // @ts-ignore
         execaMock.mockImplementation(() => ({
             ...childProcessWithSuccessEvent,
             on: jest
@@ -34,7 +32,7 @@ describe('DbtChildProcess', () => {
                 ) // trigger second exit
                 .mockImplementation(() => undefined), // ignore rest
         }));
-        const process = new DbtChildProcess('', '', 80);
+        const process = new DbtChildProcess('', '', 80, undefined);
         // start process
         await process.restart();
         // kills & start process
@@ -44,10 +42,9 @@ describe('DbtChildProcess', () => {
         expect(process.isProcessLive()).toBe(true);
     });
     it('should handle event with 2 logs', async () => {
-        // @ts-ignore
         execaMock.mockImplementation(() => childProcessWithDoubleLogEvent);
 
-        const process = new DbtChildProcess('', '', 80);
+        const process = new DbtChildProcess('', '', 80, undefined);
 
         await expect(process.restart()).resolves.toEqual(undefined);
         expect(process.latestErrorMessage()).toBe(
@@ -55,19 +52,67 @@ describe('DbtChildProcess', () => {
         );
     });
     it('should handle exit event', async () => {
-        // @ts-ignore
         execaMock.mockImplementation(() => childProcessWithExitEvent);
 
-        const process = new DbtChildProcess('', '', 80);
+        const process = new DbtChildProcess('', '', 80, undefined);
 
         await expect(process.restart()).rejects.toThrowError(DbtError);
     });
     it('should handle parsing error', async () => {
-        // @ts-ignore
         execaMock.mockImplementation(() => childProcessWithUnexpectedEvent);
 
-        const process = new DbtChildProcess('', '', 80);
+        const process = new DbtChildProcess('', '', 80, undefined);
 
         await expect(process.restart()).rejects.toThrowError(DbtError);
+    });
+    describe('dbt rpc arguments', () => {
+        beforeEach(() => {
+            execaMock.mockClear();
+        });
+        it('should set required arguments', async () => {
+            const mock = execaMock.mockImplementation(
+                () => childProcessWithSuccessEvent,
+            );
+
+            const process = new DbtChildProcess(
+                'myProjectDir',
+                'myProfileDir',
+                90,
+                undefined,
+            );
+            await process.restart();
+
+            expect(mock).toBeCalledTimes(1);
+            expect(mock).toBeCalledWith(
+                'dbt',
+                [
+                    'rpc',
+                    '--host',
+                    'localhost',
+                    '--port',
+                    '90',
+                    '--profiles-dir',
+                    'myProfileDir',
+                    '--project-dir',
+                    'myProjectDir',
+                ],
+                expect.anything(),
+            );
+        });
+        it('should set target argument when available', async () => {
+            const mock = execaMock.mockImplementation(
+                () => childProcessWithSuccessEvent,
+            );
+
+            const process = new DbtChildProcess('', '', 80, 'prod');
+            await process.restart();
+
+            expect(mock).toBeCalledTimes(1);
+            expect(mock).toBeCalledWith(
+                'dbt',
+                expect.arrayContaining(['--target', 'prod']),
+                expect.anything(),
+            );
+        });
     });
 });

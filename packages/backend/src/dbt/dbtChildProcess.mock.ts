@@ -12,7 +12,7 @@ const errorLog = {
     message: 'log1',
 };
 
-const childProcessBaseMock = {
+const childProcessBaseMock: any = {
     kill: jest.fn(),
     on: jest.fn(),
     stdout: {

@@ -5,6 +5,7 @@ Recent and upcoming changes to lightdash
 ## Unreleased
 ### Added
 - Users can reorder the result table columns
+- Add dbt profile target option in lightdash project config
 
 ## [0.6.4] - 2021-08-23
 ### Added

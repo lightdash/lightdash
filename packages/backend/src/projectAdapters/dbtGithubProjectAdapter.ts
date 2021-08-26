@@ -21,6 +21,7 @@ export class DbtGithubProjectAdapter extends DbtLocalProjectAdapter {
         projectDirectorySubPath: string,
         profilesDirectorySubPath: string,
         port: number,
+        target: string | undefined,
     ) {
         const localRepositoryDir = tempy.directory();
         const projectDir = path.join(
@@ -32,7 +33,7 @@ export class DbtGithubProjectAdapter extends DbtLocalProjectAdapter {
             profilesDirectorySubPath,
         );
         const remoteRepositoryUrl = `https://${githubPersonalAccessToken}@github.com/${githubRepository}.git`;
-        super(projectDir, profilesDir, port);
+        super(projectDir, profilesDir, port, target);
         this.localRepositoryDir = localRepositoryDir;
         this.remoteRepositoryUrl = remoteRepositoryUrl;
         this.branch = githubBranch;

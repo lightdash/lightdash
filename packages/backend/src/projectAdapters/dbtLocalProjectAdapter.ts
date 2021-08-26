@@ -8,11 +8,17 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
 
     rpcClient: DbtRpcClient;
 
-    constructor(projectDir: string, profilesDir: string, port: number) {
+    constructor(
+        projectDir: string,
+        profilesDir: string,
+        port: number,
+        target: string | undefined,
+    ) {
         const dbtChildProcess = new DbtChildProcess(
             projectDir,
             profilesDir,
             port,
+            target,
         );
         super();
         const serverUrl = `http://${DbtChildProcess.host}:${dbtChildProcess.port}/jsonrpc`;

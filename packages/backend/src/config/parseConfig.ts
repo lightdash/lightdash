@@ -21,6 +21,7 @@ interface DbtLocalProjectConfig extends DbtProjectConfigBase {
     profiles_dir: string;
     project_dir: string;
     rpc_server_port: number;
+    target?: string;
 }
 
 interface DbtRemoteProjectConfig extends DbtProjectConfigBase {
@@ -46,6 +47,7 @@ interface DbtGithubProjectConfig extends DbtProjectConfigBase {
     project_sub_path: string;
     profiles_sub_path: string;
     rpc_server_port: number;
+    target?: string;
 }
 
 export type DbtProjectConfig =

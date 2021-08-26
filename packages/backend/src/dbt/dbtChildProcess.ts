@@ -13,12 +13,20 @@ export class DbtChildProcess {
 
     profilesDir: string;
 
+    target?: string;
+
     errorLogs: string[];
 
-    constructor(projectDir: string, profilesDir: string, port: number) {
+    constructor(
+        projectDir: string,
+        profilesDir: string,
+        port: number,
+        target: string | undefined,
+    ) {
         this.port = port;
         this.projectDir = projectDir;
         this.profilesDir = profilesDir;
+        this.target = target;
         this.errorLogs = [];
     }
 
@@ -51,23 +59,25 @@ export class DbtChildProcess {
     private async _start(): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             this.errorLogs = [];
-            this.dbtChildProcess = execa(
-                'dbt',
-                [
-                    'rpc',
-                    '--host',
-                    DbtChildProcess.host,
-                    '--port',
-                    `${this.port}`,
-                    '--profiles-dir',
-                    this.profilesDir,
-                    '--project-dir',
-                    this.projectDir,
-                ],
-                {
-                    stdio: ['pipe', 'pipe', process.stderr],
-                },
-            );
+            const dbtArgs = [
+                'rpc',
+                '--host',
+                DbtChildProcess.host,
+                '--port',
+                `${this.port}`,
+                '--profiles-dir',
+                this.profilesDir,
+                '--project-dir',
+                this.projectDir,
+            ];
+
+            if (this.target) {
+                dbtArgs.push('--target', this.target);
+            }
+
+            this.dbtChildProcess = execa('dbt', dbtArgs, {
+                stdio: ['pipe', 'pipe', process.stderr],
+            });
 
             // reject or resolve depends on whether process emits success logs or exits first
             // process can still exit later after promise resolves true
