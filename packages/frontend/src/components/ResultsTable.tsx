@@ -1,4 +1,5 @@
 import {
+    ColumnInstance,
     HeaderGroup,
     useColumnOrder,
     usePagination,
@@ -82,14 +83,14 @@ const EmptyStateNoRows = () => (
 );
 
 const getSortIndicator = (
-    isDimension: boolean,
+    type: ColumnInstance['type'],
     dimensionType: DimensionType,
     desc: boolean,
     sortIndex: number,
     isMultiSort: boolean,
 ) => {
     const style = { paddingLeft: '5px' };
-    if (isDimension && dimensionType === 'string')
+    if (type === 'dimension' && dimensionType === 'string')
         return (
             <>
                 {isMultiSort && (
@@ -120,18 +121,21 @@ const getSortIndicator = (
     );
 };
 
-const getColumnStyle = (isDimension: boolean) => ({
+const ColumnColors = {
+    dimension: hexToRGB(Colors.BLUE1, 0.2),
+    metric: hexToRGB(Colors.ORANGE1, 0.2),
+    table_calculation: hexToRGB(Colors.GREEN1, 0.2),
+};
+
+const getColumnStyle = (type: ColumnInstance['type']) => ({
     style: {
-        backgroundColor: isDimension
-            ? hexToRGB(Colors.BLUE1, 0.2)
-            : hexToRGB(Colors.ORANGE1, 0.2),
+        backgroundColor: ColumnColors[type],
     },
 });
 
-const getRowStyle = (rowIndex: number, isDimension: boolean) => ({
+const getRowStyle = (rowIndex: number) => ({
     style: {
         backgroundColor: rowIndex % 2 ? undefined : Colors.LIGHT_GRAY4,
-        textAlign: isDimension ? ('left' as 'left') : ('right' as 'right'),
     },
 });
 
@@ -167,7 +171,7 @@ const Item: FC<ItemProps> = ({
         {column?.render('Header')}
         {column?.isSorted &&
             getSortIndicator(
-                column.isDimension,
+                column.type,
                 column.dimensionType,
                 column.isSortedDesc || false,
                 column.sortedIndex,
@@ -252,7 +256,7 @@ export const ResultsTable = ({ queryResults }: ResultsTableProps) => {
                             {headerGroup.headers.map((column) => (
                                 <col
                                     {...column.getHeaderProps([
-                                        getColumnStyle(column.isDimension),
+                                        getColumnStyle(column.type),
                                     ])}
                                 />
                             ))}
@@ -365,10 +369,7 @@ export const ResultsTable = ({ queryResults }: ResultsTableProps) => {
                                     {row.cells.map((cell) => (
                                         <td
                                             {...cell.getCellProps([
-                                                getRowStyle(
-                                                    row.index,
-                                                    cell.column.isDimension,
-                                                ),
+                                                getRowStyle(row.index),
                                             ])}
                                         >
                                             {cell.render('Cell')}

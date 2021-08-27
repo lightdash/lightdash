@@ -21,6 +21,8 @@ export const useQueryResults = () => {
             sorts,
             filters,
             limit,
+            tableCalculations,
+            selectedTableCalculations,
         },
     } = useExplorer();
     const {
@@ -32,7 +34,9 @@ export const useQueryResults = () => {
         sorts,
         filters,
         limit: limit || 500,
-        tableCalculations: [],
+        tableCalculations: tableCalculations.filter(({ name }) =>
+            selectedTableCalculations.includes(name),
+        ),
     };
     const queryKey = ['queryResults', tableId, metricQuery];
     const query = useQuery<ApiQueryResults, ApiError>({

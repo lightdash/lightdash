@@ -187,6 +187,7 @@ export interface CompiledMetric extends Metric {
 
 export type TableCalculation = {
     name: string;
+    displayName: string;
     sql: string;
 };
 
@@ -409,6 +410,11 @@ const capitalize = (word: string): string =>
 export const friendlyName = (text: string): string => {
     const [first, ...rest] = text.match(/[0-9]*[A-Za-z][a-z]*/g) || [];
     return [capitalize(first), ...rest].join(' ');
+};
+
+export const snakeCaseName = (text: string): string => {
+    const words = text.toLowerCase().match(/[a-z]+/g) || [];
+    return words.join('_');
 };
 
 // DBT CONFIG
