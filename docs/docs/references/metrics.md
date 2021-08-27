@@ -194,7 +194,7 @@ columns:
           type: sum
         total_gross_profit_margin_percentage:
           type: number
-          sql: "(${total_gross_profit_margin}/ NULLIF(${total_sale_price},0)) * 100"
+          sql: "(${total_gross_profit_margin}/ NULLIF(${total_sale_price},0))"
 ```
 
 The example above also uses the NULLIF() SQL function to avoid division-by-zero errors.
