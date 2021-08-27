@@ -6,7 +6,7 @@ import React, {
     useMemo,
     useCallback,
 } from 'react';
-import { FieldId, FilterGroup, SortField } from 'common';
+import { FieldId, FilterGroup, SortField, TableCalculation } from 'common';
 
 export enum ActionType {
     RESET,
@@ -14,11 +14,15 @@ export enum ActionType {
     SET_TABLE_NAME,
     TOGGLE_DIMENSION,
     TOGGLE_METRIC,
+    TOGGLE_TABLE_CALCULATION,
     TOGGLE_SORT_FIELD,
     SET_SORT_FIELDS,
     SET_ROW_LIMIT,
     SET_FILTERS,
     SET_COLUMN_ORDER,
+    ADD_TABLE_CALCULATION,
+    UPDATE_TABLE_CALCULATION,
+    DELETE_TABLE_CALCULATION,
 }
 
 type Action =
@@ -29,6 +33,7 @@ type Action =
           type:
               | ActionType.TOGGLE_DIMENSION
               | ActionType.TOGGLE_METRIC
+              | ActionType.TOGGLE_TABLE_CALCULATION
               | ActionType.TOGGLE_SORT_FIELD;
           payload: FieldId;
       }
@@ -45,18 +50,32 @@ type Action =
           payload: FilterGroup[];
       }
     | {
+          type: ActionType.ADD_TABLE_CALCULATION;
+          payload: TableCalculation;
+      }
+    | {
+          type: ActionType.UPDATE_TABLE_CALCULATION;
+          payload: { oldName: string; tableCalculation: TableCalculation };
+      }
+    | {
+          type: ActionType.DELETE_TABLE_CALCULATION;
+          payload: string;
+      }
+    | {
           type: ActionType.SET_COLUMN_ORDER;
           payload: string[];
       };
 
 interface ExplorerReduceState {
     tableName: string | undefined;
+    selectedTableCalculations: FieldId[];
     dimensions: FieldId[];
     metrics: FieldId[];
     filters: FilterGroup[];
     sorts: SortField[];
     columnOrder: string[];
     limit: number;
+    tableCalculations: TableCalculation[];
 }
 
 interface ExplorerState extends ExplorerReduceState {
@@ -71,11 +90,18 @@ interface ExplorerContext {
         setState: (state: Required<ExplorerReduceState>) => void;
         setTableName: (tableName: string) => void;
         toggleActiveField: (fieldId: FieldId, isDimension: boolean) => void;
+        toggleTableCalculation: (name: string) => void;
         toggleSortField: (fieldId: FieldId) => void;
         setSortFields: (sortFields: SortField[]) => void;
         setRowLimit: (limit: number) => void;
         setFilters: (filters: FilterGroup[]) => void;
         setColumnOrder: (order: string[]) => void;
+        addTableCalculation: (tableCalculation: TableCalculation) => void;
+        updateTableCalculation: (
+            oldName: string,
+            tableCalculation: TableCalculation,
+        ) => void;
+        deleteTableCalculation: (name: string) => void;
     };
 }
 
@@ -100,6 +126,8 @@ const defaultState: ExplorerReduceState = {
     sorts: [],
     columnOrder: [],
     limit: 500,
+    tableCalculations: [],
+    selectedTableCalculations: [],
 };
 
 const calcColumnOrder = (
@@ -129,6 +157,7 @@ function reducer(
                 columnOrder: calcColumnOrder(action.payload.columnOrder, [
                     ...action.payload.dimensions,
                     ...action.payload.metrics,
+                    ...action.payload.selectedTableCalculations,
                 ]),
             };
         }
@@ -147,6 +176,7 @@ function reducer(
                 columnOrder: calcColumnOrder(state.columnOrder, [
                     ...dimensions,
                     ...state.metrics,
+                    ...state.selectedTableCalculations,
                 ]),
             };
         }
@@ -159,6 +189,23 @@ function reducer(
                 columnOrder: calcColumnOrder(state.columnOrder, [
                     ...state.dimensions,
                     ...metrics,
+                    ...state.selectedTableCalculations,
+                ]),
+            };
+        }
+        case ActionType.TOGGLE_TABLE_CALCULATION: {
+            const selectedTableCalculations = toggleArrayValue(
+                state.selectedTableCalculations,
+                action.payload,
+            );
+            return {
+                ...state,
+                selectedTableCalculations,
+                sorts: state.sorts.filter((s) => s.fieldId !== action.payload),
+                columnOrder: calcColumnOrder(state.columnOrder, [
+                    ...state.dimensions,
+                    ...state.metrics,
+                    ...selectedTableCalculations,
                 ]),
             };
         }
@@ -232,6 +279,54 @@ function reducer(
                 columnOrder: calcColumnOrder(action.payload, [
                     ...state.dimensions,
                     ...state.metrics,
+                    ...state.selectedTableCalculations,
+                ]),
+            };
+        }
+        case ActionType.ADD_TABLE_CALCULATION: {
+            return {
+                ...state,
+                tableCalculations: [...state.tableCalculations, action.payload],
+            };
+        }
+        case ActionType.UPDATE_TABLE_CALCULATION: {
+            return {
+                ...state,
+                tableCalculations: state.tableCalculations.map(
+                    (tableCalculation) =>
+                        tableCalculation.name === action.payload.oldName
+                            ? action.payload.tableCalculation
+                            : tableCalculation,
+                ),
+                selectedTableCalculations: state.selectedTableCalculations.map(
+                    (name) =>
+                        name === action.payload.oldName
+                            ? action.payload.tableCalculation.name
+                            : name,
+                ),
+                columnOrder: state.columnOrder.map((column) =>
+                    column === action.payload.oldName
+                        ? action.payload.tableCalculation.name
+                        : column,
+                ),
+            };
+        }
+        case ActionType.DELETE_TABLE_CALCULATION: {
+            const selectedTableCalculations =
+                state.selectedTableCalculations.filter(
+                    (name) => name !== action.payload,
+                );
+            return {
+                ...state,
+                selectedTableCalculations,
+                tableCalculations: state.tableCalculations.filter(
+                    (tableCalculation) =>
+                        tableCalculation.name !== action.payload,
+                ),
+                columnOrder: calcColumnOrder(state.columnOrder, [
+                    ...state.dimensions,
+                    ...state.metrics,
+                    ...selectedTableCalculations,
                 ]),
             };
         }
@@ -250,6 +345,7 @@ export const ExplorerProvider: FC = ({ children }) => {
         const fields = new Set([
             ...reducerState.dimensions,
             ...reducerState.metrics,
+            ...reducerState.selectedTableCalculations,
         ]);
         return [fields, fields.size > 0];
     }, [reducerState]);
@@ -319,6 +415,38 @@ export const ExplorerProvider: FC = ({ children }) => {
         });
     }, []);
 
+    const addTableCalculation = useCallback(
+        (tableCalculation: TableCalculation) => {
+            dispatch({
+                type: ActionType.ADD_TABLE_CALCULATION,
+                payload: tableCalculation,
+            });
+        },
+        [],
+    );
+    const updateTableCalculation = useCallback(
+        (oldName: string, tableCalculation: TableCalculation) => {
+            dispatch({
+                type: ActionType.UPDATE_TABLE_CALCULATION,
+                payload: { oldName, tableCalculation },
+            });
+        },
+        [],
+    );
+    const deleteTableCalculation = useCallback((name: string) => {
+        dispatch({
+            type: ActionType.DELETE_TABLE_CALCULATION,
+            payload: name,
+        });
+    }, []);
+
+    const toggleTableCalculation = useCallback((name: string) => {
+        dispatch({
+            type: ActionType.TOGGLE_TABLE_CALCULATION,
+            payload: name,
+        });
+    }, []);
+
     const value: ExplorerContext = {
         state: useMemo(
             () => ({ ...reducerState, activeFields, isValidQuery }),
@@ -335,17 +463,25 @@ export const ExplorerProvider: FC = ({ children }) => {
                 setFilters,
                 setRowLimit,
                 setColumnOrder,
+                addTableCalculation,
+                deleteTableCalculation,
+                toggleTableCalculation,
+                updateTableCalculation,
             }),
             [
                 reset,
-                setFilters,
-                setRowLimit,
-                setSortFields,
                 setState,
                 setTableName,
                 toggleActiveField,
                 toggleSortField,
+                setSortFields,
+                setFilters,
+                setRowLimit,
                 setColumnOrder,
+                addTableCalculation,
+                deleteTableCalculation,
+                toggleTableCalculation,
+                updateTableCalculation,
             ],
         ),
     };

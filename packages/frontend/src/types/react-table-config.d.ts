@@ -114,7 +114,7 @@ declare module 'react-table' {
             UseGroupByColumnProps<D>,
             UseResizeColumnsColumnProps<D> {
         // UseSortByColumnProps<D> {
-        isDimension: boolean;
+        type: 'dimension' | 'metric' | 'table_calculation';
         dimensionType: DimensionType;
         sortedIndex: number;
         isMultiSort: boolean;

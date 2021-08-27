@@ -3,11 +3,12 @@ import {
     DimensionType,
     fieldId as getFieldId,
     friendlyName,
-    getDimensions,
-    getMetrics,
+    getFields,
+    isDimension,
     SortField,
 } from 'common';
 import React, { useMemo } from 'react';
+import { Column } from 'react-table';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useTable } from './useTable';
 
@@ -71,65 +72,72 @@ const getSortByProps = (
         isMultiSort: sortFields.length > 1,
     };
 };
-export const useColumns = () => {
-    const activeExplore = useTable();
+
+export const useColumns = (): Column<{ [col: string]: any }>[] => {
+    const { data } = useTable();
     const {
-        state: { activeFields, sorts: sortFields },
+        state: { activeFields, sorts: sortFields, tableCalculations },
         actions: { toggleSortField },
     } = useExplorer();
-    const dimensions = useMemo(
-        () =>
-            activeExplore.data
-                ? getDimensions(activeExplore.data).filter((d) =>
-                      activeFields.has(getFieldId(d)),
-                  )
-                : [],
-        [activeFields, activeExplore.data],
-    );
-    const metrics = useMemo(
-        () =>
-            activeExplore.data
-                ? getMetrics(activeExplore.data).filter((m) =>
-                      activeFields.has(getFieldId(m)),
-                  )
-                : [],
-        [activeFields, activeExplore.data],
-    );
-    const dimColumns = useMemo(
-        () =>
-            dimensions.map((dim) => ({
-                Header: (
-                    <span>
-                        {friendlyName(dim.table)}{' '}
-                        <b>{friendlyName(dim.name)}</b>
-                    </span>
-                ),
-                accessor: getFieldId(dim),
-                Cell: getDimensionFormatter(dim),
-                isDimension: true,
-                dimensionType: dim.type,
-                ...getSortByProps(getFieldId(dim), sortFields, toggleSortField),
-            })),
-        [dimensions, sortFields, toggleSortField],
-    );
-    const metricColumns = useMemo(
-        () =>
-            metrics.map((m) => ({
-                Header: (
-                    <span>
-                        {friendlyName(m.table)} <b>{friendlyName(m.name)}</b>
-                    </span>
-                ),
-                accessor: getFieldId(m),
-                Cell: getMetricFormatter(),
-                isDimension: false,
-                ...getSortByProps(getFieldId(m), sortFields, toggleSortField),
-            })),
-        [metrics, sortFields, toggleSortField],
-    );
-    const result = useMemo(
-        () => [...dimColumns, ...metricColumns],
-        [dimColumns, metricColumns],
-    );
-    return result;
+    return useMemo(() => {
+        if (data) {
+            const fieldColumns = getFields(data).reduce<
+                Column<{ [col: string]: any }>[]
+            >((acc, field) => {
+                const fieldId = getFieldId(field);
+                if (activeFields.has(fieldId)) {
+                    return [
+                        ...acc,
+                        {
+                            Header: (
+                                <span>
+                                    {friendlyName(field.table)}{' '}
+                                    <b>{friendlyName(field.name)}</b>
+                                </span>
+                            ),
+                            accessor: fieldId,
+                            Cell: isDimension(field)
+                                ? getDimensionFormatter(field)
+                                : getMetricFormatter(),
+                            type: isDimension(field) ? 'dimension' : 'metric',
+                            dimensionType: isDimension(field)
+                                ? field.type
+                                : undefined,
+                            ...getSortByProps(
+                                fieldId,
+                                sortFields,
+                                toggleSortField,
+                            ),
+                        },
+                    ];
+                }
+                return [...acc];
+            }, []);
+            const tableCalculationColumns = tableCalculations.reduce<
+                Column<{ [col: string]: any }>[]
+            >((acc, tableCalculation) => {
+                const fieldId = tableCalculation.name;
+                if (activeFields.has(fieldId)) {
+                    return [
+                        ...acc,
+                        {
+                            Header: <b>{tableCalculation.displayName}</b>,
+                            accessor: fieldId,
+                            Cell: getMetricFormatter(),
+                            type: 'table_calculation',
+                            ...getSortByProps(
+                                fieldId,
+                                sortFields,
+                                toggleSortField,
+                            ),
+                        },
+                    ];
+                }
+                return [...acc];
+            }, []);
+
+            return [...fieldColumns, ...tableCalculationColumns];
+        }
+        return [];
+    }, [activeFields, data, sortFields, tableCalculations, toggleSortField]);
 };

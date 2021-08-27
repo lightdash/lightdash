@@ -46,11 +46,16 @@ export const METRIC_QUERY: CompiledMetricQuery = {
     sorts: [{ fieldId: 'table1_metric1', descending: true }],
     limit: 10,
     tableCalculations: [
-        { name: 'calc3', sql: '${table1.dim1} + ${table1.metric1}' },
+        {
+            name: 'calc3',
+            displayName: '',
+            sql: '${table1.dim1} + ${table1.metric1}',
+        },
     ],
     compiledTableCalculations: [
         {
             name: 'calc3',
+            displayName: '',
             sql: '${table1.dim1} + ${table1.metric1}',
             compiledSql: 'table1_dim1 + table1_metric1',
         },
