@@ -185,6 +185,15 @@ export interface CompiledMetric extends Metric {
     compiledSql: string;
 }
 
+export type TableCalculation = {
+    name: string;
+    sql: string;
+};
+
+export type CompiledTableCalculation = TableCalculation & {
+    compiledSql: string;
+};
+
 // Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {
     dimensions: FieldId[]; // Dimensions to group by in the explore
@@ -192,6 +201,11 @@ export type MetricQuery = {
     filters: FilterGroup[]; // Filters applied to the table to query (logical AND)
     sorts: SortField[]; // Sorts for the data
     limit: number; // Max number of rows to return from query
+    tableCalculations: TableCalculation[]; // calculations to append to results
+};
+
+export type CompiledMetricQuery = MetricQuery & {
+    compiledTableCalculations: CompiledTableCalculation[];
 };
 
 // Sort by

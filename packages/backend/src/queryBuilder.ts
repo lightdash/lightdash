@@ -1,4 +1,5 @@
 import {
+    CompiledMetricQuery,
     DateAndTimestampFilter,
     Explore,
     fieldId,
@@ -215,10 +216,13 @@ const getQuoteChar = (quotedExample: string): string => {
 
 export type BuildQueryProps = {
     explore: Explore;
-    metricQuery: MetricQuery;
+    compiledMetricQuery: CompiledMetricQuery;
 };
-export const buildQuery = ({ explore, metricQuery }: BuildQueryProps) => {
-    const { dimensions, metrics, filters, sorts, limit } = metricQuery;
+export const buildQuery = ({
+    explore,
+    compiledMetricQuery,
+}: BuildQueryProps) => {
+    const { dimensions, metrics, filters, sorts, limit } = compiledMetricQuery;
     const baseTable = explore.tables[explore.baseTable].sqlTable;
     const sqlFrom = `FROM ${baseTable} AS ${explore.baseTable}`;
     const q = getQuoteChar(baseTable); // quote char
@@ -267,7 +271,7 @@ export const buildQuery = ({ explore, metricQuery }: BuildQueryProps) => {
 
     const sqlLimit = `LIMIT ${limit}`;
 
-    const sql = [
+    const metricQuerySql = [
         sqlSelect,
         sqlFrom,
         sqlJoins,
@@ -276,5 +280,22 @@ export const buildQuery = ({ explore, metricQuery }: BuildQueryProps) => {
         sqlOrderBy,
         sqlLimit,
     ].join('\n');
-    return sql;
+
+    if (compiledMetricQuery.compiledTableCalculations.length > 0) {
+        const cteName = 'metrics';
+        const cte = `WITH ${cteName} AS (\n${metricQuerySql}\n)`;
+        const tableCalculationSelects =
+            compiledMetricQuery.compiledTableCalculations.map(
+                (tableCalculation) => {
+                    const alias = tableCalculation.name;
+                    return `${tableCalculation.compiledSql} AS ${q}${alias}${q}`;
+                },
+            );
+        const finalSelect = `SELECT\n  *,\n  ${tableCalculationSelects.join(
+            ',\n  ',
+        )}`;
+        const finalFrom = `FROM ${cteName}`;
+        return [cte, finalSelect, finalFrom].join('\n');
+    }
+    return metricQuerySql;
 };

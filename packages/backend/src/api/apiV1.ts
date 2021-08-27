@@ -1,5 +1,6 @@
 import express from 'express';
 import passport from 'passport';
+import { MetricQuery } from 'common';
 import { sanitizeStringParam, sanitizeEmailParam } from '../utils';
 import {
     getAllTables,
@@ -17,6 +18,7 @@ import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { inviteLinksRouter } from './inviteLinksRouter';
 import { organizationRouter } from './organizationRouter';
 import { userRouter } from './userRouter';
+import { compileMetricQuery } from '../queryCompiler';
 
 export const apiV1Router = express.Router();
 
@@ -116,26 +118,25 @@ apiV1Router.post(
     isAuthenticated,
     async (req, res, next) => {
         const { body } = req;
-        getTable(req.params.tableId)
-            .then((table) =>
-                buildQuery({
-                    explore: table,
-                    metricQuery: {
-                        dimensions: body.dimensions,
-                        metrics: body.metrics,
-                        filters: body.filters,
-                        sorts: body.sorts,
-                        limit: body.limit,
-                    },
-                }),
-            )
-            .then((sql) => {
-                res.json({
-                    status: 'ok',
-                    results: sql,
-                });
-            })
-            .catch(next);
+        try {
+            const metricQuery: MetricQuery = {
+                dimensions: body.dimensions,
+                metrics: body.metrics,
+                filters: body.filters,
+                sorts: body.sorts,
+                limit: body.limit,
+                tableCalculations: body.tableCalculations,
+            };
+            const compiledMetricQuery = await compileMetricQuery(metricQuery);
+            const explore = await getTable(req.params.tableId);
+            const sql = buildQuery({ explore, compiledMetricQuery });
+            res.json({
+                status: 'ok',
+                results: sql,
+            });
+        } catch (e) {
+            next(e);
+        }
     },
 );
 
@@ -154,6 +155,7 @@ apiV1Router.post(
             filters: body.filters,
             sorts: body.sorts,
             limit: body.limit,
+            tableCalculations: body.tableCalculations,
         })
             .then((results) => {
                 res.json({

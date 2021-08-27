@@ -21,6 +21,7 @@ export async function seed(knex: Knex): Promise<void> {
                 },
             ],
             limit: 10,
+            tableCalculations: [],
         },
         chartConfig: {
             chartType: DBChartTypes.COLUMN,
