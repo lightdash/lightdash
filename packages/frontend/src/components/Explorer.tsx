@@ -75,6 +75,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                   sorts,
                   filters,
                   limit,
+                  tableCalculations: [],
               },
               chartConfig: {
                   chartType: activeVizTab,

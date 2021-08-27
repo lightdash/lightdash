@@ -168,6 +168,7 @@ export const getSavedQueryByUuid = async (
                 descending: sort.descending,
             })),
             limit: savedQuery.row_limit,
+            tableCalculations: [],
         },
         chartConfig: {
             chartType: savedQuery.chart_type,

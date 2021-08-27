@@ -26,12 +26,13 @@ export const useQueryResults = () => {
     const {
         errorLogs: { showError },
     } = useApp();
-    const metricQuery = {
+    const metricQuery: MetricQuery = {
         dimensions: Array.from(dimensions),
         metrics: Array.from(metrics),
         sorts,
         filters,
         limit: limit || 500,
+        tableCalculations: [],
     };
     const queryKey = ['queryResults', tableId, metricQuery];
     const query = useQuery<ApiQueryResults, ApiError>({

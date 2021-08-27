@@ -13,7 +13,7 @@ import {
 } from 'common';
 import { CompileError } from './errors';
 
-const lightdashVariablePattern = /\$\{([a-zA-Z0-9_.]+)\}/g;
+export const lightdashVariablePattern = /\$\{([a-zA-Z0-9_.]+)\}/g;
 
 const getParsedReference = (
     ref: string,
