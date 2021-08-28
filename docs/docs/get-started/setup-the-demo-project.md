@@ -68,6 +68,12 @@ docker compose up
 # If you see
 # > Compose is not a valid docker command
 # You have an older version of docker, please upgrade to docker >3.0.0
+
+# If you see
+# > error pulling image configuration: unexpected EOF
+# This error is usually related to a weak network. 
+# You can restart docker or configured the docker daemon to reduce the tcp packets:
+# $ dockerd --max-concurrent-downloads <int>  
 ```
 
 ## 4. Launch the Lightdash app
