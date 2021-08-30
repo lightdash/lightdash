@@ -148,6 +148,7 @@ const Login: FC = () => {
                             disabled={isLoading}
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
+                            data-cy="email"
                         />
                     </FormGroup>
                     <PasswordInput
@@ -157,6 +158,7 @@ const Login: FC = () => {
                         disabled={isLoading}
                         value={password}
                         onChange={setPassword}
+                        data-cy="password"
                     />
                     <Button
                         style={{ alignSelf: 'flex-end', marginTop: 20 }}
@@ -164,6 +166,7 @@ const Login: FC = () => {
                         text="Login"
                         onClick={handleLogin}
                         loading={isLoading}
+                        data-cy="login-button"
                     />
                 </Card>
                 <AboutFooter />
