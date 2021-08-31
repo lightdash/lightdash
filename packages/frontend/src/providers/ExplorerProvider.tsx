@@ -83,8 +83,10 @@ interface ExplorerState extends ExplorerReduceState {
 
 interface ExplorerContext {
     state: ExplorerState;
+    pristineState: ExplorerState;
     actions: {
         reset: () => void;
+        syncState: () => void;
         setState: (state: Required<ExplorerReduceState>) => void;
         setTableName: (tableName: string) => void;
         toggleActiveField: (fieldId: FieldId, isDimension: boolean) => void;
@@ -139,6 +141,29 @@ const calcColumnOrder = (
     );
     return [...cleanColumnOrder, ...missingColumns];
 };
+function pristineReducer(
+    state: ExplorerReduceState,
+    action: Action,
+): ExplorerReduceState {
+    switch (action.type) {
+        case ActionType.RESET: {
+            return defaultState;
+        }
+        case ActionType.SET_STATE: {
+            return {
+                ...action.payload,
+                columnOrder: calcColumnOrder(action.payload.columnOrder, [
+                    ...action.payload.dimensions,
+                    ...action.payload.metrics,
+                    ...action.payload.selectedTableCalculations,
+                ]),
+            };
+        }
+        default: {
+            throw new Error(`Unhandled action type`);
+        }
+    }
+}
 
 function reducer(
     state: ExplorerReduceState,
@@ -329,6 +354,10 @@ function reducer(
 
 export const ExplorerProvider: FC = ({ children }) => {
     const [reducerState, dispatch] = useReducer(reducer, defaultState);
+    const [pristineReducerState, pristineDispatch] = useReducer(
+        pristineReducer,
+        defaultState,
+    );
 
     const [activeFields, isValidQuery] = useMemo<
         [Set<FieldId>, boolean]
@@ -340,14 +369,32 @@ export const ExplorerProvider: FC = ({ children }) => {
         ]);
         return [fields, fields.size > 0];
     }, [reducerState]);
-
+    const [pristineActiveFields, pristineIsValidQuery] = useMemo<
+        [Set<FieldId>, boolean]
+    >(() => {
+        const fields = new Set([
+            ...pristineReducerState.dimensions,
+            ...pristineReducerState.metrics,
+        ]);
+        return [fields, fields.size > 0];
+    }, [pristineReducerState]);
     const reset = useCallback(() => {
         dispatch({
             type: ActionType.RESET,
         });
     }, []);
+    const syncState = useCallback(() => {
+        pristineDispatch({
+            type: ActionType.SET_STATE,
+            payload: reducerState,
+        });
+    }, [reducerState]);
 
     const setState = useCallback((state: ExplorerReduceState) => {
+        pristineDispatch({
+            type: ActionType.SET_STATE,
+            payload: state,
+        });
         dispatch({
             type: ActionType.SET_STATE,
             payload: state,
@@ -455,9 +502,18 @@ export const ExplorerProvider: FC = ({ children }) => {
             () => ({ ...reducerState, activeFields, isValidQuery }),
             [reducerState, activeFields, isValidQuery],
         ),
+        pristineState: useMemo(
+            () => ({
+                ...pristineReducerState,
+                activeFields: pristineActiveFields,
+                isValidQuery: pristineIsValidQuery,
+            }),
+            [pristineActiveFields, pristineIsValidQuery, pristineReducerState],
+        ),
         actions: useMemo(
             () => ({
                 reset,
+                syncState,
                 setState,
                 setTableName,
                 toggleActiveField,
@@ -480,6 +536,7 @@ export const ExplorerProvider: FC = ({ children }) => {
                 setFilters,
                 setRowLimit,
                 setColumnOrder,
+                syncState,
                 addTableCalculation,
                 deleteTableCalculation,
                 updateTableCalculation,
