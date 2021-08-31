@@ -162,6 +162,16 @@
         "data",
         "bug"
       ]
+    },
+    {
+      "login": "andreiafreitas",
+      "name": "Andreia Freitas",
+      "avatar_url": "https://avatars.githubusercontent.com/u/25464035?v=4",
+      "profile": "https://github.com/andreiafreitas",
+      "contributions": [
+        "test",
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
