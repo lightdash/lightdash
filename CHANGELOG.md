@@ -7,6 +7,9 @@ Recent and upcoming changes to lightdash
 - Users can reorder the result table columns
 - Add dbt profile target option in lightdash project config
 
+### Fixed
+- Fixed error drawer from opening on each query change
+
 ## [0.6.4] - 2021-08-23
 ### Added
 - Users can create and revoke invite links
