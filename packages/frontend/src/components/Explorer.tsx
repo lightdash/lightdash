@@ -53,10 +53,8 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         },
         actions: { setRowLimit: setResultsRowLimit },
     } = useExplorer();
-    // queryResults are used here for prop-drill because the keepPreviousData: true option doesn't persist when
-    // child components unmount: https://github.com/tannerlinsley/react-query/issues/2363
     const queryResults = useQueryResults();
-    const chartConfig = useChartConfig(savedQueryUuid, queryResults);
+    const chartConfig = useChartConfig(savedQueryUuid);
     const { data } = useSavedQuery({ id: savedQueryUuid });
     const update = useAddVersionMutation();
 
@@ -132,7 +130,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         justifyContent: 'flex-end',
                     }}
                 >
-                    <RefreshButton queryResults={queryResults} />
+                    <RefreshButton />
                     <RefreshServerButton />
                     <Popover2
                         content={
@@ -321,7 +319,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     )}
                 </div>
                 <Collapse isOpen={resultsIsOpen}>
-                    <ResultsTable queryResults={queryResults} />
+                    <ResultsTable />
                 </Collapse>
             </Card>
             <div style={{ paddingTop: '10px' }} />

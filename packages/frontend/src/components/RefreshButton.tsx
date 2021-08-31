@@ -5,14 +5,16 @@ import { ApiError, ApiQueryResults } from 'common';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
+import { useQueryResults } from '../hooks/useQueryResults';
 
 type RefreshButtonProps = {
     queryResults: UseQueryResult<ApiQueryResults, ApiError>;
 };
-export const RefreshButton = ({ queryResults }: RefreshButtonProps) => {
+export const RefreshButton = () => {
     const {
         state: { isValidQuery },
     } = useExplorer();
+    const queryResults = useQueryResults(false);
     const { refetch, isFetching } = queryResults;
     const { track } = useTracking();
     return (
