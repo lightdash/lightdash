@@ -9,6 +9,7 @@ Recent and upcoming changes to lightdash
 
 ### Fixed
 - Fixed error drawer from opening on each query change
+- Fixed issue where chart label would be partially cut off
 
 ## [0.6.4] - 2021-08-23
 ### Added
