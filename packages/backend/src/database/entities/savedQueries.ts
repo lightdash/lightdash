@@ -95,6 +95,26 @@ type CreateDbSavedQueryVersionSort = Pick<
     'saved_queries_version_id' | 'field_name' | 'descending' | 'order'
 >;
 
+export const SavedQueryTableCalculationTableName =
+    'saved_queries_version_table_calculations';
+export type DbSavedQueryTableCalculation = {
+    saved_queries_version_table_calculations_id: number;
+    name: string;
+    display_name: string;
+    order: number;
+    calculation_raw_sql: string;
+    saved_queries_version_id: number;
+};
+
+type DbSavedQueryTableCalculationInsert = Omit<
+    DbSavedQueryTableCalculation,
+    'saved_queries_version_table_calculations_id'
+>;
+export type SavedQueryTableCalculationTable = Knex.CompositeTableType<
+    DbSavedQueryTableCalculation,
+    DbSavedQueryTableCalculationInsert
+>;
+
 export const getSavedQueryByUuid = async (
     db: Knex,
     savedQueryUuid: string,
@@ -133,7 +153,7 @@ export const getSavedQueryByUuid = async (
     const fields = await db<DbSavedQueryVersionField>(
         'saved_queries_version_fields',
     )
-        .select<DbSavedQueryVersionField[]>(['name', 'field_type'])
+        .select<DbSavedQueryVersionField[]>(['name', 'field_type', 'order'])
         .where('saved_queries_version_id', savedQuery.saved_queries_version_id)
         .orderBy('order', 'asc');
     const sorts = await db<DbSavedQueryVersionSort>(
@@ -142,6 +162,11 @@ export const getSavedQueryByUuid = async (
         .select<DbSavedQueryVersionSort[]>(['field_name', 'descending'])
         .where('saved_queries_version_id', savedQuery.saved_queries_version_id)
         .orderBy('order', 'asc');
+    const tableCalculations = await db(
+        'saved_queries_version_table_calculations',
+    )
+        .select(['name', 'display_name', 'calculation_raw_sql', 'order'])
+        .where('saved_queries_version_id', savedQuery.saved_queries_version_id);
 
     const [dimensions, metrics]: [string[], string[]] = fields.reduce<
         [string[], string[]]
@@ -154,6 +179,10 @@ export const getSavedQueryByUuid = async (
         },
         [[], []],
     );
+
+    const columnOrder: string[] = [...fields, ...tableCalculations]
+        .sort((a, b) => a.order - b.order)
+        .map((x) => x.name);
 
     return {
         uuid: savedQuery.saved_query_uuid,
@@ -168,7 +197,11 @@ export const getSavedQueryByUuid = async (
                 descending: sort.descending,
             })),
             limit: savedQuery.row_limit,
-            tableCalculations: [],
+            tableCalculations: tableCalculations.map((tableCalculation) => ({
+                name: tableCalculation.name,
+                displayName: tableCalculation.display_name,
+                sql: tableCalculation.calculation_raw_sql,
+            })),
         },
         chartConfig: {
             chartType: savedQuery.chart_type,
@@ -179,10 +212,7 @@ export const getSavedQueryByUuid = async (
             },
         },
         tableConfig: {
-            columnOrder: fields.reduce<string[]>(
-                (sum, { name }) => [...sum, name],
-                [],
-            ),
+            columnOrder,
         },
     };
 };
@@ -242,12 +272,29 @@ const createSavedQueryVersionSort = async (
     return results[0];
 };
 
+const createSavedQueryVersionTableCalculation = async (
+    db: Knex,
+    data: DbSavedQueryTableCalculationInsert,
+): Promise<DbSavedQueryTableCalculation> => {
+    const results = await db('saved_queries_version_table_calculations')
+        .insert(data)
+        .returning('*');
+    return results[0];
+};
+
 export const createSavedQueryVersion = async (
     db: Knex,
     savedQueryId: number,
     {
         tableName,
-        metricQuery: { limit, filters, dimensions, metrics, sorts },
+        metricQuery: {
+            limit,
+            filters,
+            dimensions,
+            metrics,
+            sorts,
+            tableCalculations,
+        },
         chartConfig,
         tableConfig,
     }: CreateSavedQueryVersion,
@@ -316,6 +363,20 @@ export const createSavedQueryVersion = async (
                         saved_queries_version_id:
                             version.saved_queries_version_id,
                         order: index,
+                    }),
+                );
+            });
+            tableCalculations.forEach((tableCalculation, index) => {
+                promises.push(
+                    createSavedQueryVersionTableCalculation(trx, {
+                        name: tableCalculation.name,
+                        display_name: tableCalculation.displayName,
+                        calculation_raw_sql: tableCalculation.sql,
+                        saved_queries_version_id:
+                            version.saved_queries_version_id,
+                        order: tableConfig.columnOrder.findIndex(
+                            (column) => column === tableCalculation.name,
+                        ),
                     }),
                 );
             });
