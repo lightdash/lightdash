@@ -6,6 +6,9 @@ Recent and upcoming changes to lightdash
 ### Added
 - Users can reorder the result table columns
 - Add dbt profile target option in lightdash project config
+- Add table calculations to your results table. Table calculations allow you to combine columns together 
+in your results. For example, adding together two metrics to make a third or compute a running total. Table calculations
+are written using raw sql. 
 
 ### Fixed
 - Fixed error drawer from opening on each query change

@@ -46,6 +46,8 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             limit,
             filters,
             columnOrder,
+            tableCalculations,
+            selectedTableCalculations,
         },
         actions: { setRowLimit: setResultsRowLimit },
     } = useExplorer();
@@ -75,7 +77,9 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                   sorts,
                   filters,
                   limit,
-                  tableCalculations: [],
+                  tableCalculations: tableCalculations.filter((t) =>
+                      selectedTableCalculations.includes(t.name),
+                  ),
               },
               chartConfig: {
                   chartType: activeVizTab,
