@@ -70,10 +70,10 @@ FROM \`db\`.\`schema\`.\`table1\` AS table1
 
 
 GROUP BY 1
-ORDER BY table1_metric1 DESC
-LIMIT 10
 )
 SELECT
   *,
   table1_dim1 + table1_metric1 AS \`calc3\`
-FROM metrics`;
+FROM metrics
+ORDER BY table1_metric1 DESC
+LIMIT 10`;

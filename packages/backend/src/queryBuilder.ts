@@ -271,19 +271,16 @@ export const buildQuery = ({
 
     const sqlLimit = `LIMIT ${limit}`;
 
-    const metricQuerySql = [
-        sqlSelect,
-        sqlFrom,
-        sqlJoins,
-        sqlWhere,
-        sqlGroupBy,
-        sqlOrderBy,
-        sqlLimit,
-    ].join('\n');
-
     if (compiledMetricQuery.compiledTableCalculations.length > 0) {
+        const cteSql = [
+            sqlSelect,
+            sqlFrom,
+            sqlJoins,
+            sqlWhere,
+            sqlGroupBy,
+        ].join('\n');
         const cteName = 'metrics';
-        const cte = `WITH ${cteName} AS (\n${metricQuerySql}\n)`;
+        const cte = `WITH ${cteName} AS (\n${cteSql}\n)`;
         const tableCalculationSelects =
             compiledMetricQuery.compiledTableCalculations.map(
                 (tableCalculation) => {
@@ -295,7 +292,17 @@ export const buildQuery = ({
             ',\n  ',
         )}`;
         const finalFrom = `FROM ${cteName}`;
-        return [cte, finalSelect, finalFrom].join('\n');
+        return [cte, finalSelect, finalFrom, sqlOrderBy, sqlLimit].join('\n');
     }
+
+    const metricQuerySql = [
+        sqlSelect,
+        sqlFrom,
+        sqlJoins,
+        sqlWhere,
+        sqlGroupBy,
+        sqlOrderBy,
+        sqlLimit,
+    ].join('\n');
     return metricQuerySql;
 };
