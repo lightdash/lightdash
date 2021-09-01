@@ -284,9 +284,19 @@ function reducer(
             };
         }
         case ActionType.ADD_TABLE_CALCULATION: {
+            const selectedTableCalculations = toggleArrayValue(
+                state.selectedTableCalculations,
+                action.payload.name,
+            );
             return {
                 ...state,
+                selectedTableCalculations,
                 tableCalculations: [...state.tableCalculations, action.payload],
+                columnOrder: calcColumnOrder(state.columnOrder, [
+                    ...state.dimensions,
+                    ...state.metrics,
+                    ...selectedTableCalculations,
+                ]),
             };
         }
         case ActionType.UPDATE_TABLE_CALCULATION: {
