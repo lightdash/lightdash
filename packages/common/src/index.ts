@@ -150,6 +150,9 @@ export type FieldId = string;
 export const fieldId = (field: Field): FieldId =>
     `${field.table}_${field.name}`;
 
+export const getFieldRef = (field: Field): string =>
+    `${field.table}.${field.name}`;
+
 export enum MetricType {
     AVERAGE = 'average',
     COUNT = 'count',
