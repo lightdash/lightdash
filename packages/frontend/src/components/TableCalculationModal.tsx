@@ -6,11 +6,16 @@ import {
     FormGroup,
     InputGroup,
     Intent,
-    TextArea,
 } from '@blueprintjs/core';
+import AceEditor from 'react-ace';
 import { snakeCaseName, TableCalculation } from 'common';
 import { useApp } from '../providers/AppProvider';
 import { useExplorer } from '../providers/ExplorerProvider';
+import { useExplorerAceEditorCompleter } from '../hooks/useExplorerAceEditorCompleter';
+
+const SQL_PLACEHOLDER =
+    // eslint-disable-next-line no-template-curly-in-string
+    '${table_name.field_name} + ${table_name.metric_name}';
 
 interface Props {
     isOpen: boolean;
@@ -30,6 +35,7 @@ const TableCalculationModal: FC<Props> = ({
     const { showToastError } = useApp();
     const [name, setName] = useState<string>();
     const [sql, setSql] = useState<string>();
+    const { setAceEditor } = useExplorerAceEditorCompleter();
 
     useEffect(() => {
         if (tableCalculation) {
@@ -95,15 +101,18 @@ const TableCalculationModal: FC<Props> = ({
                     labelFor="sql-input"
                     labelInfo="(required)"
                 >
-                    <TextArea
-                        growVertically
-                        large
-                        fill
-                        id="sql-input"
-                        required
-                        disabled={isDisabled}
+                    <AceEditor
+                        onLoad={setAceEditor}
+                        name="sql-input"
+                        readOnly={isDisabled}
+                        height="100px"
+                        width="100%"
                         value={sql}
-                        onChange={(e) => setSql(e.target.value)}
+                        onChange={(value) => setSql(value)}
+                        editorProps={{ $blockScrolling: true }}
+                        enableBasicAutocompletion
+                        enableLiveAutocompletion
+                        placeholder={SQL_PLACEHOLDER}
                     />
                 </FormGroup>
             </div>
