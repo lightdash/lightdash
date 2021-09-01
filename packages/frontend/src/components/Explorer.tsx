@@ -14,6 +14,7 @@ import {
 import { Popover2 } from '@blueprintjs/popover2';
 import { DBChartTypes, SavedQuery } from 'common';
 import EChartsReact from 'echarts-for-react';
+import { useLocation } from 'react-router-dom';
 import { FiltersForm } from '../filters/FiltersForm';
 import { ResultsTable } from './ResultsTable';
 import { SimpleChart } from './SimpleChart';
@@ -27,7 +28,7 @@ import { ChartDownloadMenu } from './ChartDownload';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { CreateSavedQueryModal } from './SaveQueryModal';
 import { useAddVersionMutation, useSavedQuery } from '../hooks/useSavedQuery';
-import { Section, useTracking } from '../providers/TrackingProvider';
+import { Section } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 
 interface Props {
@@ -37,6 +38,7 @@ interface Props {
 export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const chartRef = useRef<EChartsReact>(null);
+    const location = useLocation<{ fromExplorer?: boolean } | undefined>();
     const {
         state: {
             tableName,
@@ -61,7 +63,9 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false);
     const [resultsIsOpen, setResultsIsOpen] = useState<boolean>(true);
     const [sqlIsOpen, setSqlIsOpen] = useState<boolean>(false);
-    const [vizIsOpen, setVizisOpen] = useState<boolean>(!!savedQueryUuid);
+    const [vizIsOpen, setVizisOpen] = useState<boolean>(
+        !!savedQueryUuid && !location.state?.fromExplorer,
+    );
     const totalActiveFilters = filters
         .flatMap((filterGroup) => filterGroup.filters.length)
         .reduce((p, t) => p + t, 0);
@@ -107,10 +111,15 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     }, [data]);
 
     useEffect(() => {
-        if (queryResults.isIdle && savedQueryUuid && tableName) {
+        if (
+            queryResults.isIdle &&
+            savedQueryUuid &&
+            tableName &&
+            !location.state?.fromExplorer
+        ) {
             queryResults.refetch();
         }
-    }, [savedQueryUuid, queryResults, tableName]);
+    }, [savedQueryUuid, queryResults, tableName, location]);
 
     const isChartEmpty: boolean = !chartConfig.plotData;
     return (
