@@ -40,11 +40,18 @@ const TableCalculationModal: FC<Props> = ({
 
     const handleSave = () => {
         if (name && sql) {
-            onSave({
-                name: snakeCaseName(name),
-                displayName: name,
-                sql,
-            });
+            try {
+                onSave({
+                    name: snakeCaseName(name),
+                    displayName: name,
+                    sql,
+                });
+            } catch (e) {
+                showToastError({
+                    title: 'Error saving',
+                    subtitle: e.message,
+                });
+            }
         } else {
             showToastError({
                 title: 'Required fields: name, sql',
@@ -66,6 +73,13 @@ const TableCalculationModal: FC<Props> = ({
                     label="Name"
                     labelFor="name-input"
                     labelInfo="(required)"
+                    helperText={
+                        name ? (
+                            <span style={{ marginLeft: 2 }}>
+                                ID: {snakeCaseName(name)}
+                            </span>
+                        ) : undefined
+                    }
                 >
                     <InputGroup
                         id="name-input"

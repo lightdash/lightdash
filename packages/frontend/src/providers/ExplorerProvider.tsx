@@ -427,21 +427,40 @@ export const ExplorerProvider: FC = ({ children }) => {
 
     const addTableCalculation = useCallback(
         (tableCalculation: TableCalculation) => {
+            if (
+                reducerState.tableCalculations.findIndex(
+                    ({ name }) => name === tableCalculation.name,
+                ) > -1
+            ) {
+                throw new Error(
+                    `Table calculation ID "${tableCalculation.name}" already exists.`,
+                );
+            }
             dispatch({
                 type: ActionType.ADD_TABLE_CALCULATION,
                 payload: tableCalculation,
             });
         },
-        [],
+        [reducerState],
     );
     const updateTableCalculation = useCallback(
         (oldName: string, tableCalculation: TableCalculation) => {
+            if (
+                oldName !== tableCalculation.name &&
+                reducerState.tableCalculations.findIndex(
+                    ({ name }) => name === tableCalculation.name,
+                ) > -1
+            ) {
+                throw new Error(
+                    `Id: "${tableCalculation.name}" already exists.`,
+                );
+            }
             dispatch({
                 type: ActionType.UPDATE_TABLE_CALCULATION,
                 payload: { oldName, tableCalculation },
             });
         },
-        [],
+        [reducerState],
     );
     const deleteTableCalculation = useCallback((name: string) => {
         dispatch({
