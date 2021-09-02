@@ -18,8 +18,18 @@ export abstract class DbtBaseProjectAdapter implements ProjectAdapter {
     public async compileAllExplores(
         loadSources: boolean = false,
     ): Promise<Explore[]> {
-        // Compile models from dbt - may throw ParseError
-        const models = await this._getDbtModels();
+        // Install dependencies for dbt and fetch the manifest
+        await this.rpcClient.installDeps();
+        const { manifest } = await this.rpcClient.getDbtManifest();
+
+        // Validate models in the manifest - may throw ParseError
+        const models = await DbtBaseProjectAdapter._validateDbtModels(
+            Object.values(manifest.nodes).filter(
+                (node) => node.resource_type === 'model',
+            ) as DbtModelNode[],
+        );
+
+        const adapterType = manifest.metadata.adapter_type;
 
         // Be lazy and try to type the models without refreshing the catalog
         try {
@@ -52,13 +62,9 @@ export abstract class DbtBaseProjectAdapter implements ProjectAdapter {
         return this.rpcClient.runQuery(sql);
     }
 
-    private async _getDbtModels(): Promise<DbtModelNode[]> {
-        await this.rpcClient.installDeps();
-        const manifest = await this.rpcClient.getDbtManifest();
-        const nodes = manifest.results.map((result) => result.node);
-        const models = nodes.filter(
-            (node) => node.resource_type === 'model',
-        ) as DbtModelNode[];
+    static async _validateDbtModels(
+        models: DbtModelNode[],
+    ): Promise<DbtModelNode[]> {
         const validator = ajv.compile(modelJsonSchema);
         const validateModel = (model: DbtModelNode) => {
             const valid = validator(model);
