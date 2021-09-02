@@ -717,6 +717,36 @@ export const isDbtRpcDocsGenerateResults = (
             'columns' in node,
     );
 
+export interface DbtManifest {
+    nodes: Record<string, DbtNode>;
+    metadata: DbtManifestMetadata;
+}
+
+export interface DbtManifestMetadata {
+    dbt_schema_version: string;
+    generated_at: string;
+    adapter_type: string;
+}
+const isDbtManifestMetadata = (x: any): x is DbtManifestMetadata =>
+    typeof x === 'object' &&
+    x !== null &&
+    'dbt_schema_version' in x &&
+    'generated_at' in x &&
+    'adapter_type' in x;
+
+export interface DbtRpcGetManifestResults {
+    manifest: DbtManifest;
+}
+export const isDbtRpcManifestResults = (
+    results: Record<string, any>,
+): results is DbtRpcGetManifestResults =>
+    'manifest' in results &&
+    typeof results.manifest === 'object' &&
+    results.manifest !== null &&
+    'nodes' in results.manifest &&
+    'metadata' in results.manifest &&
+    isDbtManifestMetadata(results.manifest.metadata);
+
 export interface DbtRpcCompileResults {
     results: { node: DbtNode }[];
 }

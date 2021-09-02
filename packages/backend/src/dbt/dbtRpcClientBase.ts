@@ -1,10 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
 import fetch from 'node-fetch';
 import {
-    DbtRpcCompileResults,
     DbtRpcDocsGenerateResults,
-    isDbtRpcCompileResults,
+    DbtRpcGetManifestResults,
     isDbtRpcDocsGenerateResults,
+    isDbtRpcManifestResults,
     isDbtRpcRunSqlResults,
 } from 'common';
 import { DbtError, NetworkError, RetryableNetworkError } from '../errors';
@@ -285,11 +285,11 @@ export class DbtRpcClientBase {
         return true;
     }
 
-    public async getDbtManifest(): Promise<DbtRpcCompileResults> {
+    public async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
         await this._waitForServerReady();
-        const requestToken = await this._submitJob('compile', {});
+        const requestToken = await this._submitJob('get-manifest', {});
         const jobResults = await this._waitForJobComplete(requestToken);
-        if (isDbtRpcCompileResults(jobResults)) {
+        if (isDbtRpcManifestResults(jobResults)) {
             return jobResults;
         }
         throw new NetworkError(
