@@ -326,6 +326,7 @@ const convertTables = (
 export const convertExplores = async (
     models: DbtModelNode[],
     loadSources: boolean,
+    adapterType: string,
 ): Promise<Explore[]> => {
     const tables: Record<string, Table> = convertTables(
         models,
@@ -340,6 +341,7 @@ export const convertExplores = async (
                 sqlOn: join.sql_on,
             })),
             tables,
+            targetDatabase: adapterType,
         }),
     );
     return explores;

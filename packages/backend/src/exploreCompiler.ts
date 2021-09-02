@@ -206,12 +206,14 @@ export type UncompiledExplore = {
     baseTable: string;
     joinedTables: ExploreJoin[];
     tables: Record<string, Table>;
+    targetDatabase: string;
 };
 export const compileExplore = ({
     name,
     baseTable,
     joinedTables,
     tables,
+    targetDatabase,
 }: UncompiledExplore): Explore => {
     // Check tables are correctly declared
     if (!tables[baseTable]) {
@@ -252,5 +254,6 @@ export const compileExplore = ({
         baseTable,
         joinedTables: compiledJoins,
         tables: compiledTables,
+        targetDatabase,
     };
 };

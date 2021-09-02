@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Fixed
+- Fixed bug with wrong quote strings for dbt's athena adapter
 
 ## [0.6.5] - 2021-09-03
 ### Added

@@ -40,6 +40,7 @@ export abstract class DbtBaseProjectAdapter implements ProjectAdapter {
             const lazyExplores = await convertExplores(
                 lazyTypedModels,
                 loadSources,
+                manifest.metadata.adapter_type,
             );
             return lazyExplores;
         } catch (e) {
@@ -51,6 +52,7 @@ export abstract class DbtBaseProjectAdapter implements ProjectAdapter {
                 const explores = await convertExplores(
                     typedModels,
                     loadSources,
+                    manifest.metadata.adapter_type,
                 );
                 return explores;
             }
@@ -84,6 +86,7 @@ export abstract class DbtBaseProjectAdapter implements ProjectAdapter {
         models.forEach(validateModel);
 
         // Foreign key checks
+        // TODO: this belongs in the compiler
         const validModelNames = new Set(models.map((model) => model.name));
         const validateForeignKeys = (model: DbtModelNode) => {
             const joins = model.meta?.joins?.map((j) => j.join) || [];
