@@ -4,7 +4,10 @@ import {
     Alignment,
     Button,
     ButtonGroup,
+    Colors,
     Divider,
+    Icon,
+    Intent,
     Switch,
 } from '@blueprintjs/core';
 
@@ -25,7 +28,42 @@ const Content: React.FC<ContentProps> = ({ chartConfig }) => (
             width: '300px',
         }}
     >
-        <span>
+        <span style={{ color: Colors.GREEN1 }}>
+            <Icon
+                icon="function"
+                color={Colors.GREEN1}
+                style={{ marginRight: 5 }}
+            />
+            <b>Table Calculations</b>
+        </span>
+        <Divider />
+        {chartConfig.tableCalculationOptions.map(({ name, displayName }) => (
+            <div key={name} style={{ width: '100%' }}>
+                <Switch
+                    checked={
+                        chartConfig.seriesLayout.yMetrics?.find(
+                            (m) => m === name,
+                        ) !== undefined
+                    }
+                    label={displayName}
+                    alignIndicator={Alignment.RIGHT}
+                    onChange={() => chartConfig.toggleYMetric(name)}
+                    disabled={
+                        chartConfig.seriesLayout.yMetrics?.find(
+                            (m) => m === name,
+                        ) === undefined &&
+                        chartConfig.seriesLayout.groupDimension !== undefined
+                    }
+                />
+            </div>
+        ))}
+        <span style={{ color: Colors.ORANGE1 }}>
+            <Icon
+                icon="numerical"
+                color={Colors.ORANGE1}
+                style={{ marginRight: 5 }}
+            />
+
             <b>Metrics</b>
         </span>
         <Divider />
@@ -49,7 +87,8 @@ const Content: React.FC<ContentProps> = ({ chartConfig }) => (
                 />
             </div>
         ))}
-        <span>
+        <span style={{ color: Colors.BLUE1 }}>
+            <Icon icon="tag" color={Colors.BLUE1} style={{ marginRight: 5 }} />
             <b>Dimensions</b>
         </span>
         <Divider />

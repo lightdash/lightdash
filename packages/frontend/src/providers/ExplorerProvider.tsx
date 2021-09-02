@@ -14,7 +14,6 @@ export enum ActionType {
     SET_TABLE_NAME,
     TOGGLE_DIMENSION,
     TOGGLE_METRIC,
-    TOGGLE_TABLE_CALCULATION,
     TOGGLE_SORT_FIELD,
     SET_SORT_FIELDS,
     SET_ROW_LIMIT,
@@ -33,7 +32,6 @@ type Action =
           type:
               | ActionType.TOGGLE_DIMENSION
               | ActionType.TOGGLE_METRIC
-              | ActionType.TOGGLE_TABLE_CALCULATION
               | ActionType.TOGGLE_SORT_FIELD;
           payload: FieldId;
       }
@@ -90,7 +88,6 @@ interface ExplorerContext {
         setState: (state: Required<ExplorerReduceState>) => void;
         setTableName: (tableName: string) => void;
         toggleActiveField: (fieldId: FieldId, isDimension: boolean) => void;
-        toggleTableCalculation: (name: string) => void;
         toggleSortField: (fieldId: FieldId) => void;
         setSortFields: (sortFields: SortField[]) => void;
         setRowLimit: (limit: number) => void;
@@ -190,22 +187,6 @@ function reducer(
                     ...state.dimensions,
                     ...metrics,
                     ...state.selectedTableCalculations,
-                ]),
-            };
-        }
-        case ActionType.TOGGLE_TABLE_CALCULATION: {
-            const selectedTableCalculations = toggleArrayValue(
-                state.selectedTableCalculations,
-                action.payload,
-            );
-            return {
-                ...state,
-                selectedTableCalculations,
-                sorts: state.sorts.filter((s) => s.fieldId !== action.payload),
-                columnOrder: calcColumnOrder(state.columnOrder, [
-                    ...state.dimensions,
-                    ...state.metrics,
-                    ...selectedTableCalculations,
                 ]),
             };
         }
@@ -469,13 +450,6 @@ export const ExplorerProvider: FC = ({ children }) => {
         });
     }, []);
 
-    const toggleTableCalculation = useCallback((name: string) => {
-        dispatch({
-            type: ActionType.TOGGLE_TABLE_CALCULATION,
-            payload: name,
-        });
-    }, []);
-
     const value: ExplorerContext = {
         state: useMemo(
             () => ({ ...reducerState, activeFields, isValidQuery }),
@@ -494,7 +468,6 @@ export const ExplorerProvider: FC = ({ children }) => {
                 setColumnOrder,
                 addTableCalculation,
                 deleteTableCalculation,
-                toggleTableCalculation,
                 updateTableCalculation,
             }),
             [
@@ -509,7 +482,6 @@ export const ExplorerProvider: FC = ({ children }) => {
                 setColumnOrder,
                 addTableCalculation,
                 deleteTableCalculation,
-                toggleTableCalculation,
                 updateTableCalculation,
             ],
         ),

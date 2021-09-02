@@ -125,6 +125,7 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                             accessor: fieldId,
                             Cell: getMetricFormatter(),
                             type: 'table_calculation',
+                            tableCalculation,
                             ...getSortByProps(
                                 fieldId,
                                 sortFields,
