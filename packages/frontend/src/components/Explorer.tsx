@@ -22,7 +22,6 @@ import { RenderedSql } from './RenderedSql';
 import { RefreshServerButton } from './RefreshServerButton';
 import { RefreshButton } from './RefreshButton';
 import { ChartConfigPanel } from './ChartConfigPanel';
-import { useQueryResults } from '../hooks/useQueryResults';
 import { useChartConfig } from '../hooks/useChartConfig';
 import { ChartDownloadMenu } from './ChartDownload';
 import { useExplorer } from '../providers/ExplorerProvider';
@@ -53,7 +52,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         },
         actions: { setRowLimit: setResultsRowLimit },
     } = useExplorer();
-    const queryResults = useQueryResults();
     const chartConfig = useChartConfig(savedQueryUuid);
     const { data } = useSavedQuery({ id: savedQueryUuid });
     const update = useAddVersionMutation();
@@ -107,17 +105,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             setActiveVizTab(data.chartConfig.chartType);
         }
     }, [data]);
-
-    useEffect(() => {
-        if (
-            queryResults.isIdle &&
-            savedQueryUuid &&
-            tableName &&
-            !location.state?.fromExplorer
-        ) {
-            queryResults.refetch();
-        }
-    }, [savedQueryUuid, queryResults, tableName, location]);
 
     const isChartEmpty: boolean = !chartConfig.plotData;
     return (
