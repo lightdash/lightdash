@@ -1,4 +1,4 @@
-FROM nikolaik/python-nodejs:python3.8-nodejs14 AS base
+FROM nikolaik/python-nodejs:python3.8-nodejs14@sha256:f7d84950cac6a56e99e99747aad93ad77f949475ac1a5e9782669b8f5bedd2b6 AS base
 
 WORKDIR /usr/app
 
