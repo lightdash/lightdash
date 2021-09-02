@@ -80,6 +80,7 @@ export const SimpleChart: FC<SimpleChartProps> = ({
     const legend = {
         show:
             chartConfig.metricOptions.length +
+                chartConfig.tableCalculationOptions.length +
                 chartConfig.dimensionOptions.length >
             2,
     };

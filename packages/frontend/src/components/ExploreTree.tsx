@@ -13,12 +13,10 @@ import SyntaxHighlighter from 'react-syntax-highlighter';
 import { a11yDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 import TableTree from './TableTree';
-import TableCalculationsTree from './TableCaculationsTree';
 
 type ExploreTreeProps = {
     explore: Explore;
     onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
-    onSelectedTableCalculationChange: (name: string) => void;
     selectedNodes: Set<string>;
 };
 
@@ -96,7 +94,6 @@ const ExploreTree: FC<ExploreTreeProps> = ({
     explore,
     selectedNodes,
     onSelectedFieldChange,
-    onSelectedTableCalculationChange,
 }) => {
     const [search, setSearch] = useState<string>('');
     const [source, setSource] = useState<Source>();
@@ -126,11 +123,6 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                 />
             </div>
             <div style={{ overflowY: 'auto' }}>
-                <TableCalculationsTree
-                    search={search}
-                    selectedNodes={selectedNodes}
-                    onSelectedNodeChange={onSelectedTableCalculationChange}
-                />
                 {Object.values(explore.tables).map((table) => (
                     <TableTree
                         key={table.name}

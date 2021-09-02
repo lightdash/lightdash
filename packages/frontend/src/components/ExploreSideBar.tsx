@@ -161,7 +161,7 @@ export const ExplorePanel = ({ onBack }: ExplorePanelProps) => {
     } = useApp();
     const {
         state: { activeFields },
-        actions: { toggleActiveField, toggleTableCalculation },
+        actions: { toggleActiveField },
     } = useExplorer();
     const exploresResult = useTable();
     if (exploresResult.data) {
@@ -213,7 +213,6 @@ export const ExplorePanel = ({ onBack }: ExplorePanelProps) => {
                     explore={activeExplore}
                     selectedNodes={activeFields}
                     onSelectedFieldChange={toggleActiveField}
-                    onSelectedTableCalculationChange={toggleTableCalculation}
                 />
             </>
         );
