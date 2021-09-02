@@ -17,6 +17,7 @@ const sourceMock: Source = {
 };
 
 export const exploreOneEmptyTable: UncompiledExplore = {
+    targetDatabase: 'postgres',
     name: '',
     baseTable: 'a',
     joinedTables: [],
@@ -33,6 +34,7 @@ export const exploreOneEmptyTable: UncompiledExplore = {
 };
 
 export const exploreOneEmptyTableCompiled: Explore = {
+    targetDatabase: 'postgres',
     name: '',
     baseTable: 'a',
     joinedTables: [],
@@ -49,6 +51,7 @@ export const exploreOneEmptyTableCompiled: Explore = {
 };
 
 export const exploreMissingBaseTable: UncompiledExplore = {
+    targetDatabase: 'postgres',
     name: '',
     baseTable: 'a',
     joinedTables: [],
@@ -56,6 +59,7 @@ export const exploreMissingBaseTable: UncompiledExplore = {
 };
 
 export const exploreMissingJoinTable: UncompiledExplore = {
+    targetDatabase: 'postgres',
     name: '',
     baseTable: 'a',
     joinedTables: [
@@ -77,6 +81,7 @@ export const exploreMissingJoinTable: UncompiledExplore = {
 };
 
 export const exploreCircularReference: UncompiledExplore = {
+    targetDatabase: 'postgres',
     name: '',
     baseTable: 'a',
     joinedTables: [],
@@ -102,6 +107,7 @@ export const exploreCircularReference: UncompiledExplore = {
 };
 
 export const exploreTableSelfReference: UncompiledExplore = {
+    targetDatabase: 'postgres',
     name: '',
     baseTable: 'a',
     joinedTables: [],
@@ -127,6 +133,7 @@ export const exploreTableSelfReference: UncompiledExplore = {
 };
 
 export const exploreTableSelfReferenceCompiled: Explore = {
+    targetDatabase: 'postgres',
     name: '',
     baseTable: 'a',
     joinedTables: [],
@@ -153,6 +160,7 @@ export const exploreTableSelfReferenceCompiled: Explore = {
 };
 
 export const exploreReferenceDimension: UncompiledExplore = {
+    targetDatabase: 'postgres',
     name: '',
     baseTable: 'a',
     joinedTables: [],
@@ -186,6 +194,7 @@ export const exploreReferenceDimension: UncompiledExplore = {
 };
 
 export const exploreReferenceDimensionCompiled: Explore = {
+    targetDatabase: 'postgres',
     name: '',
     baseTable: 'a',
     joinedTables: [],
@@ -220,6 +229,7 @@ export const exploreReferenceDimensionCompiled: Explore = {
     },
 };
 export const exploreComplexReference: UncompiledExplore = {
+    targetDatabase: 'postgres',
     name: '',
     baseTable: 'a',
     joinedTables: [],
@@ -270,6 +280,7 @@ export const exploreComplexReference: UncompiledExplore = {
 };
 
 export const exploreComplexReferenceCompiled: Explore = {
+    targetDatabase: 'postgres',
     name: '',
     baseTable: 'a',
     joinedTables: [],
@@ -324,6 +335,7 @@ export const exploreComplexReferenceCompiled: Explore = {
 };
 
 export const exploreReferenceInJoin: UncompiledExplore = {
+    targetDatabase: 'postgres',
     name: '',
     baseTable: 'a',
     joinedTables: [
@@ -379,6 +391,7 @@ export const exploreReferenceInJoin: UncompiledExplore = {
 };
 
 export const exploreReferenceInJoinCompiled: Explore = {
+    targetDatabase: 'postgres',
     name: '',
     baseTable: 'a',
     joinedTables: [
@@ -438,6 +451,7 @@ export const exploreReferenceInJoinCompiled: Explore = {
 };
 
 export const exploreWithMetricNumber: UncompiledExplore = {
+    targetDatabase: 'postgres',
     name: '',
     baseTable: 'a',
     joinedTables: [],

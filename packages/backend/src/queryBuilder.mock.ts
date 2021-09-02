@@ -7,13 +7,14 @@ import {
 } from 'common';
 
 export const EXPLORE: Explore = {
+    targetDatabase: 'postgres',
     name: 'table1',
     baseTable: 'table1',
     joinedTables: [],
     tables: {
         table1: {
             name: 'table1',
-            sqlTable: '`db`.`schema`.`table1`',
+            sqlTable: '"db"."schema"."table1"',
             dimensions: {
                 dim1: {
                     type: DimensionType.NUMBER,
@@ -64,16 +65,16 @@ export const METRIC_QUERY: CompiledMetricQuery = {
 
 export const METRIC_QUERY_SQL = `WITH metrics AS (
 SELECT
-  table1.dim1 AS \`table1_dim1\`,
-  MAX(table1.number_column) AS \`table1_metric1\`
-FROM \`db\`.\`schema\`.\`table1\` AS table1
+  table1.dim1 AS "table1_dim1",
+  MAX(table1.number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS table1
 
 
 GROUP BY 1
 )
 SELECT
   *,
-  table1_dim1 + table1_metric1 AS \`calc3\`
+  table1_dim1 + table1_metric1 AS "calc3"
 FROM metrics
 ORDER BY table1_metric1 DESC
 LIMIT 10`;

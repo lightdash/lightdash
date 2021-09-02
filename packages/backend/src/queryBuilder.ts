@@ -204,13 +204,19 @@ const getMetricFromId = (metricId: FieldId, explore: Explore) => {
     return metric;
 };
 
-const getQuoteChar = (quotedExample: string): string => {
-    const char = quotedExample.slice(0, 1);
-    switch (char) {
-        case '"':
+const getQuoteChar = (targetDatabase: string): string => {
+    switch (targetDatabase) {
+        case 'postgres':
+        case 'snowflake':
+        case 'redshift':
+        case 'athena':
             return '"';
-        default:
+        case 'bigquery':
+        case 'apache_spark':
+        case 'databricks_cluster':
             return '`';
+        default:
+            return '"';
     }
 };
 
