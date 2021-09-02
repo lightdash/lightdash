@@ -10,7 +10,7 @@ export const useExplorerRoute = () => {
     const history = useHistory();
     const pathParams = useParams<{ tableId: string | undefined }>();
     const {
-        state,
+        pristineState,
         actions: { setState, reset },
     } = useExplorer();
 
@@ -66,56 +66,59 @@ export const useExplorerRoute = () => {
         }
     });
 
-    // Update url params based on state
+    // Update url params based on pristine state
     useEffect(() => {
-        if (state.tableName) {
+        if (pristineState.tableName) {
             const newParams = new URLSearchParams();
-            if (state.dimensions.length === 0) {
+            if (pristineState.dimensions.length === 0) {
                 newParams.delete('dimensions');
             } else {
-                newParams.set('dimensions', state.dimensions.join(','));
+                newParams.set('dimensions', pristineState.dimensions.join(','));
             }
-            if (state.metrics.length === 0) {
+            if (pristineState.metrics.length === 0) {
                 newParams.delete('metrics');
             } else {
-                newParams.set('metrics', state.metrics.join(','));
+                newParams.set('metrics', pristineState.metrics.join(','));
             }
-            if (state.sorts.length === 0) {
+            if (pristineState.sorts.length === 0) {
                 newParams.delete('sort');
             } else {
-                newParams.set('sort', JSON.stringify(state.sorts));
+                newParams.set('sort', JSON.stringify(pristineState.sorts));
             }
-            if (state.filters.length === 0) {
+            if (pristineState.filters.length === 0) {
                 newParams.delete('filters');
             } else {
-                newParams.set('filters', JSON.stringify(state.filters));
+                newParams.set('filters', JSON.stringify(pristineState.filters));
             }
-            newParams.set('limit', `${state.limit}`);
-            if (state.columnOrder.length === 0) {
+            newParams.set('limit', `${pristineState.limit}`);
+            if (pristineState.columnOrder.length === 0) {
                 newParams.delete('column_order');
             } else {
-                newParams.set('column_order', state.columnOrder.join(','));
+                newParams.set(
+                    'column_order',
+                    pristineState.columnOrder.join(','),
+                );
             }
-            if (state.selectedTableCalculations.length === 0) {
+            if (pristineState.selectedTableCalculations.length === 0) {
                 newParams.delete('selected_table_calculations');
             } else {
                 newParams.set(
                     'selected_table_calculations',
-                    state.selectedTableCalculations.join(','),
+                    pristineState.selectedTableCalculations.join(','),
                 );
             }
-            if (state.tableCalculations.length === 0) {
+            if (pristineState.tableCalculations.length === 0) {
                 newParams.delete('table_calculations');
             } else {
                 newParams.set(
                     'table_calculations',
-                    JSON.stringify(state.tableCalculations),
+                    JSON.stringify(pristineState.tableCalculations),
                 );
             }
             history.replace({
-                pathname: `/tables/${state.tableName}`,
+                pathname: `/tables/${pristineState.tableName}`,
                 search: newParams.toString(),
             });
         }
-    }, [state, history]);
+    }, [pristineState, history]);
 };

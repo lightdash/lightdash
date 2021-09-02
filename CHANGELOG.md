@@ -6,6 +6,8 @@ Recent and upcoming changes to lightdash
 ### Fixed
 - Fixed bug with wrong quote strings for dbt's athena adapter
 - Fixed bug where optional project configs set via env where not recognised
+- Add local state to track and update query parameters changes without affecting the current query data
+- Url Parameters are now updated only when the query is run
 
 ## [0.6.5] - 2021-09-03
 ### Added
