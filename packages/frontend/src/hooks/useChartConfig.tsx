@@ -6,6 +6,7 @@ import {
     fieldId as getFieldId,
     friendlyName,
     getDimensions,
+    TableCalculation,
 } from 'common';
 import { UseQueryResult } from 'react-query';
 import { useSavedQuery } from './useSavedQuery';
@@ -51,6 +52,7 @@ type ChartConfigBase = {
     setGroupDimension: (g: string | undefined) => void;
     dimensionOptions: string[];
     metricOptions: string[];
+    tableCalculationOptions: TableCalculation[];
     eChartDimensions: { name: string; displayName: string }[];
     series: string[];
 };
@@ -82,10 +84,16 @@ const defaultLayout = (
             queryResults.data.metricQuery.dimensions.length > 1
                 ? queryResults.data.metricQuery.dimensions[1]
                 : undefined;
+        const possibleYMetrics = [
+            ...queryResults.data.metricQuery.metrics,
+            ...queryResults.data.metricQuery.tableCalculations.map(
+                ({ name }) => name,
+            ),
+        ];
         const yMetrics =
             groupDimension === undefined
-                ? queryResults.data.metricQuery.metrics
-                : queryResults.data.metricQuery.metrics.slice(0, 1);
+                ? possibleYMetrics
+                : possibleYMetrics.slice(0, 1);
         return {
             xDimension,
             yMetrics,
@@ -120,6 +128,8 @@ export const useChartConfig = (
         : [];
     const dimensionOptions = queryResults.data?.metricQuery.dimensions || [];
     const metricOptions = queryResults.data?.metricQuery.metrics || [];
+    const tableCalculationOptions =
+        queryResults.data?.metricQuery.tableCalculations || [];
 
     useEffect(() => {
         if (data?.chartConfig) {
@@ -248,6 +258,7 @@ export const useChartConfig = (
             plotData,
             eChartDimensions,
             metricOptions,
+            tableCalculationOptions,
             dimensionOptions,
             series,
         };
@@ -260,6 +271,7 @@ export const useChartConfig = (
         plotData: undefined,
         eChartDimensions: [],
         metricOptions,
+        tableCalculationOptions,
         dimensionOptions,
         series: [],
     };

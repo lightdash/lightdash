@@ -38,6 +38,15 @@ export const useExplorerRoute = () => {
                         : 500;
                 const columnOrder =
                     searchParams.get('column_order')?.split(',') || [];
+                const tableCalculationsSearchParam =
+                    searchParams.get('table_calculations');
+                const tableCalculations = !tableCalculationsSearchParam
+                    ? []
+                    : JSON.parse(tableCalculationsSearchParam);
+                const selectedTableCalculations =
+                    searchParams
+                        .get('selected_table_calculations')
+                        ?.split(',') || [];
                 setState({
                     tableName: pathParams.tableId,
                     dimensions,
@@ -46,6 +55,8 @@ export const useExplorerRoute = () => {
                     sorts,
                     limit,
                     columnOrder,
+                    tableCalculations,
+                    selectedTableCalculations,
                 });
             } catch (e) {
                 showToastError({ title: 'Error parsing url', subtitle: e });
@@ -84,6 +95,22 @@ export const useExplorerRoute = () => {
                 newParams.delete('column_order');
             } else {
                 newParams.set('column_order', state.columnOrder.join(','));
+            }
+            if (state.selectedTableCalculations.length === 0) {
+                newParams.delete('selected_table_calculations');
+            } else {
+                newParams.set(
+                    'selected_table_calculations',
+                    state.selectedTableCalculations.join(','),
+                );
+            }
+            if (state.tableCalculations.length === 0) {
+                newParams.delete('table_calculations');
+            } else {
+                newParams.set(
+                    'table_calculations',
+                    JSON.stringify(state.tableCalculations),
+                );
             }
             history.replace({
                 pathname: `/tables/${state.tableName}`,

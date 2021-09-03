@@ -9,6 +9,10 @@ import {
 import { UserTable, UserTableName } from '../database/entities/users';
 import { EmailTable, EmailTableName } from '../database/entities/emails';
 import { SessionTable, SessionTableName } from '../database/entities/sessions';
+import {
+    SavedQueryTableCalculationTable,
+    SavedQueryTableCalculationTableName,
+} from '../database/entities/savedQueries';
 
 declare module 'knex/types/tables' {
     interface Tables {
@@ -17,5 +21,6 @@ declare module 'knex/types/tables' {
         [UserTableName]: UserTable;
         [EmailTableName]: EmailTable;
         [SessionTableName]: SessionTable;
+        [SavedQueryTableCalculationTableName]: SavedQueryTableCalculationTable;
     }
 }

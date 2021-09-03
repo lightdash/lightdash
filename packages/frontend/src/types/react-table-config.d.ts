@@ -47,7 +47,7 @@ import {
     // UseSortByOptions,
     // UseSortByState
 } from 'react-table';
-import { DimensionType } from 'common';
+import { DimensionType, TableCalculation } from 'common';
 
 declare module 'react-table' {
     // take this file as-is, or comment out the sections that don't apply to your plugin configuration
@@ -114,8 +114,9 @@ declare module 'react-table' {
             UseGroupByColumnProps<D>,
             UseResizeColumnsColumnProps<D> {
         // UseSortByColumnProps<D> {
-        isDimension: boolean;
+        type: 'dimension' | 'metric' | 'table_calculation';
         dimensionType: DimensionType;
+        tableCalculation?: TableCalculation;
         sortedIndex: number;
         isMultiSort: boolean;
         isSorted: boolean;

@@ -20,6 +20,7 @@ const PasswordInput: FC<Props> = ({
     disabled,
     value,
     onChange,
+    ...rest
 }) => {
     const inputId =
         id || `${label.replace(/[^a-zA-Z]/g, '').replace(/\s/g, '_')}_input`;
@@ -54,6 +55,7 @@ const PasswordInput: FC<Props> = ({
                         />
                     </Tooltip2>
                 }
+                {...rest}
             />
         </FormGroup>
     );

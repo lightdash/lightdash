@@ -126,6 +126,9 @@ export const useCreateMutation = () => {
                 });
                 history.push({
                     pathname: `/saved/${data.uuid}`,
+                    state: {
+                        fromExplorer: true,
+                    },
                 });
             },
             onError: (error) => {

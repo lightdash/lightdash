@@ -1,4 +1,5 @@
 import {
+    ColumnInstance,
     HeaderGroup,
     useColumnOrder,
     usePagination,
@@ -31,6 +32,8 @@ import { RefreshButton } from './RefreshButton';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { Section } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
+import TableCalculationHeaderButton from './TableCalculationHeaderButton';
+import AddColumnButton from './AddColumnButton';
 
 const hexToRGB = (hex: string, alpha: number) => {
     // eslint-disable-next-line radix
@@ -82,14 +85,14 @@ const EmptyStateNoRows = () => (
 );
 
 const getSortIndicator = (
-    isDimension: boolean,
+    type: ColumnInstance['type'],
     dimensionType: DimensionType,
     desc: boolean,
     sortIndex: number,
     isMultiSort: boolean,
 ) => {
     const style = { paddingLeft: '5px' };
-    if (isDimension && dimensionType === 'string')
+    if (type === 'dimension' && dimensionType === 'string')
         return (
             <>
                 {isMultiSort && (
@@ -120,18 +123,21 @@ const getSortIndicator = (
     );
 };
 
-const getColumnStyle = (isDimension: boolean) => ({
+const ColumnColors = {
+    dimension: hexToRGB(Colors.BLUE1, 0.2),
+    metric: hexToRGB(Colors.ORANGE1, 0.2),
+    table_calculation: hexToRGB(Colors.GREEN1, 0.2),
+};
+
+const getColumnStyle = (type: ColumnInstance['type']) => ({
     style: {
-        backgroundColor: isDimension
-            ? hexToRGB(Colors.BLUE1, 0.2)
-            : hexToRGB(Colors.ORANGE1, 0.2),
+        backgroundColor: ColumnColors[type],
     },
 });
 
-const getRowStyle = (rowIndex: number, isDimension: boolean) => ({
+const getRowStyle = (rowIndex: number) => ({
     style: {
         backgroundColor: rowIndex % 2 ? undefined : Colors.LIGHT_GRAY4,
-        textAlign: isDimension ? ('left' as 'left') : ('right' as 'right'),
     },
 });
 
@@ -167,12 +173,17 @@ const Item: FC<ItemProps> = ({
         {column?.render('Header')}
         {column?.isSorted &&
             getSortIndicator(
-                column.isDimension,
+                column.type,
                 column.dimensionType,
                 column.isSortedDesc || false,
                 column.sortedIndex,
                 column.isMultiSort,
             )}
+        {column?.tableCalculation && (
+            <TableCalculationHeaderButton
+                tableCalculation={column.tableCalculation}
+            />
+        )}
     </div>
 );
 
@@ -241,144 +252,160 @@ export const ResultsTable = ({ queryResults }: ResultsTableProps) => {
             }}
         >
             <div style={{ display: 'block', maxWidth: '100%' }}>
-                <HTMLTable
-                    bordered
-                    condensed
-                    {...getTableProps()}
-                    style={{ width: '100%' }}
+                <div
+                    style={{
+                        display: 'flex',
+                        maxWidth: '100%',
+                        flexDirection: 'row',
+                    }}
                 >
-                    {headerGroups.map((headerGroup) => (
-                        <colgroup key={headerGroup.id}>
-                            {headerGroup.headers.map((column) => (
-                                <col
-                                    {...column.getHeaderProps([
-                                        getColumnStyle(column.isDimension),
-                                    ])}
-                                />
-                            ))}
-                        </colgroup>
-                    ))}
-                    <thead>
+                    <HTMLTable
+                        bordered
+                        condensed
+                        {...getTableProps()}
+                        style={{ flex: 1 }}
+                    >
                         {headerGroups.map((headerGroup) => (
-                            <DragDropContext
-                                onDragStart={() => {
-                                    currentColOrder.current = allColumns.map(
-                                        (o: any) => o.id,
-                                    );
-                                }}
-                                onDragUpdate={(dragUpdateObj) => {
-                                    const colOrder = [
-                                        ...currentColOrder.current,
-                                    ];
-                                    const sIndex = dragUpdateObj.source.index;
-                                    const dIndex =
-                                        dragUpdateObj.destination &&
-                                        dragUpdateObj.destination.index;
-
-                                    if (typeof dIndex === 'number') {
-                                        colOrder.splice(sIndex, 1);
-                                        colOrder.splice(
-                                            dIndex,
-                                            0,
-                                            dragUpdateObj.draggableId,
-                                        );
-                                        setExplorerColumnOrder(colOrder);
-                                    }
-                                }}
-                                onDragEnd={() => undefined}
-                            >
-                                <Droppable
-                                    droppableId="droppable"
-                                    direction="horizontal"
-                                    renderClone={(
-                                        provided,
-                                        snapshot,
-                                        rubric,
-                                    ) => {
-                                        const column = headerGroup.headers.find(
-                                            ({ id }) =>
-                                                id === rubric.draggableId,
-                                        );
-                                        return (
-                                            <Item
-                                                column={column}
-                                                provided={provided}
-                                                snapshot={snapshot}
-                                            />
-                                        );
-                                    }}
-                                >
-                                    {(droppableProvided) => (
-                                        <tr
-                                            ref={droppableProvided.innerRef}
-                                            {...headerGroup.getHeaderGroupProps()}
-                                            {...droppableProvided.droppableProps}
-                                        >
-                                            {headerGroup.headers.map(
-                                                (column, index) => (
-                                                    <th
-                                                        {...column.getHeaderProps(
-                                                            [
-                                                                column.getSortByToggleProps(),
-                                                            ],
-                                                        )}
-                                                    >
-                                                        <Draggable
-                                                            key={column.id}
-                                                            draggableId={
-                                                                column.id
-                                                            }
-                                                            index={index}
-                                                        >
-                                                            {(
-                                                                provided,
-                                                                snapshot,
-                                                            ) => (
-                                                                <Item
-                                                                    column={
-                                                                        column
-                                                                    }
-                                                                    provided={
-                                                                        provided
-                                                                    }
-                                                                    snapshot={
-                                                                        snapshot
-                                                                    }
-                                                                />
-                                                            )}
-                                                        </Draggable>
-                                                    </th>
-                                                ),
-                                            )}
-                                        </tr>
-                                    )}
-                                </Droppable>
-                            </DragDropContext>
+                            <colgroup key={headerGroup.id}>
+                                {headerGroup.headers.map((column) => (
+                                    <col
+                                        {...column.getHeaderProps([
+                                            getColumnStyle(column.type),
+                                        ])}
+                                    />
+                                ))}
+                            </colgroup>
                         ))}
-                    </thead>
+                        <thead>
+                            {headerGroups.map((headerGroup) => (
+                                <DragDropContext
+                                    onDragStart={() => {
+                                        currentColOrder.current =
+                                            allColumns.map((o: any) => o.id);
+                                    }}
+                                    onDragUpdate={(dragUpdateObj) => {
+                                        const colOrder = [
+                                            ...currentColOrder.current,
+                                        ];
+                                        const sIndex =
+                                            dragUpdateObj.source.index;
+                                        const dIndex =
+                                            dragUpdateObj.destination &&
+                                            dragUpdateObj.destination.index;
 
-                    <tbody {...getTableBodyProps()}>
-                        {page.map((row) => {
-                            prepareRow(row);
-                            return (
-                                <tr {...row.getRowProps()}>
-                                    {row.cells.map((cell) => (
-                                        <td
-                                            {...cell.getCellProps([
-                                                getRowStyle(
-                                                    row.index,
-                                                    cell.column.isDimension,
-                                                ),
-                                            ])}
-                                        >
-                                            {cell.render('Cell')}
-                                        </td>
-                                    ))}
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </HTMLTable>
+                                        if (typeof dIndex === 'number') {
+                                            colOrder.splice(sIndex, 1);
+                                            colOrder.splice(
+                                                dIndex,
+                                                0,
+                                                dragUpdateObj.draggableId,
+                                            );
+                                            setExplorerColumnOrder(colOrder);
+                                        }
+                                    }}
+                                    onDragEnd={() => undefined}
+                                >
+                                    <Droppable
+                                        droppableId="droppable"
+                                        direction="horizontal"
+                                        renderClone={(
+                                            provided,
+                                            snapshot,
+                                            rubric,
+                                        ) => {
+                                            const column =
+                                                headerGroup.headers.find(
+                                                    ({ id }) =>
+                                                        id ===
+                                                        rubric.draggableId,
+                                                );
+                                            return (
+                                                <Item
+                                                    column={column}
+                                                    provided={provided}
+                                                    snapshot={snapshot}
+                                                />
+                                            );
+                                        }}
+                                    >
+                                        {(droppableProvided) => (
+                                            <tr
+                                                ref={droppableProvided.innerRef}
+                                                {...headerGroup.getHeaderGroupProps()}
+                                                {...droppableProvided.droppableProps}
+                                            >
+                                                {headerGroup.headers.map(
+                                                    (column, index) => (
+                                                        <th
+                                                            {...column.getHeaderProps(
+                                                                [
+                                                                    column.getSortByToggleProps(),
+                                                                ],
+                                                            )}
+                                                        >
+                                                            <Draggable
+                                                                key={column.id}
+                                                                draggableId={
+                                                                    column.id
+                                                                }
+                                                                index={index}
+                                                            >
+                                                                {(
+                                                                    provided,
+                                                                    snapshot,
+                                                                ) => (
+                                                                    <Item
+                                                                        column={
+                                                                            column
+                                                                        }
+                                                                        provided={
+                                                                            provided
+                                                                        }
+                                                                        snapshot={
+                                                                            snapshot
+                                                                        }
+                                                                    />
+                                                                )}
+                                                            </Draggable>
+                                                        </th>
+                                                    ),
+                                                )}
+                                            </tr>
+                                        )}
+                                    </Droppable>
+                                </DragDropContext>
+                            ))}
+                        </thead>
+
+                        <tbody {...getTableBodyProps()}>
+                            {page.map((row) => {
+                                prepareRow(row);
+                                return (
+                                    <tr {...row.getRowProps()}>
+                                        {row.cells.map((cell) => (
+                                            <td
+                                                {...cell.getCellProps([
+                                                    getRowStyle(row.index),
+                                                ])}
+                                            >
+                                                {cell.render('Cell')}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </HTMLTable>
+                    <div
+                        style={{
+                            display: 'flex',
+                            backgroundColor: hexToRGB(Colors.GRAY4, 0.2),
+                            boxShadow: 'inset 1px 0 0 0 rgb(16 22 26 / 15%)',
+                        }}
+                    >
+                        <AddColumnButton />
+                    </div>
+                </div>
                 {queryResults.isLoading && (
                     <>
                         <div style={{ paddingTop: '20px' }} />

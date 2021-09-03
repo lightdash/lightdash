@@ -67,15 +67,20 @@ export const SimpleChart: FC<SimpleChartProps> = ({
     const xAxis = {
         type: flipX ? yType : xType,
         name: flipX ? ylabel : xlabel,
+        nameLocation: 'center',
+        nameGap: 30,
+        nameTextStyle: { fontWeight: 'bold' },
     };
     const yAxis = {
         type: flipX ? xType : yType,
         name: flipX ? xlabel : ylabel,
+        nameTextStyle: { fontWeight: 'bold' },
     };
 
     const legend = {
         show:
             chartConfig.metricOptions.length +
+                chartConfig.tableCalculationOptions.length +
                 chartConfig.dimensionOptions.length >
             2,
     };

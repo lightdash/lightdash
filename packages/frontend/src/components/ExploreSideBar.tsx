@@ -212,7 +212,7 @@ export const ExplorePanel = ({ onBack }: ExplorePanelProps) => {
                 <ExploreTree
                     explore={activeExplore}
                     selectedNodes={activeFields}
-                    onSelectedNodeChange={toggleActiveField}
+                    onSelectedFieldChange={toggleActiveField}
                 />
             </>
         );

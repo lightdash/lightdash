@@ -3,6 +3,7 @@ import { NotExistsError } from './errors';
 import { buildQuery } from './queryBuilder';
 import { projectAdapterFromConfig } from './projectAdapters/projectAdapter';
 import { lightdashConfig } from './config/lightdashConfig';
+import { compileMetricQuery } from './queryCompiler';
 
 // Setup dbt adapter
 const projectConfig = lightdashConfig.projects[0];
@@ -49,7 +50,8 @@ export const getTable = async (tableId: string): Promise<Explore> => {
 
 export const runQuery = async (tableId: string, metricQuery: MetricQuery) => {
     const explore = await getTable(tableId);
-    const sql = await buildQuery({ explore, metricQuery });
+    const compiledMetricQuery = compileMetricQuery(metricQuery);
+    const sql = buildQuery({ explore, compiledMetricQuery });
     const rows = await adapter.runQuery(sql);
     return {
         metricQuery,

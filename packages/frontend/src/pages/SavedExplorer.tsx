@@ -32,6 +32,9 @@ const SavedExplorer = () => {
                 sorts: data.metricQuery.sorts,
                 limit: data.metricQuery.limit,
                 columnOrder: data.tableConfig.columnOrder,
+                selectedTableCalculations:
+                    data.metricQuery.tableCalculations.map((t) => t.name),
+                tableCalculations: data.metricQuery.tableCalculations,
             });
         }
     }, [data, setState]);

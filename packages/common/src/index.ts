@@ -150,6 +150,9 @@ export type FieldId = string;
 export const fieldId = (field: Field): FieldId =>
     `${field.table}_${field.name}`;
 
+export const getFieldRef = (field: Field): string =>
+    `${field.table}.${field.name}`;
+
 export enum MetricType {
     AVERAGE = 'average',
     COUNT = 'count',
@@ -185,6 +188,16 @@ export interface CompiledMetric extends Metric {
     compiledSql: string;
 }
 
+export type TableCalculation = {
+    name: string;
+    displayName: string;
+    sql: string;
+};
+
+export type CompiledTableCalculation = TableCalculation & {
+    compiledSql: string;
+};
+
 // Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {
     dimensions: FieldId[]; // Dimensions to group by in the explore
@@ -192,6 +205,11 @@ export type MetricQuery = {
     filters: FilterGroup[]; // Filters applied to the table to query (logical AND)
     sorts: SortField[]; // Sorts for the data
     limit: number; // Max number of rows to return from query
+    tableCalculations: TableCalculation[]; // calculations to append to results
+};
+
+export type CompiledMetricQuery = MetricQuery & {
+    compiledTableCalculations: CompiledTableCalculation[];
 };
 
 // Sort by
@@ -395,6 +413,11 @@ const capitalize = (word: string): string =>
 export const friendlyName = (text: string): string => {
     const [first, ...rest] = text.match(/[0-9]*[A-Za-z][a-z]*/g) || [];
     return [capitalize(first), ...rest].join(' ');
+};
+
+export const snakeCaseName = (text: string): string => {
+    const words = text.toLowerCase().match(/[a-z]+/g) || [];
+    return words.join('_');
 };
 
 // DBT CONFIG
@@ -693,6 +716,36 @@ export const isDbtRpcDocsGenerateResults = (
             'metadata' in node &&
             'columns' in node,
     );
+
+export interface DbtManifest {
+    nodes: Record<string, DbtNode>;
+    metadata: DbtManifestMetadata;
+}
+
+export interface DbtManifestMetadata {
+    dbt_schema_version: string;
+    generated_at: string;
+    adapter_type: string;
+}
+const isDbtManifestMetadata = (x: any): x is DbtManifestMetadata =>
+    typeof x === 'object' &&
+    x !== null &&
+    'dbt_schema_version' in x &&
+    'generated_at' in x &&
+    'adapter_type' in x;
+
+export interface DbtRpcGetManifestResults {
+    manifest: DbtManifest;
+}
+export const isDbtRpcManifestResults = (
+    results: Record<string, any>,
+): results is DbtRpcGetManifestResults =>
+    'manifest' in results &&
+    typeof results.manifest === 'object' &&
+    results.manifest !== null &&
+    'nodes' in results.manifest &&
+    'metadata' in results.manifest &&
+    isDbtManifestMetadata(results.manifest.metadata);
 
 export interface DbtRpcCompileResults {
     results: { node: DbtNode }[];

@@ -48,7 +48,7 @@ Note if you don't have a Heroku account, you'll be prompted to signup. It's free
 After you hit deploy, you'll be asked to provide some credentials and config to connect to your dbt project in GitHub:
 
 #### GITHUB_BRANCH
-This is the branch in your GitHub repo that Lightdash should sync to. e.g. `main` or `dev`
+This is the branch in your GitHub repo that Lightdash should sync to. e.g. `main`, `master` or `dev`
 
 By default, we've set this to `main` but you can change it to whatever you'd like.
 
@@ -72,7 +72,7 @@ Just leave this field as it is.
 #### PROFILES_SUB_PATH
 This is the folder where your dbt `profiles.yml` file is found in the `GITHUB_REPO` you entered above.
 
-By default, we've set this to be in the main folder of your repo (i.e. `.`).
+By default, we've set this to be in the main folder of your repo.
 
 If your `profiles.yml` file is in a sub-folder of your repo, then you'll need to include the relative path to the sub-folder where it is (relative to `GITHUB_REPO`).
 
