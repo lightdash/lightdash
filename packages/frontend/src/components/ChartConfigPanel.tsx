@@ -28,6 +28,20 @@ const Content: React.FC<ContentProps> = ({ chartConfig }) => (
             width: '300px',
         }}
     >
+        <div style={{ width: '100%' }}>
+            <Switch
+                checked={
+                    chartConfig.fillMissingGaps
+                }
+                label="Fill missing gaps"
+                alignIndicator={Alignment.RIGHT}
+                onChange={(e) => chartConfig.toggleGapFill()}
+                disabled={
+                    !!chartConfig.seriesLayout.groupDimension
+                }
+            />
+        </div>
+        <Divider />
         <span style={{ color: Colors.GREEN1 }}>
             <Icon
                 icon="function"

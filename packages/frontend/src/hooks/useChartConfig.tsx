@@ -3,7 +3,8 @@ import {
     ApiError,
     ApiQueryResults,
     CompiledDimension,
-    fieldId as getFieldId,
+    DimensionType,
+    fieldId as getFieldId, fillDates,
     friendlyName,
     getDimensions,
     TableCalculation,
@@ -13,14 +14,19 @@ import { useSavedQuery } from './useSavedQuery';
 import { useExplore } from './useExplore';
 import { getDimensionFormatter } from './useColumns';
 import { useQueryResults } from './useQueryResults';
+import { useExplorer } from "../providers/ExplorerProvider";
+
+function getDimensionByKey(dimensions: CompiledDimension[], dimensionKey: string) {
+    return dimensions.find(
+        (value) => getFieldId(value) === dimensionKey,
+    );
+}
 
 const getDimensionFormatterByKey = (
     dimensions: CompiledDimension[],
     dimensionKey: string,
 ) => {
-    const dimension = dimensions.find(
-        (value) => getFieldId(value) === dimensionKey,
-    );
+    const dimension = getDimensionByKey(dimensions, dimensionKey);
     return dimension ? getDimensionFormatter(dimension) : null;
 };
 const pivot = (
@@ -56,6 +62,8 @@ type ChartConfigBase = {
     tableCalculationOptions: TableCalculation[];
     eChartDimensions: { name: string; displayName: string }[];
     series: string[];
+    fillMissingGaps: boolean;
+    toggleGapFill: () => void;
 };
 export type ChartConfig = ChartConfigBase &
     (
@@ -131,7 +139,13 @@ export const useChartConfig = (
     const metricOptions = queryResults.data?.metricQuery.metrics || [];
     const tableCalculationOptions =
         queryResults.data?.metricQuery.tableCalculations || [];
-
+    const [fillMissingGaps, setFillMissingGaps] = useState<boolean>(false);
+    const toggleGapFill = () => {
+        setFillMissingGaps(!fillMissingGaps);
+    }
+    const {
+        pristineState: { sorts: sortFields },
+    } = useExplorer();
     useEffect(() => {
         if (data?.chartConfig) {
             setSeriesLayout(data?.chartConfig.seriesLayout);
@@ -194,6 +208,40 @@ export const useChartConfig = (
             });
     };
 
+    /** *
+     * Returns a default object to be  used as a placeholder for the missing gaps
+     * @param object Non empty object to be used as template for  placeholder base
+     * @param baseKey Objects key that fills the gap, won't be replaced with empty value to retain the format of the value(hacky fix for date format not getting lost)
+     */
+    const getEmptyObject = (object: Object, baseKey: string) => {
+        // For now only number is used.
+        const typesResetValue = {boolean: 'no', number: 0, string: "", bigint: 0, symbol: undefined, undefined, object: {}, function: undefined};
+        return Object.fromEntries(Object.entries(object).map(([k, v]) => {
+            if (k !== baseKey) {
+                const resetValue = typesResetValue[typeof (v)];
+                return [k, resetValue];
+            }
+                return [k, v]
+
+        }
+        ));
+    };
+
+    const fillGaps = (rows: any[], gapKey: string, reverse:boolean) => (rows.reduce((accumulator, value, index) => {
+        if (index === 0) {
+            return [rows[0]];
+        }
+        const startDateObj = reverse ? value : rows[index - 1];
+        const endDateObj = reverse ? rows[index - 1] : value;
+        let missingDates = fillDates(startDateObj[gapKey], endDateObj[gapKey], getEmptyObject(rows[0], gapKey), gapKey);
+        missingDates.push(endDateObj);
+        if (reverse) {
+            missingDates = missingDates.reverse();
+        }
+        return accumulator.concat(missingDates);
+
+    }, []) as []);
+
     if (queryResults.data && isValidSeriesLayout(seriesLayout)) {
         const { groupDimension } = seriesLayout;
         let plotData: any[];
@@ -240,7 +288,22 @@ export const useChartConfig = (
                 dimensions,
                 seriesLayout.xDimension,
             );
-            plotData = queryResults.data.rows.map((row) =>
+            let {rows} = queryResults.data;
+            if (fillMissingGaps) {
+                const dimension = getDimensionByKey(dimensions, seriesLayout.xDimension);
+
+                if (dimension) {
+                    const sortField = sortFields.find(value => value.fieldId === getFieldId(dimension))
+                    if (sortField && dimension.type === DimensionType.DATE) {
+                        if (sortField.descending) {
+                            rows = fillGaps(rows, seriesLayout.xDimension, true);
+                        } else {
+                            rows = fillGaps(rows, seriesLayout.xDimension, false);
+                        }
+                    }
+                }
+            }
+            plotData = rows.map((row) =>
                 dimensionFormatter
                     ? {
                           ...row,
@@ -262,6 +325,8 @@ export const useChartConfig = (
             tableCalculationOptions,
             dimensionOptions,
             series,
+            fillMissingGaps,
+            toggleGapFill
         };
     }
     return {
@@ -275,5 +340,7 @@ export const useChartConfig = (
         tableCalculationOptions,
         dimensionOptions,
         series: [],
+        fillMissingGaps: false,
+        toggleGapFill
     };
 };

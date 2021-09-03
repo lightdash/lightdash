@@ -5,7 +5,7 @@ Recent and upcoming changes to lightdash
 ## Unreleased
 ### Added
 - Users can see the dbt connection details and edit the warehouse connection in the UI
-
+- Gaps in time series charts can be filled optionally.
 ### Changed
 - Explores are compiled individually. If an error happens in a single explores, all other explores will still be available in the UI
 - Explores will not compile if the type of a dimension cannot be determined (uses target warehouse schema). Previously they defaulted to string types.

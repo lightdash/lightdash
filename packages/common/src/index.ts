@@ -18,6 +18,22 @@ export const validateEmail = (email: string): boolean => {
     return re.test(String(email).toLowerCase());
 };
 
+/** *
+ * Fills missing date gaps between two given dates
+ * @param startDate
+ * @param endDate
+ * @param baseObject
+ * @param dateKey
+ */
+export const fillDates = (startDate: string, endDate: string, baseObject: any, dateKey: string) => {
+    const difference = moment(endDate).diff(moment(startDate), 'days');
+    const baseDateFormat = moment(baseObject[dateKey]).creationData().format as string;
+    // Fills an array with empty values for each interval(day for now) between start date and end date
+    return Array(difference - 1).
+            fill({...baseObject}).
+            map((value, index) =>
+                ({...value, [dateKey]: moment(startDate).add(index + 1, 'days').format(baseDateFormat)}));
+}
 export const USER_SEED: CreateInitialUserArgs = {
     firstName: 'Jane',
     lastName: 'Doe',
