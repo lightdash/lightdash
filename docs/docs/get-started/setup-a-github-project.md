@@ -43,9 +43,9 @@ to your dbt project in GitHub:
 
 Note if you don't have a Heroku account, you'll be prompted to signup. It's free to deploy Lightdash!
 
-## 3. Fill in your GitHub credentials
+## 3. Fill in your credentials + config
 
-After you hit deploy, you'll be asked to provide some credentials to connect to your dbt project in GitHub:
+After you hit deploy, you'll be asked to provide some credentials and config to connect to your dbt project in GitHub:
 
 #### GITHUB_BRANCH
 This is the branch in your GitHub repo that Lightdash should sync to. e.g. `main` or `dev`
@@ -70,18 +70,23 @@ You can't access this key and you can't change this key (so don't worry if you'r
 Just leave this field as it is.
 
 #### PROFILES_SUB_PATH
-This is the location of your dbt profiles folder in the `GITHUB_REPO` you entered above.
+This is the folder where your dbt `profiles.yml` file is found in the `GITHUB_REPO` you entered above.
 
-By default, we've set this to be in the main folder of your dbt project.
+By default, we've set this to be in the main folder of your repo (i.e. `.`).
 
-If your `profiles.yml` file is in a sub-folder of your dbt project, then you'll need to include the relative path to the sub-folder where your profiles.yml file is (relative to `GITHUB_REPO`).
+If your `profiles.yml` file is in a sub-folder of your repo, then you'll need to include the relative path to the sub-folder where it is (relative to `GITHUB_REPO`).
+
+Here's an example:
+- my `GITHUB_REPO` is `lightdash/lightdash-analytics`
+- the path to my `profiles.yml` file is `lightdas/lightdash-analytics/profiles/profiles.yml`
+- so, my `PROFILES_SUB_PATH` would be `/profiles`
 
 #### PROJECT_SUB_PATH
-This is the location of your dbt project in the `GITHUB_REPO`.
+This is the folder where your `dbt_project.yml` file is found in the `GITHUB_REPO` you entered above.
 
-If your dbt project is in the main folder of your repo (e.g. `lightdash/lightdash-analytics/dbt`), then you don't need to change anything in here. You can just leave the `/` we've put in by default.
+If your `dbt_project.yml` file is in the main folder of your repo (e.g. `lightdash/lightdash-analytics/dbt_project.yml`), then you don't need to change anything in here. You can just leave the default value we've put in.
 
-If your dbt project is in a sub-folder in your repo (e.g. `lightdash/lightdash-analytics/data_modelling/dbt`), then you'll need to include the path to the sub-folder where your dbt project is relative to `GITHUB_REPO` (e.g. `/data_modelling`).
+If your dbt project is in a sub-folder in your repo (e.g. `lightdash/lightdash-analytics/dbt/dbt_project.yml`), then you'll need to include the path to the sub-folder where your dbt project is relative to `GITHUB_REPO` (e.g. `/dbt`).
 
 ## 4. Deploy your Lightdash app instance
 
