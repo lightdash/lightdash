@@ -27,7 +27,7 @@ models:
 ```
 
 ## Metric Categories
-Each metric type falls into one of these categories. The metric categories tell you whether the metric type is an aggregation and what tyupe of fields the metric can reference:
+Each metric type falls into one of these categories. The metric categories tell you whether the metric type is an aggregation and what type of fields the metric can reference:
 
 ### Aggregate metrics:
 Aggregate metric types perform (surprise, surprise) aggregations. Sums and averages are examples of aggregate metrics: they are measurements summarizing a collection of data points.
