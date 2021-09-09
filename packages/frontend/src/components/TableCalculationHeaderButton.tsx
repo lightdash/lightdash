@@ -12,6 +12,8 @@ import {
     DeleteTableCalculationModal,
     UpdateTableCalculationModal,
 } from './TableCalculationModal';
+import { useTracking } from '../providers/TrackingProvider';
+import { EventName } from '../types/Events';
 
 const TableCalculationHeaderButton: FC<{
     tableCalculation: TableCalculation;
@@ -19,6 +21,7 @@ const TableCalculationHeaderButton: FC<{
     const [showUpdate, setShowUpdate] = useState(false);
     const [showDelete, setShowDelete] = useState(false);
     const [isOpen, setIsOpen] = useState<boolean>();
+    const { track } = useTracking();
 
     return (
         <div style={{ float: 'right' }}>
@@ -34,6 +37,9 @@ const TableCalculationHeaderButton: FC<{
                                 e.stopPropagation();
                                 setShowUpdate(true);
                                 setIsOpen(false);
+                                track({
+                                    name: EventName.EDIT_TABLE_CALCULATION_BUTTON_CLICKED,
+                                });
                             }}
                         />
                         <MenuItem
@@ -43,6 +49,9 @@ const TableCalculationHeaderButton: FC<{
                                 e.stopPropagation();
                                 setShowDelete(true);
                                 setIsOpen(false);
+                                track({
+                                    name: EventName.DELETE_TABLE_CALCULATION_BUTTON_CLICKED,
+                                });
                             }}
                         />
                     </Menu>
