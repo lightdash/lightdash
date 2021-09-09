@@ -12,6 +12,8 @@ import { snakeCaseName, TableCalculation } from 'common';
 import { useApp } from '../providers/AppProvider';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useExplorerAceEditorCompleter } from '../hooks/useExplorerAceEditorCompleter';
+import { useTracking } from '../providers/TrackingProvider';
+import { EventName } from '../types/Events';
 
 const SQL_PLACEHOLDER =
     // eslint-disable-next-line no-template-curly-in-string
@@ -141,9 +143,12 @@ export const CreateTableCalculationModal: FC<CreateTableCalculationModalProps> =
         const {
             actions: { addTableCalculation },
         } = useExplorer();
-
+        const { track } = useTracking();
         const onCreate = (value: TableCalculation) => {
             addTableCalculation(value);
+            track({
+                name: EventName.CREATE_TABLE_CALCULATION_BUTTON_CLICKED,
+            });
             onClose();
         };
 
@@ -168,9 +173,12 @@ export const UpdateTableCalculationModal: FC<UpdateTableCalculationModalProps> =
         const {
             actions: { updateTableCalculation },
         } = useExplorer();
-
+        const { track } = useTracking();
         const onUpdate = (value: TableCalculation) => {
             updateTableCalculation(tableCalculation.name, value);
+            track({
+                name: EventName.UPDATE_TABLE_CALCULATION_BUTTON_CLICKED,
+            });
             onClose();
         };
 
@@ -196,9 +204,13 @@ export const DeleteTableCalculationModal: FC<DeleteTableCalculationModalProps> =
         const {
             actions: { deleteTableCalculation },
         } = useExplorer();
+        const { track } = useTracking();
 
         const onConfirm = () => {
             deleteTableCalculation(tableCalculation.name);
+            track({
+                name: EventName.CONFIRM_DELETE_TABLE_CALCULATION_BUTTON_CLICKED,
+            });
             onClose();
         };
         return (

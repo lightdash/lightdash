@@ -241,238 +241,256 @@ export const ResultsTable = ({ queryResults }: ResultsTableProps) => {
     if (columns.length === 0) return <EmptyStateNoColumns />;
 
     return (
-        <div
-            style={{
-                height: '100%',
-                padding: '10px',
-                minHeight: '500px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-            }}
-        >
-            <div style={{ display: 'block', maxWidth: '100%' }}>
+        <Section name={SectionName.RESULTS_TABLE}>
+            <div
+                style={{
+                    height: '100%',
+                    padding: '10px',
+                    minHeight: '500px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                }}
+            >
+                <div style={{ display: 'block', maxWidth: '100%' }}>
+                    <div
+                        style={{
+                            display: 'flex',
+                            maxWidth: '100%',
+                            flexDirection: 'row',
+                        }}
+                    >
+                        <HTMLTable
+                            bordered
+                            condensed
+                            {...getTableProps()}
+                            style={{ flex: 1 }}
+                        >
+                            {headerGroups.map((headerGroup) => (
+                                <colgroup key={headerGroup.id}>
+                                    {headerGroup.headers.map((column) => (
+                                        <col
+                                            {...column.getHeaderProps([
+                                                getColumnStyle(column.type),
+                                            ])}
+                                        />
+                                    ))}
+                                </colgroup>
+                            ))}
+                            <thead>
+                                {headerGroups.map((headerGroup) => (
+                                    <DragDropContext
+                                        onDragStart={() => {
+                                            currentColOrder.current =
+                                                allColumns.map(
+                                                    (o: any) => o.id,
+                                                );
+                                        }}
+                                        onDragUpdate={(dragUpdateObj) => {
+                                            const colOrder = [
+                                                ...currentColOrder.current,
+                                            ];
+                                            const sIndex =
+                                                dragUpdateObj.source.index;
+                                            const dIndex =
+                                                dragUpdateObj.destination &&
+                                                dragUpdateObj.destination.index;
+
+                                            if (typeof dIndex === 'number') {
+                                                colOrder.splice(sIndex, 1);
+                                                colOrder.splice(
+                                                    dIndex,
+                                                    0,
+                                                    dragUpdateObj.draggableId,
+                                                );
+                                                setExplorerColumnOrder(
+                                                    colOrder,
+                                                );
+                                            }
+                                        }}
+                                        onDragEnd={() => undefined}
+                                    >
+                                        <Droppable
+                                            droppableId="droppable"
+                                            direction="horizontal"
+                                            renderClone={(
+                                                provided,
+                                                snapshot,
+                                                rubric,
+                                            ) => {
+                                                const column =
+                                                    headerGroup.headers.find(
+                                                        ({ id }) =>
+                                                            id ===
+                                                            rubric.draggableId,
+                                                    );
+                                                return (
+                                                    <Item
+                                                        column={column}
+                                                        provided={provided}
+                                                        snapshot={snapshot}
+                                                    />
+                                                );
+                                            }}
+                                        >
+                                            {(droppableProvided) => (
+                                                <tr
+                                                    ref={
+                                                        droppableProvided.innerRef
+                                                    }
+                                                    {...headerGroup.getHeaderGroupProps()}
+                                                    {...droppableProvided.droppableProps}
+                                                >
+                                                    {headerGroup.headers.map(
+                                                        (column, index) => (
+                                                            <th
+                                                                {...column.getHeaderProps(
+                                                                    [
+                                                                        column.getSortByToggleProps(),
+                                                                    ],
+                                                                )}
+                                                            >
+                                                                <Draggable
+                                                                    key={
+                                                                        column.id
+                                                                    }
+                                                                    draggableId={
+                                                                        column.id
+                                                                    }
+                                                                    index={
+                                                                        index
+                                                                    }
+                                                                >
+                                                                    {(
+                                                                        provided,
+                                                                        snapshot,
+                                                                    ) => (
+                                                                        <Item
+                                                                            column={
+                                                                                column
+                                                                            }
+                                                                            provided={
+                                                                                provided
+                                                                            }
+                                                                            snapshot={
+                                                                                snapshot
+                                                                            }
+                                                                        />
+                                                                    )}
+                                                                </Draggable>
+                                                            </th>
+                                                        ),
+                                                    )}
+                                                </tr>
+                                            )}
+                                        </Droppable>
+                                    </DragDropContext>
+                                ))}
+                            </thead>
+
+                            <tbody {...getTableBodyProps()}>
+                                {page.map((row) => {
+                                    prepareRow(row);
+                                    return (
+                                        <tr {...row.getRowProps()}>
+                                            {row.cells.map((cell) => (
+                                                <td
+                                                    {...cell.getCellProps([
+                                                        getRowStyle(row.index),
+                                                    ])}
+                                                >
+                                                    {cell.render('Cell')}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </HTMLTable>
+                        <div
+                            style={{
+                                display: 'flex',
+                                backgroundColor: hexToRGB(Colors.GRAY4, 0.2),
+                                boxShadow:
+                                    'inset 1px 0 0 0 rgb(16 22 26 / 15%)',
+                            }}
+                        >
+                            <AddColumnButton />
+                        </div>
+                    </div>
+                    {queryResults.isLoading && (
+                        <>
+                            <div style={{ paddingTop: '20px' }} />
+                            <NonIdealState
+                                title="Loading results"
+                                icon={<Spinner />}
+                            />
+                        </>
+                    )}
+                    {queryResults.isIdle && (
+                        <EmptyStateNoTableData queryResults={queryResults} />
+                    )}
+                    {queryResults.status === 'success' &&
+                        queryResults.data.rows.length === 0 && (
+                            <EmptyStateNoRows />
+                        )}
+                </div>
                 <div
                     style={{
                         display: 'flex',
-                        maxWidth: '100%',
                         flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        paddingTop: '10px',
                     }}
                 >
-                    <HTMLTable
-                        bordered
-                        condensed
-                        {...getTableProps()}
-                        style={{ flex: 1 }}
-                    >
-                        {headerGroups.map((headerGroup) => (
-                            <colgroup key={headerGroup.id}>
-                                {headerGroup.headers.map((column) => (
-                                    <col
-                                        {...column.getHeaderProps([
-                                            getColumnStyle(column.type),
-                                        ])}
-                                    />
-                                ))}
-                            </colgroup>
-                        ))}
-                        <thead>
-                            {headerGroups.map((headerGroup) => (
-                                <DragDropContext
-                                    onDragStart={() => {
-                                        currentColOrder.current =
-                                            allColumns.map((o: any) => o.id);
-                                    }}
-                                    onDragUpdate={(dragUpdateObj) => {
-                                        const colOrder = [
-                                            ...currentColOrder.current,
-                                        ];
-                                        const sIndex =
-                                            dragUpdateObj.source.index;
-                                        const dIndex =
-                                            dragUpdateObj.destination &&
-                                            dragUpdateObj.destination.index;
-
-                                        if (typeof dIndex === 'number') {
-                                            colOrder.splice(sIndex, 1);
-                                            colOrder.splice(
-                                                dIndex,
-                                                0,
-                                                dragUpdateObj.draggableId,
-                                            );
-                                            setExplorerColumnOrder(colOrder);
-                                        }
-                                    }}
-                                    onDragEnd={() => undefined}
-                                >
-                                    <Droppable
-                                        droppableId="droppable"
-                                        direction="horizontal"
-                                        renderClone={(
-                                            provided,
-                                            snapshot,
-                                            rubric,
-                                        ) => {
-                                            const column =
-                                                headerGroup.headers.find(
-                                                    ({ id }) =>
-                                                        id ===
-                                                        rubric.draggableId,
-                                                );
-                                            return (
-                                                <Item
-                                                    column={column}
-                                                    provided={provided}
-                                                    snapshot={snapshot}
-                                                />
-                                            );
-                                        }}
-                                    >
-                                        {(droppableProvided) => (
-                                            <tr
-                                                ref={droppableProvided.innerRef}
-                                                {...headerGroup.getHeaderGroupProps()}
-                                                {...droppableProvided.droppableProps}
-                                            >
-                                                {headerGroup.headers.map(
-                                                    (column, index) => (
-                                                        <th
-                                                            {...column.getHeaderProps(
-                                                                [
-                                                                    column.getSortByToggleProps(),
-                                                                ],
-                                                            )}
-                                                        >
-                                                            <Draggable
-                                                                key={column.id}
-                                                                draggableId={
-                                                                    column.id
-                                                                }
-                                                                index={index}
-                                                            >
-                                                                {(
-                                                                    provided,
-                                                                    snapshot,
-                                                                ) => (
-                                                                    <Item
-                                                                        column={
-                                                                            column
-                                                                        }
-                                                                        provided={
-                                                                            provided
-                                                                        }
-                                                                        snapshot={
-                                                                            snapshot
-                                                                        }
-                                                                    />
-                                                                )}
-                                                            </Draggable>
-                                                        </th>
-                                                    ),
-                                                )}
-                                            </tr>
-                                        )}
-                                    </Droppable>
-                                </DragDropContext>
-                            ))}
-                        </thead>
-
-                        <tbody {...getTableBodyProps()}>
-                            {page.map((row) => {
-                                prepareRow(row);
-                                return (
-                                    <tr {...row.getRowProps()}>
-                                        {row.cells.map((cell) => (
-                                            <td
-                                                {...cell.getCellProps([
-                                                    getRowStyle(row.index),
-                                                ])}
-                                            >
-                                                {cell.render('Cell')}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </HTMLTable>
-                    <div
-                        style={{
-                            display: 'flex',
-                            backgroundColor: hexToRGB(Colors.GRAY4, 0.2),
-                            boxShadow: 'inset 1px 0 0 0 rgb(16 22 26 / 15%)',
-                        }}
-                    >
-                        <AddColumnButton />
+                    <div>
+                        {rows.length > 0 ? (
+                            <CSVLink
+                                role="button"
+                                tabIndex={0}
+                                className="bp3-button"
+                                data={rows.map((row) => row.values)}
+                                filename={`lightdash-${
+                                    activeTableName || 'export'
+                                }-${new Date().toISOString().slice(0, 10)}.csv`}
+                                target="_blank"
+                            >
+                                <Icon icon="export" />
+                                <span>Export CSV</span>
+                            </CSVLink>
+                        ) : null}
                     </div>
-                </div>
-                {queryResults.isLoading && (
-                    <>
-                        <div style={{ paddingTop: '20px' }} />
-                        <NonIdealState
-                            title="Loading results"
-                            icon={<Spinner />}
-                        />
-                    </>
-                )}
-                {queryResults.isIdle && (
-                    <EmptyStateNoTableData queryResults={queryResults} />
-                )}
-                {queryResults.status === 'success' &&
-                    queryResults.data.rows.length === 0 && <EmptyStateNoRows />}
-            </div>
-            <div
-                style={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    paddingTop: '10px',
-                }}
-            >
-                <div>
-                    {rows.length > 0 ? (
-                        <CSVLink
-                            role="button"
-                            tabIndex={0}
-                            className="bp3-button"
-                            data={rows.map((row) => row.values)}
-                            filename={`lightdash-${
-                                activeTableName || 'export'
-                            }-${new Date().toISOString().slice(0, 10)}.csv`}
-                            target="_blank"
-                        >
-                            <Icon icon="export" />
-                            <span>Export CSV</span>
-                        </CSVLink>
-                    ) : null}
-                </div>
-                {pageCount > 1 && (
-                    <div
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'row',
-                            justifyContent: 'flex-end',
-                            alignItems: 'center',
-                        }}
-                    >
-                        {canPreviousPage && (
-                            <Button icon="arrow-left" onClick={previousPage} />
-                        )}
-                        <span
+                    {pageCount > 1 && (
+                        <div
                             style={{
-                                paddingRight: '5px',
-                                paddingLeft: '5px',
+                                display: 'flex',
+                                flexDirection: 'row',
+                                justifyContent: 'flex-end',
+                                alignItems: 'center',
                             }}
                         >
-                            Page {pageIndex + 1} of {pageCount}
-                        </span>
-                        {canNextPage && (
-                            <Button icon="arrow-right" onClick={nextPage} />
-                        )}
-                    </div>
-                )}
+                            {canPreviousPage && (
+                                <Button
+                                    icon="arrow-left"
+                                    onClick={previousPage}
+                                />
+                            )}
+                            <span
+                                style={{
+                                    paddingRight: '5px',
+                                    paddingLeft: '5px',
+                                }}
+                            >
+                                Page {pageIndex + 1} of {pageCount}
+                            </span>
+                            {canNextPage && (
+                                <Button icon="arrow-right" onClick={nextPage} />
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
+        </Section>
     );
 };
