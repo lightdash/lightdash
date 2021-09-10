@@ -558,8 +558,8 @@ export interface LightdashUser {
     email: string | undefined;
     firstName: string;
     lastName: string;
-    organizationUuid: string | undefined;
-    organizationName: string | undefined;
+    organizationUuid: string;
+    organizationName: string;
     isTrackingAnonymized: boolean;
 }
 

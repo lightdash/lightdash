@@ -34,6 +34,9 @@ export class OrganizationService {
         analytics.track({
             userId: user.userUuid,
             event: 'organization.updated',
+            properties: {
+                organizationUuid,
+            },
         });
     }
 
