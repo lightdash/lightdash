@@ -27,11 +27,16 @@ type TrackSimpleEvent = BaseTrack & {
         | 'user.logged_in'
         | 'user.updated'
         | 'password.updated'
-        | 'organization.created'
-        | 'organization.updated'
         | 'invite_link.created'
         | 'invite_link.all_revoked'
         | 'query.executed';
+};
+
+type TrackOrganizationEvent = BaseTrack & {
+    event: 'organization.created' | 'organization.updated';
+    properties: {
+        organizationUuid: string;
+    };
 };
 
 type TrackUserDeletedEvent = BaseTrack & {
@@ -41,18 +46,22 @@ type TrackUserDeletedEvent = BaseTrack & {
     };
 };
 
-type TrackSavedQuery = BaseTrack & {
+type TrackSavedChart = BaseTrack & {
     event:
-        | 'saved_query.created'
-        | 'saved_query.updated'
-        | 'saved_query.deleted'
-        | 'saved_query_version.created';
+        | 'saved_chart.created'
+        | 'saved_chart.updated'
+        | 'saved_chart.deleted'
+        | 'saved_chart_version.created';
     properties: {
         savedQueryId: string;
     };
 };
 
-type Track = TrackSimpleEvent | TrackSavedQuery | TrackUserDeletedEvent;
+type Track =
+    | TrackSimpleEvent
+    | TrackSavedChart
+    | TrackUserDeletedEvent
+    | TrackOrganizationEvent;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {

@@ -54,6 +54,9 @@ export const UserModel = {
         analytics.track({
             event: 'organization.created',
             userId: lightdashUser.userUuid,
+            properties: {
+                organizationUuid: lightdashUser.organizationUuid,
+            },
         });
         return lightdashUser;
     },

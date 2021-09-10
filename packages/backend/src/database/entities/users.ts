@@ -24,8 +24,8 @@ export type DbUserDetails = {
     is_tracking_anonymized: boolean;
     email: string | undefined;
     password_hash: string | undefined;
-    organization_uuid: string | undefined;
-    organization_name: string | undefined;
+    organization_uuid: string;
+    organization_name: string;
 };
 
 type DbUser = {
@@ -104,15 +104,30 @@ export const getUserDetailsByUuid = async (
     if (results.length === 0) {
         throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
     }
-    return results[0];
+    const user = results[0];
+    if (!user.organization_uuid || !user.organization_name) {
+        throw new NotFoundError(
+            `Cannot find organization for user with uuid ${userUuid}`,
+        );
+    }
+    return user;
 };
 
-export const getUserDetailsByPrimaryEmail = async (db: Knex, email: string) => {
+export const getUserDetailsByPrimaryEmail = async (
+    db: Knex,
+    email: string,
+): Promise<DbUserDetails> => {
     const results = await userDetailsQueryBuilder(db).where('email', email);
     if (results.length === 0) {
         throw new NotFoundError(`No user found with email ${email}`);
     }
-    return results[0];
+    const user = results[0];
+    if (!user.organization_uuid || !user.organization_name) {
+        throw new NotFoundError(
+            `Cannot find organization for user with uuid ${user.user_uuid}`,
+        );
+    }
+    return user;
 };
 
 export const createInitialUser = async ({
