@@ -18,8 +18,10 @@ import {
 import { ParseError } from '../errors';
 import { parseConfig } from './parseConfig';
 
-beforeAll(() => {
-    process.env.LIGHTDASH_SECRET = 'not very secret';
+beforeEach(() => {
+    process.env = {
+        LIGHTDASH_SECRET: 'not very secret',
+    };
 });
 
 test('Should throw ParseError for undefined config', () => {
@@ -126,4 +128,20 @@ test('Should include secret in output', () => {
     expect(parseConfig(wrapProject(LOCAL_PROJECT)).lightdashSecret).toEqual(
         'so very secret',
     );
+});
+
+test('Should parse required project config from env', () => {
+    process.env.LIGHTDASH_PROJECT_0_PROFILES_DIR = '/usr/ap/profiles';
+    expect(parseConfig(wrapProject(LOCAL_PROJECT)).projects[0]).toEqual({
+        ...LOCAL_PROJECT,
+        profiles_dir: '/usr/ap/profiles',
+    });
+});
+
+test('Should parse optional project config from env', () => {
+    process.env.LIGHTDASH_PROJECT_0_TARGET = 'dev';
+    expect(parseConfig(wrapProject(LOCAL_PROJECT)).projects[0]).toEqual({
+        ...LOCAL_PROJECT,
+        target: 'dev',
+    });
 });
