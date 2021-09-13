@@ -5,6 +5,7 @@ Recent and upcoming changes to lightdash
 ## Unreleased
 ### Fixed
 - Fixed bug with wrong quote strings for dbt's athena adapter
+- Fixed bug where optional project configs set via env where not recognised
 
 ## [0.6.5] - 2021-09-03
 ### Added
