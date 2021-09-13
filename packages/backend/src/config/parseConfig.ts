@@ -81,34 +81,52 @@ export type RudderConfig = {
     dataPlaneUrl: string;
 };
 
-const dbtLocalProjectConfigRequiredFields: Array<keyof DbtLocalProjectConfig> =
-    ['profiles_dir', 'project_dir', 'rpc_server_port'];
-const dbtRemoteProjectConfigRequiredFields: Array<
-    keyof DbtRemoteProjectConfig
-> = ['rpc_server_host', 'rpc_server_port'];
-const dbtCloudIdeProjectConfigRequiredFields: Array<
-    keyof DbtCloudIDEProjectConfig
-> = ['api_key', 'account_id', 'environment_id', 'project_id'];
-const dbtGithubProjectConfigRequiredFields: Array<
-    keyof DbtGithubProjectConfig
-> = [
-    'personal_access_token',
-    'repository',
-    'branch',
-    'project_sub_path',
-    'profiles_sub_path',
-    'rpc_server_port',
-];
+type ConfigKeys<T extends DbtProjectConfig> = {
+    [P in keyof Required<T>]: boolean;
+};
+const dbtLocalProjectConfigKeys: ConfigKeys<DbtLocalProjectConfig> = {
+    type: true,
+    name: true,
+    profiles_dir: true,
+    project_dir: true,
+    rpc_server_port: true,
+    target: false,
+};
+const dbtRemoteProjectConfigKeys: ConfigKeys<DbtRemoteProjectConfig> = {
+    type: true,
+    name: true,
+    rpc_server_host: true,
+    rpc_server_port: true,
+};
+const dbtCloudIDEProjectConfigKeys: ConfigKeys<DbtCloudIDEProjectConfig> = {
+    type: true,
+    name: true,
+    api_key: true,
+    account_id: true,
+    environment_id: true,
+    project_id: true,
+};
+const dbtGithubProjectConfigKeys: ConfigKeys<DbtGithubProjectConfig> = {
+    type: true,
+    name: true,
+    personal_access_token: true,
+    repository: true,
+    branch: true,
+    project_sub_path: true,
+    profiles_sub_path: true,
+    rpc_server_port: true,
+    target: false,
+};
 
 const mergeProjectWithEnvironment = <T extends DbtProjectConfig>(
     projectIndex: number,
     project: DbtProjectConfigIn<T>,
-    requiredField: Array<keyof T>,
+    configKeys: ConfigKeys<T>,
 ): T =>
-    requiredField.reduce((prev, key) => {
+    Object.entries(configKeys).reduce((prev, [key, isRequired]) => {
         const envKey = `LIGHTDASH_PROJECT_${projectIndex}_${key}`.toUpperCase();
-        const value = process.env[envKey] || project[key];
-        if (value === undefined) {
+        const value = process.env[envKey] || project[key as keyof T];
+        if (isRequired && value === undefined) {
             throw new ParseError(
                 `Lightdash config file successfully loaded but invalid: Project index: ${projectIndex} must have ${key} or environment variable ${envKey}.`,
                 {},
@@ -128,25 +146,25 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 return mergeProjectWithEnvironment(
                     idx,
                     project,
-                    dbtLocalProjectConfigRequiredFields,
+                    dbtLocalProjectConfigKeys,
                 );
             case ProjectType.DBT_REMOTE_SERVER:
                 return mergeProjectWithEnvironment(
                     idx,
                     project,
-                    dbtRemoteProjectConfigRequiredFields,
+                    dbtRemoteProjectConfigKeys,
                 );
             case ProjectType.DBT_CLOUD_IDE:
                 return mergeProjectWithEnvironment(
                     idx,
                     project,
-                    dbtCloudIdeProjectConfigRequiredFields,
+                    dbtCloudIDEProjectConfigKeys,
                 );
             case ProjectType.GITHUB:
                 return mergeProjectWithEnvironment(
                     idx,
                     project,
-                    dbtGithubProjectConfigRequiredFields,
+                    dbtGithubProjectConfigKeys,
                 );
             default: {
                 const never: never = project;
