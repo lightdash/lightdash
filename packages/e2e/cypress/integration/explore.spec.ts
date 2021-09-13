@@ -18,7 +18,7 @@ describe('Explore', () => {
         cy.findAllByRole('button', { name: /Run query/i })
             .first()
             .click();
-        cy.findByText('Loading results', { timeout: 10000 }).should(
+        cy.findByText('Loading results', { timeout: 20000 }).should(
             'not.exist',
         );
         cy.get('td').first().should('have.text', 'Aaron');
