@@ -26,7 +26,7 @@ export class OrganizationService {
         user: SessionUser,
         data: { organizationName: string },
     ): Promise<void> {
-        const { organizationUuid } = user;
+        const { organizationUuid, organizationName } = user;
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
@@ -36,6 +36,7 @@ export class OrganizationService {
             event: 'organization.updated',
             properties: {
                 organizationUuid,
+                organizationName,
             },
         });
     }
