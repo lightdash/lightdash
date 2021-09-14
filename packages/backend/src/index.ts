@@ -8,6 +8,7 @@ import cookieParser from 'cookie-parser';
 import { SessionUser } from 'common';
 import connectSessionKnex from 'connect-session-knex';
 import bodyParser from 'body-parser';
+import { v4 as uuidv4 } from 'uuid';
 import * as OpenApiValidator from 'express-openapi-validator';
 import apiSpec from 'common/dist/openapibundle.json';
 import { AuthorizationError, errorHandler } from './errors';
@@ -16,6 +17,7 @@ import { refreshAllTables } from './lightdash';
 import { UserModel } from './models/User';
 import database from './database/database';
 import { lightdashConfig } from './config/lightdashConfig';
+import { analytics } from './analytics/client';
 
 const KnexSessionStore = connectSessionKnex(expressSession);
 
@@ -75,14 +77,32 @@ app.get('*', (req, res) => {
 });
 
 // errors
-app.use(
-    async (error: Error, req: Request, res: Response, next: NextFunction) => {
-        await errorHandler(error, res);
-    },
-);
+app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+    const errorResponse = errorHandler(error);
+    analytics.track({
+        event: 'api.error',
+        userId: req.user?.userUuid,
+        anonymousId: !req.user?.userUuid ? uuidv4() : undefined, // TODO: default to temporary user id once we have that
+        properties: {
+            name: errorResponse.name,
+            statusCode: errorResponse.statusCode,
+            route: req.route.path,
+            method: req.method,
+        },
+    });
+    res.status(errorResponse.statusCode).send({
+        status: 'error',
+        error: {
+            statusCode: errorResponse.statusCode,
+            name: errorResponse.name,
+            message: errorResponse.message,
+            data: errorResponse.data,
+        },
+    });
+});
 
 // Update all resources on startup
-refreshAllTables().catch((e) =>
+refreshAllTables(undefined).catch((e) =>
     console.error(`Error from dbt on Lightdash startup:\n${e.message || e}`),
 );
 

@@ -3,6 +3,7 @@ import Analytics, {
     Track as AnalyticsTrack,
 } from '@rudderstack/rudder-sdk-node';
 import { VERSION } from '../version';
+import { ProjectType } from '../config/parseConfig';
 
 type Identify = {
     userId: string;
@@ -58,10 +59,45 @@ type TrackSavedChart = BaseTrack & {
     };
 };
 
+type ProjectEvent = BaseTrack & {
+    event: 'project.compiled';
+    userId?: string;
+    anonymousId?: string;
+    properties: {
+        projectType: ProjectType;
+    };
+};
+
+type ProjectErrorEvent = BaseTrack & {
+    event: 'project.error';
+    userId?: string;
+    anonymousId?: string;
+    properties: {
+        name: string;
+        statusCode: number;
+        projectType: ProjectType;
+    };
+};
+
+type ApiErrorEvent = BaseTrack & {
+    event: 'api.error';
+    userId?: string;
+    anonymousId?: string;
+    properties: {
+        name: string;
+        statusCode: number;
+        route: string;
+        method: string;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | TrackSavedChart
     | TrackUserDeletedEvent
+    | ProjectErrorEvent
+    | ApiErrorEvent
+    | ProjectEvent
     | TrackOrganizationEvent;
 
 export class LightdashAnalytics extends Analytics {
