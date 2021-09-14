@@ -88,7 +88,7 @@ apiV1Router.get('/logout', (req, res, next) => {
 });
 
 apiV1Router.get('/tables', isAuthenticated, async (req, res, next) => {
-    getAllTables()
+    getAllTables(req.user!)
         .then((tables) =>
             res.json({
                 status: 'ok',
@@ -103,7 +103,7 @@ apiV1Router.get('/tables', isAuthenticated, async (req, res, next) => {
 });
 
 apiV1Router.get('/tables/:tableId', isAuthenticated, async (req, res, next) => {
-    getTable(req.params.tableId)
+    getTable(req.user!, req.params.tableId)
         .then((table) => {
             res.json({
                 status: 'ok',
@@ -128,7 +128,7 @@ apiV1Router.post(
                 tableCalculations: body.tableCalculations,
             };
             const compiledMetricQuery = await compileMetricQuery(metricQuery);
-            const explore = await getTable(req.params.tableId);
+            const explore = await getTable(req.user!, req.params.tableId);
             const sql = buildQuery({ explore, compiledMetricQuery });
             res.json({
                 status: 'ok',
@@ -149,7 +149,7 @@ apiV1Router.post(
             userId: req.user!.userUuid,
             event: 'query.executed',
         });
-        runQuery(req.params.tableId, {
+        runQuery(req.user!, req.params.tableId, {
             dimensions: body.dimensions,
             metrics: body.metrics,
             filters: body.filters,
@@ -168,7 +168,9 @@ apiV1Router.post(
 );
 
 apiV1Router.post('/refresh', isAuthenticated, async (req, res) => {
-    refreshAllTables().catch((e) => console.log(`Error running refresh: ${e}`));
+    refreshAllTables(req.user!.userUuid).catch((e) =>
+        console.log(`Error running refresh: ${e}`),
+    );
     res.json({
         status: 'ok',
     });

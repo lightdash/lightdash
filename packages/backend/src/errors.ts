@@ -1,4 +1,3 @@
-import { Response } from 'express';
 import { HttpError } from 'express-openapi-validator/dist/framework/types';
 
 type LightdashErrorParams = {
@@ -171,37 +170,17 @@ export class NotFoundError extends LightdashError {
     }
 }
 
-export const errorHandler = async (error: Error, res: Response) => {
+export const errorHandler = (error: Error): LightdashError => {
     if (error instanceof LightdashError) {
-        res.status(error.statusCode).send({
-            status: 'error',
-            error: {
-                statusCode: error.statusCode,
-                name: error.name,
-                message: error.message,
-                data: error.data,
-            },
-        });
-    } else if (error instanceof HttpError) {
-        res.status(error.status).send({
-            status: 'error',
-            error: {
-                statusCode: error.status,
-                name: error.name,
-                message: error.message,
-                data: error.errors,
-            },
-        });
-    } else {
-        console.error(error);
-        res.status(500).send({
-            status: 'error',
-            error: {
-                statusCode: 500,
-                name: 'UnexpectedServerError',
-                message: `${error}`,
-                data: {},
-            },
+        return error;
+    }
+    if (error instanceof HttpError) {
+        return new LightdashError({
+            statusCode: error.status,
+            name: error.name,
+            message: error.message,
+            data: error.errors,
         });
     }
+    return new UnexpectedServerError(`${error}`);
 };
