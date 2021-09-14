@@ -375,11 +375,15 @@ export const ExplorerProvider: FC = ({ children }) => {
         const fields = new Set([
             ...pristineReducerState.dimensions,
             ...pristineReducerState.metrics,
+            ...pristineReducerState.selectedTableCalculations,
         ]);
         return [fields, fields.size > 0];
     }, [pristineReducerState]);
     const reset = useCallback(() => {
         dispatch({
+            type: ActionType.RESET,
+        });
+        pristineDispatch({
             type: ActionType.RESET,
         });
     }, []);
