@@ -13,7 +13,7 @@
         "mode": {
             "description": "App mode",
             "type": "string",
-            "enum": ["default", "demo", "pr"],
+            "enum": ["default", "demo", "pr", "cloud_beta"],
             "default": "default"
         },
         "projects": {
