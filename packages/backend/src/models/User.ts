@@ -56,6 +56,7 @@ export const UserModel = {
             userId: lightdashUser.userUuid,
             properties: {
                 organizationUuid: lightdashUser.organizationUuid,
+                organizationName: lightdashUser.organizationName,
             },
         });
         return lightdashUser;

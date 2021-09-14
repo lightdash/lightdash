@@ -36,6 +36,7 @@ type TrackOrganizationEvent = BaseTrack & {
     event: 'organization.created' | 'organization.updated';
     properties: {
         organizationUuid: string;
+        organizationName: string;
     };
 };
 
