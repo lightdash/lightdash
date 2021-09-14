@@ -4,13 +4,16 @@ sidebar_position: 4
 
 # Metrics
 
-Metrics are quantitative measurements. You can think of them as "actions" that you take on dimensions. For example, num unique user ids is a metric that counts the unique number user_id values.
+A metric is a value that describes or summarizes features from a collection of data points. 
+For example, `Num unique user ids` is a metric. It describes the unique number of `user_id`s in a collection of `user_id` data points.
+
+In Lightdash, metrics are used to summarize dimensions or, sometimes, other metrics.
 
 ---
 
 ## Adding metrics to your project
 
-To add a metric to Lightdash, you define it in your dbt project under the dimension name you're applying the measurement on.
+To add a metric to Lightdash, you define it in your dbt project under the dimension name you're trying to describe/summarize.
 
 ```version: 2
 
