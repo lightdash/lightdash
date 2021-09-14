@@ -18,9 +18,6 @@ describe('Explore', () => {
         cy.findAllByRole('button', { name: /Run query/i })
             .first()
             .click();
-        cy.findByText('Loading results', { timeout: 20000 }).should(
-            'not.exist',
-        );
-        cy.get('td').first().should('have.text', 'Aaron');
+        cy.get('td', { timeout: 10000 }).first().should('have.text', 'Aaron');
     });
 });
