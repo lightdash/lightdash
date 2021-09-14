@@ -658,6 +658,7 @@ export enum LightdashMode {
     DEFAULT = 'default',
     DEMO = 'demo',
     PR = 'pr',
+    CLOUD_BETA = 'cloud_beta',
 }
 
 export type HealthState = {

@@ -6,7 +6,7 @@ import {
     Intent,
     Switch,
 } from '@blueprintjs/core';
-import { CreateInitialUserArgs, validateEmail } from 'common';
+import { CreateInitialUserArgs, LightdashMode, validateEmail } from 'common';
 import { useApp } from '../providers/AppProvider';
 import PasswordInput from './PasswordInput';
 
@@ -26,7 +26,7 @@ const CreateUserForm: FC<Props> = ({
     includeOrganizationName,
     onCreate,
 }) => {
-    const { showToastError } = useApp();
+    const { showToastError, health } = useApp();
     const [firstName, setFirstName] = useState<string>();
     const [lastName, setLastName] = useState<string>();
     const [email, setEmail] = useState<string>();
@@ -157,14 +157,16 @@ const CreateUserForm: FC<Props> = ({
                     setIsMarketingOptedIn(e.target.checked)
                 }
             />
-            <Switch
-                style={{ marginTop: '20px' }}
-                disabled={isLoading}
-                label="Anonymize my usage data. We collect data for measuring product usage."
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setIsTrackingAnonymized(e.target.checked)
-                }
-            />
+            {health.data?.mode !== LightdashMode.CLOUD_BETA && (
+                <Switch
+                    style={{ marginTop: '20px' }}
+                    disabled={isLoading}
+                    label="Anonymize my usage data. We collect data for measuring product usage."
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setIsTrackingAnonymized(e.target.checked)
+                    }
+                />
+            )}
             <Button
                 style={{ alignSelf: 'flex-end', marginTop: 20 }}
                 intent={Intent.PRIMARY}
