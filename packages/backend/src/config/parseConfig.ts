@@ -9,6 +9,7 @@ export enum ProjectType {
     DBT_REMOTE_SERVER = 'dbt_remote_server',
     DBT_CLOUD_IDE = 'dbt_cloud_ide',
     GITHUB = 'github',
+    GITLAB = 'gitlab',
 }
 
 interface DbtProjectConfigBase {
@@ -50,11 +51,23 @@ interface DbtGithubProjectConfig extends DbtProjectConfigBase {
     target?: string;
 }
 
+interface DbtGitlabProjectConfig extends DbtProjectConfigBase {
+    type: ProjectType.GITLAB;
+    personal_access_token: string;
+    repository: string;
+    branch: string;
+    project_sub_path: string;
+    profiles_sub_path: string;
+    rpc_server_port: number;
+    target?: string;
+}
+
 export type DbtProjectConfig =
     | DbtLocalProjectConfig
     | DbtRemoteProjectConfig
     | DbtCloudIDEProjectConfig
-    | DbtGithubProjectConfig;
+    | DbtGithubProjectConfig
+    | DbtGitlabProjectConfig;
 
 export type DbtProjectConfigIn<T extends DbtProjectConfig> = Partial<T> &
     DbtProjectConfigBase;
@@ -117,6 +130,17 @@ const dbtGithubProjectConfigKeys: ConfigKeys<DbtGithubProjectConfig> = {
     rpc_server_port: true,
     target: false,
 };
+const dbtGitlabProjectConfigKeys: ConfigKeys<DbtGitlabProjectConfig> = {
+    type: true,
+    name: true,
+    personal_access_token: true,
+    repository: true,
+    branch: true,
+    project_sub_path: true,
+    profiles_sub_path: true,
+    rpc_server_port: true,
+    target: false,
+};
 
 const mergeProjectWithEnvironment = <T extends DbtProjectConfig>(
     projectIndex: number,
@@ -165,6 +189,12 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                     idx,
                     project,
                     dbtGithubProjectConfigKeys,
+                );
+            case ProjectType.GITLAB:
+                return mergeProjectWithEnvironment(
+                    idx,
+                    project,
+                    dbtGitlabProjectConfigKeys,
                 );
             default: {
                 const never: never = project;

@@ -3,6 +3,9 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Added
+- Gitlab connector is now available. Connect your Lightdash project to a dbt project hosted on gitlab.
+
 ### Fixed
 - Fixed a bug with missing quotes in order by clause (fixed errors with snowflake)
 - Fixed bug with wrong quote strings for dbt's athena adapter

@@ -4,6 +4,7 @@ import { DbtLocalProjectAdapter } from './dbtLocalProjectAdapter';
 import { DbtRemoteProjectAdapter } from './dbtRemoteProjectAdapter';
 import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
+import { DbtGitlabProjectAdapter } from './dbtGitlabProjectAdapter';
 
 export const projectAdapterFromConfig = (
     config: DbtProjectConfig,
@@ -31,6 +32,16 @@ export const projectAdapterFromConfig = (
             );
         case ProjectType.GITHUB:
             return new DbtGithubProjectAdapter(
+                config.personal_access_token,
+                config.repository,
+                config.branch,
+                config.project_sub_path,
+                config.profiles_sub_path,
+                config.rpc_server_port,
+                config.target,
+            );
+        case ProjectType.GITLAB:
+            return new DbtGitlabProjectAdapter(
                 config.personal_access_token,
                 config.repository,
                 config.branch,
