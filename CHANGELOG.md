@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Added
+- Users can see the dbt connection details and edit the warehouse connection in the UI
 
 ## [0.6.6] - 2021-09-15
 ### Added
