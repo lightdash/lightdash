@@ -76,5 +76,5 @@ SELECT
   *,
   table1_dim1 + table1_metric1 AS "calc3"
 FROM metrics
-ORDER BY table1_metric1 DESC
+ORDER BY "table1_metric1" DESC
 LIMIT 10`;
