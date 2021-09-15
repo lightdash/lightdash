@@ -1,19 +1,19 @@
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 
-export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
+export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
     constructor(
-        githubPersonalAccessToken: string,
-        githubRepository: string,
-        githubBranch: string,
+        gitlabPersonalAccessToken: string,
+        gitlabRepository: string,
+        gitlabBranch: string,
         projectDirectorySubPath: string,
         profilesDirectorySubPath: string,
         port: number,
         target: string | undefined,
     ) {
-        const remoteRepositoryUrl = `https://${githubPersonalAccessToken}@github.com/${githubRepository}.git`;
+        const remoteRepositoryUrl = `https://:${gitlabPersonalAccessToken}@gitlab.com/${gitlabRepository}.git`;
         super(
             remoteRepositoryUrl,
-            githubBranch,
+            gitlabBranch,
             projectDirectorySubPath,
             profilesDirectorySubPath,
             port,

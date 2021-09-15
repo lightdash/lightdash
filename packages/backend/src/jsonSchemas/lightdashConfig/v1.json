@@ -31,6 +31,52 @@
                         "required": ["type", "name"],
                         "properties": {
                             "type": {
+                                "const": "gitlab"
+                            },
+                            "name": {
+                                "description": "Name to identify the project",
+                                "type": "string"
+                            },
+                            "personal_access_token": {
+                                "description": "Personal access token for gitlab",
+                                "type": "string"
+                            },
+                            "repository": {
+                                "description": "Repository name including organization. e.g. yourname/yourproject",
+                                "type": "string"
+                            },
+                            "branch": {
+                                "description": "Branch to checkout from gitlab repository",
+                                "type": "string",
+                                "default": "main"
+                            },
+                            "project_sub_path": {
+                                "description": "Path inside repository containing dbt_project.yml file.",
+                                "type": "string",
+                                "default": "/"
+                            },
+                            "profiles_sub_path": {
+                                "description": "Path inside repository containing profiles.yml file.",
+                                "type": "string",
+                                "default": "/"
+                            },
+                            "rpc_server_port": {
+                                "description": "Port for the internal dbt server running on localhost",
+                                "type": "integer",
+                                "minimum": 1,
+                                "default": 8580
+                            },
+                            "target": {
+                                "description": "dbt profile target name",
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "type": "object",
+                        "required": ["type", "name"],
+                        "properties": {
+                            "type": {
                                 "const": "github"
                             },
                             "name": {
