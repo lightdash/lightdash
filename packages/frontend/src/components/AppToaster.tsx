@@ -1,4 +1,5 @@
 import { Position, Toaster } from '@blueprintjs/core';
+import './AppToaster.css';
 
 /** Singleton toaster instance. Create separate instances for different options. */
 export const AppToaster = Toaster.create({

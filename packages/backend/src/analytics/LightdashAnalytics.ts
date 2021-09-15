@@ -2,8 +2,8 @@
 import Analytics, {
     Track as AnalyticsTrack,
 } from '@rudderstack/rudder-sdk-node';
+import { WarehouseTypes, ProjectType } from 'common';
 import { VERSION } from '../version';
-import { ProjectType } from '../config/parseConfig';
 
 type Identify = {
     userId: string;
@@ -60,9 +60,19 @@ type TrackSavedChart = BaseTrack & {
 };
 
 type ProjectEvent = BaseTrack & {
+    event: 'project.updated';
+    userId: string;
+    properties: {
+        projectUuid: string;
+        projectType: ProjectType;
+        warehouseConnectionType?: WarehouseTypes;
+    };
+};
+
+type AnonymousProjectEvent = BaseTrack & {
     event: 'project.compiled';
     userId?: string;
-    anonymousId?: string;
+    anonymousId: string;
     properties: {
         projectType: ProjectType;
     };
@@ -98,6 +108,7 @@ type Track =
     | ProjectErrorEvent
     | ApiErrorEvent
     | ProjectEvent
+    | AnonymousProjectEvent
     | TrackOrganizationEvent;
 
 export class LightdashAnalytics extends Analytics {

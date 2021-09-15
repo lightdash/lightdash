@@ -11,10 +11,12 @@ export enum PageName {
     EXPLORE_TABLES = 'explore_tables',
     SAVED_QUERIES = 'saved_charts',
     SAVED_QUERY_EXPLORER = 'saved_chart_explorer',
+    PROJECT_SETTINGS = 'project_settings',
     PROFILE_SETTINGS = 'profile_settings',
     PASSWORD_SETTINGS = 'password_settings',
     ORGANIZATION_SETTINGS = 'organization_settings',
     USER_MANAGEMENT_SETTINGS = 'user_management_settings',
+    PROJECT_MANAGEMENT_SETTINGS = 'project_management_settings',
     INVITE_MANAGEMENT_SETTINGS = 'invite_management_settings',
     ABOUT_LIGHTDASH = 'about_lightdash',
 }
@@ -41,4 +43,6 @@ export enum EventName {
     UPDATE_TABLE_CALCULATION_BUTTON_CLICKED = 'update_table_calculation_button.click',
     DELETE_TABLE_CALCULATION_BUTTON_CLICKED = 'delete_table_calculation_button.click',
     CONFIRM_DELETE_TABLE_CALCULATION_BUTTON_CLICKED = 'confirm_delete_table_calculation_button.click',
+    UPDATE_WAREHOUSE_CONNECTION_BUTTON_CLICKED = 'update_warehouse_connection_button.click',
+    REFRESH_DBT_CONNECTION_BUTTON_CLICKED = 'refresh_dbt_connection_button.click',
 }

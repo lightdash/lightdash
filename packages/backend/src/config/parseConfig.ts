@@ -1,73 +1,18 @@
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
-import { LightdashMode } from 'common';
+import {
+    LightdashMode,
+    DbtProjectConfig,
+    DbtProjectConfigBase,
+    DbtLocalProjectConfig,
+    DbtRemoteProjectConfig,
+    DbtCloudIDEProjectConfig,
+    DbtGithubProjectConfig,
+    DbtGitlabProjectConfig,
+    ProjectType,
+} from 'common';
 import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
 import { ParseError } from '../errors';
-
-export enum ProjectType {
-    DBT = 'dbt',
-    DBT_REMOTE_SERVER = 'dbt_remote_server',
-    DBT_CLOUD_IDE = 'dbt_cloud_ide',
-    GITHUB = 'github',
-    GITLAB = 'gitlab',
-}
-
-interface DbtProjectConfigBase {
-    type: ProjectType;
-    name: string;
-}
-
-interface DbtLocalProjectConfig extends DbtProjectConfigBase {
-    type: ProjectType.DBT;
-    profiles_dir: string;
-    project_dir: string;
-    rpc_server_port: number;
-    target?: string;
-}
-
-interface DbtRemoteProjectConfig extends DbtProjectConfigBase {
-    type: ProjectType.DBT_REMOTE_SERVER;
-    name: string;
-    rpc_server_host: string;
-    rpc_server_port: number;
-}
-
-interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
-    type: ProjectType.DBT_CLOUD_IDE;
-    api_key: string;
-    account_id: string | number;
-    environment_id: string | number;
-    project_id: string | number;
-}
-
-interface DbtGithubProjectConfig extends DbtProjectConfigBase {
-    type: ProjectType.GITHUB;
-    personal_access_token: string;
-    repository: string;
-    branch: string;
-    project_sub_path: string;
-    profiles_sub_path: string;
-    rpc_server_port: number;
-    target?: string;
-}
-
-interface DbtGitlabProjectConfig extends DbtProjectConfigBase {
-    type: ProjectType.GITLAB;
-    personal_access_token: string;
-    repository: string;
-    branch: string;
-    project_sub_path: string;
-    profiles_sub_path: string;
-    rpc_server_port: number;
-    target?: string;
-}
-
-export type DbtProjectConfig =
-    | DbtLocalProjectConfig
-    | DbtRemoteProjectConfig
-    | DbtCloudIDEProjectConfig
-    | DbtGithubProjectConfig
-    | DbtGitlabProjectConfig;
 
 export type DbtProjectConfigIn<T extends DbtProjectConfig> = Partial<T> &
     DbtProjectConfigBase;

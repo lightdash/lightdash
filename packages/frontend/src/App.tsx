@@ -11,6 +11,7 @@ import '@blueprintjs/popover2/lib/css/blueprint-popover2.css';
 import { ReactQueryDevtools } from 'react-query/devtools';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import './App.css';
+import { Colors } from '@blueprintjs/core';
 import Login from './pages/login';
 import PrivateRoute from './components/PrivateRoute';
 import AppBar from './components/AppBar';
@@ -23,6 +24,7 @@ import SavedExplorer from './pages/SavedExplorer';
 import Signup from './pages/Signup';
 import { Page, TrackingProvider } from './providers/TrackingProvider';
 import { PageName } from './types/Events';
+import ProjectSettings from './pages/ProjectSettings';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -57,10 +59,16 @@ const App = () => (
                             <div
                                 style={{
                                     minHeight: '100vh',
+                                    background: Colors.LIGHT_GRAY5,
                                 }}
                             >
                                 <AppBar />
                                 <Switch>
+                                    <Route path="/projects/:projectUuid">
+                                        <Page name={PageName.PROJECT_SETTINGS}>
+                                            <ProjectSettings />
+                                        </Page>
+                                    </Route>
                                     <Route path="/saved/:savedQueryUuid">
                                         <Page
                                             name={PageName.SAVED_QUERY_EXPLORER}

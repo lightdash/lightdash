@@ -530,7 +530,7 @@ export type ApiTableResponse =
           results: ApiTableResults;
       };
 
-export type ApiStatusResults = 'loading' | 'ready';
+export type ApiStatusResults = 'loading' | 'ready' | 'error';
 export type ApiStatusResponse =
     | ApiError
     | {
@@ -625,6 +625,27 @@ export type ApiOrganizationUsersResponse =
           results: OrganizationUser[];
       };
 
+export type ApiProjectsResponse =
+    | ApiError
+    | {
+          status: 'ok';
+          results: OrganizationProject[];
+      };
+
+export type ApiProjectResponse =
+    | ApiError
+    | {
+          status: 'ok';
+          results: Project;
+      };
+
+export type ApiUpdateWarehouseConnectionResponse =
+    | ApiError
+    | {
+          status: 'ok';
+          results: WarehouseCredentials;
+      };
+
 export type ApiResults =
     | ApiQueryResults
     | ApiCompiledQueryResults
@@ -638,6 +659,9 @@ export type ApiResults =
     | SavedQuery
     | Space[]
     | InviteLink
+    | OrganizationProject[]
+    | Project
+    | WarehouseCredentials
     | OrganizationUser[];
 
 export type ApiResponse =
@@ -652,6 +676,9 @@ export type ApiResponse =
     | ApiUserResponse
     | ApiRegisterResponse
     | ApiInviteLinkResponse
+    | ApiProjectsResponse
+    | ApiProjectResponse
+    | ApiUpdateWarehouseConnectionResponse
     | ApiOrganizationUsersResponse;
 
 export enum LightdashMode {
@@ -837,3 +864,196 @@ export enum DBChartTypes {
     LINE = 'line',
     SCATTER = 'scatter',
 }
+
+export enum WarehouseTypes {
+    BIGQUERY = 'bigquery',
+    POSTGRES = 'postgres',
+    REDSHIFT = 'redshift',
+    SNOWFLAKE = 'snowflake',
+}
+
+export type CreateBigqueryCredentials = {
+    type: WarehouseTypes.BIGQUERY;
+    project: string;
+    dataset: string;
+    threads: number;
+    timeoutSeconds: number;
+    priority: 'interactive' | 'batch';
+    keyfileContents: Record<string, string>;
+    retries: number;
+    location: string;
+    maximumBytesBilled: number;
+};
+
+export const sensitiveCredentialsFieldNames = [
+    'user',
+    'password',
+    'keyfileContents',
+] as const;
+
+export const sensitiveDbtCredentialsFieldNames = [
+    'personal_access_token',
+    'api_key',
+] as const;
+
+export type SensitiveCredentialsFieldNames =
+    typeof sensitiveCredentialsFieldNames[number];
+
+export type BigqueryCredentials = Omit<
+    CreateBigqueryCredentials,
+    SensitiveCredentialsFieldNames
+>;
+
+export type CreatePostgresCredentials = {
+    type: WarehouseTypes.POSTGRES;
+    host: string;
+    user: string;
+    password: string;
+    port: number;
+    dbname: string;
+    schema: string;
+    threads: number;
+    keepalivesIdle?: number;
+    searchPath?: string;
+    role?: string;
+    sslmode?: string;
+};
+
+export type PostgresCredentials = Omit<
+    CreatePostgresCredentials,
+    SensitiveCredentialsFieldNames
+>;
+
+export type CreateRedshiftCredentials = {
+    type: WarehouseTypes.REDSHIFT;
+    host: string;
+    user: string;
+    password: string;
+    port: number;
+    dbname: string;
+    schema: string;
+    threads: number;
+    keepalivesIdle?: number;
+    sslmode?: string;
+};
+
+export type RedshiftCredentials = Omit<
+    CreateRedshiftCredentials,
+    SensitiveCredentialsFieldNames
+>;
+
+export type CreateSnowflakeCredentials = {
+    type: WarehouseTypes.SNOWFLAKE;
+    account: string;
+    user: string;
+    password: string;
+    role: string;
+    database: string;
+    warehouse: string;
+    schema: string;
+    threads: number;
+    clientSessionKeepAlive: boolean;
+    queryTag?: string;
+};
+
+export type SnowflakeCredentials = Omit<
+    CreateSnowflakeCredentials,
+    SensitiveCredentialsFieldNames
+>;
+
+export type CreateWarehouseCredentials =
+    | CreateRedshiftCredentials
+    | CreateBigqueryCredentials
+    | CreatePostgresCredentials
+    | CreateSnowflakeCredentials;
+
+export type WarehouseCredentials =
+    | SnowflakeCredentials
+    | RedshiftCredentials
+    | PostgresCredentials
+    | BigqueryCredentials;
+
+export enum ProjectType {
+    DBT = 'dbt',
+    DBT_REMOTE_SERVER = 'dbt_remote_server',
+    DBT_CLOUD_IDE = 'dbt_cloud_ide',
+    GITHUB = 'github',
+    GITLAB = 'gitlab',
+}
+
+export const ProjectTypeLabels: Record<ProjectType, string> = {
+    [ProjectType.DBT]: 'dbt local server',
+    [ProjectType.DBT_CLOUD_IDE]: 'dbt cloud',
+    [ProjectType.GITHUB]: 'Github',
+    [ProjectType.GITLAB]: 'GitLab',
+    [ProjectType.DBT_REMOTE_SERVER]: 'dbt remote server',
+};
+
+export interface DbtProjectConfigBase {
+    type: ProjectType;
+    name: string;
+}
+
+export interface DbtLocalProjectConfig extends DbtProjectConfigBase {
+    type: ProjectType.DBT;
+    profiles_dir: string;
+    project_dir: string;
+    rpc_server_port: number;
+    target?: string;
+}
+
+export interface DbtRemoteProjectConfig extends DbtProjectConfigBase {
+    type: ProjectType.DBT_REMOTE_SERVER;
+    name: string;
+    rpc_server_host: string;
+    rpc_server_port: number;
+}
+
+export interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
+    type: ProjectType.DBT_CLOUD_IDE;
+    api_key: string;
+    account_id: string | number;
+    environment_id: string | number;
+    project_id: string | number;
+}
+
+export interface DbtGithubProjectConfig extends DbtProjectConfigBase {
+    type: ProjectType.GITHUB;
+    personal_access_token: string;
+    repository: string;
+    branch: string;
+    project_sub_path: string;
+    profiles_sub_path: string;
+    rpc_server_port: number;
+    target?: string;
+}
+
+export interface DbtGitlabProjectConfig extends DbtProjectConfigBase {
+    type: ProjectType.GITLAB;
+    personal_access_token: string;
+    repository: string;
+    branch: string;
+    project_sub_path: string;
+    profiles_sub_path: string;
+    rpc_server_port: number;
+    target?: string;
+}
+
+export type DbtProjectConfig =
+    | DbtLocalProjectConfig
+    | DbtRemoteProjectConfig
+    | DbtCloudIDEProjectConfig
+    | DbtGithubProjectConfig
+    | DbtGitlabProjectConfig;
+
+export type OrganizationProject = {
+    projectUuid: string;
+    name: string;
+};
+
+export type Project = {
+    projectUuid: string;
+    name: string;
+    dbtConnection: DbtProjectConfig;
+    warehouseConnection?: WarehouseCredentials;
+};

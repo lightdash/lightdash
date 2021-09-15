@@ -1,12 +1,14 @@
-import { OrganizationUser, SessionUser } from 'common';
+import { OrganizationProject, OrganizationUser, SessionUser } from 'common';
 import { NotExistsError } from '../errors';
 import { analytics } from '../analytics/client';
 import { OrganizationModel } from '../models/OrganizationModel';
 import { UserModel } from '../models/UserModel';
+import { ProjectModel } from '../models/ProjectModel';
 
 type OrganizationServiceDependencies = {
     organizationModel: OrganizationModel;
     userModel: UserModel;
+    projectModel: ProjectModel;
 };
 
 export class OrganizationService {
@@ -14,12 +16,16 @@ export class OrganizationService {
 
     private readonly userModel: UserModel;
 
+    private readonly projectModel: ProjectModel;
+
     constructor({
         organizationModel,
         userModel,
+        projectModel,
     }: OrganizationServiceDependencies) {
         this.organizationModel = organizationModel;
         this.userModel = userModel;
+        this.projectModel = projectModel;
     }
 
     async updateOrg(
@@ -56,5 +62,13 @@ export class OrganizationService {
             lastName: last_name,
             email,
         }));
+    }
+
+    async getProjects(user: SessionUser): Promise<OrganizationProject[]> {
+        const { organizationUuid } = user;
+        if (organizationUuid === undefined) {
+            throw new NotExistsError('Organization not found');
+        }
+        return this.projectModel.getAllByOrganizationUuid(organizationUuid);
     }
 }

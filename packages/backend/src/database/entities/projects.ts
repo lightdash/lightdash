@@ -1,5 +1,7 @@
 import { Knex } from 'knex';
 
+export const ProjectTableName = 'projects';
+
 type DbProject = {
     project_id: number;
     project_uuid: string;
@@ -9,6 +11,8 @@ type DbProject = {
 };
 
 type CreateDbProject = Pick<DbProject, 'name' | 'organization_id'>;
+
+export type ProjectTable = Knex.CompositeTableType<DbProject, CreateDbProject>;
 
 export const createProject = async (
     db: Knex,

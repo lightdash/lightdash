@@ -11,7 +11,7 @@ const getStatus = async () =>
         body: undefined,
     });
 
-export const useServerStatus = () => {
+export const useServerStatus = (refetchInterval = 5000) => {
     const queryKey = 'status';
     const {
         errorLogs: { showError },
@@ -19,7 +19,7 @@ export const useServerStatus = () => {
     const query = useQuery<ApiStatusResults, ApiError>({
         queryKey,
         queryFn: getStatus,
-        refetchInterval: 5000,
+        refetchInterval,
         refetchIntervalInBackground: false,
     });
 

@@ -2,14 +2,13 @@ import { Explore, MetricQuery, SessionUser } from 'common';
 import { v4 as uuidv4 } from 'uuid';
 import { errorHandler, NotExistsError } from './errors';
 import { buildQuery } from './queryBuilder';
-import { projectAdapterFromConfig } from './projectAdapters/projectAdapter';
 import { lightdashConfig } from './config/lightdashConfig';
 import { compileMetricQuery } from './queryCompiler';
 import { analytics } from './analytics/client';
+import { projectService } from './services/services';
 
 // Setup dbt adapter
 const projectConfig = lightdashConfig.projects[0];
-const adapter = projectAdapterFromConfig(projectConfig);
 
 // Shared promise
 let cachedTables: Promise<Explore[]> | undefined;
@@ -28,7 +27,7 @@ export const getStatus = async () => {
 
 export const refreshAllTables = async (userUuid: string | undefined) => {
     tablesIsLoading = true;
-    cachedTables = adapter.compileAllExplores();
+    cachedTables = projectService.compileAllExplores();
     try {
         await cachedTables;
         analytics.track({
@@ -82,7 +81,7 @@ export const runQuery = async (
     const explore = await getTable(user, tableId);
     const compiledMetricQuery = compileMetricQuery(metricQuery);
     const sql = buildQuery({ explore, compiledMetricQuery });
-    const rows = await adapter.runQuery(sql);
+    const rows = await projectService.runQuery(sql);
     return {
         metricQuery,
         rows,

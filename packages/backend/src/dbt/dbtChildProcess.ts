@@ -17,17 +17,28 @@ export class DbtChildProcess {
 
     errorLogs: string[];
 
+    profileName: string | undefined;
+
+    environment: Record<string, string>;
+
     constructor(
         projectDir: string,
         profilesDir: string,
         port: number,
         target: string | undefined,
+        profileName: string | undefined = undefined,
+        environment: Record<string, string> = {},
     ) {
         this.port = port;
         this.projectDir = projectDir;
         this.profilesDir = profilesDir;
         this.target = target;
         this.errorLogs = [];
+        this.profileName = profileName;
+        this.environment = environment;
+
+        // this.overwriteProfile = overwriteProfile;
+        // this.profilesFileName = path.join(profilesDir, 'profiles.yml');
     }
 
     private _storeErrorMessage(payload: {
@@ -75,8 +86,16 @@ export class DbtChildProcess {
                 dbtArgs.push('--target', this.target);
             }
 
+            if (this.profileName) {
+                dbtArgs.push('--profile', this.profileName);
+            }
+
             this.dbtChildProcess = execa('dbt', dbtArgs, {
                 stdio: ['pipe', 'pipe', process.stderr],
+                env: {
+                    ...process.env,
+                    ...this.environment,
+                },
             });
 
             // reject or resolve depends on whether process emits success logs or exits first
@@ -121,7 +140,7 @@ export class DbtChildProcess {
         });
     }
 
-    public async restart() {
+    public async kill(): Promise<void> {
         const waitForKill = new Promise<true>((resolve) => {
             if (this.dbtChildProcess === undefined) {
                 resolve(true);
@@ -131,6 +150,10 @@ export class DbtChildProcess {
         });
         this.dbtChildProcess?.kill(15); // .kill(15) sends TERM - kills dbt process without auto-restart
         await waitForKill;
+    }
+
+    public async restart(): Promise<void> {
+        await this.kill();
         await this._start();
     }
 }

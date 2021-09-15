@@ -1,4 +1,4 @@
-import { DbtProjectConfig, ProjectType } from '../config/parseConfig';
+import { DbtProjectConfig, ProjectType } from 'common';
 import { ProjectAdapter } from '../types';
 import { DbtLocalProjectAdapter } from './dbtLocalProjectAdapter';
 import { DbtRemoteProjectAdapter } from './dbtRemoteProjectAdapter';
