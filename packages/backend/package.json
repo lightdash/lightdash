@@ -29,6 +29,8 @@
     },
     "dependencies": {
         "@rudderstack/rudder-sdk-node": "^1.0.2",
+        "@sentry/node": "^6.12.0",
+        "@sentry/tracing": "^6.12.0",
         "@stoplight/yaml": "^4.2.2",
         "@types/bcrypt": "^5.0.0",
         "@typescript-eslint/eslint-plugin": "^4.4.1",

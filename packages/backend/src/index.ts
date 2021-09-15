@@ -11,6 +11,8 @@ import bodyParser from 'body-parser';
 import { v4 as uuidv4 } from 'uuid';
 import * as OpenApiValidator from 'express-openapi-validator';
 import apiSpec from 'common/dist/openapibundle.json';
+import * as Sentry from '@sentry/node';
+import * as Tracing from '@sentry/tracing';
 import { AuthorizationError, errorHandler } from './errors';
 import { apiV1Router } from './api/apiV1';
 import { refreshAllTables } from './lightdash';
@@ -18,6 +20,7 @@ import { UserModel } from './models/User';
 import database from './database/database';
 import { lightdashConfig } from './config/lightdashConfig';
 import { analytics } from './analytics/client';
+import { VERSION } from './version';
 
 const KnexSessionStore = connectSessionKnex(expressSession);
 
@@ -28,6 +31,23 @@ const store = new KnexSessionStore({
     sidfieldname: 'sid',
 });
 const app = express();
+Sentry.init({
+    release: VERSION,
+    dsn: process.env.SENTRY_DSN,
+    integrations: [
+        new Sentry.Integrations.Http({ tracing: true }),
+        new Tracing.Integrations.Express({
+            app,
+        }),
+    ],
+    tracesSampleRate: 1.0,
+});
+app.use(
+    Sentry.Handlers.requestHandler({
+        user: ['userUuid', 'organizationUuid', 'organizationName'],
+    }),
+);
+app.use(Sentry.Handlers.tracingHandler());
 app.use(express.json());
 
 // Logging
@@ -77,6 +97,7 @@ app.get('*', (req, res) => {
 });
 
 // errors
+app.use(Sentry.Handlers.errorHandler());
 app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
     const errorResponse = errorHandler(error);
     analytics.track({

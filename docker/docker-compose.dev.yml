@@ -17,6 +17,7 @@ services:
       - RUDDERSTACK_DATA_PLANE_URL=${RUDDERSTACK_DATA_PLANE_URL}
       - SECURE_COOKIES=${SECURE_COOKIES}
       - LIGHTDASH_SECRET=${LIGHTDASH_SECRET}
+      - SENTRY_DSN=${SENTRY_DSN}
     volumes:
       - "${DEMO_PROFILES_DIR}:/usr/app/profiles"
       - "${DEMO_PROJECT_DIR}:/usr/app/dbt"
