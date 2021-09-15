@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+
+## [0.6.6] - 2021-09-15
 ### Added
 - Gitlab connector is now available. Connect your Lightdash project to a dbt project hosted on gitlab.
 

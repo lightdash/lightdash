@@ -1,6 +1,6 @@
 {
     "name": "frontend",
-    "version": "0.6.5",
+    "version": "0.6.6",
     "private": true,
     "proxy": "http://localhost:8080",
     "dependencies": {
@@ -22,7 +22,7 @@
         "@types/react-table": "^7.0.29",
         "@types/uuid": "^8.3.0",
         "ace-builds": "^1.4.12",
-        "common": "^0.6.5",
+        "common": "^0.6.6",
         "dagre": "^0.8.5",
         "echarts": "^5.1.1",
         "echarts-for-react": "^3.0.1",
