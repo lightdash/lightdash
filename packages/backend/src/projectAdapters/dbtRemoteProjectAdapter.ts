@@ -12,7 +12,7 @@ export class DbtRemoteProjectAdapter extends DbtBaseProjectAdapter {
         );
     }
 
-    public async compileAllExplores(): Promise<Explore[]> {
+    async compileAllExplores(): Promise<Explore[]> {
         return super.compileAllExplores(false);
     }
 }

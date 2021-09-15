@@ -18,6 +18,7 @@ import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { inviteLinksRouter } from './inviteLinksRouter';
 import { organizationRouter } from './organizationRouter';
 import { userRouter } from './userRouter';
+import { projectRouter } from './projectRouter';
 import { compileMetricQuery } from '../queryCompiler';
 
 export const apiV1Router = express.Router();
@@ -288,3 +289,4 @@ apiV1Router.post(
 apiV1Router.use('/invite-links', inviteLinksRouter);
 apiV1Router.use('/org', organizationRouter);
 apiV1Router.use('/user', userRouter);
+apiV1Router.use('/project', projectRouter);

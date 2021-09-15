@@ -13,6 +13,11 @@ import {
     SavedQueryTableCalculationTable,
     SavedQueryTableCalculationTableName,
 } from '../database/entities/savedQueries';
+import {
+    WarehouseCredentialTable,
+    WarehouseCredentialTableName,
+} from '../database/entities/warehouseCredentials';
+import { ProjectTable, ProjectTableName } from '../database/entities/projects';
 
 declare module 'knex/types/tables' {
     interface Tables {
@@ -21,6 +26,8 @@ declare module 'knex/types/tables' {
         [UserTableName]: UserTable;
         [EmailTableName]: EmailTable;
         [SessionTableName]: SessionTable;
+        [WarehouseCredentialTableName]: WarehouseCredentialTable;
+        [ProjectTableName]: ProjectTable;
         [SavedQueryTableCalculationTableName]: SavedQueryTableCalculationTable;
     }
 }
