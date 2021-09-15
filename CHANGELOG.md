@@ -4,6 +4,7 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 ### Fixed
+- Fixed a bug with missing quotes in order by clause (fixed errors with snowflake)
 - Fixed bug with wrong quote strings for dbt's athena adapter
 - Fixed bug where optional project configs set via env where not recognised
 - Add local state to track and update query parameters changes without affecting the current query data

@@ -11,7 +11,6 @@ import {
     formatTimestamp,
     getDimensions,
     getMetrics,
-    MetricQuery,
     NumberFilter,
     StringFilter,
 } from 'common';
@@ -262,7 +261,7 @@ export const buildQuery = ({
             : '';
 
     const fieldOrders = sorts.map(
-        (sort) => `${sort.fieldId}${sort.descending ? ' DESC' : ''}`,
+        (sort) => `${q}${sort.fieldId}${q}${sort.descending ? ' DESC' : ''}`,
     );
     const sqlOrderBy =
         fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
