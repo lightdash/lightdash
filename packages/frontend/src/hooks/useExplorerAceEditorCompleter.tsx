@@ -2,7 +2,7 @@ import { Field, friendlyName, getFieldRef } from 'common';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { Ace } from 'ace-builds';
 import langTools from 'ace-builds/src-noconflict/ext-language_tools';
-import { useTable } from './useTable';
+import { useExplore } from './useExplore';
 
 const createCompleter: (fields: Ace.Completion[]) => Ace.Completer = (
     fields,
@@ -33,7 +33,7 @@ const mapFieldsToCompletions = (
 export const useExplorerAceEditorCompleter = (): {
     setAceEditor: Dispatch<SetStateAction<Ace.Editor | undefined>>;
 } => {
-    const explore = useTable();
+    const explore = useExplore();
     const [aceEditor, setAceEditor] = useState<Ace.Editor>();
 
     useEffect(() => {

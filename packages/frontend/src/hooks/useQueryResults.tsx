@@ -6,7 +6,7 @@ import { useApp } from '../providers/AppProvider';
 
 export const getQueryResults = async (tableId: string, query: MetricQuery) =>
     lightdashApi<ApiQueryResults>({
-        url: `/tables/${tableId}/runQuery`,
+        url: `/explores/${tableId}/runQuery`,
         method: 'POST',
         body: JSON.stringify(query),
     });

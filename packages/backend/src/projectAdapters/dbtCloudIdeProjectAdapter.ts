@@ -1,4 +1,4 @@
-import { Explore } from 'common';
+import { Explore, ExploreError } from 'common';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 import { DbtCloudV2RpcClient } from '../dbt/dbtCloudV2RpcClient';
 
@@ -20,7 +20,7 @@ export class DbtCloudIdeProjectAdapter extends DbtBaseProjectAdapter {
         );
     }
 
-    public async compileAllExplores(): Promise<Explore[]> {
+    public async compileAllExplores(): Promise<(Explore | ExploreError)[]> {
         return super.compileAllExplores(false);
     }
 }

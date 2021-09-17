@@ -2,6 +2,7 @@ import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
     Explore,
+    ExploreError,
     Project,
     SessionUser,
     WarehouseCredentials,
@@ -64,7 +65,7 @@ export class ProjectService {
         return this.projectAdapter.runQuery(sql);
     }
 
-    async compileAllExplores(): Promise<Explore[]> {
+    async compileAllExplores(): Promise<(Explore | ExploreError)[]> {
         if (this.projectAdapter instanceof DbtLocalProjectAdapter) {
             const project =
                 await this.projectModel.getDefaultWithSensitiveFields();

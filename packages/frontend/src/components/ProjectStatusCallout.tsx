@@ -1,7 +1,7 @@
 import React, { ComponentProps, FC } from 'react';
 import { Callout, Classes, Spinner } from '@blueprintjs/core';
 import { useServerStatus } from '../hooks/useServerStatus';
-import { useTables } from '../hooks/useTables';
+import { useExplores } from '../hooks/useExplores';
 import { useApp } from '../providers/AppProvider';
 import { ShowErrorsButton } from './ShowErrorsButton';
 
@@ -37,8 +37,7 @@ const ErrorMessage = () => {
 
 const ProjectStatusCallout: FC<CalloutProps> = (props) => {
     const { data, error } = useServerStatus(2000);
-    const { data: tables } = useTables();
-
+    const { data: explores } = useExplores();
     let stateProps: CalloutProps = {};
 
     if (data) {
@@ -47,7 +46,7 @@ const ProjectStatusCallout: FC<CalloutProps> = (props) => {
                 stateProps = {
                     intent: 'success',
                     title: 'Compiled successfully',
-                    children: <p>Tables found: {tables?.length}</p>,
+                    children: <p>Tables found: {explores?.length}</p>,
                 };
                 break;
             case 'loading':

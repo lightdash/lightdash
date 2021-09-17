@@ -22,12 +22,11 @@ import {
     DraggableStateSnapshot,
     Droppable,
 } from 'react-beautiful-dnd';
-import { ApiError, ApiQueryResults, DimensionType } from 'common';
+import { DimensionType } from 'common';
 import React, { FC, useEffect } from 'react';
 import { CSVLink } from 'react-csv';
-import { UseQueryResult } from 'react-query';
 import { useColumns } from '../hooks/useColumns';
-import { useTable } from '../hooks/useTable';
+import { useExplore } from '../hooks/useExplore';
 import { RefreshButton } from './RefreshButton';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { Section } from '../providers/TrackingProvider';
@@ -190,7 +189,7 @@ export const ResultsTable = () => {
         state: { tableName: activeTableName, columnOrder: explorerColumnOrder },
         actions: { setColumnOrder: setExplorerColumnOrder },
     } = useExplorer();
-    const activeExplore = useTable();
+    const activeExplore = useExplore();
     const safeData = React.useMemo(
         () => (queryResults.status === 'success' ? queryResults.data.rows : []),
         [queryResults.status, queryResults.data],

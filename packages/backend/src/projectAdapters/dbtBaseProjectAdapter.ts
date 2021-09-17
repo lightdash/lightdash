@@ -1,4 +1,9 @@
-import { DbtRpcDocsGenerateResults, DbtModelNode, Explore } from 'common';
+import {
+    DbtRpcDocsGenerateResults,
+    DbtModelNode,
+    Explore,
+    ExploreError,
+} from 'common';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { DbtRpcClientBase } from '../dbt/dbtRpcClientBase';
@@ -17,44 +22,50 @@ export abstract class DbtBaseProjectAdapter implements ProjectAdapter {
 
     public async compileAllExplores(
         loadSources: boolean = false,
-    ): Promise<Explore[]> {
-        // Install dependencies for dbt and fetch the manifest
+    ): Promise<(Explore | ExploreError)[]> {
+        // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
         await this.rpcClient.installDeps();
         const { manifest } = await this.rpcClient.getDbtManifest();
 
-        // Validate models in the manifest - may throw ParseError
-        const models = await DbtBaseProjectAdapter._validateDbtModels(
-            Object.values(manifest.nodes).filter(
-                (node) => node.resource_type === 'model',
-            ) as DbtModelNode[],
-        );
-
+        // Type of the target warehouse
         const adapterType = manifest.metadata.adapter_type;
 
-        // Be lazy and try to type the models without refreshing the catalog
+        // Validate models in the manifest - models with invalid metadata will complie to failed Explores
+        const models = Object.values(manifest.nodes).filter(
+            (node) => node.resource_type === 'model',
+        ) as DbtModelNode[];
+        const [validModels, failedExplores] =
+            await DbtBaseProjectAdapter._validateDbtModelMetadata(models);
+
+        // Be lazy and try to attach types to the remaining models without refreshing the catalog
         try {
             const lazyTypedModels = await attachTypesToModels(
-                models,
+                validModels,
                 this.catalog || { nodes: {} },
+                true,
             );
             const lazyExplores = await convertExplores(
                 lazyTypedModels,
                 loadSources,
-                manifest.metadata.adapter_type,
+                adapterType,
             );
-            return lazyExplores;
+            return [...lazyExplores, ...failedExplores];
         } catch (e) {
             if (e instanceof MissingCatalogEntryError) {
                 // Some types were missing so refresh the catalog and try again
                 const catalog = await this.rpcClient.getDbtCatalog();
                 this.catalog = catalog;
-                const typedModels = await attachTypesToModels(models, catalog);
+                const typedModels = await attachTypesToModels(
+                    models,
+                    catalog,
+                    false,
+                );
                 const explores = await convertExplores(
                     typedModels,
                     loadSources,
-                    manifest.metadata.adapter_type,
+                    adapterType,
                 );
-                return explores;
+                return [...explores, ...failedExplores];
             }
             throw e;
         }
@@ -64,9 +75,37 @@ export abstract class DbtBaseProjectAdapter implements ProjectAdapter {
         return this.rpcClient.runQuery(sql);
     }
 
-    static async _validateDbtModels(
+    static async _validateDbtModelMetadata(
         models: DbtModelNode[],
-    ): Promise<DbtModelNode[]> {
+    ): Promise<[DbtModelNode[], ExploreError[]]> {
+        const validator = ajv.compile(modelJsonSchema);
+        return models.reduce(
+            ([validModels, invalidModels], model) => {
+                const isValid = validator(model);
+                if (isValid) {
+                    return [[...validModels, model], invalidModels];
+                }
+                const exploreError: ExploreError = {
+                    name: model.name,
+                    errors: [
+                        {
+                            type: 'MetadataParseError',
+                            message: (validator.errors || [])
+                                .map(
+                                    (err) =>
+                                        `Field at "${err.instancePath}" ${err.message}`,
+                                )
+                                .join('\n'),
+                        },
+                    ],
+                };
+                return [validModels, [...invalidModels, exploreError]];
+            },
+            [[] as DbtModelNode[], [] as ExploreError[]],
+        );
+    }
+
+    static async _unused(models: DbtModelNode[]): Promise<DbtModelNode[]> {
         const validator = ajv.compile(modelJsonSchema);
         const validateModel = (model: DbtModelNode) => {
             const valid = validator(model);
@@ -75,7 +114,7 @@ export abstract class DbtBaseProjectAdapter implements ProjectAdapter {
                     .map((err) => `Field at ${err.instancePath} ${err.message}`)
                     .join('\n');
                 throw new ParseError(
-                    `Cannot parse lightdash metadata from schema.yml for '${model.name}' model:\n${lineErrorMessages}`,
+                    `Cannot parse lightdash metadata from schema.yml for model "${model.name}":\n${lineErrorMessages}`,
                     {
                         schema: modelJsonSchema.$id,
                         errors: validator.errors,
@@ -84,21 +123,6 @@ export abstract class DbtBaseProjectAdapter implements ProjectAdapter {
             }
         };
         models.forEach(validateModel);
-
-        // Foreign key checks
-        // TODO: this belongs in the compiler
-        const validModelNames = new Set(models.map((model) => model.name));
-        const validateForeignKeys = (model: DbtModelNode) => {
-            const joins = model.meta?.joins?.map((j) => j.join) || [];
-            joins.forEach((join) => {
-                if (!validModelNames.has(join))
-                    throw new ParseError(
-                        `Cannot parse lightdash metadata from schema.yml for '${model.name}' model:\n  Contains a join reference to another dbt model '${join}' which couldn't be found in the current dbt project.`,
-                        {},
-                    );
-            });
-        };
-        models.forEach(validateForeignKeys);
         return models;
     }
 }

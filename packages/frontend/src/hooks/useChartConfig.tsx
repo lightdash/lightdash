@@ -10,7 +10,7 @@ import {
 } from 'common';
 import { UseQueryResult } from 'react-query';
 import { useSavedQuery } from './useSavedQuery';
-import { useTable } from './useTable';
+import { useExplore } from './useExplore';
 import { getDimensionFormatter } from './useColumns';
 import { useQueryResults } from './useQueryResults';
 
@@ -123,7 +123,7 @@ export const useChartConfig = (
     const [seriesLayout, setSeriesLayout] = useState<SeriesLayout>(
         defaultLayout(queryResults),
     );
-    const activeExplore = useTable();
+    const activeExplore = useExplore();
     const dimensions = activeExplore.data
         ? getDimensions(activeExplore.data)
         : [];

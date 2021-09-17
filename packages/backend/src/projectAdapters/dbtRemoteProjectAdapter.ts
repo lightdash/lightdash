@@ -1,4 +1,4 @@
-import { Explore } from 'common';
+import { Explore, ExploreError } from 'common';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 import { DbtRpcClient } from '../dbt/dbtRpcClient';
 
@@ -12,7 +12,7 @@ export class DbtRemoteProjectAdapter extends DbtBaseProjectAdapter {
         );
     }
 
-    async compileAllExplores(): Promise<Explore[]> {
+    async compileAllExplores(): Promise<(Explore | ExploreError)[]> {
         return super.compileAllExplores(false);
     }
 }
