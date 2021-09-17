@@ -13,8 +13,8 @@ import React, { useState } from 'react';
 import { friendlyName } from 'common';
 import { useHistory } from 'react-router-dom';
 import ExploreTree from './ExploreTree';
-import { useTables } from '../hooks/useTables';
-import { useTable } from '../hooks/useTable';
+import { useExplores } from '../hooks/useExplores';
+import { useExplore } from '../hooks/useExplore';
 import { LineageButton } from './LineageButton';
 import AboutFooter from './AboutFooter';
 import { useExplorer } from '../providers/ExplorerProvider';
@@ -22,6 +22,7 @@ import { useApp } from '../providers/AppProvider';
 import { ShowErrorsButton } from './ShowErrorsButton';
 import { Section } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
+import { ExploreMenuItem } from './ExploreMenuItem';
 
 const SideBarLoadingState = () => (
     <Menu large style={{ flex: 1 }}>
@@ -34,7 +35,7 @@ const SideBarLoadingState = () => (
     </Menu>
 );
 const BasePanel = () => {
-    const exploresResult = useTables();
+    const exploresResult = useExplores();
     const [showChangeExploreConfirmation, setShowChangeExploreConfirmation] =
         useState(false);
     const [selectedExploreName, setSelectedExploreName] = useState('');
@@ -89,9 +90,8 @@ const BasePanel = () => {
                         .sort((a, b) => a.name.localeCompare(b.name))
                         .map((explore) => (
                             <React.Fragment key={explore.name}>
-                                <MenuItem
-                                    icon="database"
-                                    text={friendlyName(explore.name)}
+                                <ExploreMenuItem
+                                    explore={explore}
                                     onClick={() => {
                                         if (
                                             activeFields.size > 0 &&
@@ -163,7 +163,7 @@ export const ExplorePanel = ({ onBack }: ExplorePanelProps) => {
         state: { activeFields },
         actions: { toggleActiveField },
     } = useExplorer();
-    const exploresResult = useTable();
+    const exploresResult = useExplore();
     if (exploresResult.data) {
         const activeExplore = exploresResult.data;
         const [databaseName, schemaName, tableName] = activeExplore.tables[

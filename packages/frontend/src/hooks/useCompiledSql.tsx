@@ -5,7 +5,7 @@ import { useExplorer } from '../providers/ExplorerProvider';
 
 const getCompiledQuery = async (tableId: string, query: MetricQuery) =>
     lightdashApi<ApiCompiledQueryResults>({
-        url: `/tables/${tableId}/compileQuery`,
+        url: `/explores/${tableId}/compileQuery`,
         method: 'POST',
         body: JSON.stringify(query),
     });

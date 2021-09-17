@@ -1,6 +1,12 @@
-import { Explore, MetricQuery, SessionUser } from 'common';
+import {
+    Explore,
+    ExploreError,
+    isExploreError,
+    MetricQuery,
+    SessionUser,
+} from 'common';
 import { v4 as uuidv4 } from 'uuid';
-import { errorHandler, NotExistsError } from './errors';
+import { CompileError, errorHandler, NotExistsError } from './errors';
 import { buildQuery } from './queryBuilder';
 import { lightdashConfig } from './config/lightdashConfig';
 import { compileMetricQuery } from './queryCompiler';
@@ -11,11 +17,11 @@ import { projectService } from './services/services';
 const projectConfig = lightdashConfig.projects[0];
 
 // Shared promise
-let cachedTables: Promise<Explore[]> | undefined;
-let tablesIsLoading = false;
+let cachedTables: Promise<(Explore | ExploreError)[]> | undefined;
+let exploresAreLoading = false;
 
 export const getStatus = async () => {
-    if (tablesIsLoading) return 'loading';
+    if (exploresAreLoading) return 'loading';
     if (cachedTables === undefined) return 'error';
     try {
         await cachedTables;
@@ -26,7 +32,7 @@ export const getStatus = async () => {
 };
 
 export const refreshAllTables = async (userUuid: string | undefined) => {
-    tablesIsLoading = true;
+    exploresAreLoading = true;
     cachedTables = projectService.compileAllExplores();
     try {
         await cachedTables;
@@ -52,33 +58,43 @@ export const refreshAllTables = async (userUuid: string | undefined) => {
         });
         throw errorResponse;
     } finally {
-        tablesIsLoading = false;
+        exploresAreLoading = false;
     }
     return cachedTables;
 };
 
-export const getAllTables = async (user: SessionUser): Promise<Explore[]> => {
+export const getAllExplores = async (
+    user: SessionUser,
+): Promise<(Explore | ExploreError)[]> => {
     if (cachedTables === undefined) return refreshAllTables(user.userUuid);
     return cachedTables;
 };
 
-export const getTable = async (
+export const getExplore = async (
     user: SessionUser,
-    tableId: string,
+    exploreId: string,
 ): Promise<Explore> => {
-    const tables = await getAllTables(user);
-    const table = tables.find((t) => t.name === tableId);
-    if (table === undefined)
-        throw new NotExistsError(`Table ${tableId} does not exist.`);
-    return table;
+    const explores = await getAllExplores(user);
+    const explore = explores.find((t) => t.name === exploreId);
+    if (explore === undefined || isExploreError(explore))
+        throw new NotExistsError(`Explore "${exploreId}" does not exist.`);
+    return explore;
 };
 
 export const runQuery = async (
     user: SessionUser,
-    tableId: string,
+    exploreId: string,
     metricQuery: MetricQuery,
 ) => {
-    const explore = await getTable(user, tableId);
+    const explore = await getExplore(user, exploreId);
+    if (isExploreError(explore)) {
+        throw new CompileError(
+            `Cannot compile query for explore "${
+                explore.name
+            }": ${explore.errors.join('\n')}`,
+            {},
+        );
+    }
     const compiledMetricQuery = compileMetricQuery(metricQuery);
     const sql = buildQuery({ explore, compiledMetricQuery });
     const rows = await projectService.runQuery(sql);

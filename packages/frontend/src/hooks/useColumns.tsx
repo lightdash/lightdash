@@ -10,7 +10,7 @@ import {
 import React, { useMemo } from 'react';
 import { Column } from 'react-table';
 import { useExplorer } from '../providers/ExplorerProvider';
-import { useTable } from './useTable';
+import { useExplore } from './useExplore';
 
 const formatDate = (date: string | Date) =>
     new Date(date).toISOString().slice(0, 10);
@@ -74,7 +74,7 @@ const getSortByProps = (
 };
 
 export const useColumns = (): Column<{ [col: string]: any }>[] => {
-    const { data } = useTable();
+    const { data } = useExplore();
     const {
         state: { activeFields, sorts: sortFields, tableCalculations },
         actions: { toggleSortField },

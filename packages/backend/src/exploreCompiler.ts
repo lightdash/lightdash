@@ -23,7 +23,7 @@ const getParsedReference = (
     const split = ref.split('.');
     if (split.length > 2) {
         throw new CompileError(
-            `Model ${currentTable} cannot resolve dimension reference: \${${ref}}`,
+            `Model "${currentTable}" cannot resolve dimension reference: \${${ref}}`,
             {},
         );
     }
@@ -43,7 +43,7 @@ export const compileDimensionSql = (
     return dimension.sql.replace(lightdashVariablePattern, (_, p1) => {
         if (p1 === currentRef) {
             throw new CompileError(
-                `Dimension ${dimension.name} in table ${dimension.table} has a sql string referencing itself: "${dimension.sql}"`,
+                `Dimension "${dimension.name}" in table "${dimension.table}" has a sql string referencing itself: "${dimension.sql}"`,
                 {},
             );
         }
@@ -66,7 +66,7 @@ const compileDimensionReference = (
     const referencedDimension = tables[refTable]?.dimensions[refName];
     if (referencedDimension === undefined) {
         throw new CompileError(
-            `Model ${currentTable} has a dimension reference: \${${ref}} which matches no dimension`,
+            `Model "${currentTable}" has a dimension reference: \${${ref}} which matches no dimension`,
             {},
         );
     }
@@ -88,7 +88,7 @@ const compileMetricReference = (
     const referencedMetric = tables[refTable]?.metrics[refName];
     if (referencedMetric === undefined) {
         throw new CompileError(
-            `Model ${currentTable} has a metric reference: \${${ref}} which matches no metric`,
+            `Model "${currentTable}" has a metric reference: \${${ref}} which matches no metric`,
             {},
         );
     }
@@ -131,7 +131,7 @@ export const compileMetricSql = (
             // eslint-disable-next-line no-case-declarations
             const nope: never = metricType;
             throw new CompileError(
-                `No SQL render function implemented for metric with type ${metricType}`,
+                `No SQL render function implemented for metric with type "${metricType}"`,
                 {},
             );
     }
@@ -218,14 +218,14 @@ export const compileExplore = ({
     // Check tables are correctly declared
     if (!tables[baseTable]) {
         throw new CompileError(
-            `Failed to compile explore ${name}. Tried to find base table but cannot find table with name ${baseTable}`,
+            `Failed to compile explore "${name}". Tried to find base table but cannot find table with name "${baseTable}"`,
             {},
         );
     }
     joinedTables.forEach((join) => {
         if (!tables[join.table]) {
             throw new CompileError(
-                `Failed to compile explore ${name}. Tried to join table ${join.table} to ${baseTable} but cannot find table with name ${join.table}`,
+                `Failed to compile explore "${name}". Tried to join table "${join.table}" to "${baseTable}" but cannot find table with name "${join.table}"`,
                 {},
             );
         }

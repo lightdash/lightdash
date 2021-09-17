@@ -23,7 +23,7 @@ import {
     DateFilterGroupForm,
 } from './DateFilterForm';
 import { useExplorer } from '../providers/ExplorerProvider';
-import { useTable } from '../hooks/useTable';
+import { useExplore } from '../hooks/useExplore';
 import { assertFilterId } from './FilterRow';
 
 type FilterGroupFormProps = {
@@ -85,7 +85,7 @@ const AddFilterGroup = () => {
         actions: { setFilters: setActiveFilters },
     } = useExplorer();
     const [showButton, setShowButton] = useState<boolean>(true);
-    const explore = useTable();
+    const explore = useExplore();
     if (explore.status !== 'success') return null;
     const dimensions = explore ? getDimensions(explore.data) : [];
 

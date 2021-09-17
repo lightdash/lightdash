@@ -2,17 +2,18 @@ import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { Button, Colors } from '@blueprintjs/core';
 import React, { useState } from 'react';
 import EChartsReact from 'echarts-for-react';
-import { friendlyName, LineageNodeDependency } from 'common';
+import { friendlyName, isExploreError, LineageNodeDependency } from 'common';
 import * as dagre from 'dagre';
-import { useTable } from '../hooks/useTable';
+import { useExplore } from '../hooks/useExplore';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
 
 const Content = () => {
     const [showAll, setShowAll] = useState(false);
-    const currentTable = useTable();
-    if (currentTable.status !== 'success') return null;
-    const table = currentTable.data.tables[currentTable.data.baseTable];
+    const currentExplore = useExplore();
+    if (currentExplore.status !== 'success') return null;
+    if (isExploreError(currentExplore.data)) return null;
+    const table = currentExplore.data.tables[currentExplore.data.baseTable];
 
     const dag = new dagre.graphlib.Graph();
     dag.setGraph({

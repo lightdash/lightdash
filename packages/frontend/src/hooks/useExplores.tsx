@@ -1,24 +1,24 @@
 import { useQuery } from 'react-query';
-import { ApiError, ApiTablesResults, PartialTable } from 'common';
+import { ApiError, ApiExploresResults } from 'common';
 import { useEffect } from 'react';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 
-const getTables = async () =>
-    lightdashApi<ApiTablesResults>({
-        url: '/tables',
+const getExplores = async () =>
+    lightdashApi<ApiExploresResults>({
+        url: '/explores',
         method: 'GET',
         body: undefined,
     });
 
-export const useTables = () => {
+export const useExplores = () => {
     const {
         errorLogs: { showError },
     } = useApp();
     const queryKey = 'tables';
-    const query = useQuery<PartialTable[], ApiError>({
+    const query = useQuery<ApiExploresResults, ApiError>({
         queryKey,
-        queryFn: getTables,
+        queryFn: getExplores,
         retry: false,
     });
 

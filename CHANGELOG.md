@@ -6,6 +6,10 @@ Recent and upcoming changes to lightdash
 ### Added
 - Users can see the dbt connection details and edit the warehouse connection in the UI
 
+### Changed
+- Explores are compiled individually. If an error happens in a single explores, all other explores will still be available in the UI
+- Explores will not compile if the type of a dimension cannot be determined (uses target warehouse schema). Previously they defaulted to string types.
+
 ## [0.6.6] - 2021-09-15
 ### Added
 - Gitlab connector is now available. Connect your Lightdash project to a dbt project hosted on gitlab.

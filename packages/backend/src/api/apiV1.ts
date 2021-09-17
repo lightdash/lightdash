@@ -1,11 +1,16 @@
 import express from 'express';
 import passport from 'passport';
-import { MetricQuery } from 'common';
+import {
+    ApiExploreResults,
+    ApiExploresResults,
+    isExploreError,
+    MetricQuery,
+} from 'common';
 import { sanitizeStringParam, sanitizeEmailParam } from '../utils';
 import {
-    getAllTables,
+    getAllExplores,
     getStatus,
-    getTable,
+    getExplore,
     refreshAllTables,
     runQuery,
 } from '../lightdash';
@@ -20,6 +25,7 @@ import { organizationRouter } from './organizationRouter';
 import { userRouter } from './userRouter';
 import { projectRouter } from './projectRouter';
 import { compileMetricQuery } from '../queryCompiler';
+import { CompileError } from '../errors';
 
 export const apiV1Router = express.Router();
 
@@ -88,34 +94,40 @@ apiV1Router.get('/logout', (req, res, next) => {
     });
 });
 
-apiV1Router.get('/tables', isAuthenticated, async (req, res, next) => {
-    getAllTables(req.user!)
-        .then((tables) =>
+apiV1Router.get('/explores', isAuthenticated, async (req, res, next) => {
+    getAllExplores(req.user!)
+        .then((explores) => {
+            const results: ApiExploresResults = explores.map((explore) =>
+                isExploreError(explore)
+                    ? { name: explore.name, errors: explore.errors }
+                    : { name: explore.name },
+            );
             res.json({
                 status: 'ok',
-                results: tables.map((table) => ({
-                    name: table.tables[table.baseTable].name,
-                    description: table.tables[table.baseTable].description,
-                    sql: table.tables[table.baseTable].sqlTable,
-                })),
-            }),
-        )
-        .catch(next);
-});
-
-apiV1Router.get('/tables/:tableId', isAuthenticated, async (req, res, next) => {
-    getTable(req.user!, req.params.tableId)
-        .then((table) => {
-            res.json({
-                status: 'ok',
-                results: table,
+                results,
             });
         })
         .catch(next);
 });
 
+apiV1Router.get(
+    '/explores/:exploreId',
+    isAuthenticated,
+    async (req, res, next) => {
+        getExplore(req.user!, req.params.exploreId)
+            .then((explore) => {
+                const results: ApiExploreResults = explore;
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
 apiV1Router.post(
-    '/tables/:tableId/compileQuery',
+    '/explores/:exploreId/compileQuery',
     isAuthenticated,
     async (req, res, next) => {
         const { body } = req;
@@ -129,7 +141,15 @@ apiV1Router.post(
                 tableCalculations: body.tableCalculations,
             };
             const compiledMetricQuery = await compileMetricQuery(metricQuery);
-            const explore = await getTable(req.user!, req.params.tableId);
+            const explore = await getExplore(req.user!, req.params.exploreId);
+            if (isExploreError(explore)) {
+                throw new CompileError(
+                    `Cannot compile query for explore ${
+                        explore.name
+                    }: ${explore.errors.join('\n')}`,
+                    {},
+                );
+            }
             const sql = buildQuery({ explore, compiledMetricQuery });
             res.json({
                 status: 'ok',
@@ -142,7 +162,7 @@ apiV1Router.post(
 );
 
 apiV1Router.post(
-    '/tables/:tableId/runQuery',
+    '/explores/:exploreId/runQuery',
     isAuthenticated,
     async (req, res, next) => {
         const { body } = req;
@@ -150,7 +170,7 @@ apiV1Router.post(
             userId: req.user!.userUuid,
             event: 'query.executed',
         });
-        runQuery(req.user!, req.params.tableId, {
+        runQuery(req.user!, req.params.exploreId, {
             dimensions: body.dimensions,
             metrics: body.metrics,
             filters: body.filters,

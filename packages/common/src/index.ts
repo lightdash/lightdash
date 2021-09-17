@@ -42,6 +42,19 @@ export type Explore = {
     targetDatabase: string; // Type of target database e.g. postgres/redshift/bigquery/snowflake
 };
 
+export type InlineError = {
+    type: string;
+    message: string;
+};
+
+export type ExploreError = Partial<Explore> & {
+    name: string;
+    errors: InlineError[];
+};
+export const isExploreError = (
+    explore: Explore | ExploreError,
+): explore is ExploreError => 'errors' in explore;
+
 export type ExploreJoin = {
     table: string; // Must match a tableName in containing Explore
     sqlOn: string; // Built sql
@@ -50,6 +63,10 @@ export type ExploreJoin = {
 export type CompiledExploreJoin = ExploreJoin & {
     compiledSqlOn: string; // Sql on clause with template variables resolved
 };
+
+export type SummaryExplore =
+    | Pick<Explore, 'name'>
+    | Pick<ExploreError, 'name' | 'errors'>;
 
 export type PartialTable = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
@@ -506,7 +523,7 @@ export type ApiCompiledQueryResponse =
           results: ApiCompiledQueryResults;
       };
 
-export type ApiExploresResults = Explore[];
+export type ApiExploresResults = SummaryExplore[];
 export type ApiExploresResponse =
     | ApiError
     | {
@@ -514,20 +531,12 @@ export type ApiExploresResponse =
           results: ApiExploresResults;
       };
 
-export type ApiTablesResults = PartialTable[];
-export type ApiTablesResponse =
+export type ApiExploreResults = Explore;
+export type ApiExploreResponse =
     | ApiError
     | {
           status: 'ok';
-          results: PartialTable[];
-      };
-
-export type ApiTableResults = Explore;
-export type ApiTableResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: ApiTableResults;
+          results: ApiExploreResults;
       };
 
 export type ApiStatusResults = 'loading' | 'ready' | 'error';
@@ -649,9 +658,8 @@ export type ApiUpdateWarehouseConnectionResponse =
 export type ApiResults =
     | ApiQueryResults
     | ApiCompiledQueryResults
-    | ApiTablesResults
     | ApiExploresResults
-    | ApiTableResults
+    | ApiExploreResults
     | ApiStatusResults
     | ApiRefreshResults
     | ApiHealthResults
@@ -667,9 +675,8 @@ export type ApiResults =
 export type ApiResponse =
     | ApiQueryResponse
     | ApiCompiledQueryResponse
-    | ApiTablesResponse
     | ApiExploresResponse
-    | ApiTableResponse
+    | ApiExploreResponse
     | ApiStatusResponse
     | ApiRefreshResponse
     | ApiHealthResponse

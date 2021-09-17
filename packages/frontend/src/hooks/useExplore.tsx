@@ -1,18 +1,18 @@
-import { ApiError, ApiTableResults, Explore } from 'common';
+import { ApiError, ApiExploreResults } from 'common';
 import { useQuery } from 'react-query';
 import { useEffect } from 'react';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useApp } from '../providers/AppProvider';
 import { lightdashApi } from '../api';
 
-const getTable = async (tableId: string) =>
-    lightdashApi<ApiTableResults>({
-        url: `/tables/${tableId}`,
+const getExplore = async (exploreId: string) =>
+    lightdashApi<ApiExploreResults>({
+        url: `/explores/${exploreId}`,
         method: 'GET',
         body: undefined,
     });
 
-export const useTable = () => {
+export const useExplore = () => {
     const {
         errorLogs: { showError },
     } = useApp();
@@ -20,9 +20,9 @@ export const useTable = () => {
         state: { tableName: activeTableName },
     } = useExplorer();
     const queryKey = ['tables', activeTableName];
-    const query = useQuery<Explore, ApiError>({
+    const query = useQuery<ApiExploreResults, ApiError>({
         queryKey,
-        queryFn: () => getTable(activeTableName || ''),
+        queryFn: () => getExplore(activeTableName || ''),
         enabled: activeTableName !== undefined,
         retry: false,
     });
