@@ -1,4 +1,6 @@
 version: "3.9"
+volumes:
+  node_modules:
 services:
   lightdash-dev:
     build:
@@ -22,6 +24,7 @@ services:
       - "${DEMO_PROFILES_DIR}:/usr/app/profiles"
       - "${DEMO_PROJECT_DIR}:/usr/app/dbt"
       - "../packages:/usr/app/packages"
+      - "node_modules:/usr/app/node_modules"
     ports:
       - ${PORT}:8080
       - 3000:3000
