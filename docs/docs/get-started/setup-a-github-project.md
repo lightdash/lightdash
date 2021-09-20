@@ -88,6 +88,11 @@ If your `dbt_project.yml` file is in the main folder of your repo (e.g. `lightda
 
 If your dbt project is in a sub-folder in your repo (e.g. `lightdash/lightdash-analytics/dbt/dbt_project.yml`), then you'll need to include the path to the sub-folder where your dbt project is relative to `GITHUB_REPO` (e.g. `/dbt`).
 
+#### TARGET
+This is the dbt profile target. 
+
+You can have a profile for development which has read and write access and a separate profile for Lightdash with only read access.
+
 ## 4. Deploy your Lightdash app instance
 
 Heroku will show that it's setting up and deploying Lightdash. When it's complete you should see an option to manage
