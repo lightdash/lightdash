@@ -6,8 +6,13 @@ export async function seed(knex: Knex): Promise<void> {
     // Deletes ALL existing entries
     await knex('saved_queries').del();
 
+    // Get the project id
+    const [{ project_uuid: projectUuid }] = await knex('projects')
+        .select('*')
+        .limit(1);
+
     // Inserts seed entries
-    await createSavedQuery({
+    await createSavedQuery(projectUuid, {
         name: 'How much revenue do we have per payment method?',
         tableName: 'payments',
         metricQuery: {
