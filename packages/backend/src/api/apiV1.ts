@@ -7,13 +7,6 @@ import {
     MetricQuery,
 } from 'common';
 import { sanitizeStringParam, sanitizeEmailParam } from '../utils';
-import {
-    getAllExplores,
-    getStatus,
-    getExplore,
-    refreshAllTables,
-    runQuery,
-} from '../lightdash';
 import { buildQuery } from '../queryBuilder';
 import { getHealthState } from '../health';
 import { UserModel } from '../models/User';
@@ -92,120 +85,6 @@ apiV1Router.get('/logout', (req, res, next) => {
             });
         }
     });
-});
-
-apiV1Router.get('/explores', isAuthenticated, async (req, res, next) => {
-    getAllExplores(req.user!)
-        .then((explores) => {
-            const results: ApiExploresResults = explores.map((explore) =>
-                isExploreError(explore)
-                    ? { name: explore.name, errors: explore.errors }
-                    : { name: explore.name },
-            );
-            res.json({
-                status: 'ok',
-                results,
-            });
-        })
-        .catch(next);
-});
-
-apiV1Router.get(
-    '/explores/:exploreId',
-    isAuthenticated,
-    async (req, res, next) => {
-        getExplore(req.user!, req.params.exploreId)
-            .then((explore) => {
-                const results: ApiExploreResults = explore;
-                res.json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next);
-    },
-);
-
-apiV1Router.post(
-    '/explores/:exploreId/compileQuery',
-    isAuthenticated,
-    async (req, res, next) => {
-        const { body } = req;
-        try {
-            const metricQuery: MetricQuery = {
-                dimensions: body.dimensions,
-                metrics: body.metrics,
-                filters: body.filters,
-                sorts: body.sorts,
-                limit: body.limit,
-                tableCalculations: body.tableCalculations,
-            };
-            const compiledMetricQuery = await compileMetricQuery(metricQuery);
-            const explore = await getExplore(req.user!, req.params.exploreId);
-            if (isExploreError(explore)) {
-                throw new CompileError(
-                    `Cannot compile query for explore ${
-                        explore.name
-                    }: ${explore.errors.join('\n')}`,
-                    {},
-                );
-            }
-            const sql = buildQuery({ explore, compiledMetricQuery });
-            res.json({
-                status: 'ok',
-                results: sql,
-            });
-        } catch (e) {
-            next(e);
-        }
-    },
-);
-
-apiV1Router.post(
-    '/explores/:exploreId/runQuery',
-    isAuthenticated,
-    async (req, res, next) => {
-        const { body } = req;
-        await analytics.track({
-            userId: req.user!.userUuid,
-            event: 'query.executed',
-        });
-        runQuery(req.user!, req.params.exploreId, {
-            dimensions: body.dimensions,
-            metrics: body.metrics,
-            filters: body.filters,
-            sorts: body.sorts,
-            limit: body.limit,
-            tableCalculations: body.tableCalculations,
-        })
-            .then((results) => {
-                res.json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next);
-    },
-);
-
-apiV1Router.post('/refresh', isAuthenticated, async (req, res) => {
-    refreshAllTables(req.user!.userUuid).catch((e) =>
-        console.log(`Error running refresh: ${e}`),
-    );
-    res.json({
-        status: 'ok',
-    });
-});
-
-apiV1Router.get('/status', isAuthenticated, async (req, res, next) => {
-    getStatus()
-        .then((status) => {
-            res.json({
-                status: 'ok',
-                results: status,
-            });
-        })
-        .catch(next);
 });
 
 apiV1Router.get('/spaces', isAuthenticated, async (req, res, next) => {
@@ -309,4 +188,4 @@ apiV1Router.post(
 apiV1Router.use('/invite-links', inviteLinksRouter);
 apiV1Router.use('/org', organizationRouter);
 apiV1Router.use('/user', userRouter);
-apiV1Router.use('/project', projectRouter);
+apiV1Router.use('/projects', projectRouter);

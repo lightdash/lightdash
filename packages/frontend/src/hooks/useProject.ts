@@ -13,14 +13,14 @@ const updateWarehouseConnection = async (
     data: CreateWarehouseCredentials,
 ) =>
     lightdashApi<WarehouseCredentials>({
-        url: `/project/${id}/warehouse`,
+        url: `/projects/${id}/warehouse`,
         method: 'PATCH',
         body: JSON.stringify({ warehouseConnection: data }),
     });
 
 const getProject = async (id: string) =>
     lightdashApi<Project>({
-        url: `/project/${id}`,
+        url: `/projects/${id}`,
         method: 'GET',
         body: undefined,
     });

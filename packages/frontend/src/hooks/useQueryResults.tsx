@@ -1,17 +1,23 @@
 import { ApiError, ApiQueryResults, MetricQuery } from 'common';
 import { useQuery } from 'react-query';
+import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useApp } from '../providers/AppProvider';
 
-export const getQueryResults = async (tableId: string, query: MetricQuery) =>
+export const getQueryResults = async (
+    projectUuid: string,
+    tableId: string,
+    query: MetricQuery,
+) =>
     lightdashApi<ApiQueryResults>({
-        url: `/explores/${tableId}/runQuery`,
+        url: `/projects/${projectUuid}/explores/${tableId}/runQuery`,
         method: 'POST',
         body: JSON.stringify(query),
     });
 
 export const useQueryResults = (pristine = true) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const {
         [pristine ? 'pristineState' : 'state']: {
             tableName: tableId,
@@ -41,7 +47,7 @@ export const useQueryResults = (pristine = true) => {
     const queryKey = ['queryResults', tableId, metricQuery];
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,
-        queryFn: () => getQueryResults(tableId || '', metricQuery),
+        queryFn: () => getQueryResults(projectUuid, tableId || '', metricQuery),
         enabled: false, // don't run automatically
         keepPreviousData: true, // changing the query won't update results until fetch
         retry: false,

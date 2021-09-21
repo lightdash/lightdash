@@ -15,7 +15,6 @@ import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
 import { AuthorizationError, errorHandler } from './errors';
 import { apiV1Router } from './api/apiV1';
-import { refreshAllTables } from './lightdash';
 import { UserModel } from './models/User';
 import database from './database/database';
 import { lightdashConfig } from './config/lightdashConfig';
@@ -121,11 +120,6 @@ app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
         },
     });
 });
-
-// Update all resources on startup
-refreshAllTables(undefined).catch((e) =>
-    console.error(`Error from dbt on Lightdash startup:\n${e.message || e}`),
-);
 
 // Run the server
 const port = process.env.PORT || 8080;

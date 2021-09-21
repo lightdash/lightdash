@@ -36,10 +36,19 @@ const ProjectListItem: FC<{ project: OrganizationProject }> = ({
                 </p>
                 <ButtonGroup>
                     <Button
-                        icon="edit"
-                        intent="warning"
+                        rightIcon="edit"
                         outlined
                         text="Edit"
+                        onClick={() => {
+                            history.push({
+                                pathname: `/projects/${projectUuid}/settings`,
+                            });
+                        }}
+                    />
+                    <Button
+                        rightIcon="chevron-right"
+                        outlined
+                        text="Set active"
                         onClick={() => {
                             history.push({
                                 pathname: `/projects/${projectUuid}`,

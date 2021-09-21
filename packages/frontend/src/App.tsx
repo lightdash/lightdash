@@ -25,6 +25,7 @@ import Signup from './pages/Signup';
 import { Page, TrackingProvider } from './providers/TrackingProvider';
 import { PageName } from './types/Events';
 import ProjectSettings from './pages/ProjectSettings';
+import { Projects } from './pages/Projects';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -64,7 +65,7 @@ const App = () => (
                             >
                                 <AppBar />
                                 <Switch>
-                                    <Route path="/projects/:projectUuid">
+                                    <Route path="/projects/:projectUuid/settings">
                                         <Page name={PageName.PROJECT_SETTINGS}>
                                             <ProjectSettings />
                                         </Page>
@@ -83,21 +84,24 @@ const App = () => (
                                             <Saved />
                                         </Page>
                                     </Route>
-                                    <Route path="/tables/:tableId">
+                                    <Route path="/projects/:projectUuid/tables/:tableId">
                                         <Page name={PageName.EXPLORER}>
                                             <ExplorerProvider>
                                                 <Explorer />
                                             </ExplorerProvider>
                                         </Page>
                                     </Route>
-                                    <Route path="/tables">
+                                    <Route path="/projects/:projectUuid/tables">
                                         <Page name={PageName.EXPLORE_TABLES}>
                                             <ExplorerProvider>
                                                 <Explorer />
                                             </ExplorerProvider>
                                         </Page>
                                     </Route>
-                                    <Redirect to="/tables" />
+                                    <Route path="/projects" exact>
+                                        <Projects />
+                                    </Route>
+                                    <Redirect to="/projects" />
                                 </Switch>
                                 <ReactQueryDevtools />
                             </div>

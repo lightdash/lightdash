@@ -8,7 +8,8 @@ export const useExplorerRoute = () => {
     const { showToastError } = useApp();
     const { search } = useLocation();
     const history = useHistory();
-    const pathParams = useParams<{ tableId: string | undefined }>();
+    const pathParams =
+        useParams<{ projectUuid: string; tableId: string | undefined }>();
     const {
         pristineState,
         actions: { setState, reset },
@@ -116,7 +117,7 @@ export const useExplorerRoute = () => {
                 );
             }
             history.replace({
-                pathname: `/tables/${pristineState.tableName}`,
+                pathname: `/projects/${pathParams.projectUuid}/tables/${pristineState.tableName}`,
                 search: newParams.toString(),
             });
         }
