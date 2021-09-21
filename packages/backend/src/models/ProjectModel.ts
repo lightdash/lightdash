@@ -169,28 +169,4 @@ export class ProjectModel {
             warehouseConnection: nonSensitiveCredentials,
         };
     }
-
-    private async _getDefaultProjectUuid(): Promise<string> {
-        // app only allows one project per deployment currently
-        const projects = await this.database('projects').select('*');
-        if (projects.length === 0) {
-            throw new NotExistsError('No project exists');
-        }
-        const [project] = projects;
-        return project.project_uuid;
-    }
-
-    async getDefault(): Promise<Project> {
-        const uuid = await this._getDefaultProjectUuid();
-        const project = await this.get(uuid);
-        return project;
-    }
-
-    async getDefaultWithSensitiveFields(): Promise<
-        Project & { warehouseConnection?: CreateWarehouseCredentials }
-    > {
-        const uuid = await this._getDefaultProjectUuid();
-        const project = await this.getWithSensitiveFields(uuid);
-        return project;
-    }
 }

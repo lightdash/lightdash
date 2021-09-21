@@ -1,24 +1,14 @@
 import express from 'express';
 import passport from 'passport';
-import {
-    ApiExploreResults,
-    ApiExploresResults,
-    isExploreError,
-    MetricQuery,
-} from 'common';
 import { sanitizeStringParam, sanitizeEmailParam } from '../utils';
-import { buildQuery } from '../queryBuilder';
 import { getHealthState } from '../health';
 import { UserModel } from '../models/User';
-import { analytics } from '../analytics/client';
 import { SavedQueriesModel } from '../models/savedQueries';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { inviteLinksRouter } from './inviteLinksRouter';
 import { organizationRouter } from './organizationRouter';
 import { userRouter } from './userRouter';
 import { projectRouter } from './projectRouter';
-import { compileMetricQuery } from '../queryCompiler';
-import { CompileError } from '../errors';
 
 export const apiV1Router = express.Router();
 
@@ -188,4 +178,4 @@ apiV1Router.post(
 apiV1Router.use('/invite-links', inviteLinksRouter);
 apiV1Router.use('/org', organizationRouter);
 apiV1Router.use('/user', userRouter);
-apiV1Router.use('/projects', projectRouter);
+apiV1Router.use('/projects/:projectId', projectRouter);
