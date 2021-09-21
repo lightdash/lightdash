@@ -1,18 +1,20 @@
 import { ApiError, ApiExploreResults } from 'common';
 import { useQuery } from 'react-query';
 import { useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useApp } from '../providers/AppProvider';
 import { lightdashApi } from '../api';
 
-const getExplore = async (exploreId: string) =>
+const getExplore = async (projectUuid: string, exploreId: string) =>
     lightdashApi<ApiExploreResults>({
-        url: `/explores/${exploreId}`,
+        url: `/projects/${projectUuid}/explores/${exploreId}`,
         method: 'GET',
         body: undefined,
     });
 
 export const useExplore = () => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const {
         errorLogs: { showError },
     } = useApp();
@@ -22,7 +24,7 @@ export const useExplore = () => {
     const queryKey = ['tables', activeTableName];
     const query = useQuery<ApiExploreResults, ApiError>({
         queryKey,
-        queryFn: () => getExplore(activeTableName || ''),
+        queryFn: () => getExplore(projectUuid, activeTableName || ''),
         enabled: activeTableName !== undefined,
         retry: false,
     });

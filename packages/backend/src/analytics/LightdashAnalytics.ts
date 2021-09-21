@@ -59,7 +59,7 @@ type TrackSavedChart = BaseTrack & {
     };
 };
 
-type ProjectEvent = BaseTrack & {
+type ProjectUpdatedEvent = BaseTrack & {
     event: 'project.updated';
     userId: string;
     properties: {
@@ -69,10 +69,10 @@ type ProjectEvent = BaseTrack & {
     };
 };
 
-type AnonymousProjectEvent = BaseTrack & {
+type ProjectCompiledEvent = BaseTrack & {
     event: 'project.compiled';
     userId?: string;
-    anonymousId: string;
+    anonymousId?: string;
     properties: {
         projectType: ProjectType;
     };
@@ -107,8 +107,8 @@ type Track =
     | TrackUserDeletedEvent
     | ProjectErrorEvent
     | ApiErrorEvent
-    | ProjectEvent
-    | AnonymousProjectEvent
+    | ProjectUpdatedEvent
+    | ProjectCompiledEvent
     | TrackOrganizationEvent;
 
 export class LightdashAnalytics extends Analytics {

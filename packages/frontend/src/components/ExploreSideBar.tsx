@@ -11,7 +11,7 @@ import {
 } from '@blueprintjs/core';
 import React, { useState } from 'react';
 import { friendlyName } from 'common';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import ExploreTree from './ExploreTree';
 import { useExplores } from '../hooks/useExplores';
 import { useExplore } from '../hooks/useExplore';
@@ -234,11 +234,12 @@ export const ExploreSideBar = () => {
         state: { tableName },
         actions: { reset },
     } = useExplorer();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const history = useHistory();
     const onBack = () => {
         reset();
         history.push({
-            pathname: `/tables`,
+            pathname: `/projects/${projectUuid}/tables`,
         });
     };
 

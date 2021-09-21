@@ -1,15 +1,13 @@
 import {
+    ApiQueryResults,
     CreateWarehouseCredentials,
-    DbtProjectConfig,
     Explore,
     ExploreError,
     isExploreError,
     MetricQuery,
     Project,
     SessionUser,
-    WarehouseCredentials,
 } from 'common';
-import { LightdashConfig } from '../config/parseConfig';
 import { projectAdapterFromConfig } from '../projectAdapters/projectAdapter';
 import { ProjectAdapter } from '../types';
 import { ProjectModel } from '../models/ProjectModel';
@@ -20,22 +18,10 @@ import { compileMetricQuery } from '../queryCompiler';
 import { buildQuery } from '../queryBuilder';
 
 type ProjectServiceDependencies = {
-    lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
 };
 
-// Will return project with a working adapter, credentials.
-// Interface does not care about profiles.yml vs. warehouse credentials etc.
 export class ProjectService {
-    // TODO: CONFIG SHOULD BE FROM PROJECT MODEL
-    projectConfig: DbtProjectConfig;
-
-    // TODO: This is replaced with projectAdapters (below)
-    projectAdapter: ProjectAdapter;
-
-    // TODO: This should exist on project model
-    warehouseCredentials: WarehouseCredentials | undefined;
-
     projectModel: ProjectModel;
 
     cachedExplores: Record<string, Promise<(Explore | ExploreError)[]>>;
@@ -44,10 +30,8 @@ export class ProjectService {
 
     projectAdapters: Record<string, ProjectAdapter>;
 
-    constructor({ lightdashConfig, projectModel }: ProjectServiceDependencies) {
-        [this.projectConfig] = lightdashConfig.projects;
+    constructor({ projectModel }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
-        this.projectAdapter = projectAdapterFromConfig(this.projectConfig);
         this.projectAdapters = {};
         this.projectLoading = {};
         this.cachedExplores = {};
@@ -99,13 +83,26 @@ export class ProjectService {
         return project;
     }
 
-    // TODO: THIS DOES NOT WORK
     async startAdapter(projectUuid: string): Promise<ProjectAdapter> {
-        const adapter = this.projectAdapters[projectUuid];
-        if (adapter !== undefined) {
+        const activeAdapter = this.projectAdapters[projectUuid];
+        if (activeAdapter === undefined) {
+            const project = await this.projectModel.get(projectUuid);
+            const adapter = projectAdapterFromConfig(project.dbtConnection);
             return adapter;
         }
-        return projectAdapterFromConfig(this.projectConfig);
+        return activeAdapter;
+    }
+
+    async compileQuery(
+        user: SessionUser,
+        metricQuery: MetricQuery,
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<string> {
+        const explore = await this.getExplore(user, projectUuid, exploreName);
+        const compiledMetricQuery = compileMetricQuery(metricQuery);
+        const sql = buildQuery({ explore, compiledMetricQuery });
+        return sql;
     }
 
     async runQuery(
@@ -113,13 +110,23 @@ export class ProjectService {
         metricQuery: MetricQuery,
         projectUuid: string,
         exploreName: string,
-    ): Promise<Record<string, any>> {
-        const explore = await this.getExplore(user, projectUuid, exploreName);
-        const compiledMetricQuery = compileMetricQuery(metricQuery);
-        const sql = buildQuery({ explore, compiledMetricQuery });
+    ): Promise<ApiQueryResults> {
+        await analytics.track({
+            userId: user.userUuid,
+            event: 'query.executed',
+        });
+        const sql = await this.compileQuery(
+            user,
+            metricQuery,
+            projectUuid,
+            exploreName,
+        );
         const adapter = await this.startAdapter(projectUuid);
         const rows = await adapter.runQuery(sql);
-        return rows;
+        return {
+            metricQuery,
+            rows,
+        };
     }
 
     async compileAllExplores(
@@ -138,6 +145,7 @@ export class ProjectService {
     }
 
     async refreshAllTables(user: SessionUser, projectUuid: string) {
+        const project = await this.projectModel.get(projectUuid);
         this.projectLoading[projectUuid] = true;
         this.cachedExplores[projectUuid] = this.compileAllExplores(projectUuid);
         try {
@@ -145,9 +153,8 @@ export class ProjectService {
             analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,
-                anonymousId: '', // TODO: remove anon id - not needed
                 properties: {
-                    projectType: this.projectConfig.type,
+                    projectType: project.dbtConnection.type,
                 },
             });
         } catch (e) {
@@ -158,7 +165,7 @@ export class ProjectService {
                 properties: {
                     name: errorResponse.name,
                     statusCode: errorResponse.statusCode,
-                    projectType: this.projectConfig.type,
+                    projectType: project.dbtConnection.type,
                 },
             });
             throw errorResponse;

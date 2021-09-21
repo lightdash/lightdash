@@ -1,16 +1,22 @@
 import { ApiCompiledQueryResults, ApiError, MetricQuery } from 'common';
 import { useQuery } from 'react-query';
+import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useExplorer } from '../providers/ExplorerProvider';
 
-const getCompiledQuery = async (tableId: string, query: MetricQuery) =>
+const getCompiledQuery = async (
+    projectUuid: string,
+    tableId: string,
+    query: MetricQuery,
+) =>
     lightdashApi<ApiCompiledQueryResults>({
-        url: `/explores/${tableId}/compileQuery`,
+        url: `projects/${projectUuid}/explores/${tableId}/compileQuery`,
         method: 'POST',
         body: JSON.stringify(query),
     });
 
 export const useCompliedSql = () => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const {
         state: {
             tableName: tableId,
@@ -37,6 +43,7 @@ export const useCompliedSql = () => {
     return useQuery<ApiCompiledQueryResults, ApiError>({
         enabled: tableId !== undefined,
         queryKey,
-        queryFn: () => getCompiledQuery(tableId || '', metricQuery),
+        queryFn: () =>
+            getCompiledQuery(projectUuid, tableId || '', metricQuery),
     });
 };

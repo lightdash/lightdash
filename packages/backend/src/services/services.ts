@@ -34,6 +34,5 @@ export const organizationService = new OrganizationService({
 });
 
 export const projectService = new ProjectService({
-    lightdashConfig,
     projectModel,
 });
