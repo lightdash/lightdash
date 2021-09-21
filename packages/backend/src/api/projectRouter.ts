@@ -11,9 +11,9 @@ import {
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { projectService } from '../services/services';
 
-export const projectRouter = express.Router();
+export const projectRouter = express.Router({ mergeParams: true });
 
-projectRouter.get('/:projectUuid', isAuthenticated, async (req, res) => {
+projectRouter.get('/', isAuthenticated, async (req, res) => {
     res.json({
         status: 'ok',
         results: await projectService.getProject(
@@ -24,7 +24,7 @@ projectRouter.get('/:projectUuid', isAuthenticated, async (req, res) => {
 });
 
 projectRouter.patch(
-    '/:projectUuid/warehouse',
+    '/warehouse',
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -44,32 +44,28 @@ projectRouter.patch(
     },
 );
 
-projectRouter.get(
-    '/:projectUuid/explores',
-    isAuthenticated,
-    async (req, res, next) => {
-        try {
-            const explores = await projectService.getAllExplores(
-                req.user!,
-                req.params.projectUuid,
-            );
-            const results: ApiExploresResults = explores.map((explore) =>
-                isExploreError(explore)
-                    ? { name: explore.name, errors: explore.errors }
-                    : { name: explore.name },
-            );
-            res.json({
-                status: 'ok',
-                results,
-            });
-        } catch (e) {
-            next(e);
-        }
-    },
-);
+projectRouter.get('/explores', isAuthenticated, async (req, res, next) => {
+    try {
+        const explores = await projectService.getAllExplores(
+            req.user!,
+            req.params.projectUuid,
+        );
+        const results: ApiExploresResults = explores.map((explore) =>
+            isExploreError(explore)
+                ? { name: explore.name, errors: explore.errors }
+                : { name: explore.name },
+        );
+        res.json({
+            status: 'ok',
+            results,
+        });
+    } catch (e) {
+        next(e);
+    }
+});
 
 projectRouter.get(
-    '/:projectUuid/explores/:exploreId',
+    '/explores/:exploreId',
     isAuthenticated,
     async (req, res, next) => {
         try {
@@ -86,7 +82,7 @@ projectRouter.get(
 );
 
 projectRouter.post(
-    '/:projectUuid/explores/:exploreId/compileQuery',
+    '/explores/:exploreId/compileQuery',
     isAuthenticated,
     async (req, res, next) => {
         try {
@@ -117,7 +113,7 @@ projectRouter.post(
 );
 
 projectRouter.post(
-    '/:projectUuid/explores/:exploreId/runQuery',
+    '/explores/:exploreId/runQuery',
     isAuthenticated,
     async (req, res, next) => {
         try {
@@ -147,7 +143,7 @@ projectRouter.post(
 );
 
 projectRouter.post(
-    '/:projectUuid/refresh',
+    '/refresh',
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -163,7 +159,7 @@ projectRouter.post(
     },
 );
 
-projectRouter.get('/:projectUuid/status', async (req, res, next) => {
+projectRouter.get('/status', isAuthenticated, async (req, res, next) => {
     try {
         const results: ApiStatusResults = await projectService.getProjectStatus(
             req.params.projectUuid,
@@ -177,5 +173,3 @@ projectRouter.get('/:projectUuid/status', async (req, res, next) => {
         next(e);
     }
 });
-
-projectRouter.post('');

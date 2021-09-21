@@ -72,7 +72,6 @@ type ProjectUpdatedEvent = BaseTrack & {
 type ProjectCompiledEvent = BaseTrack & {
     event: 'project.compiled';
     userId?: string;
-    anonymousId?: string;
     properties: {
         projectType: ProjectType;
     };
@@ -81,7 +80,6 @@ type ProjectCompiledEvent = BaseTrack & {
 type ProjectErrorEvent = BaseTrack & {
     event: 'project.error';
     userId?: string;
-    anonymousId?: string;
     properties: {
         name: string;
         statusCode: number;
