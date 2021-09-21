@@ -18,6 +18,7 @@ import {
     WarehouseCredentialTableName,
 } from '../database/entities/warehouseCredentials';
 import { ProjectTable, ProjectTableName } from '../database/entities/projects';
+import { SpaceTable, SpaceTableName } from '../database/entities/spaces';
 
 declare module 'knex/types/tables' {
     interface Tables {
@@ -29,5 +30,6 @@ declare module 'knex/types/tables' {
         [WarehouseCredentialTableName]: WarehouseCredentialTable;
         [ProjectTableName]: ProjectTable;
         [SavedQueryTableCalculationTableName]: SavedQueryTableCalculationTable;
+        [SpaceTableName]: SpaceTable;
     }
 }

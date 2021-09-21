@@ -17,15 +17,16 @@ import { getSpaceWithQueries } from '../database/entities/spaces';
 import { analytics } from '../analytics/client';
 
 export const SavedQueriesModel = {
-    getAllSpaces: async (): Promise<Space[]> => {
-        const space = await getSpaceWithQueries();
+    getAllSpaces: async (projectUuid: string): Promise<Space[]> => {
+        const space = await getSpaceWithQueries(projectUuid);
         return [space];
     },
     create: async (
         userUuid: string,
+        projectUuid: string,
         savedQuery: CreateSavedQuery,
     ): Promise<SavedQuery> => {
-        const newSavedQuery = await createSavedQuery(savedQuery);
+        const newSavedQuery = await createSavedQuery(projectUuid, savedQuery);
         analytics.track({
             event: 'saved_chart.created',
             userId: userUuid,

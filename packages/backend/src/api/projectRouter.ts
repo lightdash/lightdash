@@ -10,6 +10,7 @@ import {
 } from 'common';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { projectService } from '../services/services';
+import { SavedQueriesModel } from '../models/savedQueries';
 
 export const projectRouter = express.Router({ mergeParams: true });
 
@@ -45,6 +46,7 @@ projectRouter.patch(
 );
 
 projectRouter.get('/explores', isAuthenticated, async (req, res, next) => {
+    console.log(req.params);
     try {
         const explores = await projectService.getAllExplores(
             req.user!,
@@ -172,4 +174,35 @@ projectRouter.get('/status', isAuthenticated, async (req, res, next) => {
     } catch (e) {
         next(e);
     }
+});
+
+projectRouter.post(
+    '/saved',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        SavedQueriesModel.create(
+            req.user!.userUuid,
+            req.params.projectUuid,
+            req.body.savedQuery,
+        )
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
+projectRouter.get('/spaces', isAuthenticated, async (req, res, next) => {
+    SavedQueriesModel.getAllSpaces(req.params.projectUuid)
+        .then((results) => {
+            res.json({
+                status: 'ok',
+                results,
+            });
+        })
+        .catch(next);
 });

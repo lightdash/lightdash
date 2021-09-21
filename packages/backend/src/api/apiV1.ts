@@ -77,38 +77,11 @@ apiV1Router.get('/logout', (req, res, next) => {
     });
 });
 
-apiV1Router.get('/spaces', isAuthenticated, async (req, res, next) => {
-    SavedQueriesModel.getAllSpaces()
-        .then((results) => {
-            res.json({
-                status: 'ok',
-                results,
-            });
-        })
-        .catch(next);
-});
-
 apiV1Router.get(
     '/saved/:savedQueryUuid',
     isAuthenticated,
     async (req, res, next) => {
         SavedQueriesModel.getById(req.params.savedQueryUuid)
-            .then((results) => {
-                res.json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next);
-    },
-);
-
-apiV1Router.post(
-    '/saved',
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        SavedQueriesModel.create(req.user!.userUuid, req.body.savedQuery)
             .then((results) => {
                 res.json({
                     status: 'ok',
@@ -178,4 +151,4 @@ apiV1Router.post(
 apiV1Router.use('/invite-links', inviteLinksRouter);
 apiV1Router.use('/org', organizationRouter);
 apiV1Router.use('/user', userRouter);
-apiV1Router.use('/projects/:projectId', projectRouter);
+apiV1Router.use('/projects/:projectUuid', projectRouter);

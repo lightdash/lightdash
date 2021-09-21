@@ -6,13 +6,13 @@ import {
     UpdateSavedQuery,
 } from 'common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 
-const createSavedQuery = async (data: CreateSavedQuery) =>
+const createSavedQuery = async (projectUuid: string, data: CreateSavedQuery) =>
     lightdashApi<SavedQuery>({
-        url: `/saved`,
+        url: `/projects/${projectUuid}/saved`,
         method: 'POST',
         body: JSON.stringify({ savedQuery: data }),
     });
@@ -113,10 +113,11 @@ export const useUpdateMutation = (savedQueryUuid: string) => {
 
 export const useCreateMutation = () => {
     const history = useHistory();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
     return useMutation<SavedQuery, ApiError, CreateSavedQuery>(
-        createSavedQuery,
+        (data) => createSavedQuery(projectUuid, data),
         {
             mutationKey: ['saved_query_create'],
             onSuccess: (data) => {

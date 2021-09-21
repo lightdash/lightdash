@@ -389,16 +389,19 @@ export const createSavedQueryVersion = async (
     });
 };
 
-export const createSavedQuery = async ({
-    name,
-    tableName,
-    metricQuery,
-    chartConfig,
-    tableConfig,
-}: CreateSavedQuery): Promise<SavedQuery> => {
+export const createSavedQuery = async (
+    projectUuid: string,
+    {
+        name,
+        tableName,
+        metricQuery,
+        chartConfig,
+        tableConfig,
+    }: CreateSavedQuery,
+): Promise<SavedQuery> => {
     const newSavedQueryUuid = await database.transaction(async (trx) => {
         try {
-            const space = await getSpace(trx);
+            const space = await getSpace(trx, projectUuid);
 
             const results = await trx<DbSavedQuery>('saved_queries')
                 .insert<Pick<DbSavedQuery, 'name'>>({

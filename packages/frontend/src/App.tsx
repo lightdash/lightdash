@@ -63,14 +63,15 @@ const App = () => (
                                     background: Colors.LIGHT_GRAY5,
                                 }}
                             >
-                                <AppBar />
                                 <Switch>
                                     <Route path="/projects/:projectUuid/settings">
+                                        <AppBar />
                                         <Page name={PageName.PROJECT_SETTINGS}>
                                             <ProjectSettings />
                                         </Page>
                                     </Route>
-                                    <Route path="/saved/:savedQueryUuid">
+                                    <Route path="/projects/:projectUuid/saved/:savedQueryUuid">
+                                        <AppBar />
                                         <Page
                                             name={PageName.SAVED_QUERY_EXPLORER}
                                         >
@@ -79,12 +80,14 @@ const App = () => (
                                             </ExplorerProvider>
                                         </Page>
                                     </Route>
-                                    <Route path="/saved">
+                                    <Route path="/projects/:projectUuid/saved">
+                                        <AppBar />
                                         <Page name={PageName.SAVED_QUERIES}>
                                             <Saved />
                                         </Page>
                                     </Route>
                                     <Route path="/projects/:projectUuid/tables/:tableId">
+                                        <AppBar />
                                         <Page name={PageName.EXPLORER}>
                                             <ExplorerProvider>
                                                 <Explorer />
@@ -92,6 +95,7 @@ const App = () => (
                                         </Page>
                                     </Route>
                                     <Route path="/projects/:projectUuid/tables">
+                                        <AppBar />
                                         <Page name={PageName.EXPLORE_TABLES}>
                                             <ExplorerProvider>
                                                 <Explorer />
