@@ -10,6 +10,7 @@ import {
 } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { useMutation } from 'react-query';
+import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 import UserSettingsModal from './UserSettingsModal/UserSettingsModal';
@@ -29,6 +30,7 @@ const AppBar = () => {
         user,
         errorLogs: { errorLogs, setErrorLogsVisible },
     } = useApp();
+    const { projectUuid } = useParams<{ projectUuid: string | undefined }>();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { isLoading, mutate } = useMutation(logoutQuery, {
         mutationKey: ['logout'],
@@ -46,12 +48,19 @@ const AppBar = () => {
                 <NavbarGroup align={Alignment.LEFT}>
                     <NavbarHeading>{user.data?.organizationName}</NavbarHeading>
                     <NavbarDivider />
-                    <NavLink to="/tables" style={{ marginRight: 10 }}>
-                        <Button minimal icon="database" text="Explore" />
-                    </NavLink>
-                    <NavLink to="/saved">
-                        <Button minimal icon="saved" text="Saved charts" />
-                    </NavLink>
+                    {projectUuid && (
+                        <NavLink
+                            to={`/projects/${projectUuid}/tables`}
+                            style={{ marginRight: 10 }}
+                        >
+                            <Button minimal icon="database" text="Explore" />
+                        </NavLink>
+                    )}
+                    {projectUuid && (
+                        <NavLink to={`/projects/${projectUuid}/saved`}>
+                            <Button minimal icon="saved" text="Saved charts" />
+                        </NavLink>
+                    )}
                 </NavbarGroup>
                 <NavbarGroup align={Alignment.RIGHT}>
                     <ShowErrorsButton

@@ -12,13 +12,26 @@ type DbSpace = {
 
 type CreateDbSpace = Pick<DbSpace, 'name' | 'project_id'>;
 
-export const getSpace = async (db: Knex): Promise<DbSpace> => {
-    const results = await db<DbSpace>('spaces').select<DbSpace[]>('*').limit(1);
-    return results[0];
+export type SpaceTable = Knex.CompositeTableType<DbSpace, CreateDbSpace>;
+export const SpaceTableName = 'spaces';
+
+export const getSpace = async (
+    db: Knex,
+    projectUuid: string,
+): Promise<DbSpace> => {
+    const results = await db('spaces')
+        .innerJoin('projects', 'projects.project_id', 'spaces.project_id')
+        .where('project_uuid', projectUuid)
+        .select<DbSpace[]>('spaces.*')
+        .limit(1);
+    const [space] = results;
+    return space;
 };
 
-export const getSpaceWithQueries = async (): Promise<Space> => {
-    const space = await getSpace(database);
+export const getSpaceWithQueries = async (
+    projectUuid: string,
+): Promise<Space> => {
+    const space = await getSpace(database, projectUuid);
     const savedQueries = await database('saved_queries')
         .select<{ saved_query_uuid: string; name: string }[]>([
             'saved_queries.saved_query_uuid',

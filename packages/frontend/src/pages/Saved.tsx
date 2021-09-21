@@ -17,20 +17,21 @@ import {
 } from '@blueprintjs/core';
 import { useQuery } from 'react-query';
 import { ApiError, Space, SpaceQuery } from 'common';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useDeleteMutation } from '../hooks/useSavedQuery';
 import { UpdateSavedQueryModal } from '../components/SaveQueryModal';
 
-const getSpaces = async () =>
+const getSpaces = async (projectUuid: string) =>
     lightdashApi<Space[]>({
-        url: `/spaces`,
+        url: `/projects/${projectUuid}/spaces`,
         method: 'GET',
         body: undefined,
     });
 
 const SavedListItem: FC<{ savedQuery: SpaceQuery }> = ({ savedQuery }) => {
     const history = useHistory();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
     const { mutate, isLoading: isDeleting } = useDeleteMutation();
@@ -58,7 +59,7 @@ const SavedListItem: FC<{ savedQuery: SpaceQuery }> = ({ savedQuery }) => {
                         outlined
                         onClick={() => {
                             history.push({
-                                pathname: `/saved/${savedQuery.uuid}`,
+                                pathname: `/projects/${projectUuid}/saved/${savedQuery.uuid}`,
                             });
                         }}
                         text="Open"
@@ -123,10 +124,11 @@ const SavedListItem: FC<{ savedQuery: SpaceQuery }> = ({ savedQuery }) => {
 
 const Saved: FC = () => {
     const [selectedMenu, setSelectedMenu] = useState<string>();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const { isLoading, data } = useQuery<Space[], ApiError>({
         queryKey: ['spaces'],
-        queryFn: getSpaces,
+        queryFn: () => getSpaces(projectUuid),
     });
 
     const savedQueries: SpaceQuery[] = useMemo(
