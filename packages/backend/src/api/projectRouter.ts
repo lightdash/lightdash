@@ -46,7 +46,6 @@ projectRouter.patch(
 );
 
 projectRouter.get('/explores', isAuthenticated, async (req, res, next) => {
-    console.log(req.params);
     try {
         const explores = await projectService.getAllExplores(
             req.user!,
