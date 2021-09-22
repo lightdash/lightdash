@@ -230,7 +230,7 @@ export const buildQuery = ({
     const { dimensions, metrics, filters, sorts, limit } = compiledMetricQuery;
     const baseTable = explore.tables[explore.baseTable].sqlTable;
     const sqlFrom = `FROM ${baseTable} AS ${explore.baseTable}`;
-    const q = getQuoteChar(baseTable); // quote char
+    const q = getQuoteChar(explore.targetDatabase); // quote char
 
     const sqlJoins = explore.joinedTables
         .map((join) => {
