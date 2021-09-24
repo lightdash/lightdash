@@ -700,6 +700,8 @@ export type HealthState = {
     mode: LightdashMode;
     version: string;
     needsSetup: boolean;
+    needsProject: boolean;
+    defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;
     latest: {
         version?: string;
@@ -1063,4 +1065,12 @@ export type Project = {
     name: string;
     dbtConnection: DbtProjectConfig;
     warehouseConnection?: WarehouseCredentials;
+};
+
+export type CreateProject = Omit<Project, 'projectUuid'> & {
+    warehouseConnection?: CreateWarehouseCredentials;
+};
+
+export type UpdateProject = Omit<Project, 'projectUuid'> & {
+    warehouseConnection?: CreateWarehouseCredentials;
 };

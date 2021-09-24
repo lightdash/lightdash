@@ -1,5 +1,19 @@
 import { Knex } from 'knex';
 
+type DbProject = {
+    project_id: number;
+    project_uuid: string;
+    name: string;
+    created_at: Date;
+    organization_id: number;
+};
+
+type ProjectTable = Knex.CompositeTableType<
+    DbProject,
+    Pick<DbProject, 'name' | 'organization_id'>,
+    Pick<DbProject, 'name'>
+>;
+
 const primaryKeyAsGeneratedIdentity = (
     table: Knex.CreateTableBuilder,
     columnName: string,
@@ -185,7 +199,7 @@ export async function up(knex: Knex): Promise<void> {
 
     if (orgs.length > 0) {
         const project = (
-            await knex('projects')
+            await knex<ProjectTable>('projects')
                 .insert({
                     name: orgs[0].organization_name,
                     organization_id: orgs[0].organization_id,

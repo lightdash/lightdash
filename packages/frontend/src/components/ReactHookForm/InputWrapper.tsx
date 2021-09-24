@@ -1,5 +1,5 @@
 import React, { FC, ReactElement } from 'react';
-import { Controller, useFormContext } from 'react-hook-form';
+import { Controller, get, useFormContext } from 'react-hook-form';
 import { FormGroup } from '@blueprintjs/core';
 import { ErrorMessage } from '@hookform/error-message';
 import { ArgumentsOf } from 'common';
@@ -15,6 +15,7 @@ export interface InputWrapperProps {
     label: string;
     disabled?: boolean;
     placeholder?: string;
+    defaultValue?: any;
     rules?: React.ComponentProps<typeof Controller>['rules'];
     render: (
         inputProps: InputProps,
@@ -26,6 +27,7 @@ export interface InputWrapperProps {
 
 const InputWrapper: FC<InputWrapperProps> = ({
     name,
+    defaultValue,
     label,
     rules,
     render,
@@ -41,13 +43,14 @@ const InputWrapper: FC<InputWrapperProps> = ({
             label={label}
             labelFor={id}
             labelInfo={rules?.required ? '(required)' : '(optional)'}
-            intent={errors[name] ? 'danger' : 'none'}
+            intent={get(errors, name) ? 'danger' : 'none'}
             helperText={<ErrorMessage errors={errors} name={name} as="p" />}
         >
             <Controller
                 control={control}
                 name={name}
                 rules={rules}
+                defaultValue={defaultValue}
                 render={(controllerProps) =>
                     render({ id, ...rest }, controllerProps)
                 }

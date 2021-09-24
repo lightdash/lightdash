@@ -20,6 +20,10 @@ export abstract class DbtBaseProjectAdapter implements ProjectAdapter {
 
     catalog: DbtRpcDocsGenerateResults | undefined;
 
+    public async test(): Promise<void> {
+        await this.runQuery("SELECT 'test connection'");
+    }
+
     public async compileAllExplores(
         loadSources: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
@@ -30,7 +34,7 @@ export abstract class DbtBaseProjectAdapter implements ProjectAdapter {
         // Type of the target warehouse
         const adapterType = manifest.metadata.adapter_type;
 
-        // Validate models in the manifest - models with invalid metadata will complie to failed Explores
+        // Validate models in the manifest - models with invalid metadata will compile to failed Explores
         const models = Object.values(manifest.nodes).filter(
             (node) => node.resource_type === 'model',
         ) as DbtModelNode[];

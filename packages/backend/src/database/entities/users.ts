@@ -2,18 +2,11 @@ import { Knex } from 'knex';
 import bcrypt from 'bcrypt';
 import { CreateInitialUserArgs, UpdateUserArgs } from 'common';
 import { NotFoundError } from '../../errors';
-import {
-    createOrganization,
-    DbOrganization,
-    DbOrganizationIn,
-    DbOrganizationUpdate,
-} from './organizations';
+import { createOrganization } from './organizations';
 import { createEmail, deleteEmail } from './emails';
 import database from '../database';
 import { createPasswordLogin } from './passwordLogins';
 import { createOrganizationMembership } from './organizationMemberships';
-import { createProject } from './projects';
-import { createSpace } from './spaces';
 
 export type DbUserDetails = {
     user_id: number;
@@ -165,16 +158,6 @@ export const createInitialUser = async ({
             await createOrganizationMembership(trx, {
                 organization_id: newOrg.organization_id,
                 user_id: newUser.user_id,
-            });
-
-            const newProject = await createProject(trx, {
-                organization_id: newOrg.organization_id,
-                name: newOrg.organization_name,
-            });
-
-            await createSpace(trx, {
-                project_id: newProject.project_id,
-                name: newOrg.organization_name,
             });
 
             return newUser;

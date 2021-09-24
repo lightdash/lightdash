@@ -36,8 +36,8 @@ test('Should throw ParseError for wrong version', () => {
     expect(() => parseConfig(WRONG_VERSION)).toThrowError(ParseError);
 });
 
-test('Should throw ParseError for no projects', () => {
-    expect(() => parseConfig(NO_PROJECTS)).toThrowError(ParseError);
+test('Should parse without projects', () => {
+    expect(parseConfig(NO_PROJECTS).projects).toEqual([]);
 });
 
 test('Should throw ParseError for unrecognised project', () => {

@@ -1,11 +1,13 @@
 import { Knex } from 'knex';
 import {
+    CreateProject,
     CreateWarehouseCredentials,
     DbtProjectConfig,
     OrganizationProject,
     Project,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
+    UpdateProject,
     WarehouseCredentials,
 } from 'common';
 import { LightdashConfig } from '../config/parseConfig';
@@ -13,6 +15,7 @@ import { NotExistsError, UnexpectedServerError } from '../errors';
 import { ProjectTableName } from '../database/entities/projects';
 import { WarehouseCredentialTableName } from '../database/entities/warehouseCredentials';
 import { EncryptionService } from '../services/EncryptionService/EncryptionService';
+import Transaction = Knex.Transaction;
 
 type ProjectModelDependencies = {
     database: Knex;
@@ -54,35 +57,125 @@ export class ProjectModel {
         }));
     }
 
-    async updateCredentials(
-        projectUuid: string,
-        credentials: CreateWarehouseCredentials,
+    private async upsertWarehouseConnection(
+        trx: Transaction,
+        projectId: number,
+        data: CreateWarehouseCredentials,
     ): Promise<void> {
-        const projects = await this.database('projects')
-            .where('project_uuid', projectUuid)
-            .select('*');
-        if (projects.length === 0) {
-            throw new NotExistsError(
-                `No project exists with id ${projectUuid}`,
-            );
-        }
-        const [project] = projects;
         let encryptedCredentials: Buffer;
         try {
             encryptedCredentials = this.encryptionService.encrypt(
-                JSON.stringify(credentials),
+                JSON.stringify(data),
             );
         } catch (e) {
             throw new UnexpectedServerError('Could not save credentials.');
         }
-        await this.database('warehouse_credentials')
+        await trx('warehouse_credentials')
             .insert({
-                project_id: project.project_id,
-                warehouse_type: credentials.type,
+                project_id: projectId,
+                warehouse_type: data.type,
                 encrypted_credentials: encryptedCredentials,
             })
             .onConflict('project_id')
             .merge();
+    }
+
+    async hasProjects(): Promise<boolean> {
+        const projects = await this.database('projects').select('project_uuid');
+        return projects.length > 0;
+    }
+
+    async create(
+        organizationUuid: string,
+        data: CreateProject,
+    ): Promise<string> {
+        const orgs = await this.database('organizations')
+            .where('organization_uuid', organizationUuid)
+            .select('*');
+        if (orgs.length === 0) {
+            throw new NotExistsError('Cannot find organization');
+        }
+        return this.database.transaction(async (trx) => {
+            try {
+                let encryptedCredentials: Buffer;
+                try {
+                    encryptedCredentials = this.encryptionService.encrypt(
+                        JSON.stringify(data.dbtConnection),
+                    );
+                } catch (e) {
+                    throw new UnexpectedServerError(
+                        'Could not save credentials.',
+                    );
+                }
+                const [project] = await trx('projects')
+                    .insert({
+                        name: data.name,
+                        organization_id: orgs[0].organization_id,
+                        dbt_connection_type: data.dbtConnection.type,
+                        dbt_connection: encryptedCredentials,
+                    })
+                    .returning('*');
+
+                if (data.warehouseConnection) {
+                    await this.upsertWarehouseConnection(
+                        trx,
+                        project.project_id,
+                        data.warehouseConnection,
+                    );
+                }
+
+                await trx('spaces').insert({
+                    project_id: project.project_id,
+                    name: data.name,
+                });
+
+                return project.project_uuid;
+            } catch (e) {
+                await trx.rollback(e);
+                throw e;
+            }
+        });
+    }
+
+    async update(projectUuid: string, data: UpdateProject): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            try {
+                let encryptedCredentials: Buffer;
+                try {
+                    encryptedCredentials = this.encryptionService.encrypt(
+                        JSON.stringify(data.dbtConnection),
+                    );
+                } catch (e) {
+                    throw new UnexpectedServerError(
+                        'Could not save credentials.',
+                    );
+                }
+                const projects = await trx('projects')
+                    .update({
+                        name: data.name,
+                        dbt_connection_type: data.dbtConnection.type,
+                        dbt_connection: encryptedCredentials,
+                    })
+                    .where('project_uuid', projectUuid)
+                    .returning('*');
+                if (projects.length === 0) {
+                    throw new UnexpectedServerError(
+                        'Could not update project.',
+                    );
+                }
+                const [project] = projects;
+                if (data.warehouseConnection) {
+                    await this.upsertWarehouseConnection(
+                        trx,
+                        project.project_id,
+                        data.warehouseConnection,
+                    );
+                }
+            } catch (e) {
+                await trx.rollback(e);
+                throw e;
+            }
+        });
     }
 
     async getWithSensitiveFields(
@@ -91,11 +184,13 @@ export class ProjectModel {
         type QueryResult = (
             | {
                   name: string;
+                  dbt_connection: Buffer | null;
                   encrypted_credentials: null;
                   warehouse_type: null;
               }
             | {
                   name: string;
+                  dbt_connection: Buffer | null;
                   encrypted_credentials: Buffer;
                   warehouse_type: string;
               }
@@ -108,6 +203,9 @@ export class ProjectModel {
             )
             .column([
                 this.database.ref('name').withSchema(ProjectTableName),
+                this.database
+                    .ref('dbt_connection')
+                    .withSchema(ProjectTableName),
                 this.database
                     .ref('encrypted_credentials')
                     .withSchema(WarehouseCredentialTableName),
@@ -123,10 +221,21 @@ export class ProjectModel {
             );
         }
         const [project] = projects;
+        let dbtSensitiveCredentials: DbtProjectConfig =
+            this.lightdashConfig.projects[0];
+        if (project.dbt_connection) {
+            try {
+                dbtSensitiveCredentials = JSON.parse(
+                    this.encryptionService.decrypt(project.dbt_connection),
+                ) as DbtProjectConfig;
+            } catch (e) {
+                throw new UnexpectedServerError('Failed to load credentials');
+            }
+        }
         const result = {
             projectUuid,
             name: project.name,
-            dbtConnection: this.lightdashConfig.projects[0],
+            dbtConnection: dbtSensitiveCredentials,
         };
         if (!project.warehouse_type) {
             return result;
@@ -152,7 +261,7 @@ export class ProjectModel {
             return project;
         }
         const nonSensitiveDbtCredentials = Object.fromEntries(
-            Object.entries(this.lightdashConfig.projects[0]).filter(
+            Object.entries(project.dbtConnection).filter(
                 ([key]) =>
                     !sensitiveDbtCredentialsFieldNames.includes(key as any),
             ),

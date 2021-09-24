@@ -25,16 +25,12 @@ projectRouter.get('/', isAuthenticated, async (req, res) => {
 });
 
 projectRouter.patch(
-    '/warehouse',
+    '/',
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
         projectService
-            .updateWarehouseConnection(
-                req.params.projectUuid,
-                req.user!,
-                req.body.warehouseConnection,
-            )
+            .update(req.params.projectUuid, req.user!, req.body)
             .then((data) => {
                 res.json({
                     status: 'ok',

@@ -1,4 +1,5 @@
 import { Knex } from 'knex';
+import { ProjectType } from 'common';
 
 export const ProjectTableName = 'projects';
 
@@ -8,18 +9,21 @@ type DbProject = {
     name: string;
     created_at: Date;
     organization_id: number;
+    dbt_connection_type: ProjectType | null;
+    dbt_connection: Buffer | null;
 };
 
-type CreateDbProject = Pick<DbProject, 'name' | 'organization_id'>;
+type CreateDbProject = Pick<
+    DbProject,
+    'name' | 'organization_id' | 'dbt_connection' | 'dbt_connection_type'
+>;
+type UpdateDbProject = Pick<
+    DbProject,
+    'name' | 'dbt_connection' | 'dbt_connection_type'
+>;
 
-export type ProjectTable = Knex.CompositeTableType<DbProject, CreateDbProject>;
-
-export const createProject = async (
-    db: Knex,
-    data: CreateDbProject,
-): Promise<DbProject> => {
-    const results = await db<DbProject>('projects')
-        .insert<CreateDbProject>(data)
-        .returning('*');
-    return results[0];
-};
+export type ProjectTable = Knex.CompositeTableType<
+    DbProject,
+    CreateDbProject,
+    UpdateDbProject
+>;

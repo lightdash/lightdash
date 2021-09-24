@@ -81,6 +81,17 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
         return e;
     }
 
+    public async test() {
+        // Always refresh dbt server to reload dbt project files into memory
+        // this will also start up the dbt server if it previously crashed.
+        await this.dbtChildProcess.restart();
+        try {
+            return await super.test();
+        } catch (e) {
+            throw this._handleError(e);
+        }
+    }
+
     public async compileAllExplores() {
         // Always refresh dbt server to reload dbt project files into memory
         // this will also start up the dbt server if it previously crashed.

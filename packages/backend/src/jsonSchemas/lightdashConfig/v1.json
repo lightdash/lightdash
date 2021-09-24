@@ -19,7 +19,7 @@
         "projects": {
             "description": "A list of dbt projects configurations. Lightdash will attempt to compile and visualise these dbt projects.",
             "type": "array",
-            "minItems": 1,
+            "minItems": 0,
             "items": {
                 "type": "object",
                 "discriminator": {

@@ -9,4 +9,25 @@ export async function seed(knex: Knex): Promise<void> {
 
     // Create initial admin user
     await createInitialUser(USER_SEED);
+
+    const orgs = await knex('organizations').select(
+        'organization_id',
+        'organization_name',
+    );
+
+    const projects = await knex('projects')
+        .insert({
+            organization_id: orgs[0].organization_id,
+            name: orgs[0].organization_name,
+            dbt_connection_type: null,
+            dbt_connection: null,
+        })
+        .returning('*');
+
+    await knex('spaces')
+        .insert({
+            project_id: projects[0].project_id,
+            name: projects[0].name,
+        })
+        .returning('*');
 }

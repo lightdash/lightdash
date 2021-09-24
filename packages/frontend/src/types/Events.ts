@@ -4,6 +4,7 @@ export enum PageType {
 }
 
 export enum PageName {
+    WELCOME = 'welcome',
     REGISTER = 'register',
     LOGIN = 'login',
     SIGNUP = 'signup',
@@ -19,6 +20,7 @@ export enum PageName {
     PROJECT_MANAGEMENT_SETTINGS = 'project_management_settings',
     INVITE_MANAGEMENT_SETTINGS = 'invite_management_settings',
     ABOUT_LIGHTDASH = 'about_lightdash',
+    CREATE_PROJECT = 'create_project',
 }
 
 export enum CategoryName {
@@ -43,6 +45,7 @@ export enum EventName {
     UPDATE_TABLE_CALCULATION_BUTTON_CLICKED = 'update_table_calculation_button.click',
     DELETE_TABLE_CALCULATION_BUTTON_CLICKED = 'delete_table_calculation_button.click',
     CONFIRM_DELETE_TABLE_CALCULATION_BUTTON_CLICKED = 'confirm_delete_table_calculation_button.click',
-    UPDATE_WAREHOUSE_CONNECTION_BUTTON_CLICKED = 'update_warehouse_connection_button.click',
+    UPDATE_PROJECT_BUTTON_CLICKED = 'update_project_button.click',
+    CREATE_PROJECT_BUTTON_CLICKED = 'create_project_button.click',
     REFRESH_DBT_CONNECTION_BUTTON_CLICKED = 'refresh_dbt_connection_button.click',
 }

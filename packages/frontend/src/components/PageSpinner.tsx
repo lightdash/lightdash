@@ -6,7 +6,6 @@ const PageSpinner: FC = () => (
         style={{
             height: '100vh',
             display: 'grid',
-            background: Colors.LIGHT_GRAY4,
         }}
         data-testid="page-spinner"
     >
