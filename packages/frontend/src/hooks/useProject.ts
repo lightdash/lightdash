@@ -1,21 +1,20 @@
-import {
-    ApiError,
-    CreateWarehouseCredentials,
-    Project,
-    WarehouseCredentials,
-} from 'common';
+import { ApiError, CreateProject, Project, UpdateProject } from 'common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 
-const updateWarehouseConnection = async (
-    id: string,
-    data: CreateWarehouseCredentials,
-) =>
-    lightdashApi<WarehouseCredentials>({
-        url: `/projects/${id}/warehouse`,
+const createProject = async (data: CreateProject) =>
+    lightdashApi<Project>({
+        url: `/org/projects`,
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+const updateProject = async (id: string, data: UpdateProject) =>
+    lightdashApi<undefined>({
+        url: `/projects/${id}`,
         method: 'PATCH',
-        body: JSON.stringify({ warehouseConnection: data }),
+        body: JSON.stringify(data),
     });
 
 const getProject = async (id: string) =>
@@ -33,26 +32,34 @@ export const useProject = (id: string) =>
         retry: false,
     });
 
-export const useUpdateWarehouseMutation = (id: string) => {
+export const useUpdateMutation = (id: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
-    return useMutation<
-        WarehouseCredentials,
-        ApiError,
-        CreateWarehouseCredentials
-    >((data) => updateWarehouseConnection(id, data), {
-        mutationKey: ['warehouse_connection_update'],
-        onSuccess: async () => {
-            await queryClient.invalidateQueries(['project', id]);
-            showToastSuccess({
-                title: `Warehouse connection saved with success`,
-            });
+    const { showToastSuccess } = useApp();
+    return useMutation<undefined, ApiError, UpdateProject>(
+        (data) => updateProject(id, data),
+        {
+            mutationKey: ['project_update'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['project', id]);
+                showToastSuccess({
+                    title: `Project saved with success`,
+                });
+            },
         },
-        onError: (error) => {
-            showToastError({
-                title: `Failed to save warehouse connection`,
-                subtitle: error.error.message,
-            });
+    );
+};
+
+export const useCreateMutation = () => {
+    const { showToastSuccess } = useApp();
+    return useMutation<Project, ApiError, UpdateProject>(
+        (data) => createProject(data),
+        {
+            mutationKey: ['project_create'],
+            onSuccess: async () => {
+                showToastSuccess({
+                    title: `Project created with success`,
+                });
+            },
         },
-    });
+    );
 };

@@ -1,9 +1,14 @@
-import { HealthState } from 'common';
+import {
+    DbtProjectConfig,
+    HealthState,
+    sensitiveDbtCredentialsFieldNames,
+} from 'common';
 import fetch from 'node-fetch';
 import database from './database/database';
 import { hasUsers } from './database/entities/users';
 import { lightdashConfig } from './config/lightdashConfig';
 import { VERSION } from './version';
+import { projectService } from './services/services';
 
 const filterByName = (result: { name: string }): boolean =>
     new RegExp('[0-9.]+$').test(result.name);
@@ -30,11 +35,27 @@ export const getHealthState = async (
         latestVersion = undefined;
     }
 
+    const needsProject = !(await projectService.hasProject());
+
+    const defaultProject =
+        needsProject && lightdashConfig.projects[0]
+            ? (Object.fromEntries(
+                  Object.entries(lightdashConfig.projects[0]).filter(
+                      ([key]) =>
+                          !sensitiveDbtCredentialsFieldNames.includes(
+                              key as any,
+                          ),
+                  ),
+              ) as DbtProjectConfig)
+            : undefined;
+
     return {
         healthy: true,
         mode: lightdashConfig.mode,
         version: VERSION,
         needsSetup: !(await hasUsers(database)),
+        needsProject,
+        defaultProject,
         isAuthenticated,
         latest: { version: latestVersion },
         rudder: lightdashConfig.rudder,

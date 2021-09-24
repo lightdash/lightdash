@@ -59,8 +59,8 @@ type TrackSavedChart = BaseTrack & {
     };
 };
 
-type ProjectUpdatedEvent = BaseTrack & {
-    event: 'project.updated';
+type ProjectEvent = BaseTrack & {
+    event: 'project.updated' | 'project.created';
     userId: string;
     properties: {
         projectUuid: string;
@@ -105,7 +105,7 @@ type Track =
     | TrackUserDeletedEvent
     | ProjectErrorEvent
     | ApiErrorEvent
-    | ProjectUpdatedEvent
+    | ProjectEvent
     | ProjectCompiledEvent
     | TrackOrganizationEvent;
 

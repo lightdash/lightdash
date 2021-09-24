@@ -1,3 +1,4 @@
+import getPort from 'get-port';
 import { DbtProjectConfig, ProjectType } from 'common';
 import { ProjectAdapter } from '../types';
 import { DbtLocalProjectAdapter } from './dbtLocalProjectAdapter';
@@ -6,16 +7,16 @@ import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
 import { DbtGitlabProjectAdapter } from './dbtGitlabProjectAdapter';
 
-export const projectAdapterFromConfig = (
+export const projectAdapterFromConfig = async (
     config: DbtProjectConfig,
-): ProjectAdapter => {
+): Promise<ProjectAdapter> => {
     const configType = config.type;
     switch (config.type) {
         case ProjectType.DBT:
             return new DbtLocalProjectAdapter(
                 config.project_dir,
                 config.profiles_dir,
-                config.rpc_server_port,
+                await getPort({ port: config.rpc_server_port }),
                 config.target,
             );
         case ProjectType.DBT_REMOTE_SERVER:
@@ -37,7 +38,7 @@ export const projectAdapterFromConfig = (
                 config.branch,
                 config.project_sub_path,
                 config.profiles_sub_path,
-                config.rpc_server_port,
+                await getPort({ port: config.rpc_server_port }),
                 config.target,
             );
         case ProjectType.GITLAB:
@@ -47,7 +48,7 @@ export const projectAdapterFromConfig = (
                 config.branch,
                 config.project_sub_path,
                 config.profiles_sub_path,
-                config.rpc_server_port,
+                await getPort({ port: config.rpc_server_port }),
                 config.target,
             );
         default:

@@ -1,104 +1,86 @@
 import React, { FC } from 'react';
-import { Button, Intent } from '@blueprintjs/core';
-import {
-    WarehouseTypes,
-    CreateSnowflakeCredentials,
-    SnowflakeCredentials,
-} from 'common';
-import { DefaultValues } from 'react-hook-form/dist/types/form';
+import { Button } from '@blueprintjs/core';
 import { useToggle } from 'react-use';
-import Form from '../ReactHookForm/Form';
-import Input from '../ReactHookForm/Input';
-import NumericInput from '../ReactHookForm/NumericInput';
-import SelectField from '../ReactHookForm/Select';
-import PasswordInput from '../ReactHookForm/PasswordInput';
-import FormSection from '../ReactHookForm/FormSection';
-
-const defaultValues: DefaultValues<CreateSnowflakeCredentials> = {
-    type: WarehouseTypes.SNOWFLAKE,
-    account: '',
-    user: '',
-    password: '',
-    role: '',
-    database: '',
-    warehouse: '',
-    schema: '',
-    threads: 1,
-    clientSessionKeepAlive: false,
-    queryTag: undefined,
-};
+import Input from '../../ReactHookForm/Input';
+import NumericInput from '../../ReactHookForm/NumericInput';
+import SelectField from '../../ReactHookForm/Select';
+import PasswordInput from '../../ReactHookForm/PasswordInput';
+import FormSection from '../../ReactHookForm/FormSection';
 
 const SnowflakeForm: FC<{
-    values?: SnowflakeCredentials;
-    loading: boolean;
-    onSave: (data: CreateSnowflakeCredentials) => void;
-}> = ({ values = defaultValues, loading, onSave }) => {
+    disabled: boolean;
+}> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     return (
-        <Form<CreateSnowflakeCredentials>
-            defaultValues={values}
-            disabled={loading}
-            onSubmit={onSave}
-        >
+        <>
             <Input
-                name="accout"
+                name="warehouse.accout"
                 label="Account"
                 rules={{
                     required: 'Required field',
                 }}
+                disabled={disabled}
             />
             <Input
-                name="user"
+                name="warehouse.user"
                 label="User"
                 rules={{
                     required: 'Required field',
                 }}
+                disabled={disabled}
             />
             <PasswordInput
-                name="password"
+                name="warehouse.password"
                 label="Password"
                 rules={{
                     required: 'Required field',
                 }}
+                disabled={disabled}
             />
             <Input
-                name="role"
+                name="warehouse.role"
                 label="Role"
                 rules={{
                     required: 'Required field',
                 }}
+                disabled={disabled}
             />
             <Input
-                name="database"
+                name="warehouse.database"
                 label="Database"
                 rules={{
                     required: 'Required field',
                 }}
+                disabled={disabled}
             />
             <Input
-                name="warehouse"
+                name="warehouse.warehouse"
                 label="Warehouse"
                 rules={{
                     required: 'Required field',
                 }}
+                disabled={disabled}
             />
             <Input
-                name="schema"
+                name="warehouse.schema"
                 label="Schema"
                 rules={{
                     required: 'Required field',
                 }}
+                disabled={disabled}
             />
             <FormSection isOpen={isOpen} name="advanced">
                 <NumericInput
-                    name="threads"
+                    name="warehouse.threads"
                     label="Threads"
                     rules={{
                         required: 'Required field',
                     }}
+                    disabled={disabled}
+                    defaultValue={1}
                 />
                 <SelectField
-                    name="clientSessionKeepAlive"
+                    name="warehouse.clientSessionKeepAlive"
                     label="Keep client session alive"
                     options={[
                         {
@@ -113,8 +95,14 @@ const SnowflakeForm: FC<{
                     rules={{
                         required: 'Required field',
                     }}
+                    disabled={disabled}
+                    defaultValue={0}
                 />
-                <Input name="queryTag" label="Query tag" />
+                <Input
+                    name="warehouse.queryTag"
+                    label="Query tag"
+                    disabled={disabled}
+                />
             </FormSection>
             <div
                 style={{
@@ -131,14 +119,8 @@ const SnowflakeForm: FC<{
                         marginRight: 10,
                     }}
                 />
-                <Button
-                    type="submit"
-                    intent={Intent.PRIMARY}
-                    text="Save"
-                    loading={loading}
-                />
             </div>
-        </Form>
+        </>
     );
 };
 

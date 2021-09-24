@@ -1,12 +1,13 @@
 import {
     ApiQueryResults,
-    CreateWarehouseCredentials,
+    CreateProject,
     Explore,
     ExploreError,
     isExploreError,
     MetricQuery,
     Project,
     SessionUser,
+    UpdateProject,
 } from 'common';
 import { projectAdapterFromConfig } from '../projectAdapters/projectAdapter';
 import { ProjectAdapter } from '../types';
@@ -58,39 +59,82 @@ export class ProjectService {
         return 'ready';
     }
 
+    async hasProject(): Promise<boolean> {
+        return this.projectModel.hasProjects();
+    }
+
     async getProject(projectUuid: string, user: SessionUser): Promise<Project> {
         // Todo: Check user has access
         const project = await this.projectModel.get(projectUuid);
         return project;
     }
 
-    async updateWarehouseConnection(
+    async create(user: SessionUser, data: CreateProject): Promise<Project> {
+        await ProjectService.testProjectAdapter(data);
+        const projectUuid = await this.projectModel.create(
+            user.organizationUuid,
+            data,
+        );
+        analytics.track({
+            event: 'project.created',
+            userId: user.userUuid,
+            properties: {
+                projectUuid,
+                projectType: data.dbtConnection.type,
+                warehouseConnectionType: data.warehouseConnection?.type,
+            },
+        });
+        await this.startAdapter(projectUuid);
+        return this.getProject(projectUuid, user);
+    }
+
+    async update(
         projectUuid: string,
         user: SessionUser,
-        data: CreateWarehouseCredentials,
-    ): Promise<Project> {
-        await this.projectModel.updateCredentials(projectUuid, data);
-        const project = await this.getProject(projectUuid, user);
+        data: UpdateProject,
+    ): Promise<void> {
+        await ProjectService.testProjectAdapter(data);
+        await this.projectModel.update(projectUuid, data);
         analytics.track({
             event: 'project.updated',
             userId: user.userUuid,
             properties: {
                 projectUuid,
-                projectType: project.dbtConnection.type,
-                warehouseConnectionType: project.warehouseConnection?.type,
+                projectType: data.dbtConnection.type,
+                warehouseConnectionType: data.warehouseConnection?.type,
             },
         });
-        return project;
+        await this.startAdapter(projectUuid);
     }
 
-    async startAdapter(projectUuid: string): Promise<ProjectAdapter> {
-        const activeAdapter = this.projectAdapters[projectUuid];
-        if (activeAdapter === undefined) {
-            const project = await this.projectModel.get(projectUuid);
-            const adapter = projectAdapterFromConfig(project.dbtConnection);
-            return adapter;
+    private static async testProjectAdapter(
+        data: UpdateProject,
+    ): Promise<void> {
+        const adapter = await projectAdapterFromConfig(data.dbtConnection);
+        if (adapter instanceof DbtLocalProjectAdapter) {
+            if (data.warehouseConnection) {
+                await adapter.updateProfile(data.warehouseConnection);
+            }
         }
-        return activeAdapter;
+        await adapter.test();
+        if (adapter instanceof DbtLocalProjectAdapter) {
+            await adapter.dbtChildProcess.kill();
+        }
+    }
+
+    private async startAdapter(projectUuid: string): Promise<ProjectAdapter> {
+        const project = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
+        const adapter = await projectAdapterFromConfig(project.dbtConnection);
+        this.projectAdapters[projectUuid] = adapter;
+        return adapter;
+    }
+
+    private async getAdapter(projectUuid: string): Promise<ProjectAdapter> {
+        return (
+            this.projectAdapters[projectUuid] || this.startAdapter(projectUuid)
+        );
     }
 
     async compileQuery(
@@ -121,7 +165,7 @@ export class ProjectService {
             projectUuid,
             exploreName,
         );
-        const adapter = await this.startAdapter(projectUuid);
+        const adapter = await this.getAdapter(projectUuid);
         const rows = await adapter.runQuery(sql);
         return {
             metricQuery,
@@ -132,7 +176,7 @@ export class ProjectService {
     async compileAllExplores(
         projectUuid: string,
     ): Promise<(Explore | ExploreError)[]> {
-        const adapter = await this.startAdapter(projectUuid);
+        const adapter = await this.getAdapter(projectUuid);
         if (adapter instanceof DbtLocalProjectAdapter) {
             const project = await this.projectModel.getWithSensitiveFields(
                 projectUuid,

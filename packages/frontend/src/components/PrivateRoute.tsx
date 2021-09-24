@@ -17,11 +17,11 @@ const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
                     return <PageSpinner />;
                 }
 
-                if (health.data?.needsSetup) {
+                if (health.data?.needsSetup || health.data?.needsProject) {
                     return (
                         <Redirect
                             to={{
-                                pathname: '/register',
+                                pathname: '/welcome',
                                 state: { from: location },
                             }}
                         />

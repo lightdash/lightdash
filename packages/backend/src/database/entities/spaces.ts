@@ -47,13 +47,3 @@ export const getSpaceWithQueries = async (
         })),
     };
 };
-
-export const createSpace = async (
-    db: Knex,
-    data: CreateDbSpace,
-): Promise<DbSpace> => {
-    const results = await db<DbSpace>('spaces')
-        .insert<CreateDbSpace>(data)
-        .returning('*');
-    return results[0];
-};

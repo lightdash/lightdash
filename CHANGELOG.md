@@ -3,6 +3,13 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Added
+- Added a welcome page
+- Your dbt connection settings can now be updated in the Lightdash UI
+
+### Changed
+- Onboarding flow asks for a project with a valid dbt & warehouse connection instead of relying on lightdash.yml and profiles.yml
+
 ### Fixed
 - Fixed request that shows the sql query
 

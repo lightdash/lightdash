@@ -26,6 +26,8 @@ import { Page, TrackingProvider } from './providers/TrackingProvider';
 import { PageName } from './types/Events';
 import ProjectSettings from './pages/ProjectSettings';
 import { Projects } from './pages/Projects';
+import CreateProject from './pages/CreateProject';
+import Welcome from './pages/Welcome';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -41,9 +43,19 @@ const App = () => (
             <TrackingProvider>
                 <Router>
                     <Switch>
+                        <Route path="/welcome">
+                            <Page name={PageName.WELCOME}>
+                                <Welcome />
+                            </Page>
+                        </Route>
                         <Route path="/register">
                             <Page name={PageName.REGISTER}>
                                 <Register />
+                            </Page>
+                        </Route>
+                        <Route path="/createProject">
+                            <Page name={PageName.CREATE_PROJECT}>
+                                <CreateProject />
                             </Page>
                         </Route>
                         <Route path="/login">

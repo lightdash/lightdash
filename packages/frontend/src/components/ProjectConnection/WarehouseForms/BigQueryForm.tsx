@@ -1,90 +1,72 @@
 import React, { FC } from 'react';
-import { Button, Intent } from '@blueprintjs/core';
-import {
-    WarehouseTypes,
-    CreateBigqueryCredentials,
-    BigqueryCredentials,
-} from 'common';
-import { DefaultValues } from 'react-hook-form/dist/types/form';
+import { Button } from '@blueprintjs/core';
 import { useToggle } from 'react-use';
-import Form from '../ReactHookForm/Form';
-import Input from '../ReactHookForm/Input';
-import SelectField from '../ReactHookForm/Select';
-import FileInput from '../ReactHookForm/FileInput';
-import FormSection from '../ReactHookForm/FormSection';
-import NumericInput from '../ReactHookForm/NumericInput';
-
-const defaultValues: DefaultValues<CreateBigqueryCredentials> = {
-    type: WarehouseTypes.BIGQUERY,
-    project: '',
-    dataset: '',
-    threads: 1,
-    timeoutSeconds: 300,
-    priority: 'interactive',
-    keyfileContents: undefined,
-    retries: 3,
-    location: '',
-    maximumBytesBilled: 1000000000,
-};
+import Input from '../../ReactHookForm/Input';
+import SelectField from '../../ReactHookForm/Select';
+import FileInput from '../../ReactHookForm/FileInput';
+import FormSection from '../../ReactHookForm/FormSection';
+import NumericInput from '../../ReactHookForm/NumericInput';
 
 const BigQueryForm: FC<{
-    values?: BigqueryCredentials;
-    loading: boolean;
-    onSave: (data: CreateBigqueryCredentials) => void;
-}> = ({ values = defaultValues, loading, onSave }) => {
+    disabled: boolean;
+}> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     return (
-        <Form<CreateBigqueryCredentials>
-            defaultValues={values}
-            disabled={loading}
-            onSubmit={onSave}
-        >
+        <>
             <Input
-                name="project"
+                name="warehouse.project"
                 label="Project"
                 rules={{
                     required: 'Required field',
                 }}
+                disabled={disabled}
             />
             <Input
-                name="dataset"
+                name="warehouse.dataset"
                 label="Data set"
                 rules={{
                     required: 'Required field',
                 }}
+                disabled={disabled}
             />
             <Input
-                name="location"
+                name="warehouse.location"
                 label="Location"
                 rules={{
                     required: 'Required field',
                 }}
+                disabled={disabled}
             />
             <FileInput
-                name="keyfileContents"
+                name="warehouse.keyfileContents"
                 label="Key File"
                 rules={{
                     required: 'Required field',
                 }}
                 acceptedTypes="application/json"
+                disabled={disabled}
             />
             <FormSection isOpen={isOpen} name="advanced">
                 <NumericInput
-                    name="threads"
+                    name="warehouse.threads"
                     label="Threads"
                     rules={{
                         required: 'Required field',
                     }}
+                    disabled={disabled}
+                    defaultValue={1}
                 />
                 <NumericInput
-                    name="timeoutSeconds"
+                    name="warehouse.timeoutSeconds"
                     label="Timeout in seconds"
                     rules={{
                         required: 'Required field',
                     }}
+                    disabled={disabled}
+                    defaultValue={300}
                 />
                 <SelectField
-                    name="priority"
+                    name="warehouse.priority"
                     label="Priority"
                     options={[
                         {
@@ -99,20 +81,25 @@ const BigQueryForm: FC<{
                     rules={{
                         required: 'Required field',
                     }}
+                    disabled={disabled}
+                    defaultValue="interactive"
                 />
                 <NumericInput
-                    name="retries"
+                    name="warehouse.retries"
                     label="Retries"
                     rules={{
                         required: 'Required field',
                     }}
+                    defaultValue={3}
                 />
                 <NumericInput
-                    name="maximumBytesBilled"
+                    name="warehouse.maximumBytesBilled"
                     label="Maximum bytes billed"
                     rules={{
                         required: 'Required field',
                     }}
+                    disabled={disabled}
+                    defaultValue={1000000000}
                 />
             </FormSection>
 
@@ -131,14 +118,8 @@ const BigQueryForm: FC<{
                         marginRight: 10,
                     }}
                 />
-                <Button
-                    type="submit"
-                    intent={Intent.PRIMARY}
-                    text="Save"
-                    loading={loading}
-                />
             </div>
-        </Form>
+        </>
     );
 };
 
