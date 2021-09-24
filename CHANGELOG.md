@@ -3,9 +3,10 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
-
+## [0.7.1] - 2021-09-24
 ### Fixed
 - Fixed a bug where the explore menu button wasn't redirecting
+- Fix seed data for our demo page
 
 ## [0.7.0] - 2021-09-24
 ### Added
