@@ -12,6 +12,7 @@ Recent and upcoming changes to lightdash
 
 ### Fixed
 - Fixed request that shows the sql query
+- Fixed a bug where the chart wouldn't clear when leaving the explore page
 
 ## [0.7.1] - 2021-09-24
 ### Fixed
