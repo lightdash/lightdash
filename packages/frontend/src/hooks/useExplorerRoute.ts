@@ -62,8 +62,6 @@ export const useExplorerRoute = () => {
             } catch (e) {
                 showToastError({ title: 'Error parsing url', subtitle: e });
             }
-        } else {
-            reset();
         }
     });
 
@@ -121,5 +119,11 @@ export const useExplorerRoute = () => {
                 search: newParams.toString(),
             });
         }
-    }, [pristineState, history]);
+    }, [pristineState, history, pathParams.projectUuid]);
+
+    useEffect(() => {
+        if (!pathParams.tableId) {
+            reset();
+        }
+    }, [pathParams.tableId, reset]);
 };
