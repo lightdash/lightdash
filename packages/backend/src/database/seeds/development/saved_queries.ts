@@ -17,7 +17,10 @@ export async function seed(knex: Knex): Promise<void> {
         tableName: 'payments',
         metricQuery: {
             dimensions: ['payments_payment_method'],
-            metrics: ['payments_total_revenue', 'payments_payment_count'],
+            metrics: [
+                'payments_total_revenue',
+                'payments_unique_payment_count',
+            ],
             filters: [],
             sorts: [
                 {
@@ -36,7 +39,7 @@ export async function seed(knex: Knex): Promise<void> {
             columnOrder: [
                 'payments_payment_method',
                 'payments_total_revenue',
-                'payments_payment_count',
+                'payments_unique_payment_count',
             ],
         },
     });
