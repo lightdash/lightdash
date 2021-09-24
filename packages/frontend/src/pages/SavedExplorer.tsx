@@ -10,30 +10,17 @@ import { useQueryResults } from '../hooks/useQueryResults';
 
 const SavedExplorer = () => {
     const history = useHistory();
-    const location = useLocation<{ fromExplorer?: boolean } | undefined>();
     const pathParams = useParams<{ savedQueryUuid: string }>();
     const {
-        state: { tableName },
         actions: { setState, reset },
     } = useExplorer();
     const { data } = useSavedQuery({ id: pathParams.savedQueryUuid });
-    const queryResults = useQueryResults();
     const onBack = () => {
         reset();
         history.push({
             pathname: `/saved`,
         });
     };
-    useEffect(() => {
-        if (
-            queryResults.isIdle &&
-            pathParams.savedQueryUuid &&
-            tableName &&
-            !location.state?.fromExplorer
-        ) {
-            queryResults.refetch();
-        }
-    }, [pathParams.savedQueryUuid, queryResults, tableName, location]);
 
     useEffect(() => {
         if (data) {

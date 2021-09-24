@@ -16,10 +16,10 @@ export const getQueryResults = async (
         body: JSON.stringify(query),
     });
 
-export const useQueryResults = (pristine = true) => {
+export const useQueryResults = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const {
-        [pristine ? 'pristineState' : 'state']: {
+        pristineState: {
             tableName: tableId,
             dimensions,
             metrics,
@@ -29,7 +29,6 @@ export const useQueryResults = (pristine = true) => {
             tableCalculations,
             selectedTableCalculations,
         },
-        actions: { syncState },
     } = useExplorer();
     const {
         errorLogs: { showError },
@@ -48,13 +47,9 @@ export const useQueryResults = (pristine = true) => {
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,
         queryFn: () => getQueryResults(projectUuid, tableId || '', metricQuery),
-        enabled: false, // don't run automatically
-        keepPreviousData: true, // changing the query won't update results until fetch
+        enabled: !!tableId,
         retry: false,
-        onSettled: (data) => {
-            // Update the pristine state once the query request is completed.
-            syncState();
-        },
+        refetchOnMount: false,
         onError: (error) => {
             const [first, ...rest] = error.error.message.split('\n');
             showError({ title: first, body: rest.join('\n') });
