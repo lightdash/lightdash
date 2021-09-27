@@ -5,6 +5,7 @@ import { useParams } from 'react-router-dom';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useApp } from '../providers/AppProvider';
 import { lightdashApi } from '../api';
+import useQueryError from './useQueryError';
 
 const getExplore = async (projectUuid: string, exploreId: string) =>
     lightdashApi<ApiExploreResults>({
@@ -15,6 +16,7 @@ const getExplore = async (projectUuid: string, exploreId: string) =>
 
 export const useExplore = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const [, setErrorResponse] = useQueryError();
     const {
         errorLogs: { showError },
     } = useApp();
@@ -22,19 +24,11 @@ export const useExplore = () => {
         state: { tableName: activeTableName },
     } = useExplorer();
     const queryKey = ['tables', activeTableName];
-    const query = useQuery<ApiExploreResults, ApiError>({
+    return useQuery<ApiExploreResults, ApiError>({
         queryKey,
         queryFn: () => getExplore(projectUuid, activeTableName || ''),
         enabled: activeTableName !== undefined,
+        onError: (result) => setErrorResponse(result.error),
         retry: false,
     });
-
-    useEffect(() => {
-        if (query.error) {
-            const [first, ...rest] = query.error.error.message.split('\n');
-            showError({ title: first, body: rest.join('\n') });
-        }
-    }, [query.error, showError]);
-
-    return query;
 };

@@ -2,6 +2,7 @@ import { ApiError, OrganizationUser } from 'common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
+import useQueryError from './useQueryError';
 
 const getOrganizationUsersQuery = async () =>
     lightdashApi<OrganizationUser[]>({
@@ -17,11 +18,14 @@ const deleteUserQuery = async (id: string) =>
         body: undefined,
     });
 
-export const useOrganizationUsers = () =>
-    useQuery<OrganizationUser[], ApiError>({
+export const useOrganizationUsers = () => {
+    const [, setErrorResponse] = useQueryError();
+    return useQuery<OrganizationUser[], ApiError>({
         queryKey: ['organization_users'],
         queryFn: getOrganizationUsersQuery,
+        onError: (result) => setErrorResponse(result.error),
     });
+};
 
 export const useDeleteUserMutation = () => {
     const queryClient = useQueryClient();

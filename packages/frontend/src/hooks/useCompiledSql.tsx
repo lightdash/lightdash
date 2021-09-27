@@ -3,6 +3,7 @@ import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useExplorer } from '../providers/ExplorerProvider';
+import useQueryError from './useQueryError';
 
 const getCompiledQuery = async (
     projectUuid: string,
@@ -29,6 +30,7 @@ export const useCompliedSql = () => {
             tableCalculations,
         },
     } = useExplorer();
+    const [, setErrorResponse] = useQueryError();
     const metricQuery: MetricQuery = {
         dimensions: Array.from(dimensions),
         metrics: Array.from(metrics),
@@ -45,5 +47,6 @@ export const useCompliedSql = () => {
         queryKey,
         queryFn: () =>
             getCompiledQuery(projectUuid, tableId || '', metricQuery),
+        onError: (result) => setErrorResponse(result.error),
     });
 };
