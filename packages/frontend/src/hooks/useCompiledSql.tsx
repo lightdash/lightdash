@@ -10,7 +10,7 @@ const getCompiledQuery = async (
     query: MetricQuery,
 ) =>
     lightdashApi<ApiCompiledQueryResults>({
-        url: `projects/${projectUuid}/explores/${tableId}/compileQuery`,
+        url: `/projects/${projectUuid}/explores/${tableId}/compileQuery`,
         method: 'POST',
         body: JSON.stringify(query),
     });
