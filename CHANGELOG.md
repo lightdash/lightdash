@@ -3,6 +3,9 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Fixed
+- Fixed request that shows the sql query
+
 ## [0.7.1] - 2021-09-24
 ### Fixed
 - Fixed a bug where the explore menu button wasn't redirecting
