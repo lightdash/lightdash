@@ -116,9 +116,12 @@ export class ProjectService {
                 await adapter.updateProfile(data.warehouseConnection);
             }
         }
-        await adapter.test();
-        if (adapter instanceof DbtLocalProjectAdapter) {
-            await adapter.dbtChildProcess.kill();
+        try {
+            await adapter.test();
+        } finally {
+            if (adapter instanceof DbtLocalProjectAdapter) {
+                await adapter.dbtChildProcess.kill();
+            }
         }
     }
 
