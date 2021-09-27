@@ -33,6 +33,13 @@ const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
             refetchOnWindowFocus: false,
+            onError: async (result) => {
+                // @ts-ignore
+                const { error: { statusCode } = {} } = result;
+                if (statusCode === 401) {
+                    await queryClient.invalidateQueries('health');
+                }
+            },
         },
     },
 });

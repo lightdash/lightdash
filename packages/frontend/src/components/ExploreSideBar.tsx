@@ -217,13 +217,14 @@ export const ExplorePanel = ({ onBack }: ExplorePanelProps) => {
             </>
         );
     }
-    if (exploresResult.status === 'error') {
+    /* if (exploresResult.status === 'error') {
+        console.log('exploresResult sidebar')
         onBack();
         const [title, ...lines] =
             exploresResult.error.error.message.split('\n');
         showError({ title, body: lines.join('\n') });
         return null;
-    }
+    } */
     if (exploresResult.status === 'loading') {
         return <SideBarLoadingState />;
     }

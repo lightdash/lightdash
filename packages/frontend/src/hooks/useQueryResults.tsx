@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useApp } from '../providers/AppProvider';
+import useQueryError from './useQueryError';
 
 export const getQueryResults = async (
     projectUuid: string,
@@ -18,6 +19,7 @@ export const getQueryResults = async (
 
 export const useQueryResults = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const [, setErrorResponse] = useQueryError();
     const {
         pristineState: {
             tableName: tableId,
@@ -50,9 +52,6 @@ export const useQueryResults = () => {
         enabled: !!tableId,
         retry: false,
         refetchOnMount: false,
-        onError: (error) => {
-            const [first, ...rest] = error.error.message.split('\n');
-            showError({ title: first, body: rest.join('\n') });
-        },
+        onError: (result) => setErrorResponse(result.error),
     });
 };

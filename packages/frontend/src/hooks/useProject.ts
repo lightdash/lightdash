@@ -2,6 +2,7 @@ import { ApiError, CreateProject, Project, UpdateProject } from 'common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
+import useQueryError from './useQueryError';
 
 const createProject = async (data: CreateProject) =>
     lightdashApi<Project>({
@@ -24,13 +25,16 @@ const getProject = async (id: string) =>
         body: undefined,
     });
 
-export const useProject = (id: string) =>
-    useQuery<Project, ApiError>({
+export const useProject = (id: string) => {
+    const [, setErrorResponse] = useQueryError();
+    return useQuery<Project, ApiError>({
         queryKey: ['project', id],
         queryFn: () => getProject(id || ''),
         enabled: id !== undefined,
         retry: false,
+        onError: (result) => setErrorResponse(result.error),
     });
+};
 
 export const useUpdateMutation = (id: string) => {
     const queryClient = useQueryClient();
