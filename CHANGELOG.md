@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+
+## [0.8.0] - 2021-09-27
 ### Added
 - Added a welcome page
 - Your dbt connection settings can now be updated in the Lightdash UI
