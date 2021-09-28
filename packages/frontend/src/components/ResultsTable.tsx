@@ -260,7 +260,7 @@ export const ResultsTable = () => {
                             style={{ flex: 1 }}
                         >
                             {headerGroups.map((headerGroup) => (
-                                <colgroup key={headerGroup.id}>
+                                <colgroup key={`headerGroup_${headerGroup.id}`}>
                                     {headerGroup.headers.map((column) => (
                                         <col
                                             {...column.getHeaderProps([
@@ -273,6 +273,7 @@ export const ResultsTable = () => {
                             <thead>
                                 {headerGroups.map((headerGroup) => (
                                     <DragDropContext
+                                        key={`DragDropContext_${headerGroup.id}`}
                                         onDragStart={() => {
                                             currentColOrder.current =
                                                 allColumns.map(
