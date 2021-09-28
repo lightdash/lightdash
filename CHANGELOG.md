@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Fixed
+- Fixed a bug where creating projects in the UI would fail for local/github/gitlab projects
 
 ## [0.8.0] - 2021-09-27
 ### Added
