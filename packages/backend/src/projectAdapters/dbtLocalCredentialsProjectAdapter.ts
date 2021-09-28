@@ -1,5 +1,6 @@
 import { CreateWarehouseCredentials } from 'common';
 import tempy from 'tempy';
+import * as fspromises from 'fs/promises';
 import * as path from 'path';
 import { writeFileSync } from 'fs';
 import {
@@ -16,6 +17,8 @@ type DbtLocalCredentialsProjectAdapterArgs = {
 };
 
 export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
+    profilesDir: string;
+
     constructor({
         projectDir,
         warehouseCredentials,
@@ -34,5 +37,11 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
             port,
             environment,
         });
+        this.profilesDir = profilesDir;
+    }
+
+    async destroy() {
+        await fspromises.rm(this.profilesDir, { recursive: true, force: true });
+        await super.destroy();
     }
 }

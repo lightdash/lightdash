@@ -24,6 +24,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         this.rpcClient = rpcClient;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function,class-methods-use-this
+    async destroy(): Promise<void> {}
+
     public async test(): Promise<void> {
         await this.rpcClient.installDeps();
         await this.runQuery("SELECT 'test connection'");

@@ -45,6 +45,11 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         this.branch = gitBranch;
     }
 
+    async destroy(): Promise<void> {
+        await this._cleanLocal();
+        await super.destroy();
+    }
+
     private async _cleanLocal() {
         try {
             const contents = await fspromises.readdir(this.localRepositoryDir);
