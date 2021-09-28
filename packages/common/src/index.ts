@@ -1007,13 +1007,11 @@ export interface DbtLocalProjectConfig extends DbtProjectConfigBase {
     type: ProjectType.DBT;
     profiles_dir?: string;
     project_dir: string;
-    rpc_server_port: number;
     target?: string;
 }
 
 export interface DbtRemoteProjectConfig extends DbtProjectConfigBase {
     type: ProjectType.DBT_REMOTE_SERVER;
-    name: string;
     rpc_server_host: string;
     rpc_server_port: number;
 }
@@ -1032,9 +1030,6 @@ export interface DbtGithubProjectConfig extends DbtProjectConfigBase {
     repository: string;
     branch: string;
     project_sub_path: string;
-    profiles_sub_path: string;
-    rpc_server_port: number;
-    target?: string;
 }
 
 export interface DbtGitlabProjectConfig extends DbtProjectConfigBase {
@@ -1043,9 +1038,6 @@ export interface DbtGitlabProjectConfig extends DbtProjectConfigBase {
     repository: string;
     branch: string;
     project_sub_path: string;
-    profiles_sub_path: string;
-    rpc_server_port: number;
-    target?: string;
 }
 
 export type DbtProjectConfig =

@@ -47,7 +47,6 @@ const dbtLocalProjectConfigKeys: ConfigKeys<DbtLocalProjectConfig> = {
     name: true,
     profiles_dir: false,
     project_dir: true,
-    rpc_server_port: true,
     target: false,
 };
 const dbtRemoteProjectConfigKeys: ConfigKeys<DbtRemoteProjectConfig> = {
@@ -71,9 +70,6 @@ const dbtGithubProjectConfigKeys: ConfigKeys<DbtGithubProjectConfig> = {
     repository: true,
     branch: true,
     project_sub_path: true,
-    profiles_sub_path: true,
-    rpc_server_port: true,
-    target: false,
 };
 const dbtGitlabProjectConfigKeys: ConfigKeys<DbtGitlabProjectConfig> = {
     type: true,
@@ -82,9 +78,6 @@ const dbtGitlabProjectConfigKeys: ConfigKeys<DbtGitlabProjectConfig> = {
     repository: true,
     branch: true,
     project_sub_path: true,
-    profiles_sub_path: true,
-    rpc_server_port: true,
-    target: false,
 };
 
 const mergeProjectWithEnvironment = <T extends DbtProjectConfig>(
