@@ -115,18 +115,14 @@ export class ProjectService {
         try {
             await adapter.test();
         } finally {
-            if (adapter instanceof DbtLocalProjectAdapter) {
-                await adapter.dbtChildProcess.kill();
-            }
+            await adapter.destroy();
         }
     }
 
     private async restartAdapter(projectUuid: string): Promise<ProjectAdapter> {
         const runningAdapter = this.projectAdapters[projectUuid];
         if (runningAdapter !== undefined) {
-            if (runningAdapter instanceof DbtLocalProjectAdapter) {
-                await runningAdapter.dbtChildProcess.kill();
-            }
+            await runningAdapter.destroy();
         }
         const project = await this.projectModel.getWithSensitiveFields(
             projectUuid,

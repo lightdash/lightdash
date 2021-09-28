@@ -37,6 +37,11 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
         this.dbtChildProcess = childProcess;
     }
 
+    async destroy(): Promise<void> {
+        await this.dbtChildProcess.kill();
+        await super.destroy();
+    }
+
     private _handleError(e: Error): Error {
         if (e instanceof NetworkError) {
             // extend error with latest dbt error messages
