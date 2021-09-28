@@ -68,10 +68,11 @@ test('Should throw ParseError for invalid port', () => {
     ).toThrowError(ParseError);
 });
 
-test('Should throw ParseError for missing profiles dir', () => {
-    expect(() =>
-        parseConfig(wrapProject(LOCAL_PROJECT_MISSING_PROFILES_DIR)),
-    ).toThrowError(ParseError);
+test('Should parse local project with missing profiles dir', () => {
+    const expected = wrapProject(LOCAL_PROJECT_MISSING_PROFILES_DIR);
+    expect(
+        parseConfig(wrapProject(LOCAL_PROJECT_MISSING_PROFILES_DIR)).projects,
+    ).toEqual(expected.projects);
 });
 
 test('Should throw ParseError for undefined project dir', () => {

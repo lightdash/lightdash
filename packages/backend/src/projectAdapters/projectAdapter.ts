@@ -1,56 +1,83 @@
 import getPort from 'get-port';
-import { DbtProjectConfig, ProjectType } from 'common';
+import {
+    CreateWarehouseCredentials,
+    DbtProjectConfig,
+    ProjectType,
+} from 'common';
 import { ProjectAdapter } from '../types';
 import { DbtLocalProjectAdapter } from './dbtLocalProjectAdapter';
 import { DbtRemoteProjectAdapter } from './dbtRemoteProjectAdapter';
 import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
 import { DbtGitlabProjectAdapter } from './dbtGitlabProjectAdapter';
+import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
+import { UnexpectedServerError } from '../errors';
 
 export const projectAdapterFromConfig = async (
     config: DbtProjectConfig,
+    warehouseCredentials?: CreateWarehouseCredentials,
 ): Promise<ProjectAdapter> => {
     const configType = config.type;
     switch (config.type) {
         case ProjectType.DBT:
-            return new DbtLocalProjectAdapter(
-                config.project_dir,
-                config.profiles_dir,
-                await getPort({ port: config.rpc_server_port }),
-                config.target,
+            if (warehouseCredentials !== undefined) {
+                return new DbtLocalCredentialsProjectAdapter({
+                    projectDir: config.project_dir,
+                    warehouseCredentials,
+                    port: await getPort({ port: config.rpc_server_port }),
+                });
+            }
+            if (config.profiles_dir !== undefined) {
+                return new DbtLocalProjectAdapter({
+                    projectDir: config.project_dir,
+                    profilesDir: config.profiles_dir,
+                    port: await getPort({ port: config.rpc_server_port }),
+                    target: config.target,
+                });
+            }
+            throw new UnexpectedServerError(
+                'Could not find valid warehouse credentials. No profiles directory or warehouse credentials specified for project.',
             );
         case ProjectType.DBT_REMOTE_SERVER:
-            return new DbtRemoteProjectAdapter(
-                config.rpc_server_host,
-                config.rpc_server_port,
-            );
+            return new DbtRemoteProjectAdapter({
+                host: config.rpc_server_host,
+                port: config.rpc_server_port,
+            });
         case ProjectType.DBT_CLOUD_IDE:
-            return new DbtCloudIdeProjectAdapter(
-                `${config.account_id}`,
-                `${config.environment_id}`,
-                `${config.project_id}`,
-                config.api_key,
-            );
+            return new DbtCloudIdeProjectAdapter({
+                accountId: `${config.account_id}`,
+                environmentId: `${config.environment_id}`,
+                projectId: `${config.project_id}`,
+                apiKey: config.api_key,
+            });
         case ProjectType.GITHUB:
-            return new DbtGithubProjectAdapter(
-                config.personal_access_token,
-                config.repository,
-                config.branch,
-                config.project_sub_path,
-                config.profiles_sub_path,
-                await getPort({ port: config.rpc_server_port }),
-                config.target,
-            );
+            if (warehouseCredentials === undefined) {
+                throw new UnexpectedServerError(
+                    'Warehouse credentials must be provided to connect to your dbt project on github',
+                );
+            }
+            return new DbtGithubProjectAdapter({
+                githubPersonalAccessToken: config.personal_access_token,
+                githubRepository: config.repository,
+                githubBranch: config.branch,
+                projectDirectorySubPath: config.project_sub_path,
+                warehouseCredentials,
+                port: await getPort({ port: config.rpc_server_port }),
+            });
         case ProjectType.GITLAB:
-            return new DbtGitlabProjectAdapter(
-                config.personal_access_token,
-                config.repository,
-                config.branch,
-                config.project_sub_path,
-                config.profiles_sub_path,
-                await getPort({ port: config.rpc_server_port }),
-                config.target,
-            );
+            if (warehouseCredentials === undefined) {
+                throw new UnexpectedServerError(
+                    'Warehouse credentials must be provided to connect to your dbt project on gitlab',
+                );
+            }
+            return new DbtGitlabProjectAdapter({
+                gitlabPersonalAccessToken: config.personal_access_token,
+                gitlabRepository: config.repository,
+                gitlabBranch: config.branch,
+                projectDirectorySubPath: config.project_sub_path,
+                warehouseCredentials,
+                port: await getPort({ port: config.rpc_server_port }),
+            });
         default:
             const never: never = config;
             throw new Error(`Adapter not implemented for type: ${configType}`);

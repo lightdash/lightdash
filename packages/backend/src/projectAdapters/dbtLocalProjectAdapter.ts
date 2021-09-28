@@ -1,71 +1,40 @@
-import { CreateWarehouseCredentials } from 'common';
-import tempy from 'tempy';
-import * as path from 'path';
-import { writeFileSync } from 'fs';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 import { DbtChildProcess } from '../dbt/dbtChildProcess';
 import { NetworkError } from '../errors';
 import { DbtRpcClient } from '../dbt/dbtRpcClient';
-import {
-    LIGHTDASH_PROFILE_NAME,
-    profileFromCredentials,
-} from '../dbt/profiles';
+
+type DbtLocalProjectAdapterArgs = {
+    projectDir: string;
+    profilesDir: string;
+    port: number;
+    target: string | undefined;
+    profileName?: string | undefined;
+    environment?: Record<string, string>;
+};
 
 export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
     dbtChildProcess: DbtChildProcess;
 
-    rpcClient: DbtRpcClient;
-
-    profilesDirectory: string;
-
-    projectDirectory: string;
-
-    port: number;
-
-    target: string | undefined;
-
-    profilesFileName: 'profiles.yml' = 'profiles.yml';
-
-    constructor(
-        projectDir: string,
-        profilesDir: string,
-        port: number,
-        target: string | undefined,
-    ) {
-        super();
-        this.dbtChildProcess = new DbtChildProcess(
+    constructor({
+        projectDir,
+        profilesDir,
+        port,
+        target,
+        profileName,
+        environment,
+    }: DbtLocalProjectAdapterArgs) {
+        const childProcess = new DbtChildProcess(
             projectDir,
             profilesDir,
             port,
             target,
-        );
-        const serverUrl = `http://${DbtChildProcess.host}:${this.dbtChildProcess.port}/jsonrpc`;
-        this.profilesDirectory = profilesDir;
-        this.projectDirectory = projectDir;
-        this.port = port;
-        this.rpcClient = new DbtRpcClient(serverUrl);
-    }
-
-    async updateProfile(credentials: CreateWarehouseCredentials) {
-        this.profilesDirectory = tempy.directory();
-        const overrideProfileFilename = path.join(
-            this.profilesDirectory,
-            'profiles.yml',
-        );
-        const { profile, environment } = profileFromCredentials(
-            credentials,
-            this.target,
-        );
-        writeFileSync(overrideProfileFilename, profile);
-        await this.dbtChildProcess.kill();
-        this.dbtChildProcess = new DbtChildProcess(
-            this.projectDirectory,
-            this.profilesDirectory,
-            this.port,
-            this.target,
-            LIGHTDASH_PROFILE_NAME,
+            profileName,
             environment,
         );
+        const serverUrl = `http://${DbtChildProcess.host}:${childProcess.port}/jsonrpc`;
+        const rpcClient = new DbtRpcClient(serverUrl);
+        super(rpcClient);
+        this.dbtChildProcess = childProcess;
     }
 
     private _handleError(e: Error): Error {

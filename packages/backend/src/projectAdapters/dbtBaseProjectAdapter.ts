@@ -15,12 +15,17 @@ import { ProjectAdapter } from '../types';
 const ajv = new Ajv();
 addFormats(ajv);
 
-export abstract class DbtBaseProjectAdapter implements ProjectAdapter {
-    abstract rpcClient: DbtRpcClientBase;
+export class DbtBaseProjectAdapter implements ProjectAdapter {
+    rpcClient: DbtRpcClientBase;
 
     catalog: DbtRpcDocsGenerateResults | undefined;
 
+    constructor(rpcClient: DbtRpcClientBase) {
+        this.rpcClient = rpcClient;
+    }
+
     public async test(): Promise<void> {
+        await this.rpcClient.installDeps();
         await this.runQuery("SELECT 'test connection'");
     }
 

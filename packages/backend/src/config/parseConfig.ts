@@ -45,7 +45,7 @@ type ConfigKeys<T extends DbtProjectConfig> = {
 const dbtLocalProjectConfigKeys: ConfigKeys<DbtLocalProjectConfig> = {
     type: true,
     name: true,
-    profiles_dir: true,
+    profiles_dir: false,
     project_dir: true,
     rpc_server_port: true,
     target: false,
