@@ -5,7 +5,7 @@ import PasswordInput from '../../ReactHookForm/PasswordInput';
 const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => (
     <>
         <PasswordInput
-            name="dbt.apiKey"
+            name="dbt.api_key"
             label="API key"
             rules={{
                 required: 'Required field',
