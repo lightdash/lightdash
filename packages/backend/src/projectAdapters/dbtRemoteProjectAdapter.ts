@@ -2,14 +2,22 @@ import { Explore, ExploreError } from 'common';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 import { DbtRpcClient } from '../dbt/dbtRpcClient';
 
-export class DbtRemoteProjectAdapter extends DbtBaseProjectAdapter {
-    rpcClient: DbtRpcClient;
+type DbtRemoteProjectAdapterArgs = {
+    host: string;
+    port: number;
+    protocol?: string;
+};
 
-    constructor(host: string, port: number, protocol: string = 'http') {
-        super();
-        this.rpcClient = new DbtRpcClient(
+export class DbtRemoteProjectAdapter extends DbtBaseProjectAdapter {
+    constructor({
+        host,
+        port,
+        protocol = 'http',
+    }: DbtRemoteProjectAdapterArgs) {
+        const rpcClient = new DbtRpcClient(
             `${protocol}://${host}:${port}/jsonrpc`,
         );
+        super(rpcClient);
     }
 
     async compileAllExplores(): Promise<(Explore | ExploreError)[]> {

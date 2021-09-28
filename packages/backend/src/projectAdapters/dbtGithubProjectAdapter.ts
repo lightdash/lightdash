@@ -1,23 +1,31 @@
+import { CreateWarehouseCredentials } from 'common';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 
+type DbtGithubProjectAdapterArgs = {
+    githubPersonalAccessToken: string;
+    githubRepository: string;
+    githubBranch: string;
+    projectDirectorySubPath: string;
+    port: number;
+    warehouseCredentials: CreateWarehouseCredentials;
+};
+
 export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
-    constructor(
-        githubPersonalAccessToken: string,
-        githubRepository: string,
-        githubBranch: string,
-        projectDirectorySubPath: string,
-        profilesDirectorySubPath: string,
-        port: number,
-        target: string | undefined,
-    ) {
+    constructor({
+        githubBranch,
+        githubPersonalAccessToken,
+        githubRepository,
+        projectDirectorySubPath,
+        port,
+        warehouseCredentials,
+    }: DbtGithubProjectAdapterArgs) {
         const remoteRepositoryUrl = `https://${githubPersonalAccessToken}@github.com/${githubRepository}.git`;
-        super(
+        super({
             remoteRepositoryUrl,
-            githubBranch,
-            projectDirectorySubPath,
-            profilesDirectorySubPath,
             port,
-            target,
-        );
+            projectDirectorySubPath,
+            warehouseCredentials,
+            gitBranch: githubBranch,
+        });
     }
 }

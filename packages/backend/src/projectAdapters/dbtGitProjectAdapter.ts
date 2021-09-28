@@ -4,37 +4,45 @@ import * as git from 'isomorphic-git';
 import * as fspromises from 'fs/promises';
 import * as fs from 'fs';
 import * as http from 'isomorphic-git/http/node';
-import { DbtLocalProjectAdapter } from './dbtLocalProjectAdapter';
+import { CreateWarehouseCredentials } from 'common';
 import { UnexpectedServerError } from '../errors';
+import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 
-export class DbtGitProjectAdapter extends DbtLocalProjectAdapter {
+export type DbtGitProjectAdapterArgs = {
+    remoteRepositoryUrl: string;
+    gitBranch: string;
+    projectDirectorySubPath: string;
+    warehouseCredentials: CreateWarehouseCredentials;
+    port: number;
+};
+
+export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
     localRepositoryDir: string;
 
     remoteRepositoryUrl: string;
 
     branch: string;
 
-    constructor(
-        remoteRepositoryUrl: string,
-        githubBranch: string,
-        projectDirectorySubPath: string,
-        profilesDirectorySubPath: string,
-        port: number,
-        target: string | undefined,
-    ) {
+    constructor({
+        remoteRepositoryUrl,
+        gitBranch,
+        projectDirectorySubPath,
+        warehouseCredentials,
+        port,
+    }: DbtGitProjectAdapterArgs) {
         const localRepositoryDir = tempy.directory();
         const projectDir = path.join(
             localRepositoryDir,
             projectDirectorySubPath,
         );
-        const profilesDir = path.join(
-            localRepositoryDir,
-            profilesDirectorySubPath,
-        );
-        super(projectDir, profilesDir, port, target);
+        super({
+            projectDir,
+            warehouseCredentials,
+            port,
+        });
         this.localRepositoryDir = localRepositoryDir;
         this.remoteRepositoryUrl = remoteRepositoryUrl;
-        this.branch = githubBranch;
+        this.branch = gitBranch;
     }
 
     private async _cleanLocal() {
@@ -56,7 +64,6 @@ export class DbtGitProjectAdapter extends DbtLocalProjectAdapter {
     }
 
     private async _clone() {
-        await this._cleanLocal();
         try {
             await git.clone({
                 fs,
@@ -96,6 +103,7 @@ export class DbtGitProjectAdapter extends DbtLocalProjectAdapter {
         try {
             await this._pull();
         } catch (e) {
+            await this._cleanLocal();
             await this._clone();
         }
     }
@@ -104,5 +112,10 @@ export class DbtGitProjectAdapter extends DbtLocalProjectAdapter {
         await this._refreshRepo();
         const results = await super.compileAllExplores();
         return results;
+    }
+
+    public async test() {
+        await this._refreshRepo();
+        await super.test();
     }
 }

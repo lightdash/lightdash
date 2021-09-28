@@ -1005,7 +1005,7 @@ export interface DbtProjectConfigBase {
 
 export interface DbtLocalProjectConfig extends DbtProjectConfigBase {
     type: ProjectType.DBT;
-    profiles_dir: string;
+    profiles_dir?: string;
     project_dir: string;
     rpc_server_port: number;
     target?: string;

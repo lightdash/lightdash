@@ -84,7 +84,6 @@ export class ProjectService {
                 warehouseConnectionType: data.warehouseConnection?.type,
             },
         });
-        await this.startAdapter(projectUuid);
         return this.getProject(projectUuid, user);
     }
 
@@ -104,18 +103,15 @@ export class ProjectService {
                 warehouseConnectionType: data.warehouseConnection?.type,
             },
         });
-        await this.startAdapter(projectUuid);
     }
 
     private static async testProjectAdapter(
         data: UpdateProject,
     ): Promise<void> {
-        const adapter = await projectAdapterFromConfig(data.dbtConnection);
-        if (adapter instanceof DbtLocalProjectAdapter) {
-            if (data.warehouseConnection) {
-                await adapter.updateProfile(data.warehouseConnection);
-            }
-        }
+        const adapter = await projectAdapterFromConfig(
+            data.dbtConnection,
+            data.warehouseConnection,
+        );
         try {
             await adapter.test();
         } finally {
@@ -125,18 +121,28 @@ export class ProjectService {
         }
     }
 
-    private async startAdapter(projectUuid: string): Promise<ProjectAdapter> {
+    private async restartAdapter(projectUuid: string): Promise<ProjectAdapter> {
+        const runningAdapter = this.projectAdapters[projectUuid];
+        if (runningAdapter !== undefined) {
+            if (runningAdapter instanceof DbtLocalProjectAdapter) {
+                await runningAdapter.dbtChildProcess.kill();
+            }
+        }
         const project = await this.projectModel.getWithSensitiveFields(
             projectUuid,
         );
-        const adapter = await projectAdapterFromConfig(project.dbtConnection);
+        const adapter = await projectAdapterFromConfig(
+            project.dbtConnection,
+            project.warehouseConnection,
+        );
         this.projectAdapters[projectUuid] = adapter;
         return adapter;
     }
 
     private async getAdapter(projectUuid: string): Promise<ProjectAdapter> {
         return (
-            this.projectAdapters[projectUuid] || this.startAdapter(projectUuid)
+            this.projectAdapters[projectUuid] ||
+            this.restartAdapter(projectUuid)
         );
     }
 
@@ -179,15 +185,9 @@ export class ProjectService {
     async compileAllExplores(
         projectUuid: string,
     ): Promise<(Explore | ExploreError)[]> {
-        const adapter = await this.getAdapter(projectUuid);
-        if (adapter instanceof DbtLocalProjectAdapter) {
-            const project = await this.projectModel.getWithSensitiveFields(
-                projectUuid,
-            );
-            if (project.warehouseConnection) {
-                await adapter.updateProfile(project.warehouseConnection);
-            }
-        }
+        // Force refresh adapter (refetch git repos, check for changed credentials, etc.)
+        // Might want to cache parts of this in future if slow
+        const adapter = await this.restartAdapter(projectUuid);
         return adapter.compileAllExplores();
     }
 
