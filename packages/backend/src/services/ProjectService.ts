@@ -12,7 +12,6 @@ import {
 import { projectAdapterFromConfig } from '../projectAdapters/projectAdapter';
 import { ProjectAdapter } from '../types';
 import { ProjectModel } from '../models/ProjectModel';
-import { DbtLocalProjectAdapter } from '../projectAdapters/dbtLocalProjectAdapter';
 import { analytics } from '../analytics/client';
 import { errorHandler, NotExistsError } from '../errors';
 import { compileMetricQuery } from '../queryCompiler';
@@ -178,19 +177,15 @@ export class ProjectService {
         };
     }
 
-    async compileAllExplores(
-        projectUuid: string,
-    ): Promise<(Explore | ExploreError)[]> {
+    async refreshAllTables(user: SessionUser, projectUuid: string) {
+        // Checks that project exists
+        const project = await this.projectModel.get(projectUuid);
+
         // Force refresh adapter (refetch git repos, check for changed credentials, etc.)
         // Might want to cache parts of this in future if slow
-        const adapter = await this.restartAdapter(projectUuid);
-        return adapter.compileAllExplores();
-    }
-
-    async refreshAllTables(user: SessionUser, projectUuid: string) {
-        const project = await this.projectModel.get(projectUuid);
         this.projectLoading[projectUuid] = true;
-        this.cachedExplores[projectUuid] = this.compileAllExplores(projectUuid);
+        const adapter = await this.restartAdapter(projectUuid);
+        this.cachedExplores[projectUuid] = adapter.compileAllExplores();
         try {
             await this.cachedExplores[projectUuid];
             analytics.track({
