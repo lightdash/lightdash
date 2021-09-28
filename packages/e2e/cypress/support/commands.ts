@@ -29,6 +29,7 @@ import { USER_SEED } from 'common';
 declare namespace Cypress {
     interface Chainable<AUTWindow> {
         login(): Chainable<AUTWindow>;
+        preCompileProject(): Chainable<AUTWindow>;
     }
 }
 
@@ -40,5 +41,28 @@ Cypress.Commands.add('login', () => {
             email: USER_SEED.email,
             password: USER_SEED.password,
         },
+    });
+});
+Cypress.Commands.add('preCompileProject', () => {
+    cy.request({
+        url: 'api/v1/login',
+        method: 'POST',
+        body: {
+            email: USER_SEED.email,
+            password: USER_SEED.password,
+        },
+    });
+    cy.request({
+        url: 'api/v1/org/projects',
+        method: 'GET',
+    }).then(({ body }) => {
+        const project = body.results[0];
+        cy.log(
+            `Pre-compiling project ${project.name} (${project.projectUuid})`,
+        );
+        cy.request({
+            url: `api/v1/projects/${project.projectUuid}/explores`,
+            method: 'GET',
+        });
     });
 });

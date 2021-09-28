@@ -2,6 +2,8 @@ describe('Explore', () => {
     before(() => {
         // @ts-ignore
         cy.login();
+        // @ts-ignore
+        cy.preCompileProject();
     });
 
     beforeEach(() => {
