@@ -23,22 +23,6 @@ export const LOCAL_PROJECT = {
     name: 'project',
     profiles_dir: 'hello',
     project_dir: 'yo',
-    rpc_server_port: 8580,
-};
-
-export const LOCAL_PROJECT_NO_PORT = {
-    ...LOCAL_PROJECT,
-    rpc_server_port: undefined,
-};
-
-export const LOCAL_PROJECT_PORT_AS_STRING = {
-    ...LOCAL_PROJECT,
-    rpc_server_port: '8580',
-};
-
-export const LOCAL_PROJECT_NON_INT_PORT = {
-    ...LOCAL_PROJECT,
-    rpc_server_port: 1.1,
 };
 
 export const LOCAL_PROJECT_UNDEFINED_PROJECT_DIR = {
@@ -50,7 +34,6 @@ export const LOCAL_PROJECT_MISSING_PROFILES_DIR = {
     type: 'dbt',
     name: 'project',
     project_dir: 'hello',
-    rpc_server_port: 8580,
 };
 
 export const REMOTE_PROJECT = {

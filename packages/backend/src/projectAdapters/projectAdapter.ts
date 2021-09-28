@@ -24,14 +24,14 @@ export const projectAdapterFromConfig = async (
                 return new DbtLocalCredentialsProjectAdapter({
                     projectDir: config.project_dir,
                     warehouseCredentials,
-                    port: await getPort({ port: config.rpc_server_port }),
+                    port: await getPort(),
                 });
             }
             if (config.profiles_dir !== undefined) {
                 return new DbtLocalProjectAdapter({
                     projectDir: config.project_dir,
                     profilesDir: config.profiles_dir,
-                    port: await getPort({ port: config.rpc_server_port }),
+                    port: await getPort(),
                     target: config.target,
                 });
             }
@@ -62,7 +62,7 @@ export const projectAdapterFromConfig = async (
                 githubBranch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,
                 warehouseCredentials,
-                port: await getPort({ port: config.rpc_server_port }),
+                port: await getPort(),
             });
         case ProjectType.GITLAB:
             if (warehouseCredentials === undefined) {
@@ -76,7 +76,7 @@ export const projectAdapterFromConfig = async (
                 gitlabBranch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,
                 warehouseCredentials,
-                port: await getPort({ port: config.rpc_server_port }),
+                port: await getPort(),
             });
         default:
             const never: never = config;

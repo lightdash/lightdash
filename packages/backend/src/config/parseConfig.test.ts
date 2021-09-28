@@ -3,9 +3,6 @@ import {
     LOCAL_PROJECT,
     LOCAL_PROJECT_MISSING_PROFILES_DIR,
     LOCAL_PROJECT_UNDEFINED_PROJECT_DIR,
-    LOCAL_PROJECT_NO_PORT,
-    LOCAL_PROJECT_NON_INT_PORT,
-    LOCAL_PROJECT_PORT_AS_STRING,
     NO_PROJECTS,
     REMOTE_PROJECT,
     REMOTE_PROJECT_INVALID_HOST,
@@ -47,25 +44,6 @@ test('Should throw ParseError for unrecognised project', () => {
 test('Should parse valid local project config', () => {
     const expected = wrapProject(LOCAL_PROJECT);
     expect(parseConfig(expected).projects).toEqual(expected.projects);
-});
-
-test('Should parse local project without port', () => {
-    const expected = wrapProject(LOCAL_PROJECT);
-    expect(parseConfig(wrapProject(LOCAL_PROJECT_NO_PORT)).projects).toEqual(
-        expected.projects,
-    );
-});
-
-test('Should throw ParseError for local project with string port', () => {
-    expect(() =>
-        parseConfig(wrapProject(LOCAL_PROJECT_PORT_AS_STRING)),
-    ).toThrowError(ParseError);
-});
-
-test('Should throw ParseError for invalid port', () => {
-    expect(() =>
-        parseConfig(wrapProject(LOCAL_PROJECT_NON_INT_PORT)),
-    ).toThrowError(ParseError);
 });
 
 test('Should parse local project with missing profiles dir', () => {
