@@ -52,15 +52,10 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
 
     private async _cleanLocal() {
         try {
-            const contents = await fspromises.readdir(this.localRepositoryDir);
-            await Promise.all(
-                contents.map(async (filename) => {
-                    await fspromises.rm(
-                        path.join(this.localRepositoryDir, filename),
-                        { recursive: true, force: true },
-                    );
-                }),
-            );
+            await fspromises.rm(this.localRepositoryDir, {
+                recursive: true,
+                force: true,
+            });
         } catch (e) {
             throw new UnexpectedServerError(
                 `Unexpected error while processing git repository: ${e}`,
