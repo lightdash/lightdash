@@ -3,6 +3,9 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Added
+- Added an installation script
+
 ### Fixed
 - Fixed a bug where creating projects in the UI would fail for local/github/gitlab projects
 

@@ -55,12 +55,27 @@ Deploy your own hosted Lightdash instance with Heroku (free account available).
 
 ## Get started
 
-Start learning Lightdash:
+### Run with your own dbt project
+```bash
+git clone https://github.com/lightdash/lightdash
+cd lightdash
+./install.sh 
+# follow cli instructions
+```
+
+### Start learning Lightdash:
 
 * [Play with a UI demo](https://demo.lightdash.com) (*no setup*)
-* [Setup your own lightdash with demo data](https://docs.lightdash.com/get-started/setup-the-demo-project) (*run locally with docker*)
-* [Setup Lightdash with your existing local dbt project](https://docs.lightdash.com/get-started/setup-a-local-dbt-project) (*requires your own dbt project*)
-* [Setup Lightdash with your existing cloud dbt project](https://docs.lightdash.com/get-started/setup-a-dbt-cloud-project) (*requires your own dbt project on dbtCloud*)
+* [Setup Lightdash via cli (recommended)](https://docs.lightdash.com/get-started/setup-with-cli) (*requires your own dbt project*)
+* [Setup Lightdash manually](https://docs.lightdash.com/get-started/setup-a-local-dbt-project) (*requires your own dbt project*)
+* [Setup Lightdash in Heroku with dbt cloud](https://docs.lightdash.com/get-started/setup-a-dbt-cloud-project) (*requires your own dbt project on dbtCloud*)
+* [Setup Lightdash in Heroku with GitHub](https://docs.lightdash.com/get-started/setup-a-github-project) (*requires your own dbt project on GitHub*)
+
+### Guides:
+
+* [How to create dimensions](https://docs.lightdash.com/guides/how-to-create-dimensions)
+* [How to create metrics](https://docs.lightdash.com/guides/how-to-create-metrics)
+* [How to join tables](https://docs.lightdash.com/guides/how-to-join-tables)
 
 ## Community Support
 Join our community if you need help, want to chat or have any other questions for us:
@@ -76,40 +91,6 @@ Lightdash integrates with your dbt project and gives a framework for defining me
 - No more scattered, duplicated metrics across multiple tools.
 - No more time spent trying to maintain data changes in both dbt and and your data viz tools.  
 - No more context lost between your data transformation and your data visualization layer.
-
-## Run the demo
-
-Get started with a demo dbt project and launch Lightdash on your machine:
-
-```shell
-git clone --recurse-submodules https://github.com/lightdash/lightdash
-cd lightdash/examples/full-jaffle-shop-demo
-docker compose up
-```
-
-Open lightdash at `https://localhost:8080`
-
-## Run with your own dbt project
-
-**You must be using dbt version 0.20.0 or above**
-
-*BigQuery users should read the [additional docs here](https://docs.lightdash.com/get-started/setup-an-existing-dbt-project)*
-
-```shell
-cd path/to/your/dbt/project # e.g. /Users/katie/my-project-repo/dbt
-
-export DBT_PROJECT_DIR=${PWD}
-export DBT_PROFILES_DIR=${HOME}/.dbt
-export LIGHTDASH_PORT=8080
-
-docker run -it -p "${LIGHTDASH_PORT}:8080" -v "${DBT_PROJECT_DIR}:/usr/app/dbt" -v "${DBT_PROFILES_DIR}:/usr/app/profiles" lightdash/lightdash
-```
-
-Open lightdash at `https://localhost:8080`
-
-## Installation from source
-
-You can check the instructions in our [contribution guidelines](https://github.com/lightdash/lightdash/blob/main/.github/CONTRIBUTING.md#your-first-code-contribution)
 
 ## Docs
 
