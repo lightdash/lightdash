@@ -5,6 +5,7 @@ Recent and upcoming changes to lightdash
 ## Unreleased
 ### Fixed
 - Fixed a bug where creating projects in the UI would fail for local/github/gitlab projects
+- We now redirect the user to the login page after cookie expires
 
 ## [0.8.0] - 2021-09-27
 ### Added
