@@ -8,7 +8,6 @@ import cookieParser from 'cookie-parser';
 import { SessionUser } from 'common';
 import connectSessionKnex from 'connect-session-knex';
 import bodyParser from 'body-parser';
-import { v4 as uuidv4 } from 'uuid';
 import * as OpenApiValidator from 'express-openapi-validator';
 import apiSpec from 'common/dist/openapibundle.json';
 import * as Sentry from '@sentry/node';
@@ -20,6 +19,7 @@ import database from './database/database';
 import { lightdashConfig } from './config/lightdashConfig';
 import { analytics } from './analytics/client';
 import { VERSION } from './version';
+import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 
 const KnexSessionStore = connectSessionKnex(expressSession);
 
@@ -102,7 +102,9 @@ app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
     analytics.track({
         event: 'api.error',
         userId: req.user?.userUuid,
-        anonymousId: !req.user?.userUuid ? uuidv4() : undefined, // TODO: default to temporary user id once we have that
+        anonymousId: !req.user?.userUuid
+            ? LightdashAnalytics.anonymousId
+            : undefined,
         properties: {
             name: errorResponse.name,
             statusCode: errorResponse.statusCode,

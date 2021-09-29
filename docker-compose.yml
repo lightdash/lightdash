@@ -14,6 +14,8 @@ services:
       - TRUST_PROXY=${TRUST_PROXY:-false}
       - LIGHTDASH_SECRET=${LIGHTDASH_SECRET}
       - PORT=${PORT:-8080}
+      - LIGHTDASH_INSTALL_ID=${LIGHTDASH_INSTALL_ID}
+      - LIGHTDASH_INSTALL_TYPE=${LIGHTDASH_INSTALL_TYPE:-docker_image}
     volumes:
       - "${DBT_PROFILES_DIR}:/usr/app/profiles"
       - "${DBT_PROJECT_DIR}:/usr/app/dbt"
