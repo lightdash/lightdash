@@ -18,9 +18,6 @@ export const useExplore = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [, setErrorResponse] = useQueryError();
     const {
-        errorLogs: { showError },
-    } = useApp();
-    const {
         state: { tableName: activeTableName },
     } = useExplorer();
     const queryKey = ['tables', activeTableName];
