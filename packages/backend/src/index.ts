@@ -106,7 +106,7 @@ app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
         properties: {
             name: errorResponse.name,
             statusCode: errorResponse.statusCode,
-            route: req.route.path,
+            route: req.path,
             method: req.method,
         },
     });
