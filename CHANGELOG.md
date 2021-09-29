@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+
+## [0.8.1] - 2021-09-29
 ### Added
 - Added an installation script
 
