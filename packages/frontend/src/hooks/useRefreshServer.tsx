@@ -20,7 +20,7 @@ export const useRefreshServer = () => {
         errorLogs: { showError },
     } = useApp();
     const queryClient = useQueryClient();
-    const [, setErrorResponse] = useQueryError();
+    const setErrorResponse = useQueryError();
     return useMutation<void, ApiError>({
         mutationKey: 'refresh',
         mutationFn: () => refresh(projectUuid),
@@ -30,6 +30,6 @@ export const useRefreshServer = () => {
             queryClient.invalidateQueries('tables');
             queryClient.setQueryData('status', 'loading');
         },
-        onError: (result) => setErrorResponse(result.error),
+        onError: (result) => setErrorResponse(result),
     });
 };

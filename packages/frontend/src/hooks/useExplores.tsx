@@ -15,7 +15,7 @@ const getExplores = async (projectUuid: string) =>
 
 export const useExplores = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [, setErrorResponse] = useQueryError();
+    const setErrorResponse = useQueryError();
     const {
         errorLogs: { showError },
     } = useApp();
@@ -23,7 +23,7 @@ export const useExplores = () => {
     return useQuery<ApiExploresResults, ApiError>({
         queryKey,
         queryFn: () => getExplores(projectUuid),
-        onError: (result) => setErrorResponse(result.error),
+        onError: (result) => setErrorResponse(result),
         retry: false,
     });
 };

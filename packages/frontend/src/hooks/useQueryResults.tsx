@@ -19,7 +19,7 @@ export const getQueryResults = async (
 
 export const useQueryResults = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [, setErrorResponse] = useQueryError();
+    const setErrorResponse = useQueryError();
     const {
         pristineState: {
             tableName: tableId,
@@ -52,6 +52,6 @@ export const useQueryResults = () => {
         enabled: !!tableId,
         retry: false,
         refetchOnMount: false,
-        onError: (result) => setErrorResponse(result.error),
+        onError: (result) => setErrorResponse(result),
     });
 };

@@ -30,7 +30,7 @@ export const useCompliedSql = () => {
             tableCalculations,
         },
     } = useExplorer();
-    const [, setErrorResponse] = useQueryError();
+    const setErrorResponse = useQueryError();
     const metricQuery: MetricQuery = {
         dimensions: Array.from(dimensions),
         metrics: Array.from(metrics),
@@ -47,6 +47,6 @@ export const useCompliedSql = () => {
         queryKey,
         queryFn: () =>
             getCompiledQuery(projectUuid, tableId || '', metricQuery),
-        onError: (result) => setErrorResponse(result.error),
+        onError: (result) => setErrorResponse(result),
     });
 };
