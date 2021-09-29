@@ -4,6 +4,9 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.8.1] - 2021-09-29
+- Missing keys in Results table map array
+
 ## [0.8.0] - 2021-09-27
 ### Added
 - Added a welcome page
