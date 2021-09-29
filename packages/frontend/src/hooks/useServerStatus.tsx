@@ -14,7 +14,7 @@ const getStatus = async (projectUuid: string) =>
 
 export const useServerStatus = (refetchInterval = 5000) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [, setErrorResponse] = useQueryError();
+    const setErrorResponse = useQueryError();
     const queryKey = 'status';
     const {
         errorLogs: { showError },
@@ -23,7 +23,7 @@ export const useServerStatus = (refetchInterval = 5000) => {
         queryKey,
         queryFn: () => getStatus(projectUuid),
         refetchInterval,
-        onError: (result) => setErrorResponse(result.error),
+        onError: (result) => setErrorResponse(result),
         refetchIntervalInBackground: false,
     });
 };

@@ -19,11 +19,11 @@ const deleteUserQuery = async (id: string) =>
     });
 
 export const useOrganizationUsers = () => {
-    const [, setErrorResponse] = useQueryError();
+    const setErrorResponse = useQueryError();
     return useQuery<OrganizationUser[], ApiError>({
         queryKey: ['organization_users'],
         queryFn: getOrganizationUsersQuery,
-        onError: (result) => setErrorResponse(result.error),
+        onError: (result) => setErrorResponse(result),
     });
 };
 

@@ -11,10 +11,10 @@ const getProjectsQuery = async () =>
     });
 
 export const useProjects = () => {
-    const [, setErrorResponse] = useQueryError();
+    const setErrorResponse = useQueryError();
     return useQuery<OrganizationProject[], ApiError>({
         queryKey: ['projects'],
         queryFn: getProjectsQuery,
-        onError: (result) => setErrorResponse(result.error),
+        onError: (result) => setErrorResponse(result),
     });
 };

@@ -1,30 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Dispatch, SetStateAction } from 'react';
 import { useQueryClient } from 'react-query';
+import { ApiError } from 'common';
 import { useApp } from '../providers/AppProvider';
 
-const useQueryError = () => {
+const useQueryError = (): Dispatch<SetStateAction<ApiError | undefined>> => {
     const queryClient = useQueryClient();
-    const [errorResponse, setErrorResponse] = useState<any>(null);
+    const [errorResponse, setErrorResponse] = useState<ApiError | undefined>();
     const {
         errorLogs: { showError },
     } = useApp();
     useEffect(() => {
         (async function doIfError() {
-            if (errorResponse) {
-                // @ts-ignore
-                const { statusCode } = errorResponse;
+            const { error } = errorResponse || {};
+            if (error) {
+                const { statusCode } = error;
                 if (statusCode === 401) {
                     await queryClient.invalidateQueries('health');
                 } else {
                     // drawer
-                    const { message } = errorResponse;
+                    const { message } = error;
                     const [first, ...rest] = message.split('\n');
                     showError({ title: first, body: rest.join('\n') });
                 }
             }
         })();
-    }, [errorResponse]);
-    return [errorResponse, setErrorResponse];
+    }, [errorResponse, queryClient, showError]);
+    return setErrorResponse;
 };
 
 export default useQueryError;

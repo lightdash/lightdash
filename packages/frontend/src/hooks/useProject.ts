@@ -26,13 +26,13 @@ const getProject = async (id: string) =>
     });
 
 export const useProject = (id: string) => {
-    const [, setErrorResponse] = useQueryError();
+    const setErrorResponse = useQueryError();
     return useQuery<Project, ApiError>({
         queryKey: ['project', id],
         queryFn: () => getProject(id || ''),
         enabled: id !== undefined,
         retry: false,
-        onError: (result) => setErrorResponse(result.error),
+        onError: (result) => setErrorResponse(result),
     });
 };
 
