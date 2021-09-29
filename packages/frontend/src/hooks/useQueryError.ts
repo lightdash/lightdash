@@ -2,12 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQueryClient } from 'react-query';
 import { useApp } from '../providers/AppProvider';
 
-type UseQueryError = {
-    showToastError: () => void;
-};
-
-const useQueryError = (props?: UseQueryError) => {
-    const { showToastError } = props || {};
+const useQueryError = () => {
     const queryClient = useQueryClient();
     const [errorResponse, setErrorResponse] = useState<any>(null);
     const {
@@ -20,8 +15,6 @@ const useQueryError = (props?: UseQueryError) => {
                 const { statusCode } = errorResponse;
                 if (statusCode === 401) {
                     await queryClient.invalidateQueries('health');
-                } else if (showToastError) {
-                    showToastError();
                 } else {
                     // drawer
                     const { message } = errorResponse;
