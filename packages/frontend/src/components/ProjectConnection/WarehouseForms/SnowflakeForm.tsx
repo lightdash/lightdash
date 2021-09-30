@@ -14,7 +14,7 @@ const SnowflakeForm: FC<{
     return (
         <>
             <Input
-                name="warehouse.accout"
+                name="warehouse.account"
                 label="Account"
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#account"
                 rules={{
