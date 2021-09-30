@@ -63,6 +63,7 @@ Cypress.Commands.add('preCompileProject', () => {
         cy.request({
             url: `api/v1/projects/${project.projectUuid}/explores`,
             method: 'GET',
+            timeout: 100000,
         });
     });
 });

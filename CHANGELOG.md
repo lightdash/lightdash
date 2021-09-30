@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Fixed
+- Fixed a bug where chart config would reset after running a query
 
 ## [0.8.1] - 2021-09-29
 ### Added
