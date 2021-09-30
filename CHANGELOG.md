@@ -3,6 +3,9 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Changed
+- Data will be sorted by default. Priority: date/time dimension -> first metric -> first dimension
+
 ### Fixed
 - Fixed a bug where chart config would reset after running a query
 
