@@ -86,7 +86,7 @@ interface ExplorerContext {
     pristineState: ExplorerState;
     actions: {
         reset: () => void;
-        syncState: () => void;
+        syncState: (defaultSortField: SortField | undefined) => void;
         setState: (state: Required<ExplorerReduceState>) => void;
         setTableName: (tableName: string) => void;
         toggleActiveField: (fieldId: FieldId, isDimension: boolean) => void;
@@ -387,12 +387,26 @@ export const ExplorerProvider: FC = ({ children }) => {
             type: ActionType.RESET,
         });
     }, []);
-    const syncState = useCallback(() => {
-        pristineDispatch({
-            type: ActionType.SET_STATE,
-            payload: reducerState,
-        });
-    }, [reducerState]);
+    const syncState = useCallback(
+        (defaultSortField: SortField | undefined) => {
+            if (defaultSortField) {
+                dispatch({
+                    type: ActionType.SET_SORT_FIELDS,
+                    payload: [defaultSortField],
+                });
+            }
+            pristineDispatch({
+                type: ActionType.SET_STATE,
+                payload: {
+                    ...reducerState,
+                    sorts: defaultSortField
+                        ? [defaultSortField]
+                        : reducerState.sorts,
+                },
+            });
+        },
+        [reducerState],
+    );
 
     const setState = useCallback((state: ExplorerReduceState) => {
         pristineDispatch({
