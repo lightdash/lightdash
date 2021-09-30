@@ -120,6 +120,7 @@ export const useChartConfig = (
 ): ChartConfig => {
     const { data } = useSavedQuery({ id: savedQueryUuid });
     const queryResults = useQueryResults();
+    const { data: results } = queryResults;
     const [seriesLayout, setSeriesLayout] = useState<SeriesLayout>(
         defaultLayout(queryResults),
     );
@@ -139,11 +140,55 @@ export const useChartConfig = (
     }, [data]);
 
     useEffect(() => {
-        if (queryResults.data) {
-            setSeriesLayout(defaultLayout(queryResults));
+        if (results) {
+            const { metricQuery } = results;
+            setSeriesLayout((layout) => {
+                const xDimension =
+                    layout.xDimension &&
+                    metricQuery.dimensions.includes(layout.xDimension)
+                        ? layout.xDimension
+                        : metricQuery.dimensions[0];
+                let groupDimension: string | undefined;
+                if (metricQuery.dimensions.length > 1) {
+                    if (layout.groupDimension !== xDimension) {
+                        groupDimension = layout.groupDimension;
+                    } else {
+                        const [option1, option2] = metricQuery.dimensions;
+                        groupDimension =
+                            option1 !== xDimension ? option1 : option2;
+                    }
+                } else {
+                    groupDimension = undefined;
+                }
+                const possibleYMetrics = [
+                    ...metricQuery.metrics,
+                    ...metricQuery.tableCalculations.map(({ name }) => name),
+                ];
+
+                let yMetrics: string[];
+                const intersection =
+                    layout.yMetrics?.filter((x) =>
+                        possibleYMetrics.includes(x),
+                    ) || [];
+                if (groupDimension === undefined) {
+                    yMetrics =
+                        intersection.length > 0
+                            ? intersection
+                            : possibleYMetrics;
+                } else {
+                    yMetrics =
+                        intersection.length > 0
+                            ? intersection.slice(0, 1)
+                            : possibleYMetrics.slice(0, 1);
+                }
+                return {
+                    xDimension,
+                    yMetrics,
+                    groupDimension,
+                };
+            });
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [queryResults.data]);
+    }, [results]);
 
     const setXDimension = (xDimension: string) => {
         if (queryResults.data)
