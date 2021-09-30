@@ -7,6 +7,7 @@ desired_os=0
 os=""
 setup_type="" # values: "default" | "local_dbt"
 INSTALLATION_ID=$(curl -s 'https://www.uuidgenerator.net/api/version4')
+LIGHTDASH_INSTALL_TYPE='bash_install'
 dbt_project_dir=""
 port=8080
 
@@ -355,8 +356,6 @@ fi
 trap bye EXIT
 
 track $Started
-export LIGHTDASH_INSTALL_ID=$INSTALLATION_ID
-export LIGHTDASH_INSTALL_TYPE='bash_install'
 if [[ $setup_type == 'local_dbt' ]]; then
     set_vars
 fi
@@ -391,7 +390,7 @@ start_docker
 
 echo ""
 echo -e "\n🟡 Pulling the latest container images for Lightdash. To run as sudo it may ask for system password\n"
-sudo docker-compose -f docker-compose.yml pull
+sudo LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" docker-compose -f docker-compose.yml pull
 
 echo ""
 echo "🟡 Starting the Lightdash containers. It may take a few minutes ..."
@@ -399,9 +398,9 @@ echo
 # The docker-compose command does some nasty stuff for the `--detach` functionality. So we add a `|| true` so that the
 # script doesn't exit because this command looks like it failed to do it's thing.
 if [[ $setup_type == 'local_dbt' ]]; then
-    sudo PORT="$port" DBT_PROJECT_DIR="$dbt_project_dir" docker-compose -f docker-compose.yml up --detach --remove-orphans || true
+    sudo LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" PORT="$port" DBT_PROJECT_DIR="$dbt_project_dir" docker-compose -f docker-compose.yml up --detach --remove-orphans || true
 else
-    sudo PORT="$port" docker-compose -f docker-compose.yml up --detach --remove-orphans || true
+    sudo LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" PORT="$port" docker-compose -f docker-compose.yml up --detach --remove-orphans || true
 fi
 
 wait_for_containers_start 60
