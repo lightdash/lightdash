@@ -88,6 +88,7 @@ const ProfilePanel: FC = () => {
                     disabled={isLoading}
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
+                    data-cy="first-name-input"
                 />
             </FormGroup>
             <FormGroup
@@ -103,6 +104,7 @@ const ProfilePanel: FC = () => {
                     disabled={isLoading}
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
+                    data-cy="last-name-input"
                 />
             </FormGroup>
             <FormGroup
@@ -118,6 +120,7 @@ const ProfilePanel: FC = () => {
                     disabled={isLoading}
                     value={email}
                     onChange={(e) => setEmail(e.target.value.trim())}
+                    data-cy="email-input"
                 />
             </FormGroup>
             <div style={{ flex: 1 }} />
@@ -127,6 +130,7 @@ const ProfilePanel: FC = () => {
                 text="Update"
                 onClick={handleUpdate}
                 loading={isLoading}
+                data-cy="update-profile-settings"
             />
         </div>
     );
