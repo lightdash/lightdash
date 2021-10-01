@@ -1,4 +1,5 @@
 import {
+    BooleanFilter,
     CompiledMetricQuery,
     DateAndTimestampFilter,
     Explore,
@@ -108,6 +109,11 @@ const renderDateFilterSql = (
     }
 };
 
+const renderBooleanFilterSql = (
+    dimensionSql: string,
+    filter: BooleanFilter,
+): string => `(${dimensionSql}) = ('${filter.value}')`;
+
 const renderFilterGroupSql = (
     filterGroup: FilterGroup,
     explore: Explore,
@@ -167,6 +173,19 @@ const renderFilterGroupSql = (
                             filter,
                             formatTimestamp,
                         ),
+                    )
+                    .join(`\n   ${operator} `);
+            }
+            throw new Error(
+                `DateFilterGroup has a reference to an unknown date field ${fieldIdFromFilterGroup(
+                    filterGroup,
+                )}`,
+            );
+        case 'boolean':
+            if (dimension?.type === 'boolean') {
+                return filterGroup.filters
+                    .map((filter) =>
+                        renderBooleanFilterSql(dimension.compiledSql, filter),
                     )
                     .join(`\n   ${operator} `);
             }

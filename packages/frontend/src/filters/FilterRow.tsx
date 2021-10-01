@@ -1,14 +1,25 @@
 import {
+    BooleanFilter,
+    BooleanFilterGroup,
     DateAndTimestampFilter,
+    DateFilterGroup,
+    FilterGroup,
     friendlyName,
+    IFilter,
     NumberFilter,
+    NumberFilterGroup,
     StringFilter,
+    StringFilterGroup,
 } from 'common';
 import { Button, HTMLSelect } from '@blueprintjs/core';
 import React, { ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
-type Filter = NumberFilter | StringFilter | DateAndTimestampFilter;
+type Filter =
+    | NumberFilter
+    | StringFilter
+    | DateAndTimestampFilter
+    | BooleanFilter;
 export const assertFilterId = <T extends Filter>(
     filter: T,
 ): T & { id: string } => {
@@ -76,6 +87,53 @@ export const FilterRow = ({
         </div>
     );
 };
+// BooleanFilterGroup | StringFilterGroup | DateFilterGroup | NumberFilterGroup
+type FilterRowsProps = {
+    filterGroup: FilterGroup;
+    onChange: (filterGroup: any) => void;
+    defaultNewFilter:
+        | NumberFilter
+        | DateAndTimestampFilter
+        | BooleanFilter
+        | StringFilter;
+    render: ({ filter, index }: { filter: any; index: number }) => ReactNode;
+};
+
+export const FilterRows = ({
+    filterGroup,
+    onChange,
+    defaultNewFilter,
+    render,
+}: FilterRowsProps) => (
+    <>
+        {filterGroup.filters.map((filter, index) => (
+            <FilterRow
+                key={`filter_${filter.id}`}
+                isFirst={index === 0}
+                isLast={index === filterGroup.filters.length - 1}
+                tableName={filterGroup.tableName}
+                fieldName={filterGroup.fieldName}
+                onAdd={() =>
+                    onChange({
+                        ...filterGroup,
+                        filters: [...filterGroup.filters, defaultNewFilter],
+                    })
+                }
+                onDelete={() =>
+                    onChange({
+                        ...filterGroup,
+                        filters: [
+                            ...filterGroup.filters.slice(0, index),
+                            ...filterGroup.filters.slice(index + 1),
+                        ],
+                    })
+                }
+            >
+                {render({ filter, index })}
+            </FilterRow>
+        ))}
+    </>
+);
 
 type SelectFilterOperatorProps<T extends string> = {
     value: T;
