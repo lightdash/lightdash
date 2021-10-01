@@ -1,7 +1,6 @@
 import { StringFilter, StringFilterGroup } from 'common';
 import React from 'react';
-import { ControlGroup, InputGroup, TagInput } from '@blueprintjs/core';
-import { FilterRow, SelectFilterOperator } from './FilterRow';
+import { InputGroup, TagInput } from '@blueprintjs/core';
 
 export const defaultValuesForNewStringFilter: {
     [key in StringFilter['operator']]: StringFilter;
@@ -12,19 +11,6 @@ export const defaultValuesForNewStringFilter: {
     isNull: { operator: 'isNull' },
     notNull: { operator: 'notNull' },
 };
-
-type StringFilterGroupFormProps = {
-    filterGroup: StringFilterGroup;
-    onChange: (filterGroup: StringFilterGroup) => void;
-};
-
-const options: { value: StringFilter['operator']; label: string }[] = [
-    { value: 'isNull', label: 'is null' },
-    { value: 'startsWith', label: 'starts with' },
-    { value: 'notNull', label: 'is not null' },
-    { value: 'equals', label: 'is equal to' },
-    { value: 'notEquals', label: 'is not equal to' },
-];
 
 type StringFilterFormProps = {
     filter: StringFilter;
@@ -38,6 +24,7 @@ const StringFilterForm = ({ filter, onChange }: StringFilterFormProps) => {
             return (
                 <TagInput
                     fill
+                    addOnBlur
                     tagProps={{ minimal: true }}
                     values={filter.values}
                     onAdd={(values) =>
@@ -103,66 +90,4 @@ const StringFilterForm = ({ filter, onChange }: StringFilterFormProps) => {
     }
 };
 
-const defaultNewFilter = defaultValuesForNewStringFilter.equals;
-
-export const StringFilterGroupForm = ({
-    filterGroup,
-    onChange,
-}: StringFilterGroupFormProps) => (
-    <>
-        {filterGroup.filters.map((filter, index) => (
-            <FilterRow
-                key={filter.id}
-                isFirst={index === 0}
-                isLast={index === filterGroup.filters.length - 1}
-                tableName={filterGroup.tableName}
-                fieldName={filterGroup.fieldName}
-                onAdd={() =>
-                    onChange({
-                        ...filterGroup,
-                        filters: [...filterGroup.filters, defaultNewFilter],
-                    })
-                }
-                onDelete={() =>
-                    onChange({
-                        ...filterGroup,
-                        filters: [
-                            ...filterGroup.filters.slice(0, index),
-                            ...filterGroup.filters.slice(index + 1),
-                        ],
-                    })
-                }
-            >
-                <ControlGroup style={{ width: '100%' }}>
-                    <SelectFilterOperator
-                        value={filter.operator}
-                        options={options}
-                        onChange={(operator) =>
-                            onChange({
-                                ...filterGroup,
-                                filters: [
-                                    ...filterGroup.filters.slice(0, index),
-                                    defaultValuesForNewStringFilter[operator],
-                                    ...filterGroup.filters.slice(index + 1),
-                                ],
-                            })
-                        }
-                    />
-                    <StringFilterForm
-                        filter={filter}
-                        onChange={(fg) =>
-                            onChange({
-                                ...filterGroup,
-                                filters: [
-                                    ...filterGroup.filters.slice(0, index),
-                                    fg,
-                                    ...filterGroup.filters.slice(index + 1),
-                                ],
-                            })
-                        }
-                    />
-                </ControlGroup>
-            </FilterRow>
-        ))}
-    </>
-);
+export default StringFilterForm;

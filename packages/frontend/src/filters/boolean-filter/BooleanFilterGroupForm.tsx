@@ -1,7 +1,7 @@
 import { BooleanFilterGroup } from 'common';
 import React from 'react';
 import { ControlGroup } from '@blueprintjs/core';
-import { FilterRows } from '../FilterRow';
+import FilterRows from '../common/FilterRows';
 import BooleanFilterForm from './BooleanFilterForm';
 
 type BooleanFilterGroupProps = {
