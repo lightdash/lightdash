@@ -244,13 +244,37 @@ export enum FilterGroupOperator {
 // Filter groups combine multiple filters for a single dimension or metric
 // The filters in a filter group can be combined with AND/OR
 // Filters vary depending on the dimension type
-export type StringFilterGroup = {
-    type: 'string';
+
+export interface IFilter {
     tableName: string;
     fieldName: string;
     operator: FilterGroupOperator;
+}
+
+export interface StringFilterGroup extends IFilter {
+    type: 'string';
     filters: StringFilter[];
-};
+}
+
+export interface NumberFilterGroup extends IFilter {
+    type: 'number';
+    filters: NumberFilter[];
+}
+
+export interface DateFilterGroup extends IFilter {
+    type: 'date';
+    filters: DateAndTimestampFilter[];
+}
+
+export interface TimestampFilterGroup extends IFilter {
+    type: 'timestamp';
+    filters: DateAndTimestampFilter[];
+}
+
+export interface BooleanFilterGroup extends IFilter {
+    type: 'boolean';
+    filters: BooleanFilter[];
+}
 
 export type StringFilter =
     | { operator: 'equals'; values: string[]; id?: string }
@@ -258,14 +282,6 @@ export type StringFilter =
     | { operator: 'startsWith'; value: string; id?: string }
     | { operator: 'isNull'; id?: string }
     | { operator: 'notNull'; id?: string };
-
-export type NumberFilterGroup = {
-    type: 'number';
-    tableName: string;
-    fieldName: string;
-    operator: FilterGroupOperator;
-    filters: NumberFilter[];
-};
 
 export type NumberFilter =
     | { operator: 'equals'; values: number[]; id?: string }
@@ -275,21 +291,7 @@ export type NumberFilter =
     | { operator: 'isNull'; id?: string }
     | { operator: 'notNull'; id?: string };
 
-export type DateFilterGroup = {
-    type: 'date';
-    tableName: string;
-    fieldName: string;
-    operator: FilterGroupOperator;
-    filters: DateAndTimestampFilter[];
-};
-
-export type TimestampFilterGroup = {
-    type: 'timestamp';
-    tableName: string;
-    fieldName: string;
-    operator: FilterGroupOperator;
-    filters: DateAndTimestampFilter[];
-};
+export type BooleanFilter = { operator: 'is'; value?: boolean; id?: string };
 
 export type DateAndTimestampFilter =
     | { operator: 'equals'; value: Date; id?: string }
@@ -305,7 +307,8 @@ export type FilterGroup =
     | StringFilterGroup
     | NumberFilterGroup
     | TimestampFilterGroup
-    | DateFilterGroup;
+    | DateFilterGroup
+    | BooleanFilterGroup;
 
 export const fieldIdFromFilterGroup = (fg: FilterGroup) =>
     `${fg.tableName}_${fg.fieldName}`;
@@ -315,7 +318,8 @@ export interface FilterableDimension extends Dimension {
         | DimensionType.STRING
         | DimensionType.NUMBER
         | DimensionType.DATE
-        | DimensionType.TIMESTAMP;
+        | DimensionType.TIMESTAMP
+        | DimensionType.BOOLEAN;
 }
 
 const isFilterableDimension = (
@@ -326,6 +330,7 @@ const isFilterableDimension = (
         DimensionType.NUMBER,
         DimensionType.DATE,
         DimensionType.TIMESTAMP,
+        DimensionType.BOOLEAN,
     ].includes(dimension.type);
 
 export const filterableDimensionsOnly = (

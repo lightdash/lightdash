@@ -15,6 +15,7 @@ import {
     StringFilterGroupForm,
 } from './StringFilterForm';
 import {
+    defaultValuesForNewBooleanFilter,
     defaultValuesForNewNumberFilter,
     NumberFilterGroupForm,
 } from './NumberFilterForm';
@@ -25,12 +26,14 @@ import {
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useExplore } from '../hooks/useExplore';
 import { assertFilterId } from './FilterRow';
+import BooleanFilterGroupForm from './BooleanFilter/BooleanFilterGroupForm';
 
 type FilterGroupFormProps = {
     filterGroup: FilterGroup;
     onDelete: () => void;
     onChange: (filterGroup: FilterGroup) => void;
 };
+
 const FilterGroupForm = ({
     filterGroup,
     onDelete,
@@ -72,8 +75,15 @@ const FilterGroupForm = ({
                     onChange={onChange}
                 />
             );
+        case 'boolean':
+            return (
+                <BooleanFilterGroupForm
+                    filterGroup={filterGroup}
+                    onChange={onChange}
+                />
+            );
         default:
-            // eslint-disable-next-line
+            // eslint-disable-next-line no-case-declarations
             const nope: never = filterGroup;
             throw Error(`Filter group form not implemented for ${groupType}`);
     }
@@ -120,42 +130,60 @@ const AddFilterGroup = () => {
 
         // Add a default filter group as a placeholder for the new filter group
         const dimensionType = dimension.type;
+        console.log('dimensionType', dimensionType);
+        const createFilterGroup = ({
+            operator,
+            filters,
+        }: {
+            operator: FilterGroupOperator;
+            filters: any[];
+        }): FilterGroup => ({
+            type: dimensionType,
+            tableName: dimension.table,
+            fieldName: dimension.name,
+            operator,
+            filters,
+        });
         switch (dimensionType) {
             case DimensionType.STRING:
-                onAdd({
-                    type: 'string',
-                    tableName: dimension.table,
-                    fieldName: dimension.name,
-                    operator: FilterGroupOperator.and,
-                    filters: [defaultValuesForNewStringFilter.equals], // Default empty equals filter
-                });
+                onAdd(
+                    createFilterGroup({
+                        operator: FilterGroupOperator.and,
+                        filters: [defaultValuesForNewStringFilter.equals],
+                    }),
+                );
                 break;
             case DimensionType.NUMBER:
-                onAdd({
-                    type: 'number',
-                    tableName: dimension.table,
-                    fieldName: dimension.name,
-                    operator: FilterGroupOperator.and,
-                    filters: [defaultValuesForNewNumberFilter.equals], // Default empty equals filter
-                });
+                onAdd(
+                    createFilterGroup({
+                        operator: FilterGroupOperator.and,
+                        filters: [defaultValuesForNewNumberFilter.equals],
+                    }),
+                );
                 break;
             case DimensionType.DATE:
-                onAdd({
-                    type: 'date',
-                    tableName: dimension.table,
-                    fieldName: dimension.name,
-                    operator: FilterGroupOperator.and,
-                    filters: [defaultValuesForNewDateFilter.equals], // Default empty equals filter
-                });
+                onAdd(
+                    createFilterGroup({
+                        operator: FilterGroupOperator.and,
+                        filters: [defaultValuesForNewDateFilter.equals],
+                    }),
+                );
                 break;
             case DimensionType.TIMESTAMP:
-                onAdd({
-                    type: 'timestamp',
-                    tableName: dimension.table,
-                    fieldName: dimension.name,
-                    operator: FilterGroupOperator.and,
-                    filters: [defaultValuesForNewDateFilter.equals], // Default empty equals filter
-                });
+                onAdd(
+                    createFilterGroup({
+                        operator: FilterGroupOperator.and,
+                        filters: [defaultValuesForNewDateFilter.equals],
+                    }),
+                );
+                break;
+            case DimensionType.BOOLEAN:
+                onAdd(
+                    createFilterGroup({
+                        operator: FilterGroupOperator.and,
+                        filters: [defaultValuesForNewBooleanFilter.is],
+                    }),
+                );
                 break;
             default:
                 // eslint-disable-next-line no-case-declarations

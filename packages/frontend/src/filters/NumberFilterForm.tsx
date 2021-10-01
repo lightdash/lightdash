@@ -1,6 +1,6 @@
 import { ControlGroup, NumericInput, TagInput } from '@blueprintjs/core';
 import React from 'react';
-import { NumberFilter, NumberFilterGroup } from 'common';
+import { BooleanFilter, NumberFilter, NumberFilterGroup } from 'common';
 import { FilterRow, SelectFilterOperator } from './FilterRow';
 
 export const defaultValuesForNewNumberFilter: {
@@ -22,6 +22,12 @@ const options: { value: NumberFilter['operator']; label: string }[] = [
     { value: 'lessThan', label: 'is less than' },
     { value: 'greaterThan', label: 'is greater than' },
 ];
+
+export const defaultValuesForNewBooleanFilter: {
+    [key in BooleanFilter['operator']]: BooleanFilter;
+} = {
+    is: { operator: 'is', value: false },
+};
 
 type NumberFilterFormProps = {
     filter: NumberFilter;
