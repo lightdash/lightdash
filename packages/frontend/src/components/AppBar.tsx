@@ -67,7 +67,10 @@ const AppBar = () => {
                         errorLogs={errorLogs}
                         setErrorLogsVisible={setErrorLogsVisible}
                     />
-                    <NavbarHeading style={{ marginRight: 5 }}>
+                    <NavbarHeading
+                        style={{ marginRight: 5 }}
+                        data-cy="heading-username"
+                    >
                         {user.data?.firstName} {user.data?.lastName}
                     </NavbarHeading>
                     <NavbarDivider />
@@ -78,6 +81,7 @@ const AppBar = () => {
                             intent="none"
                             loading={isLoading}
                             onClick={() => setIsSettingsOpen(true)}
+                            data-cy="settings-button"
                         />
                     </Tooltip2>
                     <Tooltip2 content="Logout">

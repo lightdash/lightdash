@@ -1,7 +1,7 @@
 import { USER_SEED } from 'common';
 
 describe('Login', () => {
-    it('Should login successfully =', () => {
+    it('Should login successfully', () => {
         cy.visit('/login');
         cy.get('[data-cy="email"]').type(USER_SEED.email);
         cy.get('[ data-cy="password"]').type(USER_SEED.password);
