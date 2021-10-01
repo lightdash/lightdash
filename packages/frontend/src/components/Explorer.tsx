@@ -15,7 +15,7 @@ import { Popover2 } from '@blueprintjs/popover2';
 import { DBChartTypes, SavedQuery } from 'common';
 import EChartsReact from 'echarts-for-react';
 import { useLocation } from 'react-router-dom';
-import { FiltersForm } from '../filters/FiltersForm';
+import FiltersForm from '../filters';
 import { ResultsTable } from './ResultsTable';
 import { SimpleChart } from './SimpleChart';
 import { RenderedSql } from './RenderedSql';

@@ -1,7 +1,6 @@
-import { ControlGroup, NumericInput, TagInput } from '@blueprintjs/core';
+import { NumericInput, TagInput } from '@blueprintjs/core';
 import React from 'react';
-import { BooleanFilter, NumberFilter, NumberFilterGroup } from 'common';
-import { FilterRow, SelectFilterOperator } from './FilterRow';
+import { BooleanFilter, NumberFilter } from 'common';
 
 export const defaultValuesForNewNumberFilter: {
     [key in NumberFilter['operator']]: NumberFilter;
@@ -13,15 +12,6 @@ export const defaultValuesForNewNumberFilter: {
     greaterThan: { operator: 'greaterThan', value: 0 },
     lessThan: { operator: 'lessThan', value: 0 },
 };
-
-const options: { value: NumberFilter['operator']; label: string }[] = [
-    { value: 'notEquals', label: 'is not equal to' },
-    { value: 'equals', label: 'is equal to' },
-    { value: 'notNull', label: 'is not null' },
-    { value: 'isNull', label: 'is null' },
-    { value: 'lessThan', label: 'is less than' },
-    { value: 'greaterThan', label: 'is greater than' },
-];
 
 export const defaultValuesForNewBooleanFilter: {
     [key in BooleanFilter['operator']]: BooleanFilter;
@@ -121,73 +111,4 @@ const NumberFilterForm = ({ filter, onChange }: NumberFilterFormProps) => {
     }
 };
 
-type NumberFilterGroupFormProps = {
-    filterGroup: NumberFilterGroup;
-    onChange: (filterGroup: NumberFilterGroup) => void;
-};
-export const NumberFilterGroupForm = ({
-    filterGroup,
-    onChange,
-}: NumberFilterGroupFormProps) => {
-    const defaultNewFilter: NumberFilter = { operator: 'equals', values: [] };
-    return (
-        <>
-            {filterGroup.filters.map((filter, index) => (
-                <FilterRow
-                    key={filter.id}
-                    isFirst={index === 0}
-                    isLast={index === filterGroup.filters.length - 1}
-                    tableName={filterGroup.tableName}
-                    fieldName={filterGroup.fieldName}
-                    onAdd={() =>
-                        onChange({
-                            ...filterGroup,
-                            filters: [...filterGroup.filters, defaultNewFilter],
-                        })
-                    }
-                    onDelete={() =>
-                        onChange({
-                            ...filterGroup,
-                            filters: [
-                                ...filterGroup.filters.slice(0, index),
-                                ...filterGroup.filters.slice(index + 1),
-                            ],
-                        })
-                    }
-                >
-                    <ControlGroup style={{ width: '100%' }}>
-                        <SelectFilterOperator
-                            value={filter.operator}
-                            options={options}
-                            onChange={(operator) =>
-                                onChange({
-                                    ...filterGroup,
-                                    filters: [
-                                        ...filterGroup.filters.slice(0, index),
-                                        defaultValuesForNewNumberFilter[
-                                            operator
-                                        ],
-                                        ...filterGroup.filters.slice(index + 1),
-                                    ],
-                                })
-                            }
-                        />
-                        <NumberFilterForm
-                            filter={filter}
-                            onChange={(fg) =>
-                                onChange({
-                                    ...filterGroup,
-                                    filters: [
-                                        ...filterGroup.filters.slice(0, index),
-                                        fg,
-                                        ...filterGroup.filters.slice(index + 1),
-                                    ],
-                                })
-                            }
-                        />
-                    </ControlGroup>
-                </FilterRow>
-            ))}
-        </>
-    );
-};
+export default NumberFilterForm;
