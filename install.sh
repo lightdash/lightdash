@@ -124,9 +124,9 @@ track() {
   }'
   URL="https://analytics.lightdash.com/v1/track"
   HEADER='Content-Type: application/json'
-#  HEADER_AUTH='Authorization: Basic MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg=='
+  HEADER_AUTH='Authorization: Basic MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg=='
 #  for dev:
-  HEADER_AUTH='Authorization: Basic MXZpa2VHYWR0QjBZMG9SREZOTDJQcmRoa2JwOg=='
+#  HEADER_AUTH='Authorization: Basic MXZpa2VHYWR0QjBZMG9SREZOTDJQcmRoa2JwOg=='
 
 
   if has_curl; then
