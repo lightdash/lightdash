@@ -6,6 +6,7 @@ import {
     getFields,
     isDimension,
     SortField,
+    TableCalculation,
 } from 'common';
 import React, { useMemo } from 'react';
 import { Column } from 'react-table';
@@ -121,7 +122,9 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                     return [
                         ...acc,
                         {
-                            Header: <b>{tableCalculation.displayName}</b>,
+                            Header: (
+                                <b>{friendlyName(tableCalculation.name)}</b>
+                            ),
                             accessor: fieldId,
                             Cell: getMetricFormatter(),
                             type: 'table_calculation',

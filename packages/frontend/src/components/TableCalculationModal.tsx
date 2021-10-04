@@ -8,12 +8,13 @@ import {
     Intent,
 } from '@blueprintjs/core';
 import AceEditor from 'react-ace';
-import { snakeCaseName, TableCalculation } from 'common';
+import { hasSpecialCharacters, snakeCaseName, TableCalculation } from 'common';
 import { useApp } from '../providers/AppProvider';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useExplorerAceEditorCompleter } from '../hooks/useExplorerAceEditorCompleter';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
+import { useColumns } from '../hooks/useColumns';
 
 const SQL_PLACEHOLDER =
     // eslint-disable-next-line no-template-curly-in-string
@@ -35,6 +36,7 @@ const TableCalculationModal: FC<Props> = ({
     onClose,
 }) => {
     const { showToastError } = useApp();
+    const columns = useColumns();
     const [name, setName] = useState<string>();
     const [sql, setSql] = useState<string>();
     const { setAceEditor } = useExplorerAceEditorCompleter();
@@ -48,16 +50,36 @@ const TableCalculationModal: FC<Props> = ({
 
     const handleSave = () => {
         if (name && sql) {
-            try {
-                onSave({
-                    name: snakeCaseName(name),
-                    displayName: name,
-                    sql,
-                });
-            } catch (e) {
+            if (!hasSpecialCharacters(name)) {
+                if (
+                    !columns.some(
+                        ({ accessor }, index) =>
+                            tableCalculation?.index !== index &&
+                            accessor === snakeCaseName(name),
+                    )
+                ) {
+                    try {
+                        onSave({
+                            name: snakeCaseName(name),
+                            displayName: name,
+                            sql,
+                        });
+                    } catch (e) {
+                        showToastError({
+                            title: 'Error saving',
+                            subtitle: e.message,
+                        });
+                    }
+                } else {
+                    showToastError({
+                        title: 'Column with same name already exists',
+                    });
+                }
+            } else {
                 showToastError({
-                    title: 'Error saving',
-                    subtitle: e.message,
+                    title: 'Special characters found in column name',
+                    subtitle:
+                        'Please remove any special characters from the column name',
                 });
             }
         } else {

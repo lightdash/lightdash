@@ -147,12 +147,14 @@ const getItemStyle = (
 });
 
 interface ItemProps {
+    index?: number;
     column?: HeaderGroup;
     provided: DraggableProvided;
     snapshot: DraggableStateSnapshot;
 }
 
 const Item: FC<ItemProps> = ({
+    index,
     column,
     provided: { draggableProps, innerRef, dragHandleProps },
     snapshot,
@@ -176,7 +178,7 @@ const Item: FC<ItemProps> = ({
             )}
         {column?.tableCalculation && (
             <TableCalculationHeaderButton
-                tableCalculation={column.tableCalculation}
+                tableCalculation={{ ...column.tableCalculation, index }}
             />
         )}
     </div>
@@ -360,6 +362,9 @@ export const ResultsTable = () => {
                                                                         snapshot,
                                                                     ) => (
                                                                         <Item
+                                                                            index={
+                                                                                index
+                                                                            }
                                                                             column={
                                                                                 column
                                                                             }

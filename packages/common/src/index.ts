@@ -207,6 +207,7 @@ export interface CompiledMetric extends Metric {
 }
 
 export type TableCalculation = {
+    index?: number;
     name: string;
     displayName: string;
     sql: string;
@@ -441,10 +442,14 @@ export const friendlyName = (text: string): string => {
     return [capitalize(first), ...rest].join(' ');
 };
 
-export const snakeCaseName = (text: string): string => {
-    const words = text.toLowerCase().match(/[a-z]+/g) || [];
-    return words.join('_');
-};
+export const snakeCaseName = (text: string): string =>
+    text
+        .replace(/\W+/g, ' ')
+        .split(/ |\B(?=[A-Z])/)
+        .map((word) => word.toLowerCase())
+        .join('_');
+
+export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 
 // DBT CONFIG
 export type DbtNode = {
