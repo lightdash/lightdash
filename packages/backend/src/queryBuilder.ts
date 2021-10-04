@@ -112,7 +112,7 @@ const renderDateFilterSql = (
 const renderBooleanFilterSql = (
     dimensionSql: string,
     filter: BooleanFilter,
-): string => `(${dimensionSql}) = ('${filter.value}')`;
+): string => `(${dimensionSql}) = ${filter.value}`;
 
 const renderFilterGroupSql = (
     filterGroup: FilterGroup,
