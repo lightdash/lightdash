@@ -16,13 +16,13 @@ You add joins to your YAML files under the `meta` tag at the model level:
 version: 2
 
 models:
-  - name: users
-    meta:
-      joins:
-        - join: segment_web_sessions
-          sql_on: ${segment_web_sessions.user_id} = ${users.user_id}
+- name: users
+  meta:
+    joins:
+      - join: segment_web_sessions
+        sql_on: ${segment_web_sessions.user_id} = ${users.user_id}
 
-    columns:
+  columns:
 ```
 
 Once you've added a join, you can refresh Lightdash to see your changes in action. The dimensions and metrics of the joined model are included in the list on the left, right below the original model:
