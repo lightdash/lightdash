@@ -7,7 +7,6 @@ import {
     Colors,
     Divider,
     Icon,
-    Intent,
     Switch,
 } from '@blueprintjs/core';
 
@@ -48,12 +47,6 @@ const Content: React.FC<ContentProps> = ({ chartConfig }) => (
                     label={displayName}
                     alignIndicator={Alignment.RIGHT}
                     onChange={() => chartConfig.toggleYMetric(name)}
-                    disabled={
-                        chartConfig.seriesLayout.yMetrics?.find(
-                            (m) => m === name,
-                        ) === undefined &&
-                        chartConfig.seriesLayout.groupDimension !== undefined
-                    }
                 />
             </div>
         ))}
@@ -77,13 +70,7 @@ const Content: React.FC<ContentProps> = ({ chartConfig }) => (
                     }
                     label={friendlyName(metric)}
                     alignIndicator={Alignment.RIGHT}
-                    onChange={(e) => chartConfig.toggleYMetric(metric)}
-                    disabled={
-                        chartConfig.seriesLayout.yMetrics?.find(
-                            (m) => m === metric,
-                        ) === undefined &&
-                        chartConfig.seriesLayout.groupDimension !== undefined
-                    }
+                    onChange={() => chartConfig.toggleYMetric(metric)}
                 />
             </div>
         ))}
@@ -127,11 +114,7 @@ const Content: React.FC<ContentProps> = ({ chartConfig }) => (
                                     : dimension,
                             )
                         }
-                        disabled={
-                            (chartConfig.seriesLayout.yMetrics &&
-                                chartConfig.seriesLayout.yMetrics.length > 1) ||
-                            chartConfig.dimensionOptions.length <= 1
-                        }
+                        disabled={chartConfig.dimensionOptions.length <= 1}
                     >
                         Group
                     </Button>

@@ -12,10 +12,10 @@ const flipXFromChartType = (chartType: DBChartTypes) => {
             return false;
         case DBChartTypes.BAR:
             return true;
-        default:
-            // eslint-disable-next-line
+        default: {
             const nope: never = chartType;
             return undefined;
+        }
     }
 };
 const echartType = (chartType: DBChartTypes) => {
@@ -28,10 +28,10 @@ const echartType = (chartType: DBChartTypes) => {
             return 'bar';
         case DBChartTypes.SCATTER:
             return 'scatter';
-        default:
-            // eslint-disable-next-line
+        default: {
             const nope: never = chartType;
             return undefined;
+        }
     }
 };
 
@@ -59,6 +59,7 @@ export const SimpleChart: FC<SimpleChartProps> = ({
     const xlabel = friendlyName(chartConfig.seriesLayout.xDimension);
     const ylabel =
         chartConfig.seriesLayout.groupDimension &&
+        chartConfig.seriesLayout.yMetrics.length === 1 &&
         friendlyName(chartConfig.seriesLayout.yMetrics[0]);
     const xType = 'category';
     const yType = 'value';
@@ -85,9 +86,9 @@ export const SimpleChart: FC<SimpleChartProps> = ({
             2,
     };
 
-    const series = chartConfig.series
-        .map(() => ({ type: echartType(chartType) }))
-        .slice(0, 10); // not more than 10 lines
+    const series = chartConfig.series.map(() => ({
+        type: echartType(chartType),
+    }));
     const options = {
         xAxis,
         yAxis,
