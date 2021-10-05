@@ -1,20 +1,15 @@
-import React, { FC, useEffect, useState } from 'react';
-import {
-    Button,
-    Classes,
-    Dialog,
-    FormGroup,
-    InputGroup,
-    Intent,
-} from '@blueprintjs/core';
-import AceEditor from 'react-ace';
+import React, { FC } from 'react';
+import { Button, Classes, Dialog, Intent } from '@blueprintjs/core';
 import { hasSpecialCharacters, snakeCaseName, TableCalculation } from 'common';
+import { useForm } from 'react-hook-form';
 import { useApp } from '../providers/AppProvider';
 import { useExplorer } from '../providers/ExplorerProvider';
-import { useExplorerAceEditorCompleter } from '../hooks/useExplorerAceEditorCompleter';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
 import { useColumns } from '../hooks/useColumns';
+import Form from './ReactHookForm/Form';
+import Input from './ReactHookForm/Input';
+import Textarea from './ReactHookForm/Textarea';
 
 const SQL_PLACEHOLDER =
     // eslint-disable-next-line no-template-curly-in-string
@@ -28,6 +23,11 @@ interface Props {
     onClose: () => void;
 }
 
+type TableCalculationFormInputs = {
+    name: string;
+    sql: string;
+};
+
 const TableCalculationModal: FC<Props> = ({
     isOpen,
     isDisabled,
@@ -37,27 +37,26 @@ const TableCalculationModal: FC<Props> = ({
 }) => {
     const { showToastError } = useApp();
     const columns = useColumns();
-    const [name, setName] = useState<string>();
-    const [sql, setSql] = useState<string>();
-    const { setAceEditor } = useExplorerAceEditorCompleter();
+    const methods = useForm<TableCalculationFormInputs>({
+        mode: 'onSubmit',
+        defaultValues: {
+            name: tableCalculation?.displayName,
+            sql: tableCalculation?.sql,
+        },
+    });
 
-    useEffect(() => {
-        if (tableCalculation) {
-            setName(tableCalculation.displayName);
-            setSql(tableCalculation.sql);
-        }
-    }, [tableCalculation]);
-
-    const handleSave = () => {
-        if (name && sql) {
-            if (!hasSpecialCharacters(name)) {
-                if (
-                    !columns.some(
-                        ({ accessor }, index) =>
-                            tableCalculation?.index !== index &&
-                            accessor === snakeCaseName(name),
-                    )
-                ) {
+    return (
+        <Dialog
+            isOpen={isOpen}
+            onClose={() => (!isDisabled ? onClose() : undefined)}
+            title="Save"
+            lazy
+            canOutsideClickClose
+        >
+            <Form
+                methods={methods}
+                onSubmit={(data) => {
+                    const { name, sql } = data;
                     try {
                         onSave({
                             name: snakeCaseName(name),
@@ -70,87 +69,55 @@ const TableCalculationModal: FC<Props> = ({
                             subtitle: e.message,
                         });
                     }
-                } else {
-                    showToastError({
-                        title: 'Column with same name already exists',
-                    });
-                }
-            } else {
-                showToastError({
-                    title: 'Special characters found in column name',
-                    subtitle:
-                        'Please remove any special characters from the column name',
-                });
-            }
-        } else {
-            showToastError({
-                title: 'Required fields: name, sql',
-                timeout: 3000,
-            });
-        }
-    };
-
-    return (
-        <Dialog
-            isOpen={isOpen}
-            onClose={() => (!isDisabled ? onClose() : undefined)}
-            title="Save"
-            lazy
-            canOutsideClickClose
-        >
-            <div className={Classes.DIALOG_BODY}>
-                <FormGroup
-                    label="Name"
-                    labelFor="name-input"
-                    labelInfo="(required)"
-                    helperText={
-                        name ? (
-                            <span style={{ marginLeft: 2 }}>
-                                ID: {snakeCaseName(name)}
-                            </span>
-                        ) : undefined
-                    }
-                >
-                    <InputGroup
-                        id="name-input"
-                        type="text"
-                        required
+                }}
+            >
+                <div className={Classes.DIALOG_BODY}>
+                    <Input
+                        label="Name"
+                        name="name"
                         disabled={isDisabled}
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                    />
-                </FormGroup>
-                <FormGroup
-                    label="SQL"
-                    labelFor="sql-input"
-                    labelInfo="(required)"
-                >
-                    <AceEditor
-                        onLoad={setAceEditor}
-                        name="sql-input"
-                        readOnly={isDisabled}
-                        height="100px"
-                        width="100%"
-                        value={sql}
-                        onChange={(value) => setSql(value)}
-                        editorProps={{ $blockScrolling: true }}
-                        enableBasicAutocompletion
-                        enableLiveAutocompletion
-                        placeholder={SQL_PLACEHOLDER}
-                    />
-                </FormGroup>
-            </div>
-            <div className={Classes.DIALOG_FOOTER}>
-                <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                    <Button onClick={onClose}>Cancel</Button>
-                    <Button
-                        intent={Intent.PRIMARY}
-                        text="Save"
-                        onClick={handleSave}
-                        loading={isDisabled}
+                        rules={{
+                            required: true,
+                            validate: {
+                                special_character: (columnName) =>
+                                    !hasSpecialCharacters(columnName) ||
+                                    'Please remove any special characters from the column name',
+                                unique_column_name: (columnName) =>
+                                    !columns.some(
+                                        ({ accessor }, index) =>
+                                            tableCalculation?.index !== index &&
+                                            accessor ===
+                                                snakeCaseName(columnName),
+                                    ) || 'Column with same name already exists',
+                            },
+                        }}
                     />
                 </div>
-            </div>
+                <Textarea
+                    name="sql"
+                    label="SQL"
+                    attributes={{
+                        readOnly: isDisabled,
+                        height: '100px',
+                        width: '100%',
+                        editorProps: { $blockScrolling: true },
+                        enableBasicAutocompletion: true,
+                        enableLiveAutocompletion: true,
+                    }}
+                    placeholder={SQL_PLACEHOLDER}
+                />
+                <div className={Classes.DIALOG_FOOTER}>
+                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+                        <Button onClick={onClose}>Cancel</Button>
+                        <Button
+                            type="submit"
+                            intent={Intent.PRIMARY}
+                            text="Save"
+                            loading={isDisabled}
+                        />
+                    </div>
+                </div>
+            </Form>
         </Dialog>
     );
 };
