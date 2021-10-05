@@ -28,7 +28,7 @@ const pivot = (
     dimensions: CompiledDimension[],
     indexKey: string,
     pivotKey: string,
-    metricKey: string,
+    metricKeys: string[],
 ) => {
     const indexDimensionFormatter = getDimensionFormatterByKey(
         dimensions,
@@ -41,7 +41,14 @@ const pivot = (
                     indexDimensionFormatter?.({ value: value[indexKey] }) ??
                     value[indexKey],
             };
-            acc[value[indexKey]][value[pivotKey]] = value[metricKey];
+            if (metricKeys.length > 1) {
+                metricKeys.forEach((metricKey) => {
+                    acc[value[indexKey]][`${value[pivotKey]} ${metricKey}`] =
+                        value[metricKey];
+                });
+            } else {
+                acc[value[indexKey]][value[pivotKey]] = value[metricKeys[0]];
+            }
             return acc;
         }, {}),
     );
@@ -178,7 +185,7 @@ export const useChartConfig = (
                 } else {
                     yMetrics =
                         intersection.length > 0
-                            ? intersection.slice(0, 1)
+                            ? intersection
                             : possibleYMetrics.slice(0, 1);
                 }
                 return {
@@ -204,17 +211,15 @@ export const useChartConfig = (
     const setGroupDimension = (groupDimension: string | undefined) => {
         if (queryResults.data)
             setSeriesLayout((layout) => {
-                const yMetrics =
-                    groupDimension &&
-                    layout.yMetrics &&
-                    layout.yMetrics.length > 1
-                        ? [layout.yMetrics[0]]
-                        : layout.yMetrics;
                 const xDimension =
                     groupDimension === layout.xDimension
                         ? dimensionOptions.find((d) => d !== groupDimension)
                         : layout.xDimension;
-                return { groupDimension, yMetrics, xDimension };
+                return {
+                    groupDimension,
+                    yMetrics: layout.yMetrics,
+                    xDimension,
+                };
             });
     };
 
@@ -250,7 +255,44 @@ export const useChartConfig = (
             },
         ];
 
-        if (groupDimension) {
+        if (groupDimension && seriesLayout.yMetrics.length > 1) {
+            let groupChartDimensions: ChartConfig['eChartDimensions'];
+            const dimensionFormatter = getDimensionFormatterByKey(
+                dimensions,
+                groupDimension,
+            );
+
+            [series, groupChartDimensions] = queryResults.data.rows.reduce<
+                [string[], ChartConfig['eChartDimensions']]
+            >(
+                ([prevSeries, prevGroupChartDimensions], r) => {
+                    seriesLayout.yMetrics.forEach((metricKey) => {
+                        const key = r[groupDimension];
+                        const combinedKey = `${key} ${metricKey}`;
+                        prevSeries.push(combinedKey);
+                        prevGroupChartDimensions.push({
+                            name: combinedKey,
+                            displayName: dimensionFormatter
+                                ? `[${dimensionFormatter({
+                                      value: key,
+                                  })}] ${friendlyName(metricKey)}`
+                                : friendlyName(combinedKey),
+                        });
+                    });
+                    return [[...prevSeries], [...prevGroupChartDimensions]];
+                },
+                [[], []],
+            );
+
+            eChartDimensions.push(...groupChartDimensions);
+            plotData = pivot(
+                queryResults.data.rows,
+                dimensions,
+                seriesLayout.xDimension,
+                groupDimension,
+                seriesLayout.yMetrics,
+            );
+        } else if (groupDimension) {
             series = Array.from(
                 new Set(queryResults.data.rows.map((r) => r[groupDimension])),
             );
@@ -272,7 +314,7 @@ export const useChartConfig = (
                 dimensions,
                 seriesLayout.xDimension,
                 groupDimension,
-                seriesLayout.yMetrics[0],
+                seriesLayout.yMetrics,
             );
         } else {
             series = seriesLayout.yMetrics;
