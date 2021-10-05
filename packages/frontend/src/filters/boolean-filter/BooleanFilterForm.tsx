@@ -5,7 +5,7 @@ import { HTMLSelect } from '@blueprintjs/core';
 export const defaultValuesForNewBooleanFilter: {
     [key in BooleanFilter['operator']]: BooleanFilter;
 } = {
-    equals: { operator: 'equals', value: false },
+    equals: { operator: 'equals', value: true },
     isNull: { operator: 'isNull' },
     notNull: { operator: 'notNull' },
 };
