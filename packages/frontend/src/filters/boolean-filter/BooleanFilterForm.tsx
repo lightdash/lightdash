@@ -2,24 +2,50 @@ import React from 'react';
 import { BooleanFilter } from 'common';
 import { HTMLSelect } from '@blueprintjs/core';
 
+export const defaultValuesForNewBooleanFilter: {
+    [key in BooleanFilter['operator']]: BooleanFilter;
+} = {
+    equals: { operator: 'equals', value: false },
+    isNull: { operator: 'isNull' },
+    notNull: { operator: 'notNull' },
+};
+
 type BooleanFilterFormProps = {
     filter: BooleanFilter;
     onChange: (filter: BooleanFilter) => void;
 };
 
-const BooleanFilterForm = ({ filter, onChange }: BooleanFilterFormProps) => (
-    <HTMLSelect
-        fill
-        minimal
-        onChange={(e) =>
-            onChange({ ...filter, value: e.currentTarget.value === 'true' })
-        }
-        options={[
-            { value: 'true', label: 'True' },
-            { value: 'false', label: 'False' },
-        ]}
-        value={filter.value ? 'true' : 'false'}
-    />
-);
+const BooleanFilterForm = ({ filter, onChange }: BooleanFilterFormProps) => {
+    const { operator } = filter;
+    switch (filter.operator) {
+        case 'isNull':
+        case 'notNull':
+            return <div />;
+        case 'equals':
+            return (
+                <HTMLSelect
+                    fill
+                    minimal
+                    onChange={(e) =>
+                        onChange({
+                            ...filter,
+                            value: e.currentTarget.value === 'true',
+                        })
+                    }
+                    options={[
+                        { value: 'true', label: 'True' },
+                        { value: 'false', label: 'False' },
+                    ]}
+                    value={filter.value ? 'true' : 'false'}
+                />
+            );
+        default:
+            // eslint-disable-next-line
+            const nope: never = filter;
+            throw Error(
+                `No form implemented for Boolean filter operator ${operator}`,
+            );
+    }
+};
 
 export default BooleanFilterForm;

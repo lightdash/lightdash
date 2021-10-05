@@ -291,7 +291,10 @@ export type NumberFilter =
     | { operator: 'isNull'; id?: string }
     | { operator: 'notNull'; id?: string };
 
-export type BooleanFilter = { operator: 'is'; value?: boolean; id?: string };
+export type BooleanFilter =
+    | { operator: 'equals'; value?: boolean; id?: string }
+    | { operator: 'isNull'; id?: string }
+    | { operator: 'notNull'; id?: string };
 
 export type DateAndTimestampFilter =
     | { operator: 'equals'; value: Date; id?: string }

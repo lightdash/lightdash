@@ -112,7 +112,21 @@ const renderDateFilterSql = (
 const renderBooleanFilterSql = (
     dimensionSql: string,
     filter: BooleanFilter,
-): string => `(${dimensionSql}) = ${filter.value}`;
+): string => {
+    const { operator } = filter;
+    switch (filter.operator) {
+        case 'equals':
+            return `(${dimensionSql}) = ${filter.value}`;
+        case 'isNull':
+            return `(${dimensionSql}) IS NULL`;
+        case 'notNull':
+            return `(${dimensionSql}) IS NOT NULL`;
+        default:
+            throw Error(
+                `No function implemented to render sql for filter type ${operator} on dimension of boolean type`,
+            );
+    }
+};
 
 const renderFilterGroupSql = (
     filterGroup: FilterGroup,

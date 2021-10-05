@@ -13,11 +13,9 @@ import { Button, HTMLSelect } from '@blueprintjs/core';
 import { useExplorer } from '../../providers/ExplorerProvider';
 import { useExplore } from '../../hooks/useExplore';
 import { defaultValuesForNewStringFilter } from '../string-filter/StringFilterForm';
-import {
-    defaultValuesForNewBooleanFilter,
-    defaultValuesForNewNumberFilter,
-} from '../number-filter/NumberFilterForm';
+import { defaultValuesForNewNumberFilter } from '../number-filter/NumberFilterForm';
 import { defaultValuesForNewDateFilter } from '../date-filter/DateFilterForm';
+import { defaultValuesForNewBooleanFilter } from '../boolean-filter/BooleanFilterForm';
 
 const AddFilterGroup = () => {
     const {
@@ -103,7 +101,7 @@ const AddFilterGroup = () => {
             case DimensionType.BOOLEAN:
                 onAdd(
                     createFilterGroup({
-                        filters: [defaultValuesForNewBooleanFilter.is],
+                        filters: [defaultValuesForNewBooleanFilter.equals],
                     }),
                 );
                 break;
