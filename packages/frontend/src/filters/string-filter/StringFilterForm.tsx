@@ -48,6 +48,7 @@ const StringFilterForm = ({ filter, onChange }: StringFilterFormProps) => {
             return (
                 <TagInput
                     fill
+                    addOnBlur
                     tagProps={{ minimal: true }}
                     values={filter.values}
                     onAdd={(values) =>
