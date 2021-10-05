@@ -66,10 +66,7 @@ cd lightdash
 ### Start learning Lightdash:
 
 * [Play with a UI demo](https://demo.lightdash.com) (*no setup*)
-* [Setup Lightdash via cli (recommended)](https://docs.lightdash.com/get-started/setup-with-cli) (*requires your own dbt project*)
-* [Setup Lightdash manually](https://docs.lightdash.com/get-started/setup-a-local-dbt-project) (*requires your own dbt project*)
-* [Setup Lightdash in Heroku with dbt cloud](https://docs.lightdash.com/get-started/setup-a-dbt-cloud-project) (*requires your own dbt project on dbtCloud*)
-* [Setup Lightdash in Heroku with GitHub](https://docs.lightdash.com/get-started/setup-a-github-project) (*requires your own dbt project on GitHub*)
+* [Install Lightdash](https://docs.lightdash.com/get-started/setup-lightdash/install-lightdash) (*requires your own dbt project*)
 
 ### Guides:
 
