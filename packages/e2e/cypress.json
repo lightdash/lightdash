@@ -1,3 +1,7 @@
 {
-  "baseUrl": "http://localhost:3000"
+  "baseUrl": "http://localhost:3000",
+  "env": {
+    "RUDDERSTACK_WRITE_KEY": "",
+    "RUDDERSTACK_DATA_PLANE_URL": ""
+  }
 }
