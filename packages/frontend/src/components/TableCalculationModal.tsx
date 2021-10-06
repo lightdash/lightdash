@@ -36,7 +36,9 @@ const TableCalculationModal: FC<Props> = ({
     onClose,
 }) => {
     const { showToastError } = useApp();
-    const columns = useColumns();
+    const {
+        state: { dimensions, metrics, tableCalculations },
+    } = useExplorer();
     const methods = useForm<TableCalculationFormInputs>({
         mode: 'onSubmit',
         defaultValues: {
@@ -83,12 +85,27 @@ const TableCalculationModal: FC<Props> = ({
                                     !hasSpecialCharacters(columnName) ||
                                     'Please remove any special characters from the column name',
                                 unique_column_name: (columnName) =>
-                                    !columns.some(
-                                        ({ accessor }, index) =>
-                                            tableCalculation?.index !== index &&
-                                            accessor ===
+                                    !dimensions
+                                        .concat(metrics)
+                                        .concat(
+                                            tableCalculations
+                                                .filter(
+                                                    ({ name }) =>
+                                                        !tableCalculation ||
+                                                        name !==
+                                                            tableCalculation.name,
+                                                )
+                                                .map(
+                                                    ({ displayName }) =>
+                                                        displayName,
+                                                ),
+                                        )
+                                        .some(
+                                            (fieldName, index) =>
+                                                fieldName ===
                                                 snakeCaseName(columnName),
-                                    ) || 'Column with same name already exists',
+                                        ) ||
+                                    'Column with same name already exists',
                             },
                         }}
                     />
