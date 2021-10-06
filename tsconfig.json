@@ -6,5 +6,5 @@
   ],
   "files": [],
   "include": [],
-  "exclude": ["**/node_modules"]
+  "exclude": ["**/node_modules", "packages/e2e/cypress/integration/**", "packages/backend/**/*.test.ts", "packages/backend/**/*.mock.ts"]
 }
