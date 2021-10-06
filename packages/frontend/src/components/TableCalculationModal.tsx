@@ -109,20 +109,20 @@ const TableCalculationModal: FC<Props> = ({
                             },
                         }}
                     />
+                    <Textarea
+                        name="sql"
+                        label="SQL"
+                        attributes={{
+                            readOnly: isDisabled,
+                            height: '100px',
+                            width: '100%',
+                            editorProps: { $blockScrolling: true },
+                            enableBasicAutocompletion: true,
+                            enableLiveAutocompletion: true,
+                        }}
+                        placeholder={SQL_PLACEHOLDER}
+                    />
                 </div>
-                <Textarea
-                    name="sql"
-                    label="SQL"
-                    attributes={{
-                        readOnly: isDisabled,
-                        height: '100px',
-                        width: '100%',
-                        editorProps: { $blockScrolling: true },
-                        enableBasicAutocompletion: true,
-                        enableLiveAutocompletion: true,
-                    }}
-                    placeholder={SQL_PLACEHOLDER}
-                />
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>
                         <Button onClick={onClose}>Cancel</Button>
