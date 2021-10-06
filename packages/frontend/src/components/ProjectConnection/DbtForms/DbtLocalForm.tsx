@@ -8,7 +8,7 @@ const DbtLocalForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             This connection type should only be used for local development. Read
             docs{' '}
             <a
-                href="https://docs.lightdash.com/get-started/setup-with-cli#with-local-dbt-project"
+                href="https://docs.lightdash.com/get-started/setup-lightdash/install-lightdash#2-install--launch-lightdash"
                 target="_blank"
                 rel="noreferrer"
             >

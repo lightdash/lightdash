@@ -124,9 +124,9 @@ track() {
   }'
   URL="https://analytics.lightdash.com/v1/track"
   HEADER='Content-Type: application/json'
-  HEADER_AUTH='Authorization: Basic MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg=='
+#  HEADER_AUTH='Authorization: Basic MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg=='
 #  for dev:
-#  HEADER_AUTH='Authorization: Basic MXZpa2VHYWR0QjBZMG9SREZOTDJQcmRoa2JwOg=='
+  HEADER_AUTH='Authorization: Basic MXZpa2VHYWR0QjBZMG9SREZOTDJQcmRoa2JwOg=='
 
 
   if has_curl; then
@@ -390,7 +390,7 @@ start_docker
 
 echo ""
 echo -e "\n🟡 Pulling the latest container images for Lightdash. To run as sudo it may ask for system password\n"
-sudo LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" docker-compose -f docker-compose.yml pull
+sudo LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" PGPASSWORD="password" LIGHTDASH_SECRET="not very secret" docker-compose -f docker-compose.yml pull
 
 echo ""
 echo "🟡 Starting the Lightdash containers. It may take a few minutes ..."
@@ -398,9 +398,9 @@ echo
 # The docker-compose command does some nasty stuff for the `--detach` functionality. So we add a `|| true` so that the
 # script doesn't exit because this command looks like it failed to do it's thing.
 if [[ $setup_type == 'local_dbt' ]]; then
-    sudo LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" PORT="$port" DBT_PROJECT_DIR="$dbt_project_dir" docker-compose -f docker-compose.yml up --detach --remove-orphans || true
+    sudo LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" PORT="$port" PGPASSWORD="password" LIGHTDASH_SECRET="not very secret" DBT_PROJECT_DIR="$dbt_project_dir" docker-compose -f docker-compose.yml up --detach --remove-orphans || true
 else
-    sudo LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" PORT="$port" docker-compose -f docker-compose.yml up --detach --remove-orphans || true
+    sudo LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" PORT="$port" PGPASSWORD="password" LIGHTDASH_SECRET="not very secret" docker-compose -f docker-compose.yml up --detach --remove-orphans || true
 fi
 
 wait_for_containers_start 60
