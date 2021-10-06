@@ -3,12 +3,14 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
-- remove special characters from table calculation column name
-- add ability to filter fields of boolean type
 
+## [0.8.2] - 2021-10-06
+### Added
+- Add ability to filter fields of boolean type
 
 ### Changed
 - Data will be sorted by default. Priority: date/time dimension -> first metric`` -> first dimension
+- Table calculation names no longer support special characters
 
 ### Fixed
 - Fixed a bug where chart config would reset after running a query
