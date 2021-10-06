@@ -1,8 +1,15 @@
-import { Field, friendlyName, getFieldRef } from 'common';
+import {
+    CompiledDimension,
+    CompiledMetric,
+    Field,
+    friendlyName,
+    getFieldRef,
+} from 'common';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { Ace } from 'ace-builds';
 import langTools from 'ace-builds/src-noconflict/ext-language_tools';
 import { useExplore } from './useExplore';
+import { useExplorer } from '../providers/ExplorerProvider';
 
 const createCompleter: (fields: Ace.Completion[]) => Ace.Completer = (
     fields,
@@ -34,7 +41,25 @@ export const useExplorerAceEditorCompleter = (): {
     setAceEditor: Dispatch<SetStateAction<Ace.Editor | undefined>>;
 } => {
     const explore = useExplore();
+    const {
+        state: { activeFields },
+    } = useExplorer();
     const [aceEditor, setAceEditor] = useState<Ace.Editor>();
+
+    const filterByActiveFields = (
+        tableFields: Record<string, CompiledMetric | CompiledDimension>,
+        selectedFields: Set<string>,
+    ) =>
+        Object.keys(tableFields)
+            .filter((field) =>
+                Array.from(selectedFields).includes(
+                    `${tableFields[field].table}_${tableFields[field].name}`,
+                ),
+            )
+            .reduce<Record<string, CompiledMetric | CompiledDimension>>(
+                (acc, field) => ({ ...acc, [field]: tableFields[field] }),
+                {},
+            );
 
     useEffect(() => {
         if (aceEditor && explore.data) {
@@ -45,22 +70,26 @@ export const useExplorerAceEditorCompleter = (): {
                 (acc, table) => [
                     ...acc,
                     ...mapFieldsToCompletions(
-                        Object.values(table.metrics),
+                        Object.values(
+                            filterByActiveFields(table.metrics, activeFields),
+                        ),
                         'Metric',
                     ),
                     ...mapFieldsToCompletions(
-                        Object.values(table.dimensions),
+                        Object.values(
+                            filterByActiveFields(
+                                table.dimensions,
+                                activeFields,
+                            ),
+                        ),
                         'Dimension',
                     ),
                 ],
                 [],
             );
-            langTools.setCompleters([
-                ...aceEditor.completers,
-                createCompleter(fields),
-            ]);
+            langTools.setCompleters([createCompleter(fields)]);
         }
-    }, [aceEditor, explore]);
+    }, [aceEditor, explore, activeFields]);
 
     return {
         setAceEditor,
