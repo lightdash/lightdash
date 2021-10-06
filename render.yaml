@@ -57,7 +57,5 @@ envVarGroups:
     envVars:
       - key: RUDDERSTACK_WRITE_KEY
         value: 1vikeGadtB0Y0oRDFNL2Prdhkbp
-        sync: false
       - key: RUDDERSTACK_DATA_PLANE_URL
         value: https://analytics.lightdash.com
-        sync: false
