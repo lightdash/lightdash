@@ -4,6 +4,7 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 - show warning message for postgres or redshift users
+- filter dimensions and metrics by active fields in table calculation
 
 ## [0.8.2] - 2021-10-06
 ### Added
