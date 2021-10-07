@@ -4,6 +4,7 @@ import {
     InviteLink,
     CreateOrganizationUser,
     LightdashUser,
+    LightdashMode,
 } from 'common';
 
 import { nanoid } from 'nanoid';
@@ -13,6 +14,7 @@ import { analytics, identifyUser } from '../analytics/client';
 import { UserModel } from '../models/UserModel';
 import { mapDbUserDetailsToLightdashUser } from '../models/User';
 import { SessionModel } from '../models/SessionModel';
+import { lightdashConfig } from '../config/lightdashConfig';
 
 type UserServiceDependencies = {
     inviteLinkModel: InviteLinkModel;
@@ -45,6 +47,10 @@ export class UserService {
         identifyUser(lightdashUser);
         analytics.track({
             organizationId: user.organization_uuid,
+            type:
+                lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                    ? 'cloud'
+                    : 'self-hosted',
             event: 'user.created',
             userId: lightdashUser.userUuid,
         });

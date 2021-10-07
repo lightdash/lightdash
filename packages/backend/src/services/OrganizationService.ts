@@ -1,9 +1,15 @@
-import { OrganizationProject, OrganizationUser, SessionUser } from 'common';
+import {
+    OrganizationProject,
+    OrganizationUser,
+    SessionUser,
+    LightdashMode,
+} from 'common';
 import { NotExistsError } from '../errors';
 import { analytics } from '../analytics/client';
 import { OrganizationModel } from '../models/OrganizationModel';
 import { UserModel } from '../models/UserModel';
 import { ProjectModel } from '../models/ProjectModel';
+import { lightdashConfig } from '../config/lightdashConfig';
 
 type OrganizationServiceDependencies = {
     organizationModel: OrganizationModel;
@@ -38,6 +44,10 @@ export class OrganizationService {
         }
         await this.organizationModel.update(organizationUuid, data);
         analytics.track({
+            type:
+                lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                    ? 'cloud'
+                    : 'self-hosted',
             userId: user.userUuid,
             event: 'organization.updated',
             organizationId: organizationUuid,
