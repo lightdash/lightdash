@@ -33,6 +33,7 @@ export const UserModel = {
             const lightdashUser = mapDbUserDetailsToLightdashUser(user);
             identifyUser(lightdashUser);
             analytics.track({
+                organizationId: lightdashUser.organizationUuid,
                 userId: lightdashUser.userUuid,
                 event: 'user.logged_in',
             });
@@ -49,11 +50,13 @@ export const UserModel = {
         identifyUser(lightdashUser);
         analytics.track({
             event: 'user.created',
+            organizationId: lightdashUser.organizationUuid,
             userId: lightdashUser.userUuid,
         });
         analytics.track({
             event: 'organization.created',
             userId: lightdashUser.userUuid,
+            organizationId: lightdashUser.organizationUuid,
             properties: {
                 organizationUuid: lightdashUser.organizationUuid,
                 organizationName: lightdashUser.organizationName,
@@ -80,6 +83,7 @@ export const UserModel = {
         identifyUser(lightdashUser);
         analytics.track({
             userId: lightdashUser.userUuid,
+            organizationId: lightdashUser.organizationUuid,
             event: 'user.updated',
         });
         return lightdashUser;
@@ -103,6 +107,7 @@ export const UserModel = {
         await updatePassword(userId, data.newPassword);
         analytics.track({
             userId: user.user_uuid,
+            organizationId: user.organization_uuid,
             event: 'password.updated',
         });
     },

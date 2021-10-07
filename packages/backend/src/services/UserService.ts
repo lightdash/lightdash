@@ -44,6 +44,7 @@ export class UserService {
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         identifyUser(lightdashUser);
         analytics.track({
+            organizationId: user.organization_uuid,
             event: 'user.created',
             userId: lightdashUser.userUuid,
         });
@@ -68,6 +69,7 @@ export class UserService {
 
         await this.userModel.delete(userUuid);
         analytics.track({
+            organizationId: user.organizationUuid,
             event: 'user.deleted',
             userId: user.userUuid,
             properties: {
@@ -92,6 +94,7 @@ export class UserService {
             organizationUuid,
         );
         analytics.track({
+            organizationId: organizationUuid,
             userId: user.userUuid,
             event: 'invite_link.created',
         });
@@ -108,6 +111,7 @@ export class UserService {
         }
         await this.inviteLinkModel.deleteByOrganization(organizationUuid);
         analytics.track({
+            organizationId: organizationUuid,
             userId: user.userUuid,
             event: 'invite_link.all_revoked',
         });
