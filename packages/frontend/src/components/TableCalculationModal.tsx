@@ -120,19 +120,18 @@ const TableCalculationModal: FC<Props> = ({
                     {(targetDatabase === 'postgres' ||
                         targetDatabase === 'redshift') && (
                         <Callout
-                            intent="warning"
+                            intent="none"
+                            icon="info-sign"
                             style={{ marginTop: 20, marginBottom: 20 }}
-                            title="Arithmetic limitation"
                         >
                             <p>
                                 {' '}
-                                Please note that since you are using{' '}
-                                {targetDatabase}, arithmetic operations between
-                                2 numbers won&apos;t return decimals.
+                                Since you&apos;re using {targetDatabase},
+                                dividing and taking the average of two integers
+                                won&apos;t return decimals.
                                 <div style={{ marginTop: '5px' }}>
                                     If you want to see all the digits, you have
-                                    the possibility to cast one of the number as
-                                    a decimal:{' '}
+                                    to cast one of your integers as a decimal:{' '}
                                     <span style={{ color: 'grey' }}>
                                         $&#123;table_name.field_name&#125;::decimal/$&#123;table_name.field_name&#125;
                                     </span>
