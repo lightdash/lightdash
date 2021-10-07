@@ -37,7 +37,7 @@ type TrackSimpleEvent = BaseTrack & {
 type TrackOrganizationEvent = BaseTrack & {
     event: 'organization.created' | 'organization.updated';
     properties: {
-        organizationUuid: string;
+        organizationId: string;
         organizationName: string;
     };
 };
@@ -64,7 +64,7 @@ type ProjectEvent = BaseTrack & {
     event: 'project.updated' | 'project.created';
     userId: string;
     properties: {
-        projectUuid: string;
+        projectId: string;
         projectType: ProjectType;
         warehouseConnectionType?: WarehouseTypes;
     };

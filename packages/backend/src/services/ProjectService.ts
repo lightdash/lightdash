@@ -80,7 +80,7 @@ export class ProjectService {
             projectId: projectUuid,
             organizationId: user.organizationUuid,
             properties: {
-                projectUuid,
+                projectId: projectUuid,
                 projectType: data.dbtConnection.type,
                 warehouseConnectionType: data.warehouseConnection?.type,
             },
@@ -101,7 +101,7 @@ export class ProjectService {
             projectId: projectUuid,
             organizationId: user.organizationUuid,
             properties: {
-                projectUuid,
+                projectId: projectUuid,
                 projectType: data.dbtConnection.type,
                 warehouseConnectionType: data.warehouseConnection?.type,
             },
