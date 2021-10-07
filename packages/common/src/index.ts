@@ -281,6 +281,7 @@ export type StringFilter =
     | { operator: 'equals'; values: string[]; id?: string }
     | { operator: 'notEquals'; values: string[]; id?: string }
     | { operator: 'startsWith'; value: string; id?: string }
+    | { operator: 'doesNotInclude'; value: string; id?: string }
     | { operator: 'isNull'; id?: string }
     | { operator: 'notNull'; id?: string };
 

@@ -34,6 +34,8 @@ const renderStringFilterSql = (
                 : `(${dimensionSql}) NOT IN (${filter.values
                       .map((v) => `'${v}'`)
                       .join(',')})`;
+        case 'doesNotInclude':
+            return `(${dimensionSql}) NOT LIKE '%${filter.value}%'`;
         case 'isNull':
             return `(${dimensionSql}) IS NULL`;
         case 'notNull':
