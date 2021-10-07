@@ -58,7 +58,7 @@ export const UserModel = {
             userId: lightdashUser.userUuid,
             organizationId: lightdashUser.organizationUuid,
             properties: {
-                organizationUuid: lightdashUser.organizationUuid,
+                organizationId: lightdashUser.organizationUuid,
                 organizationName: lightdashUser.organizationName,
             },
         });
