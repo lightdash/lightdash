@@ -77,6 +77,8 @@ export class ProjectService {
         analytics.track({
             event: 'project.created',
             userId: user.userUuid,
+            projectId: projectUuid,
+            organizationId: user.organizationUuid,
             properties: {
                 projectUuid,
                 projectType: data.dbtConnection.type,
@@ -96,6 +98,8 @@ export class ProjectService {
         analytics.track({
             event: 'project.updated',
             userId: user.userUuid,
+            projectId: projectUuid,
+            organizationId: user.organizationUuid,
             properties: {
                 projectUuid,
                 projectType: data.dbtConnection.type,
@@ -160,6 +164,8 @@ export class ProjectService {
         exploreName: string,
     ): Promise<ApiQueryResults> {
         await analytics.track({
+            projectId: projectUuid,
+            organizationId: user.organizationUuid,
             userId: user.userUuid,
             event: 'query.executed',
         });
@@ -191,6 +197,8 @@ export class ProjectService {
             analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,
+                organizationId: user.organizationUuid,
+                projectId: projectUuid,
                 properties: {
                     projectType: project.dbtConnection.type,
                 },
@@ -200,6 +208,8 @@ export class ProjectService {
             analytics.track({
                 event: 'project.error',
                 userId: user.userUuid,
+                projectId: projectUuid,
+                organizationId: user.organizationUuid,
                 properties: {
                     name: errorResponse.name,
                     statusCode: errorResponse.statusCode,

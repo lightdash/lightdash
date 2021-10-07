@@ -179,6 +179,7 @@ projectRouter.post(
         SavedQueriesModel.create(
             req.user!.userUuid,
             req.params.projectUuid,
+            req.user!.organizationUuid,
             req.body.savedQuery,
         )
             .then((results) => {

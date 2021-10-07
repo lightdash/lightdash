@@ -23,12 +23,15 @@ export const SavedQueriesModel = {
     },
     create: async (
         userUuid: string,
-        projectUuid: string,
+        projectId: string,
+        organizationId: string,
         savedQuery: CreateSavedQuery,
     ): Promise<SavedQuery> => {
-        const newSavedQuery = await createSavedQuery(projectUuid, savedQuery);
+        const newSavedQuery = await createSavedQuery(projectId, savedQuery);
         analytics.track({
             event: 'saved_chart.created',
+            projectId,
+            organizationId,
             userId: userUuid,
             properties: {
                 savedQueryId: newSavedQuery.uuid,
@@ -38,11 +41,16 @@ export const SavedQueriesModel = {
     },
     getById: async (savedQueryUuid: string): Promise<SavedQuery> =>
         getSavedQueryByUuid(database, savedQueryUuid),
-    delete: async (userUuid: string, savedQueryUuid: string): Promise<void> => {
+    delete: async (
+        userUuid: string,
+        organizationId: string,
+        savedQueryUuid: string,
+    ): Promise<void> => {
         await deleteSavedQuery(database, savedQueryUuid);
         analytics.track({
             event: 'saved_chart.deleted',
             userId: userUuid,
+            organizationId,
             properties: {
                 savedQueryId: savedQueryUuid,
             },
@@ -50,6 +58,7 @@ export const SavedQueriesModel = {
     },
     update: async (
         userUuid: string,
+        organizationId: string,
         savedQueryUuid: string,
         data: UpdateSavedQuery,
     ): Promise<SavedQuery> => {
@@ -57,6 +66,7 @@ export const SavedQueriesModel = {
         analytics.track({
             event: 'saved_chart.updated',
             userId: userUuid,
+            organizationId,
             properties: {
                 savedQueryId: savedQueryUuid,
             },
@@ -65,6 +75,7 @@ export const SavedQueriesModel = {
     },
     addVersion: async (
         userUuid: string,
+        organizationId: string,
         savedQueryUuid: string,
         data: CreateSavedQueryVersion,
     ): Promise<SavedQuery> => {
@@ -72,6 +83,7 @@ export const SavedQueriesModel = {
         analytics.track({
             event: 'saved_chart_version.created',
             userId: userUuid,
+            organizationId,
             properties: {
                 savedQueryId: savedQuery.uuid,
             },
