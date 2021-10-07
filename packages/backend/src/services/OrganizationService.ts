@@ -42,7 +42,7 @@ export class OrganizationService {
             event: 'organization.updated',
             organizationId: organizationUuid,
             properties: {
-                organizationUuid,
+                organizationId: organizationUuid,
                 organizationName,
             },
         });
