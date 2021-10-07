@@ -40,6 +40,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const location = useLocation<{ fromExplorer?: boolean } | undefined>();
     const {
         state: {
+            chartName,
             tableName,
             dimensions,
             metrics,
@@ -115,8 +116,12 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         display: 'flex',
                         flexDirection: 'row',
                         justifyContent: 'flex-end',
+                        alignItems: 'center',
                     }}
                 >
+                    <div style={{ flex: 1, justifyContent: 'flex-start' }}>
+                        {chartName}
+                    </div>
                     <RefreshButton />
                     <RefreshServerButton />
                     <Popover2

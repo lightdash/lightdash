@@ -25,6 +25,7 @@ const SavedExplorer = () => {
     useEffect(() => {
         if (data) {
             setState({
+                chartName: data.name,
                 tableName: data.tableName,
                 dimensions: data.metricQuery.dimensions,
                 metrics: data.metricQuery.metrics,
