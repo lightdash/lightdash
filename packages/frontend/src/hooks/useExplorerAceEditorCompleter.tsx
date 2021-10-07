@@ -2,6 +2,7 @@ import {
     CompiledDimension,
     CompiledMetric,
     Field,
+    fieldId,
     friendlyName,
     getFieldRef,
 } from 'common';
@@ -19,22 +20,28 @@ const createCompleter: (fields: Ace.Completion[]) => Ace.Completer = (
     },
 });
 
-const mapFieldsToCompletions = (
+const mapActiveFieldsToCompletions = (
     fields: Field[],
+    selectedFields: Set<string>,
     meta: string,
 ): Ace.Completion[] =>
     fields.reduce<Ace.Completion[]>((acc, field) => {
-        const technicalOption: Ace.Completion = {
-            caption: `\${${getFieldRef(field)}}`,
-            value: `\${${getFieldRef(field)}}`,
-            meta,
-            score: Number.MAX_VALUE,
-        };
-        const friendlyOption: Ace.Completion = {
-            ...technicalOption,
-            caption: `${friendlyName(field.table)} ${friendlyName(field.name)}`,
-        };
-        return [...acc, technicalOption, friendlyOption];
+        if (Array.from(selectedFields).includes(fieldId(field))) {
+            const technicalOption: Ace.Completion = {
+                caption: `\${${getFieldRef(field)}}`,
+                value: `\${${getFieldRef(field)}}`,
+                meta,
+                score: Number.MAX_VALUE,
+            };
+            const friendlyOption: Ace.Completion = {
+                ...technicalOption,
+                caption: `${friendlyName(field.table)} ${friendlyName(
+                    field.name,
+                )}`,
+            };
+            return [...acc, technicalOption, friendlyOption];
+        }
+        return [...acc];
     }, []);
 
 export const useExplorerAceEditorCompleter = (): {
@@ -69,19 +76,14 @@ export const useExplorerAceEditorCompleter = (): {
             >(
                 (acc, table) => [
                     ...acc,
-                    ...mapFieldsToCompletions(
-                        Object.values(
-                            filterByActiveFields(table.metrics, activeFields),
-                        ),
+                    ...mapActiveFieldsToCompletions(
+                        Object.values(table.metrics),
+                        activeFields,
                         'Metric',
                     ),
-                    ...mapFieldsToCompletions(
-                        Object.values(
-                            filterByActiveFields(
-                                table.dimensions,
-                                activeFields,
-                            ),
-                        ),
+                    ...mapActiveFieldsToCompletions(
+                        Object.values(table.dimensions),
+                        activeFields,
                         'Dimension',
                     ),
                 ],
