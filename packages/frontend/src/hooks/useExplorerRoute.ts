@@ -49,6 +49,7 @@ export const useExplorerRoute = () => {
                         .get('selected_table_calculations')
                         ?.split(',') || [];
                 setState({
+                    chartName: '',
                     tableName: pathParams.tableId,
                     dimensions,
                     metrics,

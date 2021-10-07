@@ -65,6 +65,7 @@ type Action =
       };
 
 interface ExplorerReduceState {
+    chartName: string | undefined;
     tableName: string | undefined;
     selectedTableCalculations: FieldId[];
     dimensions: FieldId[];
@@ -118,6 +119,7 @@ const toggleArrayValue = (initialArray: string[], value: string): string[] => {
 const Context = createContext<ExplorerContext>(undefined as any);
 
 const defaultState: ExplorerReduceState = {
+    chartName: '',
     tableName: undefined,
     dimensions: [],
     metrics: [],
