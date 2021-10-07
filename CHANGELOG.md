@@ -6,6 +6,7 @@ Recent and upcoming changes to lightdash
 - show warning message for postgres or redshift users
 - filter dimensions and metrics by active fields in table calculation
 - exclude test files from build
+- show name of the saved chart in the explorer
 
 ## [0.8.2] - 2021-10-06
 ### Added
