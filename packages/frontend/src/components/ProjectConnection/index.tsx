@@ -23,6 +23,7 @@ import {
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { useApp } from '../../providers/AppProvider';
+import DocumentationHelpButton from '../DocumentationHelpButton';
 
 type ProjectConnectionForm = {
     dbt: DbtProjectConfig;
@@ -52,7 +53,12 @@ const ProjectForm: FC<Props> = ({ disabled, defaultType, methods }) => {
                 }}
                 elevation={1}
             >
-                <H5 style={{ flex: 1 }}>dbt connection</H5>
+                <div style={{ flex: 1 }}>
+                    <H5 style={{ display: 'inline', marginRight: 5 }}>
+                        dbt connection
+                    </H5>
+                    <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
+                </div>
                 <div style={{ flex: 1 }}>
                     <DbtSettingsForm disabled={disabled} type={type} />
                 </div>
@@ -65,7 +71,12 @@ const ProjectForm: FC<Props> = ({ disabled, defaultType, methods }) => {
                 }}
                 elevation={1}
             >
-                <H5 style={{ flex: 1 }}>Warehouse connection</H5>
+                <div style={{ flex: 1 }}>
+                    <H5 style={{ display: 'inline', marginRight: 5 }}>
+                        Warehouse connection
+                    </H5>
+                    <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
+                </div>
                 <div style={{ flex: 1 }}>
                     {type &&
                     [

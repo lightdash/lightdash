@@ -15,6 +15,7 @@ const PostgresForm: FC<{
             <Input
                 name="warehouse.host"
                 label="Host"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#host"
                 rules={{
                     required: 'Required field',
                 }}
@@ -23,6 +24,7 @@ const PostgresForm: FC<{
             <Input
                 name="warehouse.user"
                 label="User"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#user"
                 rules={{
                     required: 'Required field',
                 }}
@@ -31,6 +33,7 @@ const PostgresForm: FC<{
             <PasswordInput
                 name="warehouse.password"
                 label="Password"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#password"
                 rules={{
                     required: 'Required field',
                 }}
@@ -39,6 +42,7 @@ const PostgresForm: FC<{
             <Input
                 name="warehouse.dbname"
                 label="DB name"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#db-name"
                 rules={{
                     required: 'Required field',
                 }}
@@ -47,6 +51,7 @@ const PostgresForm: FC<{
             <Input
                 name="warehouse.schema"
                 label="Schema"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#schema"
                 rules={{
                     required: 'Required field',
                 }}
@@ -56,6 +61,7 @@ const PostgresForm: FC<{
                 <NumericInput
                     name="warehouse.port"
                     label="Port"
+                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#port"
                     rules={{
                         required: 'Required field',
                     }}
@@ -65,6 +71,7 @@ const PostgresForm: FC<{
                 <NumericInput
                     name="warehouse.threads"
                     label="Threads"
+                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#threads-1"
                     rules={{
                         required: 'Required field',
                     }}
@@ -74,6 +81,7 @@ const PostgresForm: FC<{
                 <NumericInput
                     name="warehouse.keepalivesIdle"
                     label="Keep alive idle (seconds)"
+                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#keep-alive-idle-seconds"
                     rules={{
                         required: 'Required field',
                     }}
@@ -83,11 +91,13 @@ const PostgresForm: FC<{
                 <Input
                     name="warehouse.searchPath"
                     label="Search path"
+                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#search-path"
                     disabled={disabled}
                 />
                 <Input
                     name="warehouse.sslmode"
                     label="SSL mode"
+                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#ssl-mode"
                     disabled={disabled}
                 />
                 <Input name="warehouse.role" label="Role" disabled={disabled} />

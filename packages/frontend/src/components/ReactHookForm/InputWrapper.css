@@ -1,0 +1,11 @@
+.bp3-form-group.input-wrapper label.bp3-label {
+    display: inline-flex;
+    gap: 3px;
+}
+
+.bp3-form-group.input-wrapper .bp3-text-muted {
+    flex: 1;
+    display: inline-flex;
+    gap: 3px;
+    padding-right: 7px;
+}
