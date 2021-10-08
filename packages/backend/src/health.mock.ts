@@ -1,3 +1,5 @@
+import { LightdashMode } from 'common';
+
 export const Image = {
     creator: 12969647,
     id: 150371595,
@@ -51,4 +53,17 @@ export const ImagesResponse = {
     next: 'https://hub.docker.com/v2/repositories/lightdash/lightdash/tags?page=2',
     previous: null,
     results: [DevImage, OldImage, LatestImage, Image],
+};
+
+export const BaseResponse = {
+    healthy: true,
+    version: '0.1.0',
+    rudder: undefined,
+    mode: LightdashMode.DEFAULT,
+    isAuthenticated: false,
+    localDbtEnabled: true,
+    needsSetup: false,
+    needsProject: false,
+    defaultProject: undefined,
+    latest: { version: Image.name },
 };

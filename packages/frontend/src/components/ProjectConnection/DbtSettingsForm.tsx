@@ -7,6 +7,7 @@ import DbtRemoteForm from './DbtForms/DbtRemoteForm';
 import DbtCloudForm from './DbtForms/DbtCloudForm';
 import GitlabForm from './DbtForms/GitlabForm';
 import SelectField from '../ReactHookForm/Select';
+import { useApp } from '../../providers/AppProvider';
 
 interface DbtSettingsFormProps {
     disabled: boolean;
@@ -14,6 +15,25 @@ interface DbtSettingsFormProps {
 }
 
 const DbtSettingsForm: FC<DbtSettingsFormProps> = ({ disabled, type }) => {
+    const { health } = useApp();
+
+    const options = useMemo(() => {
+        const enabledTypes = [
+            ProjectType.DBT_CLOUD_IDE,
+            ProjectType.GITHUB,
+            ProjectType.GITLAB,
+            ProjectType.DBT_REMOTE_SERVER,
+        ];
+        if (health.data?.localDbtEnabled) {
+            enabledTypes.push(ProjectType.DBT);
+        }
+
+        return enabledTypes.map((value) => ({
+            value,
+            label: ProjectTypeLabels[value],
+        }));
+    }, [health]);
+
     const form = useMemo(() => {
         switch (type) {
             case ProjectType.DBT:
@@ -40,12 +60,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({ disabled, type }) => {
             <SelectField
                 name="dbt.type"
                 label="Type"
-                options={Object.entries(ProjectTypeLabels).map(
-                    ([value, label]) => ({
-                        value,
-                        label,
-                    }),
-                )}
+                options={options}
                 rules={{
                     required: 'Required field',
                 }}

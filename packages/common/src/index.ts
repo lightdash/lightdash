@@ -708,12 +708,20 @@ export enum LightdashMode {
     CLOUD_BETA = 'cloud_beta',
 }
 
+export enum LightdashInstallType {
+    DOCKER_IMAGE = 'docker_image',
+    BASH_INSTALL = 'bash_install',
+    HEROKU = 'heroku',
+    UNKNOWN = 'unknown',
+}
+
 export type HealthState = {
     healthy: boolean;
     mode: LightdashMode;
     version: string;
     needsSetup: boolean;
     needsProject: boolean;
+    localDbtEnabled: boolean;
     defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;
     latest: {
