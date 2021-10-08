@@ -126,7 +126,7 @@ export class LightdashAnalytics extends Analytics {
     identify(payload: Identify) {
         super.identify({
             ...payload,
-            context: LightdashAnalytics.lightdashContext,
+            context: { ...LightdashAnalytics.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
         });
     }
 
@@ -134,14 +134,14 @@ export class LightdashAnalytics extends Analytics {
         super.track({
             ...payload,
             event: `${LightdashAnalytics.lightdashContext.app.name}.${payload.event}`,
-            context: LightdashAnalytics.lightdashContext,
+            context: { ...LightdashAnalytics.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
         });
     }
 
     group(payload: Group) {
         super.group({
             ...payload,
-            context: LightdashAnalytics.lightdashContext,
+            context: { ...LightdashAnalytics.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
         });
     }
 }
