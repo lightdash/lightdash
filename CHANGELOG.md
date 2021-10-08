@@ -5,6 +5,7 @@ Recent and upcoming changes to lightdash
 ## Unreleased
 ### Fixed
 - Fixed a bug where we had the local dbt option when connecting a project in Cloud and Heroku deployments
+- Fixed the snowflake connection form
 - show warning message for postgres or redshift users
 - filter dimensions and metrics by active fields in table calculation
 - exclude test files from build
