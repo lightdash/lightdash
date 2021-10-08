@@ -3,7 +3,7 @@ import { Button } from '@blueprintjs/core';
 import { useToggle } from 'react-use';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
-import SelectField from '../../ReactHookForm/Select';
+import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import FormSection from '../../ReactHookForm/FormSection';
 
@@ -87,25 +87,12 @@ const SnowflakeForm: FC<{
                     disabled={disabled}
                     defaultValue={1}
                 />
-                <SelectField
+                <BooleanSwitch
                     name="warehouse.clientSessionKeepAlive"
                     label="Keep client session alive"
                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#keep-client-session-alive"
-                    options={[
-                        {
-                            value: 1,
-                            label: 'Yes',
-                        },
-                        {
-                            value: 0,
-                            label: 'No',
-                        },
-                    ]}
-                    rules={{
-                        required: 'Required field',
-                    }}
                     disabled={disabled}
-                    defaultValue={0}
+                    defaultValue={false}
                 />
                 <Input
                     name="warehouse.queryTag"
