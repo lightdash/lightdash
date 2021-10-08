@@ -5,6 +5,7 @@ import React, {
     useReducer,
     useMemo,
     useCallback,
+    useEffect,
 } from 'react';
 import { FieldId, FilterGroup, SortField, TableCalculation } from 'common';
 
@@ -409,6 +410,11 @@ export const ExplorerProvider: FC = ({ children }) => {
         },
         [reducerState],
     );
+
+    // trigger back end call to sort data
+    useEffect(() => {
+        syncState(undefined);
+    }, [reducerState.sorts]);
 
     const setState = useCallback((state: ExplorerReduceState) => {
         pristineDispatch({
