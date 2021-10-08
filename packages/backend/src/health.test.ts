@@ -1,9 +1,10 @@
 import fetchMock from 'jest-fetch-mock';
-import { LightdashMode } from 'common';
+import { LightdashInstallType, LightdashMode } from 'common';
 import { getHealthState } from './health';
-import { ImagesResponse, Image } from './health.mock';
+import { ImagesResponse, BaseResponse } from './health.mock';
 import { hasUsers } from './database/entities/users';
 import { projectService } from './services/services';
+import { lightdashConfig } from './config/lightdashConfig';
 
 jest.mock('./version', () => ({
     VERSION: '0.1.0',
@@ -35,6 +36,10 @@ jest.mock('./config/lightdashConfig', () => ({
 
 describe('health', () => {
     beforeEach(() => {
+        process.env = {
+            LIGHTDASH_INSTALL_TYPE: LightdashInstallType.UNKNOWN,
+        };
+        lightdashConfig.mode = LightdashMode.DEFAULT;
         fetchMock.mockResponse(async () => ({
             body: JSON.stringify(ImagesResponse),
         }));
@@ -45,30 +50,13 @@ describe('health', () => {
     });
 
     it('Should get current and latest version', async () => {
-        expect(await getHealthState(false)).toEqual({
-            healthy: true,
-            version: '0.1.0',
-            rudder: undefined,
-            mode: LightdashMode.DEFAULT,
-            isAuthenticated: false,
-            needsSetup: false,
-            needsProject: false,
-            defaultProject: undefined,
-            latest: { version: Image.name },
-        });
+        expect(await getHealthState(false)).toEqual(BaseResponse);
     });
     it('Should return last version as undefined when fails fetch', async () => {
         fetchMock.mockReject();
 
         expect(await getHealthState(false)).toEqual({
-            healthy: true,
-            version: '0.1.0',
-            rudder: undefined,
-            mode: LightdashMode.DEFAULT,
-            isAuthenticated: false,
-            needsSetup: false,
-            needsProject: false,
-            defaultProject: undefined,
+            ...BaseResponse,
             latest: { version: undefined },
         });
     });
@@ -76,15 +64,8 @@ describe('health', () => {
         (hasUsers as jest.Mock).mockImplementation(async () => false);
 
         expect(await getHealthState(false)).toEqual({
-            healthy: true,
-            version: '0.1.0',
-            rudder: undefined,
-            mode: LightdashMode.DEFAULT,
-            isAuthenticated: false,
+            ...BaseResponse,
             needsSetup: true,
-            needsProject: false,
-            defaultProject: undefined,
-            latest: { version: Image.name },
         });
     });
     it('Should return needsProject true and defaultProject if there are no projects in DB', async () => {
@@ -93,12 +74,7 @@ describe('health', () => {
         );
 
         expect(await getHealthState(false)).toEqual({
-            healthy: true,
-            version: '0.1.0',
-            rudder: undefined,
-            mode: LightdashMode.DEFAULT,
-            isAuthenticated: false,
-            needsSetup: false,
+            ...BaseResponse,
             needsProject: true,
             defaultProject: {
                 name: 'default',
@@ -106,20 +82,27 @@ describe('health', () => {
                 profiles_dir: '/',
                 project_dir: '/',
             },
-            latest: { version: Image.name },
         });
     });
     it('Should return isAuthenticated true', async () => {
         expect(await getHealthState(true)).toEqual({
-            healthy: true,
-            version: '0.1.0',
-            rudder: undefined,
-            mode: LightdashMode.DEFAULT,
+            ...BaseResponse,
             isAuthenticated: true,
-            needsSetup: false,
-            needsProject: false,
-            defaultProject: undefined,
-            latest: { version: Image.name },
+        });
+    });
+    it('Should return localDbtEnabled false when in cloud beta mode', async () => {
+        lightdashConfig.mode = LightdashMode.CLOUD_BETA;
+        expect(await getHealthState(false)).toEqual({
+            ...BaseResponse,
+            mode: LightdashMode.CLOUD_BETA,
+            localDbtEnabled: false,
+        });
+    });
+    it('Should return localDbtEnabled false when install type is heroku', async () => {
+        process.env.LIGHTDASH_INSTALL_TYPE = LightdashInstallType.HEROKU;
+        expect(await getHealthState(false)).toEqual({
+            ...BaseResponse,
+            localDbtEnabled: false,
         });
     });
 });

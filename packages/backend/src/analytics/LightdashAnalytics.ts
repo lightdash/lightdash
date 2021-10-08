@@ -3,7 +3,7 @@ import Analytics, {
     Track as AnalyticsTrack,
 } from '@rudderstack/rudder-sdk-node';
 import { v4 as uuidv4 } from 'uuid';
-import { ProjectType, WarehouseTypes } from 'common';
+import { LightdashInstallType, ProjectType, WarehouseTypes } from 'common';
 import { VERSION } from '../version';
 
 type Identify = {
@@ -117,7 +117,9 @@ export class LightdashAnalytics extends Analytics {
             name: 'lightdash_server',
             version: VERSION,
             installId: process.env.LIGHTDASH_INSTALL_ID || uuidv4(),
-            installType: process.env.LIGHTDASH_INSTALL_TYPE || 'unknown',
+            installType:
+                process.env.LIGHTDASH_INSTALL_TYPE ||
+                LightdashInstallType.UNKNOWN,
         },
     };
 
