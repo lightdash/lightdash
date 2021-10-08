@@ -23,6 +23,7 @@ export enum ActionType {
     ADD_TABLE_CALCULATION,
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
+    RESET_SORTING,
 }
 
 type Action =
@@ -63,6 +64,9 @@ type Action =
     | {
           type: ActionType.SET_COLUMN_ORDER;
           payload: string[];
+      }
+    | {
+          type: ActionType.RESET_SORTING;
       };
 
 interface ExplorerReduceState {
@@ -73,6 +77,7 @@ interface ExplorerReduceState {
     metrics: FieldId[];
     filters: FilterGroup[];
     sorts: SortField[];
+    sorting: boolean;
     columnOrder: string[];
     limit: number;
     tableCalculations: TableCalculation[];
@@ -126,6 +131,7 @@ const defaultState: ExplorerReduceState = {
     metrics: [],
     filters: [],
     sorts: [],
+    sorting: false,
     columnOrder: [],
     limit: 500,
     tableCalculations: [],
@@ -232,6 +238,7 @@ function reducer(
             );
             return {
                 ...state,
+                sorting: true,
                 sorts: !sortField
                     ? [
                           ...state.sorts,
@@ -268,6 +275,12 @@ function reducer(
                 sorts: action.payload.filter((sf) =>
                     activeFields.has(sf.fieldId),
                 ),
+            };
+        }
+        case ActionType.RESET_SORTING: {
+            return {
+                ...state,
+                sorting: false,
             };
         }
         case ActionType.SET_ROW_LIMIT: {
@@ -413,8 +426,11 @@ export const ExplorerProvider: FC = ({ children }) => {
 
     // trigger back end call to sort data
     useEffect(() => {
-        syncState(undefined);
-    }, [reducerState.sorts]);
+        if (reducerState.sorting) {
+            dispatch({ type: ActionType.RESET_SORTING });
+            syncState(undefined);
+        }
+    }, [reducerState.sorts, reducerState.sorting, syncState]);
 
     const setState = useCallback((state: ExplorerReduceState) => {
         pristineDispatch({
