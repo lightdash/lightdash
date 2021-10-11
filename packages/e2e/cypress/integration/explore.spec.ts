@@ -17,9 +17,6 @@ describe('Explore', () => {
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
         cy.get('th').findByText('First name').click();
-        cy.findAllByRole('button', { name: /Run query/i })
-            .first()
-            .click();
         cy.get('td', { timeout: 10000 }).first().should('have.text', 'Aaron');
     });
 });

@@ -5,7 +5,8 @@ Recent and upcoming changes to lightdash
 ## Unreleased
 ### Added
 - Add "does not include" in stringfilter
-
+### Changed
+- Sort data immediately when clicking on column header
 ### Fixed
 - Fixed a bug where we had the local dbt option when connecting a project in Cloud and Heroku deployments
 - Fixed the snowflake connection form
