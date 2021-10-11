@@ -3,6 +3,9 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+
+
+## [0.8.3] - 2021-10-11
 ### Added
 - Add "does not include" in stringfilter
 ### Changed
