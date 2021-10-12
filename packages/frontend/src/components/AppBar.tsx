@@ -73,7 +73,7 @@ const AppBar = () => {
                                     text="Dashboards"
                                     onClick={() =>
                                         push({
-                                            pathname: `/projects/${projectUuid}/dashboard`,
+                                            pathname: `/projects/${projectUuid}/dashboards`,
                                         })
                                     }
                                 />
