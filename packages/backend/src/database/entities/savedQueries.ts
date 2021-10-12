@@ -12,6 +12,8 @@ import database from '../database';
 import { getSpace } from './spaces';
 import { NotFoundError } from '../../errors';
 
+export const SavedQueriesTableName = 'saved_queries';
+
 type DbSavedQueryDetails = {
     saved_query_id: number;
     saved_query_uuid: string;
@@ -32,6 +34,12 @@ type DbSavedQuery = {
     name: string;
     created_at: Date;
 };
+
+export type SavedQueryTable = Knex.CompositeTableType<
+    DbSavedQuery,
+    Pick<DbSavedQuery, 'name' | 'space_id'>,
+    Pick<DbSavedQuery, 'name'>
+>;
 
 type DbSavedQueryVersion = {
     saved_queries_version_id: number;

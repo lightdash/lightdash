@@ -1088,3 +1088,39 @@ export type CreateProject = Omit<Project, 'projectUuid'> & {
 export type UpdateProject = Omit<Project, 'projectUuid'> & {
     warehouseConnection?: CreateWarehouseCredentials;
 };
+
+export enum DashboardTileTypes {
+    SAVED_CHART = 'saved_chart',
+}
+
+type DashboardTileBase = {
+    type: DashboardTileTypes;
+    x: number;
+    y: number;
+    h: number;
+    w: number;
+};
+
+type DashboardChartTile = DashboardTileBase & {
+    type: DashboardTileTypes.SAVED_CHART;
+    properties: {
+        savedChartUuid: string | null;
+    };
+};
+
+export type Dashboard = {
+    dashboardUuid: string;
+    name: string;
+    description: string;
+    updatedAt: Date;
+    tiles: DashboardChartTile[];
+};
+
+export type DashboardBasicDetails = Pick<
+    Dashboard,
+    'dashboardUuid' | 'name' | 'description' | 'updatedAt'
+>;
+
+export type CreateDashboard = Pick<Dashboard, 'name' | 'description' | 'tiles'>;
+export type UpdateDashboard = Pick<Dashboard, 'name' | 'description'>;
+export type AddDashboardVersion = Pick<Dashboard, 'tiles'>;
