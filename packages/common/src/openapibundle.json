@@ -239,6 +239,209 @@
                     }
                 }
             }
+        },
+        "/projects/{projectId}/dashboards": {
+            "post": {
+                "summary": "Create new dashboard on project",
+                "tags": ["dashboard"],
+                "operationId": "createDashboard",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "requestBody": {
+                    "description": "New dashboard specification",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateDashboard"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successfully created dashboard",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/Dashboard"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            },
+            "get": {
+                "summary": "List all dashboards in a project",
+                "tags": ["dashboard"],
+                "operationId": "getDashboards",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectId",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of all dashboards in project",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/DashboardListItem"
+                                                    }
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
+        "/dashboards/{dashboardId}": {
+            "get": {
+                "summary": "Get details for a single dashboard by dashboard_id",
+                "tags": ["dashboard"],
+                "operationId": "getDashboard",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "dashboardId",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Details for a single dashboard",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/Dashboard"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
+        "/dashboards/{dashboardId}/versions": {
+            "post": {
+                "summary": "Create new dashboard version",
+                "tags": ["dashboard"],
+                "operationId": "createDashboardVersion",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "dashboardId",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "requestBody": {
+                    "description": "New dashboard version specification",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateDashboard"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successfully created dashboard version",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/Dashboard"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
         }
     },
     "security": [
@@ -399,6 +602,119 @@
                     }
                 },
                 "required": ["expiresAt", "inviteCode"]
+            },
+            "DashboardListItem": {
+                "type": "object",
+                "properties": {
+                    "dashboardUuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "dashboardUuid",
+                    "name",
+                    "description",
+                    "updatedAt"
+                ]
+            },
+            "TilePropertiesChart": {
+                "type": "object",
+                "properties": {
+                    "savedChartUuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }
+            },
+            "DashboardTile": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": ["saved_chart"]
+                    },
+                    "properties": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/TilePropertiesChart"
+                            }
+                        ]
+                    },
+                    "x": {
+                        "type": "number"
+                    },
+                    "y": {
+                        "type": "number"
+                    },
+                    "h": {
+                        "type": "number"
+                    },
+                    "w": {
+                        "type": "number"
+                    }
+                },
+                "required": ["properties", "type", "x", "y", "h", "w"]
+            },
+            "CreateDashboard": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "tiles": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTile"
+                        }
+                    }
+                },
+                "required": ["tiles", "name", "description"]
+            },
+            "Dashboard": {
+                "type": "object",
+                "properties": {
+                    "dashboardUuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "tiles": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTile"
+                        }
+                    }
+                },
+                "required": [
+                    "dashboardUuid",
+                    "tiles",
+                    "name",
+                    "description",
+                    "updatedAt"
+                ]
             }
         },
         "responses": {

@@ -1,0 +1,26 @@
+{
+    "type": "object",
+    "properties": {
+        "dashboardUuid": {
+            "type": "string",
+            "format": "uuid"
+        },
+        "name": {
+            "type": "string"
+        },
+        "description": {
+            "type": "string"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "tiles": {
+            "type": "array",
+            "items": {
+                "$ref": "./DashboardTile.json"
+            }
+        }
+    },
+    "required": ["dashboardUuid", "tiles", "name", "description", "updatedAt"]
+}

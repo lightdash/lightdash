@@ -1,0 +1,9 @@
+{
+    "type": "object",
+    "properties": {
+        "savedChartUuid": {
+            "type": "string",
+            "format": "uuid"
+        }
+    }
+}
