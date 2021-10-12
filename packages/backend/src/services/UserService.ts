@@ -47,10 +47,6 @@ export class UserService {
         identifyUser(lightdashUser);
         analytics.track({
             organizationId: user.organization_uuid,
-            type:
-                lightdashConfig.mode === LightdashMode.CLOUD_BETA
-                    ? 'cloud'
-                    : 'self-hosted',
             event: 'user.created',
             userId: lightdashUser.userUuid,
         });
