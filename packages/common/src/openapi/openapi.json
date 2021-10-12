@@ -45,6 +45,15 @@
         },
         "/invite-links/{inviteLinkId}": {
             "$ref": "./paths/inviteLink.json"
+        },
+        "/projects/{projectId}/dashboards": {
+            "$ref": "./paths/projectDashboards.json"
+        },
+        "/dashboards/{dashboardId}": {
+            "$ref": "./paths/dashboards.json"
+        },
+        "/dashboards/{dashboardId}/versions": {
+            "$ref": "./paths/dashboardVersions.json"
         }
     },
     "security": [{ "cookieAuth": [] }],

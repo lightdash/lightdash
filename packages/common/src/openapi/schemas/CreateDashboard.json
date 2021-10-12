@@ -1,0 +1,18 @@
+{
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string"
+        },
+        "description": {
+            "type": "string"
+        },
+        "tiles": {
+            "type": "array",
+            "items": {
+                "$ref": "./DashboardTile.json"
+            }
+        }
+    },
+    "required": ["tiles", "name", "description"]
+}
