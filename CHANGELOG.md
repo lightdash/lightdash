@@ -3,7 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
-
+### Added
+- Add browse menu
 
 ## [0.8.3] - 2021-10-11
 ### Added

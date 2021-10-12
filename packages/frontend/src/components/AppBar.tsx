@@ -7,10 +7,15 @@ import {
     NavbarDivider,
     NavbarGroup,
     NavbarHeading,
+    Menu,
+    MenuItem,
+    Position,
+    Popover,
+    PopoverInteractionKind,
 } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { useMutation } from 'react-query';
-import { useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 import UserSettingsModal from './UserSettingsModal/UserSettingsModal';
@@ -31,6 +36,7 @@ const AppBar = () => {
         errorLogs: { errorLogs, setErrorLogsVisible },
     } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string | undefined }>();
+    const { push } = useHistory();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { isLoading, mutate } = useMutation(logoutQuery, {
         mutationKey: ['logout'],
@@ -56,11 +62,35 @@ const AppBar = () => {
                             <Button minimal icon="database" text="Explore" />
                         </NavLink>
                     )}
-                    {projectUuid && (
-                        <NavLink to={`/projects/${projectUuid}/saved`}>
-                            <Button minimal icon="saved" text="Saved charts" />
-                        </NavLink>
-                    )}
+                </NavbarGroup>
+                <NavbarGroup align={Alignment.LEFT}>
+                    <Popover
+                        className="bp3-button bp3-minimal"
+                        interactionKind={PopoverInteractionKind.HOVER}
+                        content={
+                            <Menu className="browse-menu">
+                                <MenuItem
+                                    text="Dashboards"
+                                    onClick={() =>
+                                        push({
+                                            pathname: `/projects/${projectUuid}/dashboard`,
+                                        })
+                                    }
+                                />
+                                <MenuItem
+                                    text="Saved charts"
+                                    onClick={() =>
+                                        push({
+                                            pathname: `/projects/${projectUuid}/saved`,
+                                        })
+                                    }
+                                />
+                            </Menu>
+                        }
+                        position={Position.BOTTOM_LEFT}
+                    >
+                        Browse
+                    </Popover>
                 </NavbarGroup>
                 <NavbarGroup align={Alignment.RIGHT}>
                     <ShowErrorsButton
