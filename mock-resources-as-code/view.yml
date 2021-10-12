@@ -1,0 +1,17 @@
+apiVersion: v1beta
+kind: model
+name: my-model
+spec:
+  sqlTable: "`hello`.my.friend"
+
+  description: "Friendly description"
+
+  dimensions:
+    - name: yes
+      description: no
+      sql: "${TABLE}.yes"
+
+  metrics:
+    - name: another metric
+      sql: ""
+      type: "number"

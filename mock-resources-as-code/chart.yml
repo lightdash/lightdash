@@ -1,0 +1,7 @@
+apiVersion: v1beta
+kind: chart
+name: beautiful-chart
+spec:
+  query: funny-query
+
+  type: bar

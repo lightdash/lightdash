@@ -1,0 +1,14 @@
+apiVersion: v1beta
+kind: dashboard
+name: the-greatest-dashboard
+spec:
+  displayName: So nice
+  description: Can you believe this?
+
+  tiles:
+    - type: chart
+      chart: beautiful-chart
+      x: 0
+      y: 0
+      w: 5
+      h: 3

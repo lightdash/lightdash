@@ -1,0 +1,9 @@
+apiVersion: v1beta
+kind: explore
+name: my-explore
+spec:
+  baseModel: my-model
+
+  joinedModels:
+    - name: otherModel
+      sqlOn: ""

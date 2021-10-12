@@ -1,0 +1,27 @@
+apiVersion: v1beta
+kind: query
+name: funny-query
+spec:
+  explore: my-explore
+
+  dimensions:
+    - dim1
+    - dim2
+
+  metrics:
+    - met1
+
+  limit: 10
+
+  sort:
+    - field: dim1
+      asc: true
+
+  filters:
+    - field: dim2
+      op: equals
+      value: 12
+
+  calculations:
+    - name: hello
+      sql: ""
