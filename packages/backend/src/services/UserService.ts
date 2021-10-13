@@ -4,7 +4,6 @@ import {
     InviteLink,
     CreateOrganizationUser,
     LightdashUser,
-    LightdashMode,
 } from 'common';
 
 import { nanoid } from 'nanoid';
@@ -14,7 +13,6 @@ import { analytics, identifyUser } from '../analytics/client';
 import { UserModel } from '../models/UserModel';
 import { mapDbUserDetailsToLightdashUser } from '../models/User';
 import { SessionModel } from '../models/SessionModel';
-import { lightdashConfig } from '../config/lightdashConfig';
 
 type UserServiceDependencies = {
     inviteLinkModel: InviteLinkModel;
