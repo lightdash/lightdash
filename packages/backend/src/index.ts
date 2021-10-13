@@ -5,7 +5,8 @@ import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import expressSession from 'express-session';
 import cookieParser from 'cookie-parser';
-import { SessionUser } from 'common';
+import { LightdashMode, SessionUser } from 'common';
+import reDoc from 'redoc-express';
 import connectSessionKnex from 'connect-session-knex';
 import bodyParser from 'body-parser';
 import * as OpenApiValidator from 'express-openapi-validator';
@@ -87,6 +88,23 @@ app.use(
 );
 // api router
 app.use('/api/v1', apiV1Router);
+
+// Api docs
+if (
+    lightdashConfig.mode === LightdashMode.PR ||
+    process.env.NODE_ENV !== 'production'
+) {
+    app.get('/api/docs/openapi.json', (req, res) => {
+        res.send(apiSpec);
+    });
+    app.get(
+        '/api/docs',
+        reDoc({
+            title: 'Lightdash API Docs',
+            specUrl: '/api/docs/openapi.json',
+        }),
+    );
+}
 
 // frontend
 app.use(express.static(path.join(__dirname, '../../frontend/build')));
