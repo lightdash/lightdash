@@ -1,4 +1,4 @@
-import { LightdashUser, ArgumentsOf, SessionUser } from 'common';
+import { LightdashUser, ArgumentsOf, SessionUser, LightdashMode } from 'common';
 import bcrypt from 'bcrypt';
 import {
     createInitialUser,
@@ -12,6 +12,7 @@ import database from '../database/database';
 import { AuthorizationError, ForbiddenError } from '../errors';
 import { updatePassword } from '../database/entities/passwordLogins';
 import { analytics, identifyUser } from '../analytics/client';
+import { lightdashConfig } from '../config/lightdashConfig';
 
 export const mapDbUserDetailsToLightdashUser = (
     user: DbUserDetails,
@@ -58,6 +59,10 @@ export const UserModel = {
             userId: lightdashUser.userUuid,
             organizationId: lightdashUser.organizationUuid,
             properties: {
+                type:
+                    lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                        ? 'cloud'
+                        : 'self-hosted',
                 organizationId: lightdashUser.organizationUuid,
                 organizationName: lightdashUser.organizationName,
             },

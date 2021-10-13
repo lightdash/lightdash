@@ -44,14 +44,14 @@ export class OrganizationService {
         }
         await this.organizationModel.update(organizationUuid, data);
         analytics.track({
-            type:
-                lightdashConfig.mode === LightdashMode.CLOUD_BETA
-                    ? 'cloud'
-                    : 'self-hosted',
             userId: user.userUuid,
             event: 'organization.updated',
             organizationId: organizationUuid,
             properties: {
+                type:
+                    lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                        ? 'cloud'
+                        : 'self-hosted',
                 organizationId: organizationUuid,
                 organizationName,
             },
