@@ -13142,6 +13142,11 @@ redis-parser@^3.0.0:
   dependencies:
     redis-errors "^1.0.0"
 
+redoc-express@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/redoc-express/-/redoc-express-1.0.0.tgz#2b4f684293adc83f5af3461b583f7f9350bd0e0f"
+  integrity sha512-N/0/WrA6U2rJc9hzLy2Jh2CHrQttIcW02jE4xGCiKkU40uTlpFTcEfu9bpsJlTcpffPXVNhhaIbTwz8kxz+M5A==
+
 redux@^4.0.0, redux@^4.0.4:
   version "4.1.1"
   resolved "https://registry.yarnpkg.com/redux/-/redux-4.1.1.tgz#76f1c439bb42043f985fbd9bf21990e60bd67f47"
