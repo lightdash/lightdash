@@ -33,15 +33,6 @@ jest.mock('../config/lightdashConfig', () => ({
     },
 }));
 
-// Todo: Postgres work around. https://github.com/felixmosh/knex-mock-client/issues/7
-class MockClientWithDistinctOn extends MockClient {
-    queryCompiler(builder: any) {
-        const queryCompiler = super.queryCompiler(builder);
-        queryCompiler.distinctOn = (value: any) => '';
-        return queryCompiler;
-    }
-}
-
 function queryMatcher(
     tableName: string,
     params: any[] = [],
@@ -57,7 +48,7 @@ function queryMatcher(
 
 describe('DashboardModel', () => {
     const model = new DashboardModel({
-        database: knex({ client: MockClientWithDistinctOn }),
+        database: knex({ client: MockClient, dialect: 'pg' }),
     });
     let tracker: Tracker;
     beforeAll(() => {
@@ -112,21 +103,18 @@ describe('DashboardModel', () => {
     test('should get all by project uuid', async () => {
         const projectUuid = 'project uuid';
         tracker.on
-            .select(queryMatcher(SpaceTableName, [projectUuid, 1]))
-            .response([spaceEntry]);
-        tracker.on
-            .select(queryMatcher(DashboardsTableName, [spaceEntry.space_id]))
+            .select(queryMatcher(DashboardsTableName, [projectUuid]))
             .response([dashboardWithVersionEntry]);
 
         const dashboard = await model.getAllByProject(projectUuid);
 
         expect(dashboard).toEqual(expectedAllDashboards);
-        expect(tracker.history.select).toHaveLength(2);
+        expect(tracker.history.select).toHaveLength(1);
     });
     test('should create dashboard', async () => {
-        const projectUuid = 'project uuid';
+        const spaceUuid = 'space uuid';
         tracker.on
-            .select(queryMatcher(SpaceTableName, [projectUuid, 1]))
+            .select(queryMatcher(SpaceTableName, [spaceUuid, 1]))
             .response([spaceEntry]);
         tracker.on
             .insert(
@@ -175,10 +163,7 @@ describe('DashboardModel', () => {
             )
             .response([]);
 
-        const newDashboardUuid = await model.create(
-            projectUuid,
-            createDashboard,
-        );
+        const newDashboardUuid = await model.create(spaceUuid, createDashboard);
 
         expect(newDashboardUuid).toBe(dashboardEntry.dashboard_uuid);
         expect(tracker.history.select).toHaveLength(2);
