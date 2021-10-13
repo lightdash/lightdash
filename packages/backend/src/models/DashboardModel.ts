@@ -49,19 +49,6 @@ export class DashboardModel {
         this.database = deps.database;
     }
 
-    private static async getSpace(db: Knex, projectUuid: string) {
-        const [space] = await db(SpaceTableName)
-            .innerJoin(
-                ProjectTableName,
-                'projects.project_id',
-                'spaces.project_id',
-            )
-            .where('project_uuid', projectUuid)
-            .select('spaces.*')
-            .limit(1);
-        return space;
-    }
-
     private static async createVersion(
         trx: Transaction,
         dashboardId: number,
@@ -114,12 +101,21 @@ export class DashboardModel {
     async getAllByProject(
         projectUuid: string,
     ): Promise<DashboardBasicDetails[]> {
-        const space = await DashboardModel.getSpace(this.database, projectUuid);
         const dashboards = await this.database(DashboardsTableName)
             .leftJoin(
                 DashboardVersionsTableName,
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .leftJoin(
+                SpaceTableName,
+                `${DashboardsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${SpaceTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
             )
             .select<GetDashboardDetailsQuery[]>([
                 `${DashboardsTableName}.dashboard_uuid`,
@@ -129,7 +125,7 @@ export class DashboardModel {
             ])
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
             .distinctOn('dashboard_id')
-            .where('space_id', space.space_id);
+            .where('project_uuid', projectUuid);
         return dashboards.map(
             ({ name, description, dashboard_uuid, created_at }) => ({
                 name,
@@ -203,12 +199,17 @@ export class DashboardModel {
     }
 
     async create(
-        projectUuid: string,
+        spaceUuid: string,
         dashboard: CreateDashboard,
     ): Promise<string> {
         return this.database.transaction(async (trx) => {
-            const space = await DashboardModel.getSpace(trx, projectUuid);
-
+            const [space] = await trx(SpaceTableName)
+                .where('space_uuid', spaceUuid)
+                .select('spaces.*')
+                .limit(1);
+            if (!space) {
+                throw new NotFoundError('Space not found');
+            }
             const [newDashboard] = await trx(DashboardsTableName)
                 .insert({
                     name: dashboard.name,

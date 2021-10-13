@@ -9752,10 +9752,10 @@ klona@^2.0.4:
   resolved "https://registry.yarnpkg.com/klona/-/klona-2.0.4.tgz#7bb1e3affb0cb8624547ef7e8f6708ea2e39dfc0"
   integrity sha512-ZRbnvdg/NxqzC7L9Uyqzf4psi1OM4Cuc+sJAkQPjO6XkQIJTNbfK2Rsmbw8fx1p2mkZdp2FZYo2+LwXYY/uwIA==
 
-knex-mock-client@^1.5.2:
-  version "1.5.2"
-  resolved "https://registry.yarnpkg.com/knex-mock-client/-/knex-mock-client-1.5.2.tgz#40eafbb52ccb1731e5c12847cce6b261068ae97c"
-  integrity sha512-jvMsVL/vNsobHA7uWSVF0GO5dInra58SogkS4N2pFpNg0F/YlPCE5/OALqabrj1c6MYbgASaQfgWg861o3Uv0Q==
+knex-mock-client@^1.6.0:
+  version "1.6.1"
+  resolved "https://registry.yarnpkg.com/knex-mock-client/-/knex-mock-client-1.6.1.tgz#d17a6910f30633008d9ab0ee055ea045e6afd144"
+  integrity sha512-BmP+3zGmgGEllTigslK+vtfMbCOFZP47X7DLVbWkDMsr0WXA7+/VM9z07U/fQEmQTlBiQQRQNAeZl7k82zO1ag==
   dependencies:
     lodash.clonedeep "^4.5.0"
 
