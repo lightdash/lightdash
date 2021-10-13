@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from 'react-query';
-import { ApiError, Project, UpdateProject } from 'common';
+import { ApiError } from 'common';
 import { lightdashApi } from '../../api';
 import { useApp } from '../../providers/AppProvider';
 import useQueryError from '../useQueryError';
 
-const getDashboard = async (id: string) =>
+/* const getDashboard = async (id: string) =>
     lightdashApi<Dashboard>({
         url: `/dashboards/${id}`,
         method: 'GET',
@@ -45,7 +45,7 @@ export const useDashboard = (id: string) => {
 export const useUpdateDashboard = (id: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess } = useApp();
-    return useMutation<undefined, ApiError, UpdateProject>(
+    return useMutation<undefined, ApiError, UpdateDashboard>(
         (data) => updateDashboard(id, data),
         {
             mutationKey: ['project_update'],
@@ -62,7 +62,7 @@ export const useUpdateDashboard = (id: string) => {
 export const useUpdateDashboardTile = (id: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess } = useApp();
-    return useMutation<undefined, ApiError, UpdateProject>(
+    return useMutation<undefined, ApiError, UpdateDashboard>(
         (data) => updateDashboardTile(id, data),
         {
             mutationKey: ['project_update'],
@@ -78,7 +78,7 @@ export const useUpdateDashboardTile = (id: string) => {
 
 export const useCreateMutation = (id: string) => {
     const { showToastSuccess } = useApp();
-    return useMutation<Project, ApiError, UpdateProject>(
+    return useMutation<Dashboard, ApiError, UpdateDashboard>(
         (data) => createDashboard(id, data),
         {
             mutationKey: ['project_create'],
@@ -89,4 +89,4 @@ export const useCreateMutation = (id: string) => {
             },
         },
     );
-};
+}; */
