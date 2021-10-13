@@ -3,8 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
-### Added
-- Add browse menu
+### Changed
+- Navigation bar was rearranged. Saved charts and dashboards can be accessed under the "Browse" menu item.
 
 ## [0.8.3] - 2021-10-11
 ### Added
