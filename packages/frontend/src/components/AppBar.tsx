@@ -10,10 +10,9 @@ import {
     Menu,
     MenuItem,
     Position,
-    Popover,
     PopoverInteractionKind,
 } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Tooltip2, Popover2 } from '@blueprintjs/popover2';
 import { useMutation } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
@@ -64,7 +63,7 @@ const AppBar = () => {
                     )}
                 </NavbarGroup>
                 <NavbarGroup align={Alignment.LEFT}>
-                    <Popover
+                    <Popover2
                         className="bp3-button bp3-minimal"
                         interactionKind={PopoverInteractionKind.HOVER}
                         content={
@@ -90,7 +89,7 @@ const AppBar = () => {
                         position={Position.BOTTOM_LEFT}
                     >
                         Browse
-                    </Popover>
+                    </Popover2>
                 </NavbarGroup>
                 <NavbarGroup align={Alignment.RIGHT}>
                     <ShowErrorsButton

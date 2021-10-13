@@ -44,8 +44,6 @@
         "react-table": "^7.6.3",
         "react-use": "^17.2.4",
         "rudder-sdk-js": "^1.0.16",
-        "sass": "^1.42.1",
-        "sass-loader": "^12.2.0",
         "typescript": "^4.1.2",
         "uuid": "^8.3.2",
         "web-vitals": "^1.0.1"
