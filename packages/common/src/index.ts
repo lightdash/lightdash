@@ -1109,18 +1109,34 @@ type DashboardChartTile = DashboardTileBase & {
 };
 
 export type Dashboard = {
-    dashboardUuid: string;
+    uuid: string;
     name: string;
-    description: string;
+    description?: string;
     updatedAt: Date;
     tiles: DashboardChartTile[];
 };
 
 export type DashboardBasicDetails = Pick<
     Dashboard,
-    'dashboardUuid' | 'name' | 'description' | 'updatedAt'
+    'uuid' | 'name' | 'description' | 'updatedAt'
 >;
 
+export type DashboardUnversionedFields = Pick<
+    Dashboard,
+    'name' | 'description'
+>;
+export type DashboardVersionedFields = Pick<Dashboard, 'tiles'>;
+
 export type CreateDashboard = Pick<Dashboard, 'name' | 'description' | 'tiles'>;
-export type UpdateDashboard = Pick<Dashboard, 'name' | 'description'>;
-export type AddDashboardVersion = Pick<Dashboard, 'tiles'>;
+export type UpdateDashboard =
+    | DashboardUnversionedFields
+    | DashboardVersionedFields
+    | (DashboardUnversionedFields & DashboardVersionedFields);
+
+export const isDashboardUnversionedFields = (
+    data: UpdateDashboard,
+): data is DashboardUnversionedFields => 'name' in data && !!data.name;
+
+export const isDashboardVersionedFields = (
+    data: UpdateDashboard,
+): data is DashboardVersionedFields => 'tiles' in data && !!data.tiles;

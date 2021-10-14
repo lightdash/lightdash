@@ -1,10 +1,10 @@
 import {
-    AddDashboardVersion,
+    DashboardUnversionedFields,
     CreateDashboard,
     Dashboard,
     DashboardBasicDetails,
     DashboardTileTypes,
-    UpdateDashboard,
+    DashboardVersionedFields,
 } from 'common';
 import {
     DashboardTable,
@@ -33,7 +33,7 @@ export const createDashboard: CreateDashboard = {
         },
     ],
 };
-export const addDashboardVersion: AddDashboardVersion = {
+export const addDashboardVersion: DashboardVersionedFields = {
     tiles: [
         {
             type: DashboardTileTypes.SAVED_CHART,
@@ -48,7 +48,7 @@ export const addDashboardVersion: AddDashboardVersion = {
     ],
 };
 
-export const updateDashboard: UpdateDashboard = {
+export const updateDashboard: DashboardUnversionedFields = {
     name: 'my updated dashboard',
     description: 'updated description',
 };
@@ -112,7 +112,7 @@ export const dashboardChartTileEntry: GetChartTileQuery = {
 // Expected returns
 
 export const expectedDashboard: Dashboard = {
-    dashboardUuid: dashboardEntry.dashboard_uuid,
+    uuid: dashboardEntry.dashboard_uuid,
     name: dashboardEntry.name,
     description: dashboardEntry.description,
     updatedAt: dashboardVersionEntry.created_at,
@@ -132,7 +132,7 @@ export const expectedDashboard: Dashboard = {
 
 export const expectedAllDashboards: DashboardBasicDetails[] = [
     {
-        dashboardUuid: dashboardEntry.dashboard_uuid,
+        uuid: dashboardEntry.dashboard_uuid,
         name: dashboardEntry.name,
         description: dashboardEntry.description,
         updatedAt: dashboardVersionEntry.created_at,

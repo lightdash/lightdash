@@ -1,26 +1,15 @@
-import database from '../database/database';
-import { InviteLinkModel } from '../models/InviteLinkModel';
+import {
+    inviteLinkModel,
+    userModel,
+    sessionModel,
+    organizationModel,
+    projectModel,
+    dashboardModel,
+} from '../models/models';
 import { UserService } from './UserService';
 import { OrganizationService } from './OrganizationService';
-import { OrganizationModel } from '../models/OrganizationModel';
-import { UserModel } from '../models/UserModel';
-import { SessionModel } from '../models/SessionModel';
 import { ProjectService } from './ProjectService';
-import { lightdashConfig } from '../config/lightdashConfig';
-import { EncryptionService } from './EncryptionService/EncryptionService';
-import { ProjectModel } from '../models/ProjectModel';
-
-export const encryptionService = new EncryptionService({ lightdashConfig });
-
-const inviteLinkModel = new InviteLinkModel(database);
-const organizationModel = new OrganizationModel(database);
-const userModel = new UserModel(database);
-const sessionModel = new SessionModel(database);
-const projectModel = new ProjectModel({
-    database,
-    lightdashConfig,
-    encryptionService,
-});
+import { DashboardService } from './DashboardService';
 
 export const userService = new UserService({
     inviteLinkModel,
@@ -35,4 +24,8 @@ export const organizationService = new OrganizationService({
 
 export const projectService = new ProjectService({
     projectModel,
+});
+
+export const dashboardService = new DashboardService({
+    dashboardModel,
 });

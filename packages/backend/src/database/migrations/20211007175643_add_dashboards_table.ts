@@ -20,7 +20,7 @@ export async function up(knex: Knex): Promise<void> {
                 .notNullable()
                 .onDelete('CASCADE');
             tableBuilder.text('name').notNullable();
-            tableBuilder.text('description').notNullable();
+            tableBuilder.text('description');
             tableBuilder
                 .timestamp('created_at', { useTz: false })
                 .notNullable();
