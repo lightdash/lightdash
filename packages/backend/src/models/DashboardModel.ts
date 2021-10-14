@@ -1,11 +1,11 @@
 import { Knex } from 'knex';
 import {
-    AddDashboardVersion,
+    DashboardVersionedFields,
     CreateDashboard,
     Dashboard,
     DashboardBasicDetails,
     DashboardTileTypes,
-    UpdateDashboard,
+    DashboardUnversionedFields,
 } from 'common';
 import { NotFoundError } from '../errors';
 import {
@@ -52,7 +52,7 @@ export class DashboardModel {
     private static async createVersion(
         trx: Transaction,
         dashboardId: number,
-        version: AddDashboardVersion,
+        version: DashboardVersionedFields,
     ): Promise<void> {
         const [versionId] = await trx(DashboardVersionsTableName).insert(
             {
@@ -130,7 +130,7 @@ export class DashboardModel {
             ({ name, description, dashboard_uuid, created_at }) => ({
                 name,
                 description,
-                dashboardUuid: dashboard_uuid,
+                uuid: dashboard_uuid,
                 updatedAt: created_at,
             }),
         );
@@ -177,7 +177,7 @@ export class DashboardModel {
             .orderBy('rank', 'asc');
 
         return {
-            dashboardUuid: dashboard.dashboard_uuid,
+            uuid: dashboard.dashboard_uuid,
             name: dashboard.name,
             description: dashboard.description,
             updatedAt: dashboard.created_at,
@@ -230,7 +230,7 @@ export class DashboardModel {
 
     async update(
         dashboardUuid: string,
-        dashboard: UpdateDashboard,
+        dashboard: DashboardUnversionedFields,
     ): Promise<void> {
         await this.database(DashboardsTableName)
             .update(dashboard)
@@ -245,7 +245,7 @@ export class DashboardModel {
 
     async addVersion(
         dashboardUuid: string,
-        version: AddDashboardVersion,
+        version: DashboardVersionedFields,
     ): Promise<void> {
         const [dashboard] = await this.database(DashboardsTableName)
             .select(['dashboard_id'])

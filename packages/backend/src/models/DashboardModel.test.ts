@@ -60,10 +60,7 @@ describe('DashboardModel', () => {
     test('should get dashboard by uuid', async () => {
         tracker.on
             .select(
-                queryMatcher(DashboardsTableName, [
-                    expectedDashboard.dashboardUuid,
-                    1,
-                ]),
+                queryMatcher(DashboardsTableName, [expectedDashboard.uuid, 1]),
             )
             .response([dashboardWithVersionEntry]);
         tracker.on
@@ -81,7 +78,7 @@ describe('DashboardModel', () => {
             )
             .response([dashboardChartTileEntry]);
 
-        const dashboard = await model.getById(expectedDashboard.dashboardUuid);
+        const dashboard = await model.getById(expectedDashboard.uuid);
 
         expect(dashboard).toEqual(expectedDashboard);
         expect(tracker.history.select).toHaveLength(3);
@@ -89,15 +86,12 @@ describe('DashboardModel', () => {
     test("should error if dashboard isn't found", async () => {
         tracker.on
             .select(
-                queryMatcher(DashboardsTableName, [
-                    expectedDashboard.dashboardUuid,
-                    1,
-                ]),
+                queryMatcher(DashboardsTableName, [expectedDashboard.uuid, 1]),
             )
             .response([]);
 
         await expect(
-            model.getById(expectedDashboard.dashboardUuid),
+            model.getById(expectedDashboard.uuid),
         ).rejects.toThrowError(NotFoundError);
     });
     test('should get all by project uuid', async () => {
@@ -196,27 +190,18 @@ describe('DashboardModel', () => {
     test("should error on create dashboard version if dashboard isn't found", async () => {
         tracker.on
             .select(
-                queryMatcher(DashboardsTableName, [
-                    expectedDashboard.dashboardUuid,
-                    1,
-                ]),
+                queryMatcher(DashboardsTableName, [expectedDashboard.uuid, 1]),
             )
             .response([]);
 
         await expect(
-            model.addVersion(
-                expectedDashboard.dashboardUuid,
-                addDashboardVersion,
-            ),
+            model.addVersion(expectedDashboard.uuid, addDashboardVersion),
         ).rejects.toThrowError(NotFoundError);
     });
     test('should create dashboard version', async () => {
         tracker.on
             .select(
-                queryMatcher(DashboardsTableName, [
-                    expectedDashboard.dashboardUuid,
-                    1,
-                ]),
+                queryMatcher(DashboardsTableName, [expectedDashboard.uuid, 1]),
             )
             .response([dashboardEntry]);
         tracker.on
@@ -257,10 +242,7 @@ describe('DashboardModel', () => {
             )
             .response([]);
 
-        await model.addVersion(
-            expectedDashboard.dashboardUuid,
-            addDashboardVersion,
-        );
+        await model.addVersion(expectedDashboard.uuid, addDashboardVersion);
 
         expect(tracker.history.select).toHaveLength(2);
         expect(tracker.history.insert).toHaveLength(3);
@@ -268,10 +250,7 @@ describe('DashboardModel', () => {
     test("should error on create dashboard version if saved chart isn't found", async () => {
         tracker.on
             .select(
-                queryMatcher(DashboardsTableName, [
-                    expectedDashboard.dashboardUuid,
-                    1,
-                ]),
+                queryMatcher(DashboardsTableName, [expectedDashboard.uuid, 1]),
             )
             .response([dashboardEntry]);
         tracker.on
@@ -304,10 +283,7 @@ describe('DashboardModel', () => {
             .response([]);
 
         await expect(
-            model.addVersion(
-                expectedDashboard.dashboardUuid,
-                addDashboardVersion,
-            ),
+            model.addVersion(expectedDashboard.uuid, addDashboardVersion),
         ).rejects.toThrowError(NotFoundError);
     });
 });

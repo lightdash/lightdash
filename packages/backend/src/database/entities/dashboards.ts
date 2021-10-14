@@ -11,7 +11,7 @@ type DbDashboard = {
     dashboard_id: number;
     dashboard_uuid: string;
     name: string;
-    description: string;
+    description?: string;
     space_id: number;
     created_at: Date;
 };

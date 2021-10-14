@@ -89,6 +89,18 @@ type ProjectErrorEvent = BaseTrack & {
     };
 };
 
+type DashboardEvent = BaseTrack & {
+    event:
+        | 'dashboard.created'
+        | 'dashboard.updated'
+        | 'dashboard.deleted'
+        | 'dashboard_version.created';
+    userId: string;
+    properties: {
+        dashboardId: string;
+    };
+};
+
 type ApiErrorEvent = BaseTrack & {
     event: 'api.error';
     userId?: string;
@@ -109,6 +121,7 @@ type Track =
     | ApiErrorEvent
     | ProjectEvent
     | ProjectCompiledEvent
+    | DashboardEvent
     | TrackOrganizationEvent;
 
 export class LightdashAnalytics extends Analytics {
