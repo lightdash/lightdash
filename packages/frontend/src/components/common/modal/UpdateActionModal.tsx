@@ -1,15 +1,15 @@
 import React, { Dispatch, SetStateAction, useEffect } from 'react';
 import { UseMutationResult } from 'react-query';
-import { ApiError, ActionTypeModal, ActionModalProps } from 'common';
+import { ApiError } from 'common';
 import { UseFormReturn } from 'react-hook-form';
+import { ActionTypeModal, ActionModalProps } from './ActionModalTypes';
 import ActionModal from './ActionModal';
 
-type UpdateDeleteActionModalProps = {
+type UpdateActionModalProps = {
     useActionState: [
         { actionType: number; data?: any },
         Dispatch<SetStateAction<{ actionType: number; data?: any }>>,
     ];
-    useDelete: UseMutationResult<undefined, ApiError, string>;
     useUpdate: (id: string) => UseMutationResult<any, ApiError, any>;
     setFormValues: (data: any, methods: UseFormReturn<any, object>) => void;
     ModalForm: (
@@ -17,9 +17,8 @@ type UpdateDeleteActionModalProps = {
     ) => JSX.Element;
 };
 
-const UpdateDeleteActionModal = (props: UpdateDeleteActionModalProps) => {
-    const { useDelete, useUpdate, setFormValues, useActionState, ModalForm } =
-        props;
+const UpdateActionModal = (props: UpdateActionModalProps) => {
+    const { useUpdate, setFormValues, useActionState, ModalForm } = props;
     const [actionState, setActionState] = useActionState;
     const { data: { uuid: id } = {}, actionType } = actionState;
     const {
@@ -28,47 +27,28 @@ const UpdateDeleteActionModal = (props: UpdateDeleteActionModalProps) => {
         isLoading: isUpdating,
         reset: resetUpdate,
     } = useUpdate(id || null);
-    const {
-        status: statusDelete,
-        mutate: deleteData,
-        isLoading: isDeleting,
-        reset: resetDelete,
-    } = useDelete;
 
     const onSubmitForm = (data?: any) => {
-        if (actionType === ActionTypeModal.UPDATE) {
-            mutate(data);
-        } else {
-            deleteData(id);
-        }
+        mutate(data);
     };
     useEffect(() => {
-        if (
-            (actionType === ActionTypeModal.UPDATE && !isUpdating) ||
-            (actionType === ActionTypeModal.DELETE && !isDeleting)
-        ) {
+        if (!isUpdating) {
             resetUpdate();
-            resetDelete();
         }
-    }, [isUpdating, isDeleting, actionType, resetUpdate, resetDelete]);
+    }, [isUpdating, actionType, resetUpdate]);
 
-    const onClose = () =>
-        !isDeleting
-            ? setActionState({ actionType: ActionTypeModal.CLOSE })
-            : undefined;
+    const onClose = () => setActionState({ actionType: ActionTypeModal.CLOSE });
     return (
         <ActionModal
             actionState={actionState}
-            isDisabled={isUpdating || isDeleting}
+            isDisabled={isUpdating}
             onSubmitForm={onSubmitForm}
             setFormValues={setFormValues}
-            completedMutation={
-                statusUpdate === 'success' || statusDelete === 'success'
-            }
+            completedMutation={statusUpdate === 'success'}
             onClose={onClose}
             ModalForm={ModalForm}
         />
     );
 };
 
-export default UpdateDeleteActionModal;
+export default UpdateActionModal;

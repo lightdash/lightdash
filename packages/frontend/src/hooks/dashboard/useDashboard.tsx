@@ -25,11 +25,11 @@ const updateDashboard = async (id: string, data: UpdateDashboard) =>
         body: JSON.stringify(data),
     });
 
-const updateDashboardTile = async (id: string, data: UpdateDashboard) =>
+const deleteDashboard = async (id: string) =>
     lightdashApi<undefined>({
-        url: `/dashboards/${id}/versions`,
-        method: 'PATCH',
-        body: JSON.stringify(data),
+        url: `/dashboards/${id}`,
+        method: 'DELETE',
+        body: undefined,
     });
 
 export const useDashboard = (id: string) => {
@@ -48,28 +48,11 @@ export const useUpdateDashboard = (id: string) => {
     return useMutation<undefined, ApiError, UpdateDashboard>(
         (data) => updateDashboard(id, data),
         {
-            mutationKey: ['project_update'],
+            mutationKey: ['dashboard_update'],
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['dashboard', id]);
                 showToastSuccess({
                     title: `Dashboard saved with success`,
-                });
-            },
-        },
-    );
-};
-
-export const useUpdateDashboardTile = (id: string) => {
-    const queryClient = useQueryClient();
-    const { showToastSuccess } = useApp();
-    return useMutation<undefined, ApiError, UpdateDashboard>(
-        (data) => updateDashboardTile(id, data),
-        {
-            mutationKey: ['project_update'],
-            onSuccess: async () => {
-                await queryClient.invalidateQueries(['dashboard', id]);
-                showToastSuccess({
-                    title: `Dashboard tile saved with success`,
                 });
             },
         },
@@ -81,7 +64,7 @@ export const useCreateMutation = (id: string) => {
     return useMutation<Dashboard, ApiError, CreateDashboard>(
         (data) => createDashboard(id, data),
         {
-            mutationKey: ['project_create'],
+            mutationKey: ['dashboard_create'],
             onSuccess: async () => {
                 showToastSuccess({
                     title: `Dashboard created with success`,
@@ -89,4 +72,22 @@ export const useCreateMutation = (id: string) => {
             },
         },
     );
+};
+
+export const useDeleteMutation = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useApp();
+    return useMutation<undefined, ApiError, string>(deleteDashboard, {
+        onSuccess: async () => {
+            showToastSuccess({
+                title: `Dashboard deleted with success`,
+            });
+        },
+        onError: (error) => {
+            showToastError({
+                title: `Failed to delete chart`,
+                subtitle: error.error.message,
+            });
+        },
+    });
 };

@@ -1,5 +1,4 @@
 import moment from 'moment';
-import { UseFormReturn } from 'react-hook-form';
 
 const DATE_FORMAT = 'YYYY-MM-DD';
 export const formatDate = (date: Date): string =>

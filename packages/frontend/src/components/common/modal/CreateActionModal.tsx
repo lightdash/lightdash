@@ -1,7 +1,8 @@
 import React, { Dispatch, SetStateAction } from 'react';
 import { UseMutationResult } from 'react-query';
-import { ApiError, ActionTypeModal } from 'common';
 import { UseFormReturn } from 'react-hook-form';
+import { ApiError } from 'common';
+import { ActionTypeModal } from './ActionModalTypes';
 import ActionModal from './ActionModal';
 import SavedQueryForm from '../../SavedQueries/SavedQueryForm';
 

@@ -1,6 +1,7 @@
-import { ActionTypeModal, SavedQuery } from 'common';
-import React, { FC, useEffect, useState } from 'react';
+import { SavedQuery } from 'common';
 import { UseFormReturn } from 'react-hook-form';
+import React, { FC, useEffect, useState } from 'react';
+import { ActionTypeModal } from '../../common/modal/ActionModalTypes';
 import { useCreateMutation } from '../../../hooks/useSavedQuery';
 import CreateActionModal from '../../common/modal/CreateActionModal';
 

@@ -1,5 +1,8 @@
-import { ActionModalProps, ActionTypeModal } from 'common';
 import React from 'react';
+import {
+    ActionModalProps,
+    ActionTypeModal,
+} from '../common/modal/ActionModalTypes';
 import Input from '../ReactHookForm/Input';
 
 const SavedQueryForm = ({

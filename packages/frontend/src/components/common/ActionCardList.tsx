@@ -1,18 +1,15 @@
 import React, { useState } from 'react';
 import { NonIdealState } from '@blueprintjs/core';
-import {
-    SpaceQuery,
-    ActionTypeModal,
-    ApiError,
-    ActionModalProps,
-} from 'common';
+import { SpaceQuery, ApiError, Dashboard } from 'common';
 import { UseMutationResult } from 'react-query';
 import { UseFormReturn } from 'react-hook-form';
+import { ActionModalProps, ActionTypeModal } from './modal/ActionModalTypes';
 import ActionCard from './ActionCard';
-import UpdateDeleteActionModal from './modal/UpdateDeleteActionModal';
+import UpdateActionModal from './modal/UpdateActionModal';
+import DeleteActionModal from './modal/DeleteActionModal';
 
 type ActionCardListProps = {
-    dataList: Pick<SpaceQuery, 'uuid' | 'name'>[];
+    dataList: Pick<SpaceQuery | Dashboard, 'uuid' | 'name'>[];
     getURL: (data: any) => string;
     useDelete: UseMutationResult<undefined, ApiError, string>;
     useUpdate: (id: string) => UseMutationResult<any, ApiError, any>;
@@ -51,13 +48,23 @@ const ActionCardList = (props: ActionCardListProps) => {
                     setActionState={setActionState}
                 />
             ))}
-            <UpdateDeleteActionModal
-                useActionState={[actionState, setActionState]}
-                useDelete={useDelete}
-                useUpdate={useUpdate}
-                setFormValues={setFormValues}
-                ModalForm={ModalForm}
-            />
+            {actionState.actionType === ActionTypeModal.UPDATE && (
+                <UpdateActionModal
+                    useActionState={[actionState, setActionState]}
+                    useUpdate={useUpdate}
+                    setFormValues={setFormValues}
+                    ModalForm={ModalForm}
+                />
+            )}
+            {actionState.actionType === ActionTypeModal.DELETE && (
+                <DeleteActionModal
+                    useActionState={[actionState, setActionState]}
+                    useDelete={useDelete}
+                    setFormValues={setFormValues}
+                    ModalForm={ModalForm}
+                />
+            )}
+
             {dataList.length <= 0 && (
                 <div style={{ padding: '50px 0' }}>
                     <NonIdealState title="No results available" icon="search" />

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
-import { ActionModalProps, ActionTypeModal } from 'common';
 import { Button, Intent } from '@blueprintjs/core';
 import { useForm } from 'react-hook-form';
+import { ActionModalProps, ActionTypeModal } from './ActionModalTypes';
 import BaseModal from './BaseModal';
 import { useApp } from '../../../providers/AppProvider';
 

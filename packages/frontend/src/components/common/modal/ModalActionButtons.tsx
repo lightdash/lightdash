@@ -1,10 +1,10 @@
 import { Button, ButtonGroup } from '@blueprintjs/core';
 import React, { Dispatch, SetStateAction } from 'react';
-import { ActionTypeModal, SpaceQuery } from 'common';
 import { useHistory } from 'react-router-dom';
+import { ActionTypeModal } from './ActionModalTypes';
 
 type ModalActionButtonsProps = {
-    data: Pick<SpaceQuery, 'uuid' | 'name'>;
+    data: any;
     url: string;
     setActionState: Dispatch<
         SetStateAction<{ actionType: number; data?: any }>
