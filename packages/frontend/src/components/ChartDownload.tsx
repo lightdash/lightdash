@@ -87,9 +87,9 @@ function downloadPdf(base64: string, width: number, height: number) {
     doc.save(FILE_NAME);
 }
 
-const Content: React.FC<Pick<ChartDownloadMenuProps, 'chartRef'>> = ({
-    chartRef,
-}) => {
+export const ChartDownloadOptions: React.FC<
+    Pick<ChartDownloadMenuProps, 'chartRef'>
+> = ({ chartRef }) => {
     const [type, setType] = useState<DownloadType>(DownloadType.JPEG);
 
     const onDownload = useCallback(async () => {
@@ -174,7 +174,7 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = ({
     const [isOpen, setIsOpen] = useState(false);
     return (
         <Popover2
-            content={<Content chartRef={chartRef} />}
+            content={<ChartDownloadOptions chartRef={chartRef} />}
             popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
             isOpen={isOpen}
             onInteraction={setIsOpen}

@@ -19,11 +19,11 @@ import { defaultValuesForNewBooleanFilter } from '../boolean-filter/BooleanFilte
 
 const AddFilterGroup = () => {
     const {
-        state: { filters: activeFilters },
+        state: { filters: activeFilters, tableName },
         actions: { setFilters: setActiveFilters },
     } = useExplorer();
     const [showButton, setShowButton] = useState<boolean>(true);
-    const explore = useExplore();
+    const explore = useExplore(tableName);
     if (explore.status !== 'success') return null;
     const dimensions = explore ? getDimensions(explore.data) : [];
 

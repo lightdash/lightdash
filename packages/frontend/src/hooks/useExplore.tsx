@@ -14,12 +14,9 @@ const getExplore = async (projectUuid: string, exploreId: string) =>
         body: undefined,
     });
 
-export const useExplore = () => {
+export const useExplore = (activeTableName: string | undefined) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const setErrorResponse = useQueryError();
-    const {
-        state: { tableName: activeTableName },
-    } = useExplorer();
     const queryKey = ['tables', activeTableName];
     return useQuery<ApiExploreResults, ApiError>({
         queryKey,

@@ -160,10 +160,10 @@ export const ExplorePanel = ({ onBack }: ExplorePanelProps) => {
         errorLogs: { showError },
     } = useApp();
     const {
-        state: { activeFields },
+        state: { activeFields, tableName: activeTableName },
         actions: { toggleActiveField },
     } = useExplorer();
-    const exploresResult = useExplore();
+    const exploresResult = useExplore(activeTableName);
     if (exploresResult.data) {
         const activeExplore = exploresResult.data;
         const [databaseName, schemaName, tableName] = activeExplore.tables[

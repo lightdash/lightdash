@@ -17,7 +17,7 @@ type ContentProps = {
     chartConfig: ChartConfig;
 };
 
-const Content: React.FC<ContentProps> = ({ chartConfig }) => (
+export const ChartConfigOptions: React.FC<ContentProps> = ({ chartConfig }) => (
     <div
         style={{
             display: 'flex',
@@ -135,7 +135,7 @@ export const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
     const [isOpen, setIsOpen] = useState(false);
     return (
         <Popover2
-            content={<Content chartConfig={chartConfig} />}
+            content={<ChartConfigOptions chartConfig={chartConfig} />}
             interactionKind="click"
             popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
             isOpen={isOpen}

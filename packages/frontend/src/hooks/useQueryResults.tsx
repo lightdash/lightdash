@@ -1,4 +1,4 @@
-import { ApiError, ApiQueryResults, MetricQuery } from 'common';
+import { ApiError, ApiQueryResults, MetricQuery, SavedQuery } from 'common';
 import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
