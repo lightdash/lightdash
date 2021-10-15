@@ -1,9 +1,9 @@
-import { ApiError, CreateProject, Project, UpdateProject } from 'common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { ApiError, Dashboard } from 'common';
+import { useQuery } from 'react-query';
 import { lightdashApi } from '../../api';
 import useQueryError from '../useQueryError';
 
-/* const getDashboards = async (projectId: string) =>
+const getDashboards = async (projectId: string) =>
     lightdashApi<Dashboard[]>({
         url: `/projects/${projectId}/dashboards`,
         method: 'GET',
@@ -18,4 +18,4 @@ export const useDashboards = (id: string) => {
         retry: false,
         onError: (result) => setErrorResponse(result),
     });
-}; */
+};

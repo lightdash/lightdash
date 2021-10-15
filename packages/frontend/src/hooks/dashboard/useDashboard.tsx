@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from 'react-query';
-import { ApiError } from 'common';
+import { ApiError, CreateDashboard, Dashboard, UpdateDashboard } from 'common';
 import { lightdashApi } from '../../api';
 import { useApp } from '../../providers/AppProvider';
 import useQueryError from '../useQueryError';
 
-/* const getDashboard = async (id: string) =>
+const getDashboard = async (id: string) =>
     lightdashApi<Dashboard>({
         url: `/dashboards/${id}`,
         method: 'GET',
@@ -78,7 +78,7 @@ export const useUpdateDashboardTile = (id: string) => {
 
 export const useCreateMutation = (id: string) => {
     const { showToastSuccess } = useApp();
-    return useMutation<Dashboard, ApiError, UpdateDashboard>(
+    return useMutation<Dashboard, ApiError, CreateDashboard>(
         (data) => createDashboard(id, data),
         {
             mutationKey: ['project_create'],
@@ -89,4 +89,4 @@ export const useCreateMutation = (id: string) => {
             },
         },
     );
-}; */
+};
