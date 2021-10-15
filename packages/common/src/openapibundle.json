@@ -129,6 +129,17 @@
                 "summary": "Delete organization user",
                 "tags": ["organization"],
                 "operationId": "deleteOrganizationUser",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "userUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "$ref": "#/components/responses/SuccessResponse"
@@ -240,15 +251,16 @@
                 }
             }
         },
-        "/projects/{projectId}/dashboards": {
+        "/projects/{projectUuid}/dashboards": {
             "post": {
-                "summary": "Create new dashboard on project",
+                "summary": "Create dashboard",
+                "description": "Create new dashboard on project",
                 "tags": ["dashboard"],
                 "operationId": "createDashboard",
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "projectId",
+                        "name": "projectUuid",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -296,13 +308,14 @@
                 }
             },
             "get": {
-                "summary": "List all dashboards in a project",
+                "summary": "List dashboards",
+                "description": "List all dashboards in a project",
                 "tags": ["dashboard"],
                 "operationId": "getDashboards",
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "projectId",
+                        "name": "projectUuid",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -342,15 +355,16 @@
                 }
             }
         },
-        "/dashboards/{dashboardId}": {
+        "/dashboards/{dashboardUuid}": {
             "get": {
-                "summary": "Get details for a single dashboard by dashboard_id",
+                "summary": "Get dashboard",
+                "description": "Get details for a single dashboard by dashboard_id",
                 "tags": ["dashboard"],
                 "operationId": "getDashboard",
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "dashboardId",
+                        "name": "dashboardUuid",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -385,17 +399,16 @@
                         "$ref": "#/components/responses/ErrorResponse"
                     }
                 }
-            }
-        },
-        "/dashboards/{dashboardId}/versions": {
-            "post": {
-                "summary": "Create new dashboard version",
+            },
+            "patch": {
+                "summary": "Update dashboard",
+                "description": "Update details for a single dashboard by dashboard_id",
                 "tags": ["dashboard"],
-                "operationId": "createDashboardVersion",
+                "operationId": "patchDashboard",
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "dashboardId",
+                        "name": "dashboardUuid",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -404,19 +417,19 @@
                     }
                 ],
                 "requestBody": {
-                    "description": "New dashboard version specification",
+                    "description": "Dashboard fields",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/CreateDashboard"
+                                "$ref": "#/components/schemas/UpdateDashboard"
                             }
                         }
                     }
                 },
                 "responses": {
-                    "201": {
-                        "description": "Successfully created dashboard version",
+                    "200": {
+                        "description": "Details for a single dashboard",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -436,6 +449,31 @@
                                 }
                             }
                         }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete dashboard",
+                "description": "Delete a single dashboard by dashboard_id",
+                "tags": ["dashboard"],
+                "operationId": "deleteDashboard",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/SuccessResponse"
                     },
                     "default": {
                         "$ref": "#/components/responses/ErrorResponse"
@@ -633,9 +671,11 @@
                 "properties": {
                     "savedChartUuid": {
                         "type": "string",
-                        "format": "uuid"
+                        "format": "uuid",
+                        "nullable": true
                     }
-                }
+                },
+                "required": ["savedChartUuid"]
             },
             "DashboardTile": {
                 "type": "object",
@@ -714,6 +754,55 @@
                     "name",
                     "description",
                     "updatedAt"
+                ]
+            },
+            "UpdateDashboard": {
+                "oneOf": [
+                    {
+                        "title": "Unversioned fields",
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name"]
+                    },
+                    {
+                        "title": "Versioned fields",
+                        "type": "object",
+                        "properties": {
+                            "tiles": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/DashboardTile"
+                                }
+                            }
+                        },
+                        "required": ["tiles"]
+                    },
+                    {
+                        "title": "All fields",
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string"
+                            },
+                            "tiles": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/DashboardTile"
+                                }
+                            }
+                        },
+                        "required": ["name", "tiles"]
+                    }
                 ]
             }
         },

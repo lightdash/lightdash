@@ -3,6 +3,17 @@
         "summary": "Delete organization user",
         "tags": ["organization"],
         "operationId": "deleteOrganizationUser",
+        "parameters": [
+            {
+                "in": "path",
+                "name": "userUuid",
+                "schema": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "required": true
+            }
+        ],
         "responses": {
             "200": {
                 "$ref": "../responses/SuccessResponse.json"

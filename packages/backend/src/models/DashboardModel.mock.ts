@@ -48,6 +48,21 @@ export const addDashboardVersion: DashboardVersionedFields = {
     ],
 };
 
+export const addDashboardVersionWithoutChart: DashboardVersionedFields = {
+    tiles: [
+        {
+            type: DashboardTileTypes.SAVED_CHART,
+            x: 4,
+            y: 5,
+            h: 100,
+            w: 200,
+            properties: {
+                savedChartUuid: null,
+            },
+        },
+    ],
+};
+
 export const updateDashboard: DashboardUnversionedFields = {
     name: 'my updated dashboard',
     description: 'updated description',

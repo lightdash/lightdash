@@ -9,6 +9,7 @@ import { inviteLinksRouter } from './inviteLinksRouter';
 import { organizationRouter } from './organizationRouter';
 import { userRouter } from './userRouter';
 import { projectRouter } from './projectRouter';
+import { dashboardRouter } from './dashboardRouter';
 
 export const apiV1Router = express.Router();
 
@@ -158,3 +159,4 @@ apiV1Router.use('/invite-links', inviteLinksRouter);
 apiV1Router.use('/org', organizationRouter);
 apiV1Router.use('/user', userRouter);
 apiV1Router.use('/projects/:projectUuid', projectRouter);
+apiV1Router.use('/dashboards/:dashboardUuid', dashboardRouter);
