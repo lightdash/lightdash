@@ -3,7 +3,9 @@
     "properties": {
         "savedChartUuid": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "nullable": true
         }
-    }
+    },
+    "required": ["savedChartUuid"]
 }

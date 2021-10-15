@@ -20,6 +20,6 @@
         "build": "tsc --build tsconfig.json",
         "lint": "eslint ./src",
         "format": "prettier --check --ignore-unknown ./src",
-        "bundle-openapi": "openapi bundle --output ./src/openapibundle --ext json ./src/openapi/openapi.json"
+        "bundle-openapi": "openapi bundle --output ./src/openapibundle --ext json ./src/openapi/openapi.json --lint"
     }
 }

@@ -9,7 +9,7 @@ import {
     MetricQuery,
 } from 'common';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
-import { projectService } from '../services/services';
+import { dashboardService, projectService } from '../services/services';
 import { SavedQueriesModel } from '../models/savedQueries';
 
 export const projectRouter = express.Router({ mergeParams: true });
@@ -202,3 +202,32 @@ projectRouter.get('/spaces', isAuthenticated, async (req, res, next) => {
         })
         .catch(next);
 });
+
+projectRouter.get('/dashboards', isAuthenticated, async (req, res, next) => {
+    dashboardService
+        .getAllByProject(req.user!, req.params.projectUuid)
+        .then((results) => {
+            res.json({
+                status: 'ok',
+                results,
+            });
+        })
+        .catch(next);
+});
+
+projectRouter.post(
+    '/dashboards',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        dashboardService
+            .create(req.user!, req.params.projectUuid, req.body)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);

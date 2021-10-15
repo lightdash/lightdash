@@ -65,16 +65,20 @@ export class DashboardModel {
         version.tiles.forEach(({ type, w, h, x, y, properties }, index) => {
             promises.push(
                 (async () => {
+                    const rank = index + 1;
                     await trx(DashboardTilesTableName).insert({
                         dashboard_version_id: versionId.dashboard_version_id,
-                        rank: index,
+                        rank,
                         type,
                         height: h,
                         width: w,
                         x_offset: x,
                         y_offset: y,
                     });
-                    if (type === DashboardTileTypes.SAVED_CHART) {
+                    if (
+                        type === DashboardTileTypes.SAVED_CHART &&
+                        properties.savedChartUuid
+                    ) {
                         const [savedChart] = await trx(SavedQueriesTableName)
                             .select(['saved_query_id'])
                             .where(
@@ -88,7 +92,7 @@ export class DashboardModel {
                         await trx(DashboardTileChartTableName).insert({
                             dashboard_version_id:
                                 versionId.dashboard_version_id,
-                            rank: index,
+                            rank,
                             saved_chart_id: savedChart.saved_query_id,
                         });
                     }
@@ -123,8 +127,16 @@ export class DashboardModel {
                 `${DashboardsTableName}.description`,
                 `${DashboardVersionsTableName}.created_at`,
             ])
-            .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
-            .distinctOn('dashboard_id')
+            .orderBy([
+                {
+                    column: `${DashboardVersionsTableName}.dashboard_id`,
+                },
+                {
+                    column: `${DashboardVersionsTableName}.created_at`,
+                    order: 'desc',
+                },
+            ])
+            .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
             .where('project_uuid', projectUuid);
         return dashboards.map(
             ({ name, description, dashboard_uuid, created_at }) => ({
@@ -167,7 +179,7 @@ export class DashboardModel {
             .leftJoin(
                 SavedQueriesTableName,
                 `${DashboardTileChartTableName}.saved_chart_id`,
-                `${SavedQueriesTableName}.saved_chart_id`,
+                `${SavedQueriesTableName}.saved_query_id`,
             )
             .select<GetChartTileQuery[]>([
                 `${DashboardTileChartTableName}.rank`,

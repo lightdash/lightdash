@@ -1,12 +1,13 @@
 {
     "post": {
-        "summary": "Create new dashboard on project",
+        "summary": "Create dashboard",
+        "description": "Create new dashboard on project",
         "tags": ["dashboard"],
         "operationId": "createDashboard",
         "parameters": [
             {
                 "in": "path",
-                "name": "projectId",
+                "name": "projectUuid",
                 "schema": {
                     "type": "string",
                     "format": "uuid"
@@ -54,13 +55,14 @@
         }
     },
     "get": {
-        "summary": "List all dashboards in a project",
+        "summary": "List dashboards",
+        "description": "List all dashboards in a project",
         "tags": ["dashboard"],
         "operationId": "getDashboards",
         "parameters": [
             {
                 "in": "path",
-                "name": "projectId",
+                "name": "projectUuid",
                 "schema": {
                     "type": "string",
                     "format": "uuid"

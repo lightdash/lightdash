@@ -5,6 +5,7 @@ import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
 import { DashboardModel } from './DashboardModel';
 import {
     addDashboardVersion,
+    addDashboardVersionWithoutChart,
     createDashboard,
     dashboardChartTileEntry,
     dashboardEntry,
@@ -131,7 +132,7 @@ describe('DashboardModel', () => {
                 queryMatcher(DashboardTilesTableName, [
                     dashboardVersionEntry.dashboard_version_id,
                     addDashboardVersion.tiles[0].h,
-                    0,
+                    1,
                     addDashboardVersion.tiles[0].type,
                     addDashboardVersion.tiles[0].w,
                     addDashboardVersion.tiles[0].x,
@@ -151,7 +152,7 @@ describe('DashboardModel', () => {
             .insert(
                 queryMatcher(DashboardTileChartTableName, [
                     dashboardVersionEntry.dashboard_version_id,
-                    0,
+                    1,
                     savedChartEntry.saved_query_id,
                 ]),
             )
@@ -216,7 +217,7 @@ describe('DashboardModel', () => {
                 queryMatcher(DashboardTilesTableName, [
                     dashboardVersionEntry.dashboard_version_id,
                     addDashboardVersion.tiles[0].h,
-                    0,
+                    1,
                     addDashboardVersion.tiles[0].type,
                     addDashboardVersion.tiles[0].w,
                     addDashboardVersion.tiles[0].x,
@@ -236,7 +237,7 @@ describe('DashboardModel', () => {
             .insert(
                 queryMatcher(DashboardTileChartTableName, [
                     dashboardVersionEntry.dashboard_version_id,
-                    0,
+                    1,
                     savedChartEntry.saved_query_id,
                 ]),
             )
@@ -246,6 +247,41 @@ describe('DashboardModel', () => {
 
         expect(tracker.history.select).toHaveLength(2);
         expect(tracker.history.insert).toHaveLength(3);
+    });
+    test('should create dashboard version without a chart', async () => {
+        tracker.on
+            .select(
+                queryMatcher(DashboardsTableName, [expectedDashboard.uuid, 1]),
+            )
+            .response([dashboardEntry]);
+        tracker.on
+            .insert(
+                queryMatcher(DashboardVersionsTableName, [
+                    dashboardEntry.dashboard_id,
+                ]),
+            )
+            .response([dashboardVersionEntry]);
+        tracker.on
+            .insert(
+                queryMatcher(DashboardTilesTableName, [
+                    dashboardVersionEntry.dashboard_version_id,
+                    addDashboardVersion.tiles[0].h,
+                    1,
+                    addDashboardVersion.tiles[0].type,
+                    addDashboardVersion.tiles[0].w,
+                    addDashboardVersion.tiles[0].x,
+                    addDashboardVersion.tiles[0].y,
+                ]),
+            )
+            .response([]);
+
+        await model.addVersion(
+            expectedDashboard.uuid,
+            addDashboardVersionWithoutChart,
+        );
+
+        expect(tracker.history.select).toHaveLength(1);
+        expect(tracker.history.insert).toHaveLength(2);
     });
     test("should error on create dashboard version if saved chart isn't found", async () => {
         tracker.on
@@ -265,7 +301,7 @@ describe('DashboardModel', () => {
                 queryMatcher(DashboardTilesTableName, [
                     dashboardVersionEntry.dashboard_version_id,
                     addDashboardVersion.tiles[0].h,
-                    0,
+                    1,
                     addDashboardVersion.tiles[0].type,
                     addDashboardVersion.tiles[0].w,
                     addDashboardVersion.tiles[0].x,

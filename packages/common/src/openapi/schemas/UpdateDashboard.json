@@ -1,0 +1,49 @@
+{
+    "oneOf": [
+        {
+            "title": "Unversioned fields",
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                }
+            },
+            "required": ["name"]
+        },
+        {
+            "title": "Versioned fields",
+            "type": "object",
+            "properties": {
+                "tiles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "./DashboardTile.json"
+                    }
+                }
+            },
+            "required": ["tiles"]
+        },
+        {
+            "title": "All fields",
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "tiles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "./DashboardTile.json"
+                    }
+                }
+            },
+            "required": ["name", "tiles"]
+        }
+    ]
+}

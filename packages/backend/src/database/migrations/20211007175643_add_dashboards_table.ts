@@ -23,7 +23,8 @@ export async function up(knex: Knex): Promise<void> {
             tableBuilder.text('description');
             tableBuilder
                 .timestamp('created_at', { useTz: false })
-                .notNullable();
+                .notNullable()
+                .defaultTo(knex.fn.now());
             tableBuilder
                 .uuid('dashboard_uuid')
                 .notNullable()
@@ -46,7 +47,8 @@ export async function up(knex: Knex): Promise<void> {
                     .onDelete('CASCADE');
                 tableBuilder
                     .timestamp('created_at', { useTz: false })
-                    .notNullable();
+                    .notNullable()
+                    .defaultTo(knex.fn.now());
             },
         );
     }
