@@ -11,9 +11,9 @@ import { useExplore } from './useExplore';
 
 const useDefaultSortField = (): SortField | undefined => {
     const {
-        state: { dimensions, metrics, columnOrder },
+        state: { dimensions, metrics, columnOrder, tableName },
     } = useExplorer();
-    const { data } = useExplore();
+    const { data } = useExplore(tableName);
 
     return useMemo(() => {
         if (data) {

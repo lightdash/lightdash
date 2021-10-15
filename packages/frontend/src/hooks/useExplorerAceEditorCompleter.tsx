@@ -47,10 +47,10 @@ const mapActiveFieldsToCompletions = (
 export const useExplorerAceEditorCompleter = (): {
     setAceEditor: Dispatch<SetStateAction<Ace.Editor | undefined>>;
 } => {
-    const explore = useExplore();
     const {
-        state: { activeFields },
+        state: { activeFields, tableName },
     } = useExplorer();
+    const explore = useExplore(tableName);
     const [aceEditor, setAceEditor] = useState<Ace.Editor>();
 
     const filterByActiveFields = (

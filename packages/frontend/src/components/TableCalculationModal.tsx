@@ -44,9 +44,9 @@ const TableCalculationModal: FC<Props> = ({
 }) => {
     const { showToastError } = useApp();
     const {
-        state: { dimensions, metrics, tableCalculations },
+        state: { dimensions, metrics, tableCalculations, tableName },
     } = useExplorer();
-    const { data: { targetDatabase } = {} } = useExplore();
+    const { data: { targetDatabase } = {} } = useExplore(tableName);
     const methods = useForm<TableCalculationFormInputs>({
         mode: 'onSubmit',
         defaultValues: {

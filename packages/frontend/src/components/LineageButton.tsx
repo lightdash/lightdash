@@ -7,10 +7,14 @@ import * as dagre from 'dagre';
 import { useExplore } from '../hooks/useExplore';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
+import { useExplorer } from '../providers/ExplorerProvider';
 
 const Content = () => {
     const [showAll, setShowAll] = useState(false);
-    const currentExplore = useExplore();
+    const {
+        state: { tableName },
+    } = useExplorer();
+    const currentExplore = useExplore(tableName);
     if (currentExplore.status !== 'success') return null;
     if (isExploreError(currentExplore.data)) return null;
     const table = currentExplore.data.tables[currentExplore.data.baseTable];

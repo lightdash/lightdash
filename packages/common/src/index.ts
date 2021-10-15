@@ -1101,7 +1101,7 @@ type DashboardTileBase = {
     w: number;
 };
 
-type DashboardChartTile = DashboardTileBase & {
+export type DashboardChartTile = DashboardTileBase & {
     type: DashboardTileTypes.SAVED_CHART;
     properties: {
         savedChartUuid: string | null;

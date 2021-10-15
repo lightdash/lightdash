@@ -1,7 +1,7 @@
 import EChartsReact from 'echarts-for-react';
 import React, { RefObject, FC } from 'react';
 import { friendlyName, DBChartTypes } from 'common';
-import { NonIdealState } from '@blueprintjs/core';
+import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { ChartConfig } from '../hooks/useChartConfig';
 
 const flipXFromChartType = (chartType: DBChartTypes) => {
@@ -44,17 +44,25 @@ const EmptyChart = () => (
         />
     </div>
 );
+const LoadingChart = () => (
+    <div style={{ padding: '50px 0' }}>
+        <NonIdealState title="Loading chart" icon={<Spinner />} />
+    </div>
+);
 
 type SimpleChartProps = {
+    isLoading: boolean;
     chartRef: RefObject<EChartsReact>;
     chartType: DBChartTypes;
     chartConfig: ChartConfig;
 };
 export const SimpleChart: FC<SimpleChartProps> = ({
+    isLoading,
     chartRef,
     chartType,
     chartConfig,
 }) => {
+    if (isLoading) return <LoadingChart />;
     if (chartConfig.plotData === undefined) return <EmptyChart />;
     const xlabel = friendlyName(chartConfig.seriesLayout.xDimension);
     const ylabel =

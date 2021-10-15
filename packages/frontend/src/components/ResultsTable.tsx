@@ -191,7 +191,7 @@ export const ResultsTable = () => {
         state: { tableName: activeTableName, columnOrder: explorerColumnOrder },
         actions: { setColumnOrder: setExplorerColumnOrder },
     } = useExplorer();
-    const activeExplore = useExplore();
+    const activeExplore = useExplore(activeTableName);
     const safeData = React.useMemo(
         () => (queryResults.status === 'success' ? queryResults.data.rows : []),
         [queryResults.status, queryResults.data],

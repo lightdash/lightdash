@@ -29,6 +29,7 @@ import { CreateSavedQueryModal } from './SaveQueryModal';
 import { useAddVersionMutation, useSavedQuery } from '../hooks/useSavedQuery';
 import { Section } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
+import { useQueryResults } from '../hooks/useQueryResults';
 
 interface Props {
     savedQueryUuid?: string;
@@ -53,8 +54,13 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         },
         actions: { setRowLimit: setResultsRowLimit },
     } = useExplorer();
-    const chartConfig = useChartConfig(savedQueryUuid);
+    const queryResults = useQueryResults();
     const { data } = useSavedQuery({ id: savedQueryUuid });
+    const chartConfig = useChartConfig(
+        tableName,
+        queryResults.data,
+        data?.chartConfig.seriesLayout,
+    );
     const update = useAddVersionMutation();
 
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false);
@@ -260,6 +266,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                 </div>
                 <Collapse isOpen={vizIsOpen}>
                     <SimpleChart
+                        isLoading={queryResults.isLoading}
                         chartRef={chartRef}
                         chartType={activeVizTab}
                         chartConfig={chartConfig}

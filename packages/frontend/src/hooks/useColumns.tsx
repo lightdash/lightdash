@@ -75,11 +75,16 @@ const getSortByProps = (
 };
 
 export const useColumns = (): Column<{ [col: string]: any }>[] => {
-    const { data } = useExplore();
     const {
-        state: { activeFields, sorts: sortFields, tableCalculations },
+        state: {
+            activeFields,
+            sorts: sortFields,
+            tableCalculations,
+            tableName,
+        },
         actions: { toggleSortField },
     } = useExplorer();
+    const { data } = useExplore(tableName);
     return useMemo(() => {
         if (data) {
             const fieldColumns = getFields(data).reduce<
