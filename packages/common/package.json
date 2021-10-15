@@ -13,7 +13,9 @@
     },
     "dependencies": {
         "@typescript-eslint/eslint-plugin": "^4.4.1",
-        "moment": "^2.29.1"
+        "moment": "^2.29.1",
+        "react-hook-form": "^7.15.0",
+        "@types/react": "^17.0.0"
     },
     "scripts": {
         "dev": "nodemon src/index.ts",

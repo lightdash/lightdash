@@ -17,7 +17,7 @@ import PrivateRoute from './components/PrivateRoute';
 import AppBar from './components/AppBar';
 import Register from './pages/register';
 import { AppProvider } from './providers/AppProvider';
-import Saved from './pages/Saved';
+import SavedQueries from './pages/SavedQueries';
 import Explorer from './pages/Explorer';
 import { ExplorerProvider } from './providers/ExplorerProvider';
 import SavedExplorer from './pages/SavedExplorer';
@@ -103,7 +103,7 @@ const App = () => (
                                     <Route path="/projects/:projectUuid/saved">
                                         <AppBar />
                                         <Page name={PageName.SAVED_QUERIES}>
-                                            <Saved />
+                                            <SavedQueries />
                                         </Page>
                                     </Route>
                                     <Route path="/projects/:projectUuid/dashboards">

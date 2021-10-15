@@ -1,5 +1,5 @@
 import React from 'react';
 
-const Dashboards = () => <>Dashboards</>;
+const Dashboards = () => <></>;
 
 export default Dashboards;

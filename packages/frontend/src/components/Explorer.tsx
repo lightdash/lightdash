@@ -25,7 +25,7 @@ import { ChartConfigPanel } from './ChartConfigPanel';
 import { useChartConfig } from '../hooks/useChartConfig';
 import { ChartDownloadMenu } from './ChartDownload';
 import { useExplorer } from '../providers/ExplorerProvider';
-import { CreateSavedQueryModal } from './SaveQueryModal';
+import CreateSavedQueryModal from './SavedQueries/modals/CreateSavedQueryModal';
 import { useAddVersionMutation, useSavedQuery } from '../hooks/useSavedQuery';
 import { Section } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
@@ -348,7 +348,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                 <CreateSavedQueryModal
                     isOpen={isQueryModalOpen}
                     queryData={queryData}
-                    onClose={() => setIsQueryModalOpen(false)}
                 />
             )}
         </>
