@@ -2,6 +2,7 @@ import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 import { DbtChildProcess } from '../dbt/dbtChildProcess';
 import { NetworkError } from '../errors';
 import { DbtRpcClient } from '../dbt/dbtRpcClient';
+import { DbtCliClient } from '../dbt/dbtCliClient';
 
 type DbtLocalProjectAdapterArgs = {
     projectDir: string;
@@ -33,7 +34,14 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
         );
         const serverUrl = `http://${DbtChildProcess.host}:${childProcess.port}/jsonrpc`;
         const rpcClient = new DbtRpcClient(serverUrl);
-        super(rpcClient);
+        const dbtClient = new DbtCliClient({
+            dbtProjectDirectory: projectDir,
+            dbtProfilesDirectory: profilesDir,
+            environment: environment || {},
+            profileName,
+            target,
+        });
+        super(dbtClient, rpcClient);
         this.dbtChildProcess = childProcess;
     }
 
