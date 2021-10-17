@@ -6,22 +6,25 @@ import {
 import Input from '../ReactHookForm/Input';
 
 const SavedQueryForm = ({
-    actionState: { actionType },
+    useActionModalState,
     isDisabled,
-}: Pick<ActionModalProps, 'actionState' | 'isDisabled'>) => (
-    <>
-        {actionType === ActionTypeModal.UPDATE && (
-            <Input
-                label="Name"
-                name="name"
-                disabled={isDisabled}
-                rules={{ required: true }}
-            />
-        )}
-        {actionType === ActionTypeModal.DELETE && (
-            <p>Are you sure you want to delete this chart ?</p>
-        )}
-    </>
-);
+}: Pick<ActionModalProps, 'useActionModalState' | 'isDisabled'> & any) => {
+    const [{ actionType }] = useActionModalState;
+    return (
+        <>
+            {actionType === ActionTypeModal.UPDATE && (
+                <Input
+                    label="Name"
+                    name="name"
+                    disabled={isDisabled}
+                    rules={{ required: true }}
+                />
+            )}
+            {actionType === ActionTypeModal.DELETE && (
+                <p>Are you sure you want to delete this chart ?</p>
+            )}
+        </>
+    );
+};
 
 export default SavedQueryForm;

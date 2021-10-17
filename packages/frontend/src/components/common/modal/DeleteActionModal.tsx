@@ -1,25 +1,23 @@
 import React, { Dispatch, SetStateAction, useEffect } from 'react';
 import { UseMutationResult } from 'react-query';
 import { ApiError } from 'common';
-import { UseFormReturn } from 'react-hook-form';
-import { ActionTypeModal, ActionModalProps } from './ActionModalTypes';
+import { ActionModalProps } from './ActionModalTypes';
 import ActionModal from './ActionModal';
 
 type DeleteActionModalProps = {
-    useActionState: [
+    useActionModalState: [
         { actionType: number; data?: any },
         Dispatch<SetStateAction<{ actionType: number; data?: any }>>,
     ];
     useDelete: UseMutationResult<undefined, ApiError, string>;
-    setFormValues: (data: any, methods: UseFormReturn<any, object>) => void;
-    ModalForm: (
-        props: Pick<ActionModalProps, 'actionState' | 'isDisabled'>,
+    ModalContent: (
+        props: Pick<ActionModalProps, 'useActionModalState' | 'isDisabled'>,
     ) => JSX.Element;
 };
 
 const DeleteActionModal = (props: DeleteActionModalProps) => {
-    const { useDelete, setFormValues, useActionState, ModalForm } = props;
-    const [actionState, setActionState] = useActionState;
+    const { useDelete, useActionModalState, ModalContent } = props;
+    const [actionState] = useActionModalState;
     const { data: { uuid: id } = {}, actionType } = actionState;
     const {
         status: statusDelete,
@@ -37,19 +35,14 @@ const DeleteActionModal = (props: DeleteActionModalProps) => {
         }
     }, [isDeleting, actionType, resetDelete]);
 
-    const onClose = () =>
-        !isDeleting
-            ? setActionState({ actionType: ActionTypeModal.CLOSE })
-            : undefined;
     return (
         <ActionModal
-            actionState={actionState}
+            useActionModalState={useActionModalState}
             isDisabled={isDeleting}
             onSubmitForm={onSubmitForm}
-            setFormValues={setFormValues}
             completedMutation={statusDelete === 'success'}
-            onClose={onClose}
-            ModalForm={ModalForm}
+            isDeleting={isDeleting}
+            ModalContent={ModalContent}
         />
     );
 };

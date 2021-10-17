@@ -107,16 +107,16 @@ const App = () => (
                                             <SavedQueries />
                                         </Page>
                                     </Route>
-                                    <Route path="/projects/:projectUuid/dashboards">
-                                        <AppBar />
-                                        <Page name={PageName.SAVED_DASHBOARDS}>
-                                            <SavedDashboards />
-                                        </Page>
-                                    </Route>
                                     <Route path="/projects/:projectUuid/dashboards/:dashboardUuid">
                                         <AppBar />
                                         <Page name={PageName.DASHBOARD}>
                                             <Dashboard />
+                                        </Page>
+                                    </Route>
+                                    <Route path="/projects/:projectUuid/dashboards">
+                                        <AppBar />
+                                        <Page name={PageName.SAVED_DASHBOARDS}>
+                                            <SavedDashboards />
                                         </Page>
                                     </Route>
                                     <Route path="/projects/:projectUuid/tables/:tableId">
@@ -140,7 +140,7 @@ const App = () => (
                                     </Route>
                                     <Redirect to="/projects" />
                                 </Switch>
-                                <ReactQueryDevtools />
+                                <ReactQueryDevtools initialIsOpen />
                             </div>
                         </PrivateRoute>
                     </Switch>

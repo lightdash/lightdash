@@ -31,7 +31,7 @@ const SavedQueriesContent = ({
             const { uuid } = savedQuery;
             return `/projects/${projectUuid}/saved/${uuid}`;
         }}
-        ModalForm={SavedQueryForm}
+        ModalContent={SavedQueryForm}
     />
 );
 

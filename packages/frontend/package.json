@@ -21,6 +21,7 @@
         "@types/react-dom": "^17.0.0",
         "@types/react-router-dom": "^5.1.7",
         "@types/react-table": "^7.0.29",
+        "@types/styled-components": "^5.1.15",
         "@types/uuid": "^8.3.0",
         "ace-builds": "^1.4.12",
         "common": "^0.8.3",
@@ -44,6 +45,7 @@
         "react-table": "^7.6.3",
         "react-use": "^17.2.4",
         "rudder-sdk-js": "^1.0.16",
+        "styled-components": "^5.3.1",
         "typescript": "^4.1.2",
         "uuid": "^8.3.2",
         "web-vitals": "^1.0.1"

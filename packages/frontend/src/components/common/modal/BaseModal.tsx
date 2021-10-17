@@ -2,17 +2,18 @@ import React, { ReactNode } from 'react';
 import { Classes, Dialog, IconName, MaybeElement } from '@blueprintjs/core';
 import { UseFormReturn } from 'react-hook-form';
 import Form from '../../ReactHookForm/Form';
+import Wrap from '../Wrap';
 
 interface BaseModalProps<T> {
-    canOutsideClickClose?: boolean;
     onClose: () => void;
     isOpen: boolean;
     title: string;
     icon: IconName | MaybeElement;
     renderBody: (props?: any) => ReactNode;
     renderFooter: (props?: any) => ReactNode;
-    methods: UseFormReturn<any, object>;
-    handleSubmit: (data: any) => void;
+    canOutsideClickClose?: boolean;
+    methods?: UseFormReturn<any, object>;
+    handleSubmit?: (data: any) => void;
 }
 
 const BaseModal = ({
@@ -23,19 +24,35 @@ const BaseModal = ({
     ...modalProps
 }: BaseModalProps<any>) => (
     <Dialog lazy {...modalProps}>
-        <Form methods={methods} onSubmit={(data) => handleSubmit(data)}>
+        <Wrap
+            wrap={(children) => {
+                if (methods && handleSubmit) {
+                    return (
+                        <Form
+                            methods={methods}
+                            onSubmit={(data) => handleSubmit(data)}
+                        >
+                            {children}
+                        </Form>
+                    );
+                }
+                return <>{children}</>;
+            }}
+        >
             <div className={Classes.DIALOG_BODY}>{renderBody()}</div>
             <div className={Classes.DIALOG_FOOTER}>
                 <div className={Classes.DIALOG_FOOTER_ACTIONS}>
                     {renderFooter()}
                 </div>
             </div>
-        </Form>
+        </Wrap>
     </Dialog>
 );
 
 BaseModal.defaultProps = {
     canOutsideClickClose: true,
+    handleSubmit: () => {},
+    methods: undefined,
 };
 
 export default BaseModal;

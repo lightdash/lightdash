@@ -3,6 +3,7 @@ import { NonIdealState } from '@blueprintjs/core';
 import { SpaceQuery, ApiError, Dashboard } from 'common';
 import { UseMutationResult } from 'react-query';
 import { UseFormReturn } from 'react-hook-form';
+import styled from 'styled-components';
 import { ActionModalProps, ActionTypeModal } from './modal/ActionModalTypes';
 import ActionCard from './ActionCard';
 import UpdateActionModal from './modal/UpdateActionModal';
@@ -14,10 +15,19 @@ type ActionCardListProps = {
     useDelete: UseMutationResult<undefined, ApiError, string>;
     useUpdate: (id: string) => UseMutationResult<any, ApiError, any>;
     setFormValues: (data: any, methods: UseFormReturn<any, object>) => void;
-    ModalForm: (
-        props: Pick<ActionModalProps, 'actionState' | 'isDisabled'>,
+    ModalContent: (
+        props: Pick<ActionModalProps, 'useActionModalState' | 'isDisabled'>,
     ) => JSX.Element;
 };
+
+const ActionCardListWrapper = styled.div`
+    padding: 20px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+`;
 
 const ActionCardList = (props: ActionCardListProps) => {
     const [actionState, setActionState] = useState<{
@@ -26,20 +36,17 @@ const ActionCardList = (props: ActionCardListProps) => {
     }>({
         actionType: ActionTypeModal.CLOSE,
     });
-    const { dataList, getURL, useDelete, useUpdate, setFormValues, ModalForm } =
-        props;
+    const {
+        dataList,
+        getURL,
+        useDelete,
+        useUpdate,
+        setFormValues,
+        ModalContent,
+    } = props;
 
     return (
-        <div
-            style={{
-                padding: '20px',
-                flexGrow: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-start',
-                alignItems: 'stretch',
-            }}
-        >
+        <ActionCardListWrapper>
             {dataList.map((data) => (
                 <ActionCard
                     data={data}
@@ -50,18 +57,17 @@ const ActionCardList = (props: ActionCardListProps) => {
             ))}
             {actionState.actionType === ActionTypeModal.UPDATE && (
                 <UpdateActionModal
-                    useActionState={[actionState, setActionState]}
+                    useActionModalState={[actionState, setActionState]}
                     useUpdate={useUpdate}
                     setFormValues={setFormValues}
-                    ModalForm={ModalForm}
+                    ModalContent={ModalContent}
                 />
             )}
             {actionState.actionType === ActionTypeModal.DELETE && (
                 <DeleteActionModal
-                    useActionState={[actionState, setActionState]}
+                    useActionModalState={[actionState, setActionState]}
                     useDelete={useDelete}
-                    setFormValues={setFormValues}
-                    ModalForm={ModalForm}
+                    ModalContent={ModalContent}
                 />
             )}
 
@@ -70,7 +76,7 @@ const ActionCardList = (props: ActionCardListProps) => {
                     <NonIdealState title="No results available" icon="search" />
                 </div>
             )}
-        </div>
+        </ActionCardListWrapper>
     );
 };
 export default ActionCardList;

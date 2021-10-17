@@ -1,4 +1,5 @@
 import { UseFormReturn } from 'react-hook-form';
+import { Dispatch, SetStateAction } from 'react';
 
 export enum ActionTypeModal {
     CLOSE,
@@ -7,13 +8,17 @@ export enum ActionTypeModal {
 }
 
 export type ActionModalProps = {
-    actionState: { data?: any; actionType: number };
-    setFormValues: (data: any, methods: UseFormReturn<any, object>) => void;
+    useActionModalState: [
+        { actionType: number; data?: any },
+        Dispatch<SetStateAction<{ actionType: number; data?: any }>>,
+    ];
+    setFormValues?: (data: any, methods: UseFormReturn<any, object>) => void;
     isDisabled: boolean;
     onSubmitForm: (data: any) => void;
     completedMutation: boolean;
-    onClose: () => void;
-    ModalForm: (
-        props: Pick<ActionModalProps, 'actionState' | 'isDisabled'>,
+    isDeleting?: boolean;
+    onClose?: () => void;
+    ModalContent: (
+        props: Pick<ActionModalProps, 'useActionModalState' | 'isDisabled'>,
     ) => JSX.Element;
 };

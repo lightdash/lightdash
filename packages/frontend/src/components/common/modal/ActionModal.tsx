@@ -6,30 +6,40 @@ import BaseModal from './BaseModal';
 import { useApp } from '../../../providers/AppProvider';
 
 const ActionModal = (props: ActionModalProps) => {
-    const { isDisabled, completedMutation, actionState } = props;
+    const { isDisabled, completedMutation, useActionModalState, isDeleting } =
+        props;
     const { showToastError } = useApp();
 
     const methods = useForm<any>({
         mode: 'onSubmit',
-        defaultValues: {
-            name: '',
-        },
     });
-
+    const [actionState, setActionState] = useActionModalState;
     const { data: currentData, actionType } = actionState;
-    const { onSubmitForm, setFormValues, onClose, ModalForm } = props;
+    const { onSubmitForm, setFormValues, ModalContent } = props;
+
+    const onClose = () => {
+        if (!isDeleting) {
+            setActionState({ actionType: ActionTypeModal.CLOSE });
+            if (props.onClose) {
+                props.onClose();
+            }
+        }
+    };
 
     useEffect(() => {
         if (actionType !== ActionTypeModal.CLOSE && completedMutation) {
             onClose();
         }
-    }, [onClose, completedMutation]);
+    }, [onClose, completedMutation, actionType]);
 
+    // set initial value only
     useEffect(() => {
         if (currentData) {
-            setFormValues(currentData, methods);
+            if (setFormValues) {
+                setFormValues(currentData, methods);
+            }
         }
-    }, [currentData, methods, setFormValues]);
+    }, [currentData]);
 
     const handleSubmit = (data?: any) => {
         try {
@@ -51,7 +61,7 @@ const ActionModal = (props: ActionModalProps) => {
             onClose={onClose}
             methods={methods}
             handleSubmit={handleSubmit}
-            renderBody={() => <ModalForm {...props} />}
+            renderBody={() => <ModalContent {...props} />}
             renderFooter={() => (
                 <>
                     <Button onClick={onClose}>Cancel</Button>
