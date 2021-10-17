@@ -37,7 +37,7 @@ const UpdateActionModal = (props: UpdateActionModalProps) => {
         if (!isUpdating) {
             resetUpdate();
         }
-    }, [isUpdating, actionType, resetUpdate]);
+    }, [isUpdating, resetUpdate]);
 
     return (
         <ActionModal

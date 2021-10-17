@@ -31,7 +31,13 @@ const CreateActionModal = (props: CreateActionModalProps) => {
         onClose,
         ModalContent,
     } = props;
-    const { status, mutate, isLoading } = useCreate;
+    const { status, mutate, isLoading: isCreating, reset } = useCreate;
+
+    useEffect(() => {
+        if (!isCreating) {
+            reset();
+        }
+    }, [isCreating, reset]);
 
     const onSubmitForm = (data?: any) => mutate({ ...savedData, ...data });
 
@@ -46,7 +52,7 @@ const CreateActionModal = (props: CreateActionModalProps) => {
     return (
         <ActionModal
             useActionModalState={[actionState, setActionState]}
-            isDisabled={isLoading}
+            isDisabled={isCreating}
             onSubmitForm={onSubmitForm}
             setFormValues={setFormValues}
             completedMutation={status === 'success'}
