@@ -1,4 +1,3 @@
-import { UseFormReturn } from 'react-hook-form';
 import React, { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import CreateActionModal from '../common/modal/CreateActionModal';
@@ -18,15 +17,10 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = (
 ) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const useCreate = useCreateMutation(projectUuid);
+
     return (
         <CreateActionModal
             useCreate={useCreate}
-            setFormValues={(data: any, methods: UseFormReturn<any, object>) => {
-                const { setValue } = methods;
-                if (data?.name) {
-                    setValue('name', data?.name);
-                }
-            }}
             savedData={{ tiles: [] }}
             {...props}
         />

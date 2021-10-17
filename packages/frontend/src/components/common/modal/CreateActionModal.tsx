@@ -7,11 +7,11 @@ import ActionModal from './ActionModal';
 
 type CreateActionModalProps = {
     useCreate: UseMutationResult<any, ApiError, any, unknown>;
-    setFormValues: (data: any, methods: UseFormReturn<any, object>) => void;
     isOpen: boolean;
     ModalContent: (
         props: Pick<ActionModalProps, 'useActionModalState' | 'isDisabled'>,
     ) => JSX.Element;
+    setFormValues?: (data: any, methods: UseFormReturn<any, object>) => void;
     savedData?: any;
     onClose?: () => void;
 };
@@ -65,6 +65,7 @@ const CreateActionModal = (props: CreateActionModalProps) => {
 CreateActionModal.defaultProps = {
     savedData: {},
     onClose: () => {},
+    setFormValues: () => {},
 };
 
 export default CreateActionModal;

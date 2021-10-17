@@ -12,13 +12,13 @@ export type ActionModalProps = {
         { actionType: number; data?: any },
         Dispatch<SetStateAction<{ actionType: number; data?: any }>>,
     ];
-    setFormValues?: (data: any, methods: UseFormReturn<any, object>) => void;
-    isDisabled: boolean;
-    onSubmitForm: (data: any) => void;
-    completedMutation: boolean;
-    isDeleting?: boolean;
-    onClose?: () => void;
     ModalContent: (
         props: Pick<ActionModalProps, 'useActionModalState' | 'isDisabled'>,
     ) => JSX.Element;
+    isDisabled: boolean;
+    onSubmitForm: (data: any) => void;
+    completedMutation: boolean;
+    setFormValues?: (data: any, methods: UseFormReturn<any, object>) => void;
+    isDeleting?: boolean;
+    onClose?: () => void;
 };

@@ -1,5 +1,4 @@
 import { SavedQuery } from 'common';
-import { UseFormReturn } from 'react-hook-form';
 import React, { FC } from 'react';
 import { useCreateMutation } from '../../hooks/useSavedQuery';
 import CreateActionModal from '../common/modal/CreateActionModal';
@@ -16,18 +15,7 @@ interface CreateSavedQueryModalProps {
 
 const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = (props) => {
     const useCreate = useCreateMutation();
-    return (
-        <CreateActionModal
-            useCreate={useCreate}
-            setFormValues={(data: any, methods: UseFormReturn<any, object>) => {
-                const { setValue } = methods;
-                if (data?.name) {
-                    setValue('name', data?.name);
-                }
-            }}
-            {...props}
-        />
-    );
+    return <CreateActionModal useCreate={useCreate} {...props} />;
 };
 
 export default CreateSavedQueryModal;
