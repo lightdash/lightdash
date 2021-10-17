@@ -22,6 +22,8 @@ const ActionModal = (props: ActionModalProps) => {
             setActionState({ actionType: ActionTypeModal.CLOSE });
             if (props.onClose) {
                 props.onClose();
+                // reset fields for new modal
+                methods.reset();
             }
         }
     };
