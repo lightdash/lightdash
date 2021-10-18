@@ -140,7 +140,7 @@ const App = () => (
                                     </Route>
                                     <Redirect to="/projects" />
                                 </Switch>
-                                <ReactQueryDevtools initialIsOpen />
+                                <ReactQueryDevtools />
                             </div>
                         </PrivateRoute>
                     </Switch>
