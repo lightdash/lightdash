@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { UseMutationResult } from 'react-query';
 import { UseFormReturn } from 'react-hook-form';
 import { ApiError } from 'common';
-import { ActionModalProps, ActionTypeModal } from './ActionModalTypes';
-import ActionModal from './ActionModal';
+import ActionModal, { ActionModalProps, ActionTypeModal } from './ActionModal';
 
 type CreateActionModalProps = {
     useCreate: UseMutationResult<any, ApiError, any, unknown>;

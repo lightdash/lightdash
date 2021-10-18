@@ -1,13 +1,32 @@
-import React, { useEffect } from 'react';
+import React, { Dispatch, SetStateAction, useEffect } from 'react';
 import { Button, Intent } from '@blueprintjs/core';
-import { useForm } from 'react-hook-form';
-import { ActionModalProps, ActionTypeModal } from './ActionModalTypes';
+import { useForm, UseFormReturn } from 'react-hook-form';
 import BaseModal from './BaseModal';
 import { useApp } from '../../../providers/AppProvider';
 
+export enum ActionTypeModal {
+    CLOSE,
+    UPDATE,
+    DELETE,
+}
+
+export type ActionModalProps = {
+    useActionModalState: [
+        { actionType: number; data?: any },
+        Dispatch<SetStateAction<{ actionType: number; data?: any }>>,
+    ];
+    ModalContent: (
+        props: Pick<ActionModalProps, 'useActionModalState' | 'isDisabled'>,
+    ) => JSX.Element;
+    isDisabled: boolean;
+    onSubmitForm: (data: any) => void;
+    completedMutation: boolean;
+    setFormValues?: (data: any, methods: UseFormReturn<any, object>) => void;
+    onClose?: () => void;
+};
+
 const ActionModal = (props: ActionModalProps) => {
-    const { isDisabled, completedMutation, useActionModalState, isDeleting } =
-        props;
+    const { isDisabled, completedMutation, useActionModalState } = props;
     const { showToastError } = useApp();
 
     const methods = useForm<any>({
@@ -18,7 +37,7 @@ const ActionModal = (props: ActionModalProps) => {
     const { onSubmitForm, setFormValues, ModalContent } = props;
 
     const onClose = () => {
-        if (!isDeleting) {
+        if (!isDisabled) {
             setActionState({ actionType: ActionTypeModal.CLOSE });
             if (props.onClose) {
                 props.onClose();

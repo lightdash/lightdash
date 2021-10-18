@@ -2,7 +2,7 @@ import { SavedQuery } from 'common';
 import React, { FC } from 'react';
 import { useCreateMutation } from '../../hooks/useSavedQuery';
 import CreateActionModal from '../common/modal/CreateActionModal';
-import { ActionModalProps } from '../common/modal/ActionModalTypes';
+import { ActionModalProps } from '../common/modal/ActionModal';
 
 interface CreateSavedQueryModalProps {
     isOpen: boolean;

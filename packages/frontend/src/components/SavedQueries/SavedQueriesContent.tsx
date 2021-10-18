@@ -27,7 +27,7 @@ const SavedQueriesContent = ({
                 setValue('name', data?.name);
             }
         }}
-        getURL={(savedQuery: any | undefined) => {
+        getURL={(savedQuery) => {
             const { uuid } = savedQuery;
             return `/projects/${projectUuid}/saved/${uuid}`;
         }}

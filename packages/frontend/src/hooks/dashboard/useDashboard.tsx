@@ -89,7 +89,7 @@ export const useDeleteMutation = () => {
         },
         onError: (error) => {
             showToastError({
-                title: `Failed to delete chart`,
+                title: `Failed to delete dashboard`,
                 subtitle: error.error.message,
             });
         },

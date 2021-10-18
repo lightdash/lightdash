@@ -1,8 +1,7 @@
 import React, { Dispatch, SetStateAction, useEffect } from 'react';
 import { UseMutationResult } from 'react-query';
 import { ApiError } from 'common';
-import { ActionModalProps } from './ActionModalTypes';
-import ActionModal from './ActionModal';
+import ActionModal, { ActionModalProps } from './ActionModal';
 
 type DeleteActionModalProps = {
     useActionModalState: [
@@ -41,7 +40,6 @@ const DeleteActionModal = (props: DeleteActionModalProps) => {
             isDisabled={isDeleting}
             onSubmitForm={onSubmitForm}
             completedMutation={statusDelete === 'success'}
-            isDeleting={isDeleting}
             ModalContent={ModalContent}
         />
     );

@@ -60,7 +60,7 @@ const SavedDashboards = () => {
                         setValue('description', data?.description);
                     }
                 }}
-                getURL={(savedDashboard: any | undefined) => {
+                getURL={(savedDashboard) => {
                     const { uuid } = savedDashboard;
                     return `/projects/${projectUuid}/dashboards/${uuid}`;
                 }}

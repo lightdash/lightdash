@@ -1,7 +1,7 @@
 import { Button, ButtonGroup } from '@blueprintjs/core';
 import React, { Dispatch, SetStateAction } from 'react';
 import { useHistory } from 'react-router-dom';
-import { ActionTypeModal } from './ActionModalTypes';
+import { ActionTypeModal } from './ActionModal';
 
 type ModalActionButtonsProps = {
     data: any;

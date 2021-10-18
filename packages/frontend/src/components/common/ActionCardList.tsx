@@ -4,14 +4,14 @@ import { SpaceQuery, ApiError, Dashboard } from 'common';
 import { UseMutationResult } from 'react-query';
 import { UseFormReturn } from 'react-hook-form';
 import styled from 'styled-components';
-import { ActionModalProps, ActionTypeModal } from './modal/ActionModalTypes';
+import { ActionModalProps, ActionTypeModal } from './modal/ActionModal';
 import ActionCard from './ActionCard';
 import UpdateActionModal from './modal/UpdateActionModal';
 import DeleteActionModal from './modal/DeleteActionModal';
 
 type ActionCardListProps = {
     dataList: Pick<SpaceQuery | Dashboard, 'uuid' | 'name'>[];
-    getURL: (data: any) => string;
+    getURL: (data: SpaceQuery | Dashboard) => string;
     useDelete: UseMutationResult<undefined, ApiError, string>;
     useUpdate: (id: string) => UseMutationResult<any, ApiError, any>;
     setFormValues: (data: any, methods: UseFormReturn<any, object>) => void;

@@ -2,8 +2,7 @@ import React, { Dispatch, SetStateAction, useEffect } from 'react';
 import { UseMutationResult } from 'react-query';
 import { ApiError } from 'common';
 import { UseFormReturn } from 'react-hook-form';
-import { ActionModalProps } from './ActionModalTypes';
-import ActionModal from './ActionModal';
+import ActionModal, { ActionModalProps } from './ActionModal';
 
 type UpdateActionModalProps = {
     useActionModalState: [
