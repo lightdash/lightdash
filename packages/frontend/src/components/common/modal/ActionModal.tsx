@@ -1,4 +1,4 @@
-import React, { Dispatch, SetStateAction, useEffect } from 'react';
+import React, { Dispatch, SetStateAction, useEffect, useCallback } from 'react';
 import { Button, Intent } from '@blueprintjs/core';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import BaseModal from './BaseModal';
@@ -26,7 +26,12 @@ export type ActionModalProps = {
 };
 
 const ActionModal = (props: ActionModalProps) => {
-    const { isDisabled, completedMutation, useActionModalState } = props;
+    const {
+        isDisabled,
+        completedMutation,
+        useActionModalState,
+        onClose: onCloseModal,
+    } = props;
     const { showToastError } = useApp();
 
     const methods = useForm<any>({
@@ -36,16 +41,16 @@ const ActionModal = (props: ActionModalProps) => {
     const { data: currentData, actionType } = actionState;
     const { onSubmitForm, setFormValues, ModalContent } = props;
 
-    const onClose = () => {
+    const onClose = useCallback(() => {
         if (!isDisabled) {
             setActionState({ actionType: ActionTypeModal.CLOSE });
-            if (props.onClose) {
-                props.onClose();
+            if (onCloseModal) {
+                onCloseModal();
                 // reset fields for new modal
                 methods.reset();
             }
         }
-    };
+    }, [isDisabled, methods, onCloseModal, setActionState]);
 
     useEffect(() => {
         if (actionType !== ActionTypeModal.CLOSE && completedMutation) {
