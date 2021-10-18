@@ -55,3 +55,21 @@ export const useQueryResults = () => {
         onError: (result) => setErrorResponse(result),
     });
 };
+
+export const useSavedChartResults = (
+    projectUuid: string,
+    savedChart: SavedQuery,
+) => {
+    const queryKey = ['savedChartResults', projectUuid];
+    return useQuery<ApiQueryResults, ApiError>({
+        queryKey,
+        queryFn: () =>
+            getQueryResults(
+                projectUuid,
+                savedChart.tableName,
+                savedChart.metricQuery,
+            ),
+        retry: false,
+        refetchOnMount: false,
+    });
+};
