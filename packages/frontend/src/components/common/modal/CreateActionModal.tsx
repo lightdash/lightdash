@@ -4,18 +4,20 @@ import { UseFormReturn } from 'react-hook-form';
 import { ApiError } from 'common';
 import ActionModal, { ActionModalProps, ActionTypeModal } from './ActionModal';
 
-type CreateActionModalProps = {
+type CreateActionModalProps<T> = {
     useCreate: UseMutationResult<any, ApiError, any, unknown>;
     isOpen: boolean;
     ModalContent: (
-        props: Pick<ActionModalProps, 'useActionModalState' | 'isDisabled'>,
+        props: Pick<ActionModalProps<T>, 'useActionModalState' | 'isDisabled'>,
     ) => JSX.Element;
     setFormValues?: (data: any, methods: UseFormReturn<any, object>) => void;
     savedData?: any;
     onClose?: () => void;
 };
 
-const CreateActionModal = (props: CreateActionModalProps) => {
+const CreateActionModal = <T extends { uuid: string; name: string }>(
+    props: CreateActionModalProps<T>,
+) => {
     const [actionState, setActionState] = useState<{
         actionType: number;
         data?: any;

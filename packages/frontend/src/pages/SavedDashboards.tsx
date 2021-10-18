@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
-import { UseFormReturn } from 'react-hook-form';
 import styled from 'styled-components';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import ActionCardList from '../components/common/ActionCardList';
@@ -50,16 +49,6 @@ const SavedDashboards = () => {
                 useUpdate={useUpdateDashboard}
                 useDelete={useDelete}
                 dataList={dashboards}
-                setFormValues={(
-                    data: any,
-                    methods: UseFormReturn<any, object>,
-                ) => {
-                    const { setValue } = methods;
-                    if (data?.name) {
-                        setValue('name', data?.name);
-                        setValue('description', data?.description);
-                    }
-                }}
                 getURL={(savedDashboard) => {
                     const { uuid } = savedDashboard;
                     return `/projects/${projectUuid}/dashboards/${uuid}`;

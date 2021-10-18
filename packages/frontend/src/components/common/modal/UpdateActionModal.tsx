@@ -1,24 +1,23 @@
 import React, { Dispatch, SetStateAction, useEffect } from 'react';
 import { UseMutationResult } from 'react-query';
 import { ApiError } from 'common';
-import { UseFormReturn } from 'react-hook-form';
 import ActionModal, { ActionModalProps } from './ActionModal';
 
-type UpdateActionModalProps = {
+type UpdateActionModalProps<T> = {
     useActionModalState: [
-        { actionType: number; data?: any },
-        Dispatch<SetStateAction<{ actionType: number; data?: any }>>,
+        { actionType: number; data?: T },
+        Dispatch<SetStateAction<{ actionType: number; data?: T }>>,
     ];
     useUpdate: (id: string) => UseMutationResult<any, ApiError, any>;
-    setFormValues: (data: any, methods: UseFormReturn<any, object>) => void;
     ModalContent: (
-        props: Pick<ActionModalProps, 'useActionModalState' | 'isDisabled'>,
+        props: Pick<ActionModalProps<T>, 'useActionModalState' | 'isDisabled'>,
     ) => JSX.Element;
 };
 
-const UpdateActionModal = (props: UpdateActionModalProps) => {
-    const { useUpdate, setFormValues, useActionModalState, ModalContent } =
-        props;
+const UpdateActionModal = <T extends { uuid: string; name: string }>(
+    props: UpdateActionModalProps<T>,
+) => {
+    const { useUpdate, useActionModalState, ModalContent } = props;
     const [actionState, setActionState] = useActionModalState;
     const { data: { uuid: id } = {} } = actionState;
     const {
@@ -26,7 +25,7 @@ const UpdateActionModal = (props: UpdateActionModalProps) => {
         mutate,
         isLoading: isUpdating,
         reset: resetUpdate,
-    } = useUpdate(id || null);
+    } = useUpdate(id || '');
 
     const onSubmitForm = ({ uuid, ...rest }: any) => {
         mutate(rest);
@@ -43,7 +42,6 @@ const UpdateActionModal = (props: UpdateActionModalProps) => {
             useActionModalState={[actionState, setActionState]}
             isDisabled={isUpdating}
             onSubmitForm={onSubmitForm}
-            setFormValues={setFormValues}
             completedMutation={statusUpdate === 'success'}
             ModalContent={ModalContent}
         />

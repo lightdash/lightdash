@@ -1,12 +1,13 @@
 import React from 'react';
+import { Dashboard } from 'common';
 import { ActionModalProps, ActionTypeModal } from '../common/modal/ActionModal';
 import Input from '../ReactHookForm/Input';
 
 const DashboardForm = ({
     useActionModalState,
     isDisabled,
-}: Pick<ActionModalProps, 'useActionModalState' | 'isDisabled'> & any) => {
-    const [{ actionType }] = useActionModalState;
+}: Pick<ActionModalProps<Dashboard>, 'useActionModalState' | 'isDisabled'>) => {
+    const [{ actionType, data }] = useActionModalState;
     return (
         <>
             {actionType === ActionTypeModal.UPDATE && (
@@ -16,11 +17,13 @@ const DashboardForm = ({
                         name="name"
                         disabled={isDisabled}
                         rules={{ required: true }}
+                        defaultValue={data?.name}
                     />
                     <Input
                         label="Description"
                         name="description"
                         disabled={isDisabled}
+                        defaultValue={data?.description}
                     />
                 </>
             )}

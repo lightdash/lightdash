@@ -1,22 +1,20 @@
 import React, { useState } from 'react';
 import { NonIdealState } from '@blueprintjs/core';
-import { SpaceQuery, ApiError, Dashboard } from 'common';
+import { ApiError } from 'common';
 import { UseMutationResult } from 'react-query';
-import { UseFormReturn } from 'react-hook-form';
 import styled from 'styled-components';
 import { ActionModalProps, ActionTypeModal } from './modal/ActionModal';
 import ActionCard from './ActionCard';
 import UpdateActionModal from './modal/UpdateActionModal';
 import DeleteActionModal from './modal/DeleteActionModal';
 
-type ActionCardListProps = {
-    dataList: Pick<SpaceQuery | Dashboard, 'uuid' | 'name'>[];
-    getURL: (data: SpaceQuery | Dashboard) => string;
+type ActionCardListProps<T> = {
+    dataList: T[];
+    getURL: (data: T) => string;
     useDelete: UseMutationResult<undefined, ApiError, string>;
     useUpdate: (id: string) => UseMutationResult<any, ApiError, any>;
-    setFormValues: (data: any, methods: UseFormReturn<any, object>) => void;
     ModalContent: (
-        props: Pick<ActionModalProps, 'useActionModalState' | 'isDisabled'>,
+        props: Pick<ActionModalProps<T>, 'useActionModalState' | 'isDisabled'>,
     ) => JSX.Element;
 };
 
@@ -29,21 +27,16 @@ const ActionCardListWrapper = styled.div`
     align-items: stretch;
 `;
 
-const ActionCardList = (props: ActionCardListProps) => {
+const ActionCardList = <T extends { uuid: string; name: string }>(
+    props: ActionCardListProps<T>,
+) => {
     const [actionState, setActionState] = useState<{
         actionType: number;
-        data?: any;
+        data?: T;
     }>({
         actionType: ActionTypeModal.CLOSE,
     });
-    const {
-        dataList,
-        getURL,
-        useDelete,
-        useUpdate,
-        setFormValues,
-        ModalContent,
-    } = props;
+    const { dataList, getURL, useDelete, useUpdate, ModalContent } = props;
 
     return (
         <ActionCardListWrapper>
@@ -59,7 +52,6 @@ const ActionCardList = (props: ActionCardListProps) => {
                 <UpdateActionModal
                     useActionModalState={[actionState, setActionState]}
                     useUpdate={useUpdate}
-                    setFormValues={setFormValues}
                     ModalContent={ModalContent}
                 />
             )}

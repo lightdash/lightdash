@@ -1,17 +1,16 @@
 import React, { Dispatch, SetStateAction } from 'react';
 import { Card, H5 } from '@blueprintjs/core';
-import { SpaceQuery } from 'common';
 import ModalActionButtons from './modal/ModalActionButtons';
 
-type ActionCardProps = {
-    data: Pick<SpaceQuery, 'uuid' | 'name'>;
+type ActionCardProps<T> = {
+    data: T;
     url: string;
-    setActionState: Dispatch<
-        SetStateAction<{ actionType: number; data?: any }>
-    >;
+    setActionState: Dispatch<SetStateAction<{ actionType: number; data?: T }>>;
 };
 
-const ActionCard = (props: ActionCardProps) => {
+const ActionCard = <T extends { uuid: string; name: string }>(
+    props: ActionCardProps<T>,
+) => {
     const {
         data,
         data: { name },

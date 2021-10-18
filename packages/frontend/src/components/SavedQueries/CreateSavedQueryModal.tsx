@@ -1,4 +1,4 @@
-import { SavedQuery } from 'common';
+import { SpaceQuery } from 'common';
 import React, { FC } from 'react';
 import { useCreateMutation } from '../../hooks/useSavedQuery';
 import CreateActionModal from '../common/modal/CreateActionModal';
@@ -6,9 +6,12 @@ import { ActionModalProps } from '../common/modal/ActionModal';
 
 interface CreateSavedQueryModalProps {
     isOpen: boolean;
-    savedData: Omit<SavedQuery, 'uuid' | 'name'>;
+    savedData: Omit<SpaceQuery, 'uuid' | 'name'>;
     ModalContent: (
-        props: Pick<ActionModalProps, 'useActionModalState' | 'isDisabled'>,
+        props: Pick<
+            ActionModalProps<SpaceQuery>,
+            'useActionModalState' | 'isDisabled'
+        >,
     ) => JSX.Element;
     onClose?: () => void;
 }

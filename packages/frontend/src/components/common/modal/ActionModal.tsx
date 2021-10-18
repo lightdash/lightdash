@@ -10,22 +10,24 @@ export enum ActionTypeModal {
     DELETE,
 }
 
-export type ActionModalProps = {
+export type ActionModalProps<T> = {
     useActionModalState: [
-        { actionType: number; data?: any },
-        Dispatch<SetStateAction<{ actionType: number; data?: any }>>,
+        { actionType: number; data?: T },
+        Dispatch<SetStateAction<{ actionType: number; data?: T }>>,
     ];
     ModalContent: (
-        props: Pick<ActionModalProps, 'useActionModalState' | 'isDisabled'>,
+        props: Pick<ActionModalProps<T>, 'useActionModalState' | 'isDisabled'>,
     ) => JSX.Element;
     isDisabled: boolean;
-    onSubmitForm: (data: any) => void;
+    onSubmitForm: (data: T) => void;
     completedMutation: boolean;
     setFormValues?: (data: any, methods: UseFormReturn<any, object>) => void;
     onClose?: () => void;
 };
 
-const ActionModal = (props: ActionModalProps) => {
+const ActionModal = <T extends { uuid: string; name: string }>(
+    props: ActionModalProps<T>,
+) => {
     const {
         isDisabled,
         completedMutation,

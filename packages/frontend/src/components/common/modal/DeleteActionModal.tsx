@@ -3,18 +3,20 @@ import { UseMutationResult } from 'react-query';
 import { ApiError } from 'common';
 import ActionModal, { ActionModalProps } from './ActionModal';
 
-type DeleteActionModalProps = {
+type DeleteActionModalProps<T> = {
     useActionModalState: [
-        { actionType: number; data?: any },
-        Dispatch<SetStateAction<{ actionType: number; data?: any }>>,
+        { actionType: number; data?: T },
+        Dispatch<SetStateAction<{ actionType: number; data?: T }>>,
     ];
     useDelete: UseMutationResult<undefined, ApiError, string>;
     ModalContent: (
-        props: Pick<ActionModalProps, 'useActionModalState' | 'isDisabled'>,
+        props: Pick<ActionModalProps<T>, 'useActionModalState' | 'isDisabled'>,
     ) => JSX.Element;
 };
 
-const DeleteActionModal = (props: DeleteActionModalProps) => {
+const DeleteActionModal = <T extends { uuid: string; name: string }>(
+    props: DeleteActionModalProps<T>,
+) => {
     const { useDelete, useActionModalState, ModalContent } = props;
     const [actionState] = useActionModalState;
     const { data: { uuid: id } = {}, actionType } = actionState;
@@ -26,7 +28,9 @@ const DeleteActionModal = (props: DeleteActionModalProps) => {
     } = useDelete;
 
     const onSubmitForm = () => {
-        deleteData(id);
+        if (id) {
+            deleteData(id);
+        }
     };
     useEffect(() => {
         if (!isDeleting) {
