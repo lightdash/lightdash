@@ -20,7 +20,7 @@ const UpdateActionModal = (props: UpdateActionModalProps) => {
     const { useUpdate, setFormValues, useActionModalState, ModalContent } =
         props;
     const [actionState, setActionState] = useActionModalState;
-    const { data: { uuid: id } = {}, actionType } = actionState;
+    const { data: { uuid: id } = {} } = actionState;
     const {
         status: statusUpdate,
         mutate,
@@ -28,8 +28,8 @@ const UpdateActionModal = (props: UpdateActionModalProps) => {
         reset: resetUpdate,
     } = useUpdate(id || null);
 
-    const onSubmitForm = (data?: any) => {
-        mutate(data);
+    const onSubmitForm = ({ uuid, ...rest }: any) => {
+        mutate(rest);
     };
 
     useEffect(() => {

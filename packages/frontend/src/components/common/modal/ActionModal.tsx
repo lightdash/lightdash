@@ -34,12 +34,14 @@ const ActionModal = (props: ActionModalProps) => {
     } = props;
     const { showToastError } = useApp();
 
-    const methods = useForm<any>({
-        mode: 'onSubmit',
-    });
     const [actionState, setActionState] = useActionModalState;
     const { data: currentData, actionType } = actionState;
-    const { onSubmitForm, setFormValues, ModalContent } = props;
+
+    const methods = useForm<any>({
+        mode: 'onSubmit',
+        defaultValues: currentData,
+    });
+    const { onSubmitForm, ModalContent } = props;
 
     const onClose = useCallback(() => {
         if (!isDisabled) {
@@ -57,15 +59,6 @@ const ActionModal = (props: ActionModalProps) => {
             onClose();
         }
     }, [onClose, completedMutation, actionType]);
-
-    // set initial value only
-    useEffect(() => {
-        if (currentData) {
-            if (setFormValues) {
-                setFormValues(currentData, methods);
-            }
-        }
-    }, [currentData]);
 
     const handleSubmit = (data?: any) => {
         try {
