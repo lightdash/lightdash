@@ -29,7 +29,6 @@ import { Projects } from './pages/Projects';
 import CreateProject from './pages/CreateProject';
 import Welcome from './pages/Welcome';
 import SavedDashboards from './pages/SavedDashboards';
-import Dashboard from './pages/Dashboard';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -105,12 +104,6 @@ const App = () => (
                                         <AppBar />
                                         <Page name={PageName.SAVED_QUERIES}>
                                             <SavedQueries />
-                                        </Page>
-                                    </Route>
-                                    <Route path="/projects/:projectUuid/dashboards/:dashboardUuid">
-                                        <AppBar />
-                                        <Page name={PageName.DASHBOARD}>
-                                            <Dashboard />
                                         </Page>
                                     </Route>
                                     <Route path="/projects/:projectUuid/dashboards">

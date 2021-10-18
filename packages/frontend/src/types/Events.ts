@@ -22,7 +22,6 @@ export enum PageName {
     ABOUT_LIGHTDASH = 'about_lightdash',
     CREATE_PROJECT = 'create_project',
     SAVED_DASHBOARDS = 'saved_dashboards',
-    DASHBOARD = 'dashboard',
 }
 
 export enum CategoryName {
