@@ -18,6 +18,13 @@ export const validateEmail = (email: string): boolean => {
     return re.test(String(email).toLowerCase());
 };
 
+export type SqlResultsRow = { [columnName: string]: any };
+export type SqlResultsField = { name: string; type: string }; // TODO: standardise column types
+export type SqlQueryResults = {
+    fields: SqlResultsField[]; // TODO: standard column types
+    rows: SqlResultsRow[];
+};
+
 export function hexToRGB(hex: string, alpha: number | undefined): string {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
