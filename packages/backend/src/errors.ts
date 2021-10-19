@@ -170,6 +170,28 @@ export class NotFoundError extends LightdashError {
     }
 }
 
+export class WarehouseConnectionError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'WarehouseConnectionError',
+            statusCode: 500, // TODO: is this a server error? could be credentials
+            data: {},
+        });
+    }
+}
+
+export class WarehouseQueryError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'WarehouseQueryError',
+            statusCode: 502, // TODO: is this a server error? usually syntax error
+            data: {},
+        });
+    }
+}
+
 export const errorHandler = (error: Error): LightdashError => {
     if (error instanceof LightdashError) {
         return error;
