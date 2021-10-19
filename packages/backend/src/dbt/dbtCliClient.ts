@@ -82,11 +82,10 @@ export class DbtCliClient implements DbtClient {
     }
 
     private async _getTargetDirectory(): Promise<string> {
-        if (this.targetDirectory) {
-            return this.targetDirectory;
+        if (!this.targetDirectory) {
+            const config = await getDbtConfig(this.dbtProjectDirectory);
+            this.targetDirectory = config.targetDir;
         }
-        const config = await getDbtConfig(this.dbtProjectDirectory);
-        this.targetDirectory = config.targetDir;
         return this.targetDirectory;
     }
 
