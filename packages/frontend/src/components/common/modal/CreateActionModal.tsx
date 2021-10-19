@@ -52,6 +52,8 @@ const CreateActionModal = <T extends { uuid: string; name: string }>(
 
     return (
         <ActionModal
+            title="Create"
+            confirmButtonLabel="Create"
             useActionModalState={[actionState, setActionState]}
             isDisabled={isCreating}
             onSubmitForm={onSubmitForm}

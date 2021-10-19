@@ -1,5 +1,5 @@
 import React, { Dispatch, SetStateAction, useEffect, useCallback } from 'react';
-import { Button, Intent } from '@blueprintjs/core';
+import { Button, IconName, Intent } from '@blueprintjs/core';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import BaseModal from './BaseModal';
 import { useApp } from '../../../providers/AppProvider';
@@ -11,7 +11,10 @@ export enum ActionTypeModal {
 }
 
 export type ActionModalProps<T> = {
-    title?: string;
+    title: string;
+    icon?: IconName;
+    confirmButtonLabel: string;
+    confirmButtonIntent?: Intent;
     useActionModalState: [
         { actionType: number; data?: T },
         Dispatch<SetStateAction<{ actionType: number; data?: T }>>,
@@ -29,6 +32,9 @@ export type ActionModalProps<T> = {
 const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
     const {
         title,
+        icon,
+        confirmButtonLabel,
+        confirmButtonIntent,
         isDisabled,
         completedMutation,
         useActionModalState: [
@@ -74,15 +80,12 @@ const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
         }
     };
 
-    const fallbackTitle =
-        actionType === ActionTypeModal.UPDATE ? 'Save' : 'Settings';
-
     return (
         <BaseModal
             canOutsideClickClose={!(actionType === ActionTypeModal.DELETE)}
-            title={title || fallbackTitle}
+            title={title}
             isOpen={actionType !== ActionTypeModal.CLOSE}
-            icon={actionType === ActionTypeModal.DELETE && 'cog'}
+            icon={icon}
             onClose={onClose}
             methods={methods}
             handleSubmit={handleSubmit}
@@ -92,17 +95,9 @@ const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
                     <Button onClick={onClose}>Cancel</Button>
                     <Button
                         disabled={isDisabled}
-                        intent={
-                            actionType === ActionTypeModal.DELETE
-                                ? Intent.DANGER
-                                : Intent.PRIMARY
-                        }
+                        intent={confirmButtonIntent || Intent.PRIMARY}
                         type="submit"
-                        text={
-                            actionType === ActionTypeModal.DELETE
-                                ? 'Delete'
-                                : 'Save'
-                        }
+                        text={confirmButtonLabel}
                         loading={isDisabled}
                     />
                 </>

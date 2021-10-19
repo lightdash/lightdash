@@ -37,6 +37,7 @@ const AddTileModal: FC<Props> = ({ dashboard, onClose }) => {
     return (
         <ActionModal
             title="Add chart to dashboard"
+            confirmButtonLabel="Add"
             useActionModalState={[actionState, setActionState]}
             isDisabled={isLoading}
             onSubmitForm={onSubmitForm}
