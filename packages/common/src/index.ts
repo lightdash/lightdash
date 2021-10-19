@@ -684,7 +684,8 @@ export type ApiResults =
     | OrganizationProject[]
     | Project
     | WarehouseCredentials
-    | OrganizationUser[];
+    | OrganizationUser[]
+    | Dashboard;
 
 export type ApiResponse =
     | ApiQueryResponse

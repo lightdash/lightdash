@@ -21,7 +21,7 @@ export enum PageName {
     INVITE_MANAGEMENT_SETTINGS = 'invite_management_settings',
     ABOUT_LIGHTDASH = 'about_lightdash',
     CREATE_PROJECT = 'create_project',
-    DASHBOARDS = 'view_dashboards',
+    SAVED_DASHBOARDS = 'saved_dashboards',
 }
 
 export enum CategoryName {

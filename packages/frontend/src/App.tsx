@@ -17,7 +17,7 @@ import PrivateRoute from './components/PrivateRoute';
 import AppBar from './components/AppBar';
 import Register from './pages/register';
 import { AppProvider } from './providers/AppProvider';
-import Saved from './pages/Saved';
+import SavedQueries from './pages/SavedQueries';
 import Explorer from './pages/Explorer';
 import { ExplorerProvider } from './providers/ExplorerProvider';
 import SavedExplorer from './pages/SavedExplorer';
@@ -28,7 +28,7 @@ import ProjectSettings from './pages/ProjectSettings';
 import { Projects } from './pages/Projects';
 import CreateProject from './pages/CreateProject';
 import Welcome from './pages/Welcome';
-import Dashboards from './pages/Dashboards';
+import SavedDashboards from './pages/SavedDashboards';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -103,13 +103,13 @@ const App = () => (
                                     <Route path="/projects/:projectUuid/saved">
                                         <AppBar />
                                         <Page name={PageName.SAVED_QUERIES}>
-                                            <Saved />
+                                            <SavedQueries />
                                         </Page>
                                     </Route>
                                     <Route path="/projects/:projectUuid/dashboards">
                                         <AppBar />
-                                        <Page name={PageName.DASHBOARDS}>
-                                            <Dashboards />
+                                        <Page name={PageName.SAVED_DASHBOARDS}>
+                                            <SavedDashboards />
                                         </Page>
                                     </Route>
                                     <Route path="/projects/:projectUuid/tables/:tableId">
