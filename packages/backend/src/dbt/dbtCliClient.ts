@@ -86,7 +86,8 @@ export class DbtCliClient implements DbtClient {
             return this.targetDirectory;
         }
         const config = await getDbtConfig(this.dbtProjectDirectory);
-        return config.targetDir;
+        this.targetDirectory = config.targetDir;
+        return this.targetDirectory;
     }
 
     private async _runDbtCommand(
