@@ -22,7 +22,7 @@ import {
     DraggableStateSnapshot,
     Droppable,
 } from 'react-beautiful-dnd';
-import { DimensionType } from 'common';
+import { DimensionType, hexToRGB } from 'common';
 import React, { FC, useEffect } from 'react';
 import { CSVLink } from 'react-csv';
 import { useColumns } from '../hooks/useColumns';
@@ -34,18 +34,6 @@ import { SectionName } from '../types/Events';
 import TableCalculationHeaderButton from './TableCalculationHeaderButton';
 import AddColumnButton from './AddColumnButton';
 import { useQueryResults } from '../hooks/useQueryResults';
-
-const hexToRGB = (hex: string, alpha: number) => {
-    // eslint-disable-next-line radix
-    const h = parseInt(`0x${hex.substring(1)}`);
-    // eslint-disable-next-line no-bitwise
-    const r = (h >> 16) & 0xff;
-    // eslint-disable-next-line no-bitwise
-    const g = (h >> 8) & 0xff;
-    // eslint-disable-next-line no-bitwise
-    const b = h & 0xff;
-    return `rgb(${r}, ${g}, ${b}, ${alpha})`;
-};
 
 const EmptyStateNoColumns = () => (
     <div style={{ padding: '50px 0' }}>

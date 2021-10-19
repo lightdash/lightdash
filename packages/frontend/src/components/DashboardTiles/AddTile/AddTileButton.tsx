@@ -1,6 +1,6 @@
 import React, { FC, useState } from 'react';
-import { Dashboard } from 'common';
-import { Icon, H5 } from '@blueprintjs/core';
+import { Dashboard, hexToRGB } from 'common';
+import { Icon, H5, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 import AddTileModal from './AddTileModal';
 
@@ -12,7 +12,7 @@ const Wrapper = styled.div`
     padding: 20px;
 
     &:hover {
-        background: rgba(138, 155, 168, 0.15);
+        background: ${hexToRGB(Colors.GRAY2, 0.15)};
     }
 `;
 

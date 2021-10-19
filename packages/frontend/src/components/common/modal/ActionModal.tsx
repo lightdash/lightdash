@@ -11,6 +11,7 @@ export enum ActionTypeModal {
 }
 
 export type ActionModalProps<T> = {
+    title?: string;
     useActionModalState: [
         { actionType: number; data?: T },
         Dispatch<SetStateAction<{ actionType: number; data?: T }>>,
@@ -27,21 +28,23 @@ export type ActionModalProps<T> = {
 
 const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
     const {
+        title,
         isDisabled,
         completedMutation,
-        useActionModalState,
+        useActionModalState: [
+            { data: currentData, actionType },
+            setActionState,
+        ],
         onClose: onCloseModal,
+        onSubmitForm,
+        ModalContent,
     } = props;
     const { showToastError } = useApp();
-
-    const [actionState, setActionState] = useActionModalState;
-    const { data: currentData, actionType } = actionState;
 
     const methods = useForm<any>({
         mode: 'onSubmit',
         defaultValues: currentData,
     });
-    const { onSubmitForm, ModalContent } = props;
 
     const onClose = useCallback(() => {
         if (!isDisabled) {
@@ -71,10 +74,13 @@ const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
         }
     };
 
+    const fallbackTitle =
+        actionType === ActionTypeModal.UPDATE ? 'Save' : 'Settings';
+
     return (
         <BaseModal
             canOutsideClickClose={!(actionType === ActionTypeModal.DELETE)}
-            title={actionType === ActionTypeModal.UPDATE ? 'Save' : 'Settings'}
+            title={title || fallbackTitle}
             isOpen={actionType !== ActionTypeModal.CLOSE}
             icon={actionType === ActionTypeModal.DELETE && 'cog'}
             onClose={onClose}
