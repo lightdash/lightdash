@@ -71,7 +71,10 @@ const DashboardChartTile: FC<Props> = ({ tile, onDelete }) => {
     });
 
     return (
-        <Card className={isLoading ? Classes.SKELETON : undefined}>
+        <Card
+            style={{ height: '100%' }}
+            className={isLoading ? Classes.SKELETON : undefined}
+        >
             <div
                 style={{
                     display: 'flex',
