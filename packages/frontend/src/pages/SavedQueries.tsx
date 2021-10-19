@@ -1,27 +1,16 @@
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import { useQuery } from 'react-query';
-import { ApiError, Space, SpaceQuery } from 'common';
+import { SpaceQuery } from 'common';
 import { useParams } from 'react-router-dom';
-import { lightdashApi } from '../api';
 import SavedQueriesMenu from '../components/SavedQueries/SavedQueriesMenu';
 import SavedQueriesContent from '../components/SavedQueries/SavedQueriesContent';
-
-const getSpaces = async (projectUuid: string) =>
-    lightdashApi<Space[]>({
-        url: `/projects/${projectUuid}/spaces`,
-        method: 'GET',
-        body: undefined,
-    });
+import { useSavedQuery } from '../hooks/useSpaces';
 
 const SavedQueries: FC = () => {
     const [selectedMenu, setSelectedMenu] = useState<string>();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const { isLoading, data } = useQuery<Space[], ApiError>({
-        queryKey: ['spaces'],
-        queryFn: () => getSpaces(projectUuid),
-    });
+    const { isLoading, data } = useSavedQuery(projectUuid);
 
     const savedQueries: SpaceQuery[] = useMemo(
         () => data?.find(({ uuid }) => uuid === selectedMenu)?.queries || [],

@@ -45,15 +45,25 @@ export const useDashboardQuery = (id: string) => {
 
 export const useUpdateDashboard = (id: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess } = useApp();
+    const { showToastSuccess, showToastError } = useApp();
     return useMutation<undefined, ApiError, UpdateDashboard>(
         (data) => updateDashboard(id, data),
         {
             mutationKey: ['dashboard_update'],
             onSuccess: async () => {
                 await queryClient.invalidateQueries('dashboards');
+                await queryClient.invalidateQueries([
+                    'saved_dashboard_query',
+                    id,
+                ]);
                 showToastSuccess({
                     title: `Dashboard saved with success`,
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to update dashboard`,
+                    subtitle: error.error.message,
                 });
             },
         },
@@ -61,7 +71,7 @@ export const useUpdateDashboard = (id: string) => {
 };
 
 export const useCreateMutation = (projectId: string) => {
-    const { showToastSuccess } = useApp();
+    const { showToastSuccess, showToastError } = useApp();
     const queryClient = useQueryClient();
     return useMutation<Dashboard, ApiError, CreateDashboard>(
         (data) => createDashboard(projectId, data),
@@ -71,6 +81,12 @@ export const useCreateMutation = (projectId: string) => {
                 await queryClient.invalidateQueries('dashboards');
                 showToastSuccess({
                     title: `Dashboard created with success`,
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to create dashboard`,
+                    subtitle: error.error.message,
                 });
             },
         },

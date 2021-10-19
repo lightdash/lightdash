@@ -25,9 +25,7 @@ export type ActionModalProps<T> = {
     onClose?: () => void;
 };
 
-const ActionModal = <T extends { uuid: string; name: string }>(
-    props: ActionModalProps<T>,
-) => {
+const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
     const {
         isDisabled,
         completedMutation,
