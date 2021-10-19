@@ -13,9 +13,10 @@ import { projectAdapterFromConfig } from '../projectAdapters/projectAdapter';
 import { ProjectAdapter } from '../types';
 import { ProjectModel } from '../models/ProjectModel';
 import { analytics } from '../analytics/client';
-import { errorHandler, NotExistsError } from '../errors';
+import { errorHandler, NotExistsError, UnexpectedServerError } from '../errors';
 import { compileMetricQuery } from '../queryCompiler';
 import { buildQuery } from '../queryBuilder';
+import PostgresWarehouseClient from './warehouseClients/PostgresWarehouseClient';
 
 type ProjectServiceDependencies = {
     projectModel: ProjectModel;
@@ -120,6 +121,19 @@ export class ProjectService {
         } finally {
             await adapter.destroy();
         }
+        if (data.warehouseConnection) {
+            switch (data.warehouseConnection.type) {
+                case 'postgres': {
+                    const client = new PostgresWarehouseClient(
+                        data.warehouseConnection,
+                    );
+                    await client.runQuery('SELECT 1');
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
     }
 
     private async restartAdapter(projectUuid: string): Promise<ProjectAdapter> {
@@ -176,10 +190,37 @@ export class ProjectService {
             exploreName,
         );
         const adapter = await this.getAdapter(projectUuid);
-        const rows = await adapter.runQuery(sql);
+
+        // Check if credentials provided for project
+        const credentials = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
+
+        // If we have credentials connect directly to the warehouse
+        let rows;
+        if (credentials.warehouseConnection) {
+            switch (credentials.warehouseConnection.type) {
+                case 'postgres': {
+                    const client = new PostgresWarehouseClient(
+                        credentials.warehouseConnection,
+                    );
+                    const results = await client.runQuery(sql);
+                    rows = results.rows;
+                    return {
+                        rows,
+                        metricQuery,
+                    };
+                }
+                default:
+                    break;
+            }
+        }
+
+        // Fallthrough: use the adapter for running queries
+        rows = await adapter.runQuery(sql);
         return {
-            metricQuery,
             rows,
+            metricQuery,
         };
     }
 
