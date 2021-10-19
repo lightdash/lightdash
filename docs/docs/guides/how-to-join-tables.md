@@ -6,7 +6,7 @@ sidebar_position: 3
 
 **Add joins to your YAML files to connect different models to each other**
 
-## Declare joins in schema.yml files
+## Declare joins in dbt model properties
 
 Joins let you to connect different models to each other so that you can explore more than one model at the same time in Lightdash and see how different parts of your data relate to each other.
 
