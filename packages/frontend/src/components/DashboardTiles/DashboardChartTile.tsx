@@ -86,6 +86,7 @@ const DashboardChartTile: FC<Props> = ({ tile, onDelete }) => {
             >
                 <H5 style={{ margin: 0 }}>{data?.name}</H5>
                 <Popover2
+                    className="non-draggable"
                     content={
                         <Menu>
                             <MenuItem
