@@ -71,7 +71,10 @@ const DashboardChartTile: FC<Props> = ({ tile, onDelete }) => {
     });
 
     return (
-        <Card className={isLoading ? Classes.SKELETON : undefined}>
+        <Card
+            style={{ height: '100%' }}
+            className={isLoading ? Classes.SKELETON : undefined}
+        >
             <div
                 style={{
                     display: 'flex',
@@ -83,6 +86,7 @@ const DashboardChartTile: FC<Props> = ({ tile, onDelete }) => {
             >
                 <H5 style={{ margin: 0 }}>{data?.name}</H5>
                 <Popover2
+                    className="non-draggable"
                     content={
                         <Menu>
                             <MenuItem
