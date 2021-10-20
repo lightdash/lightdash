@@ -1,8 +1,9 @@
 import { CreatePostgresCredentials, SqlQueryResults } from 'common';
 import * as pg from 'pg';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
+import { QueryRunner } from '../../types';
 
-export default class PostgresWarehouseClient {
+export default class PostgresWarehouseClient implements QueryRunner {
     client: pg.Client;
 
     constructor(credentials: CreatePostgresCredentials) {
@@ -21,7 +22,7 @@ export default class PostgresWarehouseClient {
         }
     }
 
-    async runQuery(sql: string): Promise<SqlQueryResults> {
+    async runQuery(sql: string): Promise<Record<string, any>[]> {
         try {
             await this.client.connect();
         } catch (e) {
@@ -29,17 +30,23 @@ export default class PostgresWarehouseClient {
         }
         try {
             const results = await this.client.query(sql);
-            return {
-                fields: results.fields.map((field) => ({
-                    name: field.name,
-                    type: `${field.dataTypeID}`, // types are enum values: https://github.com/brianc/node-pg-types/blob/8594bc6befca3523e265022f303f1376f679b5dc/index.d.ts#L1-L62
-                })), // TODO: map to standard column types
-                rows: results.rows,
-            };
+            return results.rows;
+            // TODO: capture types
+            // return {
+            //     fields: results.fields.map((field) => ({
+            //         name: field.name,
+            //         type: `${field.dataTypeID}`, // types are enum values: https://github.com/brianc/node-pg-types/blob/8594bc6befca3523e265022f303f1376f679b5dc/index.d.ts#L1-L62
+            //     })), // TODO: map to standard column types
+            //     rows: results.rows,
+            // };
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         } finally {
             await this.client.end();
         }
+    }
+
+    async test(): Promise<void> {
+        await this.runQuery('SELECT 1');
     }
 }

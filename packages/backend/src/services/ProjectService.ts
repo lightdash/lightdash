@@ -121,19 +121,6 @@ export class ProjectService {
         } finally {
             await adapter.destroy();
         }
-        if (data.warehouseConnection) {
-            switch (data.warehouseConnection.type) {
-                case 'postgres': {
-                    const client = new PostgresWarehouseClient(
-                        data.warehouseConnection,
-                    );
-                    await client.runQuery('SELECT 1');
-                    break;
-                }
-                default:
-                    break;
-            }
-        }
     }
 
     private async restartAdapter(projectUuid: string): Promise<ProjectAdapter> {
@@ -190,34 +177,7 @@ export class ProjectService {
             exploreName,
         );
         const adapter = await this.getAdapter(projectUuid);
-
-        // Check if credentials provided for project
-        const credentials = await this.projectModel.getWithSensitiveFields(
-            projectUuid,
-        );
-
-        // If we have credentials connect directly to the warehouse
-        let rows;
-        if (credentials.warehouseConnection) {
-            switch (credentials.warehouseConnection.type) {
-                case 'postgres': {
-                    const client = new PostgresWarehouseClient(
-                        credentials.warehouseConnection,
-                    );
-                    const results = await client.runQuery(sql);
-                    rows = results.rows;
-                    return {
-                        rows,
-                        metricQuery,
-                    };
-                }
-                default:
-                    break;
-            }
-        }
-
-        // Fallthrough: use the adapter for running queries
-        rows = await adapter.runQuery(sql);
+        const rows = await adapter.runQuery(sql);
         return {
             rows,
             metricQuery,
