@@ -1,5 +1,5 @@
 import React from 'react';
-import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
+import GridLayout, { Layout } from 'react-grid-layout';
 import '../styles/react-grid.css';
 import { useParams } from 'react-router-dom';
 import { DashboardChartTile, DashboardTileTypes } from 'common';
@@ -10,8 +10,6 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import AddTileButton from '../components/DashboardTiles/AddTile/AddTileButton';
-
-const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const WrapperAddTileButton = styled.div`
     display: flex;
@@ -43,11 +41,11 @@ const Dashboard = () => {
             <WrapperAddTileButton>
                 {dashboard && <AddTileButton dashboard={dashboard} />}
             </WrapperAddTileButton>
-            <ResponsiveGridLayout
+            <GridLayout
+                width={1000}
+                draggableCancel=".non-draggable"
                 onDragStop={(layout) => updateTiles(layout)}
                 onResizeStop={(layout) => updateTiles(layout)}
-                breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-                cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
             >
                 {dashboard &&
                     dashboard.tiles &&
@@ -80,7 +78,7 @@ const Dashboard = () => {
                             </div>
                         );
                     })}
-            </ResponsiveGridLayout>
+            </GridLayout>
         </>
     );
 };

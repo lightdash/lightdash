@@ -26,7 +26,7 @@ const AddTileModal: FC<Props> = ({ dashboard, onClose }) => {
                     properties,
                     type: DashboardTileTypes.SAVED_CHART,
                     h: 3,
-                    w: 3,
+                    w: 5,
                     x: 0,
                     y: 0,
                 },
