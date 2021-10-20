@@ -28,7 +28,8 @@
 <img src="https://img.shields.io/static/v1?logo=data:image/png;base64,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&label=dbt-version&message=0.20.0&color=orange" />
 </div>
 
-Lightdash is a BI tool that is fully integrated with your dbt project, allowing you to define metrics alongside your data models.
+Lightdash is a BI tool that is fully integrated with your dbt project, allowing you to define metrics alongside your
+data models.
 
 ## Features
 
@@ -39,65 +40,72 @@ Lightdash is a BI tool that is fully integrated with your dbt project, allowing 
 * [x] 📊 Simple data visualisations for your metrics
 * [x] 🚀 Share your work as a URL or export results to use in any other tool
 
-You can also check out our future plans for the product [in our roadmap.](https://lightdash.notion.site/Product-Roadmap-49e980c97bb44aa5a78ee2618851f11f)
+You can also check out our future plans for the
+product [in our roadmap.](https://lightdash.notion.site/Product-Roadmap-49e980c97bb44aa5a78ee2618851f11f)
 
-## 1-click deploy
+## Demo
 
-Deploy your own hosted Lightdash instance with Heroku (free account available).
+Play with our [demo app](https://demo.lightdash.com)!
 
-**Deploy for dbt projects on dbt cloud**
+## Quick start
+
+### 1-click deploy
+
+Deploy your own hosted Lightdash instance with Heroku (free account available). Check
+the [documentation page](https://docs.lightdash.com/get-started/setup-lightdash/install-lightdash#deploy-to-heroku) for
+more details.
 
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/lightdash/lightdash-deploy-heroku)
 
-**Deploy for dbt projects on github**
+### Run locally
 
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/lightdash/lightdash-deploy-heroku-github)
+Take advantage of our installation script to easily run Lightdash locally. Check
+the [documentation page](https://docs.lightdash.com/get-started/setup-lightdash/install-lightdash#deploy-locally-with-our-installation-script)
+for more details.
 
-## Get started
-
-### Run with your own dbt project
 ```bash
 git clone https://github.com/lightdash/lightdash
 cd lightdash
 ./install.sh 
-# follow cli instructions
 ```
 
-### Start learning Lightdash:
+## Getting started
 
-* [Play with a UI demo](https://demo.lightdash.com) (*no setup*)
-* [Install Lightdash](https://docs.lightdash.com/get-started/setup-lightdash/install-lightdash) (*requires your own dbt project*)
+Step 1 - ⚡️ [Install Lightdash](https://docs.lightdash.com/get-started/setup-lightdash/install-lightdash)
 
-### Guides:
+Step 2 - 🔌 [Connect a project](https://docs.lightdash.com/get-started/setup-lightdash/connect-project)
 
-* [How to create dimensions](https://docs.lightdash.com/guides/how-to-create-dimensions)
-* [How to create metrics](https://docs.lightdash.com/guides/how-to-create-metrics)
-* [How to join tables](https://docs.lightdash.com/guides/how-to-join-tables)
+Step 3 - 👩‍💻 [Create your first metric](https://docs.lightdash.com/get-started/setup-lightdash/add-metrics)
 
 ## Community Support
+
 Join our community if you need help, want to chat or have any other questions for us:
+
 - [Discourse](https://community.lightdash.com/) - Discussion forums and updates from the Lightdash team
 - [Twitter](https://twitter.com/lightdash_devs) - For all the latest Lightdash news
 
 ## About Lightdash
 
-Lightdash removes the gap between your data transformation layer and your data visualization layer. It enables data analysts and engineers to control all of their business intelligence (data transformations/business logic as well as data visualization) in a single place.
+Lightdash removes the gap between your data transformation layer and your data visualization layer. It enables data
+analysts and engineers to control all of their business intelligence (data transformations/business logic as well as
+data visualization) in a single place.
 
-Lightdash integrates with your dbt project and gives a framework for defining metrics and specifying joins between models all within your existing dbt YAML files. The data output from your dbt project is then available for exploring and sharing in Lightdash.
+Lightdash integrates with your dbt project and gives a framework for defining metrics and specifying joins between
+models all within your existing dbt YAML files. The data output from your dbt project is then available for exploring
+and sharing in Lightdash.
 
 - No more scattered, duplicated metrics across multiple tools.
-- No more time spent trying to maintain data changes in both dbt and and your data viz tools.  
+- No more time spent trying to maintain data changes in both dbt and and your data viz tools.
 - No more context lost between your data transformation and your data visualization layer.
 
 ## Docs
 
----
-Have a question about a feature? Or maybe fancy some light reading? Head on over to our [Lightdash documentation](https://docs.lightdash.com/) to check out some tutorials, reference docs, FAQs and more.
+Have a question about a feature? Or maybe fancy some light reading? Head on over to
+our [Lightdash documentation](https://docs.lightdash.com/) to check out some tutorials, reference docs, FAQs and more.
 
 ## Reporting bugs and feature requests
 
----
-- Want to report a bug or request a feature? Open an [issue](https://github.com/lightdash/lightdash/issues/new/choose).
+Want to report a bug or request a feature? Open an [issue](https://github.com/lightdash/lightdash/issues/new/choose).
 
 ## Contributors ✨
 
@@ -137,4 +145,5 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->
 
-This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!
+This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification.
+Contributions of any kind welcome!
