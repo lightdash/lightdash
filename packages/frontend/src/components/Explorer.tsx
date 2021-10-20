@@ -31,6 +31,7 @@ import { Section } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import SavedQueryForm from './SavedQueries/SavedQueryForm';
 import { useQueryResults } from '../hooks/useQueryResults';
+import '../styles/explorer.css';
 
 interface Props {
     savedQueryUuid?: string;
@@ -265,7 +266,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         </ButtonGroup>
                     )}
                 </div>
-                <Collapse isOpen={vizIsOpen}>
+                <Collapse className="explorer-chart" isOpen={vizIsOpen}>
                     <SimpleChart
                         isLoading={queryResults.isLoading}
                         chartRef={chartRef}

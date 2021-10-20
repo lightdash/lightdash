@@ -113,8 +113,12 @@ export const SimpleChart: FC<SimpleChartProps> = ({
         },
     };
     return (
-        <div style={{ padding: 10 }}>
+        <div style={{ padding: 10, height: '100%' }}>
             <EChartsReact
+                style={{
+                    height: '100%',
+                    width: '100%',
+                }}
                 ref={chartRef}
                 option={options}
                 notMerge

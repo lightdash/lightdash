@@ -10,6 +10,7 @@ const Wrapper = styled.div`
     flex-direction: column;
     align-items: center;
     padding: 20px;
+    width: 300px;
 
     &:hover {
         background: ${hexToRGB(Colors.GRAY2, 0.15)};

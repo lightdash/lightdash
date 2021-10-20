@@ -3,6 +3,7 @@ import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
 import '../styles/react-grid.css';
 import { useParams } from 'react-router-dom';
 import { DashboardChartTile, DashboardTileTypes } from 'common';
+import styled from 'styled-components';
 import {
     useDashboardQuery,
     useUpdateDashboard,
@@ -11,6 +12,13 @@ import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import AddTileButton from '../components/DashboardTiles/AddTile/AddTileButton';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const WrapperAddTileButton = styled.div`
+    display: flex;
+    width: 100%;
+    justify-content: center;
+`;
+
 const Dashboard = () => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
@@ -32,7 +40,9 @@ const Dashboard = () => {
 
     return (
         <>
-            {dashboard && <AddTileButton dashboard={dashboard} />}
+            <WrapperAddTileButton>
+                {dashboard && <AddTileButton dashboard={dashboard} />}
+            </WrapperAddTileButton>
             <ResponsiveGridLayout
                 onDragStop={(layout) => updateTiles(layout)}
                 onResizeStop={(layout) => updateTiles(layout)}
