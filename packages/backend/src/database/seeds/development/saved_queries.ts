@@ -43,4 +43,50 @@ export async function seed(knex: Knex): Promise<void> {
             ],
         },
     });
+
+    await createSavedQuery(projectUuid, {
+        name: 'Average amount spent per customer ?',
+        tableName: 'orders',
+        metricQuery: {
+            dimensions: ['customers_customer_id'],
+            metrics: ['orders_avg_amount'],
+            filters: [],
+            limit: 500,
+            sorts: [{ fieldId: 'orders_avg_amount', descending: true }],
+            tableCalculations: [],
+        },
+        chartConfig: {
+            chartType: DBChartTypes.COLUMN,
+            seriesLayout: {
+                xDimension: 'customers_customer_id',
+                yMetrics: ['orders_avg_amount'],
+            },
+        },
+        tableConfig: {
+            columnOrder: ['customers_customer_id', 'orders_avg_amount'],
+        },
+    });
+
+    await createSavedQuery(projectUuid, {
+        name: 'How many orders per customer ?',
+        tableName: 'payments',
+        metricQuery: {
+            dimensions: ['customers_customer_id'],
+            metrics: ['orders_unique_order_count'],
+            filters: [],
+            limit: 500,
+            sorts: [{ fieldId: 'orders_unique_order_count', descending: true }],
+            tableCalculations: [],
+        },
+        chartConfig: {
+            chartType: DBChartTypes.COLUMN,
+            seriesLayout: {
+                xDimension: 'customers_customer_id',
+                yMetrics: ['orders_unique_order_count'],
+            },
+        },
+        tableConfig: {
+            columnOrder: ['customers_customer_id', 'orders_unique_order_count'],
+        },
+    });
 }
