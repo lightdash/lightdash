@@ -10,25 +10,27 @@ import { DbtRpcClientBase } from '../dbt/dbtRpcClientBase';
 import { attachTypesToModels, convertExplores } from '../dbt/translator';
 import { MissingCatalogEntryError, ParseError } from '../errors';
 import modelJsonSchema from '../schema.json';
-import { ProjectAdapter } from '../types';
+import { DbtClient, ProjectAdapter, QueryRunner } from '../types';
 
 const ajv = new Ajv();
 addFormats(ajv);
 
 export class DbtBaseProjectAdapter implements ProjectAdapter {
-    rpcClient: DbtRpcClientBase;
+    dbtClient: DbtClient;
+
+    queryRunner: QueryRunner;
 
     catalog: DbtRpcDocsGenerateResults | undefined;
 
-    constructor(rpcClient: DbtRpcClientBase) {
-        this.rpcClient = rpcClient;
+    constructor(dbtClient: DbtClient, queryRunner: QueryRunner) {
+        this.dbtClient = dbtClient;
+        this.queryRunner = queryRunner;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function,class-methods-use-this
     async destroy(): Promise<void> {}
 
     public async test(): Promise<void> {
-        await this.rpcClient.installDeps();
         await this.runQuery("SELECT 'test connection'");
     }
 
@@ -36,8 +38,8 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         loadSources: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
         // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
-        await this.rpcClient.installDeps();
-        const { manifest } = await this.rpcClient.getDbtManifest();
+        await this.dbtClient.installDeps();
+        const { manifest } = await this.dbtClient.getDbtManifest();
 
         // Type of the target warehouse
         const adapterType = manifest.metadata.adapter_type;
@@ -65,7 +67,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         } catch (e) {
             if (e instanceof MissingCatalogEntryError) {
                 // Some types were missing so refresh the catalog and try again
-                const catalog = await this.rpcClient.getDbtCatalog();
+                const catalog = await this.dbtClient.getDbtCatalog();
                 this.catalog = catalog;
                 const typedModels = await attachTypesToModels(
                     validModels,
@@ -84,7 +86,12 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     }
 
     public async runQuery(sql: string): Promise<Record<string, any>[]> {
-        return this.rpcClient.runQuery(sql);
+        // TODO: remove temporary fix while query runner depends on dbt
+        // Installs dependencies on every query
+        if (this.queryRunner instanceof DbtRpcClientBase) {
+            await this.queryRunner.installDeps();
+        }
+        return this.queryRunner.runQuery(sql);
     }
 
     static async _validateDbtModelMetadata(

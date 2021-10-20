@@ -22,7 +22,7 @@ export class DbtCloudIdeProjectAdapter extends DbtBaseProjectAdapter {
             projectId,
             apiKey,
         );
-        super(rpcClient);
+        super(rpcClient, rpcClient);
     }
 
     public async compileAllExplores(): Promise<(Explore | ExploreError)[]> {

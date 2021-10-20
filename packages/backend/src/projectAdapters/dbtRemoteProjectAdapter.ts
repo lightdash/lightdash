@@ -17,7 +17,7 @@ export class DbtRemoteProjectAdapter extends DbtBaseProjectAdapter {
         const rpcClient = new DbtRpcClient(
             `${protocol}://${host}:${port}/jsonrpc`,
         );
-        super(rpcClient);
+        super(rpcClient, rpcClient);
     }
 
     async compileAllExplores(): Promise<(Explore | ExploreError)[]> {

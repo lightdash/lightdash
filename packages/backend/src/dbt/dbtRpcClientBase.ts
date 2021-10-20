@@ -8,6 +8,7 @@ import {
     isDbtRpcRunSqlResults,
 } from 'common';
 import { DbtError, NetworkError, RetryableNetworkError } from '../errors';
+import { DbtClient, QueryRunner } from '../types';
 
 export const DEFAULT_HEADERS: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -66,7 +67,7 @@ const pollOverNetwork = async <T>({
     return new Promise<T>(poll);
 };
 
-export class DbtRpcClientBase {
+export class DbtRpcClientBase implements DbtClient, QueryRunner {
     serverUrl: string;
 
     headers: Record<string, any>;
@@ -278,11 +279,10 @@ export class DbtRpcClientBase {
         );
     }
 
-    public async installDeps(): Promise<boolean> {
+    public async installDeps(): Promise<void> {
         await this._waitForServerResponding();
         const requestToken = await this._submitJob('deps', {});
         await this._waitForJobComplete(requestToken);
-        return true;
     }
 
     public async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
