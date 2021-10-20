@@ -68,7 +68,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 const catalog = await this.rpcClient.getDbtCatalog();
                 this.catalog = catalog;
                 const typedModels = await attachTypesToModels(
-                    models,
+                    validModels,
                     catalog,
                     false,
                 );
