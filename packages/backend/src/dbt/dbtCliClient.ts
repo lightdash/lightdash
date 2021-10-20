@@ -116,9 +116,12 @@ export class DbtCliClient implements DbtClient {
             });
             return dbtProcess.all;
         } catch (e) {
-            throw new DbtError(`Failed to run dbt: ${e.shortMessage}`, {
-                logs: e.all,
-            });
+            throw new DbtError(
+                `Failed to run "dbt ${command.join(' ')}"\n${e.all}`,
+                {
+                    logs: e.all,
+                },
+            );
         }
     }
 
