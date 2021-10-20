@@ -83,7 +83,7 @@ Join our community if you need help, want to chat or have any other questions fo
 
 - [Discourse](https://community.lightdash.com/) - Discussion forums and updates from the Lightdash team
 - [Twitter](https://twitter.com/lightdash_devs) - For all the latest Lightdash news
-
+- [Slack](https://getdbt.slack.com/archives/C026WJE4A69) - Join the conversation! Get all the latest updates and chat to the devs
 ## About Lightdash
 
 Lightdash removes the gap between your data transformation layer and your data visualization layer. It enables data
