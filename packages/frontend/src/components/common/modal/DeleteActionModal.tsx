@@ -1,6 +1,7 @@
 import React, { Dispatch, SetStateAction, useEffect } from 'react';
 import { UseMutationResult } from 'react-query';
 import { ApiError } from 'common';
+import { Intent } from '@blueprintjs/core';
 import ActionModal, { ActionModalProps } from './ActionModal';
 
 type DeleteActionModalProps<T> = {
@@ -40,6 +41,9 @@ const DeleteActionModal = <T extends { uuid: string; name: string }>(
 
     return (
         <ActionModal
+            title="Delete"
+            confirmButtonLabel="Delete"
+            confirmButtonIntent={Intent.DANGER}
             useActionModalState={useActionModalState}
             isDisabled={isDeleting}
             onSubmitForm={onSubmitForm}

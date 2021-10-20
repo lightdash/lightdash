@@ -1,5 +1,5 @@
 import React, { Dispatch, SetStateAction, useEffect, useCallback } from 'react';
-import { Button, Intent } from '@blueprintjs/core';
+import { Button, IconName, Intent } from '@blueprintjs/core';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import BaseModal from './BaseModal';
 import { useApp } from '../../../providers/AppProvider';
@@ -11,6 +11,10 @@ export enum ActionTypeModal {
 }
 
 export type ActionModalProps<T> = {
+    title: string;
+    icon?: IconName;
+    confirmButtonLabel: string;
+    confirmButtonIntent?: Intent;
     useActionModalState: [
         { actionType: number; data?: T },
         Dispatch<SetStateAction<{ actionType: number; data?: T }>>,
@@ -25,25 +29,28 @@ export type ActionModalProps<T> = {
     onClose?: () => void;
 };
 
-const ActionModal = <T extends { uuid: string; name: string }>(
-    props: ActionModalProps<T>,
-) => {
+const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
     const {
+        title,
+        icon,
+        confirmButtonLabel,
+        confirmButtonIntent,
         isDisabled,
         completedMutation,
-        useActionModalState,
+        useActionModalState: [
+            { data: currentData, actionType },
+            setActionState,
+        ],
         onClose: onCloseModal,
+        onSubmitForm,
+        ModalContent,
     } = props;
     const { showToastError } = useApp();
-
-    const [actionState, setActionState] = useActionModalState;
-    const { data: currentData, actionType } = actionState;
 
     const methods = useForm<any>({
         mode: 'onSubmit',
         defaultValues: currentData,
     });
-    const { onSubmitForm, ModalContent } = props;
 
     const onClose = useCallback(() => {
         if (!isDisabled) {
@@ -76,9 +83,9 @@ const ActionModal = <T extends { uuid: string; name: string }>(
     return (
         <BaseModal
             canOutsideClickClose={!(actionType === ActionTypeModal.DELETE)}
-            title={actionType === ActionTypeModal.UPDATE ? 'Save' : 'Settings'}
+            title={title}
             isOpen={actionType !== ActionTypeModal.CLOSE}
-            icon={actionType === ActionTypeModal.DELETE && 'cog'}
+            icon={icon}
             onClose={onClose}
             methods={methods}
             handleSubmit={handleSubmit}
@@ -88,17 +95,9 @@ const ActionModal = <T extends { uuid: string; name: string }>(
                     <Button onClick={onClose}>Cancel</Button>
                     <Button
                         disabled={isDisabled}
-                        intent={
-                            actionType === ActionTypeModal.DELETE
-                                ? Intent.DANGER
-                                : Intent.PRIMARY
-                        }
+                        intent={confirmButtonIntent || Intent.PRIMARY}
                         type="submit"
-                        text={
-                            actionType === ActionTypeModal.DELETE
-                                ? 'Delete'
-                                : 'Save'
-                        }
+                        text={confirmButtonLabel}
                         loading={isDisabled}
                     />
                 </>

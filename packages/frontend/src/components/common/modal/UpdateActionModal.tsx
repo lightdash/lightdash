@@ -39,6 +39,8 @@ const UpdateActionModal = <T extends { uuid: string; name: string }>(
 
     return (
         <ActionModal
+            title="Update"
+            confirmButtonLabel="Save"
             useActionModalState={[actionState, setActionState]}
             isDisabled={isUpdating}
             onSubmitForm={onSubmitForm}
