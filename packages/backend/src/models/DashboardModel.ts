@@ -1,21 +1,21 @@
 import { Knex } from 'knex';
 import {
-    DashboardVersionedFields,
     CreateDashboard,
     Dashboard,
     DashboardBasicDetails,
     DashboardTileTypes,
     DashboardUnversionedFields,
+    DashboardVersionedFields,
 } from 'common';
 import { NotFoundError } from '../errors';
 import {
     DashboardsTableName,
-    DashboardVersionsTableName,
-    DashboardTilesTableName,
     DashboardTable,
-    DashboardVersionTable,
-    DashboardTileChartTableName,
     DashboardTileChartTable,
+    DashboardTileChartTableName,
+    DashboardTilesTableName,
+    DashboardVersionsTableName,
+    DashboardVersionTable,
 } from '../database/entities/dashboards';
 import {
     SavedQueriesTableName,
@@ -185,20 +185,47 @@ export class DashboardModel {
         }
 
         const tiles = await this.database(DashboardTilesTableName)
-            .select('*')
-            .where('dashboard_version_id', dashboard.dashboard_version_id);
-
-        const charts = await this.database(DashboardTileChartTableName)
+            .select<
+                {
+                    x_offset: number;
+                    y_offset: number;
+                    type: DashboardTileTypes;
+                    width: number;
+                    height: number;
+                    dashboard_tile_uuid: string;
+                    saved_query_uuid: string | null;
+                }[]
+            >([
+                `${DashboardTilesTableName}.x_offset`,
+                `${DashboardTilesTableName}.y_offset`,
+                `${DashboardTilesTableName}.type`,
+                `${DashboardTilesTableName}.width`,
+                `${DashboardTilesTableName}.height`,
+                `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                `${SavedQueriesTableName}.saved_query_uuid`,
+            ])
+            .leftJoin(DashboardTileChartTableName, function () {
+                // TODO: 'this' doesn't work with anonymous function () => {} ?
+                this.on(
+                    `${DashboardTileChartTableName}.dashboard_tile_uuid`,
+                    '=',
+                    `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                );
+                this.andOn(
+                    `${DashboardTileChartTableName}.dashboard_version_id`,
+                    '=',
+                    `${DashboardTilesTableName}.dashboard_version_id`,
+                );
+            })
             .leftJoin(
                 SavedQueriesTableName,
                 `${DashboardTileChartTableName}.saved_chart_id`,
                 `${SavedQueriesTableName}.saved_query_id`,
             )
-            .select<GetChartTileQuery[]>([
-                `${DashboardTileChartTableName}.rank`,
-                `${SavedQueriesTableName}.saved_query_uuid`,
-            ])
-            .where('dashboard_version_id', dashboard.dashboard_version_id);
+            .where(
+                `${DashboardTilesTableName}.dashboard_version_id`,
+                dashboard.dashboard_version_id,
+            );
 
         return {
             uuid: dashboard.dashboard_uuid,
@@ -213,16 +240,12 @@ export class DashboardModel {
                     x_offset,
                     y_offset,
                     dashboard_tile_uuid,
+                    saved_query_uuid,
                 }) => ({
                     id: dashboard_tile_uuid,
                     type,
                     properties: {
-                        savedChartUuid:
-                            charts.find(
-                                (chart) =>
-                                    chart.dashboard_tile_uuid ===
-                                    dashboard_tile_uuid,
-                            )?.saved_query_uuid || null,
+                        savedChartUuid: saved_query_uuid,
                     },
                     x: x_offset,
                     y: y_offset,

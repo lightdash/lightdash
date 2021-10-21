@@ -55,7 +55,7 @@ export const addDashboardVersionWithTileIds: DashboardVersionedFields = {
 export const addDashboardVersionWithoutChart: DashboardVersionedFields = {
     tiles: [
         {
-            ...tileWithId,
+            ...tileWithoutId,
             properties: {
                 savedChartUuid: null,
             },
@@ -117,6 +117,11 @@ export const dashboardTileEntry: DashboardTileTable['base'] = {
     y_offset: 5,
     height: 10,
     width: 10,
+};
+
+export const dashboardTileWithSavedChartEntry = {
+    ...dashboardTileEntry,
+    saved_query_uuid: '123',
 };
 
 export const dashboardChartTileEntry: GetChartTileQuery = {
