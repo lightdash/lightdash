@@ -1,44 +1,40 @@
 import { CreateSnowflakeCredentials } from 'common';
-import { createConnection, Connection } from 'snowflake-sdk';
+import { createConnection, Connection, ConnectionOptions } from 'snowflake-sdk';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
 import { QueryRunner } from '../../types';
 
 export default class SnowflakeWarehouseClient implements QueryRunner {
-    client: Connection;
+    connectionOptions: ConnectionOptions;
 
     constructor(credentials: CreateSnowflakeCredentials) {
-        try {
-            this.client = createConnection({
-                account: credentials.account,
-                username: credentials.user,
-                password: credentials.password,
-                database: credentials.database,
-                schema: credentials.schema,
-                warehouse: credentials.warehouse,
-                role: credentials.role,
-                clientSessionKeepAlive: credentials.clientSessionKeepAlive,
-            });
-        } catch (e) {
-            throw new WarehouseConnectionError(e.message);
-        }
+        this.connectionOptions = {
+            account: credentials.account,
+            username: credentials.user,
+            password: credentials.password,
+            database: credentials.database,
+            schema: credentials.schema,
+            warehouse: credentials.warehouse,
+            role: credentials.role,
+            clientSessionKeepAlive: credentials.clientSessionKeepAlive,
+        };
     }
 
     async runQuery(sqlText: string): Promise<Record<string, any>[]> {
+        let connection: Connection;
         try {
-            await new Promise((resolve, reject) => {
-                this.client.connect((err, conn) => {
-                    if (err) {
-                        reject(err);
-                    }
-                    resolve(conn);
-                });
+            connection = createConnection(this.connectionOptions);
+            connection.connect((err) => {
+                if (err) {
+                    throw err;
+                }
             });
         } catch (e) {
             throw new WarehouseConnectionError(e.message);
         }
+
         try {
             return await new Promise((resolve, reject) => {
-                this.client.execute({
+                connection.execute({
                     sqlText,
                     complete: (err, stmt, data) => {
                         if (err) {
@@ -58,6 +54,12 @@ export default class SnowflakeWarehouseClient implements QueryRunner {
             });
         } catch (e) {
             throw new WarehouseQueryError(e.message);
+        } finally {
+            connection.destroy((err) => {
+                if (err) {
+                    throw new WarehouseConnectionError(err.message);
+                }
+            });
         }
     }
 
