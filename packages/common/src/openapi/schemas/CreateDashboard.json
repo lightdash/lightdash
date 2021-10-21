@@ -10,7 +10,7 @@
         "tiles": {
             "type": "array",
             "items": {
-                "$ref": "./DashboardTile.json"
+                "$ref": "./CreateDashboardTile.json"
             }
         }
     },

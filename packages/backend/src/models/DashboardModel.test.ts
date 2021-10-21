@@ -106,7 +106,7 @@ describe('DashboardModel', () => {
         expect(dashboard).toEqual(expectedAllDashboards);
         expect(tracker.history.select).toHaveLength(1);
     });
-    test('should create dashboard', async () => {
+    test('should create dashboard with tile ids', async () => {
         const spaceUuid = 'space uuid';
         tracker.on
             .select(queryMatcher(SpaceTableName, [spaceUuid, 1]))

@@ -35,7 +35,10 @@ export type GetDashboardDetailsQuery = Pick<
     'dashboard_uuid' | 'name' | 'description'
 > &
     Pick<DashboardVersionTable['base'], 'created_at'>;
-export type GetChartTileQuery = Pick<DashboardTileChartTable['base'], 'rank'> &
+export type GetChartTileQuery = Pick<
+    DashboardTileChartTable['base'],
+    'dashboard_tile_uuid'
+> &
     Pick<SavedQueryTable['base'], 'saved_query_uuid'>;
 
 type DashboardModelDependencies = {
@@ -62,43 +65,54 @@ export class DashboardModel {
         );
 
         const promises: Promise<any>[] = [];
-        version.tiles.forEach(({ type, w, h, x, y, properties }, index) => {
-            promises.push(
-                (async () => {
-                    const rank = index + 1;
-                    await trx(DashboardTilesTableName).insert({
-                        dashboard_version_id: versionId.dashboard_version_id,
-                        rank,
-                        type,
-                        height: h,
-                        width: w,
-                        x_offset: x,
-                        y_offset: y,
-                    });
-                    if (
-                        type === DashboardTileTypes.SAVED_CHART &&
-                        properties.savedChartUuid
-                    ) {
-                        const [savedChart] = await trx(SavedQueriesTableName)
-                            .select(['saved_query_id'])
-                            .where(
-                                'saved_query_uuid',
-                                properties.savedChartUuid,
+        version.tiles.forEach(
+            ({ id: dashboardTileId, type, w, h, x, y, properties }, index) => {
+                promises.push(
+                    (async () => {
+                        const [insertedTile] = await trx(
+                            DashboardTilesTableName,
+                        )
+                            .insert({
+                                dashboard_version_id:
+                                    versionId.dashboard_version_id,
+                                dashboard_tile_uuid: dashboardTileId,
+                                type,
+                                height: h,
+                                width: w,
+                                x_offset: x,
+                                y_offset: y,
+                            })
+                            .returning('*');
+                        if (
+                            type === DashboardTileTypes.SAVED_CHART &&
+                            properties.savedChartUuid
+                        ) {
+                            const [savedChart] = await trx(
+                                SavedQueriesTableName,
                             )
-                            .limit(1);
-                        if (!savedChart) {
-                            throw new NotFoundError('Saved chart not found');
+                                .select(['saved_query_id'])
+                                .where(
+                                    'saved_query_uuid',
+                                    properties.savedChartUuid,
+                                )
+                                .limit(1);
+                            if (!savedChart) {
+                                throw new NotFoundError(
+                                    'Saved chart not found',
+                                );
+                            }
+                            await trx(DashboardTileChartTableName).insert({
+                                dashboard_version_id:
+                                    versionId.dashboard_version_id,
+                                dashboard_tile_uuid:
+                                    insertedTile.dashboard_tile_uuid,
+                                saved_chart_id: savedChart.saved_query_id,
+                            });
                         }
-                        await trx(DashboardTileChartTableName).insert({
-                            dashboard_version_id:
-                                versionId.dashboard_version_id,
-                            rank,
-                            saved_chart_id: savedChart.saved_query_id,
-                        });
-                    }
-                })(),
-            );
-        });
+                    })(),
+                );
+            },
+        );
         await Promise.all(promises);
     }
 
@@ -172,8 +186,7 @@ export class DashboardModel {
 
         const tiles = await this.database(DashboardTilesTableName)
             .select('*')
-            .where('dashboard_version_id', dashboard.dashboard_version_id)
-            .orderBy('rank', 'asc');
+            .where('dashboard_version_id', dashboard.dashboard_version_id);
 
         const charts = await this.database(DashboardTileChartTableName)
             .leftJoin(
@@ -185,8 +198,7 @@ export class DashboardModel {
                 `${DashboardTileChartTableName}.rank`,
                 `${SavedQueriesTableName}.saved_query_uuid`,
             ])
-            .where('dashboard_version_id', dashboard.dashboard_version_id)
-            .orderBy('rank', 'asc');
+            .where('dashboard_version_id', dashboard.dashboard_version_id);
 
         return {
             uuid: dashboard.dashboard_uuid,
@@ -194,12 +206,23 @@ export class DashboardModel {
             description: dashboard.description,
             updatedAt: dashboard.created_at,
             tiles: tiles.map(
-                ({ type, height, width, x_offset, y_offset, rank }) => ({
+                ({
+                    type,
+                    height,
+                    width,
+                    x_offset,
+                    y_offset,
+                    dashboard_tile_uuid,
+                }) => ({
+                    id: dashboard_tile_uuid,
                     type,
                     properties: {
                         savedChartUuid:
-                            charts.find((chart) => chart.rank === rank)
-                                ?.saved_query_uuid || null,
+                            charts.find(
+                                (chart) =>
+                                    chart.dashboard_tile_uuid ===
+                                    dashboard_tile_uuid,
+                            )?.saved_query_uuid || null,
                     },
                     x: x_offset,
                     y: y_offset,

@@ -73,11 +73,14 @@ export async function up(knex: Knex): Promise<void> {
                     .references('dashboard_version_id')
                     .inTable('dashboard_versions')
                     .onDelete('CASCADE');
-                tableBuilder.specificType(
-                    'rank',
-                    'INTEGER NOT NULL CHECK(rank > 0)',
-                );
-                tableBuilder.primary(['dashboard_version_id', 'rank']);
+                tableBuilder
+                    .uuid('dashboard_tile_uuid')
+                    .notNullable()
+                    .defaultTo(knex.raw('uuid_generate_v4()'));
+                tableBuilder.primary([
+                    'dashboard_version_id',
+                    'dashboard_tile_uuid',
+                ]);
                 tableBuilder
                     .text('type')
                     .notNullable()
@@ -96,11 +99,17 @@ export async function up(knex: Knex): Promise<void> {
             dashboardTileChartTableName,
             (tableBuilder) => {
                 tableBuilder.integer('dashboard_version_id').notNullable();
-                tableBuilder.integer('rank').notNullable();
-                tableBuilder.primary(['dashboard_version_id', 'rank']);
                 tableBuilder
-                    .foreign(['dashboard_version_id', 'rank'])
-                    .references(['dashboard_version_id', 'rank'])
+                    .uuid('dashboard_tile_uuid')
+                    .notNullable()
+                    .defaultTo(knex.raw('uuid_generate_v4()'));
+                tableBuilder.primary([
+                    'dashboard_version_id',
+                    'dashboard_tile_uuid',
+                ]);
+                tableBuilder
+                    .foreign(['dashboard_version_id', 'dashboard_tile_uuid'])
+                    .references(['dashboard_version_id', 'dashboard_tile_uuid'])
                     .inTable(dashboardTilesTableName)
                     .onDelete('CASCADE');
                 tableBuilder
