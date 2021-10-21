@@ -39,7 +39,7 @@ describe('Dashboard List', () => {
         cy.get('.bp3-button-group > button').eq(2).click();
         // click on delete in the popup
         cy.get('.bp3-dialog-footer-actions > button').eq(1).click();
-        cy.findByText('No results available').click();
+        cy.findByText('No results available');
     })
 
     it('Should create a new dashboard', () => {
