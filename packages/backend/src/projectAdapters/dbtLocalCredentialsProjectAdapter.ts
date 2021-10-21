@@ -9,8 +9,10 @@ import {
     profileFromCredentials,
 } from '../dbt/profiles';
 import { DbtLocalProjectAdapter } from './dbtLocalProjectAdapter';
+import { QueryRunner } from '../types';
 
 type DbtLocalCredentialsProjectAdapterArgs = {
+    queryRunner: QueryRunner | undefined;
     projectDir: string;
     warehouseCredentials: CreateWarehouseCredentials;
     port: number;
@@ -20,6 +22,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
     profilesDir: string;
 
     constructor({
+        queryRunner,
         projectDir,
         warehouseCredentials,
         port,
@@ -30,6 +33,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
             profileFromCredentials(warehouseCredentials);
         writeFileSync(profilesFilename, profile);
         super({
+            queryRunner,
             target: LIGHTDASH_TARGET_NAME,
             profileName: LIGHTDASH_PROFILE_NAME,
             profilesDir,

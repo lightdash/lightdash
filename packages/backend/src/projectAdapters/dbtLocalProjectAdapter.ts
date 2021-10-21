@@ -3,8 +3,10 @@ import { DbtChildProcess } from '../dbt/dbtChildProcess';
 import { NetworkError } from '../errors';
 import { DbtRpcClient } from '../dbt/dbtRpcClient';
 import { DbtCliClient } from '../dbt/dbtCliClient';
+import { QueryRunner } from '../types';
 
 type DbtLocalProjectAdapterArgs = {
+    queryRunner: QueryRunner | undefined;
     projectDir: string;
     profilesDir: string;
     port: number;
@@ -17,6 +19,7 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
     dbtChildProcess: DbtChildProcess;
 
     constructor({
+        queryRunner,
         projectDir,
         profilesDir,
         port,
@@ -41,7 +44,7 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
             profileName,
             target,
         });
-        super(dbtClient, rpcClient);
+        super(dbtClient, queryRunner || rpcClient);
         this.dbtChildProcess = childProcess;
     }
 

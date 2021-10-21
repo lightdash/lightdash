@@ -1,7 +1,9 @@
 import { CreateWarehouseCredentials } from 'common';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
+import { QueryRunner } from '../types';
 
 type DbtGitlabProjectAdapterArgs = {
+    queryRunner: QueryRunner | undefined;
     gitlabPersonalAccessToken: string;
     gitlabRepository: string;
     gitlabBranch: string;
@@ -12,6 +14,7 @@ type DbtGitlabProjectAdapterArgs = {
 
 export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
     constructor({
+        queryRunner,
         gitlabBranch,
         gitlabPersonalAccessToken,
         gitlabRepository,
@@ -21,6 +24,7 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
     }: DbtGitlabProjectAdapterArgs) {
         const remoteRepositoryUrl = `https://:${gitlabPersonalAccessToken}@gitlab.com/${gitlabRepository}.git`;
         super({
+            queryRunner,
             gitBranch: gitlabBranch,
             remoteRepositoryUrl,
             projectDirectorySubPath,

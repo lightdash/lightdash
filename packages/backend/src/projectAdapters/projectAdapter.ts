@@ -12,16 +12,21 @@ import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
 import { DbtGitlabProjectAdapter } from './dbtGitlabProjectAdapter';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 import { UnexpectedServerError } from '../errors';
+import { warehouseClientFromCredentials } from '../services/warehouseClients/warehouseClientFromCredentials';
 
 export const projectAdapterFromConfig = async (
     config: DbtProjectConfig,
     warehouseCredentials?: CreateWarehouseCredentials,
 ): Promise<ProjectAdapter> => {
+    const queryRunner =
+        warehouseCredentials &&
+        warehouseClientFromCredentials(warehouseCredentials);
     const configType = config.type;
     switch (config.type) {
         case ProjectType.DBT:
             if (warehouseCredentials !== undefined) {
                 return new DbtLocalCredentialsProjectAdapter({
+                    queryRunner,
                     projectDir: config.project_dir,
                     warehouseCredentials,
                     port: await getPort(),
@@ -29,6 +34,7 @@ export const projectAdapterFromConfig = async (
             }
             if (config.profiles_dir !== undefined) {
                 return new DbtLocalProjectAdapter({
+                    queryRunner,
                     projectDir: config.project_dir,
                     profilesDir: config.profiles_dir,
                     port: await getPort(),
@@ -40,11 +46,13 @@ export const projectAdapterFromConfig = async (
             );
         case ProjectType.DBT_REMOTE_SERVER:
             return new DbtRemoteProjectAdapter({
+                queryRunner,
                 host: config.rpc_server_host,
                 port: config.rpc_server_port,
             });
         case ProjectType.DBT_CLOUD_IDE:
             return new DbtCloudIdeProjectAdapter({
+                queryRunner,
                 accountId: `${config.account_id}`,
                 environmentId: `${config.environment_id}`,
                 projectId: `${config.project_id}`,
@@ -57,6 +65,7 @@ export const projectAdapterFromConfig = async (
                 );
             }
             return new DbtGithubProjectAdapter({
+                queryRunner,
                 githubPersonalAccessToken: config.personal_access_token,
                 githubRepository: config.repository,
                 githubBranch: config.branch,
@@ -71,6 +80,7 @@ export const projectAdapterFromConfig = async (
                 );
             }
             return new DbtGitlabProjectAdapter({
+                queryRunner,
                 gitlabPersonalAccessToken: config.personal_access_token,
                 gitlabRepository: config.repository,
                 gitlabBranch: config.branch,

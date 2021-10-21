@@ -16,8 +16,10 @@ export interface DbtClient {
     installDeps(): Promise<void>;
     getDbtManifest(): Promise<DbtRpcGetManifestResults>;
     getDbtCatalog(): Promise<DbtRpcDocsGenerateResults>;
+    test(): Promise<void>;
 }
 
 export interface QueryRunner {
     runQuery(sql: string): Promise<Record<string, any>[]>;
+    test(): Promise<void>;
 }
