@@ -12,23 +12,21 @@ export async function seed(knex: Knex): Promise<void> {
         .select('*')
         .limit(1);
 
-    // get Space
-    const { space_uuid: spaceUuid } = await getSpace(knex, projectUuid);
     const dashboardModel = new DashboardModel({
         database: knex,
     });
 
-    const { queries } = await getSpaceWithQueries(projectUuid);
+    const { queries, uuid: spaceUuid } = await getSpaceWithQueries(projectUuid);
 
     await dashboardModel.create(spaceUuid, {
         name: 'Jaffle dashboard',
         tiles: queries.map(({ uuid: savedChartUuid }, i) => ({
-                x: i % 2 === 0 ? 0 : 5,
-                y: Math.floor(i / 2) * 3,
-                w: i > 0 && i % 2 === 0 ? 10 : 5,
-                h: 3,
-                type: DashboardTileTypes.SAVED_CHART,
-                properties: { savedChartUuid },
-            })),
+            x: i % 2 === 0 ? 0 : 5,
+            y: Math.floor(i / 2) * 3,
+            w: i > 0 && i % 2 === 0 ? 10 : 5,
+            h: 3,
+            type: DashboardTileTypes.SAVED_CHART,
+            properties: { savedChartUuid },
+        })),
     });
 }
