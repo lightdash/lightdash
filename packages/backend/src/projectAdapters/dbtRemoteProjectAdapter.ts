@@ -1,8 +1,10 @@
 import { Explore, ExploreError } from 'common';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 import { DbtRpcClient } from '../dbt/dbtRpcClient';
+import { QueryRunner } from '../types';
 
 type DbtRemoteProjectAdapterArgs = {
+    queryRunner: QueryRunner | undefined;
     host: string;
     port: number;
     protocol?: string;
@@ -10,6 +12,7 @@ type DbtRemoteProjectAdapterArgs = {
 
 export class DbtRemoteProjectAdapter extends DbtBaseProjectAdapter {
     constructor({
+        queryRunner,
         host,
         port,
         protocol = 'http',
@@ -17,7 +20,7 @@ export class DbtRemoteProjectAdapter extends DbtBaseProjectAdapter {
         const rpcClient = new DbtRpcClient(
             `${protocol}://${host}:${port}/jsonrpc`,
         );
-        super(rpcClient, rpcClient);
+        super(rpcClient, queryRunner || rpcClient);
     }
 
     async compileAllExplores(): Promise<(Explore | ExploreError)[]> {

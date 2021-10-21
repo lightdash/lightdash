@@ -31,7 +31,8 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     async destroy(): Promise<void> {}
 
     public async test(): Promise<void> {
-        await this.runQuery("SELECT 'test connection'");
+        await this.dbtClient.test();
+        await this.queryRunner.test();
     }
 
     public async compileAllExplores(
@@ -86,11 +87,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     }
 
     public async runQuery(sql: string): Promise<Record<string, any>[]> {
-        // TODO: remove temporary fix while query runner depends on dbt
-        // Installs dependencies on every query
-        if (this.queryRunner instanceof DbtRpcClientBase) {
-            await this.queryRunner.installDeps();
-        }
+        // Possible error if query is ran before dependencies are installed
         return this.queryRunner.runQuery(sql);
     }
 
