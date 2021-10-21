@@ -7,6 +7,7 @@ export const warehouseClientFromCredentials = (
 ): QueryRunner | undefined => {
     switch (credentials.type) {
         case WarehouseTypes.POSTGRES:
+        case WarehouseTypes.REDSHIFT:
             return new PostgresWarehouseClient(credentials);
         default:
             return undefined;

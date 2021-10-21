@@ -1,4 +1,4 @@
-import { CreatePostgresCredentials, SqlQueryResults } from 'common';
+import { CreatePostgresCredentials, CreateRedshiftCredentials } from 'common';
 import * as pg from 'pg';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
 import { QueryRunner } from '../../types';
@@ -6,7 +6,9 @@ import { QueryRunner } from '../../types';
 export default class PostgresWarehouseClient implements QueryRunner {
     client: pg.Client;
 
-    constructor(credentials: CreatePostgresCredentials) {
+    constructor(
+        credentials: CreatePostgresCredentials | CreateRedshiftCredentials,
+    ) {
         try {
             const client = new pg.Client({
                 // Use connection string so we can use sslmode keywords for postgres
