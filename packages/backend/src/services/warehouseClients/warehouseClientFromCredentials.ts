@@ -1,7 +1,8 @@
 import { CreateWarehouseCredentials, WarehouseTypes } from 'common';
-import PostgresWarehouseClient from './PostgresWarehouseClient';
 import { QueryRunner } from '../../types';
 import SnowflakeWarehouseClient from './SnowflakeWarehouseClient';
+import PostgresWarehouseClient from './PostgresWarehouseClient';
+import BigqueryWarehouseClient from './BigqueryWarehouseClient';
 
 export const warehouseClientFromCredentials = (
     credentials: CreateWarehouseCredentials,
@@ -11,6 +12,8 @@ export const warehouseClientFromCredentials = (
             return new SnowflakeWarehouseClient(credentials);
         case WarehouseTypes.POSTGRES:
             return new PostgresWarehouseClient(credentials);
+        case WarehouseTypes.BIGQUERY:
+            return new BigqueryWarehouseClient(credentials);
         default:
             return undefined;
     }
