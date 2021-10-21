@@ -5,6 +5,8 @@ import {
     DashboardBasicDetails,
     DashboardTileTypes,
     DashboardVersionedFields,
+    CreateDashboardChartTile,
+    DashboardChartTile,
 } from 'common';
 import {
     DashboardTable,
@@ -16,46 +18,44 @@ import { SpaceTable } from '../database/entities/spaces';
 import { GetChartTileQuery, GetDashboardQuery } from './DashboardModel';
 
 // Argument mocks
+const tileWithoutId: CreateDashboardChartTile = {
+    type: DashboardTileTypes.SAVED_CHART,
+    x: 4,
+    y: 5,
+    h: 100,
+    w: 200,
+    properties: {
+        savedChartUuid: '123',
+    },
+};
+const tileWithId: DashboardChartTile = {
+    id: '2a93d63d-ca81-421c-b88b-1124a2f02407',
+    ...tileWithoutId,
+};
 
 export const createDashboard: CreateDashboard = {
     name: 'my new dashboard',
     description: 'description',
-    tiles: [
-        {
-            type: DashboardTileTypes.SAVED_CHART,
-            x: 4,
-            y: 5,
-            h: 100,
-            w: 200,
-            properties: {
-                savedChartUuid: '123',
-            },
-        },
-    ],
+    tiles: [tileWithoutId],
 };
+
+export const createDashboardWithTileIds: CreateDashboard = {
+    ...createDashboard,
+    tiles: [tileWithId],
+};
+
 export const addDashboardVersion: DashboardVersionedFields = {
-    tiles: [
-        {
-            type: DashboardTileTypes.SAVED_CHART,
-            x: 4,
-            y: 5,
-            h: 100,
-            w: 200,
-            properties: {
-                savedChartUuid: '123',
-            },
-        },
-    ],
+    tiles: [tileWithoutId],
+};
+
+export const addDashboardVersionWithTileIds: DashboardVersionedFields = {
+    tiles: [tileWithId],
 };
 
 export const addDashboardVersionWithoutChart: DashboardVersionedFields = {
     tiles: [
         {
-            type: DashboardTileTypes.SAVED_CHART,
-            x: 4,
-            y: 5,
-            h: 100,
-            w: 200,
+            ...tileWithId,
             properties: {
                 savedChartUuid: null,
             },
@@ -111,7 +111,7 @@ export const dashboardWithVersionEntry: GetDashboardQuery = {
 
 export const dashboardTileEntry: DashboardTileTable['base'] = {
     dashboard_version_id: 0,
-    rank: 0,
+    dashboard_tile_uuid: '2a93d63d-ca81-421c-b88b-1124a2f02407',
     type: DashboardTileTypes.SAVED_CHART,
     x_offset: 5,
     y_offset: 5,
@@ -120,7 +120,7 @@ export const dashboardTileEntry: DashboardTileTable['base'] = {
 };
 
 export const dashboardChartTileEntry: GetChartTileQuery = {
-    rank: 0,
+    dashboard_tile_uuid: 'my-tile',
     saved_query_uuid: savedChartEntry.saved_query_uuid,
 };
 
@@ -133,6 +133,7 @@ export const expectedDashboard: Dashboard = {
     updatedAt: dashboardVersionEntry.created_at,
     tiles: [
         {
+            id: dashboardTileEntry.dashboard_tile_uuid,
             type: dashboardTileEntry.type,
             properties: {
                 savedChartUuid: savedChartEntry.saved_query_uuid,

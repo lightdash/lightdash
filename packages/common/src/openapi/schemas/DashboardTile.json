@@ -1,29 +1,16 @@
 {
-    "type": "object",
-    "properties": {
-        "type": {
-            "type": "string",
-            "enum": ["saved_chart"]
+    "allOf": [
+        {
+            "$ref": "./CreateDashboardTile.json"
         },
-        "properties": {
-            "oneOf": [
-                {
-                    "$ref": "./TilePropertiesChart.json"
+        {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
                 }
-            ]
-        },
-        "x": {
-            "type": "number"
-        },
-        "y": {
-            "type": "number"
-        },
-        "h": {
-            "type": "number"
-        },
-        "w": {
-            "type": "number"
+            },
+            "required": ["id"]
         }
-    },
-    "required": ["properties", "type", "x", "y", "h", "w"]
+    ]
 }

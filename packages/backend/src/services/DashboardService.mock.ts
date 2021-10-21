@@ -34,6 +34,7 @@ export const dashboard: Dashboard = {
     updatedAt: new Date(),
     tiles: [
         {
+            id: 'my-tile',
             type: DashboardTileTypes.SAVED_CHART,
             properties: {
                 savedChartUuid: 'savedChartUuid',
@@ -60,6 +61,7 @@ export const createDashboard: CreateDashboard = {
     description: 'description',
     tiles: [
         {
+            id: 'my-tile',
             type: DashboardTileTypes.SAVED_CHART,
             x: 4,
             y: 5,
@@ -80,6 +82,7 @@ export const updateDashboard: UpdateDashboard = {
 export const updateDashboardTiles: UpdateDashboard = {
     tiles: [
         {
+            id: 'my-tile',
             type: DashboardTileTypes.SAVED_CHART,
             x: 4,
             y: 5,

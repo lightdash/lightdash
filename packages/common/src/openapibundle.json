@@ -677,9 +677,12 @@
                 },
                 "required": ["savedChartUuid"]
             },
-            "DashboardTile": {
+            "CreateDashboardTile": {
                 "type": "object",
                 "properties": {
+                    "id": {
+                        "type": "string"
+                    },
                     "type": {
                         "type": "string",
                         "enum": ["saved_chart"]
@@ -718,11 +721,27 @@
                     "tiles": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/DashboardTile"
+                            "$ref": "#/components/schemas/CreateDashboardTile"
                         }
                     }
                 },
                 "required": ["tiles", "name", "description"]
+            },
+            "DashboardTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateDashboardTile"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["id"]
+                    }
+                ]
             },
             "Dashboard": {
                 "type": "object",
