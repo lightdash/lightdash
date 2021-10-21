@@ -172,6 +172,17 @@
         "test",
         "doc"
       ]
+    },
+    {
+      "login": "jaybe78",
+      "name": "jb",
+      "avatar_url": "https://avatars.githubusercontent.com/u/3605098?v=4",
+      "profile": "https://github.com/jaybe78",
+      "contributions": [
+        "code",
+        "bug",
+        "design"
+      ]
     }
   ],
   "contributorsPerLine": 7,
