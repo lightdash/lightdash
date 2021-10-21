@@ -11,10 +11,11 @@ import {
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import AddTileButton from '../components/DashboardTiles/AddTile/AddTileButton';
 
-const WrapperAddTileButton = styled.div`
+const Wrapper = styled.div`
     display: flex;
     width: 100%;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
 `;
 
 const Dashboard = () => {
@@ -38,47 +39,52 @@ const Dashboard = () => {
 
     return (
         <>
-            <WrapperAddTileButton>
+            <Wrapper>
                 {dashboard && <AddTileButton dashboard={dashboard} />}
-            </WrapperAddTileButton>
-            <GridLayout
-                width={1000}
-                draggableCancel=".non-draggable"
-                onDragStop={(layout) => updateTiles(layout)}
-                onResizeStop={(layout) => updateTiles(layout)}
-            >
-                {dashboard &&
-                    dashboard.tiles &&
-                    dashboard.tiles.map((tile: DashboardChartTile) => {
-                        const {
-                            x,
-                            y,
-                            h,
-                            w,
-                            properties: { savedChartUuid },
-                        } = tile;
-                        return (
-                            <div
-                                key={savedChartUuid}
-                                data-grid={{ x, y, w, h }}
-                            >
-                                <ChartTile
-                                    tile={tile}
-                                    onDelete={() =>
-                                        mutate({
-                                            tiles: dashboard.tiles.filter(
-                                                (filteredTile) =>
-                                                    savedChartUuid !==
-                                                    filteredTile.properties
-                                                        .savedChartUuid,
-                                            ),
-                                        })
-                                    }
-                                />
-                            </div>
-                        );
-                    })}
-            </GridLayout>
+                <GridLayout
+                    style={{
+                        width: '1000px',
+                        boxShadow: 'rgb(0 0 0 / 10%) 0px 0px 0px 8px',
+                        borderRadius: '5px',
+                    }}
+                    width={1000}
+                    draggableCancel=".non-draggable"
+                    onDragStop={(layout) => updateTiles(layout)}
+                    onResizeStop={(layout) => updateTiles(layout)}
+                >
+                    {dashboard &&
+                        dashboard.tiles &&
+                        dashboard.tiles.map((tile: DashboardChartTile) => {
+                            const {
+                                x,
+                                y,
+                                h,
+                                w,
+                                properties: { savedChartUuid },
+                            } = tile;
+                            return (
+                                <div
+                                    key={savedChartUuid}
+                                    data-grid={{ x, y, w, h }}
+                                >
+                                    <ChartTile
+                                        tile={tile}
+                                        onDelete={() =>
+                                            mutate({
+                                                tiles: dashboard.tiles.filter(
+                                                    (filteredTile) =>
+                                                        savedChartUuid !==
+                                                        filteredTile.properties
+                                                            .savedChartUuid,
+                                                ),
+                                            })
+                                        }
+                                    />
+                                </div>
+                            );
+                        })}
+                </GridLayout>
+            </Wrapper>
         </>
     );
 };
