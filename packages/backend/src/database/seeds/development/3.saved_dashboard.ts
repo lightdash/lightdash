@@ -1,7 +1,7 @@
 import { Knex } from 'knex';
 import { DashboardTileTypes } from 'common';
 import { DashboardModel } from '../../../models/DashboardModel';
-import { getSpace, getSpaceWithQueries } from '../../entities/spaces';
+import { getSpaceWithQueries } from '../../entities/spaces';
 
 export async function seed(knex: Knex): Promise<void> {
     // delete existing dashboards
