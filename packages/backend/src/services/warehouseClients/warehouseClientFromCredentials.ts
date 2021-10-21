@@ -11,6 +11,7 @@ export const warehouseClientFromCredentials = (
         case WarehouseTypes.SNOWFLAKE:
             return new SnowflakeWarehouseClient(credentials);
         case WarehouseTypes.POSTGRES:
+        case WarehouseTypes.REDSHIFT:
             return new PostgresWarehouseClient(credentials);
         case WarehouseTypes.BIGQUERY:
             return new BigqueryWarehouseClient(credentials);
