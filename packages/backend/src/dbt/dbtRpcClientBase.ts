@@ -325,6 +325,7 @@ export class DbtRpcClientBase implements DbtClient, QueryRunner {
     }
 
     async test(): Promise<void> {
+        await this.installDeps();
         await this.runQuery('SELECT 1');
     }
 }
