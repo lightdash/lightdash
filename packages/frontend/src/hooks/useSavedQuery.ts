@@ -125,12 +125,6 @@ export const useCreateMutation = () => {
                 showToastSuccess({
                     title: `Chart updated with success`,
                 });
-                history.push({
-                    pathname: `/saved/${data.uuid}`,
-                    state: {
-                        fromExplorer: true,
-                    },
-                });
             },
             onError: (error) => {
                 showToastError({
