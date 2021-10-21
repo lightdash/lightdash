@@ -171,4 +171,8 @@ export class DbtCliClient implements DbtClient {
             { dbtLogs },
         );
     }
+
+    async test(): Promise<void> {
+        await this._runDbtCommand('debug');
+    }
 }

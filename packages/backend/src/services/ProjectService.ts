@@ -13,9 +13,10 @@ import { projectAdapterFromConfig } from '../projectAdapters/projectAdapter';
 import { ProjectAdapter } from '../types';
 import { ProjectModel } from '../models/ProjectModel';
 import { analytics } from '../analytics/client';
-import { errorHandler, NotExistsError } from '../errors';
+import { errorHandler, NotExistsError, UnexpectedServerError } from '../errors';
 import { compileMetricQuery } from '../queryCompiler';
 import { buildQuery } from '../queryBuilder';
+import PostgresWarehouseClient from './warehouseClients/PostgresWarehouseClient';
 
 type ProjectServiceDependencies = {
     projectModel: ProjectModel;
@@ -178,8 +179,8 @@ export class ProjectService {
         const adapter = await this.getAdapter(projectUuid);
         const rows = await adapter.runQuery(sql);
         return {
-            metricQuery,
             rows,
+            metricQuery,
         };
     }
 

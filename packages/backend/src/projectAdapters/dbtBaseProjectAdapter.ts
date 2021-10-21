@@ -31,8 +31,8 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     async destroy(): Promise<void> {}
 
     public async test(): Promise<void> {
-        await this.dbtClient.installDeps();
-        await this.runQuery("SELECT 'test connection'");
+        await this.dbtClient.test();
+        await this.queryRunner.test();
     }
 
     public async compileAllExplores(
