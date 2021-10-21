@@ -6,7 +6,7 @@ Recent and upcoming changes to lightdash
 
 ## [0.8.4] - 2021-10-11
 ### Added
-- Add new dashboard feature 
+- Added dashboards - users can now create, edit and delete dashboards
 ### Changed
 - Navigation bar was rearranged. Saved charts and dashboards can be accessed under the "Browse" menu item.
 
