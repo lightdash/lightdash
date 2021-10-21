@@ -31,7 +31,6 @@ import { Section } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import SavedQueryForm from './SavedQueries/SavedQueryForm';
 import { useQueryResults } from '../hooks/useQueryResults';
-import '../styles/explorer.css';
 
 interface Props {
     savedQueryUuid?: string;
@@ -267,12 +266,14 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     )}
                 </div>
                 <Collapse className="explorer-chart" isOpen={vizIsOpen}>
-                    <SimpleChart
-                        isLoading={queryResults.isLoading}
-                        chartRef={chartRef}
-                        chartType={activeVizTab}
-                        chartConfig={chartConfig}
-                    />
+                    <div style={{ height: '300px' }}>
+                        <SimpleChart
+                            isLoading={queryResults.isLoading}
+                            chartRef={chartRef}
+                            chartType={activeVizTab}
+                            chartConfig={chartConfig}
+                        />
+                    </div>
                 </Collapse>
             </Card>
             <div style={{ paddingTop: '10px' }} />
