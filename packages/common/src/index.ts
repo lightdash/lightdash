@@ -1121,9 +1121,7 @@ type CreateDashboardTileBase = {
     w: number;
 };
 
-type DashboardTileBase = CreateDashboardTileBase & {
-    id: string;
-};
+type DashboardTileBase = Required<CreateDashboardTileBase>;
 
 type DashboardChartTileProperties = {
     type: DashboardTileTypes.SAVED_CHART;
@@ -1143,7 +1141,9 @@ export type CreateDashboard = {
     tiles: CreateDashboardChartTile[];
 };
 
-export type Dashboard = CreateDashboard & {
+export type Dashboard = {
+    name: string;
+    description?: string;
     uuid: string;
     updatedAt: Date;
     tiles: DashboardChartTile[];

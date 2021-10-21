@@ -56,22 +56,32 @@ export const dashboardsDetails: DashboardBasicDetails[] = [
     },
 ];
 
+const createTile = {
+    type: DashboardTileTypes.SAVED_CHART,
+    x: 4,
+    y: 5,
+    h: 100,
+    w: 200,
+    properties: {
+        savedChartUuid: '123',
+    },
+};
+
+const createTileWithId = {
+    ...createTile,
+    id: 'my-tile',
+};
+
 export const createDashboard: CreateDashboard = {
     name: 'my new dashboard',
     description: 'description',
-    tiles: [
-        {
-            id: 'my-tile',
-            type: DashboardTileTypes.SAVED_CHART,
-            x: 4,
-            y: 5,
-            h: 100,
-            w: 200,
-            properties: {
-                savedChartUuid: '123',
-            },
-        },
-    ],
+    tiles: [createTile],
+};
+
+export const createDashboardWithTileIds: CreateDashboard = {
+    name: 'my new dashboard',
+    description: 'description',
+    tiles: [createTileWithId],
 };
 
 export const updateDashboard: UpdateDashboard = {
@@ -80,19 +90,11 @@ export const updateDashboard: UpdateDashboard = {
 };
 
 export const updateDashboardTiles: UpdateDashboard = {
-    tiles: [
-        {
-            id: 'my-tile',
-            type: DashboardTileTypes.SAVED_CHART,
-            x: 4,
-            y: 5,
-            h: 100,
-            w: 200,
-            properties: {
-                savedChartUuid: '123',
-            },
-        },
-    ],
+    tiles: [createTile],
+};
+
+export const updateDashboardTilesWithIds: UpdateDashboard = {
+    tiles: [createTileWithId],
 };
 
 export const updateDashboardDetailsAndTiles: UpdateDashboard = {

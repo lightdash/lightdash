@@ -9,6 +9,8 @@ import {
     updateDashboardTiles,
     updateDashboardDetailsAndTiles,
     user,
+    createDashboardWithTileIds,
+    updateDashboardTilesWithIds,
 } from './DashboardService.mock';
 import { analytics } from '../analytics/client';
 
@@ -81,6 +83,26 @@ describe('DashboardService', () => {
             }),
         );
     });
+    test('should create dashboard with tile ids', async () => {
+        const result = await service.create(
+            user,
+            projectUuid,
+            createDashboardWithTileIds,
+        );
+
+        expect(result).toEqual(dashboard);
+        expect(dashboardModel.create).toHaveBeenCalledTimes(1);
+        expect(dashboardModel.create).toHaveBeenCalledWith(
+            space.space_uuid,
+            createDashboardWithTileIds,
+        );
+        expect(analytics.track).toHaveBeenCalledTimes(1);
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'dashboard.created',
+            }),
+        );
+    });
     test('should update dashboard details', async () => {
         const result = await service.update(
             user,
@@ -113,6 +135,26 @@ describe('DashboardService', () => {
         expect(dashboardModel.addVersion).toHaveBeenCalledWith(
             dashboardUuid,
             updateDashboardTiles,
+        );
+        expect(analytics.track).toHaveBeenCalledTimes(1);
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'dashboard_version.created',
+            }),
+        );
+    });
+    test('should update dashboard version with tile ids', async () => {
+        const result = await service.update(
+            user,
+            dashboardUuid,
+            updateDashboardTilesWithIds,
+        );
+
+        expect(result).toEqual(dashboard);
+        expect(dashboardModel.addVersion).toHaveBeenCalledTimes(1);
+        expect(dashboardModel.addVersion).toHaveBeenCalledWith(
+            dashboardUuid,
+            updateDashboardTilesWithIds,
         );
         expect(analytics.track).toHaveBeenCalledTimes(1);
         expect(analytics.track).toHaveBeenCalledWith(
