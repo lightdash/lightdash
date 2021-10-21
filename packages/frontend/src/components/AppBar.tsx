@@ -62,7 +62,7 @@ const AppBar = () => {
                         </NavLink>
                     )}
                 </NavbarGroup>
-                <NavbarGroup align={Alignment.LEFT}>
+                <NavbarGroup id="browse" align={Alignment.LEFT}>
                     <Popover2
                         className="bp3-button bp3-minimal"
                         interactionKind={PopoverInteractionKind.HOVER}
