@@ -35,6 +35,7 @@
         "@stoplight/yaml": "^4.2.2",
         "@types/bcrypt": "^5.0.0",
         "@types/pg": "^8.6.1",
+        "@types/snowflake-sdk": "^1.6.1",
         "@typescript-eslint/eslint-plugin": "^4.4.1",
         "ajv": "^8.3.0",
         "ajv-formats": "^2.1.0",
@@ -62,6 +63,7 @@
         "pg": "^8.7.1",
         "pg-connection-string": "^2.5.0",
         "redoc-express": "^1.0.0",
+        "snowflake-sdk": "^1.6.4",
         "tempy": "^1.0.1",
         "uuid": "^8.3.2"
     },
