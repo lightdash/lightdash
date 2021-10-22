@@ -1,4 +1,4 @@
-import { CreateBigqueryCredentials } from 'common';
+import { CreateBigqueryCredentials, DimensionType } from 'common';
 import {
     BigQuery,
     BigQueryDate,
@@ -6,8 +6,34 @@ import {
     BigQueryTime,
     BigQueryTimestamp,
 } from '@google-cloud/bigquery';
+import bigquery from '@google-cloud/bigquery/build/src/types';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
-import { QueryRunner } from '../../types';
+import {
+    QueryRunner,
+    WarehouseSchema,
+    WarehouseTableSchema,
+} from '../../types';
+import { asyncForEach } from '../../utils';
+
+enum FieldType {
+    STRING = 'STRING',
+    INTEGER = 'INTEGER',
+    BYTES = 'BYTES',
+    INT64 = 'INT64',
+    FLOAT = 'FLOAT',
+    FLOAT64 = 'FLOAT64',
+    BOOLEAN = 'BOOLEAN',
+    BOOL = 'BOOL',
+    TIMESTAMP = 'TIMESTAMP',
+    DATE = 'DATE',
+    TIME = 'TIME',
+    DATETIME = 'DATETIME',
+    GEOGRAPHY = 'GEOGRAPHY',
+    NUMERIC = 'NUMERIC',
+    BIGNUMERIC = 'BIGNUMERIC',
+    RECORD = 'RECORD',
+    STRUCT = 'STRUCT',
+}
 
 const parseDateCell = (cell: BigQueryDate) => new Date(cell.value);
 const parseTimestampCell = (cell: BigQueryTimestamp) => new Date(cell.value);
@@ -15,35 +41,62 @@ const parseDateTimeCell = (cell: BigQueryDatetime) => new Date(cell.value);
 const parseTimeCell = (cell: BigQueryTime) => new Date(cell.value);
 const parseDefault = (cell: any) => cell;
 
-const getParser = (type: string | undefined) => {
+const getParser = (type: string) => {
     switch (type) {
-        case 'DATE':
+        case FieldType.DATE:
             return parseDateCell;
-        case 'DATETIME':
+        case FieldType.DATETIME:
             return parseDateTimeCell;
-        case 'TIMESTAMP':
+        case FieldType.TIMESTAMP:
             return parseTimestampCell;
-        case 'TIME':
+        case FieldType.TIME:
             return parseTimeCell;
         default:
             return parseDefault;
     }
 };
 
-type SchemaFields = {
-    name: string;
-    type: string;
+const mapFieldType = (type: string): DimensionType => {
+    switch (type) {
+        case FieldType.DATE:
+            return DimensionType.DATE;
+        case FieldType.DATETIME:
+        case FieldType.TIMESTAMP:
+        case FieldType.TIME:
+            return DimensionType.TIMESTAMP;
+        case FieldType.INTEGER:
+        case FieldType.FLOAT:
+        case FieldType.FLOAT64:
+        case FieldType.BYTES:
+        case FieldType.INT64:
+        case FieldType.NUMERIC:
+        case FieldType.BIGNUMERIC:
+            return DimensionType.NUMBER;
+        case FieldType.BOOL:
+        case FieldType.BOOLEAN:
+            return DimensionType.BOOLEAN;
+        default:
+            return DimensionType.STRING;
+    }
 };
-type RawSchemaFields = Partial<SchemaFields>;
+
+type TableSchema = {
+    fields: SchemaFields[];
+};
+
+type SchemaFields = Required<Pick<bigquery.ITableFieldSchema, 'name' | 'type'>>;
 
 const isSchemaFields = (
-    rawSchemaFields: RawSchemaFields[],
+    rawSchemaFields: bigquery.ITableFieldSchema[],
 ): rawSchemaFields is SchemaFields[] =>
     rawSchemaFields.every((field) => field.type && field.name);
 
+const isTableSchema = (schema: bigquery.ITableSchema): schema is TableSchema =>
+    !!schema && !!schema.fields && isSchemaFields(schema.fields);
+
 const parseRows = (
     rows: Record<string, any>[],
-    schemaFields: RawSchemaFields[],
+    schemaFields: bigquery.ITableFieldSchema[],
 ) => {
     // TODO: assumes columns cannot have the same name
     if (!isSchemaFields(schemaFields)) {
@@ -106,6 +159,41 @@ export default class BigqueryWarehouseClient implements QueryRunner {
     }
 
     async test(): Promise<void> {
+        // TODO: test get schema
+        const schemato = await this.getSchema();
+        console.log(schemato);
         await this.runQuery('SELECT 1');
+    }
+
+    async getSchema() {
+        const [datasets] = await this.client.getDatasets();
+
+        const warehouseSchema: WarehouseSchema = {};
+
+        await asyncForEach(datasets, async (dataset) => {
+            if (dataset.id) {
+                warehouseSchema[dataset.id] = {};
+
+                const [tables] = await dataset.getTables();
+                await asyncForEach(tables, async (table) => {
+                    if (table.id) {
+                        const [metadata] = await table.getMetadata();
+                        const { schema } = metadata;
+                        if (isTableSchema(schema)) {
+                            warehouseSchema[dataset.id!][table.id] =
+                                schema.fields.reduce<WarehouseTableSchema>(
+                                    (sum, field) => ({
+                                        ...sum,
+                                        [field.name]: mapFieldType(field.type),
+                                    }),
+                                    {},
+                                );
+                        }
+                    }
+                });
+            }
+        });
+
+        return warehouseSchema;
     }
 }

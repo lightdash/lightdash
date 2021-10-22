@@ -1,6 +1,7 @@
 import {
     DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
+    DimensionType,
     Explore,
     ExploreError,
 } from 'common';
@@ -19,7 +20,18 @@ export interface DbtClient {
     test(): Promise<void>;
 }
 
+export type WarehouseTableSchema = {
+    [column: string]: DimensionType;
+};
+
+export type WarehouseSchema = {
+    [dataset: string]: {
+        [table: string]: WarehouseTableSchema;
+    };
+};
+
 export interface QueryRunner {
+    getSchema?: () => Promise<WarehouseSchema>;
     runQuery(sql: string): Promise<Record<string, any>[]>;
     test(): Promise<void>;
 }
