@@ -31,9 +31,7 @@ export default class BigqueryWarehouseClient implements QueryRunner {
                 priority: this.credentials.priority,
                 jobTimeoutMs: this.credentials.timeoutSeconds * 1000,
             });
-            const [rows, results] = await job.getQueryResults(job);
-            console.log('RESULTS');
-            console.log(results);
+            const [rows] = await job.getQueryResults(job);
             return rows;
         } catch (e) {
             throw new WarehouseQueryError(e.message);
