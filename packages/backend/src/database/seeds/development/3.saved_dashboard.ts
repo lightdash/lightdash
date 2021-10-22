@@ -1,6 +1,6 @@
 import { Knex } from 'knex';
 import { DashboardTileTypes } from 'common';
-import { DashboardModel } from '../../../models/DashboardModel';
+import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { getSpaceWithQueries } from '../../entities/spaces';
 
 export async function seed(knex: Knex): Promise<void> {

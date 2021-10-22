@@ -1,5 +1,6 @@
 import {
     CreateDashboard,
+    CreateDashboardChartTile,
     Dashboard,
     DashboardBasicDetails,
     DashboardTileTypes,
@@ -56,7 +57,7 @@ export const dashboardsDetails: DashboardBasicDetails[] = [
     },
 ];
 
-const createTile = {
+const createTile: CreateDashboardChartTile = {
     type: DashboardTileTypes.SAVED_CHART,
     x: 4,
     y: 5,
@@ -67,9 +68,9 @@ const createTile = {
     },
 };
 
-const createTileWithId = {
+const createTileWithId: CreateDashboardChartTile = {
     ...createTile,
-    id: 'my-tile',
+    uuid: 'my-tile',
 };
 
 export const createDashboard: CreateDashboard = {
