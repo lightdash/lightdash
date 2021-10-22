@@ -680,8 +680,9 @@
             "CreateDashboardTile": {
                 "type": "object",
                 "properties": {
-                    "id": {
-                        "type": "string"
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid"
                     },
                     "type": {
                         "type": "string",
@@ -735,11 +736,12 @@
                     {
                         "type": "object",
                         "properties": {
-                            "id": {
-                                "type": "string"
+                            "uuid": {
+                                "type": "string",
+                                "format": "uuid"
                             }
                         },
-                        "required": ["id"]
+                        "required": ["uuid"]
                     }
                 ]
             },
@@ -797,7 +799,7 @@
                             "tiles": {
                                 "type": "array",
                                 "items": {
-                                    "$ref": "#/components/schemas/DashboardTile"
+                                    "$ref": "#/components/schemas/CreateDashboardTile"
                                 }
                             }
                         },
@@ -816,7 +818,7 @@
                             "tiles": {
                                 "type": "array",
                                 "items": {
-                                    "$ref": "#/components/schemas/DashboardTile"
+                                    "$ref": "#/components/schemas/CreateDashboardTile"
                                 }
                             }
                         },
