@@ -1,10 +1,10 @@
-import { Button } from '@blueprintjs/core';
 import React from 'react';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
 import { useQueryResults } from '../hooks/useQueryResults';
 import useDefaultSortField from '../hooks/useDefaultSortField';
+import { BigButton } from './common/BigButton';
 
 export const RefreshButton = () => {
     const {
@@ -15,9 +15,9 @@ export const RefreshButton = () => {
     const { track } = useTracking();
     const defaultSort = useDefaultSortField();
     return (
-        <Button
+        <BigButton
             intent="primary"
-            style={{ height: '40px', width: 150, marginRight: '10px' }}
+            style={{ width: 150, marginRight: '10px' }}
             onClick={async () => {
                 remove();
                 syncState(sorts.length === 0 ? defaultSort : undefined);
@@ -29,6 +29,6 @@ export const RefreshButton = () => {
             loading={isFetching}
         >
             Run query
-        </Button>
+        </BigButton>
     );
 };
