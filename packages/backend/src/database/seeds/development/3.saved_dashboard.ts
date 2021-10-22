@@ -21,7 +21,7 @@ export async function seed(knex: Knex): Promise<void> {
     await dashboardModel.create(spaceUuid, {
         name: 'Jaffle dashboard',
         tiles: queries.map(({ uuid: savedChartUuid }, i) => ({
-            x: i % 2 === 0 ? 0 : 5,
+            x: i % 2 === 0 ? 0 : 6,
             y: Math.floor(i / 2) * 3,
             w: i > 0 && i % 2 === 0 ? 12 : 6,
             h: 3,
