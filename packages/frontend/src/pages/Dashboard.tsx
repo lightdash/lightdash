@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import '../styles/react-grid.css';
 import { useParams } from 'react-router-dom';
 import { DashboardChartTile, DashboardTileTypes } from 'common';
 import styled from 'styled-components';
-import { Spinner } from '@blueprintjs/core';
+import { Spinner, Button, Intent, NonIdealState } from '@blueprintjs/core';
 import {
     useDashboardQuery,
     useUpdateDashboard,
@@ -17,16 +17,36 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 const WrapperAddTileButton = styled.div`
     display: flex;
     width: 100%;
-    justify-content: center;
+    justify-content: flex-end;
+    padding: 10px;
 `;
 
 const Dashboard = () => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
-    const { mutate } = useUpdateDashboard(dashboardUuid);
+    const {
+        mutate,
+        isSuccess,
+        reset,
+        isLoading: isSaving,
+    } = useUpdateDashboard(dashboardUuid);
+    const [dashboardTiles, setTiles] = useState<DashboardChartTile[]>([]);
+    const [hasTilesChanged, setHasTilesChanged] = useState(false);
     const tileProperties = Object.fromEntries(
         dashboard?.tiles?.map((tile) => [tile.uuid, tile.properties]) || [],
     );
+
+    useEffect(() => {
+        setTiles(dashboard?.tiles || []);
+    }, [dashboard]);
+
+    useEffect(() => {
+        if (isSuccess) {
+            setHasTilesChanged(false);
+            reset();
+        }
+    }, [isSuccess, reset]);
+
     const updateTiles = (layout: Layout[]) => {
         const tiles: DashboardChartTile[] = layout.map((tile) => ({
             uuid: tile.i,
@@ -37,16 +57,29 @@ const Dashboard = () => {
             type: DashboardTileTypes.SAVED_CHART,
             properties: tileProperties[tile.i],
         }));
-        mutate({ tiles });
+        setTiles(tiles);
+        setHasTilesChanged(true);
     };
     if (dashboard === undefined) {
         return <Spinner />;
     }
-
+    console.log(dashboardTiles);
     return (
         <>
             <WrapperAddTileButton>
-                <AddTileButton dashboard={dashboard} />
+                <Button
+                    style={{ height: '20px' }}
+                    text="Save"
+                    disabled={!hasTilesChanged || isSaving}
+                    intent={Intent.PRIMARY}
+                    onClick={() => mutate({ tiles: dashboardTiles })}
+                />
+                <AddTileButton
+                    onAddTile={(tile: DashboardChartTile) => {
+                        setHasTilesChanged(true);
+                        setTiles([...dashboardTiles, tile]);
+                    }}
+                />
             </WrapperAddTileButton>
             <ResponsiveGridLayout
                 draggableCancel=".non-draggable"
@@ -55,28 +88,32 @@ const Dashboard = () => {
                 breakpoints={{ lg: 1200, md: 996, sm: 768 }}
                 cols={{ lg: 12, md: 10, sm: 6 }}
                 layouts={{
-                    lg: dashboard.tiles.map((tile) => ({
+                    lg: dashboardTiles.map((tile) => ({
                         ...tile,
                         i: tile.uuid,
                     })),
                 }}
             >
-                {dashboard.tiles.map((tile: DashboardChartTile) => (
+                {dashboardTiles.map((tile: DashboardChartTile) => (
                     <div key={tile.uuid}>
                         <ChartTile
                             tile={tile}
-                            onDelete={() =>
-                                mutate({
-                                    tiles: dashboard.tiles.filter(
+                            onDelete={() => {
+                                setTiles(
+                                    dashboardTiles.filter(
                                         (filteredTile) =>
                                             filteredTile.uuid !== tile.uuid,
                                     ),
-                                })
-                            }
+                                );
+                                setHasTilesChanged(true);
+                            }}
                         />
                     </div>
                 ))}
             </ResponsiveGridLayout>
+            {dashboardTiles.length <= 0 && (
+                <NonIdealState title="No charts available" icon="search" />
+            )}
         </>
     );
 };
