@@ -62,13 +62,14 @@ const AppBar = () => {
                         </NavLink>
                     )}
                 </NavbarGroup>
-                <NavbarGroup id="browse" align={Alignment.LEFT}>
+                <NavbarGroup data-cy="browse" align={Alignment.LEFT}>
                     <Popover2
                         className="bp3-button bp3-minimal"
                         interactionKind={PopoverInteractionKind.HOVER}
                         content={
                             <Menu className="browse-menu">
                                 <MenuItem
+                                    role="button"
                                     text="Dashboards"
                                     onClick={() =>
                                         push({
