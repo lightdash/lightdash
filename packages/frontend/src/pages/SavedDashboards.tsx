@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Redirect } from 'react-router-dom';
 import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
 import styled from 'styled-components';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
@@ -7,6 +7,7 @@ import ActionCardList from '../components/common/ActionCardList';
 import {
     useUpdateDashboard,
     useDeleteMutation,
+    useCreateMutation,
 } from '../hooks/dashboard/useDashboard';
 import CreateSavedDashboardModal from '../components/SavedDashboards/CreateSavedDashboardModal';
 import DashboardForm from '../components/SavedDashboards/DashboardForm';
@@ -25,9 +26,14 @@ const NewDashboardWrapper = styled.div`
 
 const SavedDashboards = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
     const { isLoading, data: dashboards = [] } = useDashboards(projectUuid);
     const useDelete = useDeleteMutation();
+    const {
+        isLoading: isCreatingDashboard,
+        isSuccess: hasCreatedDashboard,
+        mutate: createDashboard,
+        data: newDashboard,
+    } = useCreateMutation(projectUuid);
 
     if (isLoading) {
         return (
@@ -37,12 +43,27 @@ const SavedDashboards = () => {
         );
     }
 
+    if (hasCreatedDashboard && newDashboard) {
+        return (
+            <Redirect
+                push
+                to={`/projects/${projectUuid}/dashboards/${newDashboard.uuid}`}
+            />
+        );
+    }
+
     return (
         <SavedDashboardsWrapper>
             <NewDashboardWrapper>
                 <Button
                     text="New dashboard"
-                    onClick={() => setIsModalOpen(true)}
+                    loading={isCreatingDashboard}
+                    onClick={() =>
+                        createDashboard({
+                            name: 'Untitled dashboard',
+                            tiles: [],
+                        })
+                    }
                 />
             </NewDashboardWrapper>
             <ActionCardList
@@ -53,11 +74,6 @@ const SavedDashboards = () => {
                     const { uuid } = savedDashboard;
                     return `/projects/${projectUuid}/dashboards/${uuid}`;
                 }}
-                ModalContent={DashboardForm}
-            />
-            <CreateSavedDashboardModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
                 ModalContent={DashboardForm}
             />
         </SavedDashboardsWrapper>
