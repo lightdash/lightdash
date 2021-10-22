@@ -163,7 +163,7 @@ const Login: FC = () => {
                         />
                         <Button
                             type="submit"
-                            style={{ alignSelf: 'flex-end', marginTop: 20 }}
+                            style={{ float: 'right', marginTop: 20 }}
                             intent={Intent.PRIMARY}
                             text="Login"
                             onClick={handleLogin}
