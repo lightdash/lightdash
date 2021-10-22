@@ -22,12 +22,11 @@ describe('Dashboard List', () => {
         cy.get('[data-cy=browse]').trigger('mouseover');
         cy.findByRole('button', { name: 'Dashboards' }).click();
         // click on rename
-        cy.get('.bp3-button-text').contains('Rename').click();
-        cy.get('#name-input').should('have.value', 'Jaffle dashboard');
-        cy.get('#name-input').focus().clear();
-        cy.get('#name-input').type('updated dashboard', { force: true });
-        cy.get('#description-input').type('description', { force: true });
-
+        cy.findByRole('button', { name: 'edit Rename' }).click();
+        cy.findByLabelText('Name (required)').should('have.value', 'Jaffle dashboard');
+        cy.findByLabelText('Name (required)').focus().clear();
+        cy.findByLabelText('Name (required)').type('updated dashboard');
+        cy.findByLabelText('Description (optional)').type('description');
         // click on save
         cy.findByRole('button', { name: 'Save' }).click();
 
@@ -40,11 +39,9 @@ describe('Dashboard List', () => {
         cy.get('[data-cy=browse]').trigger('mouseover');
         cy.findByRole('button', { name: 'Dashboards' }).click();
         // click on delete
-        cy.get('.bp3-button-text').contains('Delete').click();
+        cy.findByRole('button', { name: 'delete Delete' }).click();
         // click on delete in the popup
-        cy.get('.bp3-dialog-footer-actions .bp3-button-text')
-            .contains('Delete')
-            .click();
+        cy.get('[data-cy=submit-base-modal]').click();
         cy.findByText('No results available');
     });
 
@@ -53,7 +50,7 @@ describe('Dashboard List', () => {
         cy.get('[data-cy=browse]').trigger('mouseover');
         cy.findByRole('button', { name: 'Dashboards' }).click();
         cy.findByRole('button', { name: 'New dashboard' }).click();
-        cy.get('#name-input').type('Jaffle dashboard', { force: true });
+        cy.findByLabelText('Name (required)').type('Jaffle dashboard');
         // click on save
         cy.findByRole('button', { name: 'Create' }).click();
     });
