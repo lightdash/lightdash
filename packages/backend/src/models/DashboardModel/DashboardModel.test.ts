@@ -24,12 +24,12 @@ import {
     DashboardTileChartTableName,
     DashboardTilesTableName,
     DashboardVersionsTableName,
-} from '../database/entities/dashboards';
-import { SpaceTableName } from '../database/entities/spaces';
-import { SavedQueriesTableName } from '../database/entities/savedQueries';
-import { NotFoundError } from '../errors';
+} from '../../database/entities/dashboards';
+import { SpaceTableName } from '../../database/entities/spaces';
+import { SavedQueriesTableName } from '../../database/entities/savedQueries';
+import { NotFoundError } from '../../errors';
 
-jest.mock('../config/lightdashConfig', () => ({
+jest.mock('../../config/lightdashConfig', () => ({
     lightdashConfig: {
         mode: LightdashMode.DEFAULT,
     },
@@ -256,7 +256,7 @@ describe('DashboardModel', () => {
         tracker.on
             .insert(
                 queryMatcher(DashboardTilesTableName, [
-                    addDashboardVersionWithTileIds.tiles[0].id,
+                    addDashboardVersionWithTileIds.tiles[0].uuid,
                     dashboardVersionEntry.dashboard_version_id,
                     addDashboardVersionWithTileIds.tiles[0].h,
                     addDashboardVersionWithTileIds.tiles[0].type,

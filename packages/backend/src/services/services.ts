@@ -9,7 +9,7 @@ import {
 import { UserService } from './UserService';
 import { OrganizationService } from './OrganizationService';
 import { ProjectService } from './ProjectService';
-import { DashboardService } from './DashboardService';
+import { DashboardService } from './DashboardService/DashboardService';
 
 export const userService = new UserService({
     inviteLinkModel,

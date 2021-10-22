@@ -12,9 +12,9 @@ import {
     DashboardTable,
     DashboardTileTable,
     DashboardVersionTable,
-} from '../database/entities/dashboards';
-import { SavedQueryTable } from '../database/entities/savedQueries';
-import { SpaceTable } from '../database/entities/spaces';
+} from '../../database/entities/dashboards';
+import { SavedQueryTable } from '../../database/entities/savedQueries';
+import { SpaceTable } from '../../database/entities/spaces';
 import { GetChartTileQuery, GetDashboardQuery } from './DashboardModel';
 
 // Argument mocks
@@ -29,7 +29,7 @@ const tileWithoutId: CreateDashboardChartTile = {
     },
 };
 const tileWithId: DashboardChartTile = {
-    id: '2a93d63d-ca81-421c-b88b-1124a2f02407',
+    uuid: '2a93d63d-ca81-421c-b88b-1124a2f02407',
     ...tileWithoutId,
 };
 
@@ -138,7 +138,7 @@ export const expectedDashboard: Dashboard = {
     updatedAt: dashboardVersionEntry.created_at,
     tiles: [
         {
-            id: dashboardTileEntry.dashboard_tile_uuid,
+            uuid: dashboardTileEntry.dashboard_tile_uuid,
             type: dashboardTileEntry.type,
             properties: {
                 savedChartUuid: savedChartEntry.saved_query_uuid,

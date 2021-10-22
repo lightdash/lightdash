@@ -6,7 +6,7 @@ import {
     SessionUser,
     UpdateDashboard,
 } from 'common';
-import { SpaceTable } from '../database/entities/spaces';
+import { SpaceTable } from '../../database/entities/spaces';
 
 export const user: SessionUser = {
     userUuid: 'userUuid',
@@ -34,7 +34,7 @@ export const dashboard: Dashboard = {
     updatedAt: new Date(),
     tiles: [
         {
-            id: 'my-tile',
+            uuid: 'my-tile',
             type: DashboardTileTypes.SAVED_CHART,
             properties: {
                 savedChartUuid: 'savedChartUuid',

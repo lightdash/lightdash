@@ -7,10 +7,10 @@ import {
     SessionUser,
     UpdateDashboard,
 } from 'common';
-import { analytics } from '../analytics/client';
-import { DashboardModel } from '../models/DashboardModel';
-import { getSpace } from '../database/entities/spaces';
-import database from '../database/database';
+import { analytics } from '../../analytics/client';
+import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { getSpace } from '../../database/entities/spaces';
+import database from '../../database/database';
 
 type Dependencies = {
     dashboardModel: DashboardModel;

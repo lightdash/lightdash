@@ -1,4 +1,4 @@
-import { dashboardModel } from '../models/models';
+import { dashboardModel } from '../../models/models';
 import { DashboardService } from './DashboardService';
 import {
     createDashboard,
@@ -12,21 +12,21 @@ import {
     createDashboardWithTileIds,
     updateDashboardTilesWithIds,
 } from './DashboardService.mock';
-import { analytics } from '../analytics/client';
+import { analytics } from '../../analytics/client';
 
-jest.mock('../analytics/client', () => ({
+jest.mock('../../analytics/client', () => ({
     analytics: {
         track: jest.fn(),
     },
 }));
 
-jest.mock('../database/database', () => ({}));
+jest.mock('../../database/database', () => ({}));
 
-jest.mock('../database/entities/spaces', () => ({
+jest.mock('../../database/entities/spaces', () => ({
     getSpace: jest.fn(async () => space),
 }));
 
-jest.mock('../models/models', () => ({
+jest.mock('../../models/models', () => ({
     dashboardModel: {
         getAllByProject: jest.fn(async () => dashboardsDetails),
 
