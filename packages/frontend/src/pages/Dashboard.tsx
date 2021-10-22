@@ -3,28 +3,21 @@ import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import '../styles/react-grid.css';
 import { useParams } from 'react-router-dom';
 import { DashboardChartTile, DashboardTileTypes } from 'common';
-import styled from 'styled-components';
-import { Spinner, Button, Intent } from '@blueprintjs/core';
+import { Spinner } from '@blueprintjs/core';
 import {
     useDashboardQuery,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
-import AddTileButton from '../components/DashboardTiles/AddTile/AddTileButton';
 import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
+import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
-
-const WrapperAddTileButton = styled.div`
-    display: flex;
-    width: 100%;
-    justify-content: flex-end;
-    padding: 10px;
-`;
 
 const Dashboard = () => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
+    const [hasTilesChanged, setHasTilesChanged] = useState(false);
     const {
         mutate,
         isSuccess,
@@ -32,9 +25,8 @@ const Dashboard = () => {
         isLoading: isSaving,
     } = useUpdateDashboard(dashboardUuid);
     const [dashboardTiles, setTiles] = useState<DashboardChartTile[]>([]);
-    const [hasTilesChanged, setHasTilesChanged] = useState(false);
     const tileProperties = Object.fromEntries(
-        dashboard?.tiles?.map((tile) => [tile.uuid, tile.properties]) || [],
+        dashboardTiles.map((tile) => [tile.uuid, tile.properties]) || [],
     );
 
     useEffect(() => {
@@ -64,24 +56,17 @@ const Dashboard = () => {
     if (dashboard === undefined) {
         return <Spinner />;
     }
-
     return (
         <>
-            <WrapperAddTileButton>
-                <Button
-                    style={{ height: '20px' }}
-                    text="Save"
-                    disabled={!hasTilesChanged || isSaving}
-                    intent={Intent.PRIMARY}
-                    onClick={() => mutate({ tiles: dashboardTiles })}
-                />
-                <AddTileButton
-                    onAddTile={(tile: DashboardChartTile) => {
-                        setHasTilesChanged(true);
-                        setTiles([...dashboardTiles, tile]);
-                    }}
-                />
-            </WrapperAddTileButton>
+            <DashboardHeader
+                isSaving={isSaving}
+                hasTilesChanged={hasTilesChanged}
+                onAddTile={(tile: DashboardChartTile) => {
+                    setHasTilesChanged(true);
+                    setTiles([...dashboardTiles, tile]);
+                }}
+                onSaveDashboard={() => mutate({ tiles: dashboardTiles })}
+            />
             <ResponsiveGridLayout
                 draggableCancel=".non-draggable"
                 onDragStop={(layout) => updateTiles(layout)}
@@ -114,9 +99,10 @@ const Dashboard = () => {
             </ResponsiveGridLayout>
             {dashboardTiles.length <= 0 && (
                 <EmptyStateNoTiles
-                    dashboardTiles={dashboardTiles}
-                    setHasTilesChanged={setHasTilesChanged}
-                    setTiles={setTiles}
+                    onAddTile={(tile: DashboardChartTile) => {
+                        setHasTilesChanged(true);
+                        setTiles([...dashboardTiles, tile]);
+                    }}
                 />
             )}
         </>
