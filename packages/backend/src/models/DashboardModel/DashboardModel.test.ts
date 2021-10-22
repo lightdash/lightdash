@@ -6,10 +6,11 @@ import { DashboardModel } from './DashboardModel';
 import {
     addDashboardVersion,
     addDashboardVersionWithoutChart,
+    addDashboardVersionWithTileIds,
     createDashboard,
-    dashboardChartTileEntry,
     dashboardEntry,
     dashboardTileEntry,
+    dashboardTileWithSavedChartEntry,
     dashboardVersionEntry,
     dashboardWithVersionEntry,
     expectedAllDashboards,
@@ -23,12 +24,12 @@ import {
     DashboardTileChartTableName,
     DashboardTilesTableName,
     DashboardVersionsTableName,
-} from '../database/entities/dashboards';
-import { SpaceTableName } from '../database/entities/spaces';
-import { SavedQueriesTableName } from '../database/entities/savedQueries';
-import { NotFoundError } from '../errors';
+} from '../../database/entities/dashboards';
+import { SpaceTableName } from '../../database/entities/spaces';
+import { SavedQueriesTableName } from '../../database/entities/savedQueries';
+import { NotFoundError } from '../../errors';
 
-jest.mock('../config/lightdashConfig', () => ({
+jest.mock('../../config/lightdashConfig', () => ({
     lightdashConfig: {
         mode: LightdashMode.DEFAULT,
     },
@@ -70,19 +71,12 @@ describe('DashboardModel', () => {
                     dashboardWithVersionEntry.dashboard_version_id,
                 ]),
             )
-            .response([dashboardTileEntry]);
-        tracker.on
-            .select(
-                queryMatcher(DashboardTileChartTableName, [
-                    dashboardWithVersionEntry.dashboard_version_id,
-                ]),
-            )
-            .response([dashboardChartTileEntry]);
+            .response([dashboardTileWithSavedChartEntry]);
 
         const dashboard = await model.getById(expectedDashboard.uuid);
 
         expect(dashboard).toEqual(expectedDashboard);
-        expect(tracker.history.select).toHaveLength(3);
+        expect(tracker.history.select).toHaveLength(2);
     });
     test("should error if dashboard isn't found", async () => {
         tracker.on
@@ -106,7 +100,7 @@ describe('DashboardModel', () => {
         expect(dashboard).toEqual(expectedAllDashboards);
         expect(tracker.history.select).toHaveLength(1);
     });
-    test('should create dashboard', async () => {
+    test('should create dashboard with tile ids', async () => {
         const spaceUuid = 'space uuid';
         tracker.on
             .select(queryMatcher(SpaceTableName, [spaceUuid, 1]))
@@ -132,14 +126,13 @@ describe('DashboardModel', () => {
                 queryMatcher(DashboardTilesTableName, [
                     dashboardVersionEntry.dashboard_version_id,
                     addDashboardVersion.tiles[0].h,
-                    1,
                     addDashboardVersion.tiles[0].type,
                     addDashboardVersion.tiles[0].w,
                     addDashboardVersion.tiles[0].x,
                     addDashboardVersion.tiles[0].y,
                 ]),
             )
-            .response([]);
+            .response([dashboardTileEntry]);
         tracker.on
             .select(
                 queryMatcher(SavedQueriesTableName, [
@@ -151,8 +144,8 @@ describe('DashboardModel', () => {
         tracker.on
             .insert(
                 queryMatcher(DashboardTileChartTableName, [
+                    dashboardTileEntry.dashboard_tile_uuid,
                     dashboardVersionEntry.dashboard_version_id,
-                    1,
                     savedChartEntry.saved_query_id,
                 ]),
             )
@@ -217,14 +210,13 @@ describe('DashboardModel', () => {
                 queryMatcher(DashboardTilesTableName, [
                     dashboardVersionEntry.dashboard_version_id,
                     addDashboardVersion.tiles[0].h,
-                    1,
                     addDashboardVersion.tiles[0].type,
                     addDashboardVersion.tiles[0].w,
                     addDashboardVersion.tiles[0].x,
                     addDashboardVersion.tiles[0].y,
                 ]),
             )
-            .response([]);
+            .response([dashboardTileEntry]);
         tracker.on
             .select(
                 queryMatcher(SavedQueriesTableName, [
@@ -236,14 +228,66 @@ describe('DashboardModel', () => {
         tracker.on
             .insert(
                 queryMatcher(DashboardTileChartTableName, [
+                    dashboardTileEntry.dashboard_tile_uuid,
                     dashboardVersionEntry.dashboard_version_id,
-                    1,
                     savedChartEntry.saved_query_id,
                 ]),
             )
             .response([]);
 
         await model.addVersion(expectedDashboard.uuid, addDashboardVersion);
+
+        expect(tracker.history.select).toHaveLength(2);
+        expect(tracker.history.insert).toHaveLength(3);
+    });
+    test('should create dashboard version with ids', async () => {
+        tracker.on
+            .select(
+                queryMatcher(DashboardsTableName, [expectedDashboard.uuid, 1]),
+            )
+            .response([dashboardEntry]);
+        tracker.on
+            .insert(
+                queryMatcher(DashboardVersionsTableName, [
+                    dashboardEntry.dashboard_id,
+                ]),
+            )
+            .response([dashboardVersionEntry]);
+        tracker.on
+            .insert(
+                queryMatcher(DashboardTilesTableName, [
+                    addDashboardVersionWithTileIds.tiles[0].uuid,
+                    dashboardVersionEntry.dashboard_version_id,
+                    addDashboardVersionWithTileIds.tiles[0].h,
+                    addDashboardVersionWithTileIds.tiles[0].type,
+                    addDashboardVersionWithTileIds.tiles[0].w,
+                    addDashboardVersionWithTileIds.tiles[0].x,
+                    addDashboardVersionWithTileIds.tiles[0].y,
+                ]),
+            )
+            .response([dashboardTileEntry]);
+        tracker.on
+            .select(
+                queryMatcher(SavedQueriesTableName, [
+                    addDashboardVersion.tiles[0].properties.savedChartUuid,
+                    1,
+                ]),
+            )
+            .response([savedChartEntry]);
+        tracker.on
+            .insert(
+                queryMatcher(DashboardTileChartTableName, [
+                    dashboardTileEntry.dashboard_tile_uuid,
+                    dashboardVersionEntry.dashboard_version_id,
+                    savedChartEntry.saved_query_id,
+                ]),
+            )
+            .response([]);
+
+        await model.addVersion(
+            expectedDashboard.uuid,
+            addDashboardVersionWithTileIds,
+        );
 
         expect(tracker.history.select).toHaveLength(2);
         expect(tracker.history.insert).toHaveLength(3);
@@ -266,14 +310,13 @@ describe('DashboardModel', () => {
                 queryMatcher(DashboardTilesTableName, [
                     dashboardVersionEntry.dashboard_version_id,
                     addDashboardVersion.tiles[0].h,
-                    1,
                     addDashboardVersion.tiles[0].type,
                     addDashboardVersion.tiles[0].w,
                     addDashboardVersion.tiles[0].x,
                     addDashboardVersion.tiles[0].y,
                 ]),
             )
-            .response([]);
+            .response([dashboardTileEntry]);
 
         await model.addVersion(
             expectedDashboard.uuid,
@@ -301,14 +344,13 @@ describe('DashboardModel', () => {
                 queryMatcher(DashboardTilesTableName, [
                     dashboardVersionEntry.dashboard_version_id,
                     addDashboardVersion.tiles[0].h,
-                    1,
                     addDashboardVersion.tiles[0].type,
                     addDashboardVersion.tiles[0].w,
                     addDashboardVersion.tiles[0].x,
                     addDashboardVersion.tiles[0].y,
                 ]),
             )
-            .response([]);
+            .response([dashboardTileEntry]);
         tracker.on
             .select(
                 queryMatcher(SavedQueriesTableName, [

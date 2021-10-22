@@ -677,9 +677,13 @@
                 },
                 "required": ["savedChartUuid"]
             },
-            "DashboardTile": {
+            "CreateDashboardTile": {
                 "type": "object",
                 "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
                     "type": {
                         "type": "string",
                         "enum": ["saved_chart"]
@@ -718,11 +722,28 @@
                     "tiles": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/DashboardTile"
+                            "$ref": "#/components/schemas/CreateDashboardTile"
                         }
                     }
                 },
                 "required": ["tiles", "name", "description"]
+            },
+            "DashboardTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateDashboardTile"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "format": "uuid"
+                            }
+                        },
+                        "required": ["uuid"]
+                    }
+                ]
             },
             "Dashboard": {
                 "type": "object",
@@ -778,7 +799,7 @@
                             "tiles": {
                                 "type": "array",
                                 "items": {
-                                    "$ref": "#/components/schemas/DashboardTile"
+                                    "$ref": "#/components/schemas/CreateDashboardTile"
                                 }
                             }
                         },
@@ -797,7 +818,7 @@
                             "tiles": {
                                 "type": "array",
                                 "items": {
-                                    "$ref": "#/components/schemas/DashboardTile"
+                                    "$ref": "#/components/schemas/CreateDashboardTile"
                                 }
                             }
                         },

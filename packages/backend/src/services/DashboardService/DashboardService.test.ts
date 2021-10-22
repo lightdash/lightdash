@@ -1,4 +1,4 @@
-import { dashboardModel } from '../models/models';
+import { dashboardModel } from '../../models/models';
 import { DashboardService } from './DashboardService';
 import {
     createDashboard,
@@ -9,22 +9,24 @@ import {
     updateDashboardTiles,
     updateDashboardDetailsAndTiles,
     user,
+    createDashboardWithTileIds,
+    updateDashboardTilesWithIds,
 } from './DashboardService.mock';
-import { analytics } from '../analytics/client';
+import { analytics } from '../../analytics/client';
 
-jest.mock('../analytics/client', () => ({
+jest.mock('../../analytics/client', () => ({
     analytics: {
         track: jest.fn(),
     },
 }));
 
-jest.mock('../database/database', () => ({}));
+jest.mock('../../database/database', () => ({}));
 
-jest.mock('../database/entities/spaces', () => ({
+jest.mock('../../database/entities/spaces', () => ({
     getSpace: jest.fn(async () => space),
 }));
 
-jest.mock('../models/models', () => ({
+jest.mock('../../models/models', () => ({
     dashboardModel: {
         getAllByProject: jest.fn(async () => dashboardsDetails),
 
@@ -81,6 +83,26 @@ describe('DashboardService', () => {
             }),
         );
     });
+    test('should create dashboard with tile ids', async () => {
+        const result = await service.create(
+            user,
+            projectUuid,
+            createDashboardWithTileIds,
+        );
+
+        expect(result).toEqual(dashboard);
+        expect(dashboardModel.create).toHaveBeenCalledTimes(1);
+        expect(dashboardModel.create).toHaveBeenCalledWith(
+            space.space_uuid,
+            createDashboardWithTileIds,
+        );
+        expect(analytics.track).toHaveBeenCalledTimes(1);
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'dashboard.created',
+            }),
+        );
+    });
     test('should update dashboard details', async () => {
         const result = await service.update(
             user,
@@ -113,6 +135,26 @@ describe('DashboardService', () => {
         expect(dashboardModel.addVersion).toHaveBeenCalledWith(
             dashboardUuid,
             updateDashboardTiles,
+        );
+        expect(analytics.track).toHaveBeenCalledTimes(1);
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'dashboard_version.created',
+            }),
+        );
+    });
+    test('should update dashboard version with tile ids', async () => {
+        const result = await service.update(
+            user,
+            dashboardUuid,
+            updateDashboardTilesWithIds,
+        );
+
+        expect(result).toEqual(dashboard);
+        expect(dashboardModel.addVersion).toHaveBeenCalledTimes(1);
+        expect(dashboardModel.addVersion).toHaveBeenCalledWith(
+            dashboardUuid,
+            updateDashboardTilesWithIds,
         );
         expect(analytics.track).toHaveBeenCalledTimes(1);
         expect(analytics.track).toHaveBeenCalledWith(

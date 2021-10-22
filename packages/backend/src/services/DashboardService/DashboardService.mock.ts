@@ -1,12 +1,13 @@
 import {
     CreateDashboard,
+    CreateDashboardChartTile,
     Dashboard,
     DashboardBasicDetails,
     DashboardTileTypes,
     SessionUser,
     UpdateDashboard,
 } from 'common';
-import { SpaceTable } from '../database/entities/spaces';
+import { SpaceTable } from '../../database/entities/spaces';
 
 export const user: SessionUser = {
     userUuid: 'userUuid',
@@ -34,6 +35,7 @@ export const dashboard: Dashboard = {
     updatedAt: new Date(),
     tiles: [
         {
+            uuid: 'my-tile',
             type: DashboardTileTypes.SAVED_CHART,
             properties: {
                 savedChartUuid: 'savedChartUuid',
@@ -55,21 +57,32 @@ export const dashboardsDetails: DashboardBasicDetails[] = [
     },
 ];
 
+const createTile: CreateDashboardChartTile = {
+    type: DashboardTileTypes.SAVED_CHART,
+    x: 4,
+    y: 5,
+    h: 100,
+    w: 200,
+    properties: {
+        savedChartUuid: '123',
+    },
+};
+
+const createTileWithId: CreateDashboardChartTile = {
+    ...createTile,
+    uuid: 'my-tile',
+};
+
 export const createDashboard: CreateDashboard = {
     name: 'my new dashboard',
     description: 'description',
-    tiles: [
-        {
-            type: DashboardTileTypes.SAVED_CHART,
-            x: 4,
-            y: 5,
-            h: 100,
-            w: 200,
-            properties: {
-                savedChartUuid: '123',
-            },
-        },
-    ],
+    tiles: [createTile],
+};
+
+export const createDashboardWithTileIds: CreateDashboard = {
+    name: 'my new dashboard',
+    description: 'description',
+    tiles: [createTileWithId],
 };
 
 export const updateDashboard: UpdateDashboard = {
@@ -78,18 +91,11 @@ export const updateDashboard: UpdateDashboard = {
 };
 
 export const updateDashboardTiles: UpdateDashboard = {
-    tiles: [
-        {
-            type: DashboardTileTypes.SAVED_CHART,
-            x: 4,
-            y: 5,
-            h: 100,
-            w: 200,
-            properties: {
-                savedChartUuid: '123',
-            },
-        },
-    ],
+    tiles: [createTile],
+};
+
+export const updateDashboardTilesWithIds: UpdateDashboard = {
+    tiles: [createTileWithId],
 };
 
 export const updateDashboardDetailsAndTiles: UpdateDashboard = {
