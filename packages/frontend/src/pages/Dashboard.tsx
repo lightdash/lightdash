@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import '../styles/react-grid.css';
 import { useParams } from 'react-router-dom';
-import { DashboardChartTile, DashboardTileTypes } from 'common';
+import {
+    CreateDashboardChartTile,
+    DashboardChartTile,
+    DashboardTileTypes,
+} from 'common';
 import styled from 'styled-components';
 import { Button, Intent, Spinner } from '@blueprintjs/core';
 import {
@@ -17,19 +21,34 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 const WrapperAddTileButton = styled.div`
     display: flex;
     width: 100%;
-    justify-content: center;
+    justify-content: flex-end;
     align-items: center;
+    padding: 20px;
 `;
 
 const Dashboard = () => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
-    const { mutate } = useUpdateDashboard(dashboardUuid);
+    const {
+        mutate,
+        isSuccess,
+        reset,
+        isLoading: isSaving,
+    } = useUpdateDashboard(dashboardUuid);
     const [dashboardTiles, setTiles] = useState<DashboardChartTile[]>([]);
+    const [hasTilesChanged, setHasTilesChanged] = useState(false);
 
     useEffect(() => {
         setTiles(dashboard?.tiles || []);
     }, [dashboard]);
+
+    useEffect(() => {
+        if (isSuccess) {
+            console.log('has changed set to false');
+            setHasTilesChanged(false);
+            reset();
+        }
+    }, [isSuccess, reset]);
 
     const tileProperties = Object.fromEntries(
         dashboardTiles.map((tile) => [tile.id, tile.properties]) || [],
@@ -45,6 +64,7 @@ const Dashboard = () => {
             properties: tileProperties[tile.i],
         }));
         setTiles(tiles);
+        setHasTilesChanged(true);
     };
     if (dashboard === undefined) {
         return <Spinner />;
@@ -53,12 +73,17 @@ const Dashboard = () => {
     return (
         <>
             <WrapperAddTileButton>
-                <AddTileButton dashboard={dashboard} />
                 <Button
                     style={{ height: '20px' }}
                     text="Save"
+                    disabled={!hasTilesChanged || isSaving}
                     intent={Intent.PRIMARY}
                     onClick={() => mutate({ tiles: dashboardTiles })}
+                />
+                <AddTileButton
+                    onAddTile={(tile: DashboardChartTile) => {
+                        setTiles([...dashboardTiles, tile]);
+                    }}
                 />
             </WrapperAddTileButton>
             <ResponsiveGridLayout
@@ -79,14 +104,15 @@ const Dashboard = () => {
                     <div key={tile.id}>
                         <ChartTile
                             tile={tile}
-                            onDelete={() =>
+                            onDelete={() => {
                                 setTiles(
                                     dashboardTiles.filter(
                                         (filteredTile) =>
                                             filteredTile.id !== tile.id,
                                     ),
-                                )
-                            }
+                                );
+                                setHasTilesChanged(true);
+                            }}
                         />
                     </div>
                 ))}
