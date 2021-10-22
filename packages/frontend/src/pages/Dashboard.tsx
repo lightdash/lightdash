@@ -56,15 +56,16 @@ const Dashboard = () => {
     if (dashboard === undefined) {
         return <Spinner />;
     }
+    const onAddTile = (tile: DashboardChartTile) => {
+        setHasTilesChanged(true);
+        setTiles([...dashboardTiles, tile]);
+    };
     return (
         <>
             <DashboardHeader
                 isSaving={isSaving}
                 hasTilesChanged={hasTilesChanged}
-                onAddTile={(tile: DashboardChartTile) => {
-                    setHasTilesChanged(true);
-                    setTiles([...dashboardTiles, tile]);
-                }}
+                onAddTile={(tile: DashboardChartTile) => onAddTile(tile)}
                 onSaveDashboard={() => mutate({ tiles: dashboardTiles })}
             />
             <ResponsiveGridLayout
@@ -99,10 +100,7 @@ const Dashboard = () => {
             </ResponsiveGridLayout>
             {dashboardTiles.length <= 0 && (
                 <EmptyStateNoTiles
-                    onAddTile={(tile: DashboardChartTile) => {
-                        setHasTilesChanged(true);
-                        setTiles([...dashboardTiles, tile]);
-                    }}
+                    onAddTile={(tile: DashboardChartTile) => onAddTile(tile)}
                 />
             )}
         </>
