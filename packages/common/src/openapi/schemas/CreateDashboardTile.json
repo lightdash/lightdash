@@ -1,0 +1,33 @@
+{
+    "type": "object",
+    "properties": {
+        "uuid": {
+            "type": "string",
+            "format": "uuid"
+        },
+        "type": {
+            "type": "string",
+            "enum": ["saved_chart"]
+        },
+        "properties": {
+            "oneOf": [
+                {
+                    "$ref": "./TilePropertiesChart.json"
+                }
+            ]
+        },
+        "x": {
+            "type": "number"
+        },
+        "y": {
+            "type": "number"
+        },
+        "h": {
+            "type": "number"
+        },
+        "w": {
+            "type": "number"
+        }
+    },
+    "required": ["properties", "type", "x", "y", "h", "w"]
+}

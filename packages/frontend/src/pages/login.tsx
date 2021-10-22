@@ -139,35 +139,38 @@ const Login: FC = () => {
                     elevation={2}
                 >
                     <H2 style={{ marginBottom: 25 }}>Login</H2>
-                    <FormGroup label="Email" labelFor="email-input">
-                        <InputGroup
-                            id="email-input"
-                            placeholder="Email"
-                            type="email"
+                    <form>
+                        <FormGroup label="Email" labelFor="email-input">
+                            <InputGroup
+                                id="email-input"
+                                placeholder="Email"
+                                type="email"
+                                required
+                                disabled={isLoading}
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                data-cy="email"
+                            />
+                        </FormGroup>
+                        <PasswordInput
+                            label="Password"
+                            placeholder="Enter your password..."
                             required
                             disabled={isLoading}
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            data-cy="email"
+                            value={password}
+                            onChange={setPassword}
+                            data-cy="password"
                         />
-                    </FormGroup>
-                    <PasswordInput
-                        label="Password"
-                        placeholder="Enter your password..."
-                        required
-                        disabled={isLoading}
-                        value={password}
-                        onChange={setPassword}
-                        data-cy="password"
-                    />
-                    <Button
-                        style={{ alignSelf: 'flex-end', marginTop: 20 }}
-                        intent={Intent.PRIMARY}
-                        text="Login"
-                        onClick={handleLogin}
-                        loading={isLoading}
-                        data-cy="login-button"
-                    />
+                        <Button
+                            type="submit"
+                            style={{ alignSelf: 'flex-end', marginTop: 20 }}
+                            intent={Intent.PRIMARY}
+                            text="Login"
+                            onClick={handleLogin}
+                            loading={isLoading}
+                            data-cy="login-button"
+                        />
+                    </form>
                 </Card>
                 <AboutFooter />
             </div>

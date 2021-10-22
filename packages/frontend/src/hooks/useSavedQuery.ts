@@ -126,7 +126,7 @@ export const useCreateMutation = () => {
                     title: `Chart updated with success`,
                 });
                 history.push({
-                    pathname: `/saved/${data.uuid}`,
+                    pathname: `/projects/${projectUuid}/saved/${data.uuid}`,
                     state: {
                         fromExplorer: true,
                     },

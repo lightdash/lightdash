@@ -1112,7 +1112,8 @@ export enum DashboardTileTypes {
     SAVED_CHART = 'saved_chart',
 }
 
-type DashboardTileBase = {
+type CreateDashboardTileBase = {
+    uuid?: string;
     type: DashboardTileTypes;
     x: number;
     y: number;
@@ -1120,17 +1121,30 @@ type DashboardTileBase = {
     w: number;
 };
 
-export type DashboardChartTile = DashboardTileBase & {
+type DashboardTileBase = Required<CreateDashboardTileBase>;
+
+type DashboardChartTileProperties = {
     type: DashboardTileTypes.SAVED_CHART;
     properties: {
         savedChartUuid: string | null;
     };
 };
 
-export type Dashboard = {
-    uuid: string;
+export type CreateDashboardChartTile = CreateDashboardTileBase &
+    DashboardChartTileProperties;
+export type DashboardChartTile = DashboardTileBase &
+    DashboardChartTileProperties;
+
+export type CreateDashboard = {
     name: string;
     description?: string;
+    tiles: CreateDashboardChartTile[];
+};
+
+export type Dashboard = {
+    name: string;
+    description?: string;
+    uuid: string;
     updatedAt: Date;
     tiles: DashboardChartTile[];
 };
@@ -1141,12 +1155,11 @@ export type DashboardBasicDetails = Pick<
 >;
 
 export type DashboardUnversionedFields = Pick<
-    Dashboard,
+    CreateDashboard,
     'name' | 'description'
 >;
-export type DashboardVersionedFields = Pick<Dashboard, 'tiles'>;
+export type DashboardVersionedFields = Pick<CreateDashboard, 'tiles'>;
 
-export type CreateDashboard = Pick<Dashboard, 'name' | 'description' | 'tiles'>;
 export type UpdateDashboard =
     | DashboardUnversionedFields
     | DashboardVersionedFields

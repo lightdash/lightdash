@@ -22,9 +22,9 @@ type DbDashboardVersion = {
     created_at: Date;
 };
 
-type DbDashboardTile = {
+type DbCreateDashboardTile = {
+    dashboard_tile_uuid?: string;
     dashboard_version_id: number;
-    rank: number;
     type: DashboardTileTypes;
     x_offset: number;
     y_offset: number;
@@ -32,9 +32,11 @@ type DbDashboardTile = {
     width: number;
 };
 
+type DbDashboardTile = Required<DbCreateDashboardTile>;
+
 type DbDashboardTileChart = {
     dashboard_version_id: number;
-    rank: number;
+    dashboard_tile_uuid: string;
     saved_chart_id: number;
 };
 
@@ -48,6 +50,9 @@ export type DashboardVersionTable = Knex.CompositeTableType<
     DbDashboardVersion,
     Pick<DbDashboardVersion, 'dashboard_id'>
 >;
-export type DashboardTileTable = Knex.CompositeTableType<DbDashboardTile>;
+export type DashboardTileTable = Knex.CompositeTableType<
+    DbDashboardTile,
+    DbCreateDashboardTile
+>;
 export type DashboardTileChartTable =
     Knex.CompositeTableType<DbDashboardTileChart>;
