@@ -57,7 +57,7 @@ const SavedDashboards = () => {
             <NewDashboardWrapper>
                 <Button
                     text="New dashboard"
-                    disabled={isCreatingDashboard}
+                    loading={isCreatingDashboard}
                     onClick={() =>
                         createDashboard({
                             name: 'Untitled dashboard',
