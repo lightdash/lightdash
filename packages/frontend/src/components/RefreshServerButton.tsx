@@ -1,11 +1,12 @@
-import { Button, Spinner } from '@blueprintjs/core';
+import { Spinner } from '@blueprintjs/core';
 import React, { ComponentProps, FC } from 'react';
 import { useRefreshServer } from '../hooks/useRefreshServer';
 import { useServerStatus } from '../hooks/useServerStatus';
 import { EventName } from '../types/Events';
 import { useTracking } from '../providers/TrackingProvider';
+import { BigButton } from './common/BigButton';
 
-export const RefreshServerButton: FC<ComponentProps<typeof Button>> = (
+export const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (
     props,
 ) => {
     const refreshServer = useRefreshServer();
@@ -21,18 +22,18 @@ export const RefreshServerButton: FC<ComponentProps<typeof Button>> = (
 
     if (status.data === 'loading') {
         return (
-            <Button {...props} disabled>
+            <BigButton {...props} disabled>
                 <div style={{ display: 'flex', flexDirection: 'row' }}>
                     <Spinner size={15} />
                     <div style={{ paddingRight: '5px' }} />
                     Refreshing dbt
                 </div>
-            </Button>
+            </BigButton>
         );
     }
     return (
-        <Button {...props} icon="refresh" onClick={onClick}>
+        <BigButton {...props} icon="refresh" onClick={onClick}>
             Refresh dbt
-        </Button>
+        </BigButton>
     );
 };

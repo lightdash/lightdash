@@ -31,6 +31,7 @@ import { Section } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import SavedQueryForm from './SavedQueries/SavedQueryForm';
 import { useQueryResults } from '../hooks/useQueryResults';
+import { BigButton } from './common/BigButton';
 
 interface Props {
     savedQueryUuid?: string;
@@ -151,7 +152,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         placement="bottom"
                         disabled={!tableName}
                     >
-                        <Button
+                        <BigButton
                             icon="more"
                             disabled={!tableName}
                             style={{
