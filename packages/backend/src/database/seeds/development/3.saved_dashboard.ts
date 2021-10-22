@@ -23,7 +23,7 @@ export async function seed(knex: Knex): Promise<void> {
         tiles: queries.map(({ uuid: savedChartUuid }, i) => ({
             x: i % 2 === 0 ? 0 : 5,
             y: Math.floor(i / 2) * 3,
-            w: i > 0 && i % 2 === 0 ? 10 : 5,
+            w: i > 0 && i % 2 === 0 ? 12 : 6,
             h: 3,
             type: DashboardTileTypes.SAVED_CHART,
             properties: { savedChartUuid },
