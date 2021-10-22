@@ -1,14 +1,10 @@
-import React, { useState } from 'react';
-import GridLayout, {
-    Layout,
-    Responsive,
-    WidthProvider,
-} from 'react-grid-layout';
+import React, { useEffect, useState } from 'react';
+import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import '../styles/react-grid.css';
 import { useParams } from 'react-router-dom';
 import { DashboardChartTile, DashboardTileTypes } from 'common';
 import styled from 'styled-components';
-import { Spinner } from '@blueprintjs/core';
+import { Button, Intent, Spinner } from '@blueprintjs/core';
 import {
     useDashboardQuery,
     useUpdateDashboard,
@@ -22,14 +18,21 @@ const WrapperAddTileButton = styled.div`
     display: flex;
     width: 100%;
     justify-content: center;
+    align-items: center;
 `;
 
 const Dashboard = () => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
     const { mutate } = useUpdateDashboard(dashboardUuid);
+    const [dashboardTiles, setTiles] = useState<DashboardChartTile[]>([]);
+
+    useEffect(() => {
+        setTiles(dashboard?.tiles || []);
+    }, [dashboard]);
+
     const tileProperties = Object.fromEntries(
-        dashboard?.tiles?.map((tile) => [tile.id, tile.properties]) || [],
+        dashboardTiles.map((tile) => [tile.id, tile.properties]) || [],
     );
     const updateTiles = (layout: Layout[]) => {
         const tiles: DashboardChartTile[] = layout.map((tile) => ({
@@ -41,7 +44,7 @@ const Dashboard = () => {
             type: DashboardTileTypes.SAVED_CHART,
             properties: tileProperties[tile.i],
         }));
-        mutate({ tiles });
+        setTiles(tiles);
     };
     if (dashboard === undefined) {
         return <Spinner />;
@@ -51,6 +54,12 @@ const Dashboard = () => {
         <>
             <WrapperAddTileButton>
                 <AddTileButton dashboard={dashboard} />
+                <Button
+                    style={{ height: '20px' }}
+                    text="Save"
+                    intent={Intent.PRIMARY}
+                    onClick={() => mutate({ tiles: dashboardTiles })}
+                />
             </WrapperAddTileButton>
             <ResponsiveGridLayout
                 draggableCancel=".non-draggable"
@@ -59,24 +68,24 @@ const Dashboard = () => {
                 breakpoints={{ lg: 1200, md: 996, sm: 768 }}
                 cols={{ lg: 12, md: 10, sm: 6 }}
                 layouts={{
-                    lg: dashboard.tiles.map((tile) => ({
+                    lg: dashboardTiles.map((tile) => ({
                         ...tile,
                         i: tile.id,
                     })),
                 }}
             >
-                {dashboard.tiles.map((tile: DashboardChartTile) => (
+                {dashboardTiles.map((tile: DashboardChartTile) => (
                     // eslint-disable-next-line react/no-array-index-key
                     <div key={tile.id}>
                         <ChartTile
                             tile={tile}
                             onDelete={() =>
-                                mutate({
-                                    tiles: dashboard.tiles.filter(
+                                setTiles(
+                                    dashboardTiles.filter(
                                         (filteredTile) =>
                                             filteredTile.id !== tile.id,
                                     ),
-                                })
+                                )
                             }
                         />
                     </div>
