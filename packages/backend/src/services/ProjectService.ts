@@ -153,7 +153,10 @@ export class ProjectService {
         exploreName: string,
     ): Promise<string> {
         const explore = await this.getExplore(user, projectUuid, exploreName);
-        const compiledMetricQuery = compileMetricQuery(metricQuery);
+        const compiledMetricQuery = compileMetricQuery(
+            explore.targetDatabase,
+            metricQuery,
+        );
         const sql = buildQuery({ explore, compiledMetricQuery });
         return sql;
     }
