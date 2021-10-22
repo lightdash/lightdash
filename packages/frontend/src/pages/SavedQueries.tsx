@@ -2,7 +2,6 @@ import React, { FC, useEffect, useMemo, useState } from 'react';
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { SpaceQuery } from 'common';
 import { useParams } from 'react-router-dom';
-import SavedQueriesMenu from '../components/SavedQueries/SavedQueriesMenu';
 import SavedQueriesContent from '../components/SavedQueries/SavedQueriesContent';
 import { useSavedQuery } from '../hooks/useSpaces';
 
@@ -34,18 +33,13 @@ const SavedQueries: FC = () => {
     return (
         <div
             style={{
+                paddingTop: '30px',
+                width: '100%',
                 display: 'flex',
                 flexDirection: 'row',
-                flexWrap: 'nowrap',
-                justifyContent: 'stretch',
-                alignItems: 'flex-start',
+                justifyContent: 'center',
             }}
         >
-            <SavedQueriesMenu
-                data={data}
-                selectedMenu={selectedMenu}
-                setSelectedMenu={setSelectedMenu}
-            />
             <SavedQueriesContent
                 savedQueries={savedQueries}
                 projectUuid={projectUuid}

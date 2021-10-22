@@ -12,15 +12,12 @@ import CreateSavedDashboardModal from '../components/SavedDashboards/CreateSaved
 import DashboardForm from '../components/SavedDashboards/DashboardForm';
 
 const SavedDashboardsWrapper = styled.div`
+    width: 100%;
+    margin-top: 30px;
     display: flex;
     flex-direction: column;
-`;
-
-const NewDashboardWrapper = styled.div`
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 10px;
-    margin-right: 20px;
+    justify-content: flex-start;
+    align-items: center;
 `;
 
 const SavedDashboards = () => {
@@ -39,13 +36,8 @@ const SavedDashboards = () => {
 
     return (
         <SavedDashboardsWrapper>
-            <NewDashboardWrapper>
-                <Button
-                    text="New dashboard"
-                    onClick={() => setIsModalOpen(true)}
-                />
-            </NewDashboardWrapper>
             <ActionCardList
+                title="Dashboards"
                 useUpdate={useUpdateDashboard}
                 useDelete={useDelete}
                 dataList={dashboards}
@@ -54,6 +46,13 @@ const SavedDashboards = () => {
                     return `/projects/${projectUuid}/dashboards/${uuid}`;
                 }}
                 ModalContent={DashboardForm}
+                extra={
+                    <Button
+                        text="Create dashboard"
+                        onClick={() => setIsModalOpen(true)}
+                        intent="primary"
+                    />
+                }
             />
             <CreateSavedDashboardModal
                 isOpen={isModalOpen}

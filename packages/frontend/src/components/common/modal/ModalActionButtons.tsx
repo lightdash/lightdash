@@ -1,6 +1,6 @@
-import { Button, ButtonGroup } from '@blueprintjs/core';
+import { Button, Menu, MenuItem } from '@blueprintjs/core';
 import React, { Dispatch, SetStateAction } from 'react';
-import { useHistory } from 'react-router-dom';
+import { Popover2 } from '@blueprintjs/popover2';
 import { ActionTypeModal } from './ActionModal';
 
 type ModalActionButtonsProps = {
@@ -15,37 +15,36 @@ const ModalActionButtons = ({
     data,
     url,
     setActionState,
-}: ModalActionButtonsProps) => {
-    const { push } = useHistory();
-    return (
-        <ButtonGroup>
-            <Button
-                icon="document-open"
-                intent="primary"
-                outlined
-                onClick={() => push({ pathname: url })}
-                text="Open"
-            />
-            <Button
-                icon="edit"
-                intent="warning"
-                outlined
-                text="Rename"
-                onClick={() =>
-                    setActionState({ actionType: ActionTypeModal.UPDATE, data })
-                }
-            />
-            <Button
-                icon="delete"
-                intent="danger"
-                outlined
-                onClick={() =>
-                    setActionState({ actionType: ActionTypeModal.DELETE, data })
-                }
-                text="Delete"
-            />
-        </ButtonGroup>
-    );
-};
+}: ModalActionButtonsProps) => (
+    <Popover2
+        content={
+            <Menu>
+                <MenuItem
+                    icon="edit"
+                    text="Rename"
+                    onClick={() =>
+                        setActionState({
+                            actionType: ActionTypeModal.UPDATE,
+                            data,
+                        })
+                    }
+                />
+                <MenuItem
+                    icon="delete"
+                    text="Delete"
+                    onClick={() =>
+                        setActionState({
+                            actionType: ActionTypeModal.DELETE,
+                            data,
+                        })
+                    }
+                />
+            </Menu>
+        }
+        placement="bottom"
+    >
+        <Button icon="more" minimal />
+    </Popover2>
+);
 
 export default ModalActionButtons;
