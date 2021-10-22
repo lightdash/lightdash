@@ -1,9 +1,5 @@
-import React, { useState } from 'react';
-import GridLayout, {
-    Layout,
-    Responsive,
-    WidthProvider,
-} from 'react-grid-layout';
+import React from 'react';
+import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import '../styles/react-grid.css';
 import { useParams } from 'react-router-dom';
 import { DashboardChartTile, DashboardTileTypes } from 'common';
@@ -29,11 +25,11 @@ const Dashboard = () => {
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
     const { mutate } = useUpdateDashboard(dashboardUuid);
     const tileProperties = Object.fromEntries(
-        dashboard?.tiles?.map((tile) => [tile.id, tile.properties]) || [],
+        dashboard?.tiles?.map((tile) => [tile.uuid, tile.properties]) || [],
     );
     const updateTiles = (layout: Layout[]) => {
         const tiles: DashboardChartTile[] = layout.map((tile) => ({
-            id: tile.i,
+            uuid: tile.i,
             x: tile.x,
             y: tile.y,
             h: tile.h,
@@ -61,20 +57,19 @@ const Dashboard = () => {
                 layouts={{
                     lg: dashboard.tiles.map((tile) => ({
                         ...tile,
-                        i: tile.id,
+                        i: tile.uuid,
                     })),
                 }}
             >
                 {dashboard.tiles.map((tile: DashboardChartTile) => (
-                    // eslint-disable-next-line react/no-array-index-key
-                    <div key={tile.id}>
+                    <div key={tile.uuid}>
                         <ChartTile
                             tile={tile}
                             onDelete={() =>
                                 mutate({
                                     tiles: dashboard.tiles.filter(
                                         (filteredTile) =>
-                                            filteredTile.id !== tile.id,
+                                            filteredTile.uuid !== tile.uuid,
                                     ),
                                 })
                             }
