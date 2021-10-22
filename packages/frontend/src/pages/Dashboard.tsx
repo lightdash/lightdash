@@ -4,13 +4,14 @@ import '../styles/react-grid.css';
 import { useParams } from 'react-router-dom';
 import { DashboardChartTile, DashboardTileTypes } from 'common';
 import styled from 'styled-components';
-import { Spinner, Button, Intent, NonIdealState } from '@blueprintjs/core';
+import { Spinner, Button, Intent } from '@blueprintjs/core';
 import {
     useDashboardQuery,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import AddTileButton from '../components/DashboardTiles/AddTile/AddTileButton';
+import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -63,7 +64,7 @@ const Dashboard = () => {
     if (dashboard === undefined) {
         return <Spinner />;
     }
-    console.log(dashboardTiles);
+
     return (
         <>
             <WrapperAddTileButton>
@@ -112,7 +113,11 @@ const Dashboard = () => {
                 ))}
             </ResponsiveGridLayout>
             {dashboardTiles.length <= 0 && (
-                <NonIdealState title="No charts available" icon="search" />
+                <EmptyStateNoTiles
+                    dashboardTiles={dashboardTiles}
+                    setHasTilesChanged={setHasTilesChanged}
+                    setTiles={setTiles}
+                />
             )}
         </>
     );
