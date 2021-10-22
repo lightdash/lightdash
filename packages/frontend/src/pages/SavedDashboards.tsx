@@ -29,6 +29,7 @@ const SavedDashboards = () => {
     const { isLoading, data: dashboards = [] } = useDashboards(projectUuid);
     const useDelete = useDeleteMutation();
     const {
+        isLoading: isCreatingDashboard,
         isSuccess: hasCreatedDashboard,
         mutate: createDashboard,
         data: newDashboard,
@@ -45,6 +46,7 @@ const SavedDashboards = () => {
     if (hasCreatedDashboard && newDashboard) {
         return (
             <Redirect
+                push
                 to={`/projects/${projectUuid}/dashboards/${newDashboard.uuid}`}
             />
         );
@@ -55,6 +57,7 @@ const SavedDashboards = () => {
             <NewDashboardWrapper>
                 <Button
                     text="New dashboard"
+                    disabled={isCreatingDashboard}
                     onClick={() =>
                         createDashboard({
                             name: 'Untitled dashboard',
