@@ -44,7 +44,6 @@ const Dashboard = () => {
 
     useEffect(() => {
         if (isSuccess) {
-            console.log('has changed set to false');
             setHasTilesChanged(false);
             reset();
         }
