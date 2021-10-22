@@ -1,6 +1,7 @@
 import { CompiledMetricQuery } from 'common';
 import { compileMetricQuery } from './queryCompiler';
 import {
+    EXPLORE,
     METRIC_QUERY_DUPLICATE_NAME,
     METRIC_QUERY_INVALID_REFERENCE_FORMAT,
     METRIC_QUERY_MISSING_REFERENCE,
@@ -15,29 +16,46 @@ test('Should compile without table calculations', () => {
         ...METRIC_QUERY_NO_CALCS,
         compiledTableCalculations: [],
     };
-    expect(compileMetricQuery(METRIC_QUERY_NO_CALCS)).toStrictEqual(expected);
+    expect(
+        compileMetricQuery({
+            explore: EXPLORE,
+            metricQuery: METRIC_QUERY_NO_CALCS,
+        }),
+    ).toStrictEqual(expected);
 });
 
 test('Should compile table calculations', () => {
-    expect(compileMetricQuery(METRIC_QUERY_VALID_REFERENCES)).toStrictEqual(
-        METRIC_QUERY_VALID_REFERENCES_COMPILED,
-    );
+    expect(
+        compileMetricQuery({
+            explore: EXPLORE,
+            metricQuery: METRIC_QUERY_VALID_REFERENCES,
+        }),
+    ).toStrictEqual(METRIC_QUERY_VALID_REFERENCES_COMPILED);
 });
 
 test('Should throw error when table calculation contains missing reference', () => {
     expect(() =>
-        compileMetricQuery(METRIC_QUERY_MISSING_REFERENCE),
+        compileMetricQuery({
+            explore: EXPLORE,
+            metricQuery: METRIC_QUERY_MISSING_REFERENCE,
+        }),
     ).toThrowError(CompileError);
 });
 
 test('Should throw error when table calculation has invalid reference format', () => {
     expect(() =>
-        compileMetricQuery(METRIC_QUERY_INVALID_REFERENCE_FORMAT),
+        compileMetricQuery({
+            explore: EXPLORE,
+            metricQuery: METRIC_QUERY_INVALID_REFERENCE_FORMAT,
+        }),
     ).toThrowError(CompileError);
 });
 
 test('Should throw error when table calculation has duplicate name', () => {
-    expect(() => compileMetricQuery(METRIC_QUERY_DUPLICATE_NAME)).toThrowError(
-        CompileError,
-    );
+    expect(() =>
+        compileMetricQuery({
+            explore: EXPLORE,
+            metricQuery: METRIC_QUERY_DUPLICATE_NAME,
+        }),
+    ).toThrowError(CompileError);
 });
