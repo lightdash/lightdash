@@ -66,7 +66,10 @@ export class DashboardModel {
 
         const promises: Promise<any>[] = [];
         version.tiles.forEach(
-            ({ id: dashboardTileId, type, w, h, x, y, properties }, index) => {
+            (
+                { uuid: dashboardTileId, type, w, h, x, y, properties },
+                index,
+            ) => {
                 promises.push(
                     (async () => {
                         const [insertedTile] = await trx(
@@ -205,7 +208,6 @@ export class DashboardModel {
                 `${SavedQueriesTableName}.saved_query_uuid`,
             ])
             .leftJoin(DashboardTileChartTableName, function () {
-                // TODO: 'this' doesn't work with anonymous function () => {} ?
                 this.on(
                     `${DashboardTileChartTableName}.dashboard_tile_uuid`,
                     '=',
@@ -242,7 +244,7 @@ export class DashboardModel {
                     dashboard_tile_uuid,
                     saved_query_uuid,
                 }) => ({
-                    id: dashboard_tile_uuid,
+                    uuid: dashboard_tile_uuid,
                     type,
                     properties: {
                         savedChartUuid: saved_query_uuid,

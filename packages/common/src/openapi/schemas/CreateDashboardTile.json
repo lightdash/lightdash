@@ -1,7 +1,7 @@
 {
     "type": "object",
     "properties": {
-        "id": {
+        "uuid": {
             "type": "string"
         },
         "type": {

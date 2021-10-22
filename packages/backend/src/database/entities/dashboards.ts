@@ -32,9 +32,7 @@ type DbCreateDashboardTile = {
     width: number;
 };
 
-type DbDashboardTile = DbCreateDashboardTile & {
-    dashboard_tile_uuid: string;
-};
+type DbDashboardTile = Required<DbCreateDashboardTile>;
 
 type DbDashboardTileChart = {
     dashboard_version_id: number;

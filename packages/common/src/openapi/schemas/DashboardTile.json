@@ -6,11 +6,11 @@
         {
             "type": "object",
             "properties": {
-                "id": {
+                "uuid": {
                     "type": "string"
                 }
             },
-            "required": ["id"]
+            "required": ["uuid"]
         }
     ]
 }

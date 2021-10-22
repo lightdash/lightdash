@@ -1113,7 +1113,7 @@ export enum DashboardTileTypes {
 }
 
 type CreateDashboardTileBase = {
-    id?: string;
+    uuid?: string;
     type: DashboardTileTypes;
     x: number;
     y: number;
