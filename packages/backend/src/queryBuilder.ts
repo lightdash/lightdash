@@ -238,7 +238,7 @@ const getMetricFromId = (metricId: FieldId, explore: Explore) => {
     return metric;
 };
 
-const getQuoteChar = (targetDatabase: string): string => {
+export const getQuoteChar = (targetDatabase: string): string => {
     switch (targetDatabase) {
         case 'postgres':
         case 'snowflake':
