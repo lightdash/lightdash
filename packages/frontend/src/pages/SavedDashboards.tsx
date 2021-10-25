@@ -59,7 +59,7 @@ const SavedDashboards = () => {
                     loading={isCreatingDashboard}
                     onClick={() =>
                         createDashboard({
-                            name: 'Untitled dashboard...',
+                            name: 'Untitled dashboard',
                             tiles: [],
                         })
                     }
