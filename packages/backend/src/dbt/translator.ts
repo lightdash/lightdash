@@ -383,11 +383,11 @@ export const convertExplores = async (
     return [...explores, ...exploreErrors];
 };
 
-export const attachTypesToModels = async (
+export const attachTypesToModels = (
     models: DbtModelNode[],
     warehouseSchema: WarehouseSchema,
     throwOnMissingCatalogEntry: boolean = true,
-): Promise<DbtModelNode[]> => {
+): DbtModelNode[] => {
     // Check that all models appear in the warehouse
     models.forEach((model) => {
         if (
@@ -406,17 +406,21 @@ export const attachTypesToModels = async (
         model: DbtModelNode,
         columnName: string,
     ): string | undefined => {
-        try {
+        if (
+            model.schema in warehouseSchema &&
+            model.name in warehouseSchema[model.schema] &&
+            columnName in warehouseSchema[model.schema][model.name]
+        ) {
             return warehouseSchema[model.schema][model.name][columnName];
-        } catch (e) {
-            if (throwOnMissingCatalogEntry) {
-                throw new MissingCatalogEntryError(
-                    `Column "${columnName}" from model "${model.name}" does not exist.\n "${columnName}.${model.name}" was not found in your target warehouse at ${model.database}.${model.schema}.${model.name}. Try rerunning dbt to update your warehouse.`,
-                    {},
-                );
-            }
-            return undefined;
         }
+
+        if (throwOnMissingCatalogEntry) {
+            throw new MissingCatalogEntryError(
+                `Column "${columnName}" from model "${model.name}" does not exist.\n "${columnName}.${model.name}" was not found in your target warehouse at ${model.database}.${model.schema}.${model.name}. Try rerunning dbt to update your warehouse.`,
+                {},
+            );
+        }
+        return undefined;
     };
 
     // Update the dbt models with type info

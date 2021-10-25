@@ -85,7 +85,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
         // Be lazy and try to attach types to the remaining models without refreshing the catalog
         try {
-            const lazyTypedModels = await attachTypesToModels(
+            const lazyTypedModels = attachTypesToModels(
                 validModels,
                 this.warehouseSchema || {},
                 true,
@@ -98,7 +98,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             return [...lazyExplores, ...failedExplores];
         } catch (e) {
             if (e instanceof MissingCatalogEntryError) {
-                const typedModels = await attachTypesToModels(
+                const typedModels = attachTypesToModels(
                     validModels,
                     await this.getWarehouseSchema(validModels),
                     false,
