@@ -3,7 +3,6 @@ import { Button, Intent, EditableText } from '@blueprintjs/core';
 import { DashboardChartTile } from 'common';
 import styled from 'styled-components';
 import AddTileButton from '../../DashboardTiles/AddTile/AddTileButton';
-import '../../../styles/dashboard-header.css';
 
 const WrapperAddTileButton = styled.div`
     display: flex;
@@ -22,6 +21,11 @@ type DashboardHeaderProps = {
     dashboardName: string | undefined;
 };
 
+const WrapperEditableText = styled(EditableText)`
+    display: flex;
+    align-items: center;
+`;
+
 const DashboardHeader = ({
     onAddTile,
     onChangeDashboardName,
@@ -32,9 +36,9 @@ const DashboardHeader = ({
     dashboardName,
 }: DashboardHeaderProps) => (
     <WrapperAddTileButton>
-        <EditableText
+        <WrapperEditableText
             value={dashboardName}
-            onChange={(value) => onChangeDashboardName(value)}
+            onChange={onChangeDashboardName}
             onConfirm={onConfirmName}
         />
         <div>
