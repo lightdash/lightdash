@@ -11,14 +11,17 @@ const getDashboard = async (id: string) =>
         body: undefined,
     });
 
-const createDashboard = async (projectId: string, data: CreateDashboard) =>
+export const createDashboard = async (
+    projectId: string,
+    data: CreateDashboard,
+) =>
     lightdashApi<Dashboard>({
         url: `/projects/${projectId}/dashboards`,
         method: 'POST',
         body: JSON.stringify(data),
     });
 
-const updateDashboard = async (id: string, data: UpdateDashboard) =>
+export const updateDashboard = async (id: string, data: UpdateDashboard) =>
     lightdashApi<undefined>({
         url: `/dashboards/${id}`,
         method: 'PATCH',

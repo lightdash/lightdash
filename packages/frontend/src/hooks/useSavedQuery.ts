@@ -10,7 +10,10 @@ import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 
-const createSavedQuery = async (projectUuid: string, data: CreateSavedQuery) =>
+export const createSavedQuery = async (
+    projectUuid: string,
+    data: CreateSavedQuery,
+) =>
     lightdashApi<SavedQuery>({
         url: `/projects/${projectUuid}/saved`,
         method: 'POST',
@@ -24,7 +27,7 @@ const deleteSavedQuery = async (id: string) =>
         body: undefined,
     });
 
-const updateSavedQuery = async (id: string, data: UpdateSavedQuery) =>
+export const updateSavedQuery = async (id: string, data: UpdateSavedQuery) =>
     lightdashApi<SavedQuery>({
         url: `/saved/${id}`,
         method: 'PATCH',

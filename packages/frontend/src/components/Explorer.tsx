@@ -160,6 +160,14 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                     text="Save chart as"
                                     onClick={() => setIsQueryModalOpen(true)}
                                 />
+                                <MenuItem
+                                    icon="add"
+                                    text="Add chart to a new dashboard"
+                                />
+                                <MenuItem
+                                    icon="add"
+                                    text="Add chart to an existing dashboard"
+                                />
                             </Menu>
                         }
                         placement="bottom"
