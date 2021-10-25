@@ -20,6 +20,7 @@ import { parseWithPointers, getLocationForJsonPath } from '@stoplight/yaml';
 import fs from 'fs';
 import { compileExplore } from '../exploreCompiler';
 import { DbtError, MissingCatalogEntryError, ParseError } from '../errors';
+import { WarehouseSchema } from '../types';
 
 const patchPathParts = (patchPath: string) => {
     const [project, ...rest] = patchPath.split('://');
@@ -384,12 +385,16 @@ export const convertExplores = async (
 
 export const attachTypesToModels = async (
     models: DbtModelNode[],
-    catalog: DbtRpcDocsGenerateResults,
+    warehouseSchema: WarehouseSchema,
     throwOnMissingCatalogEntry: boolean = true,
 ): Promise<DbtModelNode[]> => {
-    // Check that all models appear in the catalog
+    // Check that all models appear in the warehouse
     models.forEach((model) => {
-        if (!(model.unique_id in catalog.nodes) && throwOnMissingCatalogEntry) {
+        if (
+            (!(model.schema in warehouseSchema) ||
+                !(model.name in warehouseSchema[model.schema])) &&
+            throwOnMissingCatalogEntry
+        ) {
             throw new MissingCatalogEntryError(
                 `Model "${model.unique_id}" was expected in your target warehouse at "${model.database}.${model.schema}.${model.name}". Does the table exist in your target data warehouse?`,
                 {},
@@ -397,26 +402,12 @@ export const attachTypesToModels = async (
         }
     });
 
-    // get column types and use lower case column names
-    const catalogColumnTypes = Object.fromEntries(
-        Object.entries(catalog.nodes).map(([node_id, node]) => {
-            const columns = Object.fromEntries(
-                Object.entries(node.columns).map(([column_name, column]) => [
-                    column_name.toLowerCase(),
-                    column.type,
-                ]),
-            );
-            return [node_id, columns];
-        }),
-    );
-
     const getType = (
         model: DbtModelNode,
         columnName: string,
     ): string | undefined => {
         try {
-            const columnType = catalogColumnTypes[model.unique_id][columnName];
-            return columnType;
+            return warehouseSchema[model.schema][model.name][columnName];
         } catch (e) {
             if (throwOnMissingCatalogEntry) {
                 throw new MissingCatalogEntryError(
@@ -429,7 +420,7 @@ export const attachTypesToModels = async (
     };
 
     // Update the dbt models with type info
-    const typedModels = models.map((model) => ({
+    return models.map((model) => ({
         ...model,
         columns: Object.fromEntries(
             Object.entries(model.columns).map(([column_name, column]) => [
@@ -438,5 +429,4 @@ export const attachTypesToModels = async (
             ]),
         ),
     }));
-    return typedModels;
 };

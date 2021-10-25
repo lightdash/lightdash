@@ -1,4 +1,4 @@
-import { CreateBigqueryCredentials, DimensionType } from 'common';
+import { CreateBigqueryCredentials, DbtModelNode, DimensionType } from 'common';
 import {
     BigQuery,
     BigQueryDate,
@@ -35,22 +35,18 @@ enum FieldType {
     STRUCT = 'STRUCT',
 }
 
-const parseDateCell = (cell: BigQueryDate) => new Date(cell.value);
-const parseTimestampCell = (cell: BigQueryTimestamp) => new Date(cell.value);
-const parseDateTimeCell = (cell: BigQueryDatetime) => new Date(cell.value);
-const parseTimeCell = (cell: BigQueryTime) => new Date(cell.value);
+const parseDateCell = (
+    cell: BigQueryDate | BigQueryTimestamp | BigQueryDatetime | BigQueryTime,
+) => new Date(cell.value);
 const parseDefault = (cell: any) => cell;
 
 const getParser = (type: string) => {
     switch (type) {
         case FieldType.DATE:
-            return parseDateCell;
         case FieldType.DATETIME:
-            return parseDateTimeCell;
         case FieldType.TIMESTAMP:
-            return parseTimestampCell;
         case FieldType.TIME:
-            return parseTimeCell;
+            return parseDateCell;
         default:
             return parseDefault;
     }
@@ -159,24 +155,30 @@ export default class BigqueryWarehouseClient implements QueryRunner {
     }
 
     async test(): Promise<void> {
-        // TODO: test get schema
-        const schemato = await this.getSchema();
-        console.log(schemato);
         await this.runQuery('SELECT 1');
     }
 
-    async getSchema() {
+    async getSchema(dbtModels: DbtModelNode[]) {
+        const wantedSchema = dbtModels.reduce<{
+            [dataset: string]: { [table: string]: string[] };
+        }>((sum, model) => {
+            const acc = { ...sum };
+            acc[model.schema] = acc[model.schema] || {};
+            acc[model.schema][model.name] = Object.keys(model.columns);
+            return acc;
+        }, {});
+
         const [datasets] = await this.client.getDatasets();
 
         const warehouseSchema: WarehouseSchema = {};
 
         await asyncForEach(datasets, async (dataset) => {
-            if (dataset.id) {
+            if (dataset.id && !!wantedSchema[dataset.id]) {
                 warehouseSchema[dataset.id] = {};
 
                 const [tables] = await dataset.getTables();
                 await asyncForEach(tables, async (table) => {
-                    if (table.id) {
+                    if (table.id && !!wantedSchema[dataset.id!][table.id]) {
                         const [metadata] = await table.getMetadata();
                         const { schema } = metadata;
                         if (isTableSchema(schema)) {

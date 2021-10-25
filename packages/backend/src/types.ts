@@ -1,4 +1,5 @@
 import {
+    DbtModelNode,
     DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
     DimensionType,
@@ -31,7 +32,7 @@ export type WarehouseSchema = {
 };
 
 export interface QueryRunner {
-    getSchema?: () => Promise<WarehouseSchema>;
+    getSchema?: (dbtModels: DbtModelNode[]) => Promise<WarehouseSchema>;
     runQuery(sql: string): Promise<Record<string, any>[]>;
     test(): Promise<void>;
 }
