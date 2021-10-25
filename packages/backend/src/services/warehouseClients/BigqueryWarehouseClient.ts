@@ -15,7 +15,7 @@ import {
 } from '../../types';
 import { asyncForEach } from '../../utils';
 
-enum FieldType {
+export enum BigqueryFieldType {
     STRING = 'STRING',
     INTEGER = 'INTEGER',
     BYTES = 'BYTES',
@@ -42,10 +42,10 @@ const parseDefault = (cell: any) => cell;
 
 const getParser = (type: string) => {
     switch (type) {
-        case FieldType.DATE:
-        case FieldType.DATETIME:
-        case FieldType.TIMESTAMP:
-        case FieldType.TIME:
+        case BigqueryFieldType.DATE:
+        case BigqueryFieldType.DATETIME:
+        case BigqueryFieldType.TIMESTAMP:
+        case BigqueryFieldType.TIME:
             return parseDateCell;
         default:
             return parseDefault;
@@ -54,22 +54,22 @@ const getParser = (type: string) => {
 
 const mapFieldType = (type: string): DimensionType => {
     switch (type) {
-        case FieldType.DATE:
+        case BigqueryFieldType.DATE:
             return DimensionType.DATE;
-        case FieldType.DATETIME:
-        case FieldType.TIMESTAMP:
-        case FieldType.TIME:
+        case BigqueryFieldType.DATETIME:
+        case BigqueryFieldType.TIMESTAMP:
+        case BigqueryFieldType.TIME:
             return DimensionType.TIMESTAMP;
-        case FieldType.INTEGER:
-        case FieldType.FLOAT:
-        case FieldType.FLOAT64:
-        case FieldType.BYTES:
-        case FieldType.INT64:
-        case FieldType.NUMERIC:
-        case FieldType.BIGNUMERIC:
+        case BigqueryFieldType.INTEGER:
+        case BigqueryFieldType.FLOAT:
+        case BigqueryFieldType.FLOAT64:
+        case BigqueryFieldType.BYTES:
+        case BigqueryFieldType.INT64:
+        case BigqueryFieldType.NUMERIC:
+        case BigqueryFieldType.BIGNUMERIC:
             return DimensionType.NUMBER;
-        case FieldType.BOOL:
-        case FieldType.BOOLEAN:
+        case BigqueryFieldType.BOOL:
+        case BigqueryFieldType.BOOLEAN:
             return DimensionType.BOOLEAN;
         default:
             return DimensionType.STRING;
@@ -179,15 +179,20 @@ export default class BigqueryWarehouseClient implements QueryRunner {
                 const [tables] = await dataset.getTables();
                 await asyncForEach(tables, async (table) => {
                     if (table.id && !!wantedSchema[dataset.id!][table.id]) {
+                        const wantedColumns =
+                            wantedSchema[dataset.id!][table.id];
                         const [metadata] = await table.getMetadata();
                         const { schema } = metadata;
                         if (isTableSchema(schema)) {
                             warehouseSchema[dataset.id!][table.id] =
                                 schema.fields.reduce<WarehouseTableSchema>(
-                                    (sum, field) => ({
-                                        ...sum,
-                                        [field.name]: mapFieldType(field.type),
-                                    }),
+                                    (sum, { name, type }) =>
+                                        wantedColumns.includes(name)
+                                            ? {
+                                                  ...sum,
+                                                  [name]: mapFieldType(type),
+                                              }
+                                            : { ...sum },
                                     {},
                                 );
                         }
