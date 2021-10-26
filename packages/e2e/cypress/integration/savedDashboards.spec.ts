@@ -23,7 +23,10 @@ describe('Dashboard List', () => {
         cy.findByRole('button', { name: 'Dashboards' }).click();
         // click on rename
         cy.findByRole('button', { name: 'edit Rename' }).click();
-        cy.findByLabelText('Name (required)').should('have.value', 'Jaffle dashboard');
+        cy.findByLabelText('Name (required)').should(
+            'have.value',
+            'Jaffle dashboard',
+        );
         cy.findByLabelText('Name (required)').focus().clear();
         cy.findByLabelText('Name (required)').type('updated dashboard');
         cy.findByLabelText('Description (optional)').type('description');
