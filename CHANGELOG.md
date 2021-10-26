@@ -3,6 +3,9 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Removed
+- Lightdash projects that connect to a remote dbt rpc server are no longer supported.
+
 ### Changed
 - Navigation bar was rearranged. Saved charts and dashboards can be accessed under the "Browse" menu item.
 
