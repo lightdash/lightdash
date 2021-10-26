@@ -63,6 +63,7 @@ const Dashboard = () => {
     return (
         <>
             <DashboardHeader
+                dashboardName={dashboard.name}
                 isSaving={isSaving}
                 hasTilesChanged={hasTilesChanged}
                 onAddTile={(tile: DashboardChartTile) => onAddTile(tile)}
