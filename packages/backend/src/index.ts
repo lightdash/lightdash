@@ -34,6 +34,10 @@ const app = express();
 Sentry.init({
     release: VERSION,
     dsn: process.env.SENTRY_DSN,
+    environment:
+        process.env.NODE_ENV === 'development'
+            ? 'development'
+            : lightdashConfig.mode,
     integrations: [
         new Sentry.Integrations.Http({ tracing: true }),
         new Tracing.Integrations.Express({
