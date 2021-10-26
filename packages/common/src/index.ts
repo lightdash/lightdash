@@ -727,6 +727,8 @@ export enum LightdashMode {
     PR = 'pr',
     CLOUD_BETA = 'cloud_beta',
 }
+export const isLightdashMode = (x: string): x is LightdashMode =>
+    Object.values<string>(LightdashMode).includes(x);
 
 export enum LightdashInstallType {
     DOCKER_IMAGE = 'docker_image',
