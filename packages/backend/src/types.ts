@@ -31,8 +31,12 @@ export type WarehouseSchema = {
     };
 };
 
+export type SchemaStructure = {
+    [database: string]: { [schema: string]: { [table: string]: string[] } };
+};
+
 export interface QueryRunner {
-    getSchema?: (dbtModels: DbtModelNode[]) => Promise<WarehouseSchema>;
+    getSchema?: (config: SchemaStructure) => Promise<WarehouseSchema>;
     runQuery(sql: string): Promise<Record<string, any>[]>;
     test(): Promise<void>;
 }

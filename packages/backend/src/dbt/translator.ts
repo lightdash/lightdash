@@ -20,7 +20,7 @@ import { parseWithPointers, getLocationForJsonPath } from '@stoplight/yaml';
 import fs from 'fs';
 import { compileExplore } from '../exploreCompiler';
 import { DbtError, MissingCatalogEntryError, ParseError } from '../errors';
-import { WarehouseSchema } from '../types';
+import { SchemaStructure, WarehouseSchema } from '../types';
 
 const patchPathParts = (patchPath: string) => {
     const [project, ...rest] = patchPath.split('://');
@@ -434,3 +434,17 @@ export const attachTypesToModels = (
         ),
     }));
 };
+
+export const getSchemaStructureFromDbtModels = (
+    dbtModels: DbtModelNode[],
+): SchemaStructure =>
+    dbtModels.reduce<SchemaStructure>((sum, model) => {
+        const acc = { ...sum };
+        acc[model.database] = acc[model.database] || {};
+        acc[model.database][model.schema] =
+            acc[model.database][model.schema] || {};
+        acc[model.database][model.schema][model.name] = Object.keys(
+            model.columns,
+        );
+        return acc;
+    }, {});

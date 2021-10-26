@@ -1,11 +1,10 @@
 import { BigQueryDate, BigQueryTimestamp } from '@google-cloud/bigquery';
 import {
     CreateBigqueryCredentials,
-    DbtModelNode,
     DimensionType,
     WarehouseTypes,
 } from 'common';
-import { WarehouseSchema } from '../../types';
+import { SchemaStructure, WarehouseSchema } from '../../types';
 import { BigqueryFieldType } from './BigqueryWarehouseClient';
 
 export const credentials: CreateBigqueryCredentials = {
@@ -21,39 +20,18 @@ export const credentials: CreateBigqueryCredentials = {
     maximumBytesBilled: 0,
 };
 
-export const model: DbtModelNode = {
-    unique_id: 'unique_id',
-    resource_type: 'resource_type',
-    columns: {
-        myStringColumn: {
-            name: 'myStringColumn',
-            meta: {},
-        },
-        myNumberColumn: {
-            name: 'myNumberColumn',
-            meta: {},
-        },
-        myDateColumn: {
-            name: 'myDateColumn',
-            meta: {},
-        },
-        myTimestampColumn: {
-            name: 'myTimestampColumn',
-            meta: {},
-        },
-        myBooleanColumn: {
-            name: 'myBooleanColumn',
-            meta: {},
+export const config: SchemaStructure = {
+    myDatabase: {
+        mySchema: {
+            myTable: [
+                'myStringColumn',
+                'myNumberColumn',
+                'myDateColumn',
+                'myTimestampColumn',
+                'myBooleanColumn',
+            ],
         },
     },
-    meta: {},
-    database: 'myDatabase',
-    schema: 'mySchema',
-    name: 'myTable',
-    relation_name: 'relation_name',
-    depends_on: { nodes: [] },
-    root_path: 'root_path',
-    patch_path: null,
 };
 
 const metadata = {
@@ -90,7 +68,7 @@ const metadata = {
 const getTablesResponse = [
     [
         {
-            id: model.name,
+            id: 'myTable',
             getMetadata: () => [metadata],
         },
         {
@@ -100,7 +78,7 @@ const getTablesResponse = [
     ],
 ];
 export const getDatasetsResponse = [
-    [{ id: model.schema, getTables: () => getTablesResponse }],
+    [{ id: 'mySchema', getTables: () => getTablesResponse }],
     [{ id: 'datasetNotInModel', getTables: () => [] }],
 ];
 
@@ -123,8 +101,8 @@ export const createJobResponse = [
 ];
 
 export const expectedWarehouseSchema: WarehouseSchema = {
-    [model.schema]: {
-        [model.name]: {
+    mySchema: {
+        myTable: {
             myStringColumn: DimensionType.STRING,
             myNumberColumn: DimensionType.NUMBER,
             myDateColumn: DimensionType.DATE,

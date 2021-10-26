@@ -1,4 +1,4 @@
-import { CreateBigqueryCredentials, DbtModelNode, DimensionType } from 'common';
+import { CreateBigqueryCredentials, DimensionType } from 'common';
 import {
     BigQuery,
     BigQueryDate,
@@ -10,6 +10,7 @@ import bigquery from '@google-cloud/bigquery/build/src/types';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
 import {
     QueryRunner,
+    SchemaStructure,
     WarehouseSchema,
     WarehouseTableSchema,
 } from '../../types';
@@ -158,29 +159,19 @@ export default class BigqueryWarehouseClient implements QueryRunner {
         await this.runQuery('SELECT 1');
     }
 
-    async getSchema(dbtModels: DbtModelNode[]) {
-        const wantedSchema = dbtModels.reduce<{
-            [dataset: string]: { [table: string]: string[] };
-        }>((sum, model) => {
-            const acc = { ...sum };
-            acc[model.schema] = acc[model.schema] || {};
-            acc[model.schema][model.name] = Object.keys(model.columns);
-            return acc;
-        }, {});
-
+    async getSchema(config: SchemaStructure) {
         const [datasets] = await this.client.getDatasets();
 
         const warehouseSchema: WarehouseSchema = {};
 
         await asyncForEach(datasets, async (dataset) => {
-            if (dataset.id && !!wantedSchema[dataset.id]) {
+            if (dataset.id && !!config[0][dataset.id]) {
                 warehouseSchema[dataset.id] = {};
 
                 const [tables] = await dataset.getTables();
                 await asyncForEach(tables, async (table) => {
-                    if (table.id && !!wantedSchema[dataset.id!][table.id]) {
-                        const wantedColumns =
-                            wantedSchema[dataset.id!][table.id];
+                    if (table.id && !!config[0][dataset.id!][table.id]) {
+                        const wantedColumns = config[0][dataset.id!][table.id];
                         const [metadata] = await table.getMetadata();
                         const { schema } = metadata;
                         if (isTableSchema(schema)) {

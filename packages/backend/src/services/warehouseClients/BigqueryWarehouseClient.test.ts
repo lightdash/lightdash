@@ -1,11 +1,11 @@
 import BigqueryWarehouseClient from './BigqueryWarehouseClient';
 import {
+    config,
     createJobResponse,
     credentials,
     expectedRow,
     expectedWarehouseSchema,
     getDatasetsResponse,
-    model,
 } from './BigqueryWarehouseClient.mock';
 
 jest.mock('@google-cloud/bigquery', () => ({
@@ -30,7 +30,7 @@ describe('BigqueryWarehouseClient', () => {
         (warehouse.client.getDatasets as jest.Mock).mockImplementationOnce(
             () => getDatasetsResponse,
         );
-        expect(await warehouse.getSchema([model])).toEqual(
+        expect(await warehouse.getSchema(config)).toEqual(
             expectedWarehouseSchema,
         );
     });
