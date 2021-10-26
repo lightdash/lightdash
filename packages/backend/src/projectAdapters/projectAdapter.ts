@@ -6,7 +6,6 @@ import {
 } from 'common';
 import { ProjectAdapter } from '../types';
 import { DbtLocalProjectAdapter } from './dbtLocalProjectAdapter';
-import { DbtRemoteProjectAdapter } from './dbtRemoteProjectAdapter';
 import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
 import { DbtGitlabProjectAdapter } from './dbtGitlabProjectAdapter';
@@ -44,12 +43,6 @@ export const projectAdapterFromConfig = async (
             throw new UnexpectedServerError(
                 'Could not find valid warehouse credentials. No profiles directory or warehouse credentials specified for project.',
             );
-        case ProjectType.DBT_REMOTE_SERVER:
-            return new DbtRemoteProjectAdapter({
-                queryRunner,
-                host: config.rpc_server_host,
-                port: config.rpc_server_port,
-            });
         case ProjectType.DBT_CLOUD_IDE:
             return new DbtCloudIdeProjectAdapter({
                 queryRunner,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useParams, Redirect } from 'react-router-dom';
 import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
 import styled from 'styled-components';
@@ -9,7 +9,6 @@ import {
     useDeleteMutation,
     useCreateMutation,
 } from '../hooks/dashboard/useDashboard';
-import CreateSavedDashboardModal from '../components/SavedDashboards/CreateSavedDashboardModal';
 import DashboardForm from '../components/SavedDashboards/DashboardForm';
 
 const SavedDashboardsWrapper = styled.div`

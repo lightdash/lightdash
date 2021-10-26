@@ -5,7 +5,6 @@ import {
     DbtProjectConfig,
     DbtProjectConfigBase,
     DbtLocalProjectConfig,
-    DbtRemoteProjectConfig,
     DbtCloudIDEProjectConfig,
     DbtGithubProjectConfig,
     DbtGitlabProjectConfig,
@@ -48,12 +47,6 @@ const dbtLocalProjectConfigKeys: ConfigKeys<DbtLocalProjectConfig> = {
     profiles_dir: false,
     project_dir: true,
     target: false,
-};
-const dbtRemoteProjectConfigKeys: ConfigKeys<DbtRemoteProjectConfig> = {
-    type: true,
-    name: true,
-    rpc_server_host: true,
-    rpc_server_port: true,
 };
 const dbtCloudIDEProjectConfigKeys: ConfigKeys<DbtCloudIDEProjectConfig> = {
     type: true,
@@ -109,12 +102,6 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                     idx,
                     project,
                     dbtLocalProjectConfigKeys,
-                );
-            case ProjectType.DBT_REMOTE_SERVER:
-                return mergeProjectWithEnvironment(
-                    idx,
-                    project,
-                    dbtRemoteProjectConfigKeys,
                 );
             case ProjectType.DBT_CLOUD_IDE:
                 return mergeProjectWithEnvironment(
