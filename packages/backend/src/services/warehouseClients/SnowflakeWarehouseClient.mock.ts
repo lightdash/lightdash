@@ -1,0 +1,101 @@
+import { CreateSnowflakeCredentials, WarehouseTypes } from 'common';
+import { model } from './WarehouseClient.mock';
+
+export const credentials: CreateSnowflakeCredentials = {
+    type: WarehouseTypes.SNOWFLAKE,
+    account: '',
+    user: '',
+    password: '',
+    role: '',
+    database: '',
+    warehouse: '',
+    schema: '',
+    threads: 1,
+    clientSessionKeepAlive: true,
+};
+
+export const columns: Record<string, any>[] = [
+    {
+        kind: 'COLUMN',
+        database_name: model.database,
+        schema_name: model.schema,
+        table_name: model.name,
+        column_name: 'myStringColumn',
+        data_type: {
+            type: 'TEXT',
+            length: 16777216,
+            byteLength: 16777216,
+            nullable: true,
+            fixed: false,
+        },
+    },
+    {
+        kind: 'COLUMN',
+        database_name: model.database,
+        schema_name: model.schema,
+        table_name: model.name,
+        column_name: 'myNumberColumn',
+        data_type: { type: 'FIXED', precision: 18, scale: 0, nullable: true },
+    },
+    {
+        kind: 'COLUMN',
+        database_name: model.database,
+        schema_name: model.schema,
+        table_name: model.name,
+        column_name: 'myDateColumn',
+        data_type: { type: 'DATE', nullable: true },
+    },
+    {
+        kind: 'COLUMN',
+        database_name: model.database,
+        schema_name: model.schema,
+        table_name: model.name,
+        column_name: 'myTimestampColumn',
+        data_type: {
+            type: 'TIMESTAMP_NTZ',
+            precision: 0,
+            scale: 9,
+            nullable: true,
+        },
+    },
+    {
+        kind: 'COLUMN',
+        database_name: model.database,
+        schema_name: model.schema,
+        table_name: model.name,
+        column_name: 'myBooleanColumn',
+        data_type: { type: 'BOOLEAN', nullable: true },
+    },
+    {
+        kind: 'COLUMN',
+        database_name: 'databaseNotInModel',
+        schema_name: 'schemaNotInModel',
+        table_name: 'tableNotInModel',
+        column_name: 'columnNotInModel',
+        data_type: { type: 'BOOLEAN', nullable: true },
+    },
+    {
+        kind: 'COLUMN',
+        database_name: model.database,
+        schema_name: 'schemaNotInModel',
+        table_name: 'tableNotInModel',
+        column_name: 'columnNotInModel',
+        data_type: { type: 'BOOLEAN', nullable: true },
+    },
+    {
+        kind: 'COLUMN',
+        database_name: model.database,
+        schema_name: model.schema,
+        table_name: 'tableNotInModel',
+        column_name: 'columnNotInModel',
+        data_type: { type: 'BOOLEAN', nullable: true },
+    },
+    {
+        kind: 'COLUMN',
+        database_name: model.database,
+        schema_name: model.schema,
+        table_name: model.name,
+        column_name: 'columnNotInModel',
+        data_type: { type: 'BOOLEAN', nullable: true },
+    },
+];
