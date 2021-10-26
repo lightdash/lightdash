@@ -28,7 +28,7 @@ const DashboardHeader = ({
     dashboardName,
 }: DashboardHeaderProps) => (
     <WrapperAddTileButton>
-        <H3>{dashboardName}</H3>
+        <H3 style={{ margin: 0 }}>{dashboardName}</H3>
         <div>
             <Button
                 style={{ height: '20px' }}
