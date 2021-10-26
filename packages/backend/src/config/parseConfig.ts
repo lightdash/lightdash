@@ -9,6 +9,7 @@ import {
     DbtGithubProjectConfig,
     DbtGitlabProjectConfig,
     ProjectType,
+    isLightdashMode,
 } from 'common';
 import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
 import { ParseError } from '../errors';
@@ -137,8 +138,19 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             {},
         );
     }
+    const lightdashMode = process.env.LIGHTDASH_MODE;
+    if (lightdashMode !== undefined && !isLightdashMode(lightdashMode)) {
+        throw new ParseError(
+            `Lightdash mode set by environment variable LIGHTDASH_MODE=${lightdashMode} is invalid. Must be one of ${Object.values(
+                LightdashMode,
+            )}`,
+            {},
+        );
+    }
+
     return {
         ...config,
+        mode: lightdashMode || config.mode,
         projects: mergedProjects,
         rudder: {
             writeKey:
