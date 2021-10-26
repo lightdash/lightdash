@@ -25,14 +25,12 @@ const Dashboard = () => {
         isLoading: isSaving,
     } = useUpdateDashboard(dashboardUuid);
     const [dashboardTiles, setTiles] = useState<DashboardChartTile[]>([]);
-    const [dashboardName, setDashboardName] = useState<string>();
     const tileProperties = Object.fromEntries(
         dashboardTiles.map((tile) => [tile.uuid, tile.properties]) || [],
     );
 
     useEffect(() => {
         setTiles(dashboard?.tiles || []);
-        setDashboardName(dashboard?.name);
     }, [dashboard]);
 
     useEffect(() => {
@@ -65,13 +63,11 @@ const Dashboard = () => {
     return (
         <>
             <DashboardHeader
-                dashboardName={dashboardName}
+                dashboardName={dashboard.name}
                 isSaving={isSaving}
                 hasTilesChanged={hasTilesChanged}
                 onAddTile={(tile: DashboardChartTile) => onAddTile(tile)}
                 onSaveDashboard={() => mutate({ tiles: dashboardTiles })}
-                onChangeDashboardName={(name) => setDashboardName(name)}
-                onConfirmName={() => mutate({ name: dashboardName || '' })}
             />
             <ResponsiveGridLayout
                 draggableCancel=".non-draggable"
