@@ -109,10 +109,23 @@ const generateTableLineage = (
     );
 };
 
+function getSchemaDetailsFromDbtModel(model: DbtModelNode): {
+    database: string;
+    schema: string;
+    table: string;
+} {
+    return {
+        database: model.config.database || model.database,
+        schema: model.config.schema || model.schema,
+        table: model.name,
+    };
+}
+
 const convertTable = (
     model: DbtModelNode,
     depGraph: DepGraph<LineageNodeDependency>,
 ): Table => {
+    const { database, schema, table } = getSchemaDetailsFromDbtModel(model);
     const lineage = generateTableLineage(model, depGraph);
 
     const [dimensions, metrics]: [
@@ -143,7 +156,7 @@ const convertTable = (
 
     return {
         name: model.name,
-        sqlTable: model.relation_name,
+        sqlTable: `\`${database}\`.\`${schema}\`.\`${table}\``,
         description: model.description || `${model.name} table`,
         dimensions,
         metrics,
@@ -155,6 +168,7 @@ const convertTableWithSources = (
     model: DbtModelNode,
     depGraph: DepGraph<LineageNodeDependency>,
 ): Table => {
+    const { database, schema, table } = getSchemaDetailsFromDbtModel(model);
     const patchPath = model.patch_path;
     if (patchPath === null) {
         return convertTable(model, depGraph);
@@ -288,7 +302,7 @@ const convertTableWithSources = (
 
     return {
         name: model.name,
-        sqlTable: model.relation_name,
+        sqlTable: `\`${database}\`.\`${schema}\`.\`${table}\``,
         description: model.description || `${model.name} table`,
         dimensions,
         metrics,
@@ -389,16 +403,15 @@ export const attachTypesToModels = (
 ): DbtModelNode[] => {
     // Check that all models appear in the warehouse
     models.forEach((model) => {
+        const { database, schema, table } = getSchemaDetailsFromDbtModel(model);
         if (
-            (!(model.database in warehouseSchema) ||
-                !(model.schema in warehouseSchema[model.database]) ||
-                !(
-                    model.name in warehouseSchema[model.database][model.schema]
-                )) &&
+            (!(database in warehouseSchema) ||
+                !(schema in warehouseSchema[database]) ||
+                !(model.name in warehouseSchema[database][schema])) &&
             throwOnMissingCatalogEntry
         ) {
             throw new MissingCatalogEntryError(
-                `Model "${model.unique_id}" was expected in your target warehouse at "${model.database}.${model.schema}.${model.name}". Does the table exist in your target data warehouse?`,
+                `Model "${model.unique_id}" was expected in your target warehouse at "${database}.${schema}.${table}". Does the table exist in your target data warehouse?`,
                 {},
             );
         }
@@ -408,21 +421,19 @@ export const attachTypesToModels = (
         model: DbtModelNode,
         columnName: string,
     ): string | undefined => {
+        const { database, schema, table } = getSchemaDetailsFromDbtModel(model);
         if (
-            model.database in warehouseSchema &&
-            model.schema in warehouseSchema[model.database] &&
-            model.name in warehouseSchema[model.database][model.schema] &&
-            columnName in
-                warehouseSchema[model.database][model.schema][model.name]
+            database in warehouseSchema &&
+            schema in warehouseSchema[database] &&
+            table in warehouseSchema[database][schema] &&
+            columnName in warehouseSchema[database][schema][table]
         ) {
-            return warehouseSchema[model.database][model.schema][model.name][
-                columnName
-            ];
+            return warehouseSchema[database][schema][table][columnName];
         }
 
         if (throwOnMissingCatalogEntry) {
             throw new MissingCatalogEntryError(
-                `Column "${columnName}" from model "${model.name}" does not exist.\n "${columnName}.${model.name}" was not found in your target warehouse at ${model.database}.${model.schema}.${model.name}. Try rerunning dbt to update your warehouse.`,
+                `Column "${columnName}" from model "${table}" does not exist.\n "${columnName}.${table}" was not found in your target warehouse at ${database}.${schema}.${table}. Try rerunning dbt to update your warehouse.`,
                 {},
             );
         }
@@ -445,12 +456,10 @@ export const getSchemaStructureFromDbtModels = (
     dbtModels: DbtModelNode[],
 ): SchemaStructure =>
     dbtModels.reduce<SchemaStructure>((sum, model) => {
+        const { database, schema, table } = getSchemaDetailsFromDbtModel(model);
         const acc = { ...sum };
-        acc[model.database] = acc[model.database] || {};
-        acc[model.database][model.schema] =
-            acc[model.database][model.schema] || {};
-        acc[model.database][model.schema][model.name] = Object.keys(
-            model.columns,
-        );
+        acc[database] = acc[database] || {};
+        acc[database][schema] = acc[database][schema] || {};
+        acc[database][schema][table] = Object.keys(model.columns);
         return acc;
     }, {});

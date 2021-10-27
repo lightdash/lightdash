@@ -486,6 +486,10 @@ export type DbtModelNode = DbtNode & {
     description?: string;
     root_path: string;
     patch_path: string | null;
+    config: {
+        schema?: string;
+        database?: string;
+    };
 };
 type DbtTableDependency = {
     nodes: string[];

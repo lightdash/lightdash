@@ -37,9 +37,9 @@ export enum BigqueryFieldType {
 }
 
 const parseDateCell = (
-    cell: BigQueryDate | BigQueryTimestamp | BigQueryDatetime | BigQueryTime,
-) => new Date(cell.value);
-const parseDefault = (cell: any) => `${cell}`;
+    cell?: BigQueryDate | BigQueryTimestamp | BigQueryDatetime | BigQueryTime,
+) => (cell ? new Date(cell.value) : cell);
+const parseDefault = (cell?: any) => (cell ? `${cell}` : cell);
 
 const getParser = (type: string) => {
     switch (type) {

@@ -1,4 +1,4 @@
-import { DbtModelNode, Explore, ExploreError } from 'common';
+import { DbtModelNode, DimensionType, Explore, ExploreError } from 'common';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import {
@@ -12,8 +12,8 @@ import {
     DbtClient,
     ProjectAdapter,
     QueryRunner,
-    SchemaStructure,
     WarehouseSchema,
+    WarehouseTableSchema,
 } from '../types';
 
 const ajv = new Ajv();
@@ -53,20 +53,22 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 catalog.nodes,
             ).reduce<WarehouseSchema>((sum, node) => {
                 const acc: WarehouseSchema = { ...sum };
-                acc[node.metadata.schema] = acc[node.metadata.schema] || {};
-                acc[node.metadata.schema][node.metadata.name] = Object.entries(
-                    node.columns,
-                ).reduce(
+                acc[node.metadata.database] = acc[node.metadata.database] || {};
+                acc[node.metadata.database][node.metadata.schema] =
+                    acc[node.metadata.database][node.metadata.schema] || {};
+                acc[node.metadata.database][node.metadata.schema][
+                    node.metadata.name
+                ] = Object.entries(node.columns).reduce<WarehouseTableSchema>(
                     (columns, [column_name, column]) => ({
                         ...columns,
-                        [column_name.toLowerCase()]: column.type,
+                        [column_name.toLowerCase()]:
+                            column.type as DimensionType,
                     }),
                     {},
                 );
                 return acc;
             }, {});
         }
-
         return this.warehouseSchema;
     }
 
