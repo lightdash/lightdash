@@ -3,7 +3,6 @@ import { ProjectType, ProjectTypeLabels } from 'common';
 
 import DbtLocalForm from './DbtForms/DbtLocalForm';
 import GithubForm from './DbtForms/GithubForm';
-import DbtRemoteForm from './DbtForms/DbtRemoteForm';
 import DbtCloudForm from './DbtForms/DbtCloudForm';
 import GitlabForm from './DbtForms/GitlabForm';
 import SelectField from '../ReactHookForm/Select';
@@ -22,7 +21,6 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({ disabled, type }) => {
             ProjectType.DBT_CLOUD_IDE,
             ProjectType.GITHUB,
             ProjectType.GITLAB,
-            ProjectType.DBT_REMOTE_SERVER,
         ];
         if (health.data?.localDbtEnabled) {
             enabledTypes.push(ProjectType.DBT);
@@ -42,8 +40,6 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({ disabled, type }) => {
                 return <DbtCloudForm disabled={disabled} />;
             case ProjectType.GITHUB:
                 return <GithubForm disabled={disabled} />;
-            case ProjectType.DBT_REMOTE_SERVER:
-                return <DbtRemoteForm disabled={disabled} />;
             case ProjectType.GITLAB:
                 return <GitlabForm disabled={disabled} />;
             default: {

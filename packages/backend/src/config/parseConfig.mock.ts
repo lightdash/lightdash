@@ -36,18 +36,6 @@ export const LOCAL_PROJECT_MISSING_PROFILES_DIR = {
     project_dir: 'hello',
 };
 
-export const REMOTE_PROJECT = {
-    type: 'dbt_remote_server',
-    name: 'project',
-    rpc_server_host: 'localhost',
-    rpc_server_port: 4444,
-};
-
-export const REMOTE_PROJECT_INVALID_HOST = {
-    ...REMOTE_PROJECT,
-    rpc_server_host: 'localhost!!',
-};
-
 export const DBT_CLOUD_IDE_PROJECT = {
     type: 'dbt_cloud_ide',
     name: 'project',

@@ -118,31 +118,6 @@
                         "required": ["type", "name"],
                         "properties": {
                             "type": {
-                                "const": "dbt_remote_server"
-                            },
-                            "name": {
-                                "description": "Name to identify the project",
-                                "type": "string"
-                            },
-                            "rpc_server_host": {
-                                "description": "Hostname of the remote dbt server",
-                                "type": "string",
-                                "format": "hostname",
-                                "default": "localhost"
-                            },
-                            "rpc_server_port": {
-                                "description": "Port of the remote dbt server",
-                                "type": "integer",
-                                "minimum": 1,
-                                "default": 8580
-                            }
-                        }
-                    },
-                    {
-                        "type": "object",
-                        "required": ["type", "name"],
-                        "properties": {
-                            "type": {
                                 "const": "dbt_cloud_ide"
                             },
                             "name": {

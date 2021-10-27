@@ -727,6 +727,8 @@ export enum LightdashMode {
     PR = 'pr',
     CLOUD_BETA = 'cloud_beta',
 }
+export const isLightdashMode = (x: string): x is LightdashMode =>
+    Object.values<string>(LightdashMode).includes(x);
 
 export enum LightdashInstallType {
     DOCKER_IMAGE = 'docker_image',
@@ -1025,7 +1027,6 @@ export type WarehouseCredentials =
 
 export enum ProjectType {
     DBT = 'dbt',
-    DBT_REMOTE_SERVER = 'dbt_remote_server',
     DBT_CLOUD_IDE = 'dbt_cloud_ide',
     GITHUB = 'github',
     GITLAB = 'gitlab',
@@ -1036,7 +1037,6 @@ export const ProjectTypeLabels: Record<ProjectType, string> = {
     [ProjectType.DBT_CLOUD_IDE]: 'dbt cloud',
     [ProjectType.GITHUB]: 'Github',
     [ProjectType.GITLAB]: 'GitLab',
-    [ProjectType.DBT_REMOTE_SERVER]: 'dbt remote server',
 };
 
 export interface DbtProjectConfigBase {
@@ -1049,12 +1049,6 @@ export interface DbtLocalProjectConfig extends DbtProjectConfigBase {
     profiles_dir?: string;
     project_dir: string;
     target?: string;
-}
-
-export interface DbtRemoteProjectConfig extends DbtProjectConfigBase {
-    type: ProjectType.DBT_REMOTE_SERVER;
-    rpc_server_host: string;
-    rpc_server_port: number;
 }
 
 export interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
@@ -1083,7 +1077,6 @@ export interface DbtGitlabProjectConfig extends DbtProjectConfigBase {
 
 export type DbtProjectConfig =
     | DbtLocalProjectConfig
-    | DbtRemoteProjectConfig
     | DbtCloudIDEProjectConfig
     | DbtGithubProjectConfig
     | DbtGitlabProjectConfig;

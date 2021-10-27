@@ -26,16 +26,6 @@ projects:
 version: '1.0'
 
 projects:
-  - type: 'dbt_remote_server'
-    name: myotherproject
-    rpc_server_host: localhost
-    rpc_server_port: 8580
-```
-
-```yaml
-version: '1.0'
-
-projects:
   - type: 'dbt_cloud_ide'
     name: mycloudproject
     account_id: '11111'

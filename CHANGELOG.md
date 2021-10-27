@@ -3,8 +3,21 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+
+## [0.9.0] - 2021-10-26
+### Added
+- Added dashboards - users can now create, edit and delete dashboards
+
 ### Changed
-- Navigation bar was rearranged. Saved charts and dashboards can be accessed under the "Browse" menu item.
+- Navigation bar was rearranged. Saved charts and dashboards can be accessed under the "Browse" menu item
+- When warehouse credentials are provided, we will run sql queries by connecting directly with warehouse instead via rpc server
+
+### Fixed
+- Fixed a bug where references in table calculations were not wrapped in quotes
+- Fixed a bug where pressing "enter" in the login form would not submit form
+
+### Removed
+- Lightdash projects that connect to a remote dbt rpc server are no longer supported
 
 ## [0.8.3] - 2021-10-11
 ### Added

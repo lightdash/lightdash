@@ -1,32 +1,45 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import '../styles/react-grid.css';
 import { useParams } from 'react-router-dom';
 import { DashboardChartTile, DashboardTileTypes } from 'common';
-import styled from 'styled-components';
 import { Spinner } from '@blueprintjs/core';
 import {
     useDashboardQuery,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
-import AddTileButton from '../components/DashboardTiles/AddTile/AddTileButton';
+import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
+import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
-
-const WrapperAddTileButton = styled.div`
-    display: flex;
-    width: 100%;
-    justify-content: center;
-`;
 
 const Dashboard = () => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
-    const { mutate } = useUpdateDashboard(dashboardUuid);
+    const [hasTilesChanged, setHasTilesChanged] = useState(false);
+    const {
+        mutate,
+        isSuccess,
+        reset,
+        isLoading: isSaving,
+    } = useUpdateDashboard(dashboardUuid);
+    const [dashboardTiles, setTiles] = useState<DashboardChartTile[]>([]);
     const tileProperties = Object.fromEntries(
-        dashboard?.tiles?.map((tile) => [tile.uuid, tile.properties]) || [],
+        dashboardTiles.map((tile) => [tile.uuid, tile.properties]) || [],
     );
+
+    useEffect(() => {
+        setTiles(dashboard?.tiles || []);
+    }, [dashboard]);
+
+    useEffect(() => {
+        if (isSuccess) {
+            setHasTilesChanged(false);
+            reset();
+        }
+    }, [isSuccess, reset]);
+
     const updateTiles = (layout: Layout[]) => {
         const tiles: DashboardChartTile[] = layout.map((tile) => ({
             uuid: tile.i,
@@ -37,17 +50,25 @@ const Dashboard = () => {
             type: DashboardTileTypes.SAVED_CHART,
             properties: tileProperties[tile.i],
         }));
-        mutate({ tiles });
+        setTiles(tiles);
+        setHasTilesChanged(true);
     };
     if (dashboard === undefined) {
         return <Spinner />;
     }
-
+    const onAddTile = (tile: DashboardChartTile) => {
+        setHasTilesChanged(true);
+        setTiles([...dashboardTiles, tile]);
+    };
     return (
         <>
-            <WrapperAddTileButton>
-                <AddTileButton dashboard={dashboard} />
-            </WrapperAddTileButton>
+            <DashboardHeader
+                dashboardName={dashboard.name}
+                isSaving={isSaving}
+                hasTilesChanged={hasTilesChanged}
+                onAddTile={(tile: DashboardChartTile) => onAddTile(tile)}
+                onSaveDashboard={() => mutate({ tiles: dashboardTiles })}
+            />
             <ResponsiveGridLayout
                 draggableCancel=".non-draggable"
                 onDragStop={(layout) => updateTiles(layout)}
@@ -55,28 +76,34 @@ const Dashboard = () => {
                 breakpoints={{ lg: 1200, md: 996, sm: 768 }}
                 cols={{ lg: 12, md: 10, sm: 6 }}
                 layouts={{
-                    lg: dashboard.tiles.map((tile) => ({
+                    lg: dashboardTiles.map((tile) => ({
                         ...tile,
                         i: tile.uuid,
                     })),
                 }}
             >
-                {dashboard.tiles.map((tile: DashboardChartTile) => (
+                {dashboardTiles.map((tile: DashboardChartTile) => (
                     <div key={tile.uuid}>
                         <ChartTile
                             tile={tile}
-                            onDelete={() =>
-                                mutate({
-                                    tiles: dashboard.tiles.filter(
+                            onDelete={() => {
+                                setTiles(
+                                    dashboardTiles.filter(
                                         (filteredTile) =>
                                             filteredTile.uuid !== tile.uuid,
                                     ),
-                                })
-                            }
+                                );
+                                setHasTilesChanged(true);
+                            }}
                         />
                     </div>
                 ))}
             </ResponsiveGridLayout>
+            {dashboardTiles.length <= 0 && (
+                <EmptyStateNoTiles
+                    onAddTile={(tile: DashboardChartTile) => onAddTile(tile)}
+                />
+            )}
         </>
     );
 };
