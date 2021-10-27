@@ -26,13 +26,19 @@ export type WarehouseTableSchema = {
 };
 
 export type WarehouseSchema = {
-    [dataset: string]: {
-        [table: string]: WarehouseTableSchema;
+    [database: string]: {
+        [schema: string]: {
+            [table: string]: WarehouseTableSchema;
+        };
     };
 };
 
 export type SchemaStructure = {
-    [database: string]: { [schema: string]: { [table: string]: string[] } };
+    [database: string]: {
+        [schema: string]: {
+            [table: string]: string[];
+        };
+    };
 };
 
 export interface QueryRunner {

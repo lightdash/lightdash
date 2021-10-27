@@ -47,7 +47,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 getSchemaStructureFromDbtModels(dbtModels),
             );
         } else {
-            // Some types were missing so refresh the catalog and try again
             const catalog = await this.dbtClient.getDbtCatalog();
             // get column types and use lower case column names
             this.warehouseSchema = Object.values(
@@ -103,6 +102,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             return [...lazyExplores, ...failedExplores];
         } catch (e) {
             if (e instanceof MissingCatalogEntryError) {
+                // Some types were missing so refresh the schema and try again
                 const typedModels = attachTypesToModels(
                     validModels,
                     await this.getWarehouseSchema(validModels),

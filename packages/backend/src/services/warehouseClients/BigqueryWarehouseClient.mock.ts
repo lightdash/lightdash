@@ -65,22 +65,12 @@ const metadata = {
     },
 };
 
-const getTablesResponse = [
-    [
-        {
-            id: 'myTable',
-            getMetadata: () => [metadata],
-        },
-        {
-            id: 'tableNotInModel',
-            getMetadata: () => [],
-        },
-    ],
-];
-export const getDatasetsResponse = [
-    [{ id: 'mySchema', getTables: () => getTablesResponse }],
-    [{ id: 'datasetNotInModel', getTables: () => [] }],
-];
+export const getTableResponse = {
+    getMetadata: jest.fn(() => [metadata]),
+};
+export const getDatasetResponse = {
+    table: jest.fn(() => getTableResponse),
+};
 
 const rows: Record<string, any>[] = [
     {
@@ -96,18 +86,20 @@ const rows: Record<string, any>[] = [
 
 export const createJobResponse = [
     {
-        getQueryResults: () => [rows, undefined, metadata],
+        getQueryResults: jest.fn(() => [rows, undefined, metadata]),
     },
 ];
 
 export const expectedWarehouseSchema: WarehouseSchema = {
-    mySchema: {
-        myTable: {
-            myStringColumn: DimensionType.STRING,
-            myNumberColumn: DimensionType.NUMBER,
-            myDateColumn: DimensionType.DATE,
-            myTimestampColumn: DimensionType.TIMESTAMP,
-            myBooleanColumn: DimensionType.BOOLEAN,
+    myDatabase: {
+        mySchema: {
+            myTable: {
+                myStringColumn: DimensionType.STRING,
+                myNumberColumn: DimensionType.NUMBER,
+                myDateColumn: DimensionType.DATE,
+                myTimestampColumn: DimensionType.TIMESTAMP,
+                myBooleanColumn: DimensionType.BOOLEAN,
+            },
         },
     },
 };

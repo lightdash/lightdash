@@ -5,6 +5,7 @@ import {
     BigQueryDatetime,
     BigQueryTime,
     BigQueryTimestamp,
+    Dataset,
 } from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
@@ -14,7 +15,6 @@ import {
     WarehouseSchema,
     WarehouseTableSchema,
 } from '../../types';
-import { asyncForEach } from '../../utils';
 
 export enum BigqueryFieldType {
     STRING = 'STRING',
@@ -39,7 +39,7 @@ export enum BigqueryFieldType {
 const parseDateCell = (
     cell: BigQueryDate | BigQueryTimestamp | BigQueryDatetime | BigQueryTime,
 ) => new Date(cell.value);
-const parseDefault = (cell: any) => cell;
+const parseDefault = (cell: any) => `${cell}`;
 
 const getParser = (type: string) => {
     switch (type) {
@@ -159,39 +159,72 @@ export default class BigqueryWarehouseClient implements QueryRunner {
         await this.runQuery('SELECT 1');
     }
 
+    static async getTableMetadata(
+        dataset: Dataset,
+        database: string,
+        schema: string,
+        table: string,
+    ): Promise<[string, string, string, TableSchema]> {
+        const [metadata] = await dataset.table(table).getMetadata();
+        return [
+            database,
+            schema,
+            table,
+            isTableSchema(metadata?.schema) ? metadata.schema : { fields: [] },
+        ];
+    }
+
     async getSchema(config: SchemaStructure) {
-        const [datasets] = await this.client.getDatasets();
+        const tablesMetadataPromises = Object.entries(config).reduce<
+            Promise<[string, string, string, TableSchema]>[]
+        >((sum, [database, databaseStructure]) => {
+            const databaseClient = new BigQuery({
+                projectId: database,
+                location: this.credentials.location,
+                maxRetries: this.credentials.retries,
+                credentials: this.credentials.keyfileContents,
+            });
 
-        const warehouseSchema: WarehouseSchema = {};
+            Object.entries(databaseStructure).forEach(
+                ([schema, schemaStructure]) => {
+                    const dataset = databaseClient.dataset(schema);
+                    Object.keys(schemaStructure).forEach((table) => {
+                        sum.push(
+                            BigqueryWarehouseClient.getTableMetadata(
+                                dataset,
+                                database,
+                                schema,
+                                table,
+                            ),
+                        );
+                    });
+                },
+            );
 
-        await asyncForEach(datasets, async (dataset) => {
-            if (dataset.id && !!config[0][dataset.id]) {
-                warehouseSchema[dataset.id] = {};
+            return sum;
+        }, []);
 
-                const [tables] = await dataset.getTables();
-                await asyncForEach(tables, async (table) => {
-                    if (table.id && !!config[0][dataset.id!][table.id]) {
-                        const wantedColumns = config[0][dataset.id!][table.id];
-                        const [metadata] = await table.getMetadata();
-                        const { schema } = metadata;
-                        if (isTableSchema(schema)) {
-                            warehouseSchema[dataset.id!][table.id] =
-                                schema.fields.reduce<WarehouseTableSchema>(
-                                    (sum, { name, type }) =>
-                                        wantedColumns.includes(name)
-                                            ? {
-                                                  ...sum,
-                                                  [name]: mapFieldType(type),
-                                              }
-                                            : { ...sum },
-                                    {},
-                                );
-                        }
-                    }
-                });
-            }
-        });
+        const tablesMetadata = await Promise.all(tablesMetadataPromises);
 
-        return warehouseSchema;
+        return tablesMetadata.reduce<WarehouseSchema>(
+            (acc, [database, schema, table, tableSchema]) => {
+                const wantedColumns = config[database][schema][table];
+                acc[database] = acc[database] || {};
+                acc[database][schema] = acc[database][schema] || {};
+                acc[database][schema][table] =
+                    tableSchema.fields.reduce<WarehouseTableSchema>(
+                        (sum, { name, type }) =>
+                            wantedColumns.includes(name)
+                                ? {
+                                      ...sum,
+                                      [name]: mapFieldType(type),
+                                  }
+                                : { ...sum },
+                        {},
+                    );
+                return acc;
+            },
+            {},
+        );
     }
 }
