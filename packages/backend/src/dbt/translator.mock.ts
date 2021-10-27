@@ -23,19 +23,25 @@ export const model: DbtModelNode = {
 };
 
 export const warehouseSchema: WarehouseSchema = {
-    [model.schema]: {
-        [model.name]: {
-            [column.name]: DimensionType.STRING,
+    [model.database]: {
+        [model.schema]: {
+            [model.name]: {
+                [column.name]: DimensionType.STRING,
+            },
         },
     },
 };
 
 export const warehouseSchemaWithMissingTable: WarehouseSchema = {
-    [model.schema]: {},
+    [model.database]: {
+        [model.schema]: {},
+    },
 };
 export const warehouseSchemaWithMissingColumn: WarehouseSchema = {
-    [model.schema]: {
-        [model.name]: {},
+    [model.database]: {
+        [model.schema]: {
+            [model.name]: {},
+        },
     },
 };
 

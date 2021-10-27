@@ -1,5 +1,4 @@
 import {
-    DbtRpcDocsGenerateResults,
     DbtModelColumn,
     DbtModelNode,
     Dimension,
@@ -391,8 +390,11 @@ export const attachTypesToModels = (
     // Check that all models appear in the warehouse
     models.forEach((model) => {
         if (
-            (!(model.schema in warehouseSchema) ||
-                !(model.name in warehouseSchema[model.schema])) &&
+            (!(model.database in warehouseSchema) ||
+                !(model.schema in warehouseSchema[model.database]) ||
+                !(
+                    model.name in warehouseSchema[model.database][model.schema]
+                )) &&
             throwOnMissingCatalogEntry
         ) {
             throw new MissingCatalogEntryError(
@@ -407,11 +409,15 @@ export const attachTypesToModels = (
         columnName: string,
     ): string | undefined => {
         if (
-            model.schema in warehouseSchema &&
-            model.name in warehouseSchema[model.schema] &&
-            columnName in warehouseSchema[model.schema][model.name]
+            model.database in warehouseSchema &&
+            model.schema in warehouseSchema[model.database] &&
+            model.name in warehouseSchema[model.database][model.schema] &&
+            columnName in
+                warehouseSchema[model.database][model.schema][model.name]
         ) {
-            return warehouseSchema[model.schema][model.name][columnName];
+            return warehouseSchema[model.database][model.schema][model.name][
+                columnName
+            ];
         }
 
         if (throwOnMissingCatalogEntry) {
