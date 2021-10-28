@@ -34,6 +34,7 @@ export enum BigqueryFieldType {
     BIGNUMERIC = 'BIGNUMERIC',
     RECORD = 'RECORD',
     STRUCT = 'STRUCT',
+    ARRAY = 'ARRAY',
 }
 
 const parseCell = (cell: any) => {

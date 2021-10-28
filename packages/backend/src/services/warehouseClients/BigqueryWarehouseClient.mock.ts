@@ -29,6 +29,8 @@ export const config: SchemaStructure = {
                 'myDateColumn',
                 'myTimestampColumn',
                 'myBooleanColumn',
+                'myArrayColumn',
+                'myObjectColumn',
             ],
         },
     },
@@ -58,6 +60,14 @@ const metadata = {
                 type: BigqueryFieldType.BOOLEAN,
             },
             {
+                name: 'myArrayColumn',
+                type: BigqueryFieldType.ARRAY,
+            },
+            {
+                name: 'myObjectColumn',
+                type: BigqueryFieldType.STRUCT,
+            },
+            {
                 name: 'columnNotInModel',
                 type: BigqueryFieldType.BOOLEAN,
             },
@@ -81,6 +91,8 @@ const rows: Record<string, any>[] = [
             '1990-03-02 08:30:00.010000000000',
         ),
         myBooleanColumn: false,
+        myArrayColumn: ['1', '2', '3'],
+        myObjectColumn: { test: '1' },
     },
 ];
 
@@ -99,6 +111,8 @@ export const expectedWarehouseSchema: WarehouseSchema = {
                 myDateColumn: DimensionType.DATE,
                 myTimestampColumn: DimensionType.TIMESTAMP,
                 myBooleanColumn: DimensionType.BOOLEAN,
+                myArrayColumn: DimensionType.STRING,
+                myObjectColumn: DimensionType.STRING,
             },
         },
     },
@@ -110,4 +124,6 @@ export const expectedRow: Record<string, any> = {
     myDateColumn: new Date('2021-03-10T00:00:00.000Z'),
     myTimestampColumn: new Date('1990-03-02T08:30:00.010Z'),
     myBooleanColumn: false,
+    myArrayColumn: '1,2,3',
+    myObjectColumn: '[object Object]',
 };
