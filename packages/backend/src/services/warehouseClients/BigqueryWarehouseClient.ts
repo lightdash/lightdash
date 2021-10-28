@@ -9,25 +9,26 @@ import {
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
 import { QueryRunner } from '../../types';
 
-const parseDateCell = (cell: BigQueryDate) => new Date(cell.value);
-const parseTimestampCell = (cell: BigQueryTimestamp) => new Date(cell.value);
-const parseDateTimeCell = (cell: BigQueryDatetime) => new Date(cell.value);
-const parseTimeCell = (cell: BigQueryTime) => new Date(cell.value);
-const parseDefault = (cell: any) => cell;
-
-const getParser = (type: string | undefined) => {
-    switch (type) {
-        case 'DATE':
-            return parseDateCell;
-        case 'DATETIME':
-            return parseDateTimeCell;
-        case 'TIMESTAMP':
-            return parseTimestampCell;
-        case 'TIME':
-            return parseTimeCell;
-        default:
-            return parseDefault;
+const parseCell = (cell: any) => {
+    if (
+        cell === undefined ||
+        cell === null ||
+        typeof cell === 'boolean' ||
+        typeof cell === 'number'
+    ) {
+        return cell;
     }
+
+    if (
+        cell instanceof BigQueryDate ||
+        cell instanceof BigQueryTimestamp ||
+        cell instanceof BigQueryDatetime ||
+        cell instanceof BigQueryTime
+    ) {
+        return new Date(cell.value);
+    }
+
+    return `${cell}`;
 };
 
 type SchemaFields = {
@@ -41,26 +42,15 @@ const isSchemaFields = (
 ): rawSchemaFields is SchemaFields[] =>
     rawSchemaFields.every((field) => field.type && field.name);
 
-const parseRows = (
-    rows: Record<string, any>[],
-    schemaFields: RawSchemaFields[],
-) => {
-    // TODO: assumes columns cannot have the same name
-    if (!isSchemaFields(schemaFields)) {
-        throw new Error('Could not parse response from bigquery');
-    }
-    const parsers: Record<string, (cell: any) => any> = Object.fromEntries(
-        schemaFields.map((field) => [field.name, getParser(field.type)]),
-    );
-    return rows.map((row) =>
+const parseRows = (rows: Record<string, any>[]) =>
+    rows.map((row) =>
         Object.fromEntries(
             Object.entries(row).map(([name, value]) => [
                 name,
-                parsers[name](value),
+                parseCell(value),
             ]),
         ),
     );
-};
 
 export default class BigqueryWarehouseClient implements QueryRunner {
     client: BigQuery;
@@ -92,14 +82,7 @@ export default class BigqueryWarehouseClient implements QueryRunner {
             });
             // auto paginate - hides full response
             const [rows] = await job.getQueryResults({ autoPaginate: true });
-
-            // manual paginate - gives access to full api
-            const [firstPage, nextQuery, apiResponse] =
-                await job.getQueryResults({ autoPaginate: false });
-            if (apiResponse?.schema?.fields === undefined) {
-                throw new Error('Not a valid response from bigquery');
-            }
-            return parseRows(rows, apiResponse.schema.fields);
+            return parseRows(rows);
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         }
