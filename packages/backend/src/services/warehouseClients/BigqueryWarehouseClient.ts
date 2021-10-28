@@ -10,7 +10,12 @@ import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
 import { QueryRunner } from '../../types';
 
 const parseCell = (cell: any) => {
-    if (!cell) {
+    if (
+        cell === undefined ||
+        cell === null ||
+        typeof cell === 'boolean' ||
+        typeof cell === 'number'
+    ) {
         return cell;
     }
 
@@ -37,7 +42,8 @@ const isSchemaFields = (
 ): rawSchemaFields is SchemaFields[] =>
     rawSchemaFields.every((field) => field.type && field.name);
 
-const parseRows = (rows: Record<string, any>[]) => rows.map((row) =>
+const parseRows = (rows: Record<string, any>[]) =>
+    rows.map((row) =>
         Object.fromEntries(
             Object.entries(row).map(([name, value]) => [
                 name,
