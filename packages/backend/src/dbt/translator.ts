@@ -109,23 +109,10 @@ const generateTableLineage = (
     );
 };
 
-function getSchemaDetailsFromDbtModel(model: DbtModelNode): {
-    database: string;
-    schema: string;
-    table: string;
-} {
-    return {
-        database: model.config.database || model.database,
-        schema: model.config.schema || model.schema,
-        table: model.name,
-    };
-}
-
 const convertTable = (
     model: DbtModelNode,
     depGraph: DepGraph<LineageNodeDependency>,
 ): Table => {
-    const { database, schema, table } = getSchemaDetailsFromDbtModel(model);
     const lineage = generateTableLineage(model, depGraph);
 
     const [dimensions, metrics]: [
@@ -156,7 +143,7 @@ const convertTable = (
 
     return {
         name: model.name,
-        sqlTable: `\`${database}\`.\`${schema}\`.\`${table}\``,
+        sqlTable: model.relation_name,
         description: model.description || `${model.name} table`,
         dimensions,
         metrics,
@@ -168,7 +155,6 @@ const convertTableWithSources = (
     model: DbtModelNode,
     depGraph: DepGraph<LineageNodeDependency>,
 ): Table => {
-    const { database, schema, table } = getSchemaDetailsFromDbtModel(model);
     const patchPath = model.patch_path;
     if (patchPath === null) {
         return convertTable(model, depGraph);
@@ -302,7 +288,7 @@ const convertTableWithSources = (
 
     return {
         name: model.name,
-        sqlTable: `\`${database}\`.\`${schema}\`.\`${table}\``,
+        sqlTable: model.relation_name,
         description: model.description || `${model.name} table`,
         dimensions,
         metrics,
@@ -402,38 +388,36 @@ export const attachTypesToModels = (
     throwOnMissingCatalogEntry: boolean = true,
 ): DbtModelNode[] => {
     // Check that all models appear in the warehouse
-    models.forEach((model) => {
-        const { database, schema, table } = getSchemaDetailsFromDbtModel(model);
+    models.forEach(({ database, schema, name }) => {
         if (
             (!(database in warehouseSchema) ||
                 !(schema in warehouseSchema[database]) ||
-                !(model.name in warehouseSchema[database][schema])) &&
+                !(name in warehouseSchema[database][schema])) &&
             throwOnMissingCatalogEntry
         ) {
             throw new MissingCatalogEntryError(
-                `Model "${model.unique_id}" was expected in your target warehouse at "${database}.${schema}.${table}". Does the table exist in your target data warehouse?`,
+                `Model "${name}" was expected in your target warehouse at "${database}.${schema}.${name}". Does the table exist in your target data warehouse?`,
                 {},
             );
         }
     });
 
     const getType = (
-        model: DbtModelNode,
+        { database, schema, name }: DbtModelNode,
         columnName: string,
     ): string | undefined => {
-        const { database, schema, table } = getSchemaDetailsFromDbtModel(model);
         if (
             database in warehouseSchema &&
             schema in warehouseSchema[database] &&
-            table in warehouseSchema[database][schema] &&
-            columnName in warehouseSchema[database][schema][table]
+            name in warehouseSchema[database][schema] &&
+            columnName in warehouseSchema[database][schema][name]
         ) {
-            return warehouseSchema[database][schema][table][columnName];
+            return warehouseSchema[database][schema][name][columnName];
         }
 
         if (throwOnMissingCatalogEntry) {
             throw new MissingCatalogEntryError(
-                `Column "${columnName}" from model "${table}" does not exist.\n "${columnName}.${table}" was not found in your target warehouse at ${database}.${schema}.${table}. Try rerunning dbt to update your warehouse.`,
+                `Column "${columnName}" from model "${name}" does not exist.\n "${columnName}.${name}" was not found in your target warehouse at ${database}.${schema}.${name}. Try rerunning dbt to update your warehouse.`,
                 {},
             );
         }
@@ -455,11 +439,13 @@ export const attachTypesToModels = (
 export const getSchemaStructureFromDbtModels = (
     dbtModels: DbtModelNode[],
 ): SchemaStructure =>
-    dbtModels.reduce<SchemaStructure>((sum, model) => {
-        const { database, schema, table } = getSchemaDetailsFromDbtModel(model);
-        const acc = { ...sum };
-        acc[database] = acc[database] || {};
-        acc[database][schema] = acc[database][schema] || {};
-        acc[database][schema][table] = Object.keys(model.columns);
-        return acc;
-    }, {});
+    dbtModels.reduce<SchemaStructure>(
+        (sum, { database, schema, name, columns }) => {
+            const acc = { ...sum };
+            acc[database] = acc[database] || {};
+            acc[database][schema] = acc[database][schema] || {};
+            acc[database][schema][name] = Object.keys(columns);
+            return acc;
+        },
+        {},
+    );
