@@ -36,21 +36,26 @@ export enum BigqueryFieldType {
     STRUCT = 'STRUCT',
 }
 
-const parseDateCell = (
-    cell?: BigQueryDate | BigQueryTimestamp | BigQueryDatetime | BigQueryTime,
-) => (cell ? new Date(cell.value) : cell);
-const parseDefault = (cell?: any) => (cell ? `${cell}` : cell);
-
-const getParser = (type: string) => {
-    switch (type) {
-        case BigqueryFieldType.DATE:
-        case BigqueryFieldType.DATETIME:
-        case BigqueryFieldType.TIMESTAMP:
-        case BigqueryFieldType.TIME:
-            return parseDateCell;
-        default:
-            return parseDefault;
+const parseCell = (cell: any) => {
+    if (
+        cell === undefined ||
+        cell === null ||
+        typeof cell === 'boolean' ||
+        typeof cell === 'number'
+    ) {
+        return cell;
     }
+
+    if (
+        cell instanceof BigQueryDate ||
+        cell instanceof BigQueryTimestamp ||
+        cell instanceof BigQueryDatetime ||
+        cell instanceof BigQueryTime
+    ) {
+        return new Date(cell.value);
+    }
+
+    return `${cell}`;
 };
 
 const mapFieldType = (type: string): DimensionType => {
@@ -91,26 +96,15 @@ const isSchemaFields = (
 const isTableSchema = (schema: bigquery.ITableSchema): schema is TableSchema =>
     !!schema && !!schema.fields && isSchemaFields(schema.fields);
 
-const parseRows = (
-    rows: Record<string, any>[],
-    schemaFields: bigquery.ITableFieldSchema[],
-) => {
-    // TODO: assumes columns cannot have the same name
-    if (!isSchemaFields(schemaFields)) {
-        throw new Error('Could not parse response from bigquery');
-    }
-    const parsers: Record<string, (cell: any) => any> = Object.fromEntries(
-        schemaFields.map((field) => [field.name, getParser(field.type)]),
-    );
-    return rows.map((row) =>
+const parseRows = (rows: Record<string, any>[]) =>
+    rows.map((row) =>
         Object.fromEntries(
             Object.entries(row).map(([name, value]) => [
                 name,
-                parsers[name](value),
+                parseCell(value),
             ]),
         ),
     );
-};
 
 export default class BigqueryWarehouseClient implements QueryRunner {
     client: BigQuery;
@@ -142,14 +136,7 @@ export default class BigqueryWarehouseClient implements QueryRunner {
             });
             // auto paginate - hides full response
             const [rows] = await job.getQueryResults({ autoPaginate: true });
-
-            // manual paginate - gives access to full api
-            const [firstPage, nextQuery, apiResponse] =
-                await job.getQueryResults({ autoPaginate: false });
-            if (apiResponse?.schema?.fields === undefined) {
-                throw new Error('Not a valid response from bigquery');
-            }
-            return parseRows(rows, apiResponse.schema.fields);
+            return parseRows(rows);
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         }
