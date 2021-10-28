@@ -179,11 +179,13 @@ export default class BigqueryWarehouseClient implements QueryRunner {
             return BigqueryWarehouseClient.getTableMetadata(
                 dataset,
                 table,
-            ).catch(
-                (e) =>
+            ).catch((e) => {
+                if (e?.code === 404) {
                     // Ignore error and let UI show invalid table
-                    undefined,
-            );
+                    return undefined;
+                }
+                throw e;
+            });
         });
 
         const tablesMetadata = await Promise.all(tablesMetadataPromises);
