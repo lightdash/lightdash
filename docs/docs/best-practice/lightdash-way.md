@@ -1,49 +1,76 @@
-# Lightdash approach to BI
+# The Lightdash Way: our approach to BI and why we think it's pretty great.
 
 The vision for Lightdash is:
 
 > To enable everybody in your company to answer their own questions using data.
 
-Lightdash is where data analysts (the builders) and the rest of the business (the consumers)
+Lightdash is where the data team (👷‍♀️ the builders) and the rest of the business (👩‍🌾 the consumers)
 come together to make better data-driven decisions.
 
-There are three approaches to enabling data consumers to answer their own questions:
+We have some pretty strong opinions about how this relationship between data builders and
+data consumers should work. So, we thought it would be useful to explain this to you because
+it's an important part of how we've decided to build Lightdash.
 
-1. Data consumers use SQL to analyse the raw data themselves.
-2. Data analysts use SQL to analyse raw data on behalf of data consumers.
+The style of relationship that we're really into is sometimes called **"the semantic layer approach to BI"**.
+But, we think you'll agree that the words "semantic layer" don't make Lightdash sound like it's oodles of fun...
 
-**The Lightdash way**
-3. Data analysts use SQL to create metrics. Data consumers use metrics to analyse data themselves.
+So, we've given it a lil rebrand and called it: **"⚡ The Lightdash Way"**
 
-## 1. Data consumers use SQL
+The Lightdash Way isn't just semantics (😏) - it's about the *entire experience* of enabling
+everybody in your company to answer their own data questions. But, we're just going to explain our thinking
+around one part of The Lightdash Way here: **how the data builders share data insights with the data consumers.**
 
-If everybody knows in your organization knows SQL and are willing to spend time analysing data, then everybody can 
-answer their own questions by running queries over the raw data.
 
-The major disadvantage here is that if a single person doesn't know SQL then they're not able to serve themselves.
+## We've come across three ways that data builders can share data insights in a company:
 
-* **Pros**: flexibility, anyone can query any data
+1. They give everyone access to the raw data.
+2. If you have a data question, you ask the data builders, and they just give you complete answers.
 
-* **Cons**: everybody has to know sql, everybody needs context of raw data
+**⚡ The Lightdash way**
+3. The data builders give you meaningful building blocks to answer your own data questions.
 
-## 2. Data analysts use SQL
+## 1. They give everyone access to the raw data.
 
-If nobody knows SQL or they aren't willing to explore data themselves, then dedicated team members (data analysts) 
-will be completely responsible for exploring data. Everybody relies on the data team for answer questions.
+If everybody in your organization knows SQL and everyone has the context they need to query
+the raw data (...and unicorns were real 🦄...), then giving everyone access to the raw data
+wouldn't be that bad.
 
-* **Pros**: only analysts have to know sql
-* **Cons**: doesn't scale as analysts become a bottleneck
+But, if a single person doesn't know SQL then they're totally dependent on someone helping
+them with a data question...no bueno.
 
-## 3. Writing dimensions and metrics
+* 👍: very flexible, totally self-serve (as long as everyone knows SQL)
+* 👎: everybody has to know sql, everybody needs context of raw data, duplicated work,
+bound to be errors
 
-The Lightdash way: allow anyone in the business to explore a limited selection of metrics using a simplified 
-interface. With this approach, only the data team needs to understand SQL, which they use to curate pre-defined 
-metrics. Anybody in the business is free to take these metrics and combine, segment, and filter them to answer their 
-own questions.
+## 2. If you have a data question, you ask the data builders, and they just give you complete answers.
 
-The downside is that the data team need to spend some time defining and maintaining the library of metrics. However, 
-a small set of metrics can power a huge amount of different analyses, making this effort an efficient use of time 
-compared to above (*2. Data analysts use SQL*).
+If nobody knows SQL or they aren't willing to explore data themselves, then dedicated team
+members (probably data analysts) will be completely responsible for exploring data. Everybody
+relies on the data team for answer questions.
 
-* **Pros**: only analysts have to know sql, anyone can query data
-* **Cons**: analysts create and maintain a library of metrics
+* 👍: only analysts have to have data skills, fewer errors
+* 👎: doesn't scale, analysts become a bottleneck, being a data monkey sorta sucks
+
+## 3. The data builders give you meaningful building blocks to answer your own data questions.
+
+**⚡ The Lightdash Way:** We give your data team the tools they need to build metrics + dimensions
+that everyone else can use in a user-friendly interface.
+
+With this approach, you leave the SQL to the experts: your data team. They become force-multipliers
+when they create these pre-defined metrics + dimensions in SQL because anybody in the business can
+combine, segment, and filter them to answer their own questions.
+
+The downside is that the data team need to spend some time defining and maintaining the library of metrics. But,
+a small set of metrics can power a huge amount of different analyses, enabling the rest of your team to answer
+their own data questions.
+
+* 👍: you only need a few SQL experts, anyone can ask questions using the data, fewer errors, scaleable
+* 👎: you need a data team, this system needs maintenance
+
+## When we aggregate data, we add value.
+Giving data consumers useful building blocks makes it easier for them to self-serve and answer
+their own questions.
+
+We believe that this way of sharing data insights is a core part of the experience of everyone being able
+to answer their own data questions. It's the foundation of a healthy, happy relationship between data builders 
+and data consumers 👯‍♀️.
