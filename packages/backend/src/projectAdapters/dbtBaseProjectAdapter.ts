@@ -12,7 +12,7 @@ import {
     DbtClient,
     ProjectAdapter,
     QueryRunner,
-    WarehouseSchema,
+    WarehouseCatalog,
     WarehouseTableSchema,
 } from '../types';
 
@@ -24,7 +24,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     queryRunner: QueryRunner;
 
-    warehouseSchema: WarehouseSchema | undefined;
+    warehouseSchema: WarehouseCatalog | undefined;
 
     constructor(dbtClient: DbtClient, queryRunner: QueryRunner) {
         this.dbtClient = dbtClient;
@@ -41,7 +41,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     private async getWarehouseSchema(
         dbtModels: DbtModelNode[],
-    ): Promise<WarehouseSchema> {
+    ): Promise<WarehouseCatalog> {
         if (this.queryRunner?.getSchema) {
             this.warehouseSchema = await this.queryRunner.getSchema(
                 getSchemaStructureFromDbtModels(dbtModels),
@@ -51,8 +51,8 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             // get column types and use lower case column names
             this.warehouseSchema = Object.values(
                 catalog.nodes,
-            ).reduce<WarehouseSchema>((sum, node) => {
-                const acc: WarehouseSchema = { ...sum };
+            ).reduce<WarehouseCatalog>((sum, node) => {
+                const acc: WarehouseCatalog = { ...sum };
                 acc[node.metadata.database] = acc[node.metadata.database] || {};
                 acc[node.metadata.database][node.metadata.schema] =
                     acc[node.metadata.database][node.metadata.schema] || {};

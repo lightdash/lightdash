@@ -19,7 +19,7 @@ import { parseWithPointers, getLocationForJsonPath } from '@stoplight/yaml';
 import fs from 'fs';
 import { compileExplore } from '../exploreCompiler';
 import { DbtError, MissingCatalogEntryError, ParseError } from '../errors';
-import { SchemaStructure, WarehouseSchema } from '../types';
+import { WarehouseCatalog } from '../types';
 
 const patchPathParts = (patchPath: string) => {
     const [project, ...rest] = patchPath.split('://');
@@ -384,7 +384,7 @@ export const convertExplores = async (
 
 export const attachTypesToModels = (
     models: DbtModelNode[],
-    warehouseSchema: WarehouseSchema,
+    warehouseSchema: WarehouseCatalog,
     throwOnMissingCatalogEntry: boolean = true,
 ): DbtModelNode[] => {
     // Check that all models appear in the warehouse
@@ -438,14 +438,9 @@ export const attachTypesToModels = (
 
 export const getSchemaStructureFromDbtModels = (
     dbtModels: DbtModelNode[],
-): SchemaStructure =>
-    dbtModels.reduce<SchemaStructure>(
-        (sum, { database, schema, name, columns }) => {
-            const acc = { ...sum };
-            acc[database] = acc[database] || {};
-            acc[database][schema] = acc[database][schema] || {};
-            acc[database][schema][name] = Object.keys(columns);
-            return acc;
-        },
-        {},
-    );
+): { database: string; schema: string; table: string }[] =>
+    dbtModels.map(({ database, schema, name }) => ({
+        database,
+        schema,
+        table: name,
+    }));

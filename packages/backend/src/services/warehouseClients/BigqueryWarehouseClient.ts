@@ -11,8 +11,7 @@ import bigquery from '@google-cloud/bigquery/build/src/types';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
 import {
     QueryRunner,
-    SchemaStructure,
-    WarehouseSchema,
+    WarehouseCatalog,
     WarehouseTableSchema,
 } from '../../types';
 
@@ -149,70 +148,62 @@ export default class BigqueryWarehouseClient implements QueryRunner {
 
     static async getTableMetadata(
         dataset: Dataset,
-        database: string,
-        schema: string,
         table: string,
     ): Promise<[string, string, string, TableSchema]> {
         const [metadata] = await dataset.table(table).getMetadata();
         return [
-            database,
-            schema,
+            dataset.bigQuery.projectId,
+            dataset.id!,
             table,
             isTableSchema(metadata?.schema) ? metadata.schema : { fields: [] },
         ];
     }
 
-    async getSchema(config: SchemaStructure) {
-        const tablesMetadataPromises = Object.entries(config).reduce<
-            Promise<[string, string, string, TableSchema]>[]
-        >((sum, [database, databaseStructure]) => {
-            const databaseClient = new BigQuery({
-                projectId: database,
-                location: this.credentials.location,
-                maxRetries: this.credentials.retries,
-                credentials: this.credentials.keyfileContents,
-            });
+    async getSchema(
+        requests: { database: string; schema: string; table: string }[],
+    ) {
+        const databaseClients: { [client: string]: BigQuery } = {};
 
-            Object.entries(databaseStructure).forEach(
-                ([schema, schemaStructure]) => {
-                    const dataset = databaseClient.dataset(schema);
-                    Object.keys(schemaStructure).forEach((table) => {
-                        sum.push(
-                            BigqueryWarehouseClient.getTableMetadata(
-                                dataset,
-                                database,
-                                schema,
-                                table,
-                            ),
-                        );
-                    });
-                },
+        const tablesMetadataPromises: Promise<
+            [string, string, string, TableSchema] | undefined
+        >[] = requests.map(({ database, schema, table }) => {
+            databaseClients[database] =
+                databaseClients[database] ||
+                new BigQuery({
+                    projectId: database,
+                    location: this.credentials.location,
+                    maxRetries: this.credentials.retries,
+                    credentials: this.credentials.keyfileContents,
+                });
+            const dataset = databaseClients[database].dataset(schema);
+            return BigqueryWarehouseClient.getTableMetadata(
+                dataset,
+                table,
+            ).catch(
+                (e) =>
+                    // Ignore error and let UI show invalid table
+                    undefined,
             );
-
-            return sum;
-        }, []);
+        });
 
         const tablesMetadata = await Promise.all(tablesMetadataPromises);
 
-        return tablesMetadata.reduce<WarehouseSchema>(
-            (acc, [database, schema, table, tableSchema]) => {
-                const wantedColumns = config[database][schema][table];
+        return tablesMetadata.reduce<WarehouseCatalog>((acc, result) => {
+            if (result) {
+                const [database, schema, table, tableSchema] = result;
                 acc[database] = acc[database] || {};
                 acc[database][schema] = acc[database][schema] || {};
                 acc[database][schema][table] =
                     tableSchema.fields.reduce<WarehouseTableSchema>(
-                        (sum, { name, type }) =>
-                            wantedColumns.includes(name)
-                                ? {
-                                      ...sum,
-                                      [name]: mapFieldType(type),
-                                  }
-                                : { ...sum },
+                        (sum, { name, type }) => ({
+                            ...sum,
+                            [name]: mapFieldType(type),
+                        }),
                         {},
                     );
-                return acc;
-            },
-            {},
-        );
+            }
+
+            return acc;
+        }, {});
     }
 }

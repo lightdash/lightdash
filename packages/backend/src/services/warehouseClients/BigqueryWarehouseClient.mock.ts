@@ -4,7 +4,7 @@ import {
     DimensionType,
     WarehouseTypes,
 } from 'common';
-import { SchemaStructure, WarehouseSchema } from '../../types';
+import { WarehouseCatalog } from '../../types';
 import { BigqueryFieldType } from './BigqueryWarehouseClient';
 
 export const credentials: CreateBigqueryCredentials = {
@@ -20,21 +20,13 @@ export const credentials: CreateBigqueryCredentials = {
     maximumBytesBilled: 0,
 };
 
-export const config: SchemaStructure = {
-    myDatabase: {
-        mySchema: {
-            myTable: [
-                'myStringColumn',
-                'myNumberColumn',
-                'myDateColumn',
-                'myTimestampColumn',
-                'myBooleanColumn',
-                'myArrayColumn',
-                'myObjectColumn',
-            ],
-        },
+export const config: { database: string; schema: string; table: string }[] = [
+    {
+        database: 'myDatabase',
+        schema: 'mySchema',
+        table: 'myTable',
     },
-};
+];
 
 const metadata = {
     schema: {
@@ -67,10 +59,6 @@ const metadata = {
                 name: 'myObjectColumn',
                 type: BigqueryFieldType.STRUCT,
             },
-            {
-                name: 'columnNotInModel',
-                type: BigqueryFieldType.BOOLEAN,
-            },
         ],
     },
 };
@@ -79,6 +67,8 @@ export const getTableResponse = {
     getMetadata: jest.fn(() => [metadata]),
 };
 export const getDatasetResponse = {
+    id: 'mySchema',
+    bigQuery: { projectId: 'myDatabase' },
     table: jest.fn(() => getTableResponse),
 };
 
@@ -102,7 +92,7 @@ export const createJobResponse = [
     },
 ];
 
-export const expectedWarehouseSchema: WarehouseSchema = {
+export const expectedWarehouseSchema: WarehouseCatalog = {
     myDatabase: {
         mySchema: {
             myTable: {

@@ -25,7 +25,7 @@ export type WarehouseTableSchema = {
     [column: string]: DimensionType;
 };
 
-export type WarehouseSchema = {
+export type WarehouseCatalog = {
     [database: string]: {
         [schema: string]: {
             [table: string]: WarehouseTableSchema;
@@ -33,16 +33,10 @@ export type WarehouseSchema = {
     };
 };
 
-export type SchemaStructure = {
-    [database: string]: {
-        [schema: string]: {
-            [table: string]: string[];
-        };
-    };
-};
-
 export interface QueryRunner {
-    getSchema?: (config: SchemaStructure) => Promise<WarehouseSchema>;
+    getSchema?: (
+        config: { database: string; schema: string; table: string }[],
+    ) => Promise<WarehouseCatalog>;
     runQuery(sql: string): Promise<Record<string, any>[]>;
     test(): Promise<void>;
 }
