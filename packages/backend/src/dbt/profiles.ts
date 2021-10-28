@@ -2,7 +2,7 @@ import { CreateWarehouseCredentials } from 'common';
 import * as yaml from 'js-yaml';
 
 export const LIGHTDASH_PROFILE_NAME = 'lightdash_profile';
-export const LIGHTDASH_TARGET_NAME = 'prod';
+export const LIGHTDASH_TARGET_NAME = 'lightdash_target';
 
 const envVar = (v: string) => `LIGHTDASH_DBT_PROFILE_VAR_${v.toUpperCase()}`;
 const envVarReference = (v: string) => `{{ env_var('${envVar(v)}') }}`;

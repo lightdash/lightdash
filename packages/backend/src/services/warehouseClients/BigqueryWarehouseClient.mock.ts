@@ -106,7 +106,7 @@ export const expectedWarehouseSchema: WarehouseSchema = {
 
 export const expectedRow: Record<string, any> = {
     myStringColumn: 'string value',
-    myNumberColumn: '100',
+    myNumberColumn: 100,
     myDateColumn: new Date('2021-03-10T00:00:00.000Z'),
     myTimestampColumn: new Date('1990-03-02T08:30:00.010Z'),
     myBooleanColumn: false,
