@@ -25,14 +25,18 @@ export type WarehouseTableSchema = {
     [column: string]: DimensionType;
 };
 
-export type WarehouseSchema = {
-    [dataset: string]: {
-        [table: string]: WarehouseTableSchema;
+export type WarehouseCatalog = {
+    [database: string]: {
+        [schema: string]: {
+            [table: string]: WarehouseTableSchema;
+        };
     };
 };
 
 export interface QueryRunner {
-    getSchema?: (dbtModels: DbtModelNode[]) => Promise<WarehouseSchema>;
+    getSchema?: (
+        config: { database: string; schema: string; table: string }[],
+    ) => Promise<WarehouseCatalog>;
     runQuery(sql: string): Promise<Record<string, any>[]>;
     test(): Promise<void>;
 }

@@ -1,5 +1,4 @@
 import {
-    DbtRpcDocsGenerateResults,
     DbtModelColumn,
     DbtModelNode,
     Dimension,
@@ -20,7 +19,7 @@ import { parseWithPointers, getLocationForJsonPath } from '@stoplight/yaml';
 import fs from 'fs';
 import { compileExplore } from '../exploreCompiler';
 import { DbtError, MissingCatalogEntryError, ParseError } from '../errors';
-import { WarehouseSchema } from '../types';
+import { WarehouseCatalog } from '../types';
 
 const patchPathParts = (patchPath: string) => {
     const [project, ...rest] = patchPath.split('://');
@@ -385,38 +384,40 @@ export const convertExplores = async (
 
 export const attachTypesToModels = (
     models: DbtModelNode[],
-    warehouseSchema: WarehouseSchema,
+    warehouseSchema: WarehouseCatalog,
     throwOnMissingCatalogEntry: boolean = true,
 ): DbtModelNode[] => {
     // Check that all models appear in the warehouse
-    models.forEach((model) => {
+    models.forEach(({ database, schema, name }) => {
         if (
-            (!(model.schema in warehouseSchema) ||
-                !(model.name in warehouseSchema[model.schema])) &&
+            (!(database in warehouseSchema) ||
+                !(schema in warehouseSchema[database]) ||
+                !(name in warehouseSchema[database][schema])) &&
             throwOnMissingCatalogEntry
         ) {
             throw new MissingCatalogEntryError(
-                `Model "${model.unique_id}" was expected in your target warehouse at "${model.database}.${model.schema}.${model.name}". Does the table exist in your target data warehouse?`,
+                `Model "${name}" was expected in your target warehouse at "${database}.${schema}.${name}". Does the table exist in your target data warehouse?`,
                 {},
             );
         }
     });
 
     const getType = (
-        model: DbtModelNode,
+        { database, schema, name }: DbtModelNode,
         columnName: string,
     ): string | undefined => {
         if (
-            model.schema in warehouseSchema &&
-            model.name in warehouseSchema[model.schema] &&
-            columnName in warehouseSchema[model.schema][model.name]
+            database in warehouseSchema &&
+            schema in warehouseSchema[database] &&
+            name in warehouseSchema[database][schema] &&
+            columnName in warehouseSchema[database][schema][name]
         ) {
-            return warehouseSchema[model.schema][model.name][columnName];
+            return warehouseSchema[database][schema][name][columnName];
         }
 
         if (throwOnMissingCatalogEntry) {
             throw new MissingCatalogEntryError(
-                `Column "${columnName}" from model "${model.name}" does not exist.\n "${columnName}.${model.name}" was not found in your target warehouse at ${model.database}.${model.schema}.${model.name}. Try rerunning dbt to update your warehouse.`,
+                `Column "${columnName}" from model "${name}" does not exist.\n "${columnName}.${name}" was not found in your target warehouse at ${database}.${schema}.${name}. Try rerunning dbt to update your warehouse.`,
                 {},
             );
         }
@@ -434,3 +435,12 @@ export const attachTypesToModels = (
         ),
     }));
 };
+
+export const getSchemaStructureFromDbtModels = (
+    dbtModels: DbtModelNode[],
+): { database: string; schema: string; table: string }[] =>
+    dbtModels.map(({ database, schema, name }) => ({
+        database,
+        schema,
+        table: name,
+    }));

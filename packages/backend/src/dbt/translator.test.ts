@@ -32,12 +32,12 @@ describe('attachTypesToModels', () => {
     });
     it('should throw when is missing dataset or table or column', async () => {
         expect(() => attachTypesToModels([model], {}, true)).toThrowError(
-            'Model "unique_id" was expected in your target warehouse at "myDatabase.mySchema.myTable". Does the table exist in your target data warehouse?',
+            'Model "myTable" was expected in your target warehouse at "myDatabase.mySchema.myTable". Does the table exist in your target data warehouse?',
         );
         expect(() =>
             attachTypesToModels([model], warehouseSchemaWithMissingTable, true),
         ).toThrowError(
-            'Model "unique_id" was expected in your target warehouse at "myDatabase.mySchema.myTable". Does the table exist in your target data warehouse?',
+            'Model "myTable" was expected in your target warehouse at "myDatabase.mySchema.myTable". Does the table exist in your target data warehouse?',
         );
         expect(() =>
             attachTypesToModels(

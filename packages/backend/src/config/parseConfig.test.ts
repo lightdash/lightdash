@@ -4,8 +4,6 @@ import {
     LOCAL_PROJECT_MISSING_PROFILES_DIR,
     LOCAL_PROJECT_UNDEFINED_PROJECT_DIR,
     NO_PROJECTS,
-    REMOTE_PROJECT,
-    REMOTE_PROJECT_INVALID_HOST,
     UNDEFINED_CONFIG,
     UNRECOGNISED_PROJECT,
     wrapProject,
@@ -67,17 +65,6 @@ test('Should parse local config merged with environment variable', () => {
     const actual = wrapProject(LOCAL_PROJECT_MISSING_PROFILES_DIR);
     process.env.LIGHTDASH_PROJECT_0_PROFILES_DIR = LOCAL_PROJECT.profiles_dir;
     expect(parseConfig(actual).projects).toEqual(expected.projects);
-});
-
-test('Should parse valid remote project config', () => {
-    const expected = wrapProject(REMOTE_PROJECT);
-    expect(parseConfig(expected).projects).toEqual(expected.projects);
-});
-
-test('Should throw ParseError for invalid hostname', () => {
-    expect(() =>
-        parseConfig(wrapProject(REMOTE_PROJECT_INVALID_HOST)),
-    ).toThrowError(ParseError);
 });
 
 test('Should parse dbt cloud ide config', () => {

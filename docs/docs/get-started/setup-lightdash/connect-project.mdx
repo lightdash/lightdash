@@ -44,17 +44,16 @@ Login to [dbt cloud](https://cloud.getdbt.com) and follow these instructions to 
 
 #### How to get your **Environment ID**
 
-Use the sidebar to see all your environments. To connect to your dbt IDE you must select your development credentials with
-type `type: development`. This should be the environment you usually use when developing in the dbt cloud IDE.
+Use the sidebar to see all your environments. 
 
 ![screenshot](../assets/dbt-cloud-sidebar.png)
 
+Once you've located your environments, follow these steps to get your environment id:
+
+1. Click on the Environment that is `type: development`. This is the environment you use when developing in the dbt cloud IDE. 
 ![screenshot](../assets/dbt-cloud-env-select.png)
-
-Once you've located your environment follow these steps to get your environment id:
-
-1. Get your **Environment ID** from the URL after `/environments/`
-2. Check that your environment is using dbt `0.20.0` or above (you can change this in environment settings)
+2. Get your **Environment ID** from the URL after `/environments/`
+3. Check that your environment is using dbt `0.20.0` or above (you can change this in environment settings)
 
 ![screenshot](../assets/dbt-cloud-env-details.png)
 
@@ -67,6 +66,10 @@ You can get your personal api key by visiting your [API Access - Your profile](h
 Remember to keep your api key safe as it enables access to your dbt cloud account.
 
 :::
+
+### Spin up the IDE
+
+After getting your project information and credentials, click on the hamburger menu on the top left and click on `Develop`. This will spin up the IDE for your project. You will need this to be active to connect to Lightdash. 
 
 ----
 
@@ -139,30 +142,6 @@ to your local dbt project.
 This is path to the dbt project inside the docker container.
 
 If you followed the [install instructions](./install-lightdash.mdx), then keep the value as **"/usr/app/dbt"**.
-
-----
-
-### dbt remote server
-
-:::danger Soon to be deprecated
-
-dbt is planning to deprecate the rpc server soon so we suggest using a different way to connect your dbt project.
-
-:::
-
-:::info Prerequisite
-
-You will need a dbt rpc server. You can see [how to run dbt rpc here](https://docs.getdbt.com/reference/commands/rpc/).
-
-:::
-
-#### RPC server host
-
-This is the host of the rpc server.
-
-#### RPC server port
-
-This is the port of the rpc server.
 
 ----
 

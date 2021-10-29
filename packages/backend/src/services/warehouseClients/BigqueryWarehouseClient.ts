@@ -1,19 +1,19 @@
-import { CreateBigqueryCredentials, DbtModelNode, DimensionType } from 'common';
+import { CreateBigqueryCredentials, DimensionType } from 'common';
 import {
     BigQuery,
     BigQueryDate,
     BigQueryDatetime,
     BigQueryTime,
     BigQueryTimestamp,
+    Dataset,
 } from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
 import {
     QueryRunner,
-    WarehouseSchema,
+    WarehouseCatalog,
     WarehouseTableSchema,
 } from '../../types';
-import { asyncForEach } from '../../utils';
 
 export enum BigqueryFieldType {
     STRING = 'STRING',
@@ -33,23 +33,29 @@ export enum BigqueryFieldType {
     BIGNUMERIC = 'BIGNUMERIC',
     RECORD = 'RECORD',
     STRUCT = 'STRUCT',
+    ARRAY = 'ARRAY',
 }
 
-const parseDateCell = (
-    cell: BigQueryDate | BigQueryTimestamp | BigQueryDatetime | BigQueryTime,
-) => new Date(cell.value);
-const parseDefault = (cell: any) => cell;
-
-const getParser = (type: string) => {
-    switch (type) {
-        case BigqueryFieldType.DATE:
-        case BigqueryFieldType.DATETIME:
-        case BigqueryFieldType.TIMESTAMP:
-        case BigqueryFieldType.TIME:
-            return parseDateCell;
-        default:
-            return parseDefault;
+const parseCell = (cell: any) => {
+    if (
+        cell === undefined ||
+        cell === null ||
+        typeof cell === 'boolean' ||
+        typeof cell === 'number'
+    ) {
+        return cell;
     }
+
+    if (
+        cell instanceof BigQueryDate ||
+        cell instanceof BigQueryTimestamp ||
+        cell instanceof BigQueryDatetime ||
+        cell instanceof BigQueryTime
+    ) {
+        return new Date(cell.value);
+    }
+
+    return `${cell}`;
 };
 
 const mapFieldType = (type: string): DimensionType => {
@@ -90,26 +96,15 @@ const isSchemaFields = (
 const isTableSchema = (schema: bigquery.ITableSchema): schema is TableSchema =>
     !!schema && !!schema.fields && isSchemaFields(schema.fields);
 
-const parseRows = (
-    rows: Record<string, any>[],
-    schemaFields: bigquery.ITableFieldSchema[],
-) => {
-    // TODO: assumes columns cannot have the same name
-    if (!isSchemaFields(schemaFields)) {
-        throw new Error('Could not parse response from bigquery');
-    }
-    const parsers: Record<string, (cell: any) => any> = Object.fromEntries(
-        schemaFields.map((field) => [field.name, getParser(field.type)]),
-    );
-    return rows.map((row) =>
+const parseRows = (rows: Record<string, any>[]) =>
+    rows.map((row) =>
         Object.fromEntries(
             Object.entries(row).map(([name, value]) => [
                 name,
-                parsers[name](value),
+                parseCell(value),
             ]),
         ),
     );
-};
 
 export default class BigqueryWarehouseClient implements QueryRunner {
     client: BigQuery;
@@ -141,14 +136,7 @@ export default class BigqueryWarehouseClient implements QueryRunner {
             });
             // auto paginate - hides full response
             const [rows] = await job.getQueryResults({ autoPaginate: true });
-
-            // manual paginate - gives access to full api
-            const [firstPage, nextQuery, apiResponse] =
-                await job.getQueryResults({ autoPaginate: false });
-            if (apiResponse?.schema?.fields === undefined) {
-                throw new Error('Not a valid response from bigquery');
-            }
-            return parseRows(rows, apiResponse.schema.fields);
+            return parseRows(rows);
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         }
@@ -158,49 +146,66 @@ export default class BigqueryWarehouseClient implements QueryRunner {
         await this.runQuery('SELECT 1');
     }
 
-    async getSchema(dbtModels: DbtModelNode[]) {
-        const wantedSchema = dbtModels.reduce<{
-            [dataset: string]: { [table: string]: string[] };
-        }>((sum, model) => {
-            const acc = { ...sum };
-            acc[model.schema] = acc[model.schema] || {};
-            acc[model.schema][model.name] = Object.keys(model.columns);
-            return acc;
-        }, {});
+    static async getTableMetadata(
+        dataset: Dataset,
+        table: string,
+    ): Promise<[string, string, string, TableSchema]> {
+        const [metadata] = await dataset.table(table).getMetadata();
+        return [
+            dataset.bigQuery.projectId,
+            dataset.id!,
+            table,
+            isTableSchema(metadata?.schema) ? metadata.schema : { fields: [] },
+        ];
+    }
 
-        const [datasets] = await this.client.getDatasets();
+    async getSchema(
+        requests: { database: string; schema: string; table: string }[],
+    ) {
+        const databaseClients: { [client: string]: BigQuery } = {};
 
-        const warehouseSchema: WarehouseSchema = {};
-
-        await asyncForEach(datasets, async (dataset) => {
-            if (dataset.id && !!wantedSchema[dataset.id]) {
-                warehouseSchema[dataset.id] = {};
-
-                const [tables] = await dataset.getTables();
-                await asyncForEach(tables, async (table) => {
-                    if (table.id && !!wantedSchema[dataset.id!][table.id]) {
-                        const wantedColumns =
-                            wantedSchema[dataset.id!][table.id];
-                        const [metadata] = await table.getMetadata();
-                        const { schema } = metadata;
-                        if (isTableSchema(schema)) {
-                            warehouseSchema[dataset.id!][table.id] =
-                                schema.fields.reduce<WarehouseTableSchema>(
-                                    (sum, { name, type }) =>
-                                        wantedColumns.includes(name)
-                                            ? {
-                                                  ...sum,
-                                                  [name]: mapFieldType(type),
-                                              }
-                                            : { ...sum },
-                                    {},
-                                );
-                        }
-                    }
+        const tablesMetadataPromises: Promise<
+            [string, string, string, TableSchema] | undefined
+        >[] = requests.map(({ database, schema, table }) => {
+            databaseClients[database] =
+                databaseClients[database] ||
+                new BigQuery({
+                    projectId: database,
+                    location: this.credentials.location,
+                    maxRetries: this.credentials.retries,
+                    credentials: this.credentials.keyfileContents,
                 });
-            }
+            const dataset = databaseClients[database].dataset(schema);
+            return BigqueryWarehouseClient.getTableMetadata(
+                dataset,
+                table,
+            ).catch((e) => {
+                if (e?.code === 404) {
+                    // Ignore error and let UI show invalid table
+                    return undefined;
+                }
+                throw e;
+            });
         });
 
-        return warehouseSchema;
+        const tablesMetadata = await Promise.all(tablesMetadataPromises);
+
+        return tablesMetadata.reduce<WarehouseCatalog>((acc, result) => {
+            if (result) {
+                const [database, schema, table, tableSchema] = result;
+                acc[database] = acc[database] || {};
+                acc[database][schema] = acc[database][schema] || {};
+                acc[database][schema][table] =
+                    tableSchema.fields.reduce<WarehouseTableSchema>(
+                        (sum, { name, type }) => ({
+                            ...sum,
+                            [name]: mapFieldType(type),
+                        }),
+                        {},
+                    );
+            }
+
+            return acc;
+        }, {});
     }
 }

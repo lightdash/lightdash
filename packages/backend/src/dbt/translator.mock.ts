@@ -1,5 +1,5 @@
 import { DbtModelColumn, DbtModelNode, DimensionType } from 'common';
-import { WarehouseSchema } from '../types';
+import { WarehouseCatalog } from '../types';
 
 const column: DbtModelColumn = {
     name: 'myColumnName',
@@ -22,20 +22,26 @@ export const model: DbtModelNode = {
     patch_path: null,
 };
 
-export const warehouseSchema: WarehouseSchema = {
-    [model.schema]: {
-        [model.name]: {
-            [column.name]: DimensionType.STRING,
+export const warehouseSchema: WarehouseCatalog = {
+    [model.database]: {
+        [model.schema]: {
+            [model.name]: {
+                [column.name]: DimensionType.STRING,
+            },
         },
     },
 };
 
-export const warehouseSchemaWithMissingTable: WarehouseSchema = {
-    [model.schema]: {},
+export const warehouseSchemaWithMissingTable: WarehouseCatalog = {
+    [model.database]: {
+        [model.schema]: {},
+    },
 };
-export const warehouseSchemaWithMissingColumn: WarehouseSchema = {
-    [model.schema]: {
-        [model.name]: {},
+export const warehouseSchemaWithMissingColumn: WarehouseCatalog = {
+    [model.database]: {
+        [model.schema]: {
+            [model.name]: {},
+        },
     },
 };
 

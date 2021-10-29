@@ -1,26 +1,18 @@
+import { BigQuery } from '@google-cloud/bigquery';
 import BigqueryWarehouseClient from './BigqueryWarehouseClient';
 import {
+    config,
     createJobResponse,
     credentials,
-    getDatasetsResponse,
-} from './BigqueryWarehouseClient.mock';
-import {
-    model,
     expectedRow,
     expectedWarehouseSchema,
-} from './WarehouseClient.mock';
-
-jest.mock('@google-cloud/bigquery', () => ({
-    ...jest.requireActual('@google-cloud/bigquery'),
-    BigQuery: class {
-        createQueryJob = jest.fn();
-
-        getDatasets = jest.fn();
-    },
-}));
+    getDatasetResponse,
+    getTableResponse,
+} from './BigqueryWarehouseClient.mock';
 
 describe('BigqueryWarehouseClient', () => {
     it('expect query rows with mapped values', async () => {
+        BigQuery.prototype.createQueryJob = jest.fn();
         const warehouse = new BigqueryWarehouseClient(credentials);
         (warehouse.client.createQueryJob as jest.Mock).mockImplementationOnce(
             () => createJobResponse,
@@ -28,12 +20,16 @@ describe('BigqueryWarehouseClient', () => {
         expect((await warehouse.runQuery('fake sql'))[0]).toEqual(expectedRow);
     });
     it('expect schema with bigquery types mapped to dimension types', async () => {
+        const getDatasetMock = jest
+            .fn()
+            .mockImplementationOnce(() => getDatasetResponse);
+        BigQuery.prototype.dataset = getDatasetMock;
         const warehouse = new BigqueryWarehouseClient(credentials);
-        (warehouse.client.getDatasets as jest.Mock).mockImplementationOnce(
-            () => getDatasetsResponse,
-        );
-        expect(await warehouse.getSchema([model])).toEqual(
+        expect(await warehouse.getSchema(config)).toEqual(
             expectedWarehouseSchema,
         );
+        expect(getDatasetMock).toHaveBeenCalledTimes(1);
+        expect(getDatasetResponse.table).toHaveBeenCalledTimes(1);
+        expect(getTableResponse.getMetadata).toHaveBeenCalledTimes(1);
     });
 });

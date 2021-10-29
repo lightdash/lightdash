@@ -51,3 +51,8 @@ To save a chart:
 
 ![view saved charts](./assets/view_charts_action.png)
 
+## Next steps
+
+Creating a chart is cool, creating three charts is 3x cooler. Creating a dashboard with your three charts is 300x 
+cooler 😎. Learn [how to create and share dashboards](./dashboards.md)
+
