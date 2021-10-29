@@ -11,7 +11,7 @@ import modelJsonSchema from '../schema.json';
 import {
     DbtClient,
     ProjectAdapter,
-    QueryRunner,
+    WarehouseClient,
     WarehouseCatalog,
     WarehouseTableSchema,
 } from '../types';
@@ -22,13 +22,13 @@ addFormats(ajv);
 export class DbtBaseProjectAdapter implements ProjectAdapter {
     dbtClient: DbtClient;
 
-    queryRunner: QueryRunner;
+    warehouseClient: WarehouseClient;
 
     warehouseSchema: WarehouseCatalog | undefined;
 
-    constructor(dbtClient: DbtClient, queryRunner: QueryRunner) {
+    constructor(dbtClient: DbtClient, warehouseClient: WarehouseClient) {
         this.dbtClient = dbtClient;
-        this.queryRunner = queryRunner;
+        this.warehouseClient = warehouseClient;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function,class-methods-use-this
@@ -36,14 +36,14 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     public async test(): Promise<void> {
         await this.dbtClient.test();
-        await this.queryRunner.test();
+        await this.warehouseClient.test();
     }
 
     private async getWarehouseSchema(
         dbtModels: DbtModelNode[],
     ): Promise<WarehouseCatalog> {
-        if (this.queryRunner?.getSchema) {
-            this.warehouseSchema = await this.queryRunner.getSchema(
+        if (this.warehouseClient?.getSchema) {
+            this.warehouseSchema = await this.warehouseClient.getSchema(
                 getSchemaStructureFromDbtModels(dbtModels),
             );
         } else {
@@ -123,7 +123,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     public async runQuery(sql: string): Promise<Record<string, any>[]> {
         // Possible error if query is ran before dependencies are installed
-        return this.queryRunner.runQuery(sql);
+        return this.warehouseClient.runQuery(sql);
     }
 
     static async _validateDbtModelMetadata(

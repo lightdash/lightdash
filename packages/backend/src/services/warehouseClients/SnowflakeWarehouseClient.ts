@@ -1,9 +1,9 @@
 import { CreateSnowflakeCredentials } from 'common';
 import { createConnection, Connection, ConnectionOptions } from 'snowflake-sdk';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
-import { QueryRunner } from '../../types';
+import { WarehouseClient } from '../../types';
 
-export default class SnowflakeWarehouseClient implements QueryRunner {
+export default class SnowflakeWarehouseClient implements WarehouseClient {
     connectionOptions: ConnectionOptions;
 
     constructor(credentials: CreateSnowflakeCredentials) {

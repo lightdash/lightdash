@@ -1,9 +1,9 @@
 import { CreatePostgresCredentials, CreateRedshiftCredentials } from 'common';
 import * as pg from 'pg';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
-import { QueryRunner } from '../../types';
+import { WarehouseClient } from '../../types';
 
-export default class PostgresWarehouseClient implements QueryRunner {
+export default class PostgresWarehouseClient implements WarehouseClient {
     client: pg.Client;
 
     constructor(

@@ -33,7 +33,7 @@ export type WarehouseCatalog = {
     };
 };
 
-export interface QueryRunner {
+export interface WarehouseClient {
     getSchema?: (
         config: { database: string; schema: string; table: string }[],
     ) => Promise<WarehouseCatalog>;

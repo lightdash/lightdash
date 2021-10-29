@@ -1,10 +1,10 @@
 import { Explore, ExploreError } from 'common';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 import { DbtCloudV2RpcClient } from '../dbt/dbtCloudV2RpcClient';
-import { QueryRunner } from '../types';
+import { WarehouseClient } from '../types';
 
 type DbtCloudideProjectAdapterArgs = {
-    queryRunner: QueryRunner | undefined;
+    warehouseClient: WarehouseClient;
     accountId: string | number;
     environmentId: string | number;
     projectId: string | number;
@@ -13,7 +13,7 @@ type DbtCloudideProjectAdapterArgs = {
 
 export class DbtCloudIdeProjectAdapter extends DbtBaseProjectAdapter {
     constructor({
-        queryRunner,
+        warehouseClient,
         accountId,
         environmentId,
         projectId,
@@ -25,8 +25,7 @@ export class DbtCloudIdeProjectAdapter extends DbtBaseProjectAdapter {
             projectId,
             apiKey,
         );
-        // Use local adapter if possible, otherwise use the rpcClient for queries
-        super(rpcClient, queryRunner || rpcClient);
+        super(rpcClient, warehouseClient);
     }
 
     public async compileAllExplores(): Promise<(Explore | ExploreError)[]> {
