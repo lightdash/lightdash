@@ -20,6 +20,9 @@ describe('BigqueryWarehouseClient', () => {
             () => createJobResponse,
         );
         expect((await warehouse.runQuery('fake sql'))[0]).toEqual(expectedRow);
+        expect(
+            warehouse.client.createQueryJob as jest.Mock,
+        ).toHaveBeenCalledTimes(1);
     });
     it('expect schema with bigquery types mapped to dimension types', async () => {
         const getDatasetMock = jest

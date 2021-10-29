@@ -6,7 +6,6 @@ import {
     convertExplores,
     getSchemaStructureFromDbtModels,
 } from '../dbt/translator';
-
 import { MissingCatalogEntryError, ParseError } from '../errors';
 import modelJsonSchema from '../schema.json';
 import {
