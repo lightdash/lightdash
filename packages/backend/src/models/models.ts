@@ -5,7 +5,7 @@ import { UserModel } from './UserModel';
 import { SessionModel } from './SessionModel';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { EncryptionService } from '../services/EncryptionService/EncryptionService';
-import { ProjectModel } from './ProjectModel';
+import { ProjectModel } from './ProjectModel/ProjectModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 
 export const encryptionService = new EncryptionService({ lightdashConfig });

@@ -83,6 +83,27 @@ export class MissingCatalogEntryError extends LightdashError {
         });
     }
 }
+export class NoServerRunningError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'NoServerRunningError',
+            statusCode: 500,
+            data: {},
+        });
+    }
+}
+
+export class MissingWarehouseCredentialsError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'MissingWarehouseCredentialsError',
+            statusCode: 400,
+            data: {},
+        });
+    }
+}
 
 export class UnexpectedServerError extends LightdashError {
     constructor(message = 'Unexpected error in Lightdash server') {

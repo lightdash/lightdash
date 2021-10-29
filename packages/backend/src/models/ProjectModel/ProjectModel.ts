@@ -10,11 +10,11 @@ import {
     UpdateProject,
     WarehouseCredentials,
 } from 'common';
-import { LightdashConfig } from '../config/parseConfig';
-import { NotExistsError, UnexpectedServerError } from '../errors';
-import { ProjectTableName } from '../database/entities/projects';
-import { WarehouseCredentialTableName } from '../database/entities/warehouseCredentials';
-import { EncryptionService } from '../services/EncryptionService/EncryptionService';
+import { LightdashConfig } from '../../config/parseConfig';
+import { NotExistsError, UnexpectedServerError } from '../../errors';
+import { ProjectTableName } from '../../database/entities/projects';
+import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
+import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import Transaction = Knex.Transaction;
 
 type ProjectModelDependencies = {
@@ -116,13 +116,11 @@ export class ProjectModel {
                     })
                     .returning('*');
 
-                if (data.warehouseConnection) {
-                    await this.upsertWarehouseConnection(
-                        trx,
-                        project.project_id,
-                        data.warehouseConnection,
-                    );
-                }
+                await this.upsertWarehouseConnection(
+                    trx,
+                    project.project_id,
+                    data.warehouseConnection,
+                );
 
                 await trx('spaces').insert({
                     project_id: project.project_id,
@@ -164,13 +162,12 @@ export class ProjectModel {
                     );
                 }
                 const [project] = projects;
-                if (data.warehouseConnection) {
-                    await this.upsertWarehouseConnection(
-                        trx,
-                        project.project_id,
-                        data.warehouseConnection,
-                    );
-                }
+
+                await this.upsertWarehouseConnection(
+                    trx,
+                    project.project_id,
+                    data.warehouseConnection,
+                );
             } catch (e) {
                 await trx.rollback(e);
                 throw e;
@@ -229,7 +226,9 @@ export class ProjectModel {
                     this.encryptionService.decrypt(project.dbt_connection),
                 ) as DbtProjectConfig;
             } catch (e) {
-                throw new UnexpectedServerError('Failed to load credentials');
+                throw new UnexpectedServerError(
+                    'Failed to load dbt credentials',
+                );
             }
         }
         const result = {
@@ -246,7 +245,9 @@ export class ProjectModel {
                 this.encryptionService.decrypt(project.encrypted_credentials),
             ) as CreateWarehouseCredentials;
         } catch (e) {
-            throw new UnexpectedServerError('Failed to load credentials');
+            throw new UnexpectedServerError(
+                'Failed to load warehouse credentials',
+            );
         }
         return {
             ...result,
@@ -257,20 +258,21 @@ export class ProjectModel {
     async get(projectUuid: string): Promise<Project> {
         const project = await this.getWithSensitiveFields(projectUuid);
         const sensitiveCredentials = project.warehouseConnection;
-        if (sensitiveCredentials === undefined) {
-            return project;
-        }
+
         const nonSensitiveDbtCredentials = Object.fromEntries(
             Object.entries(project.dbtConnection).filter(
                 ([key]) =>
                     !sensitiveDbtCredentialsFieldNames.includes(key as any),
             ),
         ) as DbtProjectConfig;
-        const nonSensitiveCredentials = Object.fromEntries(
-            Object.entries(sensitiveCredentials).filter(
-                ([key]) => !sensitiveCredentialsFieldNames.includes(key as any),
-            ),
-        ) as WarehouseCredentials;
+        const nonSensitiveCredentials = sensitiveCredentials
+            ? (Object.fromEntries(
+                  Object.entries(sensitiveCredentials).filter(
+                      ([key]) =>
+                          !sensitiveCredentialsFieldNames.includes(key as any),
+                  ),
+              ) as WarehouseCredentials)
+            : undefined;
         return {
             projectUuid,
             name: project.name,

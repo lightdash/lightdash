@@ -1,9 +1,21 @@
 import React, { FC } from 'react';
+import { Callout } from '@blueprintjs/core';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 
 const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => (
     <>
+        <Callout intent="primary" style={{ marginBottom: 20 }}>
+            You will need to spin up the IDE for your project. Read the{' '}
+            <a
+                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#spin-up-the-ide"
+                target="_blank"
+                rel="noreferrer"
+            >
+                docs
+            </a>{' '}
+            to know more.
+        </Callout>
         <PasswordInput
             name="dbt.api_key"
             label="API key"

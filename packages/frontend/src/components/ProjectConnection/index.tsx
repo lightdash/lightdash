@@ -1,10 +1,9 @@
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
-import { Button, Callout, Card, H5, Intent } from '@blueprintjs/core';
+import { Button, Card, H5, Intent } from '@blueprintjs/core';
 import {
     DbtProjectConfig,
     ProjectType,
-    ProjectTypeLabels,
     CreateWarehouseCredentials,
     WarehouseTypes,
 } from 'common';
@@ -78,29 +77,10 @@ const ProjectForm: FC<Props> = ({ disabled, defaultType, methods }) => {
                     <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
                 </div>
                 <div style={{ flex: 1 }}>
-                    {type &&
-                    [
-                        ProjectType.DBT,
-                        ProjectType.GITHUB,
-                        ProjectType.GITLAB,
-                    ].includes(type) ? (
-                        <WarehouseSettingsForm
-                            disabled={disabled}
-                            warehouseType={warehouseType}
-                        />
-                    ) : (
-                        <Callout
-                            intent="primary"
-                            title="No configuration needed"
-                        >
-                            <p>
-                                Warehouse connection is managed by{' '}
-                                {type
-                                    ? ProjectTypeLabels[type]
-                                    : 'dbt connection'}
-                            </p>
-                        </Callout>
-                    )}
+                    <WarehouseSettingsForm
+                        disabled={disabled}
+                        warehouseType={warehouseType}
+                    />
                 </div>
             </Card>
         </>
@@ -129,16 +109,16 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
         warehouse: warehouseConnection,
     }: {
         dbt: DbtProjectConfig;
-        warehouse?: CreateWarehouseCredentials;
+        warehouse: CreateWarehouseCredentials;
     }) => {
         if (user.data) {
+            track({
+                name: EventName.UPDATE_PROJECT_BUTTON_CLICKED,
+            });
             await mutateAsync({
                 name: user.data.organizationName,
                 dbtConnection,
                 warehouseConnection,
-            });
-            track({
-                name: EventName.UPDATE_PROJECT_BUTTON_CLICKED,
             });
         }
     };
@@ -188,16 +168,16 @@ export const CreateProjectConnection: FC = () => {
         warehouse: warehouseConnection,
     }: {
         dbt: DbtProjectConfig;
-        warehouse?: CreateWarehouseCredentials;
+        warehouse: CreateWarehouseCredentials;
     }) => {
         if (user.data) {
+            track({
+                name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
+            });
             await mutateAsync({
                 name: user.data.organizationName,
                 dbtConnection,
                 warehouseConnection,
-            });
-            track({
-                name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
             });
         }
     };
