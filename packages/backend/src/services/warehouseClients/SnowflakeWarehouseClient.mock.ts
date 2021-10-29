@@ -1,5 +1,6 @@
 import { CreateSnowflakeCredentials, WarehouseTypes } from 'common';
-import { model } from './WarehouseClient.mock';
+import { config } from './WarehouseClient.mock';
+import { SnowflakeTypes } from './SnowflakeWarehouseClient';
 
 export const credentials: CreateSnowflakeCredentials = {
     type: WarehouseTypes.SNOWFLAKE,
@@ -14,57 +15,76 @@ export const credentials: CreateSnowflakeCredentials = {
     clientSessionKeepAlive: true,
 };
 
+const columnBase = {
+    kind: 'COLUMN',
+    database_name: config[0].database.toUpperCase(),
+    schema_name: config[0].schema.toUpperCase(),
+    table_name: config[0].table.toUpperCase(),
+};
+
 export const columns: Record<string, any>[] = [
     {
-        kind: 'COLUMN',
-        database_name: model.database,
-        schema_name: model.schema,
-        table_name: model.name,
+        ...columnBase,
         column_name: 'myStringColumn',
-        data_type: {
-            type: 'TEXT',
+        data_type: JSON.stringify({
+            type: SnowflakeTypes.TEXT,
             length: 16777216,
             byteLength: 16777216,
             nullable: true,
             fixed: false,
-        },
+        }),
     },
     {
-        kind: 'COLUMN',
-        database_name: model.database,
-        schema_name: model.schema,
-        table_name: model.name,
+        ...columnBase,
         column_name: 'myNumberColumn',
-        data_type: { type: 'FIXED', precision: 18, scale: 0, nullable: true },
+        data_type: JSON.stringify({
+            type: SnowflakeTypes.FIXED,
+            precision: 18,
+            scale: 0,
+            nullable: true,
+        }),
     },
     {
-        kind: 'COLUMN',
-        database_name: model.database,
-        schema_name: model.schema,
-        table_name: model.name,
+        ...columnBase,
         column_name: 'myDateColumn',
-        data_type: { type: 'DATE', nullable: true },
+        data_type: JSON.stringify({
+            type: SnowflakeTypes.DATE,
+            nullable: true,
+        }),
     },
     {
-        kind: 'COLUMN',
-        database_name: model.database,
-        schema_name: model.schema,
-        table_name: model.name,
+        ...columnBase,
         column_name: 'myTimestampColumn',
-        data_type: {
-            type: 'TIMESTAMP_NTZ',
+        data_type: JSON.stringify({
+            type: SnowflakeTypes.TIMESTAMP_NTZ,
             precision: 0,
             scale: 9,
             nullable: true,
-        },
+        }),
     },
     {
-        kind: 'COLUMN',
-        database_name: model.database,
-        schema_name: model.schema,
-        table_name: model.name,
+        ...columnBase,
         column_name: 'myBooleanColumn',
-        data_type: { type: 'BOOLEAN', nullable: true },
+        data_type: JSON.stringify({
+            type: SnowflakeTypes.BOOLEAN,
+            nullable: true,
+        }),
+    },
+    {
+        ...columnBase,
+        column_name: 'myArrayColumn',
+        data_type: JSON.stringify({
+            type: SnowflakeTypes.ARRAY,
+            nullable: true,
+        }),
+    },
+    {
+        ...columnBase,
+        column_name: 'myObjectColumn',
+        data_type: JSON.stringify({
+            type: SnowflakeTypes.OBJECT,
+            nullable: true,
+        }),
     },
     {
         kind: 'COLUMN',
@@ -72,30 +92,31 @@ export const columns: Record<string, any>[] = [
         schema_name: 'schemaNotInModel',
         table_name: 'tableNotInModel',
         column_name: 'columnNotInModel',
-        data_type: { type: 'BOOLEAN', nullable: true },
+        data_type: JSON.stringify({
+            type: SnowflakeTypes.BOOLEAN,
+            nullable: true,
+        }),
     },
     {
         kind: 'COLUMN',
-        database_name: model.database,
+        database_name: columnBase.database_name,
         schema_name: 'schemaNotInModel',
         table_name: 'tableNotInModel',
         column_name: 'columnNotInModel',
-        data_type: { type: 'BOOLEAN', nullable: true },
+        data_type: JSON.stringify({
+            type: SnowflakeTypes.BOOLEAN,
+            nullable: true,
+        }),
     },
     {
         kind: 'COLUMN',
-        database_name: model.database,
-        schema_name: model.schema,
+        database_name: columnBase.database_name,
+        schema_name: columnBase.schema_name,
         table_name: 'tableNotInModel',
         column_name: 'columnNotInModel',
-        data_type: { type: 'BOOLEAN', nullable: true },
-    },
-    {
-        kind: 'COLUMN',
-        database_name: model.database,
-        schema_name: model.schema,
-        table_name: model.name,
-        column_name: 'columnNotInModel',
-        data_type: { type: 'BOOLEAN', nullable: true },
+        data_type: JSON.stringify({
+            type: SnowflakeTypes.BOOLEAN,
+            nullable: true,
+        }),
     },
 ];

@@ -1,11 +1,7 @@
-import {
-    CreateSnowflakeCredentials,
-    DbtModelNode,
-    DimensionType,
-} from 'common';
+import { CreateSnowflakeCredentials, DimensionType } from 'common';
 import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
-import { QueryRunner, WarehouseSchema } from '../../types';
+import { QueryRunner, WarehouseCatalog } from '../../types';
 import { BigqueryFieldType } from './BigqueryWarehouseClient';
 
 export enum SnowflakeTypes {
@@ -33,6 +29,10 @@ export enum SnowflakeTypes {
     TIMESTAMP_LTZ = 'TIMESTAMP_LTZ',
     TIMESTAMP_NTZ = 'TIMESTAMP_NTZ',
     TIMESTAMP_TZ = 'TIMESTAMP_TZ',
+    VARIANT = 'VARIANT',
+    OBJECT = 'OBJECT',
+    ARRAY = 'ARRAY',
+    GEOGRAPHY = 'GEOGRAPHY',
 }
 
 const mapFieldType = (type: string): DimensionType => {
@@ -132,35 +132,35 @@ export default class SnowflakeWarehouseClient implements QueryRunner {
         await this.runQuery('SELECT 1');
     }
 
-    async getSchema(dbtModels: DbtModelNode[]) {
-        const wantedSchema = dbtModels.reduce<{
-            [dataset: string]: { [table: string]: string[] };
-        }>((sum, model) => {
-            const acc = { ...sum };
-            acc[model.schema] = acc[model.schema] || {};
-            acc[model.schema][model.name] = Object.keys(model.columns);
-            return acc;
-        }, {});
+    async getSchema(
+        config: {
+            database: string;
+            schema: string;
+            table: string;
+            columns: string[];
+        }[],
+    ) {
         const sqlText = 'SHOW COLUMNS';
-
         const rows = await this.runQuery(sqlText);
-
-        return rows.reduce<WarehouseSchema>((acc, row) => {
-            if (
-                row.kind === 'COLUMN' &&
-                !!wantedSchema[row.schema_name] &&
-                Object.keys(wantedSchema[row.schema_name]).includes(
-                    row.table_name,
-                ) &&
-                wantedSchema[row.schema_name][row.table_name].includes(
-                    row.column_name,
-                )
-            ) {
-                acc[row.schema_name] = acc[row.schema_name] || {};
-                acc[row.schema_name][row.table_name] =
-                    acc[row.schema_name][row.table_name] || {};
-                acc[row.schema_name][row.table_name][row.column_name] =
-                    mapFieldType(row.data_type.type);
+        return rows.reduce<WarehouseCatalog>((acc, row) => {
+            const match = config.find(
+                ({ database, schema, table }) =>
+                    database.toLowerCase() ===
+                        row.database_name.toLowerCase() &&
+                    schema.toLowerCase() === row.schema_name.toLowerCase() &&
+                    table.toLowerCase() === row.table_name.toLowerCase(),
+            );
+            const columnMatch = match?.columns.find(
+                (name) => name.toLowerCase() === row.column_name.toLowerCase(),
+            );
+            if (row.kind === 'COLUMN' && !!match && !!columnMatch) {
+                acc[match.database] = acc[match.database] || {};
+                acc[match.database][match.schema] =
+                    acc[match.database][match.schema] || {};
+                acc[match.database][match.schema][match.table] =
+                    acc[match.database][match.schema][match.table] || {};
+                acc[match.database][match.schema][match.table][columnMatch] =
+                    mapFieldType(JSON.parse(row.data_type).type);
             }
             return acc;
         }, {});

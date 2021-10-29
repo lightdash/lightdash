@@ -2,7 +2,7 @@ import { createConnection } from 'snowflake-sdk';
 import SnowflakeWarehouseClient from './SnowflakeWarehouseClient';
 import { columns, credentials } from './SnowflakeWarehouseClient.mock';
 import {
-    model,
+    config,
     expectedRow,
     expectedWarehouseSchema,
 } from './WarehouseClient.mock';
@@ -32,7 +32,7 @@ describe('SnowflakeWarehouseClient', () => {
             destroy: jest.fn(),
         }));
         const warehouse = new SnowflakeWarehouseClient(credentials);
-        expect(await warehouse.getSchema([model])).toEqual(
+        expect(await warehouse.getSchema(config)).toEqual(
             expectedWarehouseSchema,
         );
     });

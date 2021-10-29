@@ -1,14 +1,16 @@
 import { BigQuery } from '@google-cloud/bigquery';
 import BigqueryWarehouseClient from './BigqueryWarehouseClient';
 import {
-    config,
     createJobResponse,
     credentials,
-    expectedRow,
-    expectedWarehouseSchema,
     getDatasetResponse,
     getTableResponse,
 } from './BigqueryWarehouseClient.mock';
+import {
+    config,
+    expectedRow,
+    expectedWarehouseSchema,
+} from './WarehouseClient.mock';
 
 describe('BigqueryWarehouseClient', () => {
     it('expect query rows with mapped values', async () => {

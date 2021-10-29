@@ -438,9 +438,10 @@ export const attachTypesToModels = (
 
 export const getSchemaStructureFromDbtModels = (
     dbtModels: DbtModelNode[],
-): { database: string; schema: string; table: string }[] =>
-    dbtModels.map(({ database, schema, name }) => ({
+): { database: string; schema: string; table: string; columns: string[] }[] =>
+    dbtModels.map(({ database, schema, name, columns }) => ({
         database,
         schema,
         table: name,
+        columns: Object.keys(columns),
     }));

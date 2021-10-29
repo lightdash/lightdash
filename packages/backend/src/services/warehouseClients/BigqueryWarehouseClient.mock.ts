@@ -1,10 +1,5 @@
 import { BigQueryDate, BigQueryTimestamp } from '@google-cloud/bigquery';
-import {
-    CreateBigqueryCredentials,
-    DimensionType,
-    WarehouseTypes,
-} from 'common';
-import { WarehouseCatalog } from '../../types';
+import { CreateBigqueryCredentials, WarehouseTypes } from 'common';
 import { BigqueryFieldType } from './BigqueryWarehouseClient';
 
 export const credentials: CreateBigqueryCredentials = {
@@ -19,14 +14,6 @@ export const credentials: CreateBigqueryCredentials = {
     location: '',
     maximumBytesBilled: 0,
 };
-
-export const config: { database: string; schema: string; table: string }[] = [
-    {
-        database: 'myDatabase',
-        schema: 'mySchema',
-        table: 'myTable',
-    },
-];
 
 const metadata = {
     schema: {
@@ -91,29 +78,3 @@ export const createJobResponse = [
         getQueryResults: jest.fn(() => [rows, undefined, metadata]),
     },
 ];
-
-export const expectedWarehouseSchema: WarehouseCatalog = {
-    myDatabase: {
-        mySchema: {
-            myTable: {
-                myStringColumn: DimensionType.STRING,
-                myNumberColumn: DimensionType.NUMBER,
-                myDateColumn: DimensionType.DATE,
-                myTimestampColumn: DimensionType.TIMESTAMP,
-                myBooleanColumn: DimensionType.BOOLEAN,
-                myArrayColumn: DimensionType.STRING,
-                myObjectColumn: DimensionType.STRING,
-            },
-        },
-    },
-};
-
-export const expectedRow: Record<string, any> = {
-    myStringColumn: 'string value',
-    myNumberColumn: 100,
-    myDateColumn: new Date('2021-03-10T00:00:00.000Z'),
-    myTimestampColumn: new Date('1990-03-02T08:30:00.010Z'),
-    myBooleanColumn: false,
-    myArrayColumn: '1,2,3',
-    myObjectColumn: '[object Object]',
-};
