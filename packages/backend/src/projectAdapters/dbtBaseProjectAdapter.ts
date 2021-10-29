@@ -1,16 +1,20 @@
-import {
-    DbtRpcDocsGenerateResults,
-    DbtModelNode,
-    Explore,
-    ExploreError,
-} from 'common';
+import { DbtModelNode, DimensionType, Explore, ExploreError } from 'common';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
-import { DbtRpcClientBase } from '../dbt/dbtRpcClientBase';
-import { attachTypesToModels, convertExplores } from '../dbt/translator';
+import {
+    attachTypesToModels,
+    convertExplores,
+    getSchemaStructureFromDbtModels,
+} from '../dbt/translator';
 import { MissingCatalogEntryError, ParseError } from '../errors';
 import modelJsonSchema from '../schema.json';
-import { DbtClient, ProjectAdapter, QueryRunner } from '../types';
+import {
+    DbtClient,
+    ProjectAdapter,
+    QueryRunner,
+    WarehouseCatalog,
+    WarehouseTableSchema,
+} from '../types';
 
 const ajv = new Ajv();
 addFormats(ajv);
@@ -20,7 +24,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     queryRunner: QueryRunner;
 
-    catalog: DbtRpcDocsGenerateResults | undefined;
+    warehouseSchema: WarehouseCatalog | undefined;
 
     constructor(dbtClient: DbtClient, queryRunner: QueryRunner) {
         this.dbtClient = dbtClient;
@@ -33,6 +37,39 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     public async test(): Promise<void> {
         await this.dbtClient.test();
         await this.queryRunner.test();
+    }
+
+    private async getWarehouseSchema(
+        dbtModels: DbtModelNode[],
+    ): Promise<WarehouseCatalog> {
+        if (this.queryRunner?.getSchema) {
+            this.warehouseSchema = await this.queryRunner.getSchema(
+                getSchemaStructureFromDbtModels(dbtModels),
+            );
+        } else {
+            const catalog = await this.dbtClient.getDbtCatalog();
+            // get column types and use lower case column names
+            this.warehouseSchema = Object.values(
+                catalog.nodes,
+            ).reduce<WarehouseCatalog>((sum, node) => {
+                const acc: WarehouseCatalog = { ...sum };
+                acc[node.metadata.database] = acc[node.metadata.database] || {};
+                acc[node.metadata.database][node.metadata.schema] =
+                    acc[node.metadata.database][node.metadata.schema] || {};
+                acc[node.metadata.database][node.metadata.schema][
+                    node.metadata.name
+                ] = Object.entries(node.columns).reduce<WarehouseTableSchema>(
+                    (columns, [column_name, column]) => ({
+                        ...columns,
+                        [column_name.toLowerCase()]:
+                            column.type as DimensionType,
+                    }),
+                    {},
+                );
+                return acc;
+            }, {});
+        }
+        return this.warehouseSchema;
     }
 
     public async compileAllExplores(
@@ -54,9 +91,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
         // Be lazy and try to attach types to the remaining models without refreshing the catalog
         try {
-            const lazyTypedModels = await attachTypesToModels(
+            const lazyTypedModels = attachTypesToModels(
                 validModels,
-                this.catalog || { nodes: {} },
+                this.warehouseSchema || {},
                 true,
             );
             const lazyExplores = await convertExplores(
@@ -67,12 +104,10 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             return [...lazyExplores, ...failedExplores];
         } catch (e) {
             if (e instanceof MissingCatalogEntryError) {
-                // Some types were missing so refresh the catalog and try again
-                const catalog = await this.dbtClient.getDbtCatalog();
-                this.catalog = catalog;
-                const typedModels = await attachTypesToModels(
+                // Some types were missing so refresh the schema and try again
+                const typedModels = attachTypesToModels(
                     validModels,
-                    catalog,
+                    await this.getWarehouseSchema(validModels),
                     false,
                 );
                 const explores = await convertExplores(

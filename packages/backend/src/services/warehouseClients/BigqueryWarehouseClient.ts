@@ -1,13 +1,40 @@
-import { CreateBigqueryCredentials } from 'common';
+import { CreateBigqueryCredentials, DimensionType } from 'common';
 import {
     BigQuery,
     BigQueryDate,
     BigQueryDatetime,
     BigQueryTime,
     BigQueryTimestamp,
+    Dataset,
 } from '@google-cloud/bigquery';
+import bigquery from '@google-cloud/bigquery/build/src/types';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
-import { QueryRunner } from '../../types';
+import {
+    QueryRunner,
+    WarehouseCatalog,
+    WarehouseTableSchema,
+} from '../../types';
+
+export enum BigqueryFieldType {
+    STRING = 'STRING',
+    INTEGER = 'INTEGER',
+    BYTES = 'BYTES',
+    INT64 = 'INT64',
+    FLOAT = 'FLOAT',
+    FLOAT64 = 'FLOAT64',
+    BOOLEAN = 'BOOLEAN',
+    BOOL = 'BOOL',
+    TIMESTAMP = 'TIMESTAMP',
+    DATE = 'DATE',
+    TIME = 'TIME',
+    DATETIME = 'DATETIME',
+    GEOGRAPHY = 'GEOGRAPHY',
+    NUMERIC = 'NUMERIC',
+    BIGNUMERIC = 'BIGNUMERIC',
+    RECORD = 'RECORD',
+    STRUCT = 'STRUCT',
+    ARRAY = 'ARRAY',
+}
 
 const parseCell = (cell: any) => {
     if (
@@ -31,16 +58,43 @@ const parseCell = (cell: any) => {
     return `${cell}`;
 };
 
-type SchemaFields = {
-    name: string;
-    type: string;
+const mapFieldType = (type: string): DimensionType => {
+    switch (type) {
+        case BigqueryFieldType.DATE:
+            return DimensionType.DATE;
+        case BigqueryFieldType.DATETIME:
+        case BigqueryFieldType.TIMESTAMP:
+        case BigqueryFieldType.TIME:
+            return DimensionType.TIMESTAMP;
+        case BigqueryFieldType.INTEGER:
+        case BigqueryFieldType.FLOAT:
+        case BigqueryFieldType.FLOAT64:
+        case BigqueryFieldType.BYTES:
+        case BigqueryFieldType.INT64:
+        case BigqueryFieldType.NUMERIC:
+        case BigqueryFieldType.BIGNUMERIC:
+            return DimensionType.NUMBER;
+        case BigqueryFieldType.BOOL:
+        case BigqueryFieldType.BOOLEAN:
+            return DimensionType.BOOLEAN;
+        default:
+            return DimensionType.STRING;
+    }
 };
-type RawSchemaFields = Partial<SchemaFields>;
+
+type TableSchema = {
+    fields: SchemaFields[];
+};
+
+type SchemaFields = Required<Pick<bigquery.ITableFieldSchema, 'name' | 'type'>>;
 
 const isSchemaFields = (
-    rawSchemaFields: RawSchemaFields[],
+    rawSchemaFields: bigquery.ITableFieldSchema[],
 ): rawSchemaFields is SchemaFields[] =>
     rawSchemaFields.every((field) => field.type && field.name);
+
+const isTableSchema = (schema: bigquery.ITableSchema): schema is TableSchema =>
+    !!schema && !!schema.fields && isSchemaFields(schema.fields);
 
 const parseRows = (rows: Record<string, any>[]) =>
     rows.map((row) =>
@@ -90,5 +144,68 @@ export default class BigqueryWarehouseClient implements QueryRunner {
 
     async test(): Promise<void> {
         await this.runQuery('SELECT 1');
+    }
+
+    static async getTableMetadata(
+        dataset: Dataset,
+        table: string,
+    ): Promise<[string, string, string, TableSchema]> {
+        const [metadata] = await dataset.table(table).getMetadata();
+        return [
+            dataset.bigQuery.projectId,
+            dataset.id!,
+            table,
+            isTableSchema(metadata?.schema) ? metadata.schema : { fields: [] },
+        ];
+    }
+
+    async getSchema(
+        requests: { database: string; schema: string; table: string }[],
+    ) {
+        const databaseClients: { [client: string]: BigQuery } = {};
+
+        const tablesMetadataPromises: Promise<
+            [string, string, string, TableSchema] | undefined
+        >[] = requests.map(({ database, schema, table }) => {
+            databaseClients[database] =
+                databaseClients[database] ||
+                new BigQuery({
+                    projectId: database,
+                    location: this.credentials.location,
+                    maxRetries: this.credentials.retries,
+                    credentials: this.credentials.keyfileContents,
+                });
+            const dataset = databaseClients[database].dataset(schema);
+            return BigqueryWarehouseClient.getTableMetadata(
+                dataset,
+                table,
+            ).catch((e) => {
+                if (e?.code === 404) {
+                    // Ignore error and let UI show invalid table
+                    return undefined;
+                }
+                throw e;
+            });
+        });
+
+        const tablesMetadata = await Promise.all(tablesMetadataPromises);
+
+        return tablesMetadata.reduce<WarehouseCatalog>((acc, result) => {
+            if (result) {
+                const [database, schema, table, tableSchema] = result;
+                acc[database] = acc[database] || {};
+                acc[database][schema] = acc[database][schema] || {};
+                acc[database][schema][table] =
+                    tableSchema.fields.reduce<WarehouseTableSchema>(
+                        (sum, { name, type }) => ({
+                            ...sum,
+                            [name]: mapFieldType(type),
+                        }),
+                        {},
+                    );
+            }
+
+            return acc;
+        }, {});
     }
 }
