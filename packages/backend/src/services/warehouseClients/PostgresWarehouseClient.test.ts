@@ -1,4 +1,3 @@
-import { createConnection } from 'snowflake-sdk';
 import PostgresWarehouseClient from './PostgresWarehouseClient';
 import { columns, credentials } from './PostgresWarehouseClient.mock';
 import {
@@ -7,14 +6,10 @@ import {
     expectedWarehouseSchema,
 } from './WarehouseClient.mock';
 
-jest.mock('snowflake-sdk', () => ({
-    ...jest.requireActual('snowflake-sdk'),
-    createConnection: jest.fn(() => ({
-        connect: jest.fn(),
-        execute: jest.fn(({ sqlText, complete }) => {
-            complete(undefined, undefined, [expectedRow]);
-        }),
-        destroy: jest.fn(),
+jest.mock('pg', () => ({
+    ...jest.requireActual('pg'),
+    Pool: jest.fn(() => ({
+        query: jest.fn(() => ({ rows: [expectedRow] })),
     })),
 }));
 
@@ -24,14 +19,10 @@ describe('PostgresWarehouseClient', () => {
         expect((await warehouse.runQuery('fake sql'))[0]).toEqual(expectedRow);
     });
     it('expect schema with bigquery types mapped to dimension types', async () => {
-        (createConnection as jest.Mock).mockImplementationOnce(() => ({
-            connect: jest.fn(),
-            execute: jest.fn(({ sqlText, complete }) => {
-                complete(undefined, undefined, columns);
-            }),
-            destroy: jest.fn(),
-        }));
         const warehouse = new PostgresWarehouseClient(credentials);
+        (warehouse.pool.query as jest.Mock).mockImplementationOnce(() => ({
+            rows: columns,
+        }));
         expect(await warehouse.getSchema(config)).toEqual(
             expectedWarehouseSchema,
         );

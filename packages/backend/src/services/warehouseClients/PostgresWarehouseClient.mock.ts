@@ -55,28 +55,4 @@ export const columns: Record<string, any>[] = [
         column_name: 'myObjectColumn',
         data_type: PostgresTypes.JSON,
     },
-    {
-        kind: 'COLUMN',
-        database_name: 'databaseNotInModel',
-        schema_name: 'schemaNotInModel',
-        table_name: 'tableNotInModel',
-        column_name: 'columnNotInModel',
-        data_type: PostgresTypes.BOOLEAN,
-    },
-    {
-        kind: 'COLUMN',
-        database_name: columnBase.table_catalog,
-        schema_name: 'schemaNotInModel',
-        table_name: 'tableNotInModel',
-        column_name: 'columnNotInModel',
-        data_type: PostgresTypes.BOOLEAN,
-    },
-    {
-        kind: 'COLUMN',
-        database_name: columnBase.table_catalog,
-        schema_name: columnBase.table_schema,
-        table_name: 'tableNotInModel',
-        column_name: 'columnNotInModel',
-        data_type: PostgresTypes.BOOLEAN,
-    },
 ];
