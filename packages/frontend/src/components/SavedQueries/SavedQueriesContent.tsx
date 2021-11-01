@@ -17,6 +17,7 @@ const SavedQueriesContent = ({
     projectUuid,
 }: SavedQueriesContentProps) => (
     <ActionCardList
+        title="Saved charts"
         useUpdate={useUpdateMutation}
         useDelete={useDeleteMutation()}
         dataList={savedQueries}

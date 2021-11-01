@@ -1,5 +1,5 @@
 import React, { Dispatch, SetStateAction } from 'react';
-import { Card, H5 } from '@blueprintjs/core';
+import { AnchorButton } from '@blueprintjs/core';
 import ModalActionButtons from './modal/ModalActionButtons';
 
 type ActionCardProps<T> = {
@@ -18,28 +18,24 @@ const ActionCard = <T extends { uuid: string; name: string }>(
         setActionState,
     } = props;
     return (
-        <Card
-            elevation={0}
+        <AnchorButton
+            href={url}
+            minimal
             style={{
                 display: 'flex',
-                flexDirection: 'column',
-                marginBottom: '20px',
+                alignItems: 'center',
+                justifyContent: 'space-between',
             }}
-        >
-            <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                }}
-            >
-                <H5 style={{ margin: 0, flex: 1 }}>{name}</H5>
+            rightIcon={
                 <ModalActionButtons
                     data={data}
                     url={url}
                     setActionState={setActionState}
                 />
-            </div>
-        </Card>
+            }
+        >
+            <strong>{name}</strong>
+        </AnchorButton>
     );
 };
 

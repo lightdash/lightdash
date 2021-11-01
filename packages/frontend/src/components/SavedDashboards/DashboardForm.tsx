@@ -19,12 +19,6 @@ const DashboardForm = ({
                         rules={{ required: true }}
                         defaultValue={data?.name}
                     />
-                    <Input
-                        label="Description"
-                        name="description"
-                        disabled={isDisabled}
-                        defaultValue={data?.description}
-                    />
                 </>
             )}
             {actionType === ActionTypeModal.DELETE && (

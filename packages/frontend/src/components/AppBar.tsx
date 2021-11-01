@@ -61,11 +61,8 @@ const AppBar = () => {
                             <Button minimal icon="database" text="Explore" />
                         </NavLink>
                     )}
-                </NavbarGroup>
-                <NavbarGroup data-cy="browse" align={Alignment.LEFT}>
                     <Popover2
-                        className="bp3-button bp3-minimal"
-                        interactionKind={PopoverInteractionKind.HOVER}
+                        interactionKind={PopoverInteractionKind.CLICK}
                         content={
                             <Menu className="browse-menu">
                                 <MenuItem
@@ -89,7 +86,7 @@ const AppBar = () => {
                         }
                         position={Position.BOTTOM_LEFT}
                     >
-                        Browse
+                        <Button minimal icon="search" text="Browse" />
                     </Popover2>
                 </NavbarGroup>
                 <NavbarGroup align={Alignment.RIGHT}>

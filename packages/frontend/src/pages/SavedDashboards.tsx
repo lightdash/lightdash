@@ -12,15 +12,12 @@ import {
 import DashboardForm from '../components/SavedDashboards/DashboardForm';
 
 const SavedDashboardsWrapper = styled.div`
+    width: 100%;
+    margin-top: 20px;
     display: flex;
     flex-direction: column;
-`;
-
-const NewDashboardWrapper = styled.div`
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 10px;
-    margin-right: 20px;
+    justify-content: flex-start;
+    align-items: center;
 `;
 
 const SavedDashboards = () => {
@@ -53,19 +50,8 @@ const SavedDashboards = () => {
 
     return (
         <SavedDashboardsWrapper>
-            <NewDashboardWrapper>
-                <Button
-                    text="New dashboard"
-                    loading={isCreatingDashboard}
-                    onClick={() =>
-                        createDashboard({
-                            name: 'Untitled dashboard',
-                            tiles: [],
-                        })
-                    }
-                />
-            </NewDashboardWrapper>
             <ActionCardList
+                title="Dashboards"
                 useUpdate={useUpdateDashboard}
                 useDelete={useDelete}
                 dataList={dashboards}
@@ -74,6 +60,19 @@ const SavedDashboards = () => {
                     return `/projects/${projectUuid}/dashboards/${uuid}`;
                 }}
                 ModalContent={DashboardForm}
+                headerAction={
+                    <Button
+                        text="Create dashboard"
+                        loading={isCreatingDashboard}
+                        onClick={() =>
+                            createDashboard({
+                                name: 'Untitled dashboard',
+                                tiles: [],
+                            })
+                        }
+                        intent="primary"
+                    />
+                }
             />
         </SavedDashboardsWrapper>
     );
