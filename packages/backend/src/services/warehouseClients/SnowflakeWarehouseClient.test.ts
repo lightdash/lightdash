@@ -23,7 +23,7 @@ describe('SnowflakeWarehouseClient', () => {
         const warehouse = new SnowflakeWarehouseClient(credentials);
         expect((await warehouse.runQuery('fake sql'))[0]).toEqual(expectedRow);
     });
-    it('expect schema with bigquery types mapped to dimension types', async () => {
+    it('expect schema with snowflake types mapped to dimension types', async () => {
         (createConnection as jest.Mock).mockImplementationOnce(() => ({
             connect: jest.fn(),
             execute: jest.fn(({ sqlText, complete }) => {

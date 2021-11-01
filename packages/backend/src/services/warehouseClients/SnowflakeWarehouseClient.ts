@@ -2,7 +2,6 @@ import { CreateSnowflakeCredentials, DimensionType } from 'common';
 import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
 import { QueryRunner, WarehouseCatalog } from '../../types';
-import { BigqueryFieldType } from './BigqueryWarehouseClient';
 
 export enum SnowflakeTypes {
     NUMBER = 'NUMBER',
@@ -61,7 +60,7 @@ const mapFieldType = (type: string): DimensionType => {
         case SnowflakeTypes.TIMESTAMP_NTZ:
         case SnowflakeTypes.TIMESTAMP_TZ:
             return DimensionType.TIMESTAMP;
-        case BigqueryFieldType.BOOLEAN:
+        case SnowflakeTypes.BOOLEAN:
             return DimensionType.BOOLEAN;
         default:
             return DimensionType.STRING;
