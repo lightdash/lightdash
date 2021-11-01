@@ -1,6 +1,7 @@
 import { Knex } from 'knex';
 import { Space } from 'common';
 import database from '../database';
+import { NotFoundError } from '../../errors';
 
 type DbSpace = {
     space_id: number;
@@ -25,6 +26,11 @@ export const getSpace = async (
         .select<DbSpace[]>('spaces.*')
         .limit(1);
     const [space] = results;
+    if (space === undefined) {
+        throw new NotFoundError(
+            `No space found for project with id: ${projectUuid}`,
+        );
+    }
     return space;
 };
 
