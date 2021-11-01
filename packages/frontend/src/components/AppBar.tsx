@@ -66,6 +66,7 @@ const AppBar = () => {
                         content={
                             <Menu className="browse-menu">
                                 <MenuItem
+                                    role="button"
                                     text="Dashboards"
                                     onClick={() =>
                                         push({

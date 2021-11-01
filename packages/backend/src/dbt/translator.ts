@@ -1,5 +1,4 @@
 import {
-    DbtRpcDocsGenerateResults,
     DbtModelColumn,
     DbtModelNode,
     Dimension,
@@ -20,6 +19,7 @@ import { parseWithPointers, getLocationForJsonPath } from '@stoplight/yaml';
 import fs from 'fs';
 import { compileExplore } from '../exploreCompiler';
 import { DbtError, MissingCatalogEntryError, ParseError } from '../errors';
+import { WarehouseCatalog } from '../types';
 
 const patchPathParts = (patchPath: string) => {
     const [project, ...rest] = patchPath.split('://');
@@ -382,54 +382,50 @@ export const convertExplores = async (
     return [...explores, ...exploreErrors];
 };
 
-export const attachTypesToModels = async (
+export const attachTypesToModels = (
     models: DbtModelNode[],
-    catalog: DbtRpcDocsGenerateResults,
+    warehouseSchema: WarehouseCatalog,
     throwOnMissingCatalogEntry: boolean = true,
-): Promise<DbtModelNode[]> => {
-    // Check that all models appear in the catalog
-    models.forEach((model) => {
-        if (!(model.unique_id in catalog.nodes) && throwOnMissingCatalogEntry) {
+): DbtModelNode[] => {
+    // Check that all models appear in the warehouse
+    models.forEach(({ database, schema, name }) => {
+        if (
+            (!(database in warehouseSchema) ||
+                !(schema in warehouseSchema[database]) ||
+                !(name in warehouseSchema[database][schema])) &&
+            throwOnMissingCatalogEntry
+        ) {
             throw new MissingCatalogEntryError(
-                `Model "${model.unique_id}" was expected in your target warehouse at "${model.database}.${model.schema}.${model.name}". Does the table exist in your target data warehouse?`,
+                `Model "${name}" was expected in your target warehouse at "${database}.${schema}.${name}". Does the table exist in your target data warehouse?`,
                 {},
             );
         }
     });
 
-    // get column types and use lower case column names
-    const catalogColumnTypes = Object.fromEntries(
-        Object.entries(catalog.nodes).map(([node_id, node]) => {
-            const columns = Object.fromEntries(
-                Object.entries(node.columns).map(([column_name, column]) => [
-                    column_name.toLowerCase(),
-                    column.type,
-                ]),
-            );
-            return [node_id, columns];
-        }),
-    );
-
     const getType = (
-        model: DbtModelNode,
+        { database, schema, name }: DbtModelNode,
         columnName: string,
     ): string | undefined => {
-        try {
-            const columnType = catalogColumnTypes[model.unique_id][columnName];
-            return columnType;
-        } catch (e) {
-            if (throwOnMissingCatalogEntry) {
-                throw new MissingCatalogEntryError(
-                    `Column "${columnName}" from model "${model.name}" does not exist.\n "${columnName}.${model.name}" was not found in your target warehouse at ${model.database}.${model.schema}.${model.name}. Try rerunning dbt to update your warehouse.`,
-                    {},
-                );
-            }
-            return undefined;
+        if (
+            database in warehouseSchema &&
+            schema in warehouseSchema[database] &&
+            name in warehouseSchema[database][schema] &&
+            columnName in warehouseSchema[database][schema][name]
+        ) {
+            return warehouseSchema[database][schema][name][columnName];
         }
+
+        if (throwOnMissingCatalogEntry) {
+            throw new MissingCatalogEntryError(
+                `Column "${columnName}" from model "${name}" does not exist.\n "${columnName}.${name}" was not found in your target warehouse at ${database}.${schema}.${name}. Try rerunning dbt to update your warehouse.`,
+                {},
+            );
+        }
+        return undefined;
     };
 
     // Update the dbt models with type info
-    const typedModels = models.map((model) => ({
+    return models.map((model) => ({
         ...model,
         columns: Object.fromEntries(
             Object.entries(model.columns).map(([column_name, column]) => [
@@ -438,5 +434,13 @@ export const attachTypesToModels = async (
             ]),
         ),
     }));
-    return typedModels;
 };
+
+export const getSchemaStructureFromDbtModels = (
+    dbtModels: DbtModelNode[],
+): { database: string; schema: string; table: string }[] =>
+    dbtModels.map(({ database, schema, name }) => ({
+        database,
+        schema,
+        table: name,
+    }));

@@ -94,6 +94,7 @@ const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
                 <>
                     <Button onClick={onClose}>Cancel</Button>
                     <Button
+                        data-cy="submit-base-modal"
                         disabled={isDisabled}
                         intent={confirmButtonIntent || Intent.PRIMARY}
                         type="submit"

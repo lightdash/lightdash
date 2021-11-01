@@ -1,36 +1,33 @@
 import React, { FC, useState } from 'react';
-import { Dashboard, DashboardChartTile, DashboardTileTypes } from 'common';
+import { DashboardChartTile, DashboardTileTypes } from 'common';
+import { v4 as uuid4 } from 'uuid';
 import ActionModal, { ActionTypeModal } from '../../common/modal/ActionModal';
-import { useUpdateDashboard } from '../../../hooks/dashboard/useDashboard';
 import TileForm from './TileForm';
 
 type Props = {
-    dashboard: Dashboard;
+    onAddTile: (tile: DashboardChartTile) => void;
     onClose: () => void;
 };
 
-const AddTileModal: FC<Props> = ({ dashboard, onClose }) => {
+const AddTileModal: FC<Props> = ({ onClose, onAddTile }) => {
     const [actionState, setActionState] = useState<{
         actionType: number;
         data?: DashboardChartTile['properties'];
     }>({
         actionType: ActionTypeModal.UPDATE,
     });
-    const { mutate, isLoading, isSuccess } = useUpdateDashboard(dashboard.uuid);
+    const [completedMutation, setCompletedMutation] = useState(false);
 
     const onSubmitForm = (properties: DashboardChartTile['properties']) => {
-        mutate({
-            tiles: [
-                ...dashboard.tiles,
-                {
-                    properties,
-                    type: DashboardTileTypes.SAVED_CHART,
-                    h: 3,
-                    w: 5,
-                    x: 0,
-                    y: 0,
-                },
-            ],
+        setCompletedMutation(true);
+        onAddTile({
+            uuid: uuid4(),
+            properties,
+            type: DashboardTileTypes.SAVED_CHART,
+            h: 3,
+            w: 5,
+            x: 0,
+            y: 0,
         });
     };
 
@@ -39,9 +36,9 @@ const AddTileModal: FC<Props> = ({ dashboard, onClose }) => {
             title="Add chart to dashboard"
             confirmButtonLabel="Add"
             useActionModalState={[actionState, setActionState]}
-            isDisabled={isLoading}
+            isDisabled={false}
             onSubmitForm={onSubmitForm}
-            completedMutation={isSuccess}
+            completedMutation={completedMutation}
             ModalContent={TileForm}
             onClose={onClose}
         />

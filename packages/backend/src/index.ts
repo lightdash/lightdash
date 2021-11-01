@@ -13,6 +13,7 @@ import * as OpenApiValidator from 'express-openapi-validator';
 import apiSpec from 'common/dist/openapibundle.json';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
+import { SamplingContext } from '@sentry/types';
 import { AuthorizationError, errorHandler } from './errors';
 import { apiV1Router } from './api/apiV1';
 import { UserModel } from './models/User';
@@ -31,16 +32,30 @@ const store = new KnexSessionStore({
     sidfieldname: 'sid',
 });
 const app = express();
+
+const tracesSampler = (context: SamplingContext): boolean | number => {
+    if (
+        context.request?.url?.endsWith('/status') ||
+        context.request?.url?.endsWith('/health')
+    ) {
+        return 0.0;
+    }
+    return 1.0;
+};
 Sentry.init({
     release: VERSION,
     dsn: process.env.SENTRY_DSN,
+    environment:
+        process.env.NODE_ENV === 'development'
+            ? 'development'
+            : lightdashConfig.mode,
     integrations: [
         new Sentry.Integrations.Http({ tracing: true }),
         new Tracing.Integrations.Express({
             app,
         }),
     ],
-    tracesSampleRate: 1.0,
+    tracesSampler,
 });
 app.use(
     Sentry.Handlers.requestHandler({

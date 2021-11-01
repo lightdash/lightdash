@@ -1,4 +1,8 @@
-import { CompiledMetricQuery, MetricQuery } from 'common';
+import { CompiledMetricQuery, Explore, MetricQuery } from 'common';
+
+export const EXPLORE: Pick<Explore, 'targetDatabase'> = {
+    targetDatabase: 'postgres',
+};
 
 export const METRIC_QUERY_NO_CALCS: MetricQuery = {
     dimensions: ['table1_dim_1', 'table_2_dim_2'],
@@ -39,13 +43,13 @@ export const METRIC_QUERY_VALID_REFERENCES_COMPILED: CompiledMetricQuery = {
             name: 'calc2',
             displayName: '',
             sql: 'dim reference ${table1.dim_1}',
-            compiledSql: 'dim reference table1_dim_1',
+            compiledSql: 'dim reference "table1_dim_1"',
         },
         {
             name: 'calc3',
             displayName: '',
             sql: 'metric reference ${table_3.metric_1}',
-            compiledSql: 'metric reference table_3_metric_1',
+            compiledSql: 'metric reference "table_3_metric_1"',
         },
     ],
 };

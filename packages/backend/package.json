@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.8.3",
+    "version": "0.9.0",
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
@@ -33,6 +33,7 @@
         "@rudderstack/rudder-sdk-node": "^1.0.2",
         "@sentry/node": "^6.12.0",
         "@sentry/tracing": "^6.12.0",
+        "@sentry/types": "^6.13.3",
         "@stoplight/yaml": "^4.2.2",
         "@types/bcrypt": "^5.0.0",
         "@types/pg": "^8.6.1",
@@ -42,7 +43,7 @@
         "ajv-formats": "^2.1.0",
         "bcrypt": "^5.0.1",
         "body-parser": "^1.19.0",
-        "common": "^0.8.3",
+        "common": "^0.9.0",
         "connect-session-knex": "^2.1.0",
         "cookie-parser": "^1.4.5",
         "dependency-graph": "^0.11.0",

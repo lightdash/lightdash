@@ -183,6 +183,15 @@
         "bug",
         "design"
       ]
+    },
+    {
+      "login": "amychen1776",
+      "name": "Amy Chen",
+      "avatar_url": "https://avatars.githubusercontent.com/u/46451573?v=4",
+      "profile": "https://github.com/amychen1776",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
