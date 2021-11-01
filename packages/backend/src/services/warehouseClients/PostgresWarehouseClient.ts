@@ -1,7 +1,62 @@
-import { CreatePostgresCredentials, CreateRedshiftCredentials } from 'common';
+import {
+    CreatePostgresCredentials,
+    CreateRedshiftCredentials,
+    DimensionType,
+} from 'common';
 import * as pg from 'pg';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
 import { QueryRunner } from '../../types';
+
+export enum PostgresTypes {
+    INTEGER = 'integer',
+    INT = 'INT',
+    BIGINT = 'bigint',
+    SMALLINT = 'smallint',
+    BOOLEAN = 'boolean',
+    BOOL = 'bool',
+    DATE = 'date',
+    DOUBLE_PRECISION = 'double precision',
+    FLOAT8 = 'float8',
+    FLOAT4 = 'float4',
+    JSON = 'json',
+    JSONB = 'jsonb',
+    NUMERIC = 'numeric',
+    DECIMAL = 'DECIMAL',
+    REAL = 'real',
+    TEXT = 'text',
+    TIME = 'time',
+    TIME_TZ = 'timetz',
+    TIMESTAMP = 'timestamp',
+    TIMESTAMP_TZ = 'timestamptz',
+}
+
+const mapFieldType = (type: string): DimensionType => {
+    switch (type) {
+        case PostgresTypes.DECIMAL:
+        case PostgresTypes.NUMERIC:
+        case PostgresTypes.INTEGER:
+        case PostgresTypes.INT:
+        case PostgresTypes.BIGINT:
+        case PostgresTypes.SMALLINT:
+        case PostgresTypes.FLOAT4:
+        case PostgresTypes.FLOAT8:
+        case PostgresTypes.DOUBLE_PRECISION:
+        case PostgresTypes.REAL:
+            return DimensionType.NUMBER;
+        case PostgresTypes.DATE:
+            return DimensionType.DATE;
+        case PostgresTypes.TIME:
+        case PostgresTypes.TIME_TZ:
+        case PostgresTypes.TIMESTAMP:
+        case PostgresTypes.TIMESTAMP_TZ:
+            return DimensionType.TIMESTAMP;
+        case PostgresTypes.BOOLEAN:
+        case PostgresTypes.BOOL:
+            return DimensionType.BOOLEAN;
+        default:
+            return DimensionType.STRING;
+    }
+};
 
 export default class PostgresWarehouseClient implements QueryRunner {
     client: pg.Client;
@@ -99,7 +154,7 @@ export default class PostgresWarehouseClient implements QueryRunner {
                 acc[table_catalog][table_schema][table_name] =
                     acc[table_catalog][table_schema][table_name] || {};
                 acc[table_catalog][table_schema][table_name][column_name] =
-                    data_type;
+                    mapFieldType(data_type);
                 return acc;
             },
             {},
