@@ -23,7 +23,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     warehouseClient: WarehouseClient;
 
-    warehouseSchema: WarehouseCatalog | undefined;
+    warehouseCatalog: WarehouseCatalog | undefined;
 
     constructor(dbtClient: DbtClient, warehouseClient: WarehouseClient) {
         this.dbtClient = dbtClient;
@@ -59,7 +59,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         try {
             const lazyTypedModels = attachTypesToModels(
                 validModels,
-                this.warehouseSchema || {},
+                this.warehouseCatalog || {},
                 true,
             );
             const lazyExplores = await convertExplores(
@@ -70,13 +70,13 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             return [...lazyExplores, ...failedExplores];
         } catch (e) {
             if (e instanceof MissingCatalogEntryError) {
-                this.warehouseSchema = await this.warehouseClient.getCatalog(
+                this.warehouseCatalog = await this.warehouseClient.getCatalog(
                     getSchemaStructureFromDbtModels(validModels),
                 );
                 // Some types were missing so refresh the schema and try again
                 const typedModels = attachTypesToModels(
                     validModels,
-                    this.warehouseSchema,
+                    this.warehouseCatalog,
                     false,
                 );
                 const explores = await convertExplores(

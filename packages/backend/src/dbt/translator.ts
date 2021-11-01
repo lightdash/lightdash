@@ -384,15 +384,15 @@ export const convertExplores = async (
 
 export const attachTypesToModels = (
     models: DbtModelNode[],
-    warehouseSchema: WarehouseCatalog,
+    warehouseCatalog: WarehouseCatalog,
     throwOnMissingCatalogEntry: boolean = true,
 ): DbtModelNode[] => {
     // Check that all models appear in the warehouse
     models.forEach(({ database, schema, name }) => {
         if (
-            (!(database in warehouseSchema) ||
-                !(schema in warehouseSchema[database]) ||
-                !(name in warehouseSchema[database][schema])) &&
+            (!(database in warehouseCatalog) ||
+                !(schema in warehouseCatalog[database]) ||
+                !(name in warehouseCatalog[database][schema])) &&
             throwOnMissingCatalogEntry
         ) {
             throw new MissingCatalogEntryError(
@@ -407,12 +407,12 @@ export const attachTypesToModels = (
         columnName: string,
     ): string | undefined => {
         if (
-            database in warehouseSchema &&
-            schema in warehouseSchema[database] &&
-            name in warehouseSchema[database][schema] &&
-            columnName in warehouseSchema[database][schema][name]
+            database in warehouseCatalog &&
+            schema in warehouseCatalog[database] &&
+            name in warehouseCatalog[database][schema] &&
+            columnName in warehouseCatalog[database][schema][name]
         ) {
-            return warehouseSchema[database][schema][name][columnName];
+            return warehouseCatalog[database][schema][name][columnName];
         }
 
         if (throwOnMissingCatalogEntry) {
