@@ -8,7 +8,7 @@ import { NotExistsError } from '../errors';
 import { analytics } from '../analytics/client';
 import { OrganizationModel } from '../models/OrganizationModel';
 import { UserModel } from '../models/UserModel';
-import { ProjectModel } from '../models/ProjectModel';
+import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { lightdashConfig } from '../config/lightdashConfig';
 
 type OrganizationServiceDependencies = {

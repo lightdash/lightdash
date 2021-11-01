@@ -1094,11 +1094,11 @@ export type Project = {
 };
 
 export type CreateProject = Omit<Project, 'projectUuid'> & {
-    warehouseConnection?: CreateWarehouseCredentials;
+    warehouseConnection: CreateWarehouseCredentials;
 };
 
 export type UpdateProject = Omit<Project, 'projectUuid'> & {
-    warehouseConnection?: CreateWarehouseCredentials;
+    warehouseConnection: CreateWarehouseCredentials;
 };
 
 export enum DashboardTileTypes {

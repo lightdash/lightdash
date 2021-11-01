@@ -11,12 +11,15 @@ import {
 } from 'common';
 import { projectAdapterFromConfig } from '../projectAdapters/projectAdapter';
 import { ProjectAdapter } from '../types';
-import { ProjectModel } from '../models/ProjectModel';
+import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { analytics } from '../analytics/client';
-import { errorHandler, NotExistsError, UnexpectedServerError } from '../errors';
+import {
+    errorHandler,
+    MissingWarehouseCredentialsError,
+    NotExistsError,
+} from '../errors';
 import { compileMetricQuery } from '../queryCompiler';
 import { buildQuery } from '../queryBuilder';
-import PostgresWarehouseClient from './warehouseClients/PostgresWarehouseClient';
 
 type ProjectServiceDependencies = {
     projectModel: ProjectModel;
@@ -83,7 +86,7 @@ export class ProjectService {
             properties: {
                 projectId: projectUuid,
                 projectType: data.dbtConnection.type,
-                warehouseConnectionType: data.warehouseConnection?.type,
+                warehouseConnectionType: data.warehouseConnection.type,
             },
         });
         return this.getProject(projectUuid, user);
@@ -104,7 +107,7 @@ export class ProjectService {
             properties: {
                 projectId: projectUuid,
                 projectType: data.dbtConnection.type,
-                warehouseConnectionType: data.warehouseConnection?.type,
+                warehouseConnectionType: data.warehouseConnection.type,
             },
         });
     }
@@ -131,6 +134,11 @@ export class ProjectService {
         const project = await this.projectModel.getWithSensitiveFields(
             projectUuid,
         );
+        if (!project.warehouseConnection) {
+            throw new MissingWarehouseCredentialsError(
+                'Warehouse credentials must be provided to connect to your dbt project',
+            );
+        }
         const adapter = await projectAdapterFromConfig(
             project.dbtConnection,
             project.warehouseConnection,

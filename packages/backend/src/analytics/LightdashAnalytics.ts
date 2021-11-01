@@ -67,7 +67,7 @@ type ProjectEvent = BaseTrack & {
     properties: {
         projectId: string;
         projectType: ProjectType;
-        warehouseConnectionType?: WarehouseTypes;
+        warehouseConnectionType: WarehouseTypes;
     };
 };
 

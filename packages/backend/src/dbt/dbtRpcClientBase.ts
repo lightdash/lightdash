@@ -7,7 +7,12 @@ import {
     isDbtRpcManifestResults,
     isDbtRpcRunSqlResults,
 } from 'common';
-import { DbtError, NetworkError, RetryableNetworkError } from '../errors';
+import {
+    DbtError,
+    NetworkError,
+    NoServerRunningError,
+    RetryableNetworkError,
+} from '../errors';
 import { DbtClient, QueryRunner } from '../types';
 
 export const DEFAULT_HEADERS: Record<string, string> = {
@@ -212,6 +217,19 @@ export class DbtRpcClientBase implements DbtClient, QueryRunner {
         if (results.request_token) {
             return `${results.request_token}`;
         }
+
+        if (results?.error?.message) {
+            if (
+                results.error.message ===
+                'No server running! Please restart the server.'
+            ) {
+                throw new NoServerRunningError(
+                    'No server running! Please restart the server. If you are using dbt cloud make sure you have the IDE for your project open.',
+                );
+            }
+            throw new DbtError(`Dbt Error: ${results.error.message}`, results);
+        }
+
         throw new NetworkError(
             'Unexpected result from dbt while trying to submit new job',
             results,
