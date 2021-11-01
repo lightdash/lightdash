@@ -27,6 +27,7 @@ const ModalActionButtons = ({
             content={
                 <Menu>
                     <MenuItem
+                        role="button"
                         icon="edit"
                         text="Rename"
                         onClick={() =>
@@ -37,6 +38,7 @@ const ModalActionButtons = ({
                         }
                     />
                     <MenuItem
+                        role="button"
                         icon="delete"
                         text="Delete"
                         intent="danger"
