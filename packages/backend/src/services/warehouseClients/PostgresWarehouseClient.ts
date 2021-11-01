@@ -33,14 +33,6 @@ export default class PostgresWarehouseClient implements QueryRunner {
         try {
             const results = await this.client.query(sql);
             return results.rows;
-            // TODO: capture types
-            // return {
-            //     fields: results.fields.map((field) => ({
-            //         name: field.name,
-            //         type: `${field.dataTypeID}`, // types are enum values: https://github.com/brianc/node-pg-types/blob/8594bc6befca3523e265022f303f1376f679b5dc/index.d.ts#L1-L62
-            //     })), // TODO: map to standard column types
-            //     rows: results.rows,
-            // };
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         } finally {
@@ -50,5 +42,67 @@ export default class PostgresWarehouseClient implements QueryRunner {
 
     async test(): Promise<void> {
         await this.runQuery('SELECT 1');
+    }
+
+    async getSchema(
+        requests: {
+            database: string;
+            schema: string;
+            table: string;
+            columns: string[];
+        }[],
+    ) {
+        const { databases, schemas, tables } = requests.reduce<{
+            databases: Set<string>;
+            schemas: Set<string>;
+            tables: Set<string>;
+        }>(
+            (acc, { database, schema, table }) => ({
+                databases: acc.databases.add(`'${database}'`),
+                schemas: acc.schemas.add(`'${schema}'`),
+                tables: acc.tables.add(`'${table}'`),
+            }),
+            {
+                databases: new Set(),
+                schemas: new Set(),
+                tables: new Set(),
+            },
+        );
+        const query = `
+            SELECT table_catalog,
+                   table_schema,
+                   table_name,
+                   column_name,
+                   data_type
+            FROM information_schema.columns
+            WHERE table_catalog IN (${Array.from(databases)}) 
+            AND table_schema IN (${Array.from(schemas)})
+            AND table_name IN (${Array.from(tables)})
+        `;
+
+        const rows = await this.runQuery(query);
+
+        return rows.reduce(
+            (
+                acc,
+                {
+                    table_catalog,
+                    table_schema,
+                    table_name,
+                    column_name,
+                    data_type,
+                },
+            ) => {
+                acc[table_catalog] = acc[table_catalog] || {};
+                acc[table_catalog][table_schema] =
+                    acc[table_catalog][table_schema] || {};
+                acc[table_catalog][table_schema][table_name] =
+                    acc[table_catalog][table_schema][table_name] || {};
+                acc[table_catalog][table_schema][table_name][column_name] =
+                    data_type;
+                return acc;
+            },
+            {},
+        );
     }
 }
