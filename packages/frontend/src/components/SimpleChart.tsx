@@ -93,7 +93,7 @@ export const SimpleChart: FC<SimpleChartProps> = ({
         nameTextStyle: { fontWeight: 'bold' },
     };
     const yAxis = {
-        type: flipX ? xType : yType,
+        type: flipX ? 'category' : yType,
         name: flipX ? xlabel : ylabel,
         nameTextStyle: { fontWeight: 'bold' },
     };
