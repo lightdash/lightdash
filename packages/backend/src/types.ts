@@ -35,7 +35,12 @@ export type WarehouseCatalog = {
 
 export interface WarehouseClient {
     getSchema?: (
-        config: { database: string; schema: string; table: string }[],
+        config: {
+            database: string;
+            schema: string;
+            table: string;
+            columns: string[];
+        }[],
     ) => Promise<WarehouseCatalog>;
     runQuery(sql: string): Promise<Record<string, any>[]>;
     test(): Promise<void>;

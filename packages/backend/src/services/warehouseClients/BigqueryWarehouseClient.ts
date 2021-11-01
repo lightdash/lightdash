@@ -160,7 +160,12 @@ export default class BigqueryWarehouseClient implements WarehouseClient {
     }
 
     async getSchema(
-        requests: { database: string; schema: string; table: string }[],
+        requests: {
+            database: string;
+            schema: string;
+            table: string;
+            columns: string[];
+        }[],
     ) {
         const databaseClients: { [client: string]: BigQuery } = {};
 

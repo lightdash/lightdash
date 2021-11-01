@@ -1,6 +1,6 @@
-import { Button, ButtonGroup } from '@blueprintjs/core';
-import React, { Dispatch, SetStateAction } from 'react';
-import { useHistory } from 'react-router-dom';
+import { Button, Menu, MenuItem } from '@blueprintjs/core';
+import React, { Dispatch, SetStateAction, useState } from 'react';
+import { Popover2 } from '@blueprintjs/popover2';
 import { ActionTypeModal } from './ActionModal';
 
 type ModalActionButtonsProps = {
@@ -16,35 +16,52 @@ const ModalActionButtons = ({
     url,
     setActionState,
 }: ModalActionButtonsProps) => {
-    const { push } = useHistory();
+    const [isOpen, setIsOpen] = useState(false);
+
     return (
-        <ButtonGroup>
+        <Popover2
+            isOpen={isOpen}
+            onClose={() => {
+                setIsOpen(false);
+            }}
+            content={
+                <Menu>
+                    <MenuItem
+                        role="button"
+                        icon="edit"
+                        text="Rename"
+                        onClick={() =>
+                            setActionState({
+                                actionType: ActionTypeModal.UPDATE,
+                                data,
+                            })
+                        }
+                    />
+                    <MenuItem
+                        role="button"
+                        icon="delete"
+                        text="Delete"
+                        intent="danger"
+                        onClick={() =>
+                            setActionState({
+                                actionType: ActionTypeModal.DELETE,
+                                data,
+                            })
+                        }
+                    />
+                </Menu>
+            }
+            placement="bottom"
+        >
             <Button
-                icon="document-open"
-                intent="primary"
-                outlined
-                onClick={() => push({ pathname: url })}
-                text="Open"
+                icon="more"
+                minimal
+                onClick={(e) => {
+                    e.preventDefault();
+                    setIsOpen(true);
+                }}
             />
-            <Button
-                icon="edit"
-                intent="warning"
-                outlined
-                text="Rename"
-                onClick={() =>
-                    setActionState({ actionType: ActionTypeModal.UPDATE, data })
-                }
-            />
-            <Button
-                icon="delete"
-                intent="danger"
-                outlined
-                onClick={() =>
-                    setActionState({ actionType: ActionTypeModal.DELETE, data })
-                }
-                text="Delete"
-            />
-        </ButtonGroup>
+        </Popover2>
     );
 };
 

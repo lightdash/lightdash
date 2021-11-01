@@ -12,16 +12,17 @@ describe('Dashboard List', () => {
 
     it('Should display dashboards', () => {
         cy.visit('/');
-        cy.get('[data-cy=browse]').trigger('mouseover');
+        cy.findByRole('button', { name: 'search Browse' }).click();
         cy.findByRole('button', { name: 'Dashboards' }).click();
         cy.findByText('Jaffle dashboard').should('exist');
     });
 
     it('Should delete dashboards', () => {
         cy.visit('/');
-        cy.get('[data-cy=browse]').trigger('mouseover');
+        cy.findByRole('button', { name: 'search Browse' }).click();
         cy.findByRole('button', { name: 'Dashboards' }).click();
         // click on delete
+        cy.findByRole('button', { name: 'more' }).click();
         cy.findByRole('button', { name: 'delete Delete' }).click();
         // click on delete in the popup
         cy.get('[data-cy=submit-base-modal]').click();
@@ -30,9 +31,9 @@ describe('Dashboard List', () => {
 
     it('Should create a new dashboard', () => {
         cy.visit('/');
-        cy.get('[data-cy=browse]').trigger('mouseover');
+        cy.findByRole('button', { name: 'search Browse' }).click();
         cy.findByRole('button', { name: 'Dashboards' }).click();
-        cy.findByRole('button', { name: 'New dashboard' }).click();
+        cy.findByRole('button', { name: 'Create dashboard' }).click();
 
         cy.url().should(
             'match',
@@ -45,14 +46,12 @@ describe('Dashboard List', () => {
 
     it('Should update dashboards', () => {
         cy.visit('/');
-        cy.get('[data-cy=browse]').trigger('mouseover');
+        cy.findByRole('button', { name: 'search Browse' }).click();
         cy.findByRole('button', { name: 'Dashboards' }).click();
         // click on rename
+        cy.findByRole('button', { name: 'more' }).click();
         cy.findByRole('button', { name: 'edit Rename' }).click();
         cy.findByLabelText('Name (required)').clear().type('Jaffle dashboard');
-        cy.findByLabelText('Description (optional)')
-            .clear()
-            .type('description');
         // click on save
         cy.findByRole('button', { name: 'Save' }).click();
 
