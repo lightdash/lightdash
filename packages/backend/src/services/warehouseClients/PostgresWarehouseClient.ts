@@ -173,13 +173,25 @@ export default class PostgresWarehouseClient implements QueryRunner {
                     data_type,
                 },
             ) => {
-                acc[table_catalog] = acc[table_catalog] || {};
-                acc[table_catalog][table_schema] =
-                    acc[table_catalog][table_schema] || {};
-                acc[table_catalog][table_schema][table_name] =
-                    acc[table_catalog][table_schema][table_name] || {};
-                acc[table_catalog][table_schema][table_name][column_name] =
-                    mapFieldType(data_type);
+                const match = requests.find(
+                    ({ database, schema, table }) =>
+                        database === table_catalog &&
+                        schema === table_schema &&
+                        table === table_name,
+                );
+                const columnMatch = match?.columns.find(
+                    (name) => name === column_name,
+                );
+                if (!!match && !!columnMatch) {
+                    acc[table_catalog] = acc[table_catalog] || {};
+                    acc[table_catalog][table_schema] =
+                        acc[table_catalog][table_schema] || {};
+                    acc[table_catalog][table_schema][table_name] =
+                        acc[table_catalog][table_schema][table_name] || {};
+                    acc[table_catalog][table_schema][table_name][column_name] =
+                        mapFieldType(data_type);
+                }
+
                 return acc;
             },
             {},
