@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { Card, Colors, HTMLTable, NonIdealState } from '@blueprintjs/core';
+import {
+    Card,
+    Colors,
+    HTMLTable,
+    NonIdealState,
+    H4,
+    H3,
+    Divider,
+} from '@blueprintjs/core';
 import { ApiError } from 'common';
 import { UseMutationResult } from 'react-query';
 import styled from 'styled-components';
@@ -17,13 +25,11 @@ type ActionCardListProps<T extends { uuid: string; name: string }> = {
     ModalContent: (
         props: Pick<ActionModalProps<T>, 'useActionModalState' | 'isDisabled'>,
     ) => JSX.Element;
-    // eslint-disable-next-line react/require-default-props
-    extra?: React.ReactNode;
+    headerAction?: React.ReactNode;
 };
 
 const ActionCardListWrapper = styled(Card)`
     width: 768px;
-    padding: 20px 40px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -36,7 +42,7 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
     useUpdate,
     ModalContent,
     title,
-    extra = null,
+    headerAction,
 }: ActionCardListProps<T>) => {
     const [actionState, setActionState] = useState<{
         actionType: number;
@@ -47,34 +53,30 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
 
     return (
         <ActionCardListWrapper>
-            <HTMLTable>
-                <thead>
-                    <th
-                        style={{
-                            color: Colors.GRAY1,
-                            width: '100%',
-                            display: 'flex',
-                            alignItems: 'flex-end',
-                        }}
-                    >
-                        <span style={{ flex: 1 }}>{title}</span>
-                        {extra}
-                    </th>
-                </thead>
-                <tbody>
-                    {dataList.map((data) => (
-                        <tr key={data.uuid}>
-                            <td>
-                                <ActionCard
-                                    data={data}
-                                    url={getURL(data)}
-                                    setActionState={setActionState}
-                                />
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </HTMLTable>
+            <div
+                style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                }}
+            >
+                <H3 style={{ flex: 1, margin: 0, color: Colors.GRAY1 }}>
+                    {title}
+                </H3>
+                {headerAction}
+            </div>
+            <Divider style={{ margin: '20px 0' }} />
+            <div>
+                {dataList.map((data) => (
+                    <div key={data.uuid} style={{ marginBottom: 10 }}>
+                        <ActionCard
+                            data={data}
+                            url={getURL(data)}
+                            setActionState={setActionState}
+                        />
+                    </div>
+                ))}
+            </div>
             {actionState.actionType === ActionTypeModal.UPDATE && (
                 <UpdateActionModal
                     useActionModalState={[actionState, setActionState]}
@@ -98,4 +100,9 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
         </ActionCardListWrapper>
     );
 };
+
+ActionCardList.defaultProps = {
+    headerAction: null,
+};
+
 export default ActionCardList;

@@ -1,4 +1,5 @@
 import React, { Dispatch, SetStateAction } from 'react';
+import { AnchorButton } from '@blueprintjs/core';
 import ModalActionButtons from './modal/ModalActionButtons';
 
 type ActionCardProps<T> = {
@@ -17,22 +18,24 @@ const ActionCard = <T extends { uuid: string; name: string }>(
         setActionState,
     } = props;
     return (
-        <div
+        <AnchorButton
+            href={url}
+            minimal
             style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
             }}
+            rightIcon={
+                <ModalActionButtons
+                    data={data}
+                    url={url}
+                    setActionState={setActionState}
+                />
+            }
         >
-            <a style={{ color: 'inherit' }} href={url}>
-                <strong>{name}</strong>
-            </a>
-            <ModalActionButtons
-                data={data}
-                url={url}
-                setActionState={setActionState}
-            />
-        </div>
+            <strong>{name}</strong>
+        </AnchorButton>
     );
 };
 

@@ -13,7 +13,7 @@ import DashboardForm from '../components/SavedDashboards/DashboardForm';
 
 const SavedDashboardsWrapper = styled.div`
     width: 100%;
-    margin-top: 30px;
+    margin-top: 20px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -46,7 +46,7 @@ const SavedDashboards = () => {
                     return `/projects/${projectUuid}/dashboards/${uuid}`;
                 }}
                 ModalContent={DashboardForm}
-                extra={
+                headerAction={
                     <Button
                         text="Create dashboard"
                         onClick={() => setIsModalOpen(true)}
