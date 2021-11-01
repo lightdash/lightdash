@@ -32,7 +32,7 @@ describe('SnowflakeWarehouseClient', () => {
             destroy: jest.fn(),
         }));
         const warehouse = new SnowflakeWarehouseClient(credentials);
-        expect(await warehouse.getSchema(config)).toEqual(
+        expect(await warehouse.getCatalog(config)).toEqual(
             expectedWarehouseSchema,
         );
     });

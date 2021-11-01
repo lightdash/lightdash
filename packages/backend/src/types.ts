@@ -34,7 +34,7 @@ export type WarehouseCatalog = {
 };
 
 export interface WarehouseClient {
-    getSchema?: (
+    getCatalog: (
         config: {
             database: string;
             schema: string;

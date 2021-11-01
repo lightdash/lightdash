@@ -124,7 +124,7 @@ export default class PostgresWarehouseClient implements WarehouseClient {
         await this.runQuery('SELECT 1');
     }
 
-    async getSchema(
+    async getCatalog(
         requests: {
             database: string;
             schema: string;

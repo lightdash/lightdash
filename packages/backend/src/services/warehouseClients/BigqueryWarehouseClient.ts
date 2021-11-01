@@ -159,7 +159,7 @@ export default class BigqueryWarehouseClient implements WarehouseClient {
         ];
     }
 
-    async getSchema(
+    async getCatalog(
         requests: {
             database: string;
             schema: string;

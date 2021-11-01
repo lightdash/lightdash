@@ -131,7 +131,7 @@ export default class SnowflakeWarehouseClient implements WarehouseClient {
         await this.runQuery('SELECT 1');
     }
 
-    async getSchema(
+    async getCatalog(
         config: {
             database: string;
             schema: string;
