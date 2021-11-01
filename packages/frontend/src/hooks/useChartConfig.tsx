@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
     ApiQueryResults,
     CompiledDimension,
+    DimensionType,
     fieldId as getFieldId,
     friendlyName,
     getDimensions,
@@ -59,6 +60,7 @@ type ChartConfigBase = {
     tableCalculationOptions: TableCalculation[];
     eChartDimensions: { name: string; displayName: string }[];
     series: string[];
+    xDimensionType: DimensionType | undefined;
 };
 export type ChartConfig = ChartConfigBase &
     (
@@ -333,6 +335,9 @@ export const useChartConfig = (
                     : row,
             );
         }
+        const xDimensionType = dimensions.find(
+            (dimension) => getFieldId(dimension) === seriesLayout.xDimension,
+        )?.type;
         return {
             setXDimension,
             setGroupDimension,
@@ -344,6 +349,7 @@ export const useChartConfig = (
             tableCalculationOptions,
             dimensionOptions,
             series,
+            xDimensionType,
         };
     }
     return {
@@ -357,5 +363,6 @@ export const useChartConfig = (
         tableCalculationOptions,
         dimensionOptions,
         series: [],
+        xDimensionType: undefined,
     };
 };
