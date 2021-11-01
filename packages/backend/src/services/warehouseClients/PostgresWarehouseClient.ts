@@ -9,25 +9,45 @@ import { QueryRunner } from '../../types';
 
 export enum PostgresTypes {
     INTEGER = 'integer',
-    INT = 'INT',
+    INT = 'int',
+    INT2 = 'int2',
+    INT4 = 'int4',
+    INT8 = 'int8',
+    MONEY = 'money',
+    SMALLSERIAL = 'smallserial',
+    SERIAL = 'serial',
+    SERIAL2 = 'serial2',
+    SERIAL4 = 'serial4',
+    SERIAL8 = 'serial8',
+    BIGSERIAL = 'bigserial',
     BIGINT = 'bigint',
     SMALLINT = 'smallint',
     BOOLEAN = 'boolean',
     BOOL = 'bool',
     DATE = 'date',
     DOUBLE_PRECISION = 'double precision',
-    FLOAT8 = 'float8',
+    FLOAT = 'float',
     FLOAT4 = 'float4',
+    FLOAT8 = 'float8',
     JSON = 'json',
     JSONB = 'jsonb',
     NUMERIC = 'numeric',
-    DECIMAL = 'DECIMAL',
+    DECIMAL = 'decimal',
     REAL = 'real',
+    CHAR = 'char',
+    CHARACTER = 'character',
+    NCHAR = 'nchar',
+    BPCHAR = 'bpchar',
+    VARCHAR = 'varchar',
+    CHARACTER_VARYING = 'character varying',
+    NVARCHAR = 'nvarchar',
     TEXT = 'text',
     TIME = 'time',
     TIME_TZ = 'timetz',
+    TIME_WITHOUT_TIME_ZONE = 'time without time zone',
     TIMESTAMP = 'timestamp',
     TIMESTAMP_TZ = 'timestamptz',
+    TIMESTAMP_WITHOUT_TIME_ZONE = 'timestamp without time zone',
 }
 
 const mapFieldType = (type: string): DimensionType => {
@@ -35,9 +55,19 @@ const mapFieldType = (type: string): DimensionType => {
         case PostgresTypes.DECIMAL:
         case PostgresTypes.NUMERIC:
         case PostgresTypes.INTEGER:
-        case PostgresTypes.INT:
+        case PostgresTypes.MONEY:
+        case PostgresTypes.SMALLSERIAL:
+        case PostgresTypes.SERIAL:
+        case PostgresTypes.SERIAL2:
+        case PostgresTypes.SERIAL4:
+        case PostgresTypes.SERIAL8:
+        case PostgresTypes.BIGSERIAL:
+        case PostgresTypes.INT2:
+        case PostgresTypes.INT4:
+        case PostgresTypes.INT8:
         case PostgresTypes.BIGINT:
         case PostgresTypes.SMALLINT:
+        case PostgresTypes.FLOAT:
         case PostgresTypes.FLOAT4:
         case PostgresTypes.FLOAT8:
         case PostgresTypes.DOUBLE_PRECISION:
@@ -49,6 +79,8 @@ const mapFieldType = (type: string): DimensionType => {
         case PostgresTypes.TIME_TZ:
         case PostgresTypes.TIMESTAMP:
         case PostgresTypes.TIMESTAMP_TZ:
+        case PostgresTypes.TIME_WITHOUT_TIME_ZONE:
+        case PostgresTypes.TIMESTAMP_WITHOUT_TIME_ZONE:
             return DimensionType.TIMESTAMP;
         case PostgresTypes.BOOLEAN:
         case PostgresTypes.BOOL:
