@@ -3,7 +3,13 @@ import { Button, Colors, Intent, Card, H2 } from '@blueprintjs/core';
 import { useMutation } from 'react-query';
 import { useForm } from 'react-hook-form';
 import { Redirect, useLocation } from 'react-router-dom';
-import { ApiError, LightdashMode, LightdashUser, USER_SEED } from 'common';
+import {
+    ApiError,
+    LightdashMode,
+    LightdashUser,
+    SEED_EMAIL,
+    SEED_PASSWORD,
+} from 'common';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 import AboutFooter from '../components/AboutFooter';
@@ -52,8 +58,8 @@ const Login: FC = () => {
 
     useEffect(() => {
         if (health.data?.mode === LightdashMode.DEMO) {
-            methods.setValue('email', USER_SEED.email);
-            methods.setValue('password', USER_SEED.password);
+            methods.setValue('email', SEED_EMAIL.email);
+            methods.setValue('password', SEED_PASSWORD.password);
         }
     }, [health, methods]);
 

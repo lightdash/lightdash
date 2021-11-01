@@ -1,4 +1,4 @@
-import { USER_SEED } from 'common';
+import { SEED_EMAIL, SEED_USER } from 'common';
 
 describe('Settings - Profile', () => {
     before(() => {
@@ -12,9 +12,9 @@ describe('Settings - Profile', () => {
             url: 'api/v1/user/me',
             method: 'PATCH',
             body: {
-                firstName: USER_SEED.firstName,
-                lastName: USER_SEED.lastName,
-                email: USER_SEED.email,
+                firstName: SEED_USER.first_name,
+                lastName: SEED_USER.last_name,
+                email: SEED_EMAIL.email,
             },
         });
     });

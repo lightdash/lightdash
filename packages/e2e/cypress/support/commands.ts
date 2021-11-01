@@ -24,7 +24,7 @@
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 import '@testing-library/cypress/add-commands';
-import { USER_SEED } from 'common';
+import { SEED_EMAIL, SEED_PASSWORD } from 'common';
 
 declare namespace Cypress {
     interface Chainable<AUTWindow> {
@@ -38,8 +38,8 @@ Cypress.Commands.add('login', () => {
         url: 'api/v1/login',
         method: 'POST',
         body: {
-            email: USER_SEED.email,
-            password: USER_SEED.password,
+            email: SEED_EMAIL.email,
+            password: SEED_PASSWORD.password,
         },
     });
 });
@@ -48,8 +48,8 @@ Cypress.Commands.add('preCompileProject', () => {
         url: 'api/v1/login',
         method: 'POST',
         body: {
-            email: USER_SEED.email,
-            password: USER_SEED.password,
+            email: SEED_EMAIL.email,
+            password: SEED_PASSWORD.password,
         },
     });
     cy.request({
