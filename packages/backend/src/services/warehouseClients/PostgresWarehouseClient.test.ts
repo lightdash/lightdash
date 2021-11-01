@@ -18,7 +18,7 @@ describe('PostgresWarehouseClient', () => {
         const warehouse = new PostgresWarehouseClient(credentials);
         expect((await warehouse.runQuery('fake sql'))[0]).toEqual(expectedRow);
     });
-    it('expect schema with bigquery types mapped to dimension types', async () => {
+    it('expect schema with postgres types mapped to dimension types', async () => {
         const warehouse = new PostgresWarehouseClient(credentials);
         (warehouse.pool.query as jest.Mock).mockImplementationOnce(() => ({
             rows: columns,
