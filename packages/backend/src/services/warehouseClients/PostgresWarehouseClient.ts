@@ -4,13 +4,13 @@ import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
 import { QueryRunner } from '../../types';
 
 export default class PostgresWarehouseClient implements QueryRunner {
-    client: pg.Client;
+    pool: pg.Pool;
 
     constructor(
         credentials: CreatePostgresCredentials | CreateRedshiftCredentials,
     ) {
         try {
-            const client = new pg.Client({
+            const pool = new pg.Pool({
                 // Use connection string so we can use sslmode keywords for postgres
                 connectionString: `postgres://${credentials.user}:${
                     credentials.password
@@ -18,7 +18,7 @@ export default class PostgresWarehouseClient implements QueryRunner {
                     credentials.dbname
                 }?sslmode=${credentials.sslmode || 'prefer'}`,
             });
-            this.client = client;
+            this.pool = pool;
         } catch (e) {
             throw new WarehouseConnectionError(e.message);
         }
@@ -26,12 +26,7 @@ export default class PostgresWarehouseClient implements QueryRunner {
 
     async runQuery(sql: string): Promise<Record<string, any>[]> {
         try {
-            await this.client.connect();
-        } catch (e) {
-            throw new WarehouseConnectionError(e.message);
-        }
-        try {
-            const results = await this.client.query(sql);
+            const results = await this.pool.query(sql); // automatically checkouts client and cleans up
             return results.rows;
             // TODO: capture types
             // return {
@@ -43,8 +38,6 @@ export default class PostgresWarehouseClient implements QueryRunner {
             // };
         } catch (e) {
             throw new WarehouseQueryError(e.message);
-        } finally {
-            await this.client.end();
         }
     }
 
