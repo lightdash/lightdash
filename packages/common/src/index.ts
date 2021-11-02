@@ -36,14 +36,41 @@ export function hexToRGB(hex: string, alpha: number | undefined): string {
     return `rgb(${r}, ${g}, ${b})`;
 }
 
-export const USER_SEED: CreateInitialUserArgs = {
-    firstName: 'Jane',
-    lastName: 'Doe',
-    organizationName: 'Jaffle Shop',
+// Seeds
+export const SEED_ORGANIZATION = {
+    organization_uuid: '172a2270-000f-42be-9c68-c4752c23ae51',
+    organization_name: 'Jaffle Shop',
+};
+export const SEED_USER = {
+    user_uuid: 'b264d83a-9000-426a-85ec-3f9c20f368ce',
+    first_name: 'Jane',
+    last_name: 'Doe',
+    is_marketing_opted_in: true,
+    is_tracking_anonymized: false,
+};
+export const SEED_EMAIL = {
+    user_id: 1,
     email: 'demo@lightdash.com',
+    is_primary: true,
+};
+export const SEED_PASSWORD = {
+    user_id: 1,
     password: 'demo_password!',
-    isMarketingOptedIn: true,
-    isTrackingAnonymized: false,
+};
+export const SEED_ORGANIZATION_MEMBERSHIP = {
+    user_id: 1,
+    organization_id: 1,
+};
+export const SEED_PROJECT = {
+    project_uuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+    organization_id: 1,
+    name: 'Jaffle shop',
+    dbt_connection_type: null,
+    dbt_connection: null,
+};
+export const SEED_SPACE = {
+    project_id: 1,
+    name: SEED_PROJECT.name,
 };
 
 export type ArgumentsOf<F extends Function> = F extends (

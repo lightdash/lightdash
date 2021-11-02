@@ -207,7 +207,7 @@ export class WarehouseQueryError extends LightdashError {
         super({
             message,
             name: 'WarehouseQueryError',
-            statusCode: 502, // TODO: is this a server error? usually syntax error
+            statusCode: 500, // TODO: is this a server error? usually syntax error
             data: {},
         });
     }

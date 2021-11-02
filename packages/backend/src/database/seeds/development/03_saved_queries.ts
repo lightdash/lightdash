@@ -1,18 +1,13 @@
 import { Knex } from 'knex';
-import { DBChartTypes } from 'common';
+import { DBChartTypes, SEED_PROJECT } from 'common';
 import { createSavedQuery } from '../../entities/savedQueries';
 
 export async function seed(knex: Knex): Promise<void> {
     // Deletes ALL existing entries
     await knex('saved_queries').del();
 
-    // Get the project id
-    const [{ project_uuid: projectUuid }] = await knex('projects')
-        .select('*')
-        .limit(1);
-
     // Inserts seed entries
-    await createSavedQuery(projectUuid, {
+    await createSavedQuery(SEED_PROJECT.project_uuid, {
         name: 'How much revenue do we have per payment method?',
         tableName: 'payments',
         metricQuery: {
@@ -44,7 +39,7 @@ export async function seed(knex: Knex): Promise<void> {
         },
     });
 
-    await createSavedQuery(projectUuid, {
+    await createSavedQuery(SEED_PROJECT.project_uuid, {
         name: "What's the average spend per customer?",
         tableName: 'orders',
         metricQuery: {
@@ -67,7 +62,7 @@ export async function seed(knex: Knex): Promise<void> {
         },
     });
 
-    await createSavedQuery(projectUuid, {
+    await createSavedQuery(SEED_PROJECT.project_uuid, {
         name: 'How many orders we have over time ?',
         tableName: 'orders',
         metricQuery: {
