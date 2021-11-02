@@ -60,7 +60,7 @@ Sentry.init({
 app.use(
     Sentry.Handlers.requestHandler({
         user: ['userUuid', 'organizationUuid', 'organizationName'],
-    }),
+    }) as express.RequestHandler,
 );
 app.use(Sentry.Handlers.tracingHandler());
 app.use(express.json());

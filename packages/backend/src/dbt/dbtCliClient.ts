@@ -1,6 +1,7 @@
 import execa from 'execa';
 import { load as loadYaml } from 'js-yaml';
 import * as fs from 'fs/promises';
+import * as Sentry from '@sentry/node';
 import path from 'path';
 import {
     DbtRpcDocsGenerateResults,
@@ -126,14 +127,30 @@ export class DbtCliClient implements DbtClient {
     }
 
     async installDeps(): Promise<void> {
+        const transaction = Sentry.getCurrentHub()
+            ?.getScope()
+            ?.getTransaction();
+        const span = transaction?.startChild({
+            op: 'dbt',
+            description: 'installDeps',
+        });
         await this._runDbtCommand('deps');
+        span?.finish();
     }
 
     async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
+        const transaction = Sentry.getCurrentHub()
+            ?.getScope()
+            ?.getTransaction();
+        const span = transaction?.startChild({
+            op: 'dbt',
+            description: 'getDbtManifest',
+        });
         const dbtLogs = await this._runDbtCommand('compile');
         const rawManifest = {
             manifest: await this._loadDbtArtifact('manifest.json'),
         };
+        span?.finish();
         if (isDbtRpcManifestResults(rawManifest)) {
             return rawManifest;
         }
@@ -161,8 +178,16 @@ export class DbtCliClient implements DbtClient {
     }
 
     async getDbtCatalog(): Promise<DbtRpcDocsGenerateResults> {
+        const transaction = Sentry.getCurrentHub()
+            ?.getScope()
+            ?.getTransaction();
+        const span = transaction?.startChild({
+            op: 'dbt',
+            description: 'getDbtbCatalog',
+        });
         const dbtLogs = await this._runDbtCommand('docs', 'generate');
         const rawCatalog = await this._loadDbtArtifact('catalog.json');
+        span?.finish();
         if (isDbtRpcDocsGenerateResults(rawCatalog)) {
             return rawCatalog;
         }
@@ -173,6 +198,14 @@ export class DbtCliClient implements DbtClient {
     }
 
     async test(): Promise<void> {
+        const transaction = Sentry.getCurrentHub()
+            ?.getScope()
+            ?.getTransaction();
+        const span = transaction?.startChild({
+            op: 'dbt',
+            description: 'test',
+        });
         await this._runDbtCommand('debug');
+        span?.finish();
     }
 }
