@@ -17,7 +17,7 @@ jest.mock('../../models/models', () => ({
     projectModel: {},
 }));
 
-describe('DashboardService', () => {
+describe('ProjectService', () => {
     const projectUuid = 'projectUuid';
     const service = new ProjectService({
         projectModel,
