@@ -10,7 +10,7 @@ import {
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
 import {
-    QueryRunner,
+    WarehouseClient,
     WarehouseCatalog,
     WarehouseTableSchema,
 } from '../../types';
@@ -106,7 +106,7 @@ const parseRows = (rows: Record<string, any>[]) =>
         ),
     );
 
-export default class BigqueryWarehouseClient implements QueryRunner {
+export default class BigqueryWarehouseClient implements WarehouseClient {
     client: BigQuery;
 
     credentials: CreateBigqueryCredentials;
@@ -159,7 +159,7 @@ export default class BigqueryWarehouseClient implements QueryRunner {
         ];
     }
 
-    async getSchema(
+    async getCatalog(
         requests: {
             database: string;
             schema: string;

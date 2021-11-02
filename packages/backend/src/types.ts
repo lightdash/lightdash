@@ -33,8 +33,8 @@ export type WarehouseCatalog = {
     };
 };
 
-export interface QueryRunner {
-    getSchema?: (
+export interface WarehouseClient {
+    getCatalog: (
         config: {
             database: string;
             schema: string;

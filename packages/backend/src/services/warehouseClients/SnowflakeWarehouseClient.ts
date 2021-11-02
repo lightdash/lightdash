@@ -1,7 +1,7 @@
 import { CreateSnowflakeCredentials, DimensionType } from 'common';
 import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
-import { QueryRunner, WarehouseCatalog } from '../../types';
+import { WarehouseClient, WarehouseCatalog } from '../../types';
 
 export enum SnowflakeTypes {
     NUMBER = 'NUMBER',
@@ -67,7 +67,7 @@ const mapFieldType = (type: string): DimensionType => {
     }
 };
 
-export default class SnowflakeWarehouseClient implements QueryRunner {
+export default class SnowflakeWarehouseClient implements WarehouseClient {
     connectionOptions: ConnectionOptions;
 
     constructor(credentials: CreateSnowflakeCredentials) {
@@ -131,7 +131,7 @@ export default class SnowflakeWarehouseClient implements QueryRunner {
         await this.runQuery('SELECT 1');
     }
 
-    async getSchema(
+    async getCatalog(
         config: {
             database: string;
             schema: string;

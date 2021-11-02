@@ -23,7 +23,7 @@ describe('PostgresWarehouseClient', () => {
         (warehouse.pool.query as jest.Mock).mockImplementationOnce(() => ({
             rows: columns,
         }));
-        expect(await warehouse.getSchema(config)).toEqual(
+        expect(await warehouse.getCatalog(config)).toEqual(
             expectedWarehouseSchema,
         );
     });

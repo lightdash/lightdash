@@ -15,19 +15,20 @@ export const projectAdapterFromConfig = async (
     config: DbtProjectConfig,
     warehouseCredentials: CreateWarehouseCredentials,
 ): Promise<ProjectAdapter> => {
-    const queryRunner = warehouseClientFromCredentials(warehouseCredentials);
+    const warehouseClient =
+        warehouseClientFromCredentials(warehouseCredentials);
     const configType = config.type;
     switch (config.type) {
         case ProjectType.DBT:
             return new DbtLocalCredentialsProjectAdapter({
-                queryRunner,
+                warehouseClient,
                 projectDir: config.project_dir,
                 warehouseCredentials,
                 port: await getPort(),
             });
         case ProjectType.DBT_CLOUD_IDE:
             return new DbtCloudIdeProjectAdapter({
-                queryRunner,
+                warehouseClient,
                 accountId: `${config.account_id}`,
                 environmentId: `${config.environment_id}`,
                 projectId: `${config.project_id}`,
@@ -35,7 +36,7 @@ export const projectAdapterFromConfig = async (
             });
         case ProjectType.GITHUB:
             return new DbtGithubProjectAdapter({
-                queryRunner,
+                warehouseClient,
                 githubPersonalAccessToken: config.personal_access_token,
                 githubRepository: config.repository,
                 githubBranch: config.branch,
@@ -45,7 +46,7 @@ export const projectAdapterFromConfig = async (
             });
         case ProjectType.GITLAB:
             return new DbtGitlabProjectAdapter({
-                queryRunner,
+                warehouseClient,
                 gitlabPersonalAccessToken: config.personal_access_token,
                 gitlabRepository: config.repository,
                 gitlabBranch: config.branch,

@@ -30,7 +30,7 @@ describe('BigqueryWarehouseClient', () => {
             .mockImplementationOnce(() => getDatasetResponse);
         BigQuery.prototype.dataset = getDatasetMock;
         const warehouse = new BigqueryWarehouseClient(credentials);
-        expect(await warehouse.getSchema(config)).toEqual(
+        expect(await warehouse.getCatalog(config)).toEqual(
             expectedWarehouseSchema,
         );
         expect(getDatasetMock).toHaveBeenCalledTimes(1);

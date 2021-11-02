@@ -1,9 +1,9 @@
 import { CreateWarehouseCredentials } from 'common';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
-import { QueryRunner } from '../types';
+import { WarehouseClient } from '../types';
 
 type DbtGithubProjectAdapterArgs = {
-    queryRunner: QueryRunner | undefined;
+    warehouseClient: WarehouseClient;
     githubPersonalAccessToken: string;
     githubRepository: string;
     githubBranch: string;
@@ -14,7 +14,7 @@ type DbtGithubProjectAdapterArgs = {
 
 export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
     constructor({
-        queryRunner,
+        warehouseClient,
         githubBranch,
         githubPersonalAccessToken,
         githubRepository,
@@ -24,7 +24,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
     }: DbtGithubProjectAdapterArgs) {
         const remoteRepositoryUrl = `https://${githubPersonalAccessToken}@github.com/${githubRepository}.git`;
         super({
-            queryRunner,
+            warehouseClient,
             remoteRepositoryUrl,
             port,
             projectDirectorySubPath,

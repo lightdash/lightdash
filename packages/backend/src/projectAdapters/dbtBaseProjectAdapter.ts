@@ -1,4 +1,4 @@
-import { DbtModelNode, DimensionType, Explore, ExploreError } from 'common';
+import { DbtModelNode, Explore, ExploreError } from 'common';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import {
@@ -11,9 +11,8 @@ import modelJsonSchema from '../schema.json';
 import {
     DbtClient,
     ProjectAdapter,
-    QueryRunner,
+    WarehouseClient,
     WarehouseCatalog,
-    WarehouseTableSchema,
 } from '../types';
 
 const ajv = new Ajv();
@@ -22,13 +21,13 @@ addFormats(ajv);
 export class DbtBaseProjectAdapter implements ProjectAdapter {
     dbtClient: DbtClient;
 
-    queryRunner: QueryRunner;
+    warehouseClient: WarehouseClient;
 
-    warehouseSchema: WarehouseCatalog | undefined;
+    warehouseCatalog: WarehouseCatalog | undefined;
 
-    constructor(dbtClient: DbtClient, queryRunner: QueryRunner) {
+    constructor(dbtClient: DbtClient, warehouseClient: WarehouseClient) {
         this.dbtClient = dbtClient;
-        this.queryRunner = queryRunner;
+        this.warehouseClient = warehouseClient;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function,class-methods-use-this
@@ -36,40 +35,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     public async test(): Promise<void> {
         await this.dbtClient.test();
-        await this.queryRunner.test();
-    }
-
-    private async getWarehouseSchema(
-        dbtModels: DbtModelNode[],
-    ): Promise<WarehouseCatalog> {
-        if (this.queryRunner?.getSchema) {
-            this.warehouseSchema = await this.queryRunner.getSchema(
-                getSchemaStructureFromDbtModels(dbtModels),
-            );
-        } else {
-            const catalog = await this.dbtClient.getDbtCatalog();
-            // get column types and use lower case column names
-            this.warehouseSchema = Object.values(
-                catalog.nodes,
-            ).reduce<WarehouseCatalog>((sum, node) => {
-                const acc: WarehouseCatalog = { ...sum };
-                acc[node.metadata.database] = acc[node.metadata.database] || {};
-                acc[node.metadata.database][node.metadata.schema] =
-                    acc[node.metadata.database][node.metadata.schema] || {};
-                acc[node.metadata.database][node.metadata.schema][
-                    node.metadata.name
-                ] = Object.entries(node.columns).reduce<WarehouseTableSchema>(
-                    (columns, [column_name, column]) => ({
-                        ...columns,
-                        [column_name.toLowerCase()]:
-                            column.type as DimensionType,
-                    }),
-                    {},
-                );
-                return acc;
-            }, {});
-        }
-        return this.warehouseSchema;
+        await this.warehouseClient.test();
     }
 
     public async compileAllExplores(
@@ -93,7 +59,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         try {
             const lazyTypedModels = attachTypesToModels(
                 validModels,
-                this.warehouseSchema || {},
+                this.warehouseCatalog || {},
                 true,
             );
             const lazyExplores = await convertExplores(
@@ -104,10 +70,13 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             return [...lazyExplores, ...failedExplores];
         } catch (e) {
             if (e instanceof MissingCatalogEntryError) {
+                this.warehouseCatalog = await this.warehouseClient.getCatalog(
+                    getSchemaStructureFromDbtModels(validModels),
+                );
                 // Some types were missing so refresh the schema and try again
                 const typedModels = attachTypesToModels(
                     validModels,
-                    await this.getWarehouseSchema(validModels),
+                    this.warehouseCatalog,
                     false,
                 );
                 const explores = await convertExplores(
@@ -123,7 +92,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     public async runQuery(sql: string): Promise<Record<string, any>[]> {
         // Possible error if query is ran before dependencies are installed
-        return this.queryRunner.runQuery(sql);
+        return this.warehouseClient.runQuery(sql);
     }
 
     static async _validateDbtModelMetadata(

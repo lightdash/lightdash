@@ -5,7 +5,7 @@ import {
 } from 'common';
 import * as pg from 'pg';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
-import { QueryRunner } from '../../types';
+import { WarehouseClient } from '../../types';
 
 export enum PostgresTypes {
     INTEGER = 'integer',
@@ -90,7 +90,7 @@ const mapFieldType = (type: string): DimensionType => {
     }
 };
 
-export default class PostgresWarehouseClient implements QueryRunner {
+export default class PostgresWarehouseClient implements WarehouseClient {
     pool: pg.Pool;
 
     constructor(
@@ -124,7 +124,7 @@ export default class PostgresWarehouseClient implements QueryRunner {
         await this.runQuery('SELECT 1');
     }
 
-    async getSchema(
+    async getCatalog(
         requests: {
             database: string;
             schema: string;
