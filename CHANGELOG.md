@@ -3,6 +3,8 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+### Changed
+- Lightdash requires dbt version 0.21.0 or higher
 
 ## [0.9.0] - 2021-10-26
 ### Added
