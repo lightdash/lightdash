@@ -4,6 +4,7 @@ import {
     ApiExploreResults,
     ApiExploresResults,
     ApiQueryResults,
+    ApiSqlQueryResults,
     ApiStatusResults,
     isExploreError,
     MetricQuery,
@@ -229,5 +230,27 @@ projectRouter.post(
                 });
             })
             .catch(next);
+    },
+);
+
+projectRouter.post(
+    '/sqlQuery',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        try {
+            const results: ApiSqlQueryResults =
+                await projectService.runSqlQuery(
+                    req.user!,
+                    req.params.projectUuid,
+                    req.body.sql,
+                );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
     },
 );

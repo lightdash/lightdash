@@ -8,7 +8,7 @@ import {
 } from '../models/models';
 import { UserService } from './UserService';
 import { OrganizationService } from './OrganizationService';
-import { ProjectService } from './ProjectService';
+import { ProjectService } from './ProjectService/ProjectService';
 import { DashboardService } from './DashboardService/DashboardService';
 
 export const userService = new UserService({

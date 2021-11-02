@@ -1,5 +1,6 @@
 import {
     ApiQueryResults,
+    ApiSqlQueryResults,
     CreateProject,
     Explore,
     ExploreError,
@@ -9,17 +10,17 @@ import {
     SessionUser,
     UpdateProject,
 } from 'common';
-import { projectAdapterFromConfig } from '../projectAdapters/projectAdapter';
-import { ProjectAdapter } from '../types';
-import { ProjectModel } from '../models/ProjectModel/ProjectModel';
-import { analytics } from '../analytics/client';
+import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
+import { ProjectAdapter } from '../../types';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { analytics } from '../../analytics/client';
 import {
     errorHandler,
     MissingWarehouseCredentialsError,
     NotExistsError,
-} from '../errors';
-import { compileMetricQuery } from '../queryCompiler';
-import { buildQuery } from '../queryBuilder';
+} from '../../errors';
+import { compileMetricQuery } from '../../queryCompiler';
+import { buildQuery } from '../../queryBuilder';
 
 type ProjectServiceDependencies = {
     projectModel: ProjectModel;
@@ -192,6 +193,24 @@ export class ProjectService {
         return {
             rows,
             metricQuery,
+        };
+    }
+
+    async runSqlQuery(
+        user: SessionUser,
+        projectUuid: string,
+        sql: string,
+    ): Promise<ApiSqlQueryResults> {
+        await analytics.track({
+            projectId: projectUuid,
+            organizationId: user.organizationUuid,
+            userId: user.userUuid,
+            event: 'sql.executed',
+        });
+        const adapter = await this.getAdapter(projectUuid);
+        const rows = await adapter.runQuery(sql);
+        return {
+            rows,
         };
     }
 
