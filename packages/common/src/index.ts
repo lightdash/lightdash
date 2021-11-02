@@ -575,6 +575,16 @@ export type ApiQueryResponse =
           results: ApiQueryResults;
       };
 
+export type ApiSqlQueryResults = {
+    rows: { [col: string]: any }[];
+};
+export type ApiSqlQueryResponse =
+    | ApiError
+    | {
+          status: 'ok';
+          results: ApiSqlQueryResults;
+      };
+
 export type ApiCompiledQueryResults = string;
 export type ApiCompiledQueryResponse =
     | ApiError
@@ -717,6 +727,7 @@ export type ApiUpdateWarehouseConnectionResponse =
 
 export type ApiResults =
     | ApiQueryResults
+    | ApiSqlQueryResults
     | ApiCompiledQueryResults
     | ApiExploresResults
     | ApiExploreResults
@@ -735,6 +746,7 @@ export type ApiResults =
 
 export type ApiResponse =
     | ApiQueryResponse
+    | ApiSqlQueryResponse
     | ApiCompiledQueryResponse
     | ApiExploresResponse
     | ApiExploreResponse
