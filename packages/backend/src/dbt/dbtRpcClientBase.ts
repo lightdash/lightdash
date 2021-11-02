@@ -13,7 +13,7 @@ import {
     NoServerRunningError,
     RetryableNetworkError,
 } from '../errors';
-import { DbtClient, WarehouseClient } from '../types';
+import { DbtClient } from '../types';
 
 export const DEFAULT_HEADERS: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -72,7 +72,7 @@ const pollOverNetwork = async <T>({
     return new Promise<T>(poll);
 };
 
-export class DbtRpcClientBase implements DbtClient, WarehouseClient {
+export class DbtRpcClientBase implements DbtClient {
     serverUrl: string;
 
     headers: Record<string, any>;
