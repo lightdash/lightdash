@@ -4,6 +4,17 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.9.1] - 2021-11-02
+### Changed
+- Warehouse credentials are now required
+- We now fetch the catalog directly from the warehouse instead of dbt
+- Small UI/UX improvements
+
+### Fixed
+- Fixed error message when dbt cloud IDE is not open
+- Fixed postgres adapter reliability by using a pool connection
+- Fixed error when fetching null dates from Bigquery
+
 ## [0.9.0] - 2021-10-26
 ### Added
 - Added dashboards - users can now create, edit and delete dashboards
