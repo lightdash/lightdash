@@ -1,6 +1,6 @@
 import EChartsReact from 'echarts-for-react';
-import React, { RefObject, FC } from 'react';
-import { friendlyName, DBChartTypes } from 'common';
+import React, { FC, RefObject } from 'react';
+import { DBChartTypes, DimensionType, friendlyName } from 'common';
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { ChartConfig } from '../hooks/useChartConfig';
 
@@ -50,6 +50,18 @@ const LoadingChart = () => (
     </div>
 );
 
+const axisTypeFromDimensionType = (
+    dimensionType: DimensionType | undefined,
+) => {
+    switch (dimensionType) {
+        case DimensionType.DATE:
+        case DimensionType.TIMESTAMP:
+            return 'time';
+        default:
+            return 'category';
+    }
+};
+
 type SimpleChartProps = {
     isLoading: boolean;
     chartRef: RefObject<EChartsReact>;
@@ -69,7 +81,7 @@ export const SimpleChart: FC<SimpleChartProps> = ({
         chartConfig.seriesLayout.groupDimension &&
         chartConfig.seriesLayout.yMetrics.length === 1 &&
         friendlyName(chartConfig.seriesLayout.yMetrics[0]);
-    const xType = 'category';
+    const xType = axisTypeFromDimensionType(chartConfig.xDimensionType);
     const yType = 'value';
 
     const flipX = flipXFromChartType(chartType);
@@ -81,7 +93,7 @@ export const SimpleChart: FC<SimpleChartProps> = ({
         nameTextStyle: { fontWeight: 'bold' },
     };
     const yAxis = {
-        type: flipX ? xType : yType,
+        type: flipX ? 'category' : yType,
         name: flipX ? xlabel : ylabel,
         nameTextStyle: { fontWeight: 'bold' },
     };
