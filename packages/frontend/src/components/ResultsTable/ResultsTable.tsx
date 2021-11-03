@@ -5,15 +5,7 @@ import {
     usePagination,
     useTable as useReactTable,
 } from 'react-table';
-import {
-    Button,
-    Colors,
-    HTMLTable,
-    Icon,
-    NonIdealState,
-    Spinner,
-    Tag,
-} from '@blueprintjs/core';
+import { Button, Colors, HTMLTable, Icon, Tag } from '@blueprintjs/core';
 import {
     DragDropContext,
     Draggable,
@@ -23,49 +15,13 @@ import {
     Droppable,
 } from 'react-beautiful-dnd';
 import { DimensionType, hexToRGB } from 'common';
-import React, { FC, useEffect } from 'react';
+import React, { FC, ReactNode, useEffect } from 'react';
 import { CSVLink } from 'react-csv';
-import { useColumns } from '../hooks/useColumns';
-import { useExplore } from '../hooks/useExplore';
-import { RefreshButton } from './RefreshButton';
-import { useExplorer } from '../providers/ExplorerProvider';
-import { Section } from '../providers/TrackingProvider';
-import { SectionName } from '../types/Events';
-import TableCalculationHeaderButton from './TableCalculationHeaderButton';
-import AddColumnButton from './AddColumnButton';
-import { useQueryResults } from '../hooks/useQueryResults';
-
-const EmptyStateNoColumns = () => (
-    <div style={{ padding: '50px 0' }}>
-        <NonIdealState
-            title="Select fields to explore"
-            description="Get started by selecting metrics and dimensions."
-            icon="hand-left"
-        />
-    </div>
-);
-
-const EmptyStateNoTableData = () => (
-    <Section name={SectionName.EMPTY_RESULTS_TABLE}>
-        <div style={{ padding: '50px 0' }}>
-            <NonIdealState
-                description="Click run query to see your results"
-                action={<RefreshButton />}
-            />
-        </div>
-    </Section>
-);
-
-const EmptyStateExploreLoading = () => (
-    <NonIdealState title="Loading tables" icon={<Spinner />} />
-);
-
-const EmptyStateNoRows = () => (
-    <NonIdealState
-        title="Query returned no results"
-        description="This query ran successfully but returned no results"
-    />
-);
+import { Section } from '../../providers/TrackingProvider';
+import { SectionName } from '../../types/Events';
+import TableCalculationHeaderButton from '../TableCalculationHeaderButton';
+import AddColumnButton from '../AddColumnButton';
+import { EmptyState, IdleState, LoadingState } from './States';
 
 const getSortIndicator = (
     type: ColumnInstance['type'],
@@ -172,18 +128,31 @@ const Item: FC<ItemProps> = ({
     </div>
 );
 
-export const ResultsTable = () => {
-    const dataColumns = useColumns();
-    const queryResults = useQueryResults();
-    const {
-        state: { tableName: activeTableName, columnOrder: explorerColumnOrder },
-        actions: { setColumnOrder: setExplorerColumnOrder },
-    } = useExplorer();
-    const activeExplore = useExplore(activeTableName);
-    const safeData = React.useMemo(
-        () => (queryResults.status === 'success' ? queryResults.data.rows : []),
-        [queryResults.status, queryResults.data],
-    );
+type Props = {
+    loading: boolean;
+    idle: boolean;
+    name?: string;
+    data: any;
+    dataColumns: any;
+    dataColumnOrder: string[];
+    onColumnOrderChange?: (order: string[]) => void;
+    idleState?: ReactNode;
+    loadingState?: ReactNode;
+    emptyState?: ReactNode;
+};
+
+export const ResultsTable: FC<Props> = ({
+    loading,
+    idle,
+    dataColumns,
+    dataColumnOrder,
+    data,
+    onColumnOrderChange,
+    name,
+    idleState,
+    loadingState,
+    emptyState,
+}) => {
     const currentColOrder = React.useRef<Array<string>>([]);
     const {
         getTableProps,
@@ -194,7 +163,6 @@ export const ResultsTable = () => {
         prepareRow,
         allColumns,
         setColumnOrder,
-        columns,
         pageCount,
         nextPage,
         canNextPage,
@@ -204,11 +172,11 @@ export const ResultsTable = () => {
     } = useReactTable(
         {
             columns: dataColumns,
-            data: safeData,
+            data,
             initialState: {
                 pageIndex: 0,
                 pageSize: 25,
-                columnOrder: explorerColumnOrder,
+                columnOrder: dataColumnOrder,
             },
         },
         usePagination,
@@ -216,12 +184,8 @@ export const ResultsTable = () => {
     );
 
     useEffect(() => {
-        setColumnOrder(explorerColumnOrder);
-    }, [setColumnOrder, explorerColumnOrder]);
-
-    if (activeExplore.isLoading) return <EmptyStateExploreLoading />;
-
-    if (columns.length === 0) return <EmptyStateNoColumns />;
+        setColumnOrder(dataColumnOrder);
+    }, [setColumnOrder, dataColumnOrder]);
 
     return (
         <Section name={SectionName.RESULTS_TABLE}>
@@ -287,9 +251,7 @@ export const ResultsTable = () => {
                                                     0,
                                                     dragUpdateObj.draggableId,
                                                 );
-                                                setExplorerColumnOrder(
-                                                    colOrder,
-                                                );
+                                                onColumnOrderChange?.(colOrder);
                                             }
                                         }}
                                         onDragEnd={() => undefined}
@@ -405,20 +367,9 @@ export const ResultsTable = () => {
                             <AddColumnButton />
                         </div>
                     </div>
-                    {queryResults.isLoading && (
-                        <>
-                            <div style={{ paddingTop: '20px' }} />
-                            <NonIdealState
-                                title="Loading results"
-                                icon={<Spinner />}
-                            />
-                        </>
-                    )}
-                    {queryResults.isIdle && <EmptyStateNoTableData />}
-                    {queryResults.status === 'success' &&
-                        queryResults.data.rows.length === 0 && (
-                            <EmptyStateNoRows />
-                        )}
+                    {loading && loadingState}
+                    {idle && idleState}
+                    {!loading && !idle && rows.length === 0 && emptyState}
                 </div>
                 <div
                     style={{
@@ -437,7 +388,7 @@ export const ResultsTable = () => {
                                 className="bp3-button"
                                 data={rows.map((row) => row.values)}
                                 filename={`lightdash-${
-                                    activeTableName || 'export'
+                                    name || 'export'
                                 }-${new Date().toISOString().slice(0, 10)}.csv`}
                                 target="_blank"
                             >
@@ -478,4 +429,10 @@ export const ResultsTable = () => {
             </div>
         </Section>
     );
+};
+
+ResultsTable.defaultProps = {
+    idleState: <IdleState />,
+    loadingState: <LoadingState />,
+    emptyState: <EmptyState />,
 };
