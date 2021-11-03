@@ -10,7 +10,7 @@ FROM base AS dbt-builder
 
 # dbt
 RUN python -m venv /usr/local/venv
-RUN /usr/local/venv/bin/pip install "dbt=>0.21.0,<0.22.0"
+RUN /usr/local/venv/bin/pip install "dbt>=0.21.0,<0.22.0"
 
 # Install gcloud sdk
 RUN apt-get update && apt-get install -y --no-install-recommends curl
