@@ -12,11 +12,6 @@ FROM base AS dbt-builder
 RUN python -m venv /usr/local/venv
 RUN /usr/local/venv/bin/pip install "dbt>=0.21.0,<0.22.0"
 
-# Install gcloud sdk
-RUN apt-get update && apt-get install -y --no-install-recommends curl
-RUN curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-341.0.0-linux-x86_64.tar.gz > /tmp/gcloud-sdk.tar.gz
-RUN mkdir /usr/local/gcloud && tar -C /usr/local/gcloud -xvf /tmp/gcloud-sdk.tar.gz
-
 
 # -------------------------------
 # Stage 2: base with dependencies
@@ -26,8 +21,6 @@ FROM base as base-dependencies
 # Copy in dependencies
 COPY --from=dbt-builder /usr/local/venv /usr/local/venv
 ENV PATH $PATH:/usr/local/venv/bin
-COPY --from=dbt-builder /usr/local/gcloud /usr/local/gcloud
-ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
 
 # Setup common config
 COPY lightdash.yml /usr/app/lightdash.yml
