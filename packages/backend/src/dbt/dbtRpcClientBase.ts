@@ -240,16 +240,6 @@ export class DbtRpcClientBase implements DbtClient {
         const result = await this._post('poll', {
             request_token: requestToken,
         });
-        if (
-            result?.logs?.some(
-                (log: any) => log.message === 'Please log into GCP to continue',
-            )
-        ) {
-            throw new DbtError(
-                `Lightdash cannot connect to dbt because of missing GCP credentials. This error happened because your profiles.yml contains a bigquery profile with method: oauth`,
-                {},
-            );
-        }
         return result;
     }
 
