@@ -107,4 +107,4 @@ the dbt process process is running correctly.
 ## I'm using an old version of dbt, is Lightdash supported?
 
 ---
-We only support dbt version `0.20.0`. Before using Lightdash, please check your project is compatible with the latest version.
+We only support dbt version `0.21.0`. Before using Lightdash, please check your project is compatible with the latest version.
