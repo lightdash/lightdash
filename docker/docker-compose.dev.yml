@@ -27,8 +27,8 @@ services:
       - "../packages:/usr/app/packages"
       - "node_modules:/usr/app/node_modules"
     ports:
-      - ${PORT}:8080
-      - 3000:3000
+      - "${PORT}:8080"
+      - "3000:3000"
 
   db-dev:
     image: postgres
@@ -36,4 +36,4 @@ services:
     environment:
       POSTGRES_PASSWORD: ${PGPASSWORD}
     ports:
-      - 5432:${PGPORT}
+      - "5432:${PGPORT}"
