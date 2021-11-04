@@ -30,6 +30,7 @@ import CreateProject from './pages/CreateProject';
 import Welcome from './pages/Welcome';
 import SavedDashboards from './pages/SavedDashboards';
 import Dashboard from './pages/Dashboard';
+import SqlRunner from './pages/SqlRunner';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -117,6 +118,12 @@ const App = () => (
                                         <AppBar />
                                         <Page name={PageName.SAVED_DASHBOARDS}>
                                             <SavedDashboards />
+                                        </Page>
+                                    </Route>
+                                    <Route path="/projects/:projectUuid/sqlRunner">
+                                        <AppBar />
+                                        <Page name={PageName.SQL_RUNNER}>
+                                            <SqlRunner />
                                         </Page>
                                     </Route>
                                     <Route path="/projects/:projectUuid/tables/:tableId">
