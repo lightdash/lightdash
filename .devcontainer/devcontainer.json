@@ -1,0 +1,7 @@
+{
+  "name": "[Optional] Your project name here",
+  "dockerComposeFile": "../docker/docker-compose.dev.yml",
+  "service": "lightdash-dev",
+  "workspaceFolder": "/usr/app",
+  "shutdownAction": "stopCompose"
+}
