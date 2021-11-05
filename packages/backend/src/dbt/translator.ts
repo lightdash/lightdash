@@ -365,7 +365,11 @@ export const convertExplores = async (
             return compileExplore({
                 name: model.name,
                 baseTable: model.name,
-                joinedTables: (model.meta.joins || []).map((join) => ({
+                joinedTables: (
+                    model.config?.meta?.joins || // Config block takes priority, then meta block
+                    model.meta.joins ||
+                    []
+                ).map((join) => ({
                     table: join.join,
                     sqlOn: join.sql_on,
                 })),
