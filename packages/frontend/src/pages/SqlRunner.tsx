@@ -1,15 +1,32 @@
-import React, { FC, useMemo, useState, useCallback } from 'react';
+import React, {
+    FC,
+    useMemo,
+    useState,
+    useCallback,
+    Dispatch,
+    SetStateAction,
+    useEffect,
+} from 'react';
 import styled from 'styled-components';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 import {
     Button,
     Card,
+    H3,
+    Menu,
+    MenuDivider,
+    MenuItem,
     NonIdealState,
     PopoverPosition,
+    Text,
+    Divider,
     useHotkeys,
 } from '@blueprintjs/core';
-import { friendlyName } from 'common';
+import { Ace } from 'ace-builds';
+import langTools from 'ace-builds/src-noconflict/ext-language_tools';
+import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
+import { friendlyName, TableBase } from 'common';
 import AceEditor from 'react-ace';
 import { CollapsableCard } from '../components/common/CollapsableCard';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
@@ -18,6 +35,9 @@ import { SectionName } from '../types/Events';
 import { RefreshServerButton } from '../components/RefreshServerButton';
 import { BigButton } from '../components/common/BigButton';
 import { ResultsTable as Table } from '../components/ResultsTable/ResultsTable';
+import AboutFooter from '../components/AboutFooter';
+import { useProjectCatalog } from '../hooks/useProjectCatalog';
+import { Tree } from '../components/common/Tree';
 
 const Wrapper = styled('div')`
     display: flex;
@@ -45,9 +65,20 @@ const ContentSection = styled('div')`
     align-items: stretch;
 `;
 
-const Divider = styled('div')`
+const CardDivider = styled('div')`
     padding-top: 10px;
 `;
+
+const SideBarLoadingState = () => (
+    <Menu large style={{ flex: 1 }}>
+        {[0, 1, 2, 3, 4].map((idx) => (
+            <React.Fragment key={idx}>
+                <MenuItem className="bp3-skeleton" text="Hello" />
+                <MenuDivider />
+            </React.Fragment>
+        ))}
+    </Menu>
+);
 
 const RunQueryButton: FC<{ isLoading: boolean; onSubmit: () => void }> = ({
     onSubmit,
@@ -76,16 +107,58 @@ const ResultsIdleState: FC<React.ComponentProps<typeof RunQueryButton>> = (
     </Section>
 );
 
-const SQL_PLACEHOLDER =
-    'SELECT * FROM "postgres"."jaffle"."customers" LIMIT 500';
+const createCompleter: (fields: Ace.Completion[]) => Ace.Completer = (
+    fields,
+) => ({
+    getCompletions: (editor, session, pos, prefix, callback) => {
+        callback(null, fields);
+    },
+});
+
+export const useProjectCatalogAceEditorCompleter = (
+    sqlTables: string[],
+): {
+    setAceEditor: Dispatch<SetStateAction<Ace.Editor | undefined>>;
+} => {
+    const [aceEditor, setAceEditor] = useState<Ace.Editor>();
+
+    useEffect(() => {
+        if (aceEditor) {
+            const fields = sqlTables.map<Ace.Completion>((sqlTable) => {
+                const technicalOption: Ace.Completion = {
+                    caption: sqlTable,
+                    value: sqlTable,
+                    meta: 'Table',
+                    score: Number.MAX_VALUE,
+                };
+                return technicalOption;
+            });
+            langTools.setCompleters([createCompleter(fields)]);
+        }
+        return () => {
+            langTools.setCompleters([]);
+        };
+    }, [aceEditor, sqlTables]);
+
+    return {
+        setAceEditor,
+    };
+};
+
+const generateBasicSqlQuery = (table: string) =>
+    `SELECT * FROM ${table} LIMIT 25`;
 
 const SqlRunnerPage = () => {
     const [copied, setCopied] = useState<boolean>(false);
-    const [sql, setSql] = useState<string>(SQL_PLACEHOLDER);
+    const [sql, setSql] = useState<string>('');
     const [columnsOrder, setColumnsOrder] = useState<string[]>([]);
+    const { isLoading: isCatalogLoading, data: catalogData } =
+        useProjectCatalog();
     const { isIdle, isLoading, data, mutate } = useSqlQueryMutation();
     const onSubmit = useCallback(() => {
-        mutate(sql);
+        if (sql) {
+            mutate(sql);
+        }
     }, [mutate, sql]);
     const hotkeys = useMemo(() => {
         const runQueryHotkey = {
@@ -119,9 +192,119 @@ const SqlRunnerPage = () => {
         return [];
     }, [data]);
 
+    const [catalogTree, autoCompleteSql] = useMemo<
+        [TreeNodeInfo[], string[]]
+    >(() => {
+        if (catalogData) {
+            const sqlTables: string[] = [];
+            const tree = Object.entries(catalogData).reduce<TreeNodeInfo[]>(
+                (accDatabases, [database, schemas], databaseIndex) => [
+                    ...accDatabases,
+                    {
+                        id: database,
+                        isExpanded: databaseIndex === 0,
+                        label: friendlyName(database),
+                        icon: 'database',
+                        childNodes: Object.entries(schemas).reduce<
+                            TreeNodeInfo[]
+                        >(
+                            (accSchemas, [schema, tables], schemaIndex) => [
+                                ...accSchemas,
+                                {
+                                    id: schema,
+                                    isExpanded: schemaIndex === 0,
+                                    label: friendlyName(schema),
+                                    icon: 'diagram-tree',
+                                    childNodes: Object.entries(tables).reduce<
+                                        TreeNodeInfo[]
+                                    >((accTables, [table, nodeData]) => {
+                                        sqlTables.push(nodeData.sqlTable);
+                                        return [
+                                            ...accTables,
+                                            {
+                                                id: table,
+                                                label: friendlyName(table),
+                                                icon: 'th',
+                                                nodeData,
+                                            },
+                                        ];
+                                    }, []),
+                                },
+                            ],
+                            [],
+                        ),
+                    },
+                ],
+                [],
+            );
+            return [tree, sqlTables];
+        }
+        return [[], []];
+    }, [catalogData]);
+    const { setAceEditor } =
+        useProjectCatalogAceEditorCompleter(autoCompleteSql);
+
+    const handleNodeClick = React.useCallback(
+        (node: TreeNodeInfo) => {
+            if (node.nodeData) {
+                setSql(
+                    generateBasicSqlQuery(
+                        (node.nodeData as TableBase).sqlTable,
+                    ),
+                );
+            }
+        },
+        [setSql],
+    );
+
     return (
         <Wrapper>
-            <Sidebar elevation={1} />
+            <Sidebar elevation={1}>
+                <Section name={SectionName.SIDEBAR}>
+                    <div
+                        style={{
+                            height: '100%',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            flexDirection: 'column',
+                        }}
+                    >
+                        <div style={{ flex: 1 }}>
+                            <div style={{ height: '100px' }}>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        flexDirection: 'row',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                    }}
+                                >
+                                    <H3>Tables</H3>
+                                </div>
+                                <div style={{ padding: '10px' }}>
+                                    <Text>
+                                        Select a table to populate the sql input
+                                    </Text>
+                                </div>
+                                <Divider />
+                            </div>
+                            <div style={{ overflowY: 'auto' }}>
+                                {isCatalogLoading ? (
+                                    <SideBarLoadingState />
+                                ) : (
+                                    <Tree
+                                        contents={catalogTree}
+                                        handleSelect={false}
+                                        onNodeClick={handleNodeClick}
+                                    />
+                                )}
+                            </div>
+                        </div>
+
+                        <AboutFooter />
+                    </div>
+                </Section>
+            </Sidebar>
             <ContentSection>
                 <Section name={SectionName.EXPLORER_TOP_BUTTONS}>
                     <div
@@ -139,7 +322,7 @@ const SqlRunnerPage = () => {
                         <RefreshServerButton />
                     </div>
                 </Section>
-                <Divider />
+                <CardDivider />
                 <CollapsableCard title="SQL" isOpenByDefault>
                     <div
                         style={{
@@ -159,6 +342,7 @@ const SqlRunnerPage = () => {
                                 setSql(value);
                                 setCopied(false);
                             }}
+                            onLoad={setAceEditor}
                         />
                         <div
                             style={{
@@ -183,7 +367,7 @@ const SqlRunnerPage = () => {
                         </div>
                     </div>
                 </CollapsableCard>
-                <Divider />
+                <CardDivider />
                 <CollapsableCard title="Results" isOpenByDefault>
                     <Table
                         data={data?.rows || []}
