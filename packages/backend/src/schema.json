@@ -460,6 +460,7 @@
                 },
                 "meta": {
                     "type": "object",
+                    "$ref": "#/definitions/LightdashModelMetadata",
                     "default": {}
                 },
                 "materialized": {
