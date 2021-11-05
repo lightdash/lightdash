@@ -8,6 +8,7 @@ import { Section } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { ResultsTable as Table } from './ResultsTable/ResultsTable';
+import AddColumnButton from './AddColumnButton';
 
 const EmptyStateNoColumns = () => (
     <div style={{ padding: '50px 0' }}>
@@ -61,6 +62,7 @@ export const ExplorerResults = () => {
             name={activeTableName}
             onColumnOrderChange={setExplorerColumnOrder}
             idleState={<EmptyStateNoTableData />}
+            tableAction={<AddColumnButton />}
         />
     );
 };

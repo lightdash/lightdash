@@ -1,11 +1,4 @@
-import {
-    CompiledDimension,
-    CompiledMetric,
-    Field,
-    fieldId,
-    friendlyName,
-    getFieldRef,
-} from 'common';
+import { Field, fieldId, friendlyName, getFieldRef } from 'common';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { Ace } from 'ace-builds';
 import langTools from 'ace-builds/src-noconflict/ext-language_tools';
@@ -53,21 +46,6 @@ export const useExplorerAceEditorCompleter = (): {
     const explore = useExplore(tableName);
     const [aceEditor, setAceEditor] = useState<Ace.Editor>();
 
-    const filterByActiveFields = (
-        tableFields: Record<string, CompiledMetric | CompiledDimension>,
-        selectedFields: Set<string>,
-    ) =>
-        Object.keys(tableFields)
-            .filter((field) =>
-                Array.from(selectedFields).includes(
-                    `${tableFields[field].table}_${tableFields[field].name}`,
-                ),
-            )
-            .reduce<Record<string, CompiledMetric | CompiledDimension>>(
-                (acc, field) => ({ ...acc, [field]: tableFields[field] }),
-                {},
-            );
-
     useEffect(() => {
         if (aceEditor && explore.data) {
             const activeExplore = explore.data;
@@ -91,6 +69,9 @@ export const useExplorerAceEditorCompleter = (): {
             );
             langTools.setCompleters([createCompleter(fields)]);
         }
+        return () => {
+            langTools.setCompleters([]);
+        };
     }, [aceEditor, explore, activeFields]);
 
     return {
