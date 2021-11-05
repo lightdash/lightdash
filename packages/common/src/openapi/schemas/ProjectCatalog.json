@@ -1,0 +1,18 @@
+{
+    "type": "object",
+    "additionalProperties": {
+        "type": "object",
+        "properties": {
+            "name": {
+                "type": "string"
+            },
+            "description": {
+                "type": "string"
+            },
+            "sqlTable": {
+                "type": "string"
+            }
+        },
+        "required": ["name", "sqlTable"]
+    }
+}

@@ -318,6 +318,53 @@
                 }
             }
         },
+        "/projects/{projectUuid}/catalog": {
+            "get": {
+                "summary": "Get project catalog",
+                "description": "Get project catalog with all valid tables",
+                "tags": ["project"],
+                "operationId": "getProjectCatalog",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Successfully get project catalog",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/ProjectCatalog"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
         "/projects/{projectUuid}/dashboards": {
             "post": {
                 "summary": "Create dashboard",
@@ -707,6 +754,24 @@
                     }
                 },
                 "required": ["expiresAt", "inviteCode"]
+            },
+            "ProjectCatalog": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "description": {
+                            "type": "string"
+                        },
+                        "sqlTable": {
+                            "type": "string"
+                        }
+                    },
+                    "required": ["name", "sqlTable"]
+                }
             },
             "DashboardListItem": {
                 "type": "object",

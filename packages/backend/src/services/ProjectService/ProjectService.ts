@@ -1,4 +1,5 @@
 import {
+    ProjectCatalog,
     ApiQueryResults,
     ApiSqlQueryResults,
     CreateProject,
@@ -278,5 +279,28 @@ export class ProjectService {
             );
         }
         return explore;
+    }
+
+    async getCatalog(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ProjectCatalog> {
+        const explores = await this.getAllExplores(user, projectUuid);
+
+        return explores.reduce<ProjectCatalog>((acc, explore) => {
+            if (!isExploreError(explore)) {
+                return {
+                    ...acc,
+                    ...Object.entries(explore.tables).reduce(
+                        (sum, [key, { name, description, sqlTable }]) => ({
+                            ...sum,
+                            [key]: { name, description, sqlTable },
+                        }),
+                        {},
+                    ),
+                };
+            }
+            return acc;
+        }, {});
     }
 }

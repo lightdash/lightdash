@@ -1,9 +1,12 @@
 import { projectModel } from '../../models/models';
 import { ProjectService } from './ProjectService';
 import {
+    expectedCatalog,
     expectedSqlResults,
+    exploreWithError,
     projectAdapterMock,
     user,
+    validExplore,
 } from './ProjectService.mock';
 import { analytics } from '../../analytics/client';
 
@@ -37,5 +40,15 @@ describe('ProjectService', () => {
                 event: 'sql.executed',
             }),
         );
+    });
+    test('should get project catalog', async () => {
+        service.cachedExplores[projectUuid] = Promise.resolve([
+            exploreWithError,
+            validExplore,
+        ]);
+
+        const results = await service.getCatalog(user, projectUuid);
+
+        expect(results).toEqual(expectedCatalog);
     });
 });

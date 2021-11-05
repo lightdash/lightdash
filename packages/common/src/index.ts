@@ -113,13 +113,13 @@ export type SummaryExplore =
     | Pick<Explore, 'name'>
     | Pick<ExploreError, 'name' | 'errors'>;
 
-export type PartialTable = {
+export type TableBase = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
     description?: string; // Optional description of table
     sqlTable: string; // The sql identifier for the table
 };
 
-export type Table = PartialTable & {
+export type Table = TableBase & {
     dimensions: { [fieldName: string]: Dimension }; // Field names must be unique across dims and metrics
     metrics: { [fieldName: string]: Metric }; //
     lineageGraph: LineageGraph; // DAG structure representing the lineage of the table
@@ -144,7 +144,7 @@ type SourcePosition = {
     character: number;
 };
 
-export type CompiledTable = PartialTable & {
+export type CompiledTable = TableBase & {
     dimensions: Record<string, CompiledDimension>;
     metrics: Record<string, CompiledMetric>;
     lineageGraph: LineageGraph;
@@ -584,6 +584,16 @@ export type ApiSqlQueryResponse =
           results: ApiSqlQueryResults;
       };
 
+export type ProjectCatalog = {
+    [name: string]: TableBase;
+};
+export type ApiCatalogResponse =
+    | ApiError
+    | {
+          status: 'ok';
+          results: ProjectCatalog;
+      };
+
 export type ApiCompiledQueryResults = string;
 export type ApiCompiledQueryResponse =
     | ApiError
@@ -741,11 +751,13 @@ export type ApiResults =
     | Project
     | WarehouseCredentials
     | OrganizationUser[]
+    | ProjectCatalog
     | Dashboard;
 
 export type ApiResponse =
     | ApiQueryResponse
     | ApiSqlQueryResponse
+    | ApiCatalogResponse
     | ApiCompiledQueryResponse
     | ApiExploresResponse
     | ApiExploreResponse
