@@ -205,7 +205,7 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'test',
         });
-        await this._runDbtCommand('debug');
+        await this._runDbtCommand('list');
         span?.finish();
     }
 }

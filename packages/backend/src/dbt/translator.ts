@@ -332,7 +332,7 @@ const modelGraph = (
 export const convertExplores = async (
     models: DbtModelNode[],
     loadSources: boolean,
-    adapterType: string,
+    adapterType: SupportedDbtAdapter,
 ): Promise<(Explore | ExploreError)[]> => {
     const graph = modelGraph(models);
     const [tables, exploreErrors] = models.reduce(

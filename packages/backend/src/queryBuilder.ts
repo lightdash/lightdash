@@ -241,12 +241,12 @@ const getMetricFromId = (metricId: FieldId, explore: Explore) => {
 
 export const getQuoteChar = (targetDatabase: SupportedDbtAdapter): string => {
     switch (targetDatabase) {
-        case 'postgres':
-        case 'snowflake':
-        case 'redshift':
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.SNOWFLAKE:
+        case SupportedDbtAdapter.REDSHIFT:
             return '"';
-        case 'bigquery':
-        case 'apache_spark':
+        case SupportedDbtAdapter.BIGQUERY:
+        case SupportedDbtAdapter.SPARK:
             return '`';
         default:
             return '"';

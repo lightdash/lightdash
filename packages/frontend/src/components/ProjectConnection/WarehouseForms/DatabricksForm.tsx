@@ -19,6 +19,7 @@ const DatabricksForm: FC<{
                     required: 'Required field',
                 }}
                 disabled={disabled}
+                placeholder="xxxx.gcp.databricks.com"
             />
             <Input
                 name="warehouse.httpPath"
@@ -28,6 +29,7 @@ const DatabricksForm: FC<{
                     required: 'Required field',
                 }}
                 disabled={disabled}
+                placeholder="sql/protocolv1/o/xxxx/xxxx"
             />
             <PasswordInput
                 name="warehouse.personalAccessToken"
@@ -36,6 +38,7 @@ const DatabricksForm: FC<{
                 rules={{
                     required: 'Required field',
                 }}
+                placeholder={disabled ? '*******' : undefined}
                 disabled={disabled}
             />
             <Input
