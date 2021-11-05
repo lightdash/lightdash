@@ -6,21 +6,38 @@ WORKDIR /usr/app
 # -----------------------------
 # Stage 1: install dependencies
 # -----------------------------
-FROM base AS dbt-builder
+FROM base AS dependencies-builder
 
 # dbt
 RUN python -m venv /usr/local/venv
 RUN /usr/local/venv/bin/pip install "dbt>=0.21.0,<0.22.0"
 
-
+# odbc - databricks
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    libsasl2-modules-gssapi-mit
+RUN wget \
+    --quiet \
+    https://databricks-bi-artifacts.s3.us-east-2.amazonaws.com/simbaspark-drivers/odbc/2.6.18/SimbaSparkODBC-2.6.18.1030-Debian-64bit.zip \
+    -O /tmp/databricks_odbc.zip \
+    && unzip /tmp/databricks_odbc.zip -d /tmp \
+    && dpkg -i /tmp/simbaspark_*.deb
 # -------------------------------
 # Stage 2: base with dependencies
 # -------------------------------
 FROM base as base-dependencies
 
 # Copy in dependencies
-COPY --from=dbt-builder /usr/local/venv /usr/local/venv
+# dbt
+COPY --from=dependencies-builder /usr/local/venv /usr/local/venv
 ENV PATH $PATH:/usr/local/venv/bin
+
+# odbc
+COPY --from=dependencies-builder /opt/simba /opt/simba
+# TODO: prefer not to have these at runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    g++ \
+    unixodbc-dev
 
 # Setup common config
 COPY lightdash.yml /usr/app/lightdash.yml

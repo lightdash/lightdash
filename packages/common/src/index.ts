@@ -84,7 +84,7 @@ export type Explore = {
     baseTable: string; // Must match a tableName in tables
     joinedTables: CompiledExploreJoin[]; // Must match a tableName in tables
     tables: { [tableName: string]: CompiledTable }; // All tables in this explore
-    targetDatabase: string; // Type of target database e.g. postgres/redshift/bigquery/snowflake
+    targetDatabase: SupportedDbtAdapter; // Type of target database e.g. postgres/redshift/bigquery/snowflake/spark
 };
 
 export type InlineError = {
@@ -500,15 +500,22 @@ export const snakeCaseName = (text: string): string =>
 export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 
 // DBT CONFIG
+export enum SupportedDbtAdapter {
+    BIGQUERY = 'bigquery',
+    SPARK = 'apache_spark',
+    SNOWFLAKE = 'snowflake',
+    REDSHIFT = 'redshift',
+    POSTGRES = 'postgres',
+}
 export type DbtNode = {
     unique_id: string;
     resource_type: string;
 };
-export type DbtModelNode = DbtNode & {
+export type DbtRawModelNode = DbtNode & {
     columns: { [name: string]: DbtModelColumn };
     config?: { meta?: DbtModelMetadata };
     meta: DbtModelMetadata;
-    database: string;
+    database: string | null;
     schema: string;
     name: string;
     relation_name: string;
@@ -516,6 +523,9 @@ export type DbtModelNode = DbtNode & {
     description?: string;
     root_path: string;
     patch_path: string | null;
+};
+export type DbtModelNode = DbtRawModelNode & {
+    database: string;
 };
 type DbtTableDependency = {
     nodes: string[];
@@ -822,7 +832,7 @@ export interface DbtCatalogNode {
 
 export interface DbtCatalogNodeMetadata {
     type: string;
-    database: string;
+    database: string | null;
     schema: string;
     name: string;
     comment?: string;
@@ -858,20 +868,30 @@ export const isDbtRpcDocsGenerateResults = (
 
 export interface DbtManifest {
     nodes: Record<string, DbtNode>;
-    metadata: DbtManifestMetadata;
+    metadata: DbtRawManifestMetadata;
 }
 
-export interface DbtManifestMetadata {
+export interface DbtRawManifestMetadata {
     dbt_schema_version: string;
     generated_at: string;
     adapter_type: string;
 }
-const isDbtManifestMetadata = (x: any): x is DbtManifestMetadata =>
+
+export interface DbtManifestMetadata extends DbtRawManifestMetadata {
+    adapter_type: SupportedDbtAdapter;
+}
+const isDbtRawManifestMetadata = (x: any): x is DbtRawManifestMetadata =>
     typeof x === 'object' &&
     x !== null &&
     'dbt_schema_version' in x &&
     'generated_at' in x &&
     'adapter_type' in x;
+
+export const isSupportedDbtAdapter = (
+    x: DbtRawManifestMetadata,
+): x is DbtManifestMetadata =>
+    isDbtRawManifestMetadata(x) &&
+    Object.values<string>(SupportedDbtAdapter).includes(x.adapter_type);
 
 export interface DbtRpcGetManifestResults {
     manifest: DbtManifest;
@@ -884,7 +904,7 @@ export const isDbtRpcManifestResults = (
     results.manifest !== null &&
     'nodes' in results.manifest &&
     'metadata' in results.manifest &&
-    isDbtManifestMetadata(results.manifest.metadata);
+    isDbtRawManifestMetadata(results.manifest.metadata);
 
 export interface DbtRpcCompileResults {
     results: { node: DbtNode }[];
@@ -980,6 +1000,7 @@ export enum WarehouseTypes {
     POSTGRES = 'postgres',
     REDSHIFT = 'redshift',
     SNOWFLAKE = 'snowflake',
+    DATABRICKS = 'databricks',
 }
 
 export type CreateBigqueryCredentials = {
@@ -999,6 +1020,7 @@ export const sensitiveCredentialsFieldNames = [
     'user',
     'password',
     'keyfileContents',
+    'personalAccessToken',
 ] as const;
 
 export const sensitiveDbtCredentialsFieldNames = [
@@ -1011,6 +1033,20 @@ export type SensitiveCredentialsFieldNames =
 
 export type BigqueryCredentials = Omit<
     CreateBigqueryCredentials,
+    SensitiveCredentialsFieldNames
+>;
+
+export type CreateDatabricksCredentials = {
+    type: WarehouseTypes.DATABRICKS;
+    serverHostName: string;
+    port: number;
+    database: string;
+    personalAccessToken: string;
+    httpPath: string;
+};
+
+export type DatabricksCredentials = Omit<
+    CreateDatabricksCredentials,
     SensitiveCredentialsFieldNames
 >;
 
@@ -1075,13 +1111,15 @@ export type CreateWarehouseCredentials =
     | CreateRedshiftCredentials
     | CreateBigqueryCredentials
     | CreatePostgresCredentials
-    | CreateSnowflakeCredentials;
+    | CreateSnowflakeCredentials
+    | CreateDatabricksCredentials;
 
 export type WarehouseCredentials =
     | SnowflakeCredentials
     | RedshiftCredentials
     | PostgresCredentials
-    | BigqueryCredentials;
+    | BigqueryCredentials
+    | DatabricksCredentials;
 
 export enum ProjectType {
     DBT = 'dbt',

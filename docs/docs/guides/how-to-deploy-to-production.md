@@ -2,6 +2,12 @@
 sidebar_position: 4
 ---
 
+:::caution
+
+This guide is currently out of date.
+
+:::
+
 # How to deploy to production
 
 This guide will show you how to deploy your own Lightdash instance to production. By the end of this guide

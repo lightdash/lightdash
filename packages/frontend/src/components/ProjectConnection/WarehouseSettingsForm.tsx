@@ -5,12 +5,14 @@ import SnowflakeForm from './WarehouseForms/SnowflakeForm';
 import RedshiftForm from './WarehouseForms/RedshiftForm';
 import PostgresForm from './WarehouseForms/PostgresForm';
 import SelectField from '../ReactHookForm/Select';
+import DatabricksForm from './WarehouseForms/DatabricksForm';
 
 const WarehouseTypeLabels = {
     [WarehouseTypes.BIGQUERY]: 'BigQuery',
     [WarehouseTypes.POSTGRES]: 'PostgreSQL',
     [WarehouseTypes.REDSHIFT]: 'Redshift',
     [WarehouseTypes.SNOWFLAKE]: 'Snowflake',
+    [WarehouseTypes.DATABRICKS]: 'Databricks',
 };
 
 const WarehouseTypeForms = {
@@ -18,6 +20,7 @@ const WarehouseTypeForms = {
     [WarehouseTypes.POSTGRES]: PostgresForm,
     [WarehouseTypes.REDSHIFT]: RedshiftForm,
     [WarehouseTypes.SNOWFLAKE]: SnowflakeForm,
+    [WarehouseTypes.DATABRICKS]: DatabricksForm,
 };
 
 interface WarehouseSettingsFormProps {

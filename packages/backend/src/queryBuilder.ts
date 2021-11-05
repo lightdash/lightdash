@@ -14,6 +14,7 @@ import {
     getMetrics,
     NumberFilter,
     StringFilter,
+    SupportedDbtAdapter,
 } from 'common';
 
 const renderStringFilterSql = (
@@ -238,16 +239,14 @@ const getMetricFromId = (metricId: FieldId, explore: Explore) => {
     return metric;
 };
 
-export const getQuoteChar = (targetDatabase: string): string => {
+export const getQuoteChar = (targetDatabase: SupportedDbtAdapter): string => {
     switch (targetDatabase) {
         case 'postgres':
         case 'snowflake':
         case 'redshift':
-        case 'athena':
             return '"';
         case 'bigquery':
         case 'apache_spark':
-        case 'databricks_cluster':
             return '`';
         default:
             return '"';

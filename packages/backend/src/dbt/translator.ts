@@ -13,6 +13,9 @@ import {
     Table,
     DbtColumnLightdashMetric,
     ExploreError,
+    DbtRawModelNode,
+    isSupportedDbtAdapter,
+    SupportedDbtAdapter,
 } from 'common';
 import { DepGraph } from 'dependency-graph';
 import { parseWithPointers, getLocationForJsonPath } from '@stoplight/yaml';
@@ -388,6 +391,33 @@ export const convertExplores = async (
         }
     });
     return [...explores, ...exploreErrors];
+};
+
+export const normaliseModelDatabase = (
+    model: DbtRawModelNode,
+    targetWarehouse: SupportedDbtAdapter,
+): DbtModelNode => {
+    switch (targetWarehouse) {
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.BIGQUERY:
+        case SupportedDbtAdapter.SNOWFLAKE:
+        case SupportedDbtAdapter.REDSHIFT:
+            if (model.database === null) {
+                throw new ParseError(
+                    `Cannot parse dbt model '${model.unique_id}' because the database field has null value.`,
+                    {},
+                );
+            }
+            return { ...model, database: model.database };
+        case SupportedDbtAdapter.SPARK:
+            return { ...model, database: 'SPARK' };
+        default:
+            const never: never = targetWarehouse;
+            throw new ParseError(
+                `Cannot recognise warehouse ${targetWarehouse}`,
+                {},
+            );
+    }
 };
 
 export const attachTypesToModels = (

@@ -4,6 +4,7 @@ import SnowflakeWarehouseClient from './SnowflakeWarehouseClient';
 import PostgresWarehouseClient from './PostgresWarehouseClient';
 import BigqueryWarehouseClient from './BigqueryWarehouseClient';
 import { UnexpectedServerError } from '../../errors';
+import DatabricksWarehouseClient from './DatabricksWarehouseClient';
 
 export const warehouseClientFromCredentials = (
     credentials: CreateWarehouseCredentials,
@@ -16,6 +17,8 @@ export const warehouseClientFromCredentials = (
             return new PostgresWarehouseClient(credentials);
         case WarehouseTypes.BIGQUERY:
             return new BigqueryWarehouseClient(credentials);
+        case WarehouseTypes.DATABRICKS:
+            return new DatabricksWarehouseClient(credentials);
         default:
             const never: never = credentials;
             throw new UnexpectedServerError(

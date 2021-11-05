@@ -7,6 +7,7 @@ export const warehouseTypes = [
     'redshift',
     'snowflake',
     'postgres',
+    'databricks',
 ] as const;
 type WarehouseType = typeof warehouseTypes[number];
 type DbWarehouseCredentials = {

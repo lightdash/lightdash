@@ -1,6 +1,7 @@
 import express from 'express';
 import passport from 'passport';
-import { sanitizeStringParam, sanitizeEmailParam } from '../utils';
+import { WarehouseTypes } from 'common';
+import { sanitizeEmailParam, sanitizeStringParam } from '../utils';
 import { getHealthState } from '../health';
 import { UserModel } from '../models/User';
 import { SavedQueriesModel } from '../models/savedQueries';
@@ -10,6 +11,7 @@ import { organizationRouter } from './organizationRouter';
 import { userRouter } from './userRouter';
 import { projectRouter } from './projectRouter';
 import { dashboardRouter } from './dashboardRouter';
+import DatabricksWarehouseClient from '../services/warehouseClients/DatabricksWarehouseClient';
 
 export const apiV1Router = express.Router();
 
