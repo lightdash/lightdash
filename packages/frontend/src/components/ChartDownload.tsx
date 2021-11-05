@@ -18,6 +18,7 @@ enum DownloadType {
     PNG = 'PNG',
     SVG = 'SVG',
     PDF = 'PDF',
+    JSON = 'JSON',
 }
 
 type ChartDownloadMenuProps = {
@@ -64,6 +65,17 @@ function downloadImage(base64: string) {
     const link = document.createElement('a');
     link.href = base64;
     link.download = FILE_NAME;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function downloadJson(object: Object) {
+    const data = JSON.stringify(object);
+    const blob = new Blob([data], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${FILE_NAME}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -122,8 +134,13 @@ export const ChartDownloadOptions: React.FC<
             case DownloadType.PNG:
                 downloadImage(await base64SvgToBase64Image(svgBase64, width));
                 break;
-            default:
+            case DownloadType.JSON:
+                downloadJson(echartsInstance.getOption());
+                break;
+            default: {
+                const never: never = type;
                 throw new Error(`Unexpected download type: ${type}`);
+            }
         }
     }, [chartRef, type]);
 
