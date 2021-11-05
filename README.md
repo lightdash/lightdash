@@ -139,6 +139,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/andreiafreitas"><img src="https://avatars.githubusercontent.com/u/25464035?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Andreia Freitas</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=andreiafreitas" title="Tests">⚠️</a> <a href="https://github.com/lightdash/lightdash/commits?author=andreiafreitas" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/jaybe78"><img src="https://avatars.githubusercontent.com/u/3605098?v=4?s=100" width="100px;" alt=""/><br /><sub><b>jb</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=jaybe78" title="Code">💻</a> <a href="https://github.com/lightdash/lightdash/issues?q=author%3Ajaybe78" title="Bug reports">🐛</a> <a href="#design-jaybe78" title="Design">🎨</a></td>
     <td align="center"><a href="https://github.com/amychen1776"><img src="https://avatars.githubusercontent.com/u/46451573?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Amy Chen</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=amychen1776" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/jkeech"><img src="https://avatars.githubusercontent.com/u/746020?v=4?s=100" width="100px;" alt=""/><br /><sub><b>John Keech</b></sub></a><br /><a href="#infra-jkeech" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a></td>
   </tr>
 </table>
 
