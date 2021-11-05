@@ -116,6 +116,8 @@ export type SummaryExplore =
 export type TableBase = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
     description?: string; // Optional description of table
+    database: string;
+    schema: string;
     sqlTable: string; // The sql identifier for the table
 };
 
@@ -585,7 +587,11 @@ export type ApiSqlQueryResponse =
       };
 
 export type ProjectCatalog = {
-    [name: string]: TableBase;
+    [database: string]: {
+        [schema: string]: {
+            [table: string]: Pick<TableBase, 'description' | 'sqlTable'>;
+        };
+    };
 };
 export type ApiCatalogResponse =
     | ApiError

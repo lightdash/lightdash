@@ -289,16 +289,16 @@ export class ProjectService {
 
         return explores.reduce<ProjectCatalog>((acc, explore) => {
             if (!isExploreError(explore)) {
-                return {
-                    ...acc,
-                    ...Object.entries(explore.tables).reduce(
-                        (sum, [key, { name, description, sqlTable }]) => ({
-                            ...sum,
-                            [key]: { name, description, sqlTable },
-                        }),
-                        {},
-                    ),
-                };
+                Object.values(explore.tables).forEach(
+                    ({ database, schema, name, description, sqlTable }) => {
+                        acc[database] = acc[database] || {};
+                        acc[database][schema] = acc[database][schema] || {};
+                        acc[database][schema][name] = {
+                            description,
+                            sqlTable,
+                        };
+                    },
+                );
             }
             return acc;
         }, {});

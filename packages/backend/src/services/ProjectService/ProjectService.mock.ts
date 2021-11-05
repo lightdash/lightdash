@@ -31,6 +31,8 @@ export const validExplore: Explore = {
     tables: {
         a: {
             name: 'a',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.table',
             dimensions: {},
             metrics: {},
@@ -45,8 +47,12 @@ export const exploreWithError: ExploreError = {
 };
 
 export const expectedCatalog = {
-    a: {
-        name: 'a',
-        sqlTable: 'test.table',
+    database: {
+        schema: {
+            a: {
+                description: undefined,
+                sqlTable: 'test.table',
+            },
+        },
     },
 };
