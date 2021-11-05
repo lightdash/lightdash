@@ -20,7 +20,6 @@ import { CSVLink } from 'react-csv';
 import { Section } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import TableCalculationHeaderButton from '../TableCalculationHeaderButton';
-import AddColumnButton from '../AddColumnButton';
 import { EmptyState, IdleState, LoadingState } from './States';
 
 const getSortIndicator = (
@@ -139,6 +138,7 @@ type Props = {
     idleState?: ReactNode;
     loadingState?: ReactNode;
     emptyState?: ReactNode;
+    tableAction?: ReactNode;
 };
 
 export const ResultsTable: FC<Props> = ({
@@ -152,6 +152,7 @@ export const ResultsTable: FC<Props> = ({
     idleState,
     loadingState,
     emptyState,
+    tableAction,
 }) => {
     const currentColOrder = React.useRef<Array<string>>([]);
     const {
@@ -291,9 +292,11 @@ export const ResultsTable: FC<Props> = ({
                                                         (column, index) => (
                                                             <th
                                                                 {...column.getHeaderProps(
-                                                                    [
-                                                                        column.getSortByToggleProps(),
-                                                                    ],
+                                                                    column.getSortByToggleProps
+                                                                        ? [
+                                                                              column.getSortByToggleProps(),
+                                                                          ]
+                                                                        : [],
                                                                 )}
                                                             >
                                                                 <Draggable
@@ -356,16 +359,21 @@ export const ResultsTable: FC<Props> = ({
                                 })}
                             </tbody>
                         </HTMLTable>
-                        <div
-                            style={{
-                                display: 'flex',
-                                backgroundColor: hexToRGB(Colors.GRAY4, 0.2),
-                                boxShadow:
-                                    'inset 1px 0 0 0 rgb(16 22 26 / 15%)',
-                            }}
-                        >
-                            <AddColumnButton />
-                        </div>
+                        {tableAction && (
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    backgroundColor: hexToRGB(
+                                        Colors.GRAY4,
+                                        0.2,
+                                    ),
+                                    boxShadow:
+                                        'inset 1px 0 0 0 rgb(16 22 26 / 15%)',
+                                }}
+                            >
+                                {tableAction}
+                            </div>
+                        )}
                     </div>
                     {loading && loadingState}
                     {idle && idleState}
@@ -435,4 +443,5 @@ ResultsTable.defaultProps = {
     idleState: <IdleState />,
     loadingState: <LoadingState />,
     emptyState: <EmptyState />,
+    tableAction: undefined,
 };
