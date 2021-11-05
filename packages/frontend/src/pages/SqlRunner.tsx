@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useState } from 'react';
+import React, { FC, useMemo, useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
@@ -7,6 +7,7 @@ import {
     Card,
     NonIdealState,
     PopoverPosition,
+    useHotkeys,
 } from '@blueprintjs/core';
 import { friendlyName } from 'common';
 import AceEditor from 'react-ace';
@@ -83,6 +84,29 @@ const SqlRunnerPage = () => {
     const [sql, setSql] = useState<string>(SQL_PLACEHOLDER);
     const [columnsOrder, setColumnsOrder] = useState<string[]>([]);
     const { isIdle, isLoading, data, mutate } = useSqlQueryMutation();
+    const onSubmit = useCallback(() => {
+        mutate(sql);
+    }, [mutate, sql]);
+    const hotkeys = useMemo(() => {
+        const runQueryHotkey = {
+            combo: 'ctrl+enter',
+            group: 'SQL runner',
+            label: 'Run SQL query',
+            allowInInput: true,
+            onKeyDown: onSubmit,
+            global: true,
+            preventDefault: true,
+            stopPropagation: true,
+        };
+        return [
+            runQueryHotkey,
+            {
+                ...runQueryHotkey,
+                combo: 'cmd+enter',
+            },
+        ];
+    }, [onSubmit]);
+    useHotkeys(hotkeys);
 
     const dataColumns = useMemo(() => {
         if (data && data.rows.length > 0) {
@@ -94,10 +118,6 @@ const SqlRunnerPage = () => {
         }
         return [];
     }, [data]);
-
-    const onSubmit = () => {
-        mutate(sql);
-    };
 
     return (
         <Wrapper>
