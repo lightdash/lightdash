@@ -7,15 +7,14 @@ import {
     FieldType,
     LineageGraph,
     LineageNodeDependency,
-    mapColumnTypeToLightdashType,
     Metric,
     Source,
     Table,
     DbtColumnLightdashMetric,
     ExploreError,
     DbtRawModelNode,
-    isSupportedDbtAdapter,
     SupportedDbtAdapter,
+    DimensionType,
 } from 'common';
 import { DepGraph } from 'dependency-graph';
 import { parseWithPointers, getLocationForJsonPath } from '@stoplight/yaml';
@@ -43,12 +42,8 @@ const convertDimension = (
     column: DbtModelColumn,
     source?: Source,
 ): Dimension => {
-    let type;
-    if (column.meta.dimension?.type) {
-        type = column.meta.dimension.type;
-    } else if (column.data_type) {
-        type = mapColumnTypeToLightdashType(column.data_type);
-    } else {
+    const type = column.meta.dimension?.type || column.data_type;
+    if (type === undefined) {
         throw new MissingCatalogEntryError(
             `Could not automatically find type information for column "${column.name}" in dbt model "${modelName}". Check for this column in your warehouse or specify the type manually.`,
             {},
@@ -443,7 +438,7 @@ export const attachTypesToModels = (
     const getType = (
         { database, schema, name }: DbtModelNode,
         columnName: string,
-    ): string | undefined => {
+    ): DimensionType | undefined => {
         if (
             database in warehouseCatalog &&
             schema in warehouseCatalog[database] &&

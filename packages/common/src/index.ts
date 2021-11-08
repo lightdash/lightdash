@@ -389,99 +389,6 @@ export const filterableDimensionsOnly = (
     dimensions: Dimension[],
 ): FilterableDimension[] => dimensions.filter(isFilterableDimension);
 
-const lightdashTypeMap: { [columnType: string]: DimensionType } = {
-    INTEGER: DimensionType.NUMBER,
-    INT32: DimensionType.NUMBER,
-    INT64: DimensionType.NUMBER,
-    FLOAT: DimensionType.NUMBER,
-    FLOAT32: DimensionType.NUMBER,
-    FLOAT64: DimensionType.NUMBER,
-    NUMERIC: DimensionType.NUMBER,
-    BOOLEAN: DimensionType.BOOLEAN,
-    STRING: DimensionType.STRING,
-    TIMESTAMP: DimensionType.TIMESTAMP,
-    DATETIME: DimensionType.STRING,
-    DATE: DimensionType.DATE,
-    TIME: DimensionType.STRING,
-    BOOL: DimensionType.BOOLEAN,
-    ARRAY: DimensionType.STRING,
-    GEOGRAPHY: DimensionType.STRING,
-    NUMBER: DimensionType.NUMBER,
-    DECIMAL: DimensionType.NUMBER,
-    INT: DimensionType.NUMBER,
-    BIGINT: DimensionType.NUMBER,
-    SMALLINT: DimensionType.NUMBER,
-    FLOAT4: DimensionType.NUMBER,
-    FLOAT8: DimensionType.NUMBER,
-    DOUBLE: DimensionType.NUMBER,
-    'DOUBLE PRECISION': DimensionType.NUMBER,
-    REAL: DimensionType.NUMBER,
-    VARCHAR: DimensionType.STRING,
-    CHAR: DimensionType.STRING,
-    CHARACTER: DimensionType.STRING,
-    TEXT: DimensionType.STRING,
-    BINARY: DimensionType.STRING,
-    VARBINARY: DimensionType.STRING,
-    TIMESTAMP_NTZ: DimensionType.TIMESTAMP,
-    VARIANT: DimensionType.STRING,
-    OBJECT: DimensionType.STRING,
-    INT2: DimensionType.NUMBER,
-    INT4: DimensionType.NUMBER,
-    INT8: DimensionType.NUMBER,
-    NCHAR: DimensionType.STRING,
-    BPCHAR: DimensionType.STRING,
-    'CHARACTER VARYING': DimensionType.STRING,
-    NVARCHAR: DimensionType.STRING,
-    'TIMESTAMP WITHOUT TIME ZONE': DimensionType.TIMESTAMP,
-    GEOMETRY: DimensionType.STRING,
-    'TIME WITHOUT TIME ZONE': DimensionType.STRING,
-    XML: DimensionType.STRING,
-    UUID: DimensionType.STRING,
-    PG_LSN: DimensionType.STRING,
-    MACADDR: DimensionType.STRING,
-    JSON: DimensionType.STRING,
-    JSONB: DimensionType.STRING,
-    CIDR: DimensionType.STRING,
-    INET: DimensionType.STRING,
-    MONEY: DimensionType.NUMBER,
-    SMALLSERIAL: DimensionType.NUMBER,
-    SERIAL2: DimensionType.NUMBER,
-    SERIAL: DimensionType.NUMBER,
-    SERIAL4: DimensionType.NUMBER,
-    BIGSERIAL: DimensionType.NUMBER,
-    SERIAL8: DimensionType.NUMBER,
-};
-// Map native database types to sensible dimension types in lightdash
-// Used to autogenerate explore tables from database table schemas
-export const mapColumnTypeToLightdashType = (
-    columnType: string,
-): DimensionType => lightdashTypeMap[columnType.toUpperCase()] || 'string';
-
-// THESE ALL GET DEFAULT CONVERTED TO STRINGS (SO NO SPECIAL TREATMENT)
-// # TIMETZ not supported
-// # TIME WITH TIME ZONE not supported
-// # TIMESTAMP_LTZ not supported (see https://docs.looker.com/reference/field-params/dimension_group)
-//     # TIMESTAMP_TZ not supported (see https://docs.looker.com/reference/field-params/dimension_group)
-//     # HLLSKETCH not supported
-// # TIMESTAMPTZ not supported
-// # TIMESTAMP WITH TIME ZONE not supported
-// # BIT, BIT VARYING, VARBIT not supported
-// # BOX not supported
-// # BYTEA not supported
-// # CIRCLE not supported
-// # INTERVAL not supported
-// # LINE not supported
-// # LSEG not supported
-// # PATH not supported
-// # POINT not supported
-// # POLYGON not supported
-// # TSQUERY, TSVECTOR not supported
-// # TIMESTAMPTZ not supported
-// # TIMESTAMP WITH TIME ZONE not supported
-// # TIMETZ not supported
-// # HLLSKETCH not supported
-// # TIME WITH TIME ZONE not supported
-
 const capitalize = (word: string): string =>
     word ? `${word.charAt(0).toUpperCase()}${word.slice(1)}` : '';
 
@@ -534,7 +441,7 @@ export type DbtModelColumn = {
     name: string;
     description?: string;
     meta: DbtColumnMetadata;
-    data_type?: string;
+    data_type?: DimensionType;
 };
 
 // CUSTOM LIGHTDASH CONFIG IN DBT

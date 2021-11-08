@@ -1,7 +1,11 @@
 import odbc, { Result } from 'odbc';
 import { CreateDatabricksCredentials, DimensionType } from 'common';
 import { WarehouseCatalog, WarehouseClient } from '../../types';
-import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
+import {
+    ParseError,
+    WarehouseConnectionError,
+    WarehouseQueryError,
+} from '../../errors';
 
 export const DRIVER_PATH = '/opt/simba/spark/lib/64/libsparkodbc_sb64.so';
 
@@ -12,6 +16,82 @@ type SparkSchemaResult = {
     COLUMN_NAME: string;
     DATA_TYPE: number;
     TYPE_NAME: string;
+};
+
+enum DatabricksTypes {
+    BOOLEAN = 'BOOLEAN',
+    BYTE = 'BYTE',
+    TINYINT = 'TINYINT',
+    SHORT = 'SHORT',
+    SMALLINT = 'SMALLINT',
+    INT = 'INT',
+    INTEGER = 'INTEGER',
+    LONG = 'LONG',
+    BIGINT = 'BIGINT',
+    FLOAT = 'FLOAT',
+    REAL = 'REAL',
+    DOUBLE = 'DOUBLE',
+    DATE = 'DATE',
+    TIMESTAMP = 'TIMESTAMP',
+    STRING = 'STRING',
+    BINARY = 'BINARY',
+    DECIMAL = 'DECIMAL',
+    DEC = 'DEC',
+    NUMERIC = 'NUMERIC',
+    INTERVAL = 'INTERVAL', // INTERVAL HOUR
+    ARRAY = 'ARRAY', // ARRAY<type>
+    STRUCT = 'STRUCT', // STRUCT<type,type...>
+    MAP = 'MAP',
+    CHAR = 'CHAR',
+    VARCHAR = 'VARCHAR',
+}
+
+const normaliseDatabricksType = (type: string): string => {
+    const r = /^[A-Z]+/;
+    const match = r.exec(type);
+    if (match === null) {
+        throw new ParseError(
+            `Cannot understand type from Databricks: ${type}`,
+            {},
+        );
+    }
+    return match[0];
+};
+
+const mapFieldType = (type: string): DimensionType => {
+    switch (normaliseDatabricksType(type)) {
+        case DatabricksTypes.BOOLEAN:
+            return DimensionType.BOOLEAN;
+        case DatabricksTypes.TINYINT:
+        case DatabricksTypes.SHORT:
+        case DatabricksTypes.SMALLINT:
+        case DatabricksTypes.INT:
+        case DatabricksTypes.INTEGER:
+        case DatabricksTypes.BIGINT:
+        case DatabricksTypes.LONG:
+        case DatabricksTypes.FLOAT:
+        case DatabricksTypes.REAL:
+        case DatabricksTypes.DOUBLE:
+        case DatabricksTypes.DECIMAL:
+        case DatabricksTypes.DEC:
+        case DatabricksTypes.NUMERIC:
+            return DimensionType.NUMBER;
+        case DatabricksTypes.DATE:
+            return DimensionType.DATE;
+        case DatabricksTypes.TIMESTAMP:
+            return DimensionType.TIMESTAMP;
+        case DatabricksTypes.STRING:
+        case DatabricksTypes.BINARY:
+        case DatabricksTypes.INTERVAL:
+        case DatabricksTypes.ARRAY:
+        case DatabricksTypes.STRUCT:
+        case DatabricksTypes.MAP:
+        case DatabricksTypes.CHAR:
+        case DatabricksTypes.VARCHAR:
+            return DimensionType.STRING;
+        default:
+            return DimensionType.STRING;
+    }
 };
 
 export default class DatabricksWarehouseClient implements WarehouseClient {
@@ -31,12 +111,10 @@ export default class DatabricksWarehouseClient implements WarehouseClient {
         try {
             connection = await odbc.connect(this.connectionString);
         } catch (e) {
-            console.error(e);
             throw new WarehouseConnectionError(e.message);
         }
         try {
-            const results = await connection.query<Record<string, any>>(sql);
-            return results;
+            return await connection.query<Record<string, any>>(sql);
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         } finally {
@@ -95,7 +173,7 @@ export default class DatabricksWarehouseClient implements WarehouseClient {
                 const columns = Object.fromEntries<DimensionType>(
                     result.map((col) => [
                         col.COLUMN_NAME,
-                        DimensionType.STRING,
+                        mapFieldType(col.TYPE_NAME),
                     ]),
                 );
                 const { schema, table } = requests[index];
