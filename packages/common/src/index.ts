@@ -506,6 +506,7 @@ export type DbtNode = {
 };
 export type DbtModelNode = DbtNode & {
     columns: { [name: string]: DbtModelColumn };
+    config?: { meta?: DbtModelMetadata };
     meta: DbtModelMetadata;
     database: string;
     schema: string;

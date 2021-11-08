@@ -3,8 +3,23 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+
+## [0.9.3] - 2021-11-05
+### Added
+- Charts can now be exported as an eCharts JSON definition
+
+### Fixed
+- Fixed error where dbt projects using version 0.21.0 would have missing joins
+
+## [0.9.2] - 2021-11-04
 ### Changed
 - Lightdash requires dbt version 0.21.0 or higher
+
+### Fixed
+- Time-series charts fixed to show all values at the correct point in time
+
+### Removed
+- Authorising with Google Cloud OAuth is no longer possible with local dbt projects
 
 ## [0.9.1] - 2021-11-02
 ### Changed

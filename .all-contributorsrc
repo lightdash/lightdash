@@ -192,6 +192,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "jkeech",
+      "name": "John Keech",
+      "avatar_url": "https://avatars.githubusercontent.com/u/746020?v=4",
+      "profile": "https://github.com/jkeech",
+      "contributions": [
+        "infra"
+      ]
     }
   ],
   "contributorsPerLine": 7,
