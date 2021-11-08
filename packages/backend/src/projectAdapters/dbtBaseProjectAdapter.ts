@@ -96,7 +96,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     this.warehouseCatalog,
                     false,
                 );
-                console.log(typedModels);
                 const explores = await convertExplores(
                     typedModels,
                     loadSources,
