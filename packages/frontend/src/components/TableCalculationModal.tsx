@@ -1,12 +1,5 @@
 import React, { FC } from 'react';
-import {
-    Button,
-    Classes,
-    Dialog,
-    Intent,
-    Icon,
-    Callout,
-} from '@blueprintjs/core';
+import { Button, Classes, Dialog, Intent, Callout } from '@blueprintjs/core';
 import { hasSpecialCharacters, snakeCaseName, TableCalculation } from 'common';
 import { useForm } from 'react-hook-form';
 import { useApp } from '../providers/AppProvider';
@@ -15,8 +8,9 @@ import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
 import Form from './ReactHookForm/Form';
 import Input from './ReactHookForm/Input';
-import Textarea from './ReactHookForm/Textarea';
+import SqlInput from './ReactHookForm/SqlInput';
 import { useExplore } from '../hooks/useExplore';
+import { useExplorerAceEditorCompleter } from '../hooks/useExplorerAceEditorCompleter';
 
 const SQL_PLACEHOLDER =
     // eslint-disable-next-line no-template-curly-in-string
@@ -46,6 +40,7 @@ const TableCalculationModal: FC<Props> = ({
     const {
         state: { dimensions, metrics, tableCalculations, tableName },
     } = useExplorer();
+    const { setAceEditor } = useExplorerAceEditorCompleter();
     const { data: { targetDatabase } = {} } = useExplore(tableName);
     const methods = useForm<TableCalculationFormInputs>({
         mode: 'onSubmit',
@@ -139,7 +134,7 @@ const TableCalculationModal: FC<Props> = ({
                             </p>
                         </Callout>
                     )}
-                    <Textarea
+                    <SqlInput
                         name="sql"
                         label="SQL"
                         attributes={{
@@ -149,6 +144,7 @@ const TableCalculationModal: FC<Props> = ({
                             editorProps: { $blockScrolling: true },
                             enableBasicAutocompletion: true,
                             enableLiveAutocompletion: true,
+                            onLoad: setAceEditor,
                         }}
                         placeholder={SQL_PLACEHOLDER}
                     />

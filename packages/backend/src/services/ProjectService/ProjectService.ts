@@ -1,5 +1,7 @@
 import {
+    ProjectCatalog,
     ApiQueryResults,
+    ApiSqlQueryResults,
     CreateProject,
     Explore,
     ExploreError,
@@ -9,17 +11,17 @@ import {
     SessionUser,
     UpdateProject,
 } from 'common';
-import { projectAdapterFromConfig } from '../projectAdapters/projectAdapter';
-import { ProjectAdapter } from '../types';
-import { ProjectModel } from '../models/ProjectModel/ProjectModel';
-import { analytics } from '../analytics/client';
+import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
+import { ProjectAdapter } from '../../types';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { analytics } from '../../analytics/client';
 import {
     errorHandler,
     MissingWarehouseCredentialsError,
     NotExistsError,
-} from '../errors';
-import { compileMetricQuery } from '../queryCompiler';
-import { buildQuery } from '../queryBuilder';
+} from '../../errors';
+import { compileMetricQuery } from '../../queryCompiler';
+import { buildQuery } from '../../queryBuilder';
 
 type ProjectServiceDependencies = {
     projectModel: ProjectModel;
@@ -195,6 +197,24 @@ export class ProjectService {
         };
     }
 
+    async runSqlQuery(
+        user: SessionUser,
+        projectUuid: string,
+        sql: string,
+    ): Promise<ApiSqlQueryResults> {
+        await analytics.track({
+            projectId: projectUuid,
+            organizationId: user.organizationUuid,
+            userId: user.userUuid,
+            event: 'sql.executed',
+        });
+        const adapter = await this.getAdapter(projectUuid);
+        const rows = await adapter.runQuery(sql);
+        return {
+            rows,
+        };
+    }
+
     async refreshAllTables(user: SessionUser, projectUuid: string) {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
@@ -259,5 +279,28 @@ export class ProjectService {
             );
         }
         return explore;
+    }
+
+    async getCatalog(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ProjectCatalog> {
+        const explores = await this.getAllExplores(user, projectUuid);
+
+        return explores.reduce<ProjectCatalog>((acc, explore) => {
+            if (!isExploreError(explore)) {
+                Object.values(explore.tables).forEach(
+                    ({ database, schema, name, description, sqlTable }) => {
+                        acc[database] = acc[database] || {};
+                        acc[database][schema] = acc[database][schema] || {};
+                        acc[database][schema][name] = {
+                            description,
+                            sqlTable,
+                        };
+                    },
+                );
+            }
+            return acc;
+        }, {});
     }
 }

@@ -16,7 +16,7 @@ import { DBChartTypes, SavedQuery } from 'common';
 import EChartsReact from 'echarts-for-react';
 import { useLocation } from 'react-router-dom';
 import FiltersForm from '../filters';
-import { ResultsTable } from './ResultsTable';
+import { ExplorerResults } from './ExplorerResults';
 import { SimpleChart } from './SimpleChart';
 import { RenderedSql } from './RenderedSql';
 import { RefreshServerButton } from './RefreshServerButton';
@@ -322,7 +322,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     )}
                 </div>
                 <Collapse isOpen={resultsIsOpen}>
-                    <ResultsTable />
+                    <ExplorerResults />
                 </Collapse>
             </Card>
             <div style={{ paddingTop: '10px' }} />

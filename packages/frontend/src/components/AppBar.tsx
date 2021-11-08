@@ -14,7 +14,7 @@ import {
 } from '@blueprintjs/core';
 import { Tooltip2, Popover2 } from '@blueprintjs/popover2';
 import { useMutation } from 'react-query';
-import { useHistory, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 import UserSettingsModal from './UserSettingsModal/UserSettingsModal';
@@ -35,7 +35,6 @@ const AppBar = () => {
         errorLogs: { errorLogs, setErrorLogsVisible },
     } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string | undefined }>();
-    const { push } = useHistory();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { isLoading, mutate } = useMutation(logoutQuery, {
         mutationKey: ['logout'],
@@ -53,35 +52,56 @@ const AppBar = () => {
                 <NavbarGroup align={Alignment.LEFT}>
                     <NavbarHeading>{user.data?.organizationName}</NavbarHeading>
                     <NavbarDivider />
-                    {projectUuid && (
-                        <NavLink
-                            to={`/projects/${projectUuid}/tables`}
-                            style={{ marginRight: 10 }}
-                        >
-                            <Button minimal icon="database" text="Explore" />
-                        </NavLink>
-                    )}
                     <Popover2
                         interactionKind={PopoverInteractionKind.CLICK}
                         content={
-                            <Menu className="browse-menu">
-                                <MenuItem
-                                    role="button"
-                                    text="Dashboards"
-                                    onClick={() =>
-                                        push({
-                                            pathname: `/projects/${projectUuid}/dashboards`,
-                                        })
-                                    }
-                                />
-                                <MenuItem
-                                    text="Saved charts"
-                                    onClick={() =>
-                                        push({
-                                            pathname: `/projects/${projectUuid}/saved`,
-                                        })
-                                    }
-                                />
+                            <Menu>
+                                <NavLink to={`/projects/${projectUuid}/tables`}>
+                                    <MenuItem
+                                        role="button"
+                                        icon="th"
+                                        text="Tables"
+                                        style={{ marginBottom: 5 }}
+                                    />
+                                </NavLink>
+                                <NavLink
+                                    to={`/projects/${projectUuid}/sqlRunner`}
+                                >
+                                    <MenuItem
+                                        role="button"
+                                        icon="console"
+                                        text="SQL Runner"
+                                    />
+                                </NavLink>
+                            </Menu>
+                        }
+                        position={Position.BOTTOM_LEFT}
+                    >
+                        <Button minimal icon="database" text="Explore" />
+                    </Popover2>
+                    <Popover2
+                        interactionKind={PopoverInteractionKind.CLICK}
+                        content={
+                            <Menu>
+                                <NavLink
+                                    to={`/projects/${projectUuid}/dashboards`}
+                                >
+                                    <MenuItem
+                                        role="button"
+                                        text="Dashboards"
+                                        icon="control"
+                                        style={{ marginBottom: 5 }}
+                                    />
+                                </NavLink>
+                                <NavLink
+                                    to={`/projects/${projectUuid}/saved`}
+                                    style={{ marginBottom: 5 }}
+                                >
+                                    <MenuItem
+                                        icon="chart"
+                                        text="Saved charts"
+                                    />
+                                </NavLink>
                             </Menu>
                         }
                         position={Position.BOTTOM_LEFT}

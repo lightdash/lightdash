@@ -4,9 +4,11 @@ import {
     ApiExploreResults,
     ApiExploresResults,
     ApiQueryResults,
+    ApiSqlQueryResults,
     ApiStatusResults,
     isExploreError,
     MetricQuery,
+    ProjectCatalog,
 } from 'common';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { dashboardService, projectService } from '../services/services';
@@ -231,3 +233,40 @@ projectRouter.post(
             .catch(next);
     },
 );
+
+projectRouter.post(
+    '/sqlQuery',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        try {
+            const results: ApiSqlQueryResults =
+                await projectService.runSqlQuery(
+                    req.user!,
+                    req.params.projectUuid,
+                    req.body.sql,
+                );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+projectRouter.get('/catalog', isAuthenticated, async (req, res, next) => {
+    try {
+        const results: ProjectCatalog = await projectService.getCatalog(
+            req.user!,
+            req.params.projectUuid,
+        );
+        res.json({
+            status: 'ok',
+            results,
+        });
+    } catch (e) {
+        next(e);
+    }
+});

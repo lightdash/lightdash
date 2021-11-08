@@ -24,6 +24,8 @@ export const exploreOneEmptyTable: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.table',
             dimensions: {},
             metrics: {},
@@ -41,6 +43,8 @@ export const exploreOneEmptyTableCompiled: Explore = {
     tables: {
         a: {
             name: 'a',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.table',
             dimensions: {},
             metrics: {},
@@ -71,6 +75,8 @@ export const exploreMissingJoinTable: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.table',
             dimensions: {},
             metrics: {},
@@ -88,6 +94,8 @@ export const exploreCircularReference: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.table',
             dimensions: {
                 dim1: {
@@ -114,6 +122,8 @@ export const exploreTableSelfReference: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.table',
             dimensions: {
                 dim1: {
@@ -140,6 +150,8 @@ export const exploreTableSelfReferenceCompiled: Explore = {
     tables: {
         a: {
             name: 'a',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.table',
             dimensions: {
                 dim1: {
@@ -167,6 +179,8 @@ export const exploreReferenceDimension: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.table',
             dimensions: {
                 dim1: {
@@ -201,6 +215,8 @@ export const exploreReferenceDimensionCompiled: Explore = {
     tables: {
         a: {
             name: 'a',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.table',
             dimensions: {
                 dim1: {
@@ -236,6 +252,8 @@ export const exploreComplexReference: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.table',
             dimensions: {
                 dim1: {
@@ -287,6 +305,8 @@ export const exploreComplexReferenceCompiled: Explore = {
     tables: {
         a: {
             name: 'a',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.table',
             dimensions: {
                 dim1: {
@@ -347,6 +367,8 @@ export const exploreReferenceInJoin: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.table',
             dimensions: {
                 dim1: {
@@ -364,6 +386,8 @@ export const exploreReferenceInJoin: UncompiledExplore = {
         },
         b: {
             name: 'b',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.tableb',
             dimensions: {
                 dim1: {
@@ -404,6 +428,8 @@ export const exploreReferenceInJoinCompiled: Explore = {
     tables: {
         a: {
             name: 'a',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.table',
             dimensions: {
                 dim1: {
@@ -422,6 +448,8 @@ export const exploreReferenceInJoinCompiled: Explore = {
         },
         b: {
             name: 'b',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.tableb',
             dimensions: {
                 dim1: {
@@ -458,6 +486,8 @@ export const exploreWithMetricNumber: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.table',
             dimensions: {
                 dim1: {
@@ -499,6 +529,8 @@ export const exploreWithMetricNumberCompiled: Explore = {
     tables: {
         a: {
             name: 'a',
+            database: 'database',
+            schema: 'schema',
             sqlTable: 'test.table',
             dimensions: {
                 dim1: {

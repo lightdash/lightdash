@@ -46,6 +46,12 @@
         "/invite-links/{inviteLinkId}": {
             "$ref": "./paths/inviteLink.json"
         },
+        "/projects/{projectUuid}/sqlQuery": {
+            "$ref": "./paths/projectSqlQuery.json"
+        },
+        "/projects/{projectUuid}/catalog": {
+            "$ref": "./paths/projectCatalog.json"
+        },
         "/projects/{projectUuid}/dashboards": {
             "$ref": "./paths/projectDashboards.json"
         },

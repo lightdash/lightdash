@@ -1,0 +1,24 @@
+{
+    "type": "object",
+    "additionalProperties": {
+        "type": "object",
+        "title": "Database",
+        "additionalProperties": {
+            "type": "object",
+            "title": "Schema",
+            "additionalProperties": {
+                "type": "object",
+                "title": "Table",
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "sqlTable": {
+                        "type": "string"
+                    }
+                },
+                "required": ["sqlTable"]
+            }
+        }
+    }
+}

@@ -23,6 +23,7 @@ export enum PageName {
     CREATE_PROJECT = 'create_project',
     SAVED_DASHBOARDS = 'saved_dashboards',
     DASHBOARD = 'DASHBOARD',
+    SQL_RUNNER = 'SQL_RUNNER',
 }
 
 export enum CategoryName {
