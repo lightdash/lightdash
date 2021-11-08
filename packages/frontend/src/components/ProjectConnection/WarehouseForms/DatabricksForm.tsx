@@ -58,13 +58,6 @@ const DatabricksForm: FC<{
             disabled={disabled}
             defaultValue={443}
         />
-        <div
-            style={{
-                display: 'flex',
-                marginTop: 20,
-                justifyContent: 'flex-end',
-            }}
-        />
     </>
 );
 
