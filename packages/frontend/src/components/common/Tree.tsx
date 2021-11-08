@@ -136,7 +136,6 @@ export const Tree: React.FC<{
             onNodeClick={handleNodeClick}
             onNodeCollapse={handleNodeCollapse}
             onNodeExpand={handleNodeExpand}
-            className={Classes.ELEVATION_0}
         />
     );
 };

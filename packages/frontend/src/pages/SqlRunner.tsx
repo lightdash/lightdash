@@ -1,15 +1,16 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import {
     Card,
     H3,
     Text,
     Divider,
-    useHotkeys,
     Callout,
+    useHotkeys,
 } from '@blueprintjs/core';
 import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
 import { TableBase } from 'common';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import { CollapsableCard } from '../components/common/CollapsableCard';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
 import { Section } from '../providers/TrackingProvider';
@@ -23,6 +24,7 @@ import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable
 import RunSqlQueryButton from '../components/SqlRunner/RunSqlQueryButton';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
 import SqlRunnerInput from '../components/SqlRunner/SqlRunnerInput';
+import './SqlRunner.css';
 
 const Wrapper = styled('div')`
     display: flex;
@@ -128,14 +130,6 @@ const SqlRunnerPage = () => {
                                 <H3>Tables</H3>
                             </div>
                             <div style={{ padding: '10px' }}>
-                                <Callout
-                                    intent="none"
-                                    icon="info-sign"
-                                    style={{ marginBottom: 10 }}
-                                >
-                                    Currently we only display tables that are
-                                    declared in the dbt project.
-                                </Callout>
                                 <Text>
                                     Select a table to populate the sql input
                                 </Text>
@@ -145,11 +139,24 @@ const SqlRunnerPage = () => {
                                 {isCatalogLoading ? (
                                     <SideBarLoadingState />
                                 ) : (
-                                    <Tree
-                                        contents={catalogTree}
-                                        handleSelect={false}
-                                        onNodeClick={handleNodeClick}
-                                    />
+                                    <>
+                                        <Tooltip2
+                                            content="Currently we only display tables that are declared in the dbt project."
+                                            className="missing-tables-info"
+                                        >
+                                            <Callout
+                                                intent="none"
+                                                icon="info-sign"
+                                            >
+                                                Tables missing?
+                                            </Callout>
+                                        </Tooltip2>
+                                        <Tree
+                                            contents={catalogTree}
+                                            handleSelect={false}
+                                            onNodeClick={handleNodeClick}
+                                        />
+                                    </>
                                 )}
                             </div>
                         </div>
