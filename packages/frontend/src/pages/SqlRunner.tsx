@@ -129,11 +129,12 @@ const SqlRunnerPage = () => {
                             </div>
                             <div style={{ padding: '10px' }}>
                                 <Callout
-                                    intent="primary"
+                                    intent="none"
+                                    icon="info-sign"
                                     style={{ marginBottom: 10 }}
                                 >
-                                    These tables were detected in your dbt
-                                    project.
+                                    Currently we only display tables that are
+                                    declared in the dbt project.
                                 </Callout>
                                 <Text>
                                     Select a table to populate the sql input
