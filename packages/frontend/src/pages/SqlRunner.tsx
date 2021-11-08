@@ -112,9 +112,9 @@ const SqlRunnerPage = () => {
                         }}
                     >
                         <div style={{ flex: 1 }}>
-                            <H3>SQL runner</H3>
+                            <H3 style={{ marginBottom: 20 }}>SQL runner</H3>
                             <Divider />
-                            <H5 style={{ marginTop: 10, paddingLeft: 10 }}>
+                            <H5 style={{ marginTop: 20, paddingLeft: 10 }}>
                                 Warehouse schema
                             </H5>
                             <div style={{ overflowY: 'auto' }}>
@@ -135,7 +135,7 @@ const SqlRunnerPage = () => {
                                 <Callout
                                     intent="none"
                                     icon="info-sign"
-                                    style={{ marginTop: 10 }}
+                                    style={{ marginTop: 20 }}
                                 >
                                     Tables missing?
                                 </Callout>
