@@ -106,8 +106,15 @@ export const SimpleChart: FC<SimpleChartProps> = ({
             2,
     };
 
-    const series = chartConfig.series.map(() => ({
+    const series = chartConfig.series.map((seriesDimension) => ({
         type: echartType(chartType),
+        connectNulls: true,
+        encode: {
+            x: flipX ? seriesDimension : chartConfig.seriesLayout.xDimension,
+            y: flipX ? chartConfig.seriesLayout.xDimension : seriesDimension,
+            tooltip: [chartConfig.seriesLayout.xDimension, seriesDimension],
+            seriesName: seriesDimension,
+        },
     }));
     const options = {
         xAxis,
