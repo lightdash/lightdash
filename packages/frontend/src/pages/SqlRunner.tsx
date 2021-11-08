@@ -1,23 +1,28 @@
-import React, { FC, useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import styled from 'styled-components';
-import { Tooltip2 } from '@blueprintjs/popover2';
-import { CopyToClipboard } from 'react-copy-to-clipboard';
 import {
-    Button,
     Card,
-    NonIdealState,
-    PopoverPosition,
+    H3,
+    Text,
+    Divider,
     useHotkeys,
+    Callout,
 } from '@blueprintjs/core';
-import { friendlyName } from 'common';
-import AceEditor from 'react-ace';
+import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
+import { TableBase } from 'common';
 import { CollapsableCard } from '../components/common/CollapsableCard';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
 import { Section } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import { RefreshServerButton } from '../components/RefreshServerButton';
-import { BigButton } from '../components/common/BigButton';
-import { ResultsTable as Table } from '../components/ResultsTable/ResultsTable';
+import AboutFooter from '../components/AboutFooter';
+import { useProjectCatalog } from '../hooks/useProjectCatalog';
+import { Tree } from '../components/common/Tree';
+import { useProjectCatalogTree } from '../hooks/useProjectCatalogTree';
+import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable';
+import RunSqlQueryButton from '../components/SqlRunner/RunSqlQueryButton';
+import SideBarLoadingState from '../components/common/SideBarLoadingState';
+import SqlRunnerInput from '../components/SqlRunner/SqlRunnerInput';
 
 const Wrapper = styled('div')`
     display: flex;
@@ -45,47 +50,24 @@ const ContentSection = styled('div')`
     align-items: stretch;
 `;
 
-const Divider = styled('div')`
+const CardDivider = styled('div')`
     padding-top: 10px;
 `;
 
-const RunQueryButton: FC<{ isLoading: boolean; onSubmit: () => void }> = ({
-    onSubmit,
-    isLoading,
-}) => (
-    <BigButton
-        intent="primary"
-        style={{ width: 150, marginRight: '10px' }}
-        onClick={onSubmit}
-        loading={isLoading}
-    >
-        Run query
-    </BigButton>
-);
-
-const ResultsIdleState: FC<React.ComponentProps<typeof RunQueryButton>> = (
-    props,
-) => (
-    <Section name={SectionName.EMPTY_RESULTS_TABLE}>
-        <div style={{ padding: '50px 0' }}>
-            <NonIdealState
-                description="Click run query to see your results"
-                action={<RunQueryButton {...props} />}
-            />
-        </div>
-    </Section>
-);
-
-const SQL_PLACEHOLDER =
-    'SELECT * FROM "postgres"."jaffle"."customers" LIMIT 500';
+const generateBasicSqlQuery = (table: string) =>
+    `SELECT *
+     FROM ${table} LIMIT 25`;
 
 const SqlRunnerPage = () => {
-    const [copied, setCopied] = useState<boolean>(false);
-    const [sql, setSql] = useState<string>(SQL_PLACEHOLDER);
-    const [columnsOrder, setColumnsOrder] = useState<string[]>([]);
-    const { isIdle, isLoading, data, mutate } = useSqlQueryMutation();
+    const [sql, setSql] = useState<string>('');
+    const { isLoading: isCatalogLoading, data: catalogData } =
+        useProjectCatalog();
+    const sqlQueryMutation = useSqlQueryMutation();
+    const { isLoading, mutate } = sqlQueryMutation;
     const onSubmit = useCallback(() => {
-        mutate(sql);
+        if (sql) {
+            mutate(sql);
+        }
     }, [mutate, sql]);
     const hotkeys = useMemo(() => {
         const runQueryHotkey = {
@@ -107,21 +89,74 @@ const SqlRunnerPage = () => {
         ];
     }, [onSubmit]);
     useHotkeys(hotkeys);
+    const catalogTree = useProjectCatalogTree(catalogData);
 
-    const dataColumns = useMemo(() => {
-        if (data && data.rows.length > 0) {
-            return Object.keys(data.rows[0]).map((key) => ({
-                Header: <span>{friendlyName(key)}</span>,
-                accessor: key,
-                type: 'dimension',
-            }));
-        }
-        return [];
-    }, [data]);
+    const handleNodeClick = React.useCallback(
+        (node: TreeNodeInfo) => {
+            if (node.nodeData) {
+                setSql(
+                    generateBasicSqlQuery(
+                        (node.nodeData as TableBase).sqlTable,
+                    ),
+                );
+            }
+        },
+        [setSql],
+    );
 
     return (
         <Wrapper>
-            <Sidebar elevation={1} />
+            <Sidebar elevation={1}>
+                <Section name={SectionName.SIDEBAR}>
+                    <div
+                        style={{
+                            height: '100%',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            flexDirection: 'column',
+                        }}
+                    >
+                        <div style={{ flex: 1 }}>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    flexDirection: 'row',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                }}
+                            >
+                                <H3>Tables</H3>
+                            </div>
+                            <div style={{ padding: '10px' }}>
+                                <Callout
+                                    intent="primary"
+                                    style={{ marginBottom: 10 }}
+                                >
+                                    These tables were detected in your dbt
+                                    project.
+                                </Callout>
+                                <Text>
+                                    Select a table to populate the sql input
+                                </Text>
+                            </div>
+                            <Divider />
+                            <div style={{ overflowY: 'auto' }}>
+                                {isCatalogLoading ? (
+                                    <SideBarLoadingState />
+                                ) : (
+                                    <Tree
+                                        contents={catalogTree}
+                                        handleSelect={false}
+                                        onNodeClick={handleNodeClick}
+                                    />
+                                )}
+                            </div>
+                        </div>
+
+                        <AboutFooter />
+                    </div>
+                </Section>
+            </Sidebar>
             <ContentSection>
                 <Section name={SectionName.EXPLORER_TOP_BUTTONS}>
                     <div
@@ -132,72 +167,27 @@ const SqlRunnerPage = () => {
                             alignItems: 'center',
                         }}
                     >
-                        <RunQueryButton
+                        <RunSqlQueryButton
                             onSubmit={onSubmit}
                             isLoading={isLoading}
                         />
                         <RefreshServerButton />
                     </div>
                 </Section>
-                <Divider />
+                <CardDivider />
                 <CollapsableCard title="SQL" isOpenByDefault>
-                    <div
-                        style={{
-                            padding: 10,
-                            position: 'relative',
-                        }}
-                    >
-                        <AceEditor
-                            readOnly={isLoading}
-                            value={sql}
-                            height="300px"
-                            width="100%"
-                            editorProps={{ $blockScrolling: true }}
-                            enableBasicAutocompletion
-                            enableLiveAutocompletion
-                            onChange={(value: string) => {
-                                setSql(value);
-                                setCopied(false);
-                            }}
-                        />
-                        <div
-                            style={{
-                                position: 'absolute',
-                                bottom: 0,
-                                right: 0,
-                            }}
-                        >
-                            <Tooltip2
-                                isOpen={copied}
-                                content="Copied to clipboard!"
-                                intent="success"
-                                position={PopoverPosition.RIGHT}
-                            >
-                                <CopyToClipboard
-                                    text={sql}
-                                    onCopy={() => setCopied(true)}
-                                >
-                                    <Button minimal icon="clipboard" />
-                                </CopyToClipboard>
-                            </Tooltip2>
-                        </div>
-                    </div>
+                    <SqlRunnerInput
+                        sql={sql}
+                        onChange={setSql}
+                        projectCatalog={catalogData}
+                        isDisabled={isLoading}
+                    />
                 </CollapsableCard>
-                <Divider />
+                <CardDivider />
                 <CollapsableCard title="Results" isOpenByDefault>
-                    <Table
-                        data={data?.rows || []}
-                        dataColumns={dataColumns}
-                        loading={isLoading}
-                        idle={isIdle}
-                        dataColumnOrder={columnsOrder}
-                        onColumnOrderChange={setColumnsOrder}
-                        idleState={
-                            <ResultsIdleState
-                                onSubmit={onSubmit}
-                                isLoading={isLoading}
-                            />
-                        }
+                    <SqlRunnerResultsTable
+                        onSubmit={onSubmit}
+                        sqlQueryMutation={sqlQueryMutation}
                     />
                 </CollapsableCard>
             </ContentSection>
