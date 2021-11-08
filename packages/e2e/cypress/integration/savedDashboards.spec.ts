@@ -13,14 +13,14 @@ describe('Dashboard List', () => {
     it('Should display dashboards', () => {
         cy.visit('/');
         cy.findByRole('button', { name: 'search Browse' }).click();
-        cy.findByRole('button', { name: 'Dashboards' }).click();
+        cy.findByRole('button', { name: 'control Dashboards' }).click();
         cy.findByText('Jaffle dashboard').should('exist');
     });
 
     it('Should delete dashboards', () => {
         cy.visit('/');
         cy.findByRole('button', { name: 'search Browse' }).click();
-        cy.findByRole('button', { name: 'Dashboards' }).click();
+        cy.findByRole('button', { name: 'control Dashboards' }).click();
         // click on delete
         cy.findByRole('button', { name: 'more' }).click();
         cy.findByRole('button', { name: 'delete Delete' }).click();
@@ -32,7 +32,7 @@ describe('Dashboard List', () => {
     it('Should create a new dashboard', () => {
         cy.visit('/');
         cy.findByRole('button', { name: 'search Browse' }).click();
-        cy.findByRole('button', { name: 'Dashboards' }).click();
+        cy.findByRole('button', { name: 'control Dashboards' }).click();
         cy.findByRole('button', { name: 'Create dashboard' }).click();
 
         cy.url().should(
@@ -47,7 +47,7 @@ describe('Dashboard List', () => {
     it('Should update dashboards', () => {
         cy.visit('/');
         cy.findByRole('button', { name: 'search Browse' }).click();
-        cy.findByRole('button', { name: 'Dashboards' }).click();
+        cy.findByRole('button', { name: 'control Dashboards' }).click();
         // click on rename
         cy.findByRole('button', { name: 'more' }).click();
         cy.findByRole('button', { name: 'edit Rename' }).click();
