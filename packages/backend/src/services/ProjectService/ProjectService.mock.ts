@@ -1,14 +1,4 @@
-import {
-    ApiSqlQueryResults,
-    CreateDashboard,
-    CreateDashboardChartTile,
-    Dashboard,
-    DashboardBasicDetails,
-    DashboardTileTypes,
-    SessionUser,
-    UpdateDashboard,
-} from 'common';
-import { SpaceTable } from '../../database/entities/spaces';
+import { ApiSqlQueryResults, Explore, ExploreError, SessionUser } from 'common';
 import { ProjectAdapter } from '../../types';
 
 export const user: SessionUser = {
@@ -31,4 +21,38 @@ export const projectAdapterMock: ProjectAdapter = {
     test: jest.fn(),
     destroy: jest.fn(),
     runQuery: jest.fn(async () => expectedSqlResults.rows),
+};
+
+export const validExplore: Explore = {
+    targetDatabase: 'postgres',
+    name: '',
+    baseTable: 'a',
+    joinedTables: [],
+    tables: {
+        a: {
+            name: 'a',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: 'test.table',
+            dimensions: {},
+            metrics: {},
+            lineageGraph: {},
+        },
+    },
+};
+
+export const exploreWithError: ExploreError = {
+    name: 'error',
+    errors: [],
+};
+
+export const expectedCatalog = {
+    database: {
+        schema: {
+            a: {
+                description: undefined,
+                sqlTable: 'test.table',
+            },
+        },
+    },
 };

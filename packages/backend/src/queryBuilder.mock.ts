@@ -14,6 +14,8 @@ export const EXPLORE: Explore = {
     tables: {
         table1: {
             name: 'table1',
+            database: 'database',
+            schema: 'schema',
             sqlTable: '"db"."schema"."table1"',
             dimensions: {
                 dim1: {

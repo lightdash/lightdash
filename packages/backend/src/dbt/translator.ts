@@ -143,6 +143,8 @@ const convertTable = (
 
     return {
         name: model.name,
+        database: model.database,
+        schema: model.schema,
         sqlTable: model.relation_name,
         description: model.description || `${model.name} table`,
         dimensions,
@@ -288,6 +290,8 @@ const convertTableWithSources = (
 
     return {
         name: model.name,
+        database: model.database,
+        schema: model.schema,
         sqlTable: model.relation_name,
         description: model.description || `${model.name} table`,
         dimensions,
