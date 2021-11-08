@@ -1,13 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
-import {
-    Card,
-    H3,
-    Text,
-    Divider,
-    Callout,
-    useHotkeys,
-} from '@blueprintjs/core';
+import { Card, H3, H5, Divider, Callout, useHotkeys } from '@blueprintjs/core';
 import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
 import { TableBase } from 'common';
 import { Tooltip2 } from '@blueprintjs/popover2';
@@ -119,46 +112,34 @@ const SqlRunnerPage = () => {
                         }}
                     >
                         <div style={{ flex: 1 }}>
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    flexDirection: 'row',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                }}
-                            >
-                                <H3>Tables</H3>
-                            </div>
-                            <div style={{ padding: '10px' }}>
-                                <Text>
-                                    Select a table to populate the sql input
-                                </Text>
-                            </div>
+                            <H3>SQL runner</H3>
                             <Divider />
+                            <H5 style={{ marginTop: 10, paddingLeft: 10 }}>
+                                Warehouse schema
+                            </H5>
                             <div style={{ overflowY: 'auto' }}>
                                 {isCatalogLoading ? (
                                     <SideBarLoadingState />
                                 ) : (
-                                    <>
-                                        <Tooltip2
-                                            content="Currently we only display tables that are declared in the dbt project."
-                                            className="missing-tables-info"
-                                        >
-                                            <Callout
-                                                intent="none"
-                                                icon="info-sign"
-                                            >
-                                                Tables missing?
-                                            </Callout>
-                                        </Tooltip2>
-                                        <Tree
-                                            contents={catalogTree}
-                                            handleSelect={false}
-                                            onNodeClick={handleNodeClick}
-                                        />
-                                    </>
+                                    <Tree
+                                        contents={catalogTree}
+                                        handleSelect={false}
+                                        onNodeClick={handleNodeClick}
+                                    />
                                 )}
                             </div>
+                            <Tooltip2
+                                content="Currently we only display tables that are declared in the dbt project."
+                                className="missing-tables-info"
+                            >
+                                <Callout
+                                    intent="none"
+                                    icon="info-sign"
+                                    style={{ marginTop: 10 }}
+                                >
+                                    Tables missing?
+                                </Callout>
+                            </Tooltip2>
                         </div>
 
                         <AboutFooter />
