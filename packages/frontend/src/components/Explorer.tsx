@@ -5,6 +5,7 @@ import {
     Card,
     Collapse,
     FormGroup,
+    H3,
     H5,
     Menu,
     MenuItem,
@@ -127,9 +128,15 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         alignItems: 'center',
                     }}
                 >
-                    <div style={{ flex: 1, justifyContent: 'flex-start' }}>
+                    <H3
+                        style={{
+                            flex: 1,
+                            justifyContent: 'flex-start',
+                            margin: 0,
+                        }}
+                    >
                         {chartName}
-                    </div>
+                    </H3>
                     <RefreshButton />
                     <RefreshServerButton />
                     <Popover2
