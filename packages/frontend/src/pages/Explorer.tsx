@@ -20,7 +20,9 @@ const ExplorerPage = () => {
             <Card
                 style={{
                     height: 'calc(100vh - 50px)',
-                    width: '400px',
+                    flexBasis: '400px',
+                    flexGrow: 0,
+                    flexShrink: 0,
                     marginRight: '10px',
                     overflow: 'hidden',
                     position: 'sticky',
@@ -38,6 +40,7 @@ const ExplorerPage = () => {
                     flexDirection: 'column',
                     justifyContent: 'flex-start',
                     alignItems: 'stretch',
+                    minWidth: 0,
                 }}
             >
                 <Explorer />
