@@ -29,7 +29,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({ disabled, type }) => {
             value,
             label: ProjectTypeLabels[value],
         }));
-    }, [health]);
+    }, [health, type]);
 
     const form = useMemo(() => {
         switch (type) {
