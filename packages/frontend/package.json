@@ -1,6 +1,6 @@
 {
     "name": "frontend",
-    "version": "0.9.3",
+    "version": "0.9.4",
     "private": true,
     "proxy": "http://localhost:8080",
     "dependencies": {
@@ -25,7 +25,7 @@
         "@types/styled-components": "^5.1.15",
         "@types/uuid": "^8.3.0",
         "ace-builds": "^1.4.12",
-        "common": "^0.9.3",
+        "common": "^0.9.4",
         "dagre": "^0.8.5",
         "echarts": "^5.1.1",
         "echarts-for-react": "^3.0.1",
