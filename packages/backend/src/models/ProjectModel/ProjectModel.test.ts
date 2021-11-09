@@ -1,13 +1,13 @@
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
-import { ProjectModel } from './ProjectModel';
 import { ProjectTableName } from '../../database/entities/projects';
+import { ProjectModel } from './ProjectModel';
 import {
-    lightdashConfigMock,
     encryptionServiceMock,
-    projectMock,
     expectedProject,
+    lightdashConfigMock,
+    projectMock,
 } from './ProjectModel.mock';
 
 function queryMatcher(

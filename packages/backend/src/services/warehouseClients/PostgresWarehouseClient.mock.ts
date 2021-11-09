@@ -1,6 +1,6 @@
 import { CreatePostgresCredentials, WarehouseTypes } from 'common';
-import { config } from './WarehouseClient.mock';
 import { PostgresTypes } from './PostgresWarehouseClient';
+import { config } from './WarehouseClient.mock';
 
 export const credentials: CreatePostgresCredentials = {
     type: WarehouseTypes.POSTGRES,

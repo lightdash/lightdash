@@ -1,5 +1,5 @@
-import React, { Dispatch, SetStateAction } from 'react';
 import { AnchorButton } from '@blueprintjs/core';
+import React, { Dispatch, SetStateAction } from 'react';
 import ModalActionButtons from './modal/ModalActionButtons';
 
 type ActionCardProps<T> = {

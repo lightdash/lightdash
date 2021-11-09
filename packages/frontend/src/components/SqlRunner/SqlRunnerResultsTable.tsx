@@ -1,5 +1,5 @@
-import React, { FC, useMemo, useState } from 'react';
 import { NonIdealState } from '@blueprintjs/core';
+import React, { FC, useMemo, useState } from 'react';
 import { useSqlQueryMutation } from '../../hooks/useSqlQuery';
 import { Section } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';

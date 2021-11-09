@@ -1,9 +1,9 @@
-import React from 'react';
 import { NonIdealState } from '@blueprintjs/core';
 import { DashboardChartTile } from 'common';
+import React from 'react';
+import { Section } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import AddTileButton from './AddTile/AddTileButton';
-import { Section } from '../../providers/TrackingProvider';
 
 type EmptyStateNoTilesProps = {
     onAddTile: (tile: DashboardChartTile) => void;

@@ -1,4 +1,3 @@
-import { Knex } from 'knex';
 import bcrypt from 'bcrypt';
 import {
     SEED_EMAIL,
@@ -7,6 +6,7 @@ import {
     SEED_PASSWORD,
     SEED_USER,
 } from 'common';
+import { Knex } from 'knex';
 
 export async function seed(knex: Knex): Promise<void> {
     // Deletes ALL existing entries

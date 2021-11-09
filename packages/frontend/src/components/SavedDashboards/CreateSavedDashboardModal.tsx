@@ -1,9 +1,9 @@
+import { Dashboard } from 'common';
 import React, { FC } from 'react';
 import { useParams } from 'react-router-dom';
-import { Dashboard } from 'common';
-import CreateActionModal from '../common/modal/CreateActionModal';
 import { useCreateMutation } from '../../hooks/dashboard/useDashboard';
 import { ActionModalProps } from '../common/modal/ActionModal';
+import CreateActionModal from '../common/modal/CreateActionModal';
 
 interface CreateSavedDashboardModalProps {
     isOpen: boolean;

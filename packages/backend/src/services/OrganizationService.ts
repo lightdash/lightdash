@@ -1,15 +1,15 @@
 import {
+    LightdashMode,
     OrganizationProject,
     OrganizationUser,
     SessionUser,
-    LightdashMode,
 } from 'common';
-import { NotExistsError } from '../errors';
 import { analytics } from '../analytics/client';
-import { OrganizationModel } from '../models/OrganizationModel';
-import { UserModel } from '../models/UserModel';
-import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { lightdashConfig } from '../config/lightdashConfig';
+import { NotExistsError } from '../errors';
+import { OrganizationModel } from '../models/OrganizationModel';
+import { ProjectModel } from '../models/ProjectModel/ProjectModel';
+import { UserModel } from '../models/UserModel';
 
 type OrganizationServiceDependencies = {
     organizationModel: OrganizationModel;

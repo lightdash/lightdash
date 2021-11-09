@@ -1,12 +1,12 @@
-import { Knex } from 'knex';
 import bcrypt from 'bcrypt';
 import { CreateInitialUserArgs, UpdateUserArgs } from 'common';
+import { Knex } from 'knex';
 import { NotFoundError } from '../../errors';
-import { createOrganization } from './organizations';
-import { createEmail, deleteEmail } from './emails';
 import database from '../database';
-import { createPasswordLogin } from './passwordLogins';
+import { createEmail, deleteEmail } from './emails';
 import { createOrganizationMembership } from './organizationMemberships';
+import { createOrganization } from './organizations';
+import { createPasswordLogin } from './passwordLogins';
 
 export type DbUserDetails = {
     user_id: number;

@@ -1,7 +1,7 @@
-import React from 'react';
 import { Card } from '@blueprintjs/core';
-import { ExploreSideBar } from '../components/ExploreSideBar';
+import React from 'react';
 import { Explorer } from '../components/Explorer';
+import { ExploreSideBar } from '../components/ExploreSideBar';
 import { useExplorerRoute } from '../hooks/useExplorerRoute';
 
 const ExplorerPage = () => {

@@ -1,4 +1,3 @@
-import { Knex } from 'knex';
 import {
     CreatePostgresCredentials,
     LightdashMode,
@@ -6,6 +5,7 @@ import {
     SEED_SPACE,
     WarehouseTypes,
 } from 'common';
+import { Knex } from 'knex';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { EncryptionService } from '../../../services/EncryptionService/EncryptionService';
 

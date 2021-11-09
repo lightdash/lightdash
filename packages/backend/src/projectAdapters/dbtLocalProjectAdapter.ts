@@ -1,8 +1,8 @@
-import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 import { DbtChildProcess } from '../dbt/dbtChildProcess';
-import { NetworkError } from '../errors';
 import { DbtCliClient } from '../dbt/dbtCliClient';
+import { NetworkError } from '../errors';
 import { WarehouseClient } from '../types';
+import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
 type DbtLocalProjectAdapterArgs = {
     warehouseClient: WarehouseClient;

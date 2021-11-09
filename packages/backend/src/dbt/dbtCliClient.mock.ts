@@ -1,9 +1,5 @@
+import { DbtManifest, DbtRpcDocsGenerateResults } from 'common';
 import { ExecaError, ExecaReturnValue } from 'execa';
-import {
-    DbtManifest,
-    DbtRpcDocsGenerateResults,
-    DbtRpcGetManifestResults,
-} from 'common';
 
 export const cliArgs = {
     dbtProjectDirectory: 'dbtProjectDirectory',

@@ -1,6 +1,6 @@
-import React, { FC, useEffect, useMemo, useState } from 'react';
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { SpaceQuery } from 'common';
+import React, { FC, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import SavedQueriesContent from '../components/SavedQueries/SavedQueriesContent';
 import { useSavedQuery } from '../hooks/useSpaces';

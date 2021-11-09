@@ -1,10 +1,10 @@
 import execa from 'execa';
-import { DbtChildProcess } from './dbtChildProcess';
 import { DbtError } from '../errors';
+import { DbtChildProcess } from './dbtChildProcess';
 import {
-    childProcessWithSuccessEvent,
     childProcessWithDoubleLogEvent,
     childProcessWithExitEvent,
+    childProcessWithSuccessEvent,
     childProcessWithUnexpectedEvent,
 } from './dbtChildProcess.mock';
 

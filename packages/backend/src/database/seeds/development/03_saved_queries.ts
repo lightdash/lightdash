@@ -1,5 +1,5 @@
-import { Knex } from 'knex';
 import { DBChartTypes, SEED_PROJECT } from 'common';
+import { Knex } from 'knex';
 import { createSavedQuery } from '../../entities/savedQueries';
 
 export async function seed(knex: Knex): Promise<void> {

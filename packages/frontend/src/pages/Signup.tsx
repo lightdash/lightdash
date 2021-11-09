@@ -1,19 +1,19 @@
-import React, { FC } from 'react';
-import { Colors, Card, H2, NonIdealState } from '@blueprintjs/core';
-import { useMutation } from 'react-query';
+import { Card, Colors, H2, NonIdealState } from '@blueprintjs/core';
 import {
     ApiError,
     CreateInitialUserArgs,
     CreateOrganizationUser,
     LightdashUser,
 } from 'common';
+import React, { FC } from 'react';
+import { useMutation } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
 import AboutFooter from '../components/AboutFooter';
-import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/CreateUserForm';
+import PageSpinner from '../components/PageSpinner';
 import { useInviteLink } from '../hooks/useInviteLink';
+import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 
 const createUserQuery = async (data: CreateOrganizationUser) =>

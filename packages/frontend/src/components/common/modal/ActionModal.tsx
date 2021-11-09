@@ -1,8 +1,8 @@
-import React, { Dispatch, SetStateAction, useEffect, useCallback } from 'react';
 import { Button, IconName, Intent } from '@blueprintjs/core';
+import React, { Dispatch, SetStateAction, useCallback, useEffect } from 'react';
 import { useForm, UseFormReturn } from 'react-hook-form';
-import BaseModal from './BaseModal';
 import { useApp } from '../../../providers/AppProvider';
+import BaseModal from './BaseModal';
 
 export enum ActionTypeModal {
     CLOSE,

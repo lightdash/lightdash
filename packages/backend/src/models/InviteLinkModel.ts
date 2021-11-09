@@ -1,6 +1,6 @@
-import { Knex } from 'knex';
-import * as crypto from 'crypto';
 import { InviteLink } from 'common';
+import * as crypto from 'crypto';
+import { Knex } from 'knex';
 import { NotExistsError } from '../errors';
 
 export class InviteLinkModel {

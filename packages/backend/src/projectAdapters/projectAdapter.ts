@@ -1,15 +1,15 @@
-import getPort from 'get-port';
 import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
     ProjectType,
 } from 'common';
+import getPort from 'get-port';
+import { warehouseClientFromCredentials } from '../services/warehouseClients/warehouseClientFromCredentials';
 import { ProjectAdapter } from '../types';
 import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
 import { DbtGitlabProjectAdapter } from './dbtGitlabProjectAdapter';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
-import { warehouseClientFromCredentials } from '../services/warehouseClients/warehouseClientFromCredentials';
 
 export const projectAdapterFromConfig = async (
     config: DbtProjectConfig,

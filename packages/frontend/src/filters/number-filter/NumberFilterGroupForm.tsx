@@ -1,11 +1,11 @@
-import { NumberFilter, NumberFilterGroup } from 'common';
 import { ControlGroup } from '@blueprintjs/core';
+import { NumberFilter, NumberFilterGroup } from 'common';
 import React from 'react';
+import FilterRows from '../common/FilterRows';
+import SelectFilterOperator from '../common/SelectFilterOperator';
 import NumberFilterForm, {
     defaultValuesForNewNumberFilter,
 } from './NumberFilterForm';
-import SelectFilterOperator from '../common/SelectFilterOperator';
-import FilterRows from '../common/FilterRows';
 
 const options: { value: NumberFilter['operator']; label: string }[] = [
     { value: 'notEquals', label: 'is not equal to' },

@@ -1,15 +1,15 @@
-import React, { FC } from 'react';
 import { Dialog, Tab, Tabs } from '@blueprintjs/core';
-import './UserSettingsModal.css';
-import ProfilePanel from './ProfilePanel';
-import PasswordPanel from './PasswordPanel';
-import OrganizationPanel from './OrganizationPanel';
-import UserManagementPanel from './UserManagementPanel';
+import React, { FC } from 'react';
+import useLocationChange from '../../hooks/useLocationChange';
 import { Page } from '../../providers/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../types/Events';
 import InvitesPanel from './InvitesPanel';
+import OrganizationPanel from './OrganizationPanel';
+import PasswordPanel from './PasswordPanel';
+import ProfilePanel from './ProfilePanel';
 import ProjectManagementPanel from './ProjectManagementPanel';
-import useLocationChange from '../../hooks/useLocationChange';
+import UserManagementPanel from './UserManagementPanel';
+import './UserSettingsModal.css';
 
 interface Props {
     isOpen: boolean;

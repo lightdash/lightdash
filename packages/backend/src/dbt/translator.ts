@@ -1,26 +1,26 @@
+import { getLocationForJsonPath, parseWithPointers } from '@stoplight/yaml';
 import {
+    DbtColumnLightdashMetric,
     DbtModelColumn,
     DbtModelNode,
+    DbtRawModelNode,
     Dimension,
+    DimensionType,
     Explore,
-    friendlyName,
+    ExploreError,
     FieldType,
+    friendlyName,
     LineageGraph,
     LineageNodeDependency,
     Metric,
     Source,
-    Table,
-    DbtColumnLightdashMetric,
-    ExploreError,
-    DbtRawModelNode,
     SupportedDbtAdapter,
-    DimensionType,
+    Table,
 } from 'common';
 import { DepGraph } from 'dependency-graph';
-import { parseWithPointers, getLocationForJsonPath } from '@stoplight/yaml';
 import fs from 'fs';
-import { compileExplore } from '../exploreCompiler';
 import { DbtError, MissingCatalogEntryError, ParseError } from '../errors';
+import { compileExplore } from '../exploreCompiler';
 import { WarehouseCatalog } from '../types';
 
 const patchPathParts = (patchPath: string) => {

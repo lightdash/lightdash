@@ -1,18 +1,18 @@
+import { ParseError } from '../errors';
+import { parseConfig } from './parseConfig';
 import {
+    DBT_CLOUD_IDE_PROJECT,
     EMPTY_CONFIG,
+    EMPTY_PROJECTS,
     LOCAL_PROJECT,
     LOCAL_PROJECT_MISSING_PROFILES_DIR,
     LOCAL_PROJECT_UNDEFINED_PROJECT_DIR,
     NO_PROJECTS,
-    EMPTY_PROJECTS,
     UNDEFINED_CONFIG,
     UNRECOGNISED_PROJECT,
     wrapProject,
     WRONG_VERSION,
-    DBT_CLOUD_IDE_PROJECT,
 } from './parseConfig.mock';
-import { ParseError } from '../errors';
-import { parseConfig } from './parseConfig';
 
 beforeEach(() => {
     process.env = {

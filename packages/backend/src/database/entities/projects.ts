@@ -1,5 +1,5 @@
-import { Knex } from 'knex';
 import { ProjectType } from 'common';
+import { Knex } from 'knex';
 
 export const ProjectTableName = 'projects';
 

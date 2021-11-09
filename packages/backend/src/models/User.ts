@@ -1,5 +1,9 @@
-import { LightdashUser, ArgumentsOf, SessionUser, LightdashMode } from 'common';
 import bcrypt from 'bcrypt';
+import { ArgumentsOf, LightdashMode, LightdashUser, SessionUser } from 'common';
+import { analytics, identifyUser } from '../analytics/client';
+import { lightdashConfig } from '../config/lightdashConfig';
+import database from '../database/database';
+import { updatePassword } from '../database/entities/passwordLogins';
 import {
     createInitialUser,
     DbUserDetails,
@@ -8,11 +12,7 @@ import {
     hasUsers,
     updateUser,
 } from '../database/entities/users';
-import database from '../database/database';
 import { AuthorizationError, ForbiddenError } from '../errors';
-import { updatePassword } from '../database/entities/passwordLogins';
-import { analytics, identifyUser } from '../analytics/client';
-import { lightdashConfig } from '../config/lightdashConfig';
 
 export const mapDbUserDetailsToLightdashUser = (
     user: DbUserDetails,

@@ -1,5 +1,5 @@
-import { useHistory } from 'react-router-dom';
 import { useEffect } from 'react';
+import { useHistory } from 'react-router-dom';
 
 const useLocationChange = (callback: () => void) => {
     const { listen } = useHistory();

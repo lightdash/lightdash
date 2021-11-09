@@ -1,15 +1,15 @@
-import React, { RefObject, useCallback, useState } from 'react';
-import { Popover2, Classes } from '@blueprintjs/popover2';
 import {
     Button,
     Divider,
-    HTMLSelect,
     FormGroup,
-    PopoverPosition,
+    HTMLSelect,
     Intent,
+    PopoverPosition,
 } from '@blueprintjs/core';
+import { Classes, Popover2 } from '@blueprintjs/popover2';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
+import React, { RefObject, useCallback, useState } from 'react';
 
 const FILE_NAME = 'lightdash_chart';
 

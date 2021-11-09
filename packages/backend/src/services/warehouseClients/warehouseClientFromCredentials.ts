@@ -1,10 +1,10 @@
 import { CreateWarehouseCredentials, WarehouseTypes } from 'common';
-import { WarehouseClient } from '../../types';
-import SnowflakeWarehouseClient from './SnowflakeWarehouseClient';
-import PostgresWarehouseClient from './PostgresWarehouseClient';
-import BigqueryWarehouseClient from './BigqueryWarehouseClient';
 import { UnexpectedServerError } from '../../errors';
+import { WarehouseClient } from '../../types';
+import BigqueryWarehouseClient from './BigqueryWarehouseClient';
 import DatabricksWarehouseClient from './DatabricksWarehouseClient';
+import PostgresWarehouseClient from './PostgresWarehouseClient';
+import SnowflakeWarehouseClient from './SnowflakeWarehouseClient';
 
 export const warehouseClientFromCredentials = (
     credentials: CreateWarehouseCredentials,

@@ -2,8 +2,8 @@ import { ApiError, ApiQueryResults, MetricQuery, SavedQuery } from 'common';
 import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { useExplorer } from '../providers/ExplorerProvider';
 import { useApp } from '../providers/AppProvider';
+import { useExplorer } from '../providers/ExplorerProvider';
 import useQueryError from './useQueryError';
 
 export const getQueryResults = async (

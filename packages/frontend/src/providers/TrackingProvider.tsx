@@ -1,3 +1,4 @@
+import { LightdashMode } from 'common';
 import React, {
     createContext,
     FC,
@@ -8,8 +9,6 @@ import React, {
     useState,
 } from 'react';
 import * as rudderSDK from 'rudder-sdk-js';
-import { LightdashMode } from 'common';
-import { useApp } from './AppProvider';
 import {
     CategoryName,
     EventName,
@@ -17,6 +16,7 @@ import {
     PageType,
     SectionName,
 } from '../types/Events';
+import { useApp } from './AppProvider';
 
 type EventData = {
     name: EventName;

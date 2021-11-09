@@ -1,18 +1,18 @@
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import {
-    LightdashMode,
-    DbtProjectConfig,
-    DbtProjectConfigBase,
-    DbtLocalProjectConfig,
     DbtCloudIDEProjectConfig,
     DbtGithubProjectConfig,
     DbtGitlabProjectConfig,
-    ProjectType,
+    DbtLocalProjectConfig,
+    DbtProjectConfig,
+    DbtProjectConfigBase,
     isLightdashMode,
+    LightdashMode,
+    ProjectType,
 } from 'common';
-import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
 import { ParseError } from '../errors';
+import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
 
 export type DbtProjectConfigIn<T extends DbtProjectConfig> = Partial<T> &
     DbtProjectConfigBase;

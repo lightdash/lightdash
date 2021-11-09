@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { ApiError, CreateDashboard, Dashboard, UpdateDashboard } from 'common';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
 import { useApp } from '../../providers/AppProvider';
 import useQueryError from '../useQueryError';

@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
 import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
 import { ProjectCatalog } from 'common';
+import { useMemo } from 'react';
 
 export type ProjectCatalogTreeNode = TreeNodeInfo<
     ProjectCatalog[number][number][number]

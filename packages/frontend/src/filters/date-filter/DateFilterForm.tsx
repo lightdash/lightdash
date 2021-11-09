@@ -1,14 +1,14 @@
 import { DateInput, TimePrecision } from '@blueprintjs/datetime';
-import React, { FC } from 'react';
 import {
     DateAndTimestampFilter,
     DateFilterGroup,
     formatDate,
-    parseDate,
     formatTimestamp,
+    parseDate,
     parseTimestamp,
     TimestampFilterGroup,
 } from 'common';
+import React, { FC } from 'react';
 
 export const defaultValuesForNewDateFilter: {
     [key in DateAndTimestampFilter['operator']]: DateAndTimestampFilter;

@@ -1,9 +1,9 @@
-import React, { FC } from 'react';
 import { Divider, H1 } from '@blueprintjs/core';
+import React, { FC } from 'react';
 import { Redirect } from 'react-router-dom';
 import PageSpinner from '../components/PageSpinner';
-import { useApp } from '../providers/AppProvider';
 import { CreateProjectConnection } from '../components/ProjectConnection';
+import { useApp } from '../providers/AppProvider';
 
 const CreateProject: FC = () => {
     const { health } = useApp();

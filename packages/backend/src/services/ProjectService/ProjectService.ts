@@ -1,5 +1,4 @@
 import {
-    ProjectCatalog,
     ApiQueryResults,
     ApiSqlQueryResults,
     CreateProject,
@@ -8,20 +7,21 @@ import {
     isExploreError,
     MetricQuery,
     Project,
+    ProjectCatalog,
     SessionUser,
     UpdateProject,
 } from 'common';
-import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
-import { ProjectAdapter } from '../../types';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { analytics } from '../../analytics/client';
 import {
     errorHandler,
     MissingWarehouseCredentialsError,
     NotExistsError,
 } from '../../errors';
-import { compileMetricQuery } from '../../queryCompiler';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
+import { compileMetricQuery } from '../../queryCompiler';
+import { ProjectAdapter } from '../../types';
 
 type ProjectServiceDependencies = {
     projectModel: ProjectModel;

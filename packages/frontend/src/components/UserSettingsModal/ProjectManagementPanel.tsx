@@ -1,6 +1,6 @@
-import React, { FC } from 'react';
+import { AnchorButton, ButtonGroup, Card, Classes } from '@blueprintjs/core';
 import { OrganizationProject } from 'common';
-import { Card, Classes, ButtonGroup, AnchorButton } from '@blueprintjs/core';
+import React, { FC } from 'react';
 import { useProjects } from '../../hooks/useProjects';
 
 const ProjectListItem: FC<{ project: OrganizationProject }> = ({

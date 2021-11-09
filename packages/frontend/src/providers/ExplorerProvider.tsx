@@ -1,13 +1,13 @@
-import React, {
-    FC,
-    useContext,
-    createContext,
-    useReducer,
-    useMemo,
-    useCallback,
-    useEffect,
-} from 'react';
 import { FieldId, FilterGroup, SortField, TableCalculation } from 'common';
+import React, {
+    createContext,
+    FC,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useReducer,
+} from 'react';
 
 export enum ActionType {
     RESET,

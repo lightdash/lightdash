@@ -1,15 +1,15 @@
-import React, {
-    FC,
-    useContext,
-    createContext,
-    useEffect,
-    useCallback,
-} from 'react';
-import Markdown from 'markdown-to-jsx';
-import { ApiError, ApiHealthResults, HealthState, LightdashUser } from 'common';
-import { useQuery } from 'react-query';
-import { IToastProps } from '@blueprintjs/core/src/components/toast/toast';
 import { Intent } from '@blueprintjs/core';
+import { IToastProps } from '@blueprintjs/core/src/components/toast/toast';
+import { ApiError, ApiHealthResults, HealthState, LightdashUser } from 'common';
+import Markdown from 'markdown-to-jsx';
+import React, {
+    createContext,
+    FC,
+    useCallback,
+    useContext,
+    useEffect,
+} from 'react';
+import { useQuery } from 'react-query';
 import { UseQueryResult } from 'react-query/types/react/types';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';

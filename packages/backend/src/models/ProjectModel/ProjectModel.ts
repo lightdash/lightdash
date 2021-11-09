@@ -1,4 +1,3 @@
-import { Knex } from 'knex';
 import {
     CreateProject,
     CreateWarehouseCredentials,
@@ -10,10 +9,11 @@ import {
     UpdateProject,
     WarehouseCredentials,
 } from 'common';
+import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
-import { NotExistsError, UnexpectedServerError } from '../../errors';
 import { ProjectTableName } from '../../database/entities/projects';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
+import { NotExistsError, UnexpectedServerError } from '../../errors';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import Transaction = Knex.Transaction;
 

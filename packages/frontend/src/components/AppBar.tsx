@@ -1,26 +1,26 @@
-import React, { useState } from 'react';
 import {
     Alignment,
     Button,
     Classes,
+    Menu,
+    MenuItem,
     Navbar,
     NavbarDivider,
     NavbarGroup,
     NavbarHeading,
-    Menu,
-    MenuItem,
-    Position,
     PopoverInteractionKind,
+    Position,
 } from '@blueprintjs/core';
-import { Tooltip2, Popover2 } from '@blueprintjs/popover2';
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import React, { useState } from 'react';
 import { useMutation } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
-import UserSettingsModal from './UserSettingsModal/UserSettingsModal';
-import NavLink from './NavLink';
 import { ErrorLogsDrawer } from './ErrorLogsDrawer';
+import NavLink from './NavLink';
 import { ShowErrorsButton } from './ShowErrorsButton';
+import UserSettingsModal from './UserSettingsModal/UserSettingsModal';
 
 const logoutQuery = async () =>
     lightdashApi({

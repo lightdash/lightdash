@@ -1,8 +1,8 @@
 import {
-    CreateInviteLink,
-    InviteLink,
     ApiError,
+    CreateInviteLink,
     formatTimestamp,
+    InviteLink,
 } from 'common';
 import { useMutation, useQuery } from 'react-query';
 import { lightdashApi } from '../api';

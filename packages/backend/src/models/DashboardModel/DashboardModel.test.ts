@@ -1,7 +1,16 @@
+import { LightdashMode } from 'common';
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
-import { LightdashMode } from 'common';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
+import {
+    DashboardsTableName,
+    DashboardTileChartTableName,
+    DashboardTilesTableName,
+    DashboardVersionsTableName,
+} from '../../database/entities/dashboards';
+import { SavedQueriesTableName } from '../../database/entities/savedQueries';
+import { SpaceTableName } from '../../database/entities/spaces';
+import { NotFoundError } from '../../errors';
 import { DashboardModel } from './DashboardModel';
 import {
     addDashboardVersion,
@@ -19,15 +28,6 @@ import {
     spaceEntry,
     updateDashboard,
 } from './DashboardModel.mock';
-import {
-    DashboardsTableName,
-    DashboardTileChartTableName,
-    DashboardTilesTableName,
-    DashboardVersionsTableName,
-} from '../../database/entities/dashboards';
-import { SpaceTableName } from '../../database/entities/spaces';
-import { SavedQueriesTableName } from '../../database/entities/savedQueries';
-import { NotFoundError } from '../../errors';
 
 jest.mock('../../config/lightdashConfig', () => ({
     lightdashConfig: {

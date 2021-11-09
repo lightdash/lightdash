@@ -1,16 +1,16 @@
-import React, { FC, useState } from 'react';
 import {
-    Card,
-    Tag,
-    Classes,
     Button,
     ButtonGroup,
+    Card,
+    Classes,
     Dialog,
+    Tag,
 } from '@blueprintjs/core';
 import { OrganizationUser } from 'common';
+import React, { FC, useState } from 'react';
 import {
-    useOrganizationUsers,
     useDeleteUserMutation,
+    useOrganizationUsers,
 } from '../../hooks/useOrganizationUsers';
 import { useApp } from '../../providers/AppProvider';
 

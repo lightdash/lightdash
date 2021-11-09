@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
-import { useExplorer } from '../providers/ExplorerProvider';
 import { useApp } from '../providers/AppProvider';
+import { useExplorer } from '../providers/ExplorerProvider';
 
 export const useExplorerRoute = () => {
     const { showToastError } = useApp();

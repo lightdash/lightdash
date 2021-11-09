@@ -1,5 +1,5 @@
-import { Route, Redirect } from 'react-router-dom';
 import React, { ComponentProps, FC } from 'react';
+import { Redirect, Route } from 'react-router-dom';
 import { useApp } from '../providers/AppProvider';
 import PageSpinner from './PageSpinner';
 

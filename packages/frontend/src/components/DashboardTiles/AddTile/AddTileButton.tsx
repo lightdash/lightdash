@@ -1,6 +1,6 @@
-import React, { FC, useState } from 'react';
-import { DashboardChartTile } from 'common';
 import { Button } from '@blueprintjs/core';
+import { DashboardChartTile } from 'common';
+import React, { FC, useState } from 'react';
 import AddTileModal from './AddTileModal';
 
 type Props = {

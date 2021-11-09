@@ -1,8 +1,8 @@
 import express from 'express';
-import { sanitizeStringParam, sanitizeEmailParam } from '../utils';
-import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { UserModel } from '../models/User';
 import { userService } from '../services/services';
+import { sanitizeEmailParam, sanitizeStringParam } from '../utils';
+import { isAuthenticated, unauthorisedInDemo } from './authentication';
 
 export const userRouter = express.Router();
 

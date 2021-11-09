@@ -1,7 +1,7 @@
 import { Explore, ExploreError } from 'common';
-import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 import { DbtCloudV2RpcClient } from '../dbt/dbtCloudV2RpcClient';
 import { WarehouseClient } from '../types';
+import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
 type DbtCloudideProjectAdapterArgs = {
     warehouseClient: WarehouseClient;

@@ -1,6 +1,6 @@
 import { CreateWarehouseCredentials } from 'common';
-import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 import { WarehouseClient } from '../types';
+import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 
 type DbtGitlabProjectAdapterArgs = {
     warehouseClient: WarehouseClient;

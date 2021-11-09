@@ -1,28 +1,28 @@
-import React, { FC } from 'react';
-import { useForm } from 'react-hook-form';
 import { Button, Card, H5, Intent } from '@blueprintjs/core';
 import {
+    CreateWarehouseCredentials,
     DbtProjectConfig,
     ProjectType,
-    CreateWarehouseCredentials,
     WarehouseTypes,
 } from 'common';
-import { useHistory } from 'react-router-dom';
-import { useQueryClient } from 'react-query';
+import React, { FC } from 'react';
+import { useForm } from 'react-hook-form';
 import { UseFormReturn } from 'react-hook-form/dist/types';
-import WarehouseSettingsForm from './WarehouseSettingsForm';
-import DbtSettingsForm from './DbtSettingsForm';
-import Form from '../ReactHookForm/Form';
-import ProjectStatusCallout from './ProjectStatusCallout';
+import { useQueryClient } from 'react-query';
+import { useHistory } from 'react-router-dom';
 import {
     useCreateMutation,
     useProject,
     useUpdateMutation,
 } from '../../hooks/useProject';
+import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
-import { useApp } from '../../providers/AppProvider';
 import DocumentationHelpButton from '../DocumentationHelpButton';
+import Form from '../ReactHookForm/Form';
+import DbtSettingsForm from './DbtSettingsForm';
+import ProjectStatusCallout from './ProjectStatusCallout';
+import WarehouseSettingsForm from './WarehouseSettingsForm';
 
 type ProjectConnectionForm = {
     dbt: DbtProjectConfig;

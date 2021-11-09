@@ -1,37 +1,37 @@
 import {
+    DashboardsTableName,
+    DashboardTable,
+    DashboardTileChartTable,
+    DashboardTileChartTableName,
+    DashboardTilesTableName,
+    DashboardTileTable,
+    DashboardTileTypesTableName,
+    DashboardVersionsTableName,
+    DashboardVersionTable,
+} from '../database/entities/dashboards';
+import { EmailTable, EmailTableName } from '../database/entities/emails';
+import {
     InviteLinkTable,
     InviteLinkTableName,
 } from '../database/entities/inviteLinks';
 import {
-    OrganizationTableName,
     OrganizationTable,
+    OrganizationTableName,
 } from '../database/entities/organizations';
-import { UserTable, UserTableName } from '../database/entities/users';
-import { EmailTable, EmailTableName } from '../database/entities/emails';
-import { SessionTable, SessionTableName } from '../database/entities/sessions';
+import { ProjectTable, ProjectTableName } from '../database/entities/projects';
 import {
     SavedQueriesTableName,
     SavedQueryTable,
     SavedQueryTableCalculationTable,
     SavedQueryTableCalculationTableName,
 } from '../database/entities/savedQueries';
+import { SessionTable, SessionTableName } from '../database/entities/sessions';
+import { SpaceTable, SpaceTableName } from '../database/entities/spaces';
+import { UserTable, UserTableName } from '../database/entities/users';
 import {
     WarehouseCredentialTable,
     WarehouseCredentialTableName,
 } from '../database/entities/warehouseCredentials';
-import { ProjectTable, ProjectTableName } from '../database/entities/projects';
-import { SpaceTable, SpaceTableName } from '../database/entities/spaces';
-import {
-    DashboardTable,
-    DashboardsTableName,
-    DashboardTileChartTable,
-    DashboardTileChartTableName,
-    DashboardTilesTableName,
-    DashboardTileTypesTableName,
-    DashboardVersionTable,
-    DashboardTileTable,
-    DashboardVersionsTableName,
-} from '../database/entities/dashboards';
 
 declare module 'knex/types/tables' {
     interface Tables {

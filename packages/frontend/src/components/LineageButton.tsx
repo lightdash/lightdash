@@ -1,13 +1,13 @@
-import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { Button, Colors } from '@blueprintjs/core';
-import React, { useState } from 'react';
-import EChartsReact from 'echarts-for-react';
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { friendlyName, isExploreError, LineageNodeDependency } from 'common';
 import * as dagre from 'dagre';
+import EChartsReact from 'echarts-for-react';
+import React, { useState } from 'react';
 import { useExplore } from '../hooks/useExplore';
+import { useExplorer } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
-import { useExplorer } from '../providers/ExplorerProvider';
 
 const Content = () => {
     const [showAll, setShowAll] = useState(false);

@@ -8,9 +8,9 @@ import {
     UpdateDashboard,
 } from 'common';
 import { analytics } from '../../analytics/client';
-import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { getSpace } from '../../database/entities/spaces';
 import database from '../../database/database';
+import { getSpace } from '../../database/entities/spaces';
+import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 
 type Dependencies = {
     dashboardModel: DashboardModel;

@@ -1,4 +1,18 @@
-import React, { FC, useCallback, useMemo, useState } from 'react';
+import {
+    Button,
+    Classes,
+    Colors,
+    Dialog,
+    Icon,
+    Intent,
+    Menu,
+    MenuItem,
+    PopoverPosition,
+    Tree,
+} from '@blueprintjs/core';
+import { TreeEventHandler } from '@blueprintjs/core/src/components/tree/tree';
+import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import {
     CompiledTable,
     Dimension,
@@ -8,22 +22,8 @@ import {
     Metric,
     Source,
 } from 'common';
-import {
-    Button,
-    Classes,
-    Colors,
-    Icon,
-    Intent,
-    Tree,
-    Dialog,
-    Menu,
-    MenuItem,
-    PopoverPosition,
-} from '@blueprintjs/core';
-import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import Fuse from 'fuse.js';
-import { TreeEventHandler } from '@blueprintjs/core/src/components/tree/tree';
-import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
+import React, { FC, useCallback, useMemo, useState } from 'react';
 
 type NodeDataProps = {
     fieldId: FieldId;

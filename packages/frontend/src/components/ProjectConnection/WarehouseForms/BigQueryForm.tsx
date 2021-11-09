@@ -1,11 +1,11 @@
-import React, { FC } from 'react';
 import { Button } from '@blueprintjs/core';
+import React, { FC } from 'react';
 import { useToggle } from 'react-use';
-import Input from '../../ReactHookForm/Input';
-import SelectField from '../../ReactHookForm/Select';
 import FileInput from '../../ReactHookForm/FileInput';
 import FormSection from '../../ReactHookForm/FormSection';
+import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
+import SelectField from '../../ReactHookForm/Select';
 
 const BigQueryForm: FC<{
     disabled: boolean;

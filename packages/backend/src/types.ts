@@ -1,5 +1,4 @@
 import {
-    DbtModelNode,
     DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
     DimensionType,

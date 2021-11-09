@@ -1,13 +1,13 @@
-import tempy from 'tempy';
-import * as path from 'path';
-import * as git from 'isomorphic-git';
-import * as fspromises from 'fs/promises';
-import * as fs from 'fs';
-import * as http from 'isomorphic-git/http/node';
 import { CreateWarehouseCredentials } from 'common';
+import * as fs from 'fs';
+import * as fspromises from 'fs/promises';
+import * as git from 'isomorphic-git';
+import * as http from 'isomorphic-git/http/node';
+import * as path from 'path';
+import tempy from 'tempy';
 import { UnexpectedServerError } from '../errors';
-import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 import { WarehouseClient } from '../types';
+import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 
 export type DbtGitProjectAdapterArgs = {
     warehouseClient: WarehouseClient;

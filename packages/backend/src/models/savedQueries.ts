@@ -5,16 +5,16 @@ import {
     Space,
     UpdateSavedQuery,
 } from 'common';
+import { analytics } from '../analytics/client';
+import database from '../database/database';
 import {
     addSavedQueryVersion,
     createSavedQuery,
-    getSavedQueryByUuid,
     deleteSavedQuery,
+    getSavedQueryByUuid,
     updateSavedQuery,
 } from '../database/entities/savedQueries';
-import database from '../database/database';
 import { getSpaceWithQueries } from '../database/entities/spaces';
-import { analytics } from '../analytics/client';
 
 export const SavedQueriesModel = {
     getAllSpaces: async (projectUuid: string): Promise<Space[]> => {

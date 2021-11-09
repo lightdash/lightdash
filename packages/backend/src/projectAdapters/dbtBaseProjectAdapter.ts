@@ -1,3 +1,5 @@
+import Ajv from 'ajv';
+import addFormats from 'ajv-formats';
 import {
     DbtModelNode,
     DbtRawModelNode,
@@ -6,8 +8,6 @@ import {
     isSupportedDbtAdapter,
     SupportedDbtAdapter,
 } from 'common';
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
 import {
     attachTypesToModels,
     convertExplores,
@@ -19,8 +19,8 @@ import modelJsonSchema from '../schema.json';
 import {
     DbtClient,
     ProjectAdapter,
-    WarehouseClient,
     WarehouseCatalog,
+    WarehouseClient,
 } from '../types';
 
 const ajv = new Ajv();

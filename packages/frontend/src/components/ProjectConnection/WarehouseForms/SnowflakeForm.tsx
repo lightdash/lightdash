@@ -1,11 +1,11 @@
-import React, { FC } from 'react';
 import { Button } from '@blueprintjs/core';
+import React, { FC } from 'react';
 import { useToggle } from 'react-use';
+import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
+import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
-import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
-import FormSection from '../../ReactHookForm/FormSection';
 
 const SnowflakeForm: FC<{
     disabled: boolean;

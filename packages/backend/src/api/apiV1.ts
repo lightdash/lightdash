@@ -1,15 +1,15 @@
 import express from 'express';
 import passport from 'passport';
-import { sanitizeEmailParam, sanitizeStringParam } from '../utils';
 import { getHealthState } from '../health';
-import { UserModel } from '../models/User';
 import { SavedQueriesModel } from '../models/savedQueries';
+import { UserModel } from '../models/User';
+import { sanitizeEmailParam, sanitizeStringParam } from '../utils';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
+import { dashboardRouter } from './dashboardRouter';
 import { inviteLinksRouter } from './inviteLinksRouter';
 import { organizationRouter } from './organizationRouter';
-import { userRouter } from './userRouter';
 import { projectRouter } from './projectRouter';
-import { dashboardRouter } from './dashboardRouter';
+import { userRouter } from './userRouter';
 
 export const apiV1Router = express.Router();
 

@@ -1,6 +1,6 @@
-import React from 'react';
-import { BooleanFilter } from 'common';
 import { HTMLSelect } from '@blueprintjs/core';
+import { BooleanFilter } from 'common';
+import React from 'react';
 
 export const defaultValuesForNewBooleanFilter: {
     [key in BooleanFilter['operator']]: BooleanFilter;

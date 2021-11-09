@@ -1,15 +1,15 @@
 import {
+    dashboardModel,
     inviteLinkModel,
-    userModel,
-    sessionModel,
     organizationModel,
     projectModel,
-    dashboardModel,
+    sessionModel,
+    userModel,
 } from '../models/models';
-import { UserService } from './UserService';
+import { DashboardService } from './DashboardService/DashboardService';
 import { OrganizationService } from './OrganizationService';
 import { ProjectService } from './ProjectService/ProjectService';
-import { DashboardService } from './DashboardService/DashboardService';
+import { UserService } from './UserService';
 
 export const userService = new UserService({
     inviteLinkModel,

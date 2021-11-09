@@ -1,22 +1,22 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import styled from 'styled-components';
-import { Card, H3, H5, Divider, Callout, useHotkeys } from '@blueprintjs/core';
+import { Callout, Card, Divider, H3, H5, useHotkeys } from '@blueprintjs/core';
 import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
-import { TableBase } from 'common';
 import { Tooltip2 } from '@blueprintjs/popover2';
+import { TableBase } from 'common';
+import React, { useCallback, useMemo, useState } from 'react';
+import styled from 'styled-components';
+import AboutFooter from '../components/AboutFooter';
 import { CollapsableCard } from '../components/common/CollapsableCard';
+import SideBarLoadingState from '../components/common/SideBarLoadingState';
+import { Tree } from '../components/common/Tree';
+import { RefreshServerButton } from '../components/RefreshServerButton';
+import RunSqlQueryButton from '../components/SqlRunner/RunSqlQueryButton';
+import SqlRunnerInput from '../components/SqlRunner/SqlRunnerInput';
+import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable';
+import { useProjectCatalog } from '../hooks/useProjectCatalog';
+import { useProjectCatalogTree } from '../hooks/useProjectCatalogTree';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
 import { Section } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
-import { RefreshServerButton } from '../components/RefreshServerButton';
-import AboutFooter from '../components/AboutFooter';
-import { useProjectCatalog } from '../hooks/useProjectCatalog';
-import { Tree } from '../components/common/Tree';
-import { useProjectCatalogTree } from '../hooks/useProjectCatalogTree';
-import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable';
-import RunSqlQueryButton from '../components/SqlRunner/RunSqlQueryButton';
-import SideBarLoadingState from '../components/common/SideBarLoadingState';
-import SqlRunnerInput from '../components/SqlRunner/SqlRunnerInput';
 import './SqlRunner.css';
 
 const Wrapper = styled('div')`

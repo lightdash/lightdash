@@ -1,5 +1,5 @@
-import React, { FC } from 'react';
 import { NumericInput as NumberInput } from '@blueprintjs/core';
+import React, { FC } from 'react';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 
 const NumericInput: FC<Omit<InputWrapperProps, 'render'>> = ({ ...rest }) => (

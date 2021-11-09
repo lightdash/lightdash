@@ -1,7 +1,7 @@
+import { NonIdealState, Spinner } from '@blueprintjs/core';
+import { DBChartTypes, DimensionType, friendlyName } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject } from 'react';
-import { DBChartTypes, DimensionType, friendlyName } from 'common';
-import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { ChartConfig } from '../hooks/useChartConfig';
 
 const flipXFromChartType = (chartType: DBChartTypes) => {

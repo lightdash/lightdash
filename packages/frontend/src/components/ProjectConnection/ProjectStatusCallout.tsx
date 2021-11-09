@@ -1,6 +1,6 @@
-import React, { ComponentProps, FC } from 'react';
 import { Callout, Classes, Spinner } from '@blueprintjs/core';
 import Markdown from 'markdown-to-jsx';
+import React, { ComponentProps, FC } from 'react';
 import { useCreateMutation, useUpdateMutation } from '../../hooks/useProject';
 
 type CalloutProps = ComponentProps<typeof Callout>;

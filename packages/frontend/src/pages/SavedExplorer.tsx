@@ -1,12 +1,11 @@
-import React, { useEffect } from 'react';
 import { Card } from '@blueprintjs/core';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
-import { ExplorePanel } from '../components/ExploreSideBar';
-import { Explorer } from '../components/Explorer';
-import { useExplorer } from '../providers/ExplorerProvider';
+import React, { useEffect } from 'react';
+import { useHistory, useParams } from 'react-router-dom';
 import AboutFooter from '../components/AboutFooter';
+import { Explorer } from '../components/Explorer';
+import { ExplorePanel } from '../components/ExploreSideBar';
 import { useSavedQuery } from '../hooks/useSavedQuery';
-import { useQueryResults } from '../hooks/useQueryResults';
+import { useExplorer } from '../providers/ExplorerProvider';
 
 const SavedExplorer = () => {
     const history = useHistory();

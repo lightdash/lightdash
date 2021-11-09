@@ -1,5 +1,3 @@
-import React from 'react';
-import Markdown from 'markdown-to-jsx';
 import {
     Button,
     Card,
@@ -9,8 +7,10 @@ import {
     Position,
     Tag,
 } from '@blueprintjs/core';
-import { useApp } from '../providers/AppProvider';
+import Markdown from 'markdown-to-jsx';
+import React from 'react';
 import { ErrorLogEntry } from '../hooks/useErrorLogs';
+import { useApp } from '../providers/AppProvider';
 
 const ErrorCard: React.FC<ErrorLogEntry & { onDismiss: () => void }> = ({
     title,

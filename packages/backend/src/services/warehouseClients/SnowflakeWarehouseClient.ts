@@ -1,7 +1,7 @@
 import { CreateSnowflakeCredentials, DimensionType } from 'common';
 import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
-import { WarehouseClient, WarehouseCatalog } from '../../types';
+import { WarehouseCatalog, WarehouseClient } from '../../types';
 
 export enum SnowflakeTypes {
     NUMBER = 'NUMBER',

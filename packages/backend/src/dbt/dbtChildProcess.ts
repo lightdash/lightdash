@@ -1,5 +1,5 @@
-import execa from 'execa';
 import { ChildProcess } from 'child_process';
+import execa from 'execa';
 import { DbtError } from '../errors';
 
 export class DbtChildProcess {

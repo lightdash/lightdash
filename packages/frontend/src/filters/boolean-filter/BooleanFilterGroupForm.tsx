@@ -1,11 +1,11 @@
+import { ControlGroup } from '@blueprintjs/core';
 import { BooleanFilter, BooleanFilterGroup } from 'common';
 import React from 'react';
-import { ControlGroup } from '@blueprintjs/core';
 import FilterRows from '../common/FilterRows';
+import SelectFilterOperator from '../common/SelectFilterOperator';
 import BooleanFilterForm, {
     defaultValuesForNewBooleanFilter,
 } from './BooleanFilterForm';
-import SelectFilterOperator from '../common/SelectFilterOperator';
 
 type BooleanFilterGroupProps = {
     filterGroup: BooleanFilterGroup;

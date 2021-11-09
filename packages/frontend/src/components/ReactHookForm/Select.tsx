@@ -1,5 +1,5 @@
-import React, { FC } from 'react';
 import { HTMLSelect } from '@blueprintjs/core';
+import React, { FC } from 'react';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 
 interface SelectFieldProps extends Omit<InputWrapperProps, 'render'> {

@@ -1,10 +1,10 @@
-import fetchMock from 'jest-fetch-mock';
 import { LightdashInstallType, LightdashMode } from 'common';
-import { getHealthState } from './health';
-import { ImagesResponse, BaseResponse } from './health.mock';
-import { hasUsers } from './database/entities/users';
-import { projectService } from './services/services';
+import fetchMock from 'jest-fetch-mock';
 import { lightdashConfig } from './config/lightdashConfig';
+import { hasUsers } from './database/entities/users';
+import { getHealthState } from './health';
+import { BaseResponse, ImagesResponse } from './health.mock';
+import { projectService } from './services/services';
 
 jest.mock('./version', () => ({
     VERSION: '0.1.0',

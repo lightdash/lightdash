@@ -1,8 +1,8 @@
 import { FilterGroup } from 'common';
 import React from 'react';
 import { useExplorer } from '../providers/ExplorerProvider';
-import FilterGroupForm from './filter-group/FilterGroupForm';
 import AddFilterGroup from './filter-group/AddFilterGroup';
+import FilterGroupForm from './filter-group/FilterGroupForm';
 
 const FiltersForm = () => {
     const {

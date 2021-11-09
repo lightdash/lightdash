@@ -1,6 +1,3 @@
-import React, { FC, useState } from 'react';
-import { TableCalculation } from 'common';
-import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import {
     Button,
     Icon,
@@ -8,12 +5,15 @@ import {
     MenuItem,
     PopoverPosition,
 } from '@blueprintjs/core';
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { TableCalculation } from 'common';
+import React, { FC, useState } from 'react';
+import { useTracking } from '../providers/TrackingProvider';
+import { EventName } from '../types/Events';
 import {
     DeleteTableCalculationModal,
     UpdateTableCalculationModal,
 } from './TableCalculationModal';
-import { useTracking } from '../providers/TrackingProvider';
-import { EventName } from '../types/Events';
 
 const TableCalculationHeaderButton: FC<{
     tableCalculation: TableCalculation;

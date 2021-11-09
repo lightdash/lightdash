@@ -1,8 +1,8 @@
-import React, { FC } from 'react';
 import { Divider, H1, NonIdealState, Spinner } from '@blueprintjs/core';
+import React, { FC } from 'react';
 import { useParams } from 'react-router-dom';
-import { useProject } from '../hooks/useProject';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
+import { useProject } from '../hooks/useProject';
 
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();

@@ -1,7 +1,7 @@
-import { Knex } from 'knex';
 import { Space } from 'common';
-import database from '../database';
+import { Knex } from 'knex';
 import { NotFoundError } from '../../errors';
+import database from '../database';
 
 type DbSpace = {
     space_id: number;

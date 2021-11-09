@@ -1,18 +1,18 @@
+import { analytics } from '../../analytics/client';
 import { dashboardModel } from '../../models/models';
 import { DashboardService } from './DashboardService';
 import {
     createDashboard,
+    createDashboardWithTileIds,
     dashboard,
     dashboardsDetails,
     space,
     updateDashboard,
-    updateDashboardTiles,
     updateDashboardDetailsAndTiles,
-    user,
-    createDashboardWithTileIds,
+    updateDashboardTiles,
     updateDashboardTilesWithIds,
+    user,
 } from './DashboardService.mock';
-import { analytics } from '../../analytics/client';
 
 jest.mock('../../analytics/client', () => ({
     analytics: {

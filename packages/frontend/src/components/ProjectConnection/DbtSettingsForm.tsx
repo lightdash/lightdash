@@ -1,12 +1,11 @@
-import React, { FC, useMemo } from 'react';
 import { ProjectType, ProjectTypeLabels } from 'common';
-
+import React, { FC, useMemo } from 'react';
+import { useApp } from '../../providers/AppProvider';
+import SelectField from '../ReactHookForm/Select';
+import DbtCloudForm from './DbtForms/DbtCloudForm';
 import DbtLocalForm from './DbtForms/DbtLocalForm';
 import GithubForm from './DbtForms/GithubForm';
-import DbtCloudForm from './DbtForms/DbtCloudForm';
 import GitlabForm from './DbtForms/GitlabForm';
-import SelectField from '../ReactHookForm/Select';
-import { useApp } from '../../providers/AppProvider';
 
 interface DbtSettingsFormProps {
     disabled: boolean;

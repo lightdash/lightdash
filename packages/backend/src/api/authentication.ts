@@ -1,7 +1,7 @@
-import { RequestHandler } from 'express-serve-static-core';
 import { LightdashMode } from 'common';
-import { AuthorizationError } from '../errors';
+import { RequestHandler } from 'express-serve-static-core';
 import { lightdashConfig } from '../config/lightdashConfig';
+import { AuthorizationError } from '../errors';
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
     if (req.user?.userUuid) {

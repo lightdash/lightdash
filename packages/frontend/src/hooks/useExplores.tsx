@@ -1,6 +1,5 @@
-import { useQuery } from 'react-query';
 import { ApiError, ApiExploresResults } from 'common';
-import { useEffect } from 'react';
+import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';

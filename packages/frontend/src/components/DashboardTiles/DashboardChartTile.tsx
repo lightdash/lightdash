@@ -1,11 +1,3 @@
-import React, { FC, useEffect, useRef, useState } from 'react';
-import {
-    DashboardChartTile as IDashboardChartTile,
-    DBChartTypes,
-    SavedQuery,
-} from 'common';
-import { useParams } from 'react-router-dom';
-import EChartsReact from 'echarts-for-react';
 import {
     Button,
     Card,
@@ -18,10 +10,18 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
-import { useSavedQuery } from '../../hooks/useSavedQuery';
-import { SimpleChart } from '../SimpleChart';
+import {
+    DashboardChartTile as IDashboardChartTile,
+    DBChartTypes,
+    SavedQuery,
+} from 'common';
+import EChartsReact from 'echarts-for-react';
+import React, { FC, useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useChartConfig } from '../../hooks/useChartConfig';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
+import { useSavedQuery } from '../../hooks/useSavedQuery';
+import { SimpleChart } from '../SimpleChart';
 
 const ValidDashboardChartTile: FC<{ data: SavedQuery }> = ({ data }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();

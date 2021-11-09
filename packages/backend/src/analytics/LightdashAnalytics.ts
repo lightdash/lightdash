@@ -2,8 +2,8 @@
 import Analytics, {
     Track as AnalyticsTrack,
 } from '@rudderstack/rudder-sdk-node';
-import { v4 as uuidv4 } from 'uuid';
 import { LightdashInstallType, ProjectType, WarehouseTypes } from 'common';
+import { v4 as uuidv4 } from 'uuid';
 import { VERSION } from '../version';
 
 type Identify = {

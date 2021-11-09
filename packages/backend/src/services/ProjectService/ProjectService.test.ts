@@ -1,3 +1,4 @@
+import { analytics } from '../../analytics/client';
 import { projectModel } from '../../models/models';
 import { ProjectService } from './ProjectService';
 import {
@@ -8,7 +9,6 @@ import {
     user,
     validExplore,
 } from './ProjectService.mock';
-import { analytics } from '../../analytics/client';
 
 jest.mock('../../analytics/client', () => ({
     analytics: {

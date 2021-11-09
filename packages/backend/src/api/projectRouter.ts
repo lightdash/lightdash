@@ -1,4 +1,3 @@
-import express from 'express';
 import {
     ApiCompiledQueryResults,
     ApiExploreResults,
@@ -10,9 +9,10 @@ import {
     MetricQuery,
     ProjectCatalog,
 } from 'common';
-import { isAuthenticated, unauthorisedInDemo } from './authentication';
-import { dashboardService, projectService } from '../services/services';
+import express from 'express';
 import { SavedQueriesModel } from '../models/savedQueries';
+import { dashboardService, projectService } from '../services/services';
+import { isAuthenticated, unauthorisedInDemo } from './authentication';
 
 export const projectRouter = express.Router({ mergeParams: true });
 

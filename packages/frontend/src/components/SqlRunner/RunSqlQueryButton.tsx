@@ -1,6 +1,6 @@
-import React, { FC } from 'react';
-import { Tooltip2 } from '@blueprintjs/popover2';
 import { KeyCombo } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
+import React, { FC } from 'react';
 import { BigButton } from '../common/BigButton';
 
 const RunSqlQueryButton: FC<{

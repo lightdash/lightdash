@@ -7,11 +7,11 @@ import {
     sensitiveDbtCredentialsFieldNames,
 } from 'common';
 import fetch from 'node-fetch';
+import { lightdashConfig } from './config/lightdashConfig';
 import database from './database/database';
 import { hasUsers } from './database/entities/users';
-import { lightdashConfig } from './config/lightdashConfig';
-import { VERSION } from './version';
 import { projectService } from './services/services';
+import { VERSION } from './version';
 
 const filterByName = (result: { name: string }): boolean =>
     new RegExp('[0-9.]+$').test(result.name);

@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import {
     AnchorButton,
     Callout,
@@ -9,6 +8,7 @@ import {
     Intent,
     Tag,
 } from '@blueprintjs/core';
+import React, { useState } from 'react';
 import { useApp } from '../providers/AppProvider';
 import { Page } from '../providers/TrackingProvider';
 import { PageName, PageType } from '../types/Events';

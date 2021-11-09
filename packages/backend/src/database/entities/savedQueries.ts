@@ -1,4 +1,3 @@
-import { Knex } from 'knex';
 import {
     CreateSavedQuery,
     CreateSavedQueryVersion,
@@ -8,9 +7,10 @@ import {
     SortField,
     UpdateSavedQuery,
 } from 'common';
+import { Knex } from 'knex';
+import { NotFoundError } from '../../errors';
 import database from '../database';
 import { getSpace } from './spaces';
-import { NotFoundError } from '../../errors';
 
 export const SavedQueriesTableName = 'saved_queries';
 

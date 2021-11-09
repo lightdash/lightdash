@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import {
     DimensionType,
     fieldId as getFieldId,
@@ -6,6 +5,7 @@ import {
     getMetrics,
     SortField,
 } from 'common';
+import { useMemo } from 'react';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useExplore } from './useExplore';
 

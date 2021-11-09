@@ -7,8 +7,8 @@ import {
     MenuItem,
     Text,
 } from '@blueprintjs/core';
-import React, { Dispatch, SetStateAction } from 'react';
 import { Space } from 'common';
+import React, { Dispatch, SetStateAction } from 'react';
 
 type SavedQueriesMenuProps = {
     data: Space[] | undefined;
