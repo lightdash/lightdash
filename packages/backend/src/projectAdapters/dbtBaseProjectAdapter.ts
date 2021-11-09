@@ -1,10 +1,18 @@
-import { DbtModelNode, Explore, ExploreError } from 'common';
+import {
+    DbtModelNode,
+    DbtRawModelNode,
+    Explore,
+    ExploreError,
+    isSupportedDbtAdapter,
+    SupportedDbtAdapter,
+} from 'common';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import {
     attachTypesToModels,
     convertExplores,
     getSchemaStructureFromDbtModels,
+    normaliseModelDatabase,
 } from '../dbt/translator';
 import { MissingCatalogEntryError, ParseError } from '../errors';
 import modelJsonSchema from '../schema.json';
@@ -46,14 +54,23 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         const { manifest } = await this.dbtClient.getDbtManifest();
 
         // Type of the target warehouse
+        if (!isSupportedDbtAdapter(manifest.metadata)) {
+            throw new ParseError(
+                `Dbt project not supported. Lightdash does not support adapter ${manifest.metadata.adapter_type}`,
+                {},
+            );
+        }
         const adapterType = manifest.metadata.adapter_type;
 
         // Validate models in the manifest - models with invalid metadata will compile to failed Explores
         const models = Object.values(manifest.nodes).filter(
             (node) => node.resource_type === 'model',
-        ) as DbtModelNode[];
+        ) as DbtRawModelNode[];
         const [validModels, failedExplores] =
-            await DbtBaseProjectAdapter._validateDbtModelMetadata(models);
+            await DbtBaseProjectAdapter._validateDbtModelMetadata(
+                adapterType,
+                models,
+            );
 
         // Be lazy and try to attach types to the remaining models without refreshing the catalog
         try {
@@ -96,14 +113,21 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     }
 
     static async _validateDbtModelMetadata(
-        models: DbtModelNode[],
+        adapterType: SupportedDbtAdapter,
+        models: DbtRawModelNode[],
     ): Promise<[DbtModelNode[], ExploreError[]]> {
-        const validator = ajv.compile(modelJsonSchema);
+        const validator = ajv.compile<DbtRawModelNode>(modelJsonSchema);
         return models.reduce(
             ([validModels, invalidModels], model) => {
+                // Match against json schema
                 const isValid = validator(model);
                 if (isValid) {
-                    return [[...validModels, model], invalidModels];
+                    // Fix null databases
+                    const validatedModel = normaliseModelDatabase(
+                        model,
+                        adapterType,
+                    );
+                    return [[...validModels, validatedModel], invalidModels];
                 }
                 const exploreError: ExploreError = {
                     name: model.name,

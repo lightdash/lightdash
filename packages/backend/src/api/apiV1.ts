@@ -1,6 +1,6 @@
 import express from 'express';
 import passport from 'passport';
-import { sanitizeStringParam, sanitizeEmailParam } from '../utils';
+import { sanitizeEmailParam, sanitizeStringParam } from '../utils';
 import { getHealthState } from '../health';
 import { UserModel } from '../models/User';
 import { SavedQueriesModel } from '../models/savedQueries';

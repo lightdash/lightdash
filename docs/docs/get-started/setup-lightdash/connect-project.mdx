@@ -20,6 +20,7 @@ We currently support:
 2. [Postgres](#postgres)
 3. [Redshift](#redshift)
 4. [Snowflake](#snowflake)
+5. [Databricks](#databricks)
 
 If we don't support the warehouse you're using, don't be afraid to reach out to us in [GitHub](https://github.com/lightdash/lightdash)! :)
 
@@ -280,3 +281,45 @@ You can see more details in [dbt documentation](https://docs.getdbt.com/referenc
 
 This is Snowflake query tags parameter.
 You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag).
+
+---
+
+### Databricks
+
+The credentials needed to connect to your cluster can be found in the ODBC options in your databricks account:
+
+1. Go to the `Compute` tab in the sidebar.
+2. Click the configuration tab for the cluster that you're connecting to Lightdash.
+3. Expand the `Advanced options` tab
+4. Open the `JDBC/ODBC` tab
+
+![databricks connect screenshot](./assets/databricks-connect-screenshot.png)
+
+#### Server hostname
+
+Follow the instructions above to find your ODBC connection instructions.
+
+#### HTTP Path
+
+Follow the instructions above to find your ODBC connection instructions.
+
+#### Port
+
+Follow the instructions above to find your ODBC connection instructions.
+
+#### Personal Access Token
+
+Your personal access token can be found in your user settings in databricks:
+
+1. Open `Settings` by clicking the cog ⚙️ in the sidebar and select `User settings`
+2. Click `Generate token`. You'll be asked to enter a name and expiry.
+3. Copy the token
+
+![databricks access screenshot](./assets/databricks-access-screenshot.png)
+
+
+#### Database
+
+The default database name used by dbt for this connection. In databricks/spark the database is also the schema.
+
+

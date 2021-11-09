@@ -22,6 +22,7 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => (
                 required: 'Required field',
             }}
             disabled={disabled}
+            placeholder="org/project"
         />
         <Input
             name="dbt.branch"
@@ -31,6 +32,7 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => (
                 required: 'Required field',
             }}
             disabled={disabled}
+            defaultValue="main"
         />
         <Input
             name="dbt.project_sub_path"
@@ -40,6 +42,7 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => (
                 required: 'Required field',
             }}
             disabled={disabled}
+            defaultValue="/"
         />
     </>
 );

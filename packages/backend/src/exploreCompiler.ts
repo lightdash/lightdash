@@ -9,6 +9,7 @@ import {
     isNonAggregateMetric,
     Metric,
     MetricType,
+    SupportedDbtAdapter,
     Table,
 } from 'common';
 import { CompileError } from './errors';
@@ -206,7 +207,7 @@ export type UncompiledExplore = {
     baseTable: string;
     joinedTables: ExploreJoin[];
     tables: Record<string, Table>;
-    targetDatabase: string;
+    targetDatabase: SupportedDbtAdapter;
 };
 export const compileExplore = ({
     name,

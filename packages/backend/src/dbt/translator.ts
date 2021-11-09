@@ -7,12 +7,14 @@ import {
     FieldType,
     LineageGraph,
     LineageNodeDependency,
-    mapColumnTypeToLightdashType,
     Metric,
     Source,
     Table,
     DbtColumnLightdashMetric,
     ExploreError,
+    DbtRawModelNode,
+    SupportedDbtAdapter,
+    DimensionType,
 } from 'common';
 import { DepGraph } from 'dependency-graph';
 import { parseWithPointers, getLocationForJsonPath } from '@stoplight/yaml';
@@ -40,12 +42,8 @@ const convertDimension = (
     column: DbtModelColumn,
     source?: Source,
 ): Dimension => {
-    let type;
-    if (column.meta.dimension?.type) {
-        type = column.meta.dimension.type;
-    } else if (column.data_type) {
-        type = mapColumnTypeToLightdashType(column.data_type);
-    } else {
+    const type = column.meta.dimension?.type || column.data_type;
+    if (type === undefined) {
         throw new MissingCatalogEntryError(
             `Could not automatically find type information for column "${column.name}" in dbt model "${modelName}". Check for this column in your warehouse or specify the type manually.`,
             {},
@@ -329,7 +327,7 @@ const modelGraph = (
 export const convertExplores = async (
     models: DbtModelNode[],
     loadSources: boolean,
-    adapterType: string,
+    adapterType: SupportedDbtAdapter,
 ): Promise<(Explore | ExploreError)[]> => {
     const graph = modelGraph(models);
     const [tables, exploreErrors] = models.reduce(
@@ -390,6 +388,33 @@ export const convertExplores = async (
     return [...explores, ...exploreErrors];
 };
 
+export const normaliseModelDatabase = (
+    model: DbtRawModelNode,
+    targetWarehouse: SupportedDbtAdapter,
+): DbtModelNode => {
+    switch (targetWarehouse) {
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.BIGQUERY:
+        case SupportedDbtAdapter.SNOWFLAKE:
+        case SupportedDbtAdapter.REDSHIFT:
+            if (model.database === null) {
+                throw new ParseError(
+                    `Cannot parse dbt model '${model.unique_id}' because the database field has null value.`,
+                    {},
+                );
+            }
+            return { ...model, database: model.database };
+        case SupportedDbtAdapter.SPARK:
+            return { ...model, database: 'SPARK' };
+        default:
+            const never: never = targetWarehouse;
+            throw new ParseError(
+                `Cannot recognise warehouse ${targetWarehouse}`,
+                {},
+            );
+    }
+};
+
 export const attachTypesToModels = (
     models: DbtModelNode[],
     warehouseCatalog: WarehouseCatalog,
@@ -413,7 +438,7 @@ export const attachTypesToModels = (
     const getType = (
         { database, schema, name }: DbtModelNode,
         columnName: string,
-    ): string | undefined => {
+    ): DimensionType | undefined => {
         if (
             database in warehouseCatalog &&
             schema in warehouseCatalog[database] &&

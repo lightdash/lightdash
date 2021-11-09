@@ -6,11 +6,18 @@ WORKDIR /usr/app
 # -----------------------------
 # Stage 1: install dependencies
 # -----------------------------
-FROM base AS dbt-builder
+FROM base AS dependencies-builder
 
-# dbt
-RUN python -m venv /usr/local/venv
-RUN /usr/local/venv/bin/pip install "dbt>=0.21.0,<0.22.0"
+# odbc - databricks
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    libsasl2-modules-gssapi-mit
+RUN wget \
+    --quiet \
+    https://databricks-bi-artifacts.s3.us-east-2.amazonaws.com/simbaspark-drivers/odbc/2.6.18/SimbaSparkODBC-2.6.18.1030-Debian-64bit.zip \
+    -O /tmp/databricks_odbc.zip \
+    && unzip /tmp/databricks_odbc.zip -d /tmp \
+    && dpkg -i /tmp/simbaspark_*.deb
 
 
 # -------------------------------
@@ -18,8 +25,17 @@ RUN /usr/local/venv/bin/pip install "dbt>=0.21.0,<0.22.0"
 # -------------------------------
 FROM base as base-dependencies
 
-# Copy in dependencies
-COPY --from=dbt-builder /usr/local/venv /usr/local/venv
+# odbc
+COPY --from=dependencies-builder /opt/simba /opt/simba
+# TODO: prefer in stage 1 - needed for yarn install and pip install
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    g++ \
+    unixodbc-dev
+
+# dbt
+# TODO: prefer in stage 1
+RUN python -m venv /usr/local/venv
+RUN /usr/local/venv/bin/pip install "dbt>=0.21.0,<0.22.0" "dbt-spark[ODBC]>=0.1.0,<0.22.0"
 ENV PATH $PATH:/usr/local/venv/bin
 
 # Setup common config
@@ -42,7 +58,7 @@ EXPOSE 8080
 # ---------------------------------------------------------------
 # Stage 3b: build the common, backend, and frontend distributions
 # ---------------------------------------------------------------
-FROM base AS prod-builder
+FROM base-dependencies AS prod-builder
 
 # Install development dependencies for all
 COPY package.json .

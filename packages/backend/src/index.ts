@@ -23,6 +23,12 @@ import { analytics } from './analytics/client';
 import { VERSION } from './version';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 
+// @ts-ignore
+// eslint-disable-next-line no-extend-native
+BigInt.prototype.toJSON = function () {
+    return this.toString();
+};
+
 const KnexSessionStore = connectSessionKnex(expressSession);
 
 const store = new KnexSessionStore({

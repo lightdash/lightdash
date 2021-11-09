@@ -1,4 +1,10 @@
-import { ApiSqlQueryResults, Explore, ExploreError, SessionUser } from 'common';
+import {
+    ApiSqlQueryResults,
+    Explore,
+    ExploreError,
+    SessionUser,
+    SupportedDbtAdapter,
+} from 'common';
 import { ProjectAdapter } from '../../types';
 
 export const user: SessionUser = {
@@ -24,7 +30,7 @@ export const projectAdapterMock: ProjectAdapter = {
 };
 
 export const validExplore: Explore = {
-    targetDatabase: 'postgres',
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: '',
     baseTable: 'a',
     joinedTables: [],

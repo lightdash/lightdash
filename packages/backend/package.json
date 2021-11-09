@@ -60,6 +60,7 @@
         "nanoid": "^3.1.25",
         "node-cache": "^5.1.2",
         "node-fetch": "^2.6.1",
+        "odbc": "^2.4.1",
         "passport": "^0.4.1",
         "passport-local": "^1.0.0",
         "pg": "^8.7.1",
