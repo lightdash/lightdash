@@ -20,7 +20,7 @@ export type DbtProjectConfigIn<T extends DbtProjectConfig> = Partial<T> &
 export type LightdashConfigIn = {
     version: '1.0';
     mode: LightdashMode;
-    projects: Array<Partial<DbtProjectConfig> & DbtProjectConfigBase>;
+    projects?: Array<Partial<DbtProjectConfig> & DbtProjectConfigBase>;
 };
 
 export type LightdashConfig = {
@@ -95,7 +95,7 @@ const mergeProjectWithEnvironment = <T extends DbtProjectConfig>(
     }, project) as T;
 
 const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
-    const mergedProjects = config.projects.map((project, idx) => {
+    const mergedProjects = (config.projects || []).map((project, idx) => {
         const projectType = project.type;
         switch (project.type) {
             case ProjectType.DBT:

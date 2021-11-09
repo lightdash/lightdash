@@ -4,7 +4,7 @@
     "title": "Lightdash Config",
     "description": "Configuration for a Lightdash project",
     "type": "object",
-    "required": ["version", "projects"],
+    "required": ["version"],
     "properties": {
         "version": {
             "description": "Schema version for the config file",
