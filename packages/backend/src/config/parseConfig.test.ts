@@ -4,6 +4,7 @@ import {
     LOCAL_PROJECT_MISSING_PROFILES_DIR,
     LOCAL_PROJECT_UNDEFINED_PROJECT_DIR,
     NO_PROJECTS,
+    EMPTY_PROJECTS,
     UNDEFINED_CONFIG,
     UNRECOGNISED_PROJECT,
     wrapProject,
@@ -33,6 +34,7 @@ test('Should throw ParseError for wrong version', () => {
 
 test('Should parse without projects', () => {
     expect(parseConfig(NO_PROJECTS).projects).toEqual([]);
+    expect(parseConfig(EMPTY_PROJECTS).projects).toEqual([]);
 });
 
 test('Should throw ParseError for unrecognised project', () => {

@@ -6,6 +6,10 @@ export const EMPTY_CONFIG = {};
 
 export const NO_PROJECTS = {
     version: '1.0',
+};
+
+export const EMPTY_PROJECTS = {
+    version: '1.0',
     projects: [],
 };
 
