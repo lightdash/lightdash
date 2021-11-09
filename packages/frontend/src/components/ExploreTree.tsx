@@ -117,7 +117,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                             onClick={() => setSearch('')}
                         />
                     }
-                    placeholder="Search metrics"
+                    placeholder="Search metrics + dimensions"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />
