@@ -71,6 +71,7 @@ export const ChartConfigOptions: React.FC<ContentProps> = ({ chartConfig }) => (
                     label={friendlyName(metric)}
                     alignIndicator={Alignment.RIGHT}
                     onChange={() => chartConfig.toggleYMetric(metric)}
+                    disabled={chartConfig.metricOptions.length <= 1}
                 />
             </div>
         ))}
@@ -97,6 +98,7 @@ export const ChartConfigOptions: React.FC<ContentProps> = ({ chartConfig }) => (
                             dimension === chartConfig.seriesLayout.xDimension
                         }
                         onClick={() => chartConfig.setXDimension(dimension)}
+                        disabled={chartConfig.dimensionOptions.length <= 1}
                     >
                         X-axis
                     </Button>
