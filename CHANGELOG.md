@@ -7,6 +7,7 @@ Recent and upcoming changes to lightdash
 ## [0.9.4] - 2021-11-09
 ### Added
 - You can now run raw SQL queries using the SQL Runner and visualise the results as a table
+- Added support for Databricks
 
 ### Fixed
 - Fixed bug in time series charts using multiple series
