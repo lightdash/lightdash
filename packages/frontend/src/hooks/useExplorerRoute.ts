@@ -12,7 +12,7 @@ export const useExplorerRoute = () => {
         useParams<{ projectUuid: string; tableId: string | undefined }>();
     const {
         pristineState,
-        actions: { setState, reset },
+        actions: { setState, reset, setTableName },
     } = useExplorer();
 
     // Set initial state based on url params
@@ -126,6 +126,8 @@ export const useExplorerRoute = () => {
     useEffect(() => {
         if (!pathParams.tableId) {
             reset();
+        } else {
+            setTableName(pathParams.tableId);
         }
-    }, [pathParams.tableId, reset]);
+    }, [pathParams.tableId, reset, setTableName]);
 };
