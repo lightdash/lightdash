@@ -1,55 +1,47 @@
 import React, { FC } from 'react';
 import { OrganizationProject } from 'common';
-import { Card, Classes, Button, ButtonGroup } from '@blueprintjs/core';
-import { useHistory } from 'react-router-dom';
+import { Card, Classes, ButtonGroup, AnchorButton } from '@blueprintjs/core';
 import { useProjects } from '../../hooks/useProjects';
 
 const ProjectListItem: FC<{ project: OrganizationProject }> = ({
     project: { projectUuid, name },
-}) => {
-    const history = useHistory();
-    return (
-        <Card
-            elevation={0}
+}) => (
+    <Card
+        elevation={0}
+        style={{
+            display: 'flex',
+            flexDirection: 'column',
+            marginBottom: '20px',
+        }}
+    >
+        <div
             style={{
                 display: 'flex',
-                flexDirection: 'column',
-                marginBottom: '20px',
+                alignItems: 'center',
             }}
         >
-            <div
+            <p
                 style={{
-                    display: 'flex',
-                    alignItems: 'center',
+                    margin: 0,
+                    marginRight: '10px',
+                    flex: 1,
+                    fontWeight: 'bold',
                 }}
+                className={Classes.TEXT_OVERFLOW_ELLIPSIS}
             >
-                <p
-                    style={{
-                        margin: 0,
-                        marginRight: '10px',
-                        flex: 1,
-                        fontWeight: 'bold',
-                    }}
-                    className={Classes.TEXT_OVERFLOW_ELLIPSIS}
-                >
-                    {name}
-                </p>
-                <ButtonGroup>
-                    <Button
-                        icon="edit"
-                        outlined
-                        text="Edit"
-                        onClick={() => {
-                            history.push({
-                                pathname: `/projects/${projectUuid}/settings`,
-                            });
-                        }}
-                    />
-                </ButtonGroup>
-            </div>
-        </Card>
-    );
-};
+                {name}
+            </p>
+            <ButtonGroup>
+                <AnchorButton
+                    icon="cog"
+                    outlined
+                    text="Settings"
+                    href={`/projects/${projectUuid}/settings`}
+                />
+            </ButtonGroup>
+        </div>
+    </Card>
+);
 
 const ProjectManagementPanel: FC = () => {
     const { data } = useProjects();

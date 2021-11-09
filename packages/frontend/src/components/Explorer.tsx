@@ -14,7 +14,7 @@ import {
 import { Popover2 } from '@blueprintjs/popover2';
 import { DBChartTypes, SavedQuery } from 'common';
 import EChartsReact from 'echarts-for-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import FiltersForm from '../filters';
 import { ExplorerResults } from './ExplorerResults';
 import { SimpleChart } from './SimpleChart';
@@ -38,6 +38,7 @@ interface Props {
 }
 
 export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const chartRef = useRef<EChartsReact>(null);
     const location = useLocation<{ fromExplorer?: boolean } | undefined>();
@@ -135,6 +136,11 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     <Popover2
                         content={
                             <Menu>
+                                <MenuItem
+                                    icon="cog"
+                                    text="Project settings"
+                                    href={`/projects/${projectUuid}/settings`}
+                                />
                                 {savedQueryUuid && (
                                     <MenuItem
                                         icon="saved"
