@@ -1,2 +1,7 @@
 version: '1.0'
 mode: pr
+projects:
+  - name: default
+    type: 'dbt'
+    profiles_dir: /usr/app/profiles
+    project_dir: /usr/app/dbt
