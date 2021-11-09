@@ -65,9 +65,15 @@ type Props = {
     onDelete: () => void;
 };
 
-const DashboardChartTile: FC<Props> = ({ tile, onDelete }) => {
+const DashboardChartTile: FC<Props> = ({
+    tile: {
+        properties: { savedChartUuid },
+    },
+    onDelete,
+}) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data, isLoading } = useSavedQuery({
-        id: tile.properties.savedChartUuid || undefined,
+        id: savedChartUuid || undefined,
     });
 
     return (
@@ -89,6 +95,13 @@ const DashboardChartTile: FC<Props> = ({ tile, onDelete }) => {
                     className="non-draggable"
                     content={
                         <Menu>
+                            {savedChartUuid !== null && (
+                                <MenuItem
+                                    icon="document-open"
+                                    text="Open in explorer"
+                                    href={`/projects/${projectUuid}/saved/${savedChartUuid}`}
+                                />
+                            )}
                             <MenuItem
                                 icon="delete"
                                 intent="danger"
