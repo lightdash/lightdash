@@ -1,7 +1,12 @@
-import { CompiledMetricQuery, Explore, MetricQuery } from 'common';
+import {
+    CompiledMetricQuery,
+    Explore,
+    MetricQuery,
+    SupportedDbtAdapter,
+} from 'common';
 
 export const EXPLORE: Pick<Explore, 'targetDatabase'> = {
-    targetDatabase: 'postgres',
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
 };
 
 export const METRIC_QUERY_NO_CALCS: MetricQuery = {
