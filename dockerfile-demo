@@ -58,7 +58,7 @@ EXPOSE 8080
 # ---------------------------------------------------------------
 # Stage 3b: build the common, backend, and frontend distributions
 # ---------------------------------------------------------------
-FROM base AS prod-builder
+FROM base-dependencies AS prod-builder
 
 # Install development dependencies for all
 COPY package.json .
