@@ -200,7 +200,13 @@ export const ResultsTable: FC<Props> = ({
                     justifyContent: 'space-between',
                 }}
             >
-                <div style={{ display: 'block', maxWidth: '100%' }}>
+                <div
+                    style={{
+                        display: 'block',
+                        maxWidth: '100%',
+                        overflowX: 'auto',
+                    }}
+                >
                     <div
                         style={{
                             display: 'flex',
