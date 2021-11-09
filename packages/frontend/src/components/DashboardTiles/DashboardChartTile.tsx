@@ -4,7 +4,7 @@ import {
     DBChartTypes,
     SavedQuery,
 } from 'common';
-import { useHistory, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import EChartsReact from 'echarts-for-react';
 import {
     Button,
