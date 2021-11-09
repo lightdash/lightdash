@@ -7,15 +7,12 @@ sidebar_label: Connect a project
 
 How you connect your dbt project depends on where it is hosted.
 
-1. If you use dbt cloud, then check out the [how to connect dbt cloud](#dbt-cloud) instructions
-2. If you want to connect a dbt project that's version controlled, take a look at:
+1. If you want to connect a dbt project that's version controlled, take a look at:
    - [how to connect with GitHub](#github)
    - [how to connect with GitLab](#gitlab)
-3. If you want to connect to your local dbt project, then you can check [how to connect to local dbt](#local-dbt-project)
+2. If you want to connect to your local dbt project, then you can check [how to connect to local dbt](#local-dbt-project)
 
-If you're connecting a dbt cloud project, once you've connected your project, you can go ahead and launch Lightdash.
-If you're connecting a dbt project that _**isn't**_ on dbt cloud, once you've set up the connection to your dbt project,
-you'll need to continue on to [set up the connection to your warehouse](#warehouse-connection) (it's a short step, we promise 🤞).
+Once you've set up the connection to your dbt project, you'll need to continue on to [set up the connection to your warehouse](#warehouse-connection) (it's a short step, we promise 🤞).
 
 We currently support:
 
@@ -27,49 +24,6 @@ We currently support:
 If we don't support the warehouse you're using, don't be afraid to reach out to us in [GitHub](https://github.com/lightdash/lightdash)! :)
 
 ## dbt connection options
-
-----
-
-### dbt cloud
-
-#### How to get your **Account ID** and **Project ID** from your dbt cloud project
-
-Login to [dbt cloud](https://cloud.getdbt.com) and follow these instructions to get your account and project id:
-
-1. Make sure you have the correct project selected in the drop down settings
-2. Get your **Account ID**  from the URL after `/accounts/`
-3. Get your **Project ID** from the URL after `/projects/`
-
-![screenshot](../assets/dbt-cloud-account-project.png)
-
-#### How to get your **Environment ID**
-
-Use the sidebar to see all your environments. 
-
-![screenshot](../assets/dbt-cloud-sidebar.png)
-
-Once you've located your environments, follow these steps to get your environment id:
-
-1. Click on the Environment that is `type: development`. This is the environment you use when developing in the dbt cloud IDE. 
-![screenshot](../assets/dbt-cloud-env-select.png)
-2. Get your **Environment ID** from the URL after `/environments/`
-3. Check that your environment is using dbt `0.21.0` or above (you can change this in environment settings)
-
-![screenshot](../assets/dbt-cloud-env-details.png)
-
-#### How to get your **API key**
-
-You can get your personal api key by visiting your [API Access - Your profile](https://cloud.getdbt.com/#/profile/api/).
-
-:::caution It's a secret!
-
-Remember to keep your api key safe as it enables access to your dbt cloud account.
-
-:::
-
-### Spin up the IDE
-
-After getting your project information and credentials, click on the hamburger menu on the top left and click on `Develop`. This will spin up the IDE for your project. You will need this to be active to connect to Lightdash. 
 
 ----
 

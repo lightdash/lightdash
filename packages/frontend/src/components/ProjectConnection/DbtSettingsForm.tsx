@@ -17,20 +17,19 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({ disabled, type }) => {
     const { health } = useApp();
 
     const options = useMemo(() => {
-        const enabledTypes = [
-            ProjectType.DBT_CLOUD_IDE,
-            ProjectType.GITHUB,
-            ProjectType.GITLAB,
-        ];
+        const enabledTypes = [ProjectType.GITHUB, ProjectType.GITLAB];
         if (health.data?.localDbtEnabled) {
             enabledTypes.push(ProjectType.DBT);
+        }
+        if (type === ProjectType.DBT_CLOUD_IDE) {
+            enabledTypes.push(ProjectType.DBT_CLOUD_IDE);
         }
 
         return enabledTypes.map((value) => ({
             value,
             label: ProjectTypeLabels[value],
         }));
-    }, [health]);
+    }, [health, type]);
 
     const form = useMemo(() => {
         switch (type) {
