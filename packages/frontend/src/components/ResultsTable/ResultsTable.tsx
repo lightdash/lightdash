@@ -200,7 +200,12 @@ export const ResultsTable: FC<Props> = ({
                     justifyContent: 'space-between',
                 }}
             >
-                <div style={{ display: 'block', maxWidth: '100%' }}>
+                <div
+                    style={{
+                        display: 'block',
+                        maxWidth: '100%',
+                    }}
+                >
                     <div
                         style={{
                             display: 'flex',
@@ -208,157 +213,163 @@ export const ResultsTable: FC<Props> = ({
                             flexDirection: 'row',
                         }}
                     >
-                        <HTMLTable
-                            bordered
-                            condensed
-                            {...getTableProps()}
-                            style={{ flex: 1 }}
-                        >
-                            {headerGroups.map((headerGroup) => (
-                                <colgroup key={`headerGroup_${headerGroup.id}`}>
-                                    {headerGroup.headers.map((column) => (
-                                        <col
-                                            {...column.getHeaderProps([
-                                                getColumnStyle(column.type),
-                                            ])}
-                                        />
-                                    ))}
-                                </colgroup>
-                            ))}
-                            <thead>
+                        <div style={{ flex: 1, overflowX: 'auto' }}>
+                            <HTMLTable bordered condensed {...getTableProps()}>
                                 {headerGroups.map((headerGroup) => (
-                                    <DragDropContext
-                                        key={`DragDropContext_${headerGroup.id}`}
-                                        onDragStart={() => {
-                                            currentColOrder.current =
-                                                allColumns.map(
-                                                    (o: any) => o.id,
-                                                );
-                                        }}
-                                        onDragUpdate={(dragUpdateObj) => {
-                                            const colOrder = [
-                                                ...currentColOrder.current,
-                                            ];
-                                            const sIndex =
-                                                dragUpdateObj.source.index;
-                                            const dIndex =
-                                                dragUpdateObj.destination &&
-                                                dragUpdateObj.destination.index;
-
-                                            if (typeof dIndex === 'number') {
-                                                colOrder.splice(sIndex, 1);
-                                                colOrder.splice(
-                                                    dIndex,
-                                                    0,
-                                                    dragUpdateObj.draggableId,
-                                                );
-                                                onColumnOrderChange?.(colOrder);
-                                            }
-                                        }}
-                                        onDragEnd={() => undefined}
+                                    <colgroup
+                                        key={`headerGroup_${headerGroup.id}`}
                                     >
-                                        <Droppable
-                                            droppableId="droppable"
-                                            direction="horizontal"
-                                            renderClone={(
-                                                provided,
-                                                snapshot,
-                                                rubric,
-                                            ) => {
-                                                const column =
-                                                    headerGroup.headers.find(
-                                                        ({ id }) =>
-                                                            id ===
-                                                            rubric.draggableId,
-                                                    );
-                                                return (
-                                                    <Item
-                                                        column={column}
-                                                        provided={provided}
-                                                        snapshot={snapshot}
-                                                    />
-                                                );
-                                            }}
-                                        >
-                                            {(droppableProvided) => (
-                                                <tr
-                                                    ref={
-                                                        droppableProvided.innerRef
-                                                    }
-                                                    {...headerGroup.getHeaderGroupProps()}
-                                                    {...droppableProvided.droppableProps}
-                                                >
-                                                    {headerGroup.headers.map(
-                                                        (column, index) => (
-                                                            <th
-                                                                {...column.getHeaderProps(
-                                                                    column.getSortByToggleProps
-                                                                        ? [
-                                                                              column.getSortByToggleProps(),
-                                                                          ]
-                                                                        : [],
-                                                                )}
-                                                            >
-                                                                <Draggable
-                                                                    key={
-                                                                        column.id
-                                                                    }
-                                                                    draggableId={
-                                                                        column.id
-                                                                    }
-                                                                    index={
-                                                                        index
-                                                                    }
-                                                                >
-                                                                    {(
-                                                                        provided,
-                                                                        snapshot,
-                                                                    ) => (
-                                                                        <Item
-                                                                            index={
-                                                                                index
-                                                                            }
-                                                                            column={
-                                                                                column
-                                                                            }
-                                                                            provided={
-                                                                                provided
-                                                                            }
-                                                                            snapshot={
-                                                                                snapshot
-                                                                            }
-                                                                        />
-                                                                    )}
-                                                                </Draggable>
-                                                            </th>
-                                                        ),
-                                                    )}
-                                                </tr>
-                                            )}
-                                        </Droppable>
-                                    </DragDropContext>
+                                        {headerGroup.headers.map((column) => (
+                                            <col
+                                                {...column.getHeaderProps([
+                                                    getColumnStyle(column.type),
+                                                ])}
+                                            />
+                                        ))}
+                                    </colgroup>
                                 ))}
-                            </thead>
+                                <thead>
+                                    {headerGroups.map((headerGroup) => (
+                                        <DragDropContext
+                                            key={`DragDropContext_${headerGroup.id}`}
+                                            onDragStart={() => {
+                                                currentColOrder.current =
+                                                    allColumns.map(
+                                                        (o: any) => o.id,
+                                                    );
+                                            }}
+                                            onDragUpdate={(dragUpdateObj) => {
+                                                const colOrder = [
+                                                    ...currentColOrder.current,
+                                                ];
+                                                const sIndex =
+                                                    dragUpdateObj.source.index;
+                                                const dIndex =
+                                                    dragUpdateObj.destination &&
+                                                    dragUpdateObj.destination
+                                                        .index;
 
-                            <tbody {...getTableBodyProps()}>
-                                {page.map((row) => {
-                                    prepareRow(row);
-                                    return (
-                                        <tr {...row.getRowProps()}>
-                                            {row.cells.map((cell) => (
-                                                <td
-                                                    {...cell.getCellProps([
-                                                        getRowStyle(row.index),
-                                                    ])}
-                                                >
-                                                    {cell.render('Cell')}
-                                                </td>
-                                            ))}
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </HTMLTable>
+                                                if (
+                                                    typeof dIndex === 'number'
+                                                ) {
+                                                    colOrder.splice(sIndex, 1);
+                                                    colOrder.splice(
+                                                        dIndex,
+                                                        0,
+                                                        dragUpdateObj.draggableId,
+                                                    );
+                                                    onColumnOrderChange?.(
+                                                        colOrder,
+                                                    );
+                                                }
+                                            }}
+                                            onDragEnd={() => undefined}
+                                        >
+                                            <Droppable
+                                                droppableId="droppable"
+                                                direction="horizontal"
+                                                renderClone={(
+                                                    provided,
+                                                    snapshot,
+                                                    rubric,
+                                                ) => {
+                                                    const column =
+                                                        headerGroup.headers.find(
+                                                            ({ id }) =>
+                                                                id ===
+                                                                rubric.draggableId,
+                                                        );
+                                                    return (
+                                                        <Item
+                                                            column={column}
+                                                            provided={provided}
+                                                            snapshot={snapshot}
+                                                        />
+                                                    );
+                                                }}
+                                            >
+                                                {(droppableProvided) => (
+                                                    <tr
+                                                        ref={
+                                                            droppableProvided.innerRef
+                                                        }
+                                                        {...headerGroup.getHeaderGroupProps()}
+                                                        {...droppableProvided.droppableProps}
+                                                    >
+                                                        {headerGroup.headers.map(
+                                                            (column, index) => (
+                                                                <th
+                                                                    {...column.getHeaderProps(
+                                                                        column.getSortByToggleProps
+                                                                            ? [
+                                                                                  column.getSortByToggleProps(),
+                                                                              ]
+                                                                            : [],
+                                                                    )}
+                                                                >
+                                                                    <Draggable
+                                                                        key={
+                                                                            column.id
+                                                                        }
+                                                                        draggableId={
+                                                                            column.id
+                                                                        }
+                                                                        index={
+                                                                            index
+                                                                        }
+                                                                    >
+                                                                        {(
+                                                                            provided,
+                                                                            snapshot,
+                                                                        ) => (
+                                                                            <Item
+                                                                                index={
+                                                                                    index
+                                                                                }
+                                                                                column={
+                                                                                    column
+                                                                                }
+                                                                                provided={
+                                                                                    provided
+                                                                                }
+                                                                                snapshot={
+                                                                                    snapshot
+                                                                                }
+                                                                            />
+                                                                        )}
+                                                                    </Draggable>
+                                                                </th>
+                                                            ),
+                                                        )}
+                                                    </tr>
+                                                )}
+                                            </Droppable>
+                                        </DragDropContext>
+                                    ))}
+                                </thead>
+
+                                <tbody {...getTableBodyProps()}>
+                                    {page.map((row) => {
+                                        prepareRow(row);
+                                        return (
+                                            <tr {...row.getRowProps()}>
+                                                {row.cells.map((cell) => (
+                                                    <td
+                                                        {...cell.getCellProps([
+                                                            getRowStyle(
+                                                                row.index,
+                                                            ),
+                                                        ])}
+                                                    >
+                                                        {cell.render('Cell')}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </HTMLTable>
+                        </div>
                         {tableAction && (
                             <div
                                 style={{

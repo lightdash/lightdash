@@ -29,7 +29,9 @@ const Wrapper = styled('div')`
 
 const Sidebar = styled(Card)`
     height: calc(100vh - 50px);
-    width: 400px;
+    flex-basis: 400px;
+    flex-shrink: 0;
+    flex-grow: 0;
     margin-right: 10px;
     overflow: hidden;
     position: sticky;
@@ -43,6 +45,7 @@ const ContentSection = styled('div')`
     flex-direction: column;
     justify-content: flex-start;
     align-items: stretch;
+    min-width: 0;
 `;
 
 const CardDivider = styled('div')`
