@@ -30,7 +30,9 @@ describe('Settings - Profile', () => {
         cy.get('[data-cy="last-name-input"]').clear().type('Space');
         cy.get('[data-cy="email-input"]').clear().type('kspace@lightdash.com');
         cy.get('[data-cy="update-profile-settings"]').click();
-        cy.findByText('User updated with success').should('be.visible');
+        cy.findByText('Success! User details were updated.').should(
+            'be.visible',
+        );
         cy.visit('/');
         cy.get('[data-cy="heading-username"]').should('contain', 'Kevin Space');
     });

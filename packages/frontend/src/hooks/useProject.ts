@@ -46,7 +46,7 @@ export const useUpdateMutation = (id: string) => {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['project', id]);
                 showToastSuccess({
-                    title: `Project saved with success`,
+                    title: `Success! Project was updated.`,
                 });
             },
         },
@@ -61,7 +61,7 @@ export const useCreateMutation = () => {
             mutationKey: ['project_create'],
             onSuccess: async () => {
                 showToastSuccess({
-                    title: `Project created with success`,
+                    title: `Success! New project was created`,
                 });
             },
         },

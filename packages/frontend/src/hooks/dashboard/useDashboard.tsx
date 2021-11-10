@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { ApiError, CreateDashboard, Dashboard, UpdateDashboard } from 'common';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
 import { useApp } from '../../providers/AppProvider';
 import useQueryError from '../useQueryError';
@@ -57,7 +57,7 @@ export const useUpdateDashboard = (id: string) => {
                     id,
                 ]);
                 showToastSuccess({
-                    title: `Dashboard saved with success`,
+                    title: `Success! Dashboard was updated.`,
                 });
             },
             onError: (error) => {
@@ -80,7 +80,7 @@ export const useCreateMutation = (projectId: string) => {
             onSuccess: async () => {
                 await queryClient.invalidateQueries('dashboards');
                 showToastSuccess({
-                    title: `Dashboard created with success`,
+                    title: `Success! Dashboard was created.`,
                 });
             },
             onError: (error) => {
@@ -100,7 +100,7 @@ export const useDeleteMutation = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries('dashboards');
             showToastSuccess({
-                title: `Dashboard deleted with success`,
+                title: `Deleted! Dashboard was deleted.`,
             });
         },
         onError: (error) => {

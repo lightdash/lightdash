@@ -1,6 +1,6 @@
-import React, { ComponentProps, FC } from 'react';
 import { Callout, Classes, Spinner } from '@blueprintjs/core';
 import Markdown from 'markdown-to-jsx';
+import React, { ComponentProps, FC } from 'react';
 import { useCreateMutation, useUpdateMutation } from '../../hooks/useProject';
 
 type CalloutProps = ComponentProps<typeof Callout>;
@@ -23,7 +23,7 @@ const ProjectStatusCallout: FC<
     } else if (isSuccess) {
         stateProps = {
             intent: 'success',
-            title: 'Connected with success',
+            title: 'Successfully connected! Updated project settings.',
         };
     } else if (isError) {
         stateProps = {

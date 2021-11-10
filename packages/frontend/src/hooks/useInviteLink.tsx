@@ -1,8 +1,8 @@
 import {
-    CreateInviteLink,
-    InviteLink,
     ApiError,
+    CreateInviteLink,
     formatTimestamp,
+    InviteLink,
 } from 'common';
 import { useMutation, useQuery } from 'react-query';
 import { lightdashApi } from '../api';
@@ -78,7 +78,7 @@ export const useRevokeInvitesMutation = () => {
         mutationKey: ['invite_link_revoke'],
         onSuccess: async () => {
             showToastSuccess({
-                title: `Invites revoked with success`,
+                title: `All invites were revoked`,
             });
         },
         onError: (error) => {

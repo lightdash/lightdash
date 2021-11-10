@@ -72,7 +72,7 @@ export const useDeleteMutation = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries('spaces');
             showToastSuccess({
-                title: `Chart deleted with success`,
+                title: `Success! Chart was deleted.`,
             });
             history.push({
                 pathname: `/saved`,
@@ -98,7 +98,7 @@ export const useUpdateMutation = (savedQueryUuid: string) => {
                 await queryClient.invalidateQueries('spaces');
                 queryClient.setQueryData(['saved_query', data.uuid], data);
                 showToastSuccess({
-                    title: `Chart saved with success`,
+                    title: `Success! Chart was saved.`,
                 });
             },
             onError: (error) => {
@@ -123,7 +123,7 @@ export const useCreateMutation = () => {
             onSuccess: (data) => {
                 queryClient.setQueryData(['saved_query', data.uuid], data);
                 showToastSuccess({
-                    title: `Chart updated with success`,
+                    title: `Success! Chart was updated.`,
                 });
                 history.push({
                     pathname: `/projects/${projectUuid}/saved/${data.uuid}`,
@@ -154,7 +154,7 @@ export const useAddVersionMutation = () => {
         onSuccess: (data) => {
             queryClient.setQueryData(['saved_query', data.uuid], data);
             showToastSuccess({
-                title: `Chart saved with success`,
+                title: `Success! Chart was saved.`,
             });
         },
         onError: (error) => {
