@@ -13,7 +13,7 @@ import { UpdateProjectConnection } from '../components/ProjectConnection';
 import PageBase from '../components/common/Page/PageBase';
 import Sidebar from '../components/common/Page/Sidebar';
 import Content from '../components/common/Page/Content';
-import NavMenuItem from '../components/common/NavMenuItem';
+import RouterMenuItem from '../components/common/RouterMenuItem';
 
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -46,7 +46,7 @@ const ProjectSettings: FC = () => {
         <PageBase>
             <Sidebar title="Project settings">
                 <Menu>
-                    <NavMenuItem
+                    <RouterMenuItem
                         text="Project connections"
                         exact
                         to={basePath}

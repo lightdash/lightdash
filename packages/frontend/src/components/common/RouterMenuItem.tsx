@@ -7,7 +7,7 @@ interface Props {
     exact?: boolean;
 }
 
-const NavMenuItem: FC<Props & React.ComponentProps<typeof MenuItem>> = ({
+const RouterMenuItem: FC<Props & React.ComponentProps<typeof MenuItem>> = ({
     to,
     exact,
     ...rest
@@ -29,4 +29,4 @@ const NavMenuItem: FC<Props & React.ComponentProps<typeof MenuItem>> = ({
     );
 };
 
-export default NavMenuItem;
+export default RouterMenuItem;
