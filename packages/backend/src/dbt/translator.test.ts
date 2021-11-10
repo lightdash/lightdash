@@ -1,7 +1,7 @@
 import { attachTypesToModels } from './translator';
 import {
-    model,
     expectedModelWithType,
+    model,
     warehouseSchema,
     warehouseSchemaWithMissingColumn,
     warehouseSchemaWithMissingTable,
