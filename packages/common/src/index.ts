@@ -536,7 +536,11 @@ export enum TableSelectionType {
 export type TablesConfiguration = {
     tableSelection: {
         type: TableSelectionType;
+<<<<<<< HEAD
         value: string[] | null;
+=======
+        value?: string[];
+>>>>>>> eaa5b39 (wip: add get/update endpoints for project tables configuration)
     };
 };
 export type ApiTablesConfigurationResponse =
