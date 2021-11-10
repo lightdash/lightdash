@@ -34,6 +34,7 @@ export enum SectionName {
     EMPTY_RESULTS_TABLE = 'empty_results_table',
     EXPLORER_TOP_BUTTONS = 'explorer_top_buttons',
     SIDEBAR = 'sidebar',
+    PAGE_CONTENT = 'page_content',
     RESULTS_TABLE = 'results_table',
 }
 

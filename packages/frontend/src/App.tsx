@@ -87,7 +87,7 @@ const App = () => (
                                     }}
                                 >
                                     <Switch>
-                                        <Route path="/projects/:projectUuid/settings">
+                                        <Route path="/projects/:projectUuid/settings/:tab?">
                                             <AppBar />
                                             <Page
                                                 name={PageName.PROJECT_SETTINGS}
