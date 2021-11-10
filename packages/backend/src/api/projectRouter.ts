@@ -9,6 +9,7 @@ import {
     isExploreError,
     MetricQuery,
     ProjectCatalog,
+    TablesConfiguration,
 } from 'common';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { dashboardService, projectService } from '../services/services';
@@ -270,3 +271,45 @@ projectRouter.get('/catalog', isAuthenticated, async (req, res, next) => {
         next(e);
     }
 });
+
+projectRouter.get(
+    '/tablesConfiguration',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results: TablesConfiguration =
+                await projectService.getTablesConfiguration(
+                    req.user!,
+                    req.params.projectUuid,
+                );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+projectRouter.patch(
+    '/tablesConfiguration',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        try {
+            const results: TablesConfiguration =
+                await projectService.updateTablesConfiguration(
+                    req.user!,
+                    req.params.projectUuid,
+                    req.body,
+                );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
