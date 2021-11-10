@@ -79,9 +79,7 @@ const SqlRunnerPage = () => {
     return (
         <PageBase>
             <Sidebar title="SQL runner">
-                <H5 style={{ marginTop: 20, paddingLeft: 10 }}>
-                    Warehouse schema
-                </H5>
+                <H5 style={{ paddingLeft: 10 }}>Warehouse schema</H5>
                 <div style={{ overflowY: 'auto' }}>
                     {isCatalogLoading ? (
                         <SideBarLoadingState />

@@ -23,6 +23,11 @@ const SidebarColumn = styled('div')`
     flex-direction: column;
 `;
 
+const TitleDivider = styled(Divider)`
+    margin-top: 20px;
+    margin-bottom: 20px;
+`;
+
 const Sidebar: FC<{ title: string | React.ReactNode }> = ({
     title,
     children,
@@ -32,7 +37,7 @@ const Sidebar: FC<{ title: string | React.ReactNode }> = ({
             <SidebarColumn>
                 <div style={{ flex: 1 }}>
                     {typeof title === 'string' ? <H3>{title}</H3> : title}
-                    <Divider style={{ marginTop: 20 }} />
+                    <TitleDivider />
                     {children}
                 </div>
                 <AboutFooter />

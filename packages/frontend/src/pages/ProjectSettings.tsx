@@ -51,7 +51,6 @@ const ProjectSettings: FC = () => {
                         exact
                         to={basePath}
                     />
-                    <MenuDivider />
                 </Menu>
             </Sidebar>
             <Content>
