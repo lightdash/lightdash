@@ -1,5 +1,12 @@
 import React, { FC, useMemo } from 'react';
-import { Menu, MenuDivider, NonIdealState, Spinner } from '@blueprintjs/core';
+import {
+    Menu,
+    MenuDivider,
+    NonIdealState,
+    Spinner,
+    Divider,
+    H3,
+} from '@blueprintjs/core';
 import { Redirect, Route, Switch, useParams } from 'react-router-dom';
 import { useProject } from '../hooks/useProject';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
@@ -50,6 +57,10 @@ const ProjectSettings: FC = () => {
             <Content>
                 <Switch>
                     <Route exact path={basePath}>
+                        <H3 style={{ marginTop: 10, marginBottom: 0 }}>
+                            Edit your project connections
+                        </H3>
+                        <Divider style={{ margin: '20px 0' }} />
                         <UpdateProjectConnection projectUuid={projectUuid} />
                     </Route>
                     <Redirect to={basePath} />

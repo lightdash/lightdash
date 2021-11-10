@@ -1,7 +1,8 @@
 import React, { FC } from 'react';
 import { OrganizationProject } from 'common';
-import { Card, Classes, ButtonGroup, AnchorButton } from '@blueprintjs/core';
+import { Card, Classes, ButtonGroup } from '@blueprintjs/core';
 import { useProjects } from '../../hooks/useProjects';
+import LinkButton from '../common/LinkButton';
 
 const ProjectListItem: FC<{ project: OrganizationProject }> = ({
     project: { projectUuid, name },
@@ -32,7 +33,7 @@ const ProjectListItem: FC<{ project: OrganizationProject }> = ({
                 {name}
             </p>
             <ButtonGroup>
-                <AnchorButton
+                <LinkButton
                     icon="cog"
                     outlined
                     text="Settings"
