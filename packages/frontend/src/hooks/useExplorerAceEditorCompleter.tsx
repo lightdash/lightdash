@@ -1,4 +1,5 @@
 import { Ace } from 'ace-builds';
+import 'react-ace'; // Note: we need this import before the langTools import
 import langTools from 'ace-builds/src-noconflict/ext-language_tools';
 import { Field, fieldId, friendlyName, getFieldRef } from 'common';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
