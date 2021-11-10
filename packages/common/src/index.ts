@@ -36,6 +36,13 @@ export function hexToRGB(hex: string, alpha: number | undefined): string {
     return `rgb(${r}, ${g}, ${b})`;
 }
 
+export enum ProjectType {
+    DBT = 'dbt',
+    DBT_CLOUD_IDE = 'dbt_cloud_ide',
+    GITHUB = 'github',
+    GITLAB = 'gitlab',
+}
+
 // Seeds
 export const SEED_ORGANIZATION = {
     organization_uuid: '172a2270-000f-42be-9c68-c4752c23ae51',
@@ -65,7 +72,7 @@ export const SEED_PROJECT = {
     project_uuid: '3675b69e-8324-4110-bdca-059031aa8da3',
     organization_id: 1,
     name: 'Jaffle shop',
-    dbt_connection_type: null,
+    dbt_connection_type: ProjectType.DBT,
     dbt_connection: null,
 };
 export const SEED_SPACE = {
@@ -1027,13 +1034,6 @@ export type WarehouseCredentials =
     | PostgresCredentials
     | BigqueryCredentials
     | DatabricksCredentials;
-
-export enum ProjectType {
-    DBT = 'dbt',
-    DBT_CLOUD_IDE = 'dbt_cloud_ide',
-    GITHUB = 'github',
-    GITLAB = 'gitlab',
-}
 
 export const ProjectTypeLabels: Record<ProjectType, string> = {
     [ProjectType.DBT]: 'dbt local server',
