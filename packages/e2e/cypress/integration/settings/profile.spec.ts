@@ -34,6 +34,6 @@ describe('Settings - Profile', () => {
             'be.visible',
         );
         cy.visit('/');
-        cy.get('[data-cy="heading-username"]').should('contain', 'Kevin Space');
+        cy.get('[data-cy="user-avatar"]').should('contain', 'KS');
     });
 });
