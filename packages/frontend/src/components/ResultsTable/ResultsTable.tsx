@@ -1,11 +1,6 @@
-import {
-    ColumnInstance,
-    HeaderGroup,
-    useColumnOrder,
-    usePagination,
-    useTable as useReactTable,
-} from 'react-table';
 import { Button, Colors, HTMLTable, Icon, Tag } from '@blueprintjs/core';
+import { DimensionType, hexToRGB } from 'common';
+import React, { FC, ReactNode, useEffect } from 'react';
 import {
     DragDropContext,
     Draggable,
@@ -14,9 +9,14 @@ import {
     DraggableStateSnapshot,
     Droppable,
 } from 'react-beautiful-dnd';
-import { DimensionType, hexToRGB } from 'common';
-import React, { FC, ReactNode, useEffect } from 'react';
 import { CSVLink } from 'react-csv';
+import {
+    ColumnInstance,
+    HeaderGroup,
+    useColumnOrder,
+    usePagination,
+    useTable as useReactTable,
+} from 'react-table';
 import { Section } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import TableCalculationHeaderButton from '../TableCalculationHeaderButton';
@@ -214,7 +214,12 @@ export const ResultsTable: FC<Props> = ({
                         }}
                     >
                         <div style={{ flex: 1, overflowX: 'auto' }}>
-                            <HTMLTable bordered condensed {...getTableProps()}>
+                            <HTMLTable
+                                style={{ width: '100%' }}
+                                bordered
+                                condensed
+                                {...getTableProps()}
+                            >
                                 {headerGroups.map((headerGroup) => (
                                     <colgroup
                                         key={`headerGroup_${headerGroup.id}`}
