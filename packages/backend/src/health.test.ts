@@ -1,10 +1,10 @@
-import fetchMock from 'jest-fetch-mock';
 import { LightdashInstallType, LightdashMode } from 'common';
-import { getHealthState } from './health';
-import { ImagesResponse, BaseResponse } from './health.mock';
-import { hasUsers } from './database/entities/users';
-import { projectService } from './services/services';
+import fetchMock from 'jest-fetch-mock';
 import { lightdashConfig } from './config/lightdashConfig';
+import { hasUsers } from './database/entities/users';
+import { getHealthState } from './health';
+import { BaseResponse, ImagesResponse } from './health.mock';
+import { projectService } from './services/services';
 
 jest.mock('./version', () => ({
     VERSION: '0.1.0',
@@ -68,7 +68,7 @@ describe('health', () => {
             needsSetup: true,
         });
     });
-    it('Should return needsProject true and defaultProject if there are no projects in DB', async () => {
+    it('Should return needsProject true if there are no projects in DB', async () => {
         (projectService.hasProject as jest.Mock).mockImplementation(
             async () => false,
         );
@@ -76,12 +76,6 @@ describe('health', () => {
         expect(await getHealthState(false)).toEqual({
             ...BaseResponse,
             needsProject: true,
-            defaultProject: {
-                name: 'default',
-                type: 'dbt',
-                profiles_dir: '/',
-                project_dir: '/',
-            },
         });
     });
     it('Should return isAuthenticated true', async () => {
