@@ -63,7 +63,10 @@ const ProjectSettings: FC = () => {
             </Sidebar>
             <Content>
                 <Switch>
-                    <Route exact path={`${basePath}/tablesConfiguration`}>
+                    <Route
+                        exact
+                        path="/projects/:projectUuid/settings/tablesConfiguration"
+                    >
                         <H3 style={{ marginTop: 10, marginBottom: 0 }}>
                             Configure you tables
                         </H3>
@@ -74,7 +77,7 @@ const ProjectSettings: FC = () => {
                         </p>
                         <ProjectTablesConfiguration projectUuid={projectUuid} />
                     </Route>
-                    <Route exact path={basePath}>
+                    <Route exact path="/projects/:projectUuid/settings">
                         <H3 style={{ marginTop: 10, marginBottom: 0 }}>
                             Edit your project connections
                         </H3>

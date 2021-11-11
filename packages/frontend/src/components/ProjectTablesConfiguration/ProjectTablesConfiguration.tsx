@@ -1,7 +1,16 @@
-import React, { FC, useEffect } from 'react';
-import { Button, Card, Colors, H5, Intent, Radio } from '@blueprintjs/core';
+import React, { FC, useEffect, useMemo } from 'react';
+import {
+    Button,
+    Card,
+    Collapse,
+    Colors,
+    H5,
+    Intent,
+    Radio,
+    Classes,
+} from '@blueprintjs/core';
 import { useForm } from 'react-hook-form';
-import { TableSelectionType } from 'common';
+import { friendlyName, TableSelectionType } from 'common';
 import { useTracking } from '../../providers/TrackingProvider';
 import Form from '../ReactHookForm/Form';
 import RadioGroup from '../ReactHookForm/RadioGroup';
@@ -12,6 +21,7 @@ import {
 } from '../../hooks/useProjectTablesConfiguration';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import TagInput from '../ReactHookForm/TagInput';
+import { useExplores } from '../../hooks/useExplores';
 
 type FormData = {
     type: TableSelectionType;
@@ -19,10 +29,16 @@ type FormData = {
     names: string[];
 };
 
+const hasCompatibleTags = (tags: string[], tags2: string[]): boolean => {
+    const intersection = tags.filter((value) => tags2.includes(value));
+    return intersection.length > 0;
+};
+
 const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
     const { track } = useTracking();
+    const { data: explores } = useExplores();
     const { data, isLoading } = useProjectTablesConfiguration(projectUuid);
     const updateHook = useUpdateProjectTablesConfiguration(projectUuid);
     const disabled = isLoading || updateHook.isLoading;
@@ -34,6 +50,20 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
         },
     });
     const typeValue = methods.watch('type', TableSelectionType.ALL);
+    const tagsValue = methods.watch('tags', []);
+
+    const modelsIncluded = useMemo<string[]>(() => {
+        if (explores && tagsValue.length > 0) {
+            return explores.reduce<string[]>(
+                (acc, { name, tags }) =>
+                    hasCompatibleTags(tags || [], tagsValue)
+                        ? [...acc, name]
+                        : acc,
+                [],
+            );
+        }
+        return [];
+    }, [tagsValue, explores]);
 
     useEffect(() => {
         if (data) {
@@ -57,7 +87,7 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
 
     const onSubmit = async (formData: FormData) => {
         track({
-            name: EventName.UPDATE_PROJECT_BUTTON_CLICKED,
+            name: EventName.UPDATE_PROJECT_TABLES_CONFIGURATION_BUTTON_CLICKED,
         });
         let value: string[] | null = null;
         if (
@@ -128,15 +158,54 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
                             by commands.
                         </p>
                         {typeValue === TableSelectionType.WITH_TAGS && (
-                            <TagInput
-                                name="tags"
-                                label="Tags"
-                                rules={{
-                                    required: 'Required field',
-                                }}
-                                disabled={disabled}
-                                placeholder="e.g lightdash, prod"
-                            />
+                            <>
+                                <TagInput
+                                    name="tags"
+                                    label="Tags"
+                                    rules={{
+                                        required: 'Required field',
+                                    }}
+                                    disabled={disabled}
+                                    placeholder="e.g lightdash, prod"
+                                />
+
+                                <div
+                                    style={{
+                                        color: Colors.GRAY1,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                    }}
+                                >
+                                    <span>
+                                        Detected {modelsIncluded.length} models
+                                        included
+                                    </span>
+                                    <Button
+                                        small
+                                        icon="refresh"
+                                        style={{ marginLeft: 10 }}
+                                    />
+                                </div>
+                                <Collapse isOpen={modelsIncluded.length > 0}>
+                                    <div
+                                        style={{
+                                            marginTop: 10,
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: 5,
+                                            padding: 10,
+                                            color: Colors.GRAY1,
+                                            maxHeight: 100,
+                                            overflow: 'auto',
+                                        }}
+                                        className={Classes.ELEVATION_0}
+                                    >
+                                        {modelsIncluded.map((name) => (
+                                            <span>{friendlyName(name)}</span>
+                                        ))}
+                                    </div>
+                                </Collapse>
+                            </>
                         )}
 
                         <Radio
