@@ -48,6 +48,7 @@ export const projectAdapterMock: ProjectAdapter = {
 export const validExplore: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: '',
+    tags: [],
     baseTable: 'a',
     joinedTables: [],
     tables: {
