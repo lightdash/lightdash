@@ -10,6 +10,7 @@ import {
     Project,
     SessionUser,
     UpdateProject,
+    TablesConfiguration,
 } from 'common';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { ProjectAdapter } from '../../types';
@@ -302,5 +303,31 @@ export class ProjectService {
             }
             return acc;
         }, {});
+    }
+
+    async getTablesConfiguration(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<TablesConfiguration> {
+        return this.projectModel.getTablesConfiguration(projectUuid);
+    }
+
+    async updateTablesConfiguration(
+        user: SessionUser,
+        projectUuid: string,
+        data: TablesConfiguration,
+    ): Promise<TablesConfiguration> {
+        await this.projectModel.updateTablesConfiguration(projectUuid, data);
+        analytics.track({
+            event: 'project_tables_configuration.updated',
+            userId: user.userUuid,
+            projectId: projectUuid,
+            organizationId: user.organizationUuid,
+            properties: {
+                projectId: projectUuid,
+                project_table_selection_type: data.tableSelection.type,
+            },
+        });
+        return this.projectModel.getTablesConfiguration(projectUuid);
     }
 }

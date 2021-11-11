@@ -517,6 +517,25 @@ export type ApiCatalogResponse =
           results: ProjectCatalog;
       };
 
+export enum TableSelectionType {
+    ALL = 'ALL',
+    WITH_TAGS = 'WITH_TAGS',
+    WITH_NAMES = 'WITH_NAMES',
+}
+
+export type TablesConfiguration = {
+    tableSelection: {
+        type: TableSelectionType;
+        value: string[] | null;
+    };
+};
+export type ApiTablesConfigurationResponse =
+    | ApiError
+    | {
+          status: 'ok';
+          results: TablesConfiguration;
+      };
+
 export type ApiCompiledQueryResults = string;
 export type ApiCompiledQueryResponse =
     | ApiError
@@ -675,12 +694,14 @@ export type ApiResults =
     | WarehouseCredentials
     | OrganizationUser[]
     | ProjectCatalog
+    | TablesConfiguration
     | Dashboard;
 
 export type ApiResponse =
     | ApiQueryResponse
     | ApiSqlQueryResponse
     | ApiCatalogResponse
+    | ApiTablesConfigurationResponse
     | ApiCompiledQueryResponse
     | ApiExploresResponse
     | ApiExploreResponse

@@ -3,6 +3,8 @@ import { ProjectService } from './ProjectService';
 import {
     expectedCatalog,
     expectedSqlResults,
+    expectedTablesConfiguration,
+    updateTablesConfiguration,
     exploreWithError,
     projectAdapterMock,
     user,
@@ -17,7 +19,12 @@ jest.mock('../../analytics/client', () => ({
 }));
 
 jest.mock('../../models/models', () => ({
-    projectModel: {},
+    projectModel: {
+        getTablesConfiguration: jest.fn(
+            async () => expectedTablesConfiguration,
+        ),
+        updateTablesConfiguration: jest.fn(),
+    },
 }));
 
 describe('ProjectService', () => {
@@ -50,5 +57,23 @@ describe('ProjectService', () => {
         const results = await service.getCatalog(user, projectUuid);
 
         expect(results).toEqual(expectedCatalog);
+    });
+    test('should get tables configuration', async () => {
+        const result = await service.getTablesConfiguration(user, projectUuid);
+        expect(result).toEqual(expectedTablesConfiguration);
+    });
+    test('should update tables configuration', async () => {
+        await service.updateTablesConfiguration(
+            user,
+            projectUuid,
+            updateTablesConfiguration,
+        );
+        expect(projectModel.updateTablesConfiguration).toHaveBeenCalledTimes(1);
+        expect(analytics.track).toHaveBeenCalledTimes(1);
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'project_tables_configuration.updated',
+            }),
+        );
     });
 });
