@@ -8,9 +8,10 @@ import {
     Intent,
     Radio,
     Classes,
+    Text,
 } from '@blueprintjs/core';
 import { useForm } from 'react-hook-form';
-import { friendlyName, TableSelectionType } from 'common';
+import { TableSelectionType } from 'common';
 import { useTracking } from '../../providers/TrackingProvider';
 import Form from '../ReactHookForm/Form';
 import RadioGroup from '../ReactHookForm/RadioGroup';
@@ -22,6 +23,7 @@ import {
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import TagInput from '../ReactHookForm/TagInput';
 import { useExplores } from '../../hooks/useExplores';
+import MultiSelect from '../ReactHookForm/MultiSelect';
 
 type FormData = {
     type: TableSelectionType;
@@ -111,7 +113,7 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
     };
 
     return (
-        <Form methods={methods} onSubmit={onSubmit}>
+        <Form methods={methods} onSubmit={onSubmit} disableSubmitOnEnter>
             <Card
                 style={{
                     marginBottom: '20px',
@@ -120,12 +122,12 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
                 }}
                 elevation={1}
             >
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, width: '50%' }}>
                     <H5 style={{ display: 'inline', marginRight: 5 }}>
                         Table selection
                     </H5>
                 </div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, width: '50%' }}>
                     <RadioGroup
                         name="type"
                         label="Table Selection"
@@ -168,40 +170,25 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
                                     disabled={disabled}
                                     placeholder="e.g lightdash, prod"
                                 />
-
-                                <div
-                                    style={{
-                                        color: Colors.GRAY1,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                    }}
-                                >
-                                    <span>
-                                        Detected {modelsIncluded.length} models
-                                        included
-                                    </span>
-                                    <Button
-                                        small
-                                        icon="refresh"
-                                        style={{ marginLeft: 10 }}
-                                    />
-                                </div>
+                                <p>
+                                    Detected {modelsIncluded.length} models
+                                    included
+                                </p>
                                 <Collapse isOpen={modelsIncluded.length > 0}>
                                     <div
                                         style={{
-                                            marginTop: 10,
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            gap: 5,
                                             padding: 10,
                                             color: Colors.GRAY1,
                                             maxHeight: 100,
-                                            overflow: 'auto',
+                                            overflowY: 'auto',
+                                            overflowX: 'hidden',
                                         }}
                                         className={Classes.ELEVATION_0}
                                     >
                                         {modelsIncluded.map((name) => (
-                                            <span>{friendlyName(name)}</span>
+                                            <Text title={name} ellipsize>
+                                                {name}
+                                            </Text>
                                         ))}
                                     </div>
                                 </Collapse>
@@ -218,12 +205,13 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
                             separated by commas.
                         </p>
                         {typeValue === TableSelectionType.WITH_NAMES && (
-                            <TagInput
+                            <MultiSelect
                                 name="names"
                                 label="Names"
                                 rules={{
                                     required: 'Required field',
                                 }}
+                                items={(explores || []).map(({ name }) => name)}
                                 disabled={disabled}
                                 placeholder="e.g users, orders"
                             />
