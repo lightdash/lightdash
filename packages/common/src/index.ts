@@ -81,6 +81,7 @@ export type ArgumentsOf<F extends Function> = F extends (
 
 export type Explore = {
     name: string; // Friendly name any characters
+    tags: string[];
     baseTable: string; // Must match a tableName in tables
     joinedTables: CompiledExploreJoin[]; // Must match a tableName in tables
     tables: { [tableName: string]: CompiledTable }; // All tables in this explore
@@ -110,8 +111,8 @@ export type CompiledExploreJoin = ExploreJoin & {
 };
 
 export type SummaryExplore =
-    | Pick<Explore, 'name'>
-    | Pick<ExploreError, 'name' | 'errors'>;
+    | Pick<Explore, 'name' | 'tags'>
+    | Pick<ExploreError, 'name' | 'tags' | 'errors'>;
 
 export type TableBase = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
@@ -425,6 +426,7 @@ export type DbtRawModelNode = DbtNode & {
     database: string | null;
     schema: string;
     name: string;
+    tags: string[];
     relation_name: string;
     depends_on: DbtTableDependency;
     description?: string;
@@ -696,7 +698,8 @@ export type ApiResults =
     | OrganizationUser[]
     | ProjectCatalog
     | TablesConfiguration
-    | Dashboard;
+    | Dashboard
+    | Dashboard[];
 
 export type ApiResponse =
     | ApiQueryResponse

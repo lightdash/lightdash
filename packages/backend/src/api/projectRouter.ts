@@ -50,11 +50,11 @@ projectRouter.get('/explores', isAuthenticated, async (req, res, next) => {
             req.user!,
             req.params.projectUuid,
         );
-        const results: ApiExploresResults = explores.map((explore) =>
-            isExploreError(explore)
-                ? { name: explore.name, errors: explore.errors }
-                : { name: explore.name },
-        );
+        const results: ApiExploresResults = explores.map((explore) => ({
+            name: explore.name,
+            tags: explore.tags || [],
+            errors: isExploreError(explore) ? explore.errors : undefined,
+        }));
         res.json({
             status: 'ok',
             results,
