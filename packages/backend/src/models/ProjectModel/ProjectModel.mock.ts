@@ -4,10 +4,13 @@ import {
     LightdashMode,
     Project,
     ProjectType,
+    TablesConfiguration,
+    TableSelectionType,
     WarehouseTypes,
 } from 'common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
+import { ProjectTable } from '../../database/entities/projects';
 
 export const lightdashConfigMock: LightdashConfig = {
     mode: LightdashMode.DEFAULT,
@@ -49,16 +52,39 @@ export const encryptionServiceMock = {
     decrypt: jest.fn((encrypted: Buffer) => encrypted.toString()),
 } as any as EncryptionService;
 
+export const projectUuid = 'project uuid';
+
 export const projectMock = {
-    projectUuid: 'project uuid',
     name: 'my project',
     dbt_connection: Buffer.from(JSON.stringify(dbtCloudIDEProjectConfigMock)),
     encrypted_credentials: Buffer.from(JSON.stringify(bigqueryCredentials)),
     warehouse_type: WarehouseTypes.BIGQUERY,
 };
 
+export const tableSelectionMock: Pick<
+    ProjectTable['base'],
+    'table_selection_type' | 'table_selection_value'
+> = {
+    table_selection_type: TableSelectionType.ALL,
+    table_selection_value: null,
+};
+
+export const updateTableSelectionMock: TablesConfiguration = {
+    tableSelection: {
+        type: TableSelectionType.WITH_NAMES,
+        value: ['test'],
+    },
+};
+
+export const expectedTablesConfiguration: TablesConfiguration = {
+    tableSelection: {
+        type: TableSelectionType.ALL,
+        value: null,
+    },
+};
+
 export const expectedProject: Project = {
-    projectUuid: 'project uuid',
+    projectUuid,
     name: 'my project',
     dbtConnection: {
         account_id: 'account_id',

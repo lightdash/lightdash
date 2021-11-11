@@ -8,7 +8,13 @@ import {
     encryptionServiceMock,
     projectMock,
     expectedProject,
+    projectUuid,
+    expectedTablesConfiguration,
+    tableSelectionMock,
+    updateTableSelectionMock,
 } from './ProjectModel.mock';
+import { DashboardsTableName } from '../../database/entities/dashboards';
+import { updateDashboard } from '../DashboardModel/DashboardModel.mock';
 
 function queryMatcher(
     tableName: string,
@@ -38,12 +44,40 @@ describe('ProjectModel', () => {
     });
     test('should get project with no sensitive properties', async () => {
         tracker.on
-            .select(queryMatcher(ProjectTableName, [projectMock.projectUuid]))
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
             .response([projectMock]);
 
-        const project = await model.get(projectMock.projectUuid);
+        const project = await model.get(projectUuid);
 
         expect(project).toEqual(expectedProject);
         expect(tracker.history.select).toHaveLength(1);
+    });
+    test('should get project tables configuration', async () => {
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([tableSelectionMock]);
+
+        const result = await model.getTablesConfiguration(projectUuid);
+
+        expect(result).toEqual(expectedTablesConfiguration);
+        expect(tracker.history.select).toHaveLength(1);
+    });
+    test('should update project tables configuration', async () => {
+        tracker.on
+            .update(
+                queryMatcher(ProjectTableName, [
+                    updateTableSelectionMock.tableSelection.type,
+                    updateTableSelectionMock.tableSelection.value,
+                    projectUuid,
+                ]),
+            )
+            .response([]);
+
+        await model.updateTablesConfiguration(
+            projectUuid,
+            updateTableSelectionMock,
+        );
+
+        expect(tracker.history.update).toHaveLength(1);
     });
 });
