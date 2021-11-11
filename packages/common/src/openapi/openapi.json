@@ -55,6 +55,9 @@
         "/projects/{projectUuid}/dashboards": {
             "$ref": "./paths/projectDashboards.json"
         },
+        "/projects/{projectUuid}/tablesConfiguration": {
+            "$ref": "./paths/projectTablesConfiguration.json"
+        },
         "/dashboards/{dashboardUuid}": {
             "$ref": "./paths/dashboards.json"
         }
