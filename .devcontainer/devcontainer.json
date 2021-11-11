@@ -1,7 +1,8 @@
 {
-  "name": "[Optional] Your project name here",
+  "name": "Lightdash",
   "dockerComposeFile": "../docker/docker-compose.dev.yml",
   "service": "lightdash-dev",
-  "workspaceFolder": "/usr/app",
-  "shutdownAction": "stopCompose"
+  "workspaceFolder": "/workspaces/lightdash",
+  "shutdownAction": "stopCompose",
+  "postCreateCommand": "yarn install && yarn common-build && /workspaces/lightdash/docker/seed.sh"
 }

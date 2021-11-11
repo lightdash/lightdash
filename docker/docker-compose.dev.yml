@@ -32,6 +32,8 @@ services:
     command: ""
     entrypoint: ["/bin/sh", "-c", "sleep infinity"]
 
+  lightdash-codespaces
+
   db-dev:
     image: postgres
     restart: always
