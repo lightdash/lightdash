@@ -35,6 +35,7 @@ export const model: DbtModelNode = {
     database: 'myDatabase',
     schema: 'mySchema',
     name: 'myTable',
+    tags: [],
     relation_name: 'relation_name',
     depends_on: { nodes: [] },
     root_path: 'root_path',

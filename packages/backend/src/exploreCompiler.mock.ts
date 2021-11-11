@@ -23,11 +23,17 @@ const sourceMock: Source = {
     },
 };
 
-export const exploreOneEmptyTable: UncompiledExplore = {
+export const exploreBase: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: '',
+    tags: [],
     baseTable: 'a',
     joinedTables: [],
+    tables: {},
+};
+
+export const exploreOneEmptyTable: UncompiledExplore = {
+    ...exploreBase,
     tables: {
         a: {
             name: 'a',
@@ -43,10 +49,7 @@ export const exploreOneEmptyTable: UncompiledExplore = {
 };
 
 export const exploreOneEmptyTableCompiled: Explore = {
-    targetDatabase: SupportedDbtAdapter.POSTGRES,
-    name: '',
-    baseTable: 'a',
-    joinedTables: [],
+    ...exploreBase,
     tables: {
         a: {
             name: 'a',
@@ -62,17 +65,11 @@ export const exploreOneEmptyTableCompiled: Explore = {
 };
 
 export const exploreMissingBaseTable: UncompiledExplore = {
-    targetDatabase: SupportedDbtAdapter.POSTGRES,
-    name: '',
-    baseTable: 'a',
-    joinedTables: [],
-    tables: {},
+    ...exploreBase,
 };
 
 export const exploreMissingJoinTable: UncompiledExplore = {
-    targetDatabase: SupportedDbtAdapter.POSTGRES,
-    name: '',
-    baseTable: 'a',
+    ...exploreBase,
     joinedTables: [
         {
             table: 'b',
@@ -94,10 +91,7 @@ export const exploreMissingJoinTable: UncompiledExplore = {
 };
 
 export const exploreCircularReference: UncompiledExplore = {
-    targetDatabase: SupportedDbtAdapter.POSTGRES,
-    name: '',
-    baseTable: 'a',
-    joinedTables: [],
+    ...exploreBase,
     tables: {
         a: {
             name: 'a',
@@ -122,10 +116,7 @@ export const exploreCircularReference: UncompiledExplore = {
 };
 
 export const exploreTableSelfReference: UncompiledExplore = {
-    targetDatabase: SupportedDbtAdapter.POSTGRES,
-    name: '',
-    baseTable: 'a',
-    joinedTables: [],
+    ...exploreBase,
     tables: {
         a: {
             name: 'a',
@@ -150,10 +141,7 @@ export const exploreTableSelfReference: UncompiledExplore = {
 };
 
 export const exploreTableSelfReferenceCompiled: Explore = {
-    targetDatabase: SupportedDbtAdapter.POSTGRES,
-    name: '',
-    baseTable: 'a',
-    joinedTables: [],
+    ...exploreBase,
     tables: {
         a: {
             name: 'a',
@@ -179,10 +167,7 @@ export const exploreTableSelfReferenceCompiled: Explore = {
 };
 
 export const exploreReferenceDimension: UncompiledExplore = {
-    targetDatabase: SupportedDbtAdapter.POSTGRES,
-    name: '',
-    baseTable: 'a',
-    joinedTables: [],
+    ...exploreBase,
     tables: {
         a: {
             name: 'a',
@@ -215,10 +200,7 @@ export const exploreReferenceDimension: UncompiledExplore = {
 };
 
 export const exploreReferenceDimensionCompiled: Explore = {
-    targetDatabase: SupportedDbtAdapter.POSTGRES,
-    name: '',
-    baseTable: 'a',
-    joinedTables: [],
+    ...exploreBase,
     tables: {
         a: {
             name: 'a',
@@ -252,10 +234,7 @@ export const exploreReferenceDimensionCompiled: Explore = {
     },
 };
 export const exploreComplexReference: UncompiledExplore = {
-    targetDatabase: SupportedDbtAdapter.POSTGRES,
-    name: '',
-    baseTable: 'a',
-    joinedTables: [],
+    ...exploreBase,
     tables: {
         a: {
             name: 'a',
@@ -305,10 +284,7 @@ export const exploreComplexReference: UncompiledExplore = {
 };
 
 export const exploreComplexReferenceCompiled: Explore = {
-    targetDatabase: SupportedDbtAdapter.POSTGRES,
-    name: '',
-    baseTable: 'a',
-    joinedTables: [],
+    ...exploreBase,
     tables: {
         a: {
             name: 'a',
@@ -362,9 +338,7 @@ export const exploreComplexReferenceCompiled: Explore = {
 };
 
 export const exploreReferenceInJoin: UncompiledExplore = {
-    targetDatabase: SupportedDbtAdapter.POSTGRES,
-    name: '',
-    baseTable: 'a',
+    ...exploreBase,
     joinedTables: [
         {
             table: 'b',
@@ -422,9 +396,7 @@ export const exploreReferenceInJoin: UncompiledExplore = {
 };
 
 export const exploreReferenceInJoinCompiled: Explore = {
-    targetDatabase: SupportedDbtAdapter.POSTGRES,
-    name: '',
-    baseTable: 'a',
+    ...exploreBase,
     joinedTables: [
         {
             table: 'b',
@@ -486,10 +458,7 @@ export const exploreReferenceInJoinCompiled: Explore = {
 };
 
 export const exploreWithMetricNumber: UncompiledExplore = {
-    targetDatabase: SupportedDbtAdapter.POSTGRES,
-    name: '',
-    baseTable: 'a',
-    joinedTables: [],
+    ...exploreBase,
     tables: {
         a: {
             name: 'a',

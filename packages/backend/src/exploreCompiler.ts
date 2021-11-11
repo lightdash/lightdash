@@ -204,6 +204,7 @@ const compileTable = (
 
 export type UncompiledExplore = {
     name: string;
+    tags: string[];
     baseTable: string;
     joinedTables: ExploreJoin[];
     tables: Record<string, Table>;
@@ -211,6 +212,7 @@ export type UncompiledExplore = {
 };
 export const compileExplore = ({
     name,
+    tags,
     baseTable,
     joinedTables,
     tables,
@@ -252,6 +254,7 @@ export const compileExplore = ({
     );
     return {
         name,
+        tags,
         baseTable,
         joinedTables: compiledJoins,
         tables: compiledTables,
