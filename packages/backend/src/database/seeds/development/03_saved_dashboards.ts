@@ -1,5 +1,5 @@
-import { Knex } from 'knex';
 import { DashboardTileTypes, SEED_PROJECT } from 'common';
+import { Knex } from 'knex';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { getSpaceWithQueries } from '../../entities/spaces';
 
