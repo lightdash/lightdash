@@ -527,7 +527,7 @@ export enum TableSelectionType {
 export type TablesConfiguration = {
     tableSelection: {
         type: TableSelectionType;
-        value?: string[];
+        value: string[] | null;
     };
 };
 export type ApiTablesConfigurationResponse =

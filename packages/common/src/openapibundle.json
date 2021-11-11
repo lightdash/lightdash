@@ -470,6 +470,53 @@
             }
         },
         "/projects/{projectUuid}/tablesConfiguration": {
+            "get": {
+                "summary": "Get project tables configuration",
+                "description": "Get project tables configuration",
+                "tags": ["project"],
+                "operationId": "getProjectTablesConfiguration",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Project tables configuration",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/ProjectTablesConfiguration"
+                                                    }
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            },
             "patch": {
                 "summary": "Update project tables configuration",
                 "description": "Update project tables configuration",
@@ -511,53 +558,6 @@
                                             "properties": {
                                                 "results": {
                                                     "$ref": "#/components/schemas/ProjectTablesConfiguration"
-                                                }
-                                            },
-                                            "required": ["results"]
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "$ref": "#/components/responses/ErrorResponse"
-                    }
-                }
-            },
-            "get": {
-                "summary": "Get project tables configuration",
-                "description": "Get project tables configuration",
-                "tags": ["project"],
-                "operationId": "getProjectTablesConfiguration",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        },
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Project tables configuration",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "allOf": [
-                                        {
-                                            "$ref": "#/components/schemas/Success"
-                                        },
-                                        {
-                                            "properties": {
-                                                "results": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "$ref": "#/components/schemas/ProjectTablesConfiguration"
-                                                    }
                                                 }
                                             },
                                             "required": ["results"]
@@ -1033,10 +1033,11 @@
                                 "type": "array",
                                 "items": {
                                     "type": "string"
-                                }
+                                },
+                                "nullable": true
                             }
                         },
-                        "required": ["type"]
+                        "required": ["type", "value"]
                     }
                 },
                 "required": ["tableSelection"]

@@ -12,10 +12,11 @@
                     "type": "array",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "nullable": true
                 }
             },
-            "required": ["type"]
+            "required": ["type", "value"]
         }
     },
     "required": ["tableSelection"]

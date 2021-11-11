@@ -12,7 +12,7 @@ type DbProject = {
     dbt_connection_type: ProjectType | null;
     dbt_connection: Buffer | null;
     table_selection_type: TableSelectionType;
-    table_selection_value: string[];
+    table_selection_value: string[] | null;
 };
 
 type CreateDbProject = Pick<
