@@ -35,7 +35,7 @@ export const useDeleteUserMutation = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries('organization_users');
             showToastSuccess({
-                title: `User deleted with success`,
+                title: `Success! User was deleted.`,
             });
         },
         onError: (error) => {

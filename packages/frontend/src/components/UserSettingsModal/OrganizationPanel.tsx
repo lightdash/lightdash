@@ -1,9 +1,9 @@
+import { Button, FormGroup, InputGroup, Intent } from '@blueprintjs/core';
+import { ApiError } from 'common';
 import React, { FC, useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from 'react-query';
-import { ApiError } from 'common';
-import { Button, FormGroup, InputGroup, Intent } from '@blueprintjs/core';
-import { useApp } from '../../providers/AppProvider';
 import { lightdashApi } from '../../api';
+import { useApp } from '../../providers/AppProvider';
 
 const updateOrgQuery = async (data: { organizationName: string }) =>
     lightdashApi<undefined>({
@@ -32,7 +32,7 @@ const OrganizationPanel: FC = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries(['user']);
             showToastSuccess({
-                title: 'Organization name updated with success',
+                title: 'Success! Organization name was updated',
             });
         },
     });

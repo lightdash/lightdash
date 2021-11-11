@@ -1,17 +1,34 @@
-import { Knex } from 'knex';
 import {
     CreatePostgresCredentials,
+    DbtLocalProjectConfig,
     LightdashMode,
+    ProjectType,
     SEED_PROJECT,
     SEED_SPACE,
     WarehouseTypes,
 } from 'common';
+import { Knex } from 'knex';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { EncryptionService } from '../../../services/EncryptionService/EncryptionService';
 
 export async function seed(knex: Knex): Promise<void> {
     await knex('projects').del();
-    await knex('projects').insert(SEED_PROJECT);
+
+    const enc = new EncryptionService({ lightdashConfig });
+    const projectSettings: DbtLocalProjectConfig = {
+        type: ProjectType.DBT,
+        project_dir: '/usr/app/dbt',
+        profiles_dir: '/usr/app/profiles',
+        name: 'default',
+    };
+    const encryptedProjectSettings = enc.encrypt(
+        JSON.stringify(projectSettings),
+    );
+
+    await knex('projects').insert({
+        ...SEED_PROJECT,
+        dbt_connection: encryptedProjectSettings,
+    });
 
     let encryptedCredentials: Buffer;
     if (
@@ -46,7 +63,6 @@ export async function seed(knex: Knex): Promise<void> {
             sslmode: 'disable',
             threads: 8,
         };
-        const enc = new EncryptionService({ lightdashConfig });
         encryptedCredentials = enc.encrypt(JSON.stringify(creds));
     } else {
         // Dev mode

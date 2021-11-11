@@ -1,4 +1,3 @@
-import { Knex } from 'knex';
 import {
     CreateProject,
     CreateWarehouseCredentials,
@@ -11,10 +10,11 @@ import {
     UpdateProject,
     WarehouseCredentials,
 } from 'common';
+import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
-import { NotExistsError, UnexpectedServerError } from '../../errors';
 import { ProjectTableName } from '../../database/entities/projects';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
+import { NotExistsError, UnexpectedServerError } from '../../errors';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import Transaction = Knex.Transaction;
 
@@ -219,18 +219,16 @@ export class ProjectModel {
             );
         }
         const [project] = projects;
-        let dbtSensitiveCredentials: DbtProjectConfig =
-            this.lightdashConfig.projects[0];
-        if (project.dbt_connection) {
-            try {
-                dbtSensitiveCredentials = JSON.parse(
-                    this.encryptionService.decrypt(project.dbt_connection),
-                ) as DbtProjectConfig;
-            } catch (e) {
-                throw new UnexpectedServerError(
-                    'Failed to load dbt credentials',
-                );
-            }
+        if (!project.dbt_connection) {
+            throw new NotExistsError('Project has no valid dbt credentials');
+        }
+        let dbtSensitiveCredentials: DbtProjectConfig;
+        try {
+            dbtSensitiveCredentials = JSON.parse(
+                this.encryptionService.decrypt(project.dbt_connection),
+            ) as DbtProjectConfig;
+        } catch (e) {
+            throw new UnexpectedServerError('Failed to load dbt credentials');
         }
         const result = {
             projectUuid,
