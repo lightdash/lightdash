@@ -499,10 +499,7 @@
                                         {
                                             "properties": {
                                                 "results": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "$ref": "#/components/schemas/ProjectTablesConfiguration"
-                                                    }
+                                                    "$ref": "#/components/schemas/ProjectTablesConfiguration"
                                                 }
                                             },
                                             "required": ["results"]

@@ -28,10 +28,7 @@
                                 {
                                     "properties": {
                                         "results": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "../schemas/ProjectTablesConfiguration.json"
-                                            }
+                                            "$ref": "../schemas/ProjectTablesConfiguration.json"
                                         }
                                     },
                                     "required": ["results"]
