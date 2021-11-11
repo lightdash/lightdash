@@ -1,7 +1,9 @@
-import { attachTypesToModels } from './translator';
+import { attachTypesToModels, convertTable } from './translator';
 import {
     expectedModelWithType,
+    LIGHTDASH_TABLE_WITH_METRIC,
     model,
+    MODEL_WITH_METRIC,
     warehouseSchema,
     warehouseSchemaWithMissingColumn,
     warehouseSchemaWithMissingTable,
@@ -47,6 +49,14 @@ describe('attachTypesToModels', () => {
             ),
         ).toThrowError(
             'Column "myColumnName" from model "myTable" does not exist.\n "myColumnName.myTable" was not found in your target warehouse at myDatabase.mySchema.myTable. Try rerunning dbt to update your warehouse.',
+        );
+    });
+});
+
+describe('convert tables from dbt models', () => {
+    it('should convert dbt model with metrics in meta', () => {
+        expect(convertTable(MODEL_WITH_METRIC)).toStrictEqual(
+            LIGHTDASH_TABLE_WITH_METRIC,
         );
     });
 });

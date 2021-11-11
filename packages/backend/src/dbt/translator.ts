@@ -118,14 +118,18 @@ export const convertTable = (
         Record<string, Metric>,
     ] = Object.values(model.columns).reduce(
         ([prevDimensions, prevMetrics], column) => {
-            const columnMetrics = Object.entries(column.meta.metrics || {}).map(
-                ([name, metric]) =>
-                    convertMetric({
-                        modelName: model.name,
-                        columnName: column.name,
+            const columnMetrics = Object.fromEntries(
+                Object.entries(column.meta.metrics || {}).map(
+                    ([name, metric]) => [
                         name,
-                        metric,
-                    }),
+                        convertMetric({
+                            modelName: model.name,
+                            columnName: column.name,
+                            name,
+                            metric,
+                        }),
+                    ],
+                ),
             );
 
             return [
@@ -327,6 +331,8 @@ export const convertExplores = async (
             try {
                 // base dimensions and metrics
                 const table = convertTable(model);
+                console.log(table.name);
+                console.log(table.metrics);
 
                 // add sources
                 if (loadSources && model.patch_path !== null) {
