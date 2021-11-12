@@ -8,7 +8,6 @@ import {
     WarehouseTypes,
 } from 'common';
 import { useHistory } from 'react-router-dom';
-import { useQueryClient } from 'react-query';
 import { UseFormReturn } from 'react-hook-form/dist/types';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
 import DbtSettingsForm from './DbtSettingsForm';
@@ -144,7 +143,6 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
 };
 
 export const CreateProjectConnection: FC = () => {
-    const queryClient = useQueryClient();
     const history = useHistory();
     const { user, health } = useApp();
     const createMutation = useCreateMutation();
@@ -198,11 +196,10 @@ export const CreateProjectConnection: FC = () => {
             {isSuccess ? (
                 <Button
                     intent={Intent.PRIMARY}
-                    text="Start exploring"
+                    text="Next"
                     onClick={async () => {
-                        await queryClient.invalidateQueries(['health']);
                         history.push({
-                            pathname: `/projects/${data?.projectUuid}`,
+                            pathname: `/createProjectSettings/${data?.projectUuid}`,
                         });
                     }}
                     style={{ float: 'right' }}

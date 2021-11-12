@@ -79,7 +79,9 @@ export class ProjectService {
     }
 
     async create(user: SessionUser, data: CreateProject): Promise<Project> {
-        await ProjectService.testProjectAdapter(data);
+        const [adapter, explores] = await ProjectService.testProjectAdapter(
+            data,
+        );
         const projectUuid = await this.projectModel.create(
             user.organizationUuid,
             data,
@@ -95,6 +97,9 @@ export class ProjectService {
                 warehouseConnectionType: data.warehouseConnection.type,
             },
         });
+        this.projectLoading[projectUuid] = false;
+        this.projectAdapters[projectUuid] = adapter;
+        this.cachedExplores[projectUuid] = Promise.resolve(explores);
         return this.getProject(projectUuid, user);
     }
 
@@ -103,7 +108,10 @@ export class ProjectService {
         user: SessionUser,
         data: UpdateProject,
     ): Promise<void> {
-        await ProjectService.testProjectAdapter(data);
+        this.projectLoading[projectUuid] = true;
+        const [adapter, explores] = await ProjectService.testProjectAdapter(
+            data,
+        );
         await this.projectModel.update(projectUuid, data);
         analytics.track({
             event: 'project.updated',
@@ -116,20 +124,27 @@ export class ProjectService {
                 warehouseConnectionType: data.warehouseConnection.type,
             },
         });
+        this.projectLoading[projectUuid] = false;
+        this.projectAdapters[projectUuid] = adapter;
+        this.cachedExplores[projectUuid] = Promise.resolve(explores);
     }
 
     private static async testProjectAdapter(
         data: UpdateProject,
-    ): Promise<void> {
+    ): Promise<[ProjectAdapter, (Explore | ExploreError)[]]> {
         const adapter = await projectAdapterFromConfig(
             data.dbtConnection,
             data.warehouseConnection,
         );
+        let explores: (Explore | ExploreError)[];
         try {
             await adapter.test();
-        } finally {
+            explores = await adapter.compileAllExplores();
+        } catch (e) {
             await adapter.destroy();
+            throw e;
         }
+        return [adapter, explores];
     }
 
     private async restartAdapter(projectUuid: string): Promise<ProjectAdapter> {
