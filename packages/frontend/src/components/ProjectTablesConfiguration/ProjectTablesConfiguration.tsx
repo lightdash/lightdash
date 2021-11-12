@@ -11,6 +11,7 @@ import {
     Text,
 } from '@blueprintjs/core';
 import { useForm } from 'react-hook-form';
+import { useToggle } from 'react-use';
 import { TableSelectionType } from 'common';
 import { useTracking } from '../../providers/TrackingProvider';
 import Form from '../ReactHookForm/Form';
@@ -39,6 +40,7 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
     const { track } = useTracking();
+    const [isListOpen, toggleList] = useToggle(false);
     const { data: explores } = useExplores();
     const { data, isLoading } = useProjectTablesConfiguration(projectUuid);
     const updateHook = useUpdateProjectTablesConfiguration(projectUuid);
@@ -52,9 +54,22 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
     });
     const typeValue = methods.watch('type', TableSelectionType.ALL);
     const tagsValue = methods.watch('tags', []);
+    const namesValue = methods.watch('names', []);
 
     const modelsIncluded = useMemo<string[]>(() => {
-        if (explores && tagsValue.length > 0) {
+        if (!explores) {
+            return [];
+        }
+        if (typeValue === TableSelectionType.ALL) {
+            return explores.map(({ name }) => name);
+        }
+        if (typeValue === TableSelectionType.WITH_NAMES) {
+            return namesValue;
+        }
+        if (
+            typeValue === TableSelectionType.WITH_TAGS &&
+            tagsValue.length > 0
+        ) {
             return explores.reduce<string[]>(
                 (acc, { name, tags }) =>
                     hasCompatibleTags(tags || [], tagsValue)
@@ -64,7 +79,7 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
             );
         }
         return [];
-    }, [tagsValue, explores]);
+    }, [tagsValue, namesValue, typeValue, explores]);
 
     const availableTags = useMemo<string[]>(
         () =>
@@ -132,15 +147,44 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
                 }}
                 elevation={1}
             >
-                <div style={{ flex: 1, width: '50%' }}>
-                    <H5 style={{ display: 'inline', marginRight: 5 }}>
-                        Table selection
-                    </H5>
+                <div style={{ flex: 1, width: '50%', paddingRight: 20 }}>
+                    <H5>Table selection</H5>
+                    <p style={{ color: Colors.GRAY1 }}>
+                        You have selected <b>{modelsIncluded.length}</b> models{' '}
+                        {modelsIncluded.length > 0 && (
+                            <b
+                                role="button"
+                                tabIndex={0}
+                                onClick={toggleList}
+                                style={{ cursor: 'pointer' }}
+                            >
+                                ({isListOpen ? 'hide' : 'show'} list)
+                            </b>
+                        )}
+                    </p>
+                    <Collapse isOpen={isListOpen}>
+                        <div
+                            style={{
+                                padding: 10,
+                                color: Colors.GRAY1,
+                                maxHeight: 270,
+                                overflowY: 'auto',
+                                overflowX: 'hidden',
+                            }}
+                            className={Classes.ELEVATION_0}
+                        >
+                            {modelsIncluded.map((name) => (
+                                <Text title={name} ellipsize>
+                                    {name}
+                                </Text>
+                            ))}
+                        </div>
+                    </Collapse>
                 </div>
                 <div style={{ flex: 1, width: '50%' }}>
                     <RadioGroup
                         name="type"
-                        label="Table Selection"
+                        label="Table selection"
                         rules={{
                             required: 'Required field',
                         }}
@@ -170,40 +214,16 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
                             by commands.
                         </p>
                         {typeValue === TableSelectionType.WITH_TAGS && (
-                            <>
-                                <MultiSelect
-                                    name="tags"
-                                    label="Tags"
-                                    rules={{
-                                        required: 'Required field',
-                                    }}
-                                    items={availableTags}
-                                    disabled={disabled}
-                                    placeholder="e.g lightdash, prod"
-                                />
-                                <p>
-                                    Detected {modelsIncluded.length} models
-                                    included
-                                </p>
-                                <Collapse isOpen={modelsIncluded.length > 0}>
-                                    <div
-                                        style={{
-                                            padding: 10,
-                                            color: Colors.GRAY1,
-                                            maxHeight: 100,
-                                            overflowY: 'auto',
-                                            overflowX: 'hidden',
-                                        }}
-                                        className={Classes.ELEVATION_0}
-                                    >
-                                        {modelsIncluded.map((name) => (
-                                            <Text title={name} ellipsize>
-                                                {name}
-                                            </Text>
-                                        ))}
-                                    </div>
-                                </Collapse>
-                            </>
+                            <MultiSelect
+                                name="tags"
+                                label="Tags"
+                                rules={{
+                                    required: 'Required field',
+                                }}
+                                items={availableTags}
+                                disabled={disabled}
+                                placeholder="e.g lightdash, prod"
+                            />
                         )}
 
                         <Radio
