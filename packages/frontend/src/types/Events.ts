@@ -52,4 +52,5 @@ export enum EventName {
     UPDATE_PROJECT_BUTTON_CLICKED = 'update_project_button.click',
     CREATE_PROJECT_BUTTON_CLICKED = 'create_project_button.click',
     REFRESH_DBT_CONNECTION_BUTTON_CLICKED = 'refresh_dbt_connection_button.click',
+    UPDATE_PROJECT_TABLES_CONFIGURATION_BUTTON_CLICKED = 'update_project_tables_configuration.click',
 }

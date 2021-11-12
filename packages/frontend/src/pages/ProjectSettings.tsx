@@ -6,6 +6,7 @@ import {
     Spinner,
     Divider,
     H3,
+    Colors,
 } from '@blueprintjs/core';
 import { Redirect, Route, Switch, useParams } from 'react-router-dom';
 import { useProject } from '../hooks/useProject';
@@ -14,6 +15,7 @@ import PageBase from '../components/common/Page/PageBase';
 import Sidebar from '../components/common/Page/Sidebar';
 import Content from '../components/common/Page/Content';
 import RouterMenuItem from '../components/common/RouterMenuItem';
+import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -51,11 +53,31 @@ const ProjectSettings: FC = () => {
                         exact
                         to={basePath}
                     />
+                    <MenuDivider />
+                    <RouterMenuItem
+                        text="Tables configuration"
+                        exact
+                        to={`${basePath}/tablesConfiguration`}
+                    />
                 </Menu>
             </Sidebar>
             <Content>
                 <Switch>
-                    <Route exact path={basePath}>
+                    <Route
+                        exact
+                        path="/projects/:projectUuid/settings/tablesConfiguration"
+                    >
+                        <H3 style={{ marginTop: 10, marginBottom: 0 }}>
+                            Configure you tables
+                        </H3>
+                        <Divider style={{ margin: '20px 0' }} />
+                        <p style={{ marginBottom: 20, color: Colors.GRAY1 }}>
+                            Pick the dbt models you want to appear as tables in
+                            Lightdash
+                        </p>
+                        <ProjectTablesConfiguration projectUuid={projectUuid} />
+                    </Route>
+                    <Route exact path="/projects/:projectUuid/settings">
                         <H3 style={{ marginTop: 10, marginBottom: 0 }}>
                             Edit your project connections
                         </H3>
