@@ -3,6 +3,7 @@ import {
     Explore,
     ExploreError,
     SessionUser,
+    SummaryExplore,
     SupportedDbtAdapter,
     TablesConfiguration,
     TableSelectionType,
@@ -20,20 +21,6 @@ export const user: SessionUser = {
     userId: 0,
 };
 
-export const expectedTablesConfiguration: TablesConfiguration = {
-    tableSelection: {
-        type: TableSelectionType.ALL,
-        value: null,
-    },
-};
-
-export const updateTablesConfiguration: TablesConfiguration = {
-    tableSelection: {
-        type: TableSelectionType.WITH_NAMES,
-        value: ['tableName'],
-    },
-};
-
 export const expectedSqlResults: ApiSqlQueryResults = {
     rows: [{ col1: 'val1' }],
 };
@@ -47,7 +34,7 @@ export const projectAdapterMock: ProjectAdapter = {
 
 export const validExplore: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
-    name: '',
+    name: 'valid_explore',
     tags: [],
     baseTable: 'a',
     joinedTables: [],
@@ -67,6 +54,57 @@ export const validExplore: Explore = {
 export const exploreWithError: ExploreError = {
     name: 'error',
     errors: [],
+};
+
+export const exploreWithTags: ExploreError = {
+    ...exploreWithError,
+    tags: ['tag_name', 'another_tag'],
+};
+
+export const allExplores = [validExplore, exploreWithError, exploreWithTags];
+
+export const expectedAllExploreSummary: SummaryExplore[] = [
+    {
+        name: validExplore.name,
+        tags: validExplore.tags,
+    },
+    {
+        name: exploreWithError.name,
+        errors: exploreWithTags.errors,
+    },
+    {
+        name: exploreWithError.name,
+        tags: exploreWithTags.tags,
+        errors: exploreWithTags.errors,
+    },
+];
+
+export const expectedExploreSummaryFilteredByTags = [
+    expectedAllExploreSummary[2],
+];
+export const expectedExploreSummaryFilteredByName = [
+    expectedAllExploreSummary[0],
+];
+
+export const tablesConfiguration: TablesConfiguration = {
+    tableSelection: {
+        type: TableSelectionType.ALL,
+        value: null,
+    },
+};
+
+export const tablesConfigurationWithTags: TablesConfiguration = {
+    tableSelection: {
+        type: TableSelectionType.WITH_TAGS,
+        value: [exploreWithTags.tags![0]],
+    },
+};
+
+export const tablesConfigurationWithNames: TablesConfiguration = {
+    tableSelection: {
+        type: TableSelectionType.WITH_NAMES,
+        value: [validExplore.name],
+    },
 };
 
 export const expectedCatalog = {

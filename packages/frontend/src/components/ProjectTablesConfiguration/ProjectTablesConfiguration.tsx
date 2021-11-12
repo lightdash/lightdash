@@ -11,7 +11,7 @@ import {
     Text,
 } from '@blueprintjs/core';
 import { useForm } from 'react-hook-form';
-import { TableSelectionType } from 'common';
+import { hasIntersection, TableSelectionType } from 'common';
 import { useTracking } from '../../providers/TrackingProvider';
 import Form from '../ReactHookForm/Form';
 import RadioGroup from '../ReactHookForm/RadioGroup';
@@ -28,11 +28,6 @@ type FormData = {
     type: TableSelectionType;
     tags: string[];
     names: string[];
-};
-
-const hasCompatibleTags = (tags: string[], tags2: string[]): boolean => {
-    const intersection = tags.filter((value) => tags2.includes(value));
-    return intersection.length > 0;
 };
 
 const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
@@ -57,7 +52,7 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
         if (explores && tagsValue.length > 0) {
             return explores.reduce<string[]>(
                 (acc, { name, tags }) =>
-                    hasCompatibleTags(tags || [], tagsValue)
+                    hasIntersection(tags || [], tagsValue)
                         ? [...acc, name]
                         : acc,
                 [],
