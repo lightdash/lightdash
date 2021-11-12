@@ -21,7 +21,6 @@ import {
     useUpdateProjectTablesConfiguration,
 } from '../../hooks/useProjectTablesConfiguration';
 import DocumentationHelpButton from '../DocumentationHelpButton';
-import TagInput from '../ReactHookForm/TagInput';
 import { useExplores } from '../../hooks/useExplores';
 import MultiSelect from '../ReactHookForm/MultiSelect';
 
@@ -66,6 +65,17 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
         }
         return [];
     }, [tagsValue, explores]);
+
+    const availableTags = useMemo<string[]>(
+        () =>
+            Array.from(
+                (explores || []).reduce<Set<string>>((acc, explore) => {
+                    (explore.tags || []).forEach((tag) => acc.add(tag));
+                    return acc;
+                }, new Set()),
+            ),
+        [explores],
+    );
 
     useEffect(() => {
         if (data) {
@@ -161,12 +171,13 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
                         </p>
                         {typeValue === TableSelectionType.WITH_TAGS && (
                             <>
-                                <TagInput
+                                <MultiSelect
                                     name="tags"
                                     label="Tags"
                                     rules={{
                                         required: 'Required field',
                                     }}
+                                    items={availableTags}
                                     disabled={disabled}
                                     placeholder="e.g lightdash, prod"
                                 />
