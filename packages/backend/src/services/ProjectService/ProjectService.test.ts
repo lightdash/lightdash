@@ -3,12 +3,17 @@ import { ProjectService } from './ProjectService';
 import {
     expectedCatalog,
     expectedSqlResults,
-    expectedTablesConfiguration,
-    updateTablesConfiguration,
+    tablesConfiguration,
+    tablesConfigurationWithNames,
+    tablesConfigurationWithTags,
     exploreWithError,
     projectAdapterMock,
     user,
     validExplore,
+    expectedExploreSummaryFilteredByTags,
+    expectedExploreSummaryFilteredByName,
+    expectedAllExploreSummary,
+    allExplores,
 } from './ProjectService.mock';
 import { analytics } from '../../analytics/client';
 
@@ -20,9 +25,7 @@ jest.mock('../../analytics/client', () => ({
 
 jest.mock('../../models/models', () => ({
     projectModel: {
-        getTablesConfiguration: jest.fn(
-            async () => expectedTablesConfiguration,
-        ),
+        getTablesConfiguration: jest.fn(async () => tablesConfiguration),
         updateTablesConfiguration: jest.fn(),
     },
 }));
@@ -60,13 +63,13 @@ describe('ProjectService', () => {
     });
     test('should get tables configuration', async () => {
         const result = await service.getTablesConfiguration(user, projectUuid);
-        expect(result).toEqual(expectedTablesConfiguration);
+        expect(result).toEqual(tablesConfiguration);
     });
     test('should update tables configuration', async () => {
         await service.updateTablesConfiguration(
             user,
             projectUuid,
-            updateTablesConfiguration,
+            tablesConfigurationWithNames,
         );
         expect(projectModel.updateTablesConfiguration).toHaveBeenCalledTimes(1);
         expect(analytics.track).toHaveBeenCalledTimes(1);
@@ -75,5 +78,48 @@ describe('ProjectService', () => {
                 event: 'project_tables_configuration.updated',
             }),
         );
+    });
+    describe('getAllExploresSummary', () => {
+        beforeEach(() => {
+            service.cachedExplores[projectUuid] = Promise.resolve(allExplores);
+        });
+        test('should get all explores summary without filtering', async () => {
+            const result = await service.getAllExploresSummary(
+                user,
+                projectUuid,
+                false,
+            );
+            expect(result).toEqual(expectedAllExploreSummary);
+        });
+        test('should get all explores summary with filtering', async () => {
+            const result = await service.getAllExploresSummary(
+                user,
+                projectUuid,
+                true,
+            );
+            expect(result).toEqual(expectedAllExploreSummary);
+        });
+        test('should get explores summary filtered by tag', async () => {
+            (
+                projectModel.getTablesConfiguration as jest.Mock
+            ).mockImplementationOnce(async () => tablesConfigurationWithTags);
+            const result = await service.getAllExploresSummary(
+                user,
+                projectUuid,
+                true,
+            );
+            expect(result).toEqual(expectedExploreSummaryFilteredByTags);
+        });
+        test('should get explores summary filtered by name', async () => {
+            (
+                projectModel.getTablesConfiguration as jest.Mock
+            ).mockImplementationOnce(async () => tablesConfigurationWithNames);
+            const result = await service.getAllExploresSummary(
+                user,
+                projectUuid,
+                true,
+            );
+            expect(result).toEqual(expectedExploreSummaryFilteredByName);
+        });
     });
 });

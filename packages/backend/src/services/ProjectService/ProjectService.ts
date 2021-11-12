@@ -1,16 +1,19 @@
 import {
-    ProjectCatalog,
     ApiQueryResults,
     ApiSqlQueryResults,
     CreateProject,
     Explore,
     ExploreError,
+    hasIntersection,
     isExploreError,
     MetricQuery,
     Project,
+    ProjectCatalog,
     SessionUser,
-    UpdateProject,
+    SummaryExplore,
     TablesConfiguration,
+    TableSelectionType,
+    UpdateProject,
 } from 'common';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { ProjectAdapter } from '../../types';
@@ -265,6 +268,44 @@ export class ProjectService {
             return this.refreshAllTables(user, projectUuid);
         }
         return explores;
+    }
+
+    async getAllExploresSummary(
+        user: SessionUser,
+        projectUuid: string,
+        filtered: boolean,
+    ): Promise<SummaryExplore[]> {
+        const explores = await this.getAllExplores(user, projectUuid);
+        const allExploreSummaries = explores.map<SummaryExplore>((explore) => {
+            if (isExploreError(explore)) {
+                return {
+                    name: explore.name,
+                    tags: explore.tags,
+                    errors: explore.errors,
+                };
+            }
+            return {
+                name: explore.name,
+                tags: explore.tags,
+            };
+        });
+
+        if (filtered) {
+            const {
+                tableSelection: { type, value },
+            } = await this.getTablesConfiguration(user, projectUuid);
+            if (type === TableSelectionType.WITH_TAGS) {
+                return allExploreSummaries.filter((explore) =>
+                    hasIntersection(explore.tags || [], value || []),
+                );
+            }
+            if (type === TableSelectionType.WITH_NAMES) {
+                return allExploreSummaries.filter((explore) =>
+                    (value || []).includes(explore.name),
+                );
+            }
+        }
+        return allExploreSummaries;
     }
 
     async getExplore(

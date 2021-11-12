@@ -18,6 +18,11 @@ export const validateEmail = (email: string): boolean => {
     return re.test(String(email).toLowerCase());
 };
 
+export const hasIntersection = (tags: string[], tags2: string[]): boolean => {
+    const intersection = tags.filter((value) => tags2.includes(value));
+    return intersection.length > 0;
+};
+
 export type SqlResultsRow = { [columnName: string]: any };
 export type SqlResultsField = { name: string; type: string }; // TODO: standardise column types
 export type SqlQueryResults = {

@@ -6,7 +6,6 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     ApiStatusResults,
-    isExploreError,
     MetricQuery,
     ProjectCatalog,
     TablesConfiguration,
@@ -46,15 +45,12 @@ projectRouter.patch(
 
 projectRouter.get('/explores', isAuthenticated, async (req, res, next) => {
     try {
-        const explores = await projectService.getAllExplores(
-            req.user!,
-            req.params.projectUuid,
-        );
-        const results: ApiExploresResults = explores.map((explore) => ({
-            name: explore.name,
-            tags: explore.tags || [],
-            errors: isExploreError(explore) ? explore.errors : undefined,
-        }));
+        const results: ApiExploresResults =
+            await projectService.getAllExploresSummary(
+                req.user!,
+                req.params.projectUuid,
+                req.query.filtered === 'true',
+            );
         res.json({
             status: 'ok',
             results,
