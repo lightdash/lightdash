@@ -31,16 +31,21 @@ type FormData = {
     names: string[];
 };
 
-const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
-    projectUuid,
-}) => {
+const ProjectTablesConfiguration: FC<{
+    projectUuid: string;
+    onSuccess?: () => void;
+}> = ({ projectUuid, onSuccess }) => {
     const { track } = useTracking();
     const [isListOpen, toggleList] = useToggle(false);
 
-    const { data: explores } = useExplores();
+    const { data: explores, isLoading: isLoadingExplores } = useExplores();
     const { data, isLoading } = useProjectTablesConfiguration(projectUuid);
-    const updateHook = useUpdateProjectTablesConfiguration(projectUuid);
-    const disabled = isLoading || updateHook.isLoading;
+    const {
+        mutate: update,
+        isLoading: isSaving,
+        isSuccess,
+    } = useUpdateProjectTablesConfiguration(projectUuid);
+    const disabled = isLoading || isSaving || isLoadingExplores;
     const methods = useForm<FormData>({
         defaultValues: {
             type: TableSelectionType.ALL,
@@ -108,6 +113,12 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
         }
     }, [methods, data]);
 
+    useEffect(() => {
+        if (isSuccess && onSuccess) {
+            onSuccess();
+        }
+    }, [isSuccess, onSuccess]);
+
     const onSubmit = async (formData: FormData) => {
         track({
             name: EventName.UPDATE_PROJECT_TABLES_CONFIGURATION_BUTTON_CLICKED,
@@ -125,7 +136,7 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
         ) {
             value = formData.names;
         }
-        updateHook.mutate({
+        update({
             tableSelection: {
                 type: formData.type,
                 value,
@@ -250,7 +261,7 @@ const ProjectTablesConfiguration: FC<{ projectUuid: string }> = ({
                 type="submit"
                 intent={Intent.PRIMARY}
                 text="Save"
-                loading={updateHook.isLoading}
+                loading={isSaving}
                 disabled={disabled}
                 style={{ float: 'right' }}
             />

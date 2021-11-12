@@ -21,6 +21,7 @@ export enum PageName {
     INVITE_MANAGEMENT_SETTINGS = 'invite_management_settings',
     ABOUT_LIGHTDASH = 'about_lightdash',
     CREATE_PROJECT = 'create_project',
+    CREATE_PROJECT_SETTINGS = 'create_project_settings',
     SAVED_DASHBOARDS = 'saved_dashboards',
     DASHBOARD = 'DASHBOARD',
     SQL_RUNNER = 'SQL_RUNNER',
