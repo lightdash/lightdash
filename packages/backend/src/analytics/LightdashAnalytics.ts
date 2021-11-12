@@ -4,6 +4,7 @@ import Analytics, {
 } from '@rudderstack/rudder-sdk-node';
 import { v4 as uuidv4 } from 'uuid';
 import {
+    DbtPackages,
     LightdashInstallType,
     ProjectType,
     TableSelectionType,
@@ -91,6 +92,9 @@ type ProjectCompiledEvent = BaseTrack & {
     userId?: string;
     properties: {
         projectType: ProjectType;
+        modelsCount: number;
+        metricsCount: number;
+        packages?: DbtPackages;
     };
 };
 
