@@ -1,4 +1,3 @@
-import getPort from 'get-port';
 import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
@@ -24,7 +23,6 @@ export const projectAdapterFromConfig = async (
                 warehouseClient,
                 projectDir: config.project_dir,
                 warehouseCredentials,
-                port: await getPort(),
             });
         case ProjectType.DBT_CLOUD_IDE:
             return new DbtCloudIdeProjectAdapter({
@@ -42,7 +40,6 @@ export const projectAdapterFromConfig = async (
                 githubBranch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,
                 warehouseCredentials,
-                port: await getPort(),
             });
         case ProjectType.GITLAB:
             return new DbtGitlabProjectAdapter({
@@ -52,7 +49,6 @@ export const projectAdapterFromConfig = async (
                 gitlabBranch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,
                 warehouseCredentials,
-                port: await getPort(),
             });
         default:
             const never: never = config;

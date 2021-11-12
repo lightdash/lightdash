@@ -8,7 +8,6 @@ type DbtGithubProjectAdapterArgs = {
     githubRepository: string;
     githubBranch: string;
     projectDirectorySubPath: string;
-    port: number;
     warehouseCredentials: CreateWarehouseCredentials;
 };
 
@@ -19,14 +18,12 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         githubPersonalAccessToken,
         githubRepository,
         projectDirectorySubPath,
-        port,
         warehouseCredentials,
     }: DbtGithubProjectAdapterArgs) {
         const remoteRepositoryUrl = `https://${githubPersonalAccessToken}@github.com/${githubRepository}.git`;
         super({
             warehouseClient,
             remoteRepositoryUrl,
-            port,
             projectDirectorySubPath,
             warehouseCredentials,
             gitBranch: githubBranch,
