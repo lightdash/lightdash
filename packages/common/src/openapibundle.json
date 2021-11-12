@@ -1,1228 +1,1115 @@
 {
-  "openapi": "3.0.1",
-  "info": {
-    "title": "Lightdash API",
-    "description": "API spec for Lightdash server",
-    "contact": {
-      "email": "support@lightdash.com"
-    },
-    "license": {
-      "name": "MIT",
-      "url": "https://github.com/lightdash/lightdash/blob/main/LICENSE"
-    },
-    "version": "1.0.0"
-  },
-  "externalDocs": {
-    "description": "Lightdash documentation",
-    "url": "https://docs.lightdash.com"
-  },
-  "servers": [
-    {
-      "url": "/api/v1"
-    }
-  ],
-  "tags": [
-    {
-      "name": "user",
-      "description": "User operation"
-    }
-  ],
-  "paths": {
-    "/user": {
-      "post": {
-        "summary": "Create user",
-        "tags": [
-          "user"
-        ],
-        "operationId": "createUser",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateUser"
-              }
-            }
-          },
-          "required": true
+    "openapi": "3.0.1",
+    "info": {
+        "title": "Lightdash API",
+        "description": "API spec for Lightdash server",
+        "contact": {
+            "email": "support@lightdash.com"
         },
-        "responses": {
-          "201": {
-            "description": "Successfully created user",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/Success"
-                    },
-                    {
-                      "properties": {
-                        "results": {
-                          "$ref": "#/components/schemas/LightdashUser"
-                        }
-                      },
-                      "required": [
-                        "results"
-                      ]
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/ErrorResponse"
-          }
-        }
-      }
-    },
-    "/org": {
-      "patch": {
-        "summary": "Update organization",
-        "tags": [
-          "organization"
-        ],
-        "operationId": "updateOrganization",
-        "responses": {
-          "200": {
-            "$ref": "#/components/responses/SuccessResponse"
-          },
-          "default": {
-            "$ref": "#/components/responses/ErrorResponse"
-          }
-        }
-      }
-    },
-    "/org/users": {
-      "get": {
-        "summary": "Get organization users",
-        "tags": [
-          "organization"
-        ],
-        "operationId": "getOrganizationUsers",
-        "responses": {
-          "201": {
-            "description": "Successfully get organization users",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/Success"
-                    },
-                    {
-                      "properties": {
-                        "results": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/components/schemas/OrganizationUser"
-                          }
-                        }
-                      },
-                      "required": [
-                        "results"
-                      ]
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/ErrorResponse"
-          }
-        }
-      }
-    },
-    "/org/user/{userUuid}": {
-      "delete": {
-        "summary": "Delete organization user",
-        "tags": [
-          "organization"
-        ],
-        "operationId": "deleteOrganizationUser",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "userUuid",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/components/responses/SuccessResponse"
-          },
-          "default": {
-            "$ref": "#/components/responses/ErrorResponse"
-          }
-        }
-      }
-    },
-    "/invite-links": {
-      "delete": {
-        "summary": "Delete all invite links",
-        "tags": [
-          "user"
-        ],
-        "operationId": "deleteInviteLinks",
-        "responses": {
-          "200": {
-            "$ref": "#/components/responses/SuccessResponse"
-          },
-          "default": {
-            "$ref": "#/components/responses/ErrorResponse"
-          }
-        }
-      },
-      "post": {
-        "summary": "Create a new invite link",
-        "tags": [
-          "user"
-        ],
-        "operationId": "createInviteLink",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateInviteLink"
-              }
-            }
-          },
-          "required": true
+        "license": {
+            "name": "MIT",
+            "url": "https://github.com/lightdash/lightdash/blob/main/LICENSE"
         },
-        "responses": {
-          "201": {
-            "description": "Successfully created invite link",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/Success"
-                    },
-                    {
-                      "properties": {
-                        "results": {
-                          "$ref": "#/components/schemas/InviteLink"
-                        }
-                      },
-                      "required": [
-                        "results"
-                      ]
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/ErrorResponse"
-          }
-        }
-      }
+        "version": "1.0.0"
     },
-    "/invite-links/{inviteLinkId}": {
-      "get": {
-        "summary": "Get an invite link",
-        "tags": [
-          "user"
-        ],
-        "operationId": "getInviteLink",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "inviteLinkId",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successfully got invite link",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/Success"
-                    },
-                    {
-                      "properties": {
-                        "results": {
-                          "$ref": "#/components/schemas/InviteLink"
-                        }
-                      },
-                      "required": [
-                        "results"
-                      ]
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/ErrorResponse"
-          }
-        }
-      }
+    "externalDocs": {
+        "description": "Lightdash documentation",
+        "url": "https://docs.lightdash.com"
     },
-    "/projects/{projectUuid}/sqlQuery": {
-      "post": {
-        "summary": "Run sql query",
-        "description": "Run a sql query on project",
-        "tags": [
-          "project"
-        ],
-        "operationId": "runSqlQuery",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "projectUuid",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
+    "servers": [
+        {
+            "url": "/api/v1"
+        }
+    ],
+    "tags": [
+        {
+            "name": "user",
+            "description": "User operation"
+        }
+    ],
+    "paths": {
+        "/user": {
+            "post": {
+                "summary": "Create user",
+                "tags": ["user"],
+                "operationId": "createUser",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateUser"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successfully created user",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/LightdashUser"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
+        "/org": {
+            "patch": {
+                "summary": "Update organization",
+                "tags": ["organization"],
+                "operationId": "updateOrganization",
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/SuccessResponse"
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
+        "/org/users": {
+            "get": {
+                "summary": "Get organization users",
+                "tags": ["organization"],
+                "operationId": "getOrganizationUsers",
+                "responses": {
+                    "201": {
+                        "description": "Successfully get organization users",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/OrganizationUser"
+                                                    }
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
+        "/org/user/{userUuid}": {
+            "delete": {
+                "summary": "Delete organization user",
+                "tags": ["organization"],
+                "operationId": "deleteOrganizationUser",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "userUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/SuccessResponse"
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
+        "/invite-links": {
+            "delete": {
+                "summary": "Delete all invite links",
+                "tags": ["user"],
+                "operationId": "deleteInviteLinks",
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/SuccessResponse"
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
             },
-            "required": true
-          }
-        ],
-        "requestBody": {
-          "description": "Sql",
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
+            "post": {
+                "summary": "Create a new invite link",
+                "tags": ["user"],
+                "operationId": "createInviteLink",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateInviteLink"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successfully created invite link",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/InviteLink"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
+        "/invite-links/{inviteLinkId}": {
+            "get": {
+                "summary": "Get an invite link",
+                "tags": ["user"],
+                "operationId": "getInviteLink",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "inviteLinkId",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got invite link",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/InviteLink"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
+        "/projects/{projectUuid}/sqlQuery": {
+            "post": {
+                "summary": "Run sql query",
+                "description": "Run a sql query on project",
+                "tags": ["project"],
+                "operationId": "runSqlQuery",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "requestBody": {
+                    "description": "Sql",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "sql": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["sql"]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successfully ran sql query",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "rows": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "additionalProperties": true
+                                                    }
+                                                }
+                                            },
+                                            "required": ["rows"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
+        "/projects/{projectUuid}/catalog": {
+            "get": {
+                "summary": "Get project catalog",
+                "description": "Get project catalog with all valid tables",
+                "tags": ["project"],
+                "operationId": "getProjectCatalog",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Successfully get project catalog",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/ProjectCatalog"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
+        "/projects/{projectUuid}/dashboards": {
+            "post": {
+                "summary": "Create dashboard",
+                "description": "Create new dashboard on project",
+                "tags": ["dashboard"],
+                "operationId": "createDashboard",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "requestBody": {
+                    "description": "New dashboard specification",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateDashboard"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successfully created dashboard",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/Dashboard"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            },
+            "get": {
+                "summary": "List dashboards",
+                "description": "List all dashboards in a project",
+                "tags": ["dashboard"],
+                "operationId": "getDashboards",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of all dashboards in project",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/DashboardListItem"
+                                                    }
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
+        "/projects/{projectUuid}/tablesConfiguration": {
+            "get": {
+                "summary": "Get project tables configuration",
+                "description": "Get project tables configuration",
+                "tags": ["project"],
+                "operationId": "getProjectTablesConfiguration",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Project tables configuration",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/ProjectTablesConfiguration"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            },
+            "patch": {
+                "summary": "Update project tables configuration",
+                "description": "Update project tables configuration",
+                "tags": ["project"],
+                "operationId": "updateProjectTablesConfiguration",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "requestBody": {
+                    "description": "New tables configuration",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProjectTablesConfiguration"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successfully created dashboard",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/ProjectTablesConfiguration"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
+        "/dashboards/{dashboardUuid}": {
+            "get": {
+                "summary": "Get dashboard",
+                "description": "Get details for a single dashboard by dashboard_id",
+                "tags": ["dashboard"],
+                "operationId": "getDashboard",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Details for a single dashboard",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/Dashboard"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            },
+            "patch": {
+                "summary": "Update dashboard",
+                "description": "Update details for a single dashboard by dashboard_id",
+                "tags": ["dashboard"],
+                "operationId": "patchDashboard",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "requestBody": {
+                    "description": "Dashboard fields",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateDashboard"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Details for a single dashboard",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/Dashboard"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete dashboard",
+                "description": "Delete a single dashboard by dashboard_id",
+                "tags": ["dashboard"],
+                "operationId": "deleteDashboard",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/SuccessResponse"
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        }
+    },
+    "security": [
+        {
+            "cookieAuth": []
+        }
+    ],
+    "components": {
+        "securitySchemes": {
+            "cookieAuth": {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "connect.sid"
+            }
+        },
+        "schemas": {
+            "CreateUser": {
                 "type": "object",
                 "properties": {
-                  "sql": {
-                    "type": "string"
-                  }
+                    "inviteCode": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "isMarketingOptedIn": {
+                        "type": "boolean"
+                    },
+                    "isTrackingAnonymized": {
+                        "type": "boolean"
+                    }
                 },
                 "required": [
-                  "sql"
+                    "inviteCode",
+                    "firstName",
+                    "lastName",
+                    "email",
+                    "password",
+                    "isMarketingOptedIn",
+                    "isTrackingAnonymized"
                 ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successfully ran sql query",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/Success"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "rows": {
-                          "type": "array",
-                          "items": {
-                            "additionalProperties": true
-                          }
-                        }
-                      },
-                      "required": [
-                        "rows"
-                      ]
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/ErrorResponse"
-          }
-        }
-      }
-    },
-    "/projects/{projectUuid}/catalog": {
-      "get": {
-        "summary": "Get project catalog",
-        "description": "Get project catalog with all valid tables",
-        "tags": [
-          "project"
-        ],
-        "operationId": "getProjectCatalog",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "projectUuid",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
             },
-            "required": true
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Successfully get project catalog",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/Success"
+            "Error": {
+                "type": "object",
+                "required": ["status", "error"],
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["error"]
                     },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "results": {
-                          "$ref": "#/components/schemas/ProjectCatalog"
+                    "error": {
+                        "type": "object",
+                        "required": ["name", "statusCode", "message"],
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "statusCode": {
+                                "type": "number"
+                            },
+                            "message": {
+                                "type": "string"
+                            },
+                            "data": {
+                                "type": "object"
+                            }
                         }
-                      },
-                      "required": [
-                        "results"
-                      ]
                     }
-                  ]
                 }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/ErrorResponse"
-          }
-        }
-      }
-    },
-    "/projects/{projectUuid}/dashboards": {
-      "post": {
-        "summary": "Create dashboard",
-        "description": "Create new dashboard on project",
-        "tags": [
-          "dashboard"
-        ],
-        "operationId": "createDashboard",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "projectUuid",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
             },
-            "required": true
-          }
-        ],
-        "requestBody": {
-          "description": "New dashboard specification",
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateDashboard"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successfully created dashboard",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/Success"
+            "Success": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"]
+                    }
+                }
+            },
+            "LightdashUser": {
+                "type": "object",
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
                     },
-                    {
-                      "properties": {
-                        "results": {
-                          "$ref": "#/components/schemas/Dashboard"
-                        }
-                      },
-                      "required": [
-                        "results"
-                      ]
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/ErrorResponse"
-          }
-        }
-      },
-      "get": {
-        "summary": "List dashboards",
-        "description": "List all dashboards in a project",
-        "tags": [
-          "dashboard"
-        ],
-        "operationId": "getDashboards",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "projectUuid",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of all dashboards in project",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/Success"
+                    "firstName": {
+                        "type": "string"
                     },
-                    {
-                      "properties": {
-                        "results": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/components/schemas/DashboardListItem"
-                          }
-                        }
-                      },
-                      "required": [
-                        "results"
-                      ]
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/ErrorResponse"
-          }
-        }
-      }
-    },
-    "/projects/{projectUuid}/tablesConfiguration": {
-      "get": {
-        "summary": "Get project tables configuration",
-        "description": "Get project tables configuration",
-        "tags": [
-          "project"
-        ],
-        "operationId": "getProjectTablesConfiguration",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "projectUuid",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Project tables configuration",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/Success"
+                    "lastName": {
+                        "type": "string"
                     },
-                    {
-                      "properties": {
-                        "results": {
-                          "$ref": "#/components/schemas/ProjectTablesConfiguration"
-                        }
-                      },
-                      "required": [
-                        "results"
-                      ]
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/ErrorResponse"
-          }
-        }
-      },
-      "patch": {
-        "summary": "Update project tables configuration",
-        "description": "Update project tables configuration",
-        "tags": [
-          "project"
-        ],
-        "operationId": "updateProjectTablesConfiguration",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "projectUuid",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "required": true
-          }
-        ],
-        "requestBody": {
-          "description": "New tables configuration",
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProjectTablesConfiguration"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successfully created dashboard",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/Success"
+                    "email": {
+                        "type": "string"
                     },
-                    {
-                      "properties": {
-                        "results": {
-                          "$ref": "#/components/schemas/ProjectTablesConfiguration"
-                        }
-                      },
-                      "required": [
-                        "results"
-                      ]
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/ErrorResponse"
-          }
-        }
-      }
-    },
-    "/dashboards/{dashboardUuid}": {
-      "get": {
-        "summary": "Get dashboard",
-        "description": "Get details for a single dashboard by dashboard_id",
-        "tags": [
-          "dashboard"
-        ],
-        "operationId": "getDashboard",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "dashboardUuid",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Details for a single dashboard",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/Success"
+                    "organizationUuid": {
+                        "type": "string"
                     },
-                    {
-                      "properties": {
-                        "results": {
-                          "$ref": "#/components/schemas/Dashboard"
-                        }
-                      },
-                      "required": [
-                        "results"
-                      ]
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/ErrorResponse"
-          }
-        }
-      },
-      "patch": {
-        "summary": "Update dashboard",
-        "description": "Update details for a single dashboard by dashboard_id",
-        "tags": [
-          "dashboard"
-        ],
-        "operationId": "patchDashboard",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "dashboardUuid",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "required": true
-          }
-        ],
-        "requestBody": {
-          "description": "Dashboard fields",
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateDashboard"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Details for a single dashboard",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/Success"
+                    "organizationName": {
+                        "type": "string"
                     },
-                    {
-                      "properties": {
-                        "results": {
-                          "$ref": "#/components/schemas/Dashboard"
-                        }
-                      },
-                      "required": [
-                        "results"
-                      ]
+                    "isTrackingAnonymized": {
+                        "type": "boolean"
                     }
-                  ]
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/ErrorResponse"
-          }
-        }
-      },
-      "delete": {
-        "summary": "Delete dashboard",
-        "description": "Delete a single dashboard by dashboard_id",
-        "tags": [
-          "dashboard"
-        ],
-        "operationId": "deleteDashboard",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "dashboardUuid",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/components/responses/SuccessResponse"
-          },
-          "default": {
-            "$ref": "#/components/responses/ErrorResponse"
-          }
-        }
-      }
-    }
-  },
-  "security": [
-    {
-      "cookieAuth": []
-    }
-  ],
-  "components": {
-    "securitySchemes": {
-      "cookieAuth": {
-        "type": "apiKey",
-        "in": "cookie",
-        "name": "connect.sid"
-      }
-    },
-    "schemas": {
-      "CreateUser": {
-        "type": "object",
-        "properties": {
-          "inviteCode": {
-            "type": "string"
-          },
-          "firstName": {
-            "type": "string"
-          },
-          "lastName": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string"
-          },
-          "password": {
-            "type": "string"
-          },
-          "isMarketingOptedIn": {
-            "type": "boolean"
-          },
-          "isTrackingAnonymized": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "inviteCode",
-          "firstName",
-          "lastName",
-          "email",
-          "password",
-          "isMarketingOptedIn",
-          "isTrackingAnonymized"
-        ]
-      },
-      "Error": {
-        "type": "object",
-        "required": [
-          "status",
-          "error"
-        ],
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": [
-              "error"
-            ]
-          },
-          "error": {
-            "type": "object",
-            "required": [
-              "name",
-              "statusCode",
-              "message"
-            ],
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "statusCode": {
-                "type": "number"
-              },
-              "message": {
-                "type": "string"
-              },
-              "data": {
-                "type": "object"
-              }
-            }
-          }
-        }
-      },
-      "Success": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": [
-              "ok"
-            ]
-          }
-        }
-      },
-      "LightdashUser": {
-        "type": "object",
-        "properties": {
-          "userUuid": {
-            "type": "string"
-          },
-          "firstName": {
-            "type": "string"
-          },
-          "lastName": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string"
-          },
-          "organizationUuid": {
-            "type": "string"
-          },
-          "organizationName": {
-            "type": "string"
-          },
-          "isTrackingAnonymized": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "userUuid",
-          "firstName",
-          "lastName",
-          "isTrackingAnonymized"
-        ]
-      },
-      "OrganizationUser": {
-        "type": "object",
-        "properties": {
-          "userUuid": {
-            "type": "string"
-          },
-          "firstName": {
-            "type": "string"
-          },
-          "lastName": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "userUuid",
-          "firstName",
-          "lastName"
-        ]
-      },
-      "CreateInviteLink": {
-        "type": "object",
-        "properties": {
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "expiresAt"
-        ]
-      },
-      "InviteLink": {
-        "type": "object",
-        "properties": {
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "inviteCode": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "expiresAt",
-          "inviteCode"
-        ]
-      },
-      "ProjectCatalog": {
-        "type": "object",
-        "additionalProperties": {
-          "type": "object",
-          "title": "Database",
-          "additionalProperties": {
-            "type": "object",
-            "title": "Schema",
-            "additionalProperties": {
-              "type": "object",
-              "title": "Table",
-              "properties": {
-                "description": {
-                  "type": "string"
                 },
-                "sqlTable": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "sqlTable"
-              ]
-            }
-          }
-        }
-      },
-      "DashboardListItem": {
-        "type": "object",
-        "properties": {
-          "dashboardUuid": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "dashboardUuid",
-          "name",
-          "description",
-          "updatedAt"
-        ]
-      },
-      "TilePropertiesChart": {
-        "type": "object",
-        "properties": {
-          "savedChartUuid": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
-          }
-        },
-        "required": [
-          "savedChartUuid"
-        ]
-      },
-      "CreateDashboardTile": {
-        "type": "object",
-        "properties": {
-          "uuid": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "saved_chart"
-            ]
-          },
-          "properties": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/TilePropertiesChart"
-              }
-            ]
-          },
-          "x": {
-            "type": "number"
-          },
-          "y": {
-            "type": "number"
-          },
-          "h": {
-            "type": "number"
-          },
-          "w": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "properties",
-          "type",
-          "x",
-          "y",
-          "h",
-          "w"
-        ]
-      },
-      "CreateDashboard": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "tiles": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CreateDashboardTile"
-            }
-          }
-        },
-        "required": [
-          "tiles",
-          "name",
-          "description"
-        ]
-      },
-      "DashboardTile": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/CreateDashboardTile"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "uuid": {
-                "type": "string",
-                "format": "uuid"
-              }
-            },
-            "required": [
-              "uuid"
-            ]
-          }
-        ]
-      },
-      "Dashboard": {
-        "type": "object",
-        "properties": {
-          "dashboardUuid": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "tiles": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DashboardTile"
-            }
-          }
-        },
-        "required": [
-          "dashboardUuid",
-          "tiles",
-          "name",
-          "description",
-          "updatedAt"
-        ]
-      },
-      "ProjectTablesConfiguration": {
-        "type": "object",
-        "properties": {
-          "tableSelection": {
-            "type": "object",
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "ALL",
-                  "WITH_TAGS",
-                  "WITH_NAMES"
+                "required": [
+                    "userUuid",
+                    "firstName",
+                    "lastName",
+                    "isTrackingAnonymized"
                 ]
-              },
-              "value": {
-                "type": "array",
-                "items": {
-                  "type": "string"
+            },
+            "OrganizationUser": {
+                "type": "object",
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    }
                 },
-                "nullable": true
-              }
+                "required": ["userUuid", "firstName", "lastName"]
             },
-            "required": [
-              "type",
-              "value"
-            ]
-          }
+            "CreateInviteLink": {
+                "type": "object",
+                "properties": {
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": ["expiresAt"]
+            },
+            "InviteLink": {
+                "type": "object",
+                "properties": {
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "inviteCode": {
+                        "type": "string"
+                    }
+                },
+                "required": ["expiresAt", "inviteCode"]
+            },
+            "ProjectCatalog": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "object",
+                    "title": "Database",
+                    "additionalProperties": {
+                        "type": "object",
+                        "title": "Schema",
+                        "additionalProperties": {
+                            "type": "object",
+                            "title": "Table",
+                            "properties": {
+                                "description": {
+                                    "type": "string"
+                                },
+                                "sqlTable": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["sqlTable"]
+                        }
+                    }
+                }
+            },
+            "DashboardListItem": {
+                "type": "object",
+                "properties": {
+                    "dashboardUuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "dashboardUuid",
+                    "name",
+                    "description",
+                    "updatedAt"
+                ]
+            },
+            "TilePropertiesChart": {
+                "type": "object",
+                "properties": {
+                    "savedChartUuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    }
+                },
+                "required": ["savedChartUuid"]
+            },
+            "CreateDashboardTile": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["saved_chart"]
+                    },
+                    "properties": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/TilePropertiesChart"
+                            }
+                        ]
+                    },
+                    "x": {
+                        "type": "number"
+                    },
+                    "y": {
+                        "type": "number"
+                    },
+                    "h": {
+                        "type": "number"
+                    },
+                    "w": {
+                        "type": "number"
+                    }
+                },
+                "required": ["properties", "type", "x", "y", "h", "w"]
+            },
+            "CreateDashboard": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "tiles": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CreateDashboardTile"
+                        }
+                    }
+                },
+                "required": ["tiles", "name", "description"]
+            },
+            "DashboardTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateDashboardTile"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "uuid": {
+                                "type": "string",
+                                "format": "uuid"
+                            }
+                        },
+                        "required": ["uuid"]
+                    }
+                ]
+            },
+            "Dashboard": {
+                "type": "object",
+                "properties": {
+                    "dashboardUuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "tiles": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTile"
+                        }
+                    }
+                },
+                "required": [
+                    "dashboardUuid",
+                    "tiles",
+                    "name",
+                    "description",
+                    "updatedAt"
+                ]
+            },
+            "ProjectTablesConfiguration": {
+                "type": "object",
+                "properties": {
+                    "tableSelection": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["ALL", "WITH_TAGS", "WITH_NAMES"]
+                            },
+                            "value": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "nullable": true
+                            }
+                        },
+                        "required": ["type", "value"]
+                    }
+                },
+                "required": ["tableSelection"]
+            },
+            "UpdateDashboard": {
+                "oneOf": [
+                    {
+                        "title": "Unversioned fields",
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name"]
+                    },
+                    {
+                        "title": "Versioned fields",
+                        "type": "object",
+                        "properties": {
+                            "tiles": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/CreateDashboardTile"
+                                }
+                            }
+                        },
+                        "required": ["tiles"]
+                    },
+                    {
+                        "title": "All fields",
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string"
+                            },
+                            "tiles": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/CreateDashboardTile"
+                                }
+                            }
+                        },
+                        "required": ["name", "tiles"]
+                    }
+                ]
+            }
         },
-        "required": [
-          "tableSelection"
-        ]
-      },
-      "UpdateDashboard": {
-        "oneOf": [
-          {
-            "title": "Unversioned fields",
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "name"
-            ]
-          },
-          {
-            "title": "Versioned fields",
-            "type": "object",
-            "properties": {
-              "tiles": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/CreateDashboardTile"
+        "responses": {
+            "ErrorResponse": {
+                "description": "Error",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Error"
+                        }
+                    }
                 }
-              }
             },
-            "required": [
-              "tiles"
-            ]
-          },
-          {
-            "title": "All fields",
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              },
-              "tiles": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/CreateDashboardTile"
+            "SuccessResponse": {
+                "description": "Success",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Success"
+                        }
+                    }
                 }
-              }
-            },
-            "required": [
-              "name",
-              "tiles"
-            ]
-          }
-        ]
-      }
-    },
-    "responses": {
-      "ErrorResponse": {
-        "description": "Error",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/Error"
             }
-          }
         }
-      },
-      "SuccessResponse": {
-        "description": "Success",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/Success"
-            }
-          }
-        }
-      }
     }
-  }
 }
