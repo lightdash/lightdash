@@ -61,27 +61,19 @@ export const SEED_USER = {
     is_tracking_anonymized: false,
 };
 export const SEED_EMAIL = {
-    user_id: 1,
     email: 'demo@lightdash.com',
     is_primary: true,
 };
 export const SEED_PASSWORD = {
-    user_id: 1,
     password: 'demo_password!',
-};
-export const SEED_ORGANIZATION_MEMBERSHIP = {
-    user_id: 1,
-    organization_id: 1,
 };
 export const SEED_PROJECT = {
     project_uuid: '3675b69e-8324-4110-bdca-059031aa8da3',
-    organization_id: 1,
     name: 'Jaffle shop',
     dbt_connection_type: ProjectType.DBT,
     dbt_connection: null,
 };
 export const SEED_SPACE = {
-    project_id: 1,
     name: SEED_PROJECT.name,
 };
 

@@ -21,6 +21,20 @@ export const user: SessionUser = {
     userId: 0,
 };
 
+export const expectedTablesConfiguration: TablesConfiguration = {
+    tableSelection: {
+        type: TableSelectionType.ALL,
+        value: null,
+    },
+};
+
+export const updateTablesConfiguration: TablesConfiguration = {
+    tableSelection: {
+        type: TableSelectionType.WITH_NAMES,
+        value: ['tableName'],
+    },
+};
+
 export const expectedSqlResults: ApiSqlQueryResults = {
     rows: [{ col1: 'val1' }],
 };
