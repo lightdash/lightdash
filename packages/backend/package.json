@@ -52,7 +52,6 @@
         "express-openapi-validator": "^4.12.15",
         "express-session": "^1.17.2",
         "fuse.js": "^6.4.6",
-        "get-port": "^5.1.1",
         "isomorphic-git": "^1.9.2",
         "js-yaml": "^4.1.0",
         "knex": "^0.95.7",

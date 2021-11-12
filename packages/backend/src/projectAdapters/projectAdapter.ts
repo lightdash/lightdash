@@ -1,4 +1,3 @@
-import getPort from 'get-port';
 import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
