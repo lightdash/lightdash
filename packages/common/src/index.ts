@@ -18,6 +18,11 @@ export const validateEmail = (email: string): boolean => {
     return re.test(String(email).toLowerCase());
 };
 
+export const hasIntersection = (tags: string[], tags2: string[]): boolean => {
+    const intersection = tags.filter((value) => tags2.includes(value));
+    return intersection.length > 0;
+};
+
 export type SqlResultsRow = { [columnName: string]: any };
 export type SqlResultsField = { name: string; type: string }; // TODO: standardise column types
 export type SqlQueryResults = {
@@ -80,6 +85,7 @@ export type ArgumentsOf<F extends Function> = F extends (
 
 export type Explore = {
     name: string; // Friendly name any characters
+    tags: string[];
     baseTable: string; // Must match a tableName in tables
     joinedTables: CompiledExploreJoin[]; // Must match a tableName in tables
     tables: { [tableName: string]: CompiledTable }; // All tables in this explore
@@ -109,8 +115,8 @@ export type CompiledExploreJoin = ExploreJoin & {
 };
 
 export type SummaryExplore =
-    | Pick<Explore, 'name'>
-    | Pick<ExploreError, 'name' | 'errors'>;
+    | Pick<Explore, 'name' | 'tags'>
+    | Pick<ExploreError, 'name' | 'tags' | 'errors'>;
 
 export type TableBase = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
@@ -425,6 +431,7 @@ export type DbtRawModelNode = DbtNode & {
     database: string | null;
     schema: string;
     name: string;
+    tags: string[];
     relation_name: string;
     depends_on: DbtTableDependency;
     description?: string;
@@ -516,6 +523,25 @@ export type ApiCatalogResponse =
     | {
           status: 'ok';
           results: ProjectCatalog;
+      };
+
+export enum TableSelectionType {
+    ALL = 'ALL',
+    WITH_TAGS = 'WITH_TAGS',
+    WITH_NAMES = 'WITH_NAMES',
+}
+
+export type TablesConfiguration = {
+    tableSelection: {
+        type: TableSelectionType;
+        value: string[] | null;
+    };
+};
+export type ApiTablesConfigurationResponse =
+    | ApiError
+    | {
+          status: 'ok';
+          results: TablesConfiguration;
       };
 
 export type ApiCompiledQueryResults = string;
@@ -676,12 +702,15 @@ export type ApiResults =
     | WarehouseCredentials
     | OrganizationUser[]
     | ProjectCatalog
-    | Dashboard;
+    | TablesConfiguration
+    | Dashboard
+    | Dashboard[];
 
 export type ApiResponse =
     | ApiQueryResponse
     | ApiSqlQueryResponse
     | ApiCatalogResponse
+    | ApiTablesConfigurationResponse
     | ApiCompiledQueryResponse
     | ApiExploresResponse
     | ApiExploreResponse

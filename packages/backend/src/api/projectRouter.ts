@@ -6,9 +6,9 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     ApiStatusResults,
-    isExploreError,
     MetricQuery,
     ProjectCatalog,
+    TablesConfiguration,
 } from 'common';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { dashboardService, projectService } from '../services/services';
@@ -45,15 +45,12 @@ projectRouter.patch(
 
 projectRouter.get('/explores', isAuthenticated, async (req, res, next) => {
     try {
-        const explores = await projectService.getAllExplores(
-            req.user!,
-            req.params.projectUuid,
-        );
-        const results: ApiExploresResults = explores.map((explore) =>
-            isExploreError(explore)
-                ? { name: explore.name, errors: explore.errors }
-                : { name: explore.name },
-        );
+        const results: ApiExploresResults =
+            await projectService.getAllExploresSummary(
+                req.user!,
+                req.params.projectUuid,
+                req.query.filtered === 'true',
+            );
         res.json({
             status: 'ok',
             results,
@@ -270,3 +267,45 @@ projectRouter.get('/catalog', isAuthenticated, async (req, res, next) => {
         next(e);
     }
 });
+
+projectRouter.get(
+    '/tablesConfiguration',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results: TablesConfiguration =
+                await projectService.getTablesConfiguration(
+                    req.user!,
+                    req.params.projectUuid,
+                );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+projectRouter.patch(
+    '/tablesConfiguration',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        try {
+            const results: TablesConfiguration =
+                await projectService.updateTablesConfiguration(
+                    req.user!,
+                    req.params.projectUuid,
+                    req.body,
+                );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);

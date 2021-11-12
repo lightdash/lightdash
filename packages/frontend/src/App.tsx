@@ -31,6 +31,7 @@ import Welcome from './pages/Welcome';
 import SavedDashboards from './pages/SavedDashboards';
 import Dashboard from './pages/Dashboard';
 import SqlRunner from './pages/SqlRunner';
+import CreateProjectSettings from './pages/CreateProjectSettings';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -69,6 +70,11 @@ const App = () => (
                                     <CreateProject />
                                 </Page>
                             </Route>
+                            <Route path="/createProjectSettings/:projectUuid">
+                                <Page name={PageName.CREATE_PROJECT_SETTINGS}>
+                                    <CreateProjectSettings />
+                                </Page>
+                            </Route>
                             <Route path="/login">
                                 <Page name={PageName.LOGIN}>
                                     <Login />
@@ -87,7 +93,7 @@ const App = () => (
                                     }}
                                 >
                                     <Switch>
-                                        <Route path="/projects/:projectUuid/settings">
+                                        <Route path="/projects/:projectUuid/settings/:tab?">
                                             <AppBar />
                                             <Page
                                                 name={PageName.PROJECT_SETTINGS}

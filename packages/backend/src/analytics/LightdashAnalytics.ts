@@ -3,7 +3,12 @@ import Analytics, {
     Track as AnalyticsTrack,
 } from '@rudderstack/rudder-sdk-node';
 import { v4 as uuidv4 } from 'uuid';
-import { LightdashInstallType, ProjectType, WarehouseTypes } from 'common';
+import {
+    LightdashInstallType,
+    ProjectType,
+    TableSelectionType,
+    WarehouseTypes,
+} from 'common';
 import { VERSION } from '../version';
 
 type Identify = {
@@ -72,6 +77,15 @@ type ProjectEvent = BaseTrack & {
     };
 };
 
+type ProjectTablesConfigurationEvent = BaseTrack & {
+    event: 'project_tables_configuration.updated';
+    userId: string;
+    properties: {
+        projectId: string;
+        project_table_selection_type: TableSelectionType;
+    };
+};
+
 type ProjectCompiledEvent = BaseTrack & {
     event: 'project.compiled';
     userId?: string;
@@ -123,6 +137,7 @@ type Track =
     | ProjectEvent
     | ProjectCompiledEvent
     | DashboardEvent
+    | ProjectTablesConfigurationEvent
     | TrackOrganizationEvent;
 
 export class LightdashAnalytics extends Analytics {

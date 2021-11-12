@@ -469,6 +469,107 @@
                 }
             }
         },
+        "/projects/{projectUuid}/tablesConfiguration": {
+            "get": {
+                "summary": "Get project tables configuration",
+                "description": "Get project tables configuration",
+                "tags": ["project"],
+                "operationId": "getProjectTablesConfiguration",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Project tables configuration",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/ProjectTablesConfiguration"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            },
+            "patch": {
+                "summary": "Update project tables configuration",
+                "description": "Update project tables configuration",
+                "tags": ["project"],
+                "operationId": "updateProjectTablesConfiguration",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "requestBody": {
+                    "description": "New tables configuration",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProjectTablesConfiguration"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successfully created dashboard",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/ProjectTablesConfiguration"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
         "/dashboards/{dashboardUuid}": {
             "get": {
                 "summary": "Get dashboard",
@@ -914,6 +1015,29 @@
                     "description",
                     "updatedAt"
                 ]
+            },
+            "ProjectTablesConfiguration": {
+                "type": "object",
+                "properties": {
+                    "tableSelection": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["ALL", "WITH_TAGS", "WITH_NAMES"]
+                            },
+                            "value": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "nullable": true
+                            }
+                        },
+                        "required": ["type", "value"]
+                    }
+                },
+                "required": ["tableSelection"]
             },
             "UpdateDashboard": {
                 "oneOf": [

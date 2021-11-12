@@ -11,6 +11,7 @@ export const EXPLORE: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: 'table1',
     baseTable: 'table1',
+    tags: [],
     joinedTables: [],
     tables: {
         table1: {

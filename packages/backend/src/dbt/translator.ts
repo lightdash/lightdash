@@ -417,6 +417,7 @@ export const convertExplores = async (
             } catch (e) {
                 const exploreError: ExploreError = {
                     name: model.name,
+                    tags: model.tags,
                     errors: [
                         {
                             type: e.name,
@@ -442,6 +443,7 @@ export const convertExplores = async (
         try {
             return compileExplore({
                 name: model.name,
+                tags: model.tags,
                 baseTable: model.name,
                 joinedTables: (
                     model.config?.meta?.joins || // Config block takes priority, then meta block
