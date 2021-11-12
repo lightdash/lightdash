@@ -38,6 +38,7 @@ export const useUpdateProjectTablesConfiguration = (projectUuid: string) => {
         {
             mutationKey: ['tables_configuration_update'],
             onSuccess: async (data) => {
+                await queryClient.invalidateQueries('tables');
                 queryClient.setQueryData(
                     ['tables_configuration_update', projectUuid],
                     data,
