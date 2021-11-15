@@ -7,6 +7,8 @@ import {
     encryptionServiceMock,
     expectedProject,
     expectedTablesConfiguration,
+    lightdashConfigMock,
+    projectMock,
     projectUuid,
     tableSelectionMock,
     updateTableSelectionMock,
