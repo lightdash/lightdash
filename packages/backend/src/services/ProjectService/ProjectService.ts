@@ -180,14 +180,13 @@ export class ProjectService {
         metricQuery: MetricQuery,
         projectUuid: string,
         exploreName: string,
-    ): Promise<string> {
+    ): Promise<{ query: string; hasExampleMetric: boolean }> {
         const explore = await this.getExplore(user, projectUuid, exploreName);
         const compiledMetricQuery = compileMetricQuery({
             explore,
             metricQuery,
         });
-        const sql = buildQuery({ explore, compiledMetricQuery });
-        return sql;
+        return buildQuery({ explore, compiledMetricQuery });
     }
 
     async runQuery(
@@ -196,20 +195,28 @@ export class ProjectService {
         projectUuid: string,
         exploreName: string,
     ): Promise<ApiQueryResults> {
-        await analytics.track({
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
-            userId: user.userUuid,
-            event: 'query.executed',
-        });
-        const sql = await this.compileQuery(
+        const { query, hasExampleMetric } = await this.compileQuery(
             user,
             metricQuery,
             projectUuid,
             exploreName,
         );
+        await analytics.track({
+            projectId: projectUuid,
+            organizationId: user.organizationUuid,
+            userId: user.userUuid,
+            event: 'query.executed',
+            properties: {
+                hasExampleMetric,
+                dimensionsCount: metricQuery.dimensions.length,
+                metricsCount: metricQuery.metrics.length,
+                filtersCount: metricQuery.filters.length,
+                sortsCount: metricQuery.sorts.length,
+                tableCalculationsCount: metricQuery.tableCalculations.length,
+            },
+        });
         const adapter = await this.getAdapter(projectUuid);
-        const rows = await adapter.runQuery(sql);
+        const rows = await adapter.runQuery(query);
         return {
             rows,
             metricQuery,

@@ -36,8 +36,19 @@ type TrackSimpleEvent = BaseTrack & {
         | 'password.updated'
         | 'invite_link.created'
         | 'invite_link.all_revoked'
-        | 'sql.executed'
-        | 'query.executed';
+        | 'sql.executed';
+};
+
+type QueryExecutionEvent = BaseTrack & {
+    event: 'query.executed';
+    properties: {
+        metricsCount: number;
+        dimensionsCount: number;
+        tableCalculationsCount: number;
+        filtersCount: number;
+        sortsCount: number;
+        hasExampleMetric: boolean;
+    };
 };
 
 type TrackOrganizationEvent = BaseTrack & {
@@ -130,6 +141,7 @@ type ApiErrorEvent = BaseTrack & {
 
 type Track =
     | TrackSimpleEvent
+    | QueryExecutionEvent
     | TrackSavedChart
     | TrackUserDeletedEvent
     | ProjectErrorEvent
