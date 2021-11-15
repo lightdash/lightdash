@@ -1,11 +1,11 @@
-import React, { FC } from 'react';
 import { WarehouseTypes } from 'common';
-import BigQueryForm from './WarehouseForms/BigQueryForm';
-import SnowflakeForm from './WarehouseForms/SnowflakeForm';
-import RedshiftForm from './WarehouseForms/RedshiftForm';
-import PostgresForm from './WarehouseForms/PostgresForm';
+import React, { FC } from 'react';
 import SelectField from '../ReactHookForm/Select';
+import BigQueryForm from './WarehouseForms/BigQueryForm';
 import DatabricksForm from './WarehouseForms/DatabricksForm';
+import PostgresForm from './WarehouseForms/PostgresForm';
+import RedshiftForm from './WarehouseForms/RedshiftForm';
+import SnowflakeForm from './WarehouseForms/SnowflakeForm';
 
 const WarehouseTypeLabels = {
     [WarehouseTypes.BIGQUERY]: 'BigQuery',

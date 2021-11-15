@@ -1,9 +1,5 @@
+import { Tree as BlueprintTree, TreeNodeInfo } from '@blueprintjs/core';
 import * as React from 'react';
-import {
-    Classes,
-    TreeNodeInfo,
-    Tree as BlueprintTree,
-} from '@blueprintjs/core';
 
 type NodePath = number[];
 

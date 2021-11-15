@@ -1,8 +1,8 @@
+import { Card, Divider, H3 } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import { Card, Divider, H3 } from '@blueprintjs/core';
-import { SectionName } from '../../../types/Events';
 import { Section } from '../../../providers/TrackingProvider';
+import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
 
 const SidebarWrapper = styled(Card)`

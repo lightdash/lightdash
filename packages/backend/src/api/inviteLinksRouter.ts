@@ -1,7 +1,7 @@
-import express from 'express';
 import { CreateInviteLink } from 'common';
-import { isAuthenticated, unauthorisedInDemo } from './authentication';
+import express from 'express';
 import { userService } from '../services/services';
+import { isAuthenticated, unauthorisedInDemo } from './authentication';
 
 export const inviteLinksRouter = express.Router();
 

@@ -1,37 +1,37 @@
+import { Colors, HotkeysProvider } from '@blueprintjs/core';
+import '@blueprintjs/core/lib/css/blueprint.css';
+import '@blueprintjs/popover2/lib/css/blueprint-popover2.css';
+import '@blueprintjs/table/lib/css/table.css';
 import React from 'react';
+import { QueryClient, QueryClientProvider } from 'react-query';
+import { ReactQueryDevtools } from 'react-query/devtools';
 import {
     BrowserRouter as Router,
     Redirect,
     Route,
     Switch,
 } from 'react-router-dom';
-import '@blueprintjs/core/lib/css/blueprint.css';
-import '@blueprintjs/table/lib/css/table.css';
-import '@blueprintjs/popover2/lib/css/blueprint-popover2.css';
-import { ReactQueryDevtools } from 'react-query/devtools';
-import { QueryClient, QueryClientProvider } from 'react-query';
 import './App.css';
-import { Colors, HotkeysProvider } from '@blueprintjs/core';
-import Login from './pages/login';
-import PrivateRoute from './components/PrivateRoute';
 import AppBar from './components/AppBar';
-import Register from './pages/register';
-import { AppProvider } from './providers/AppProvider';
-import SavedQueries from './pages/SavedQueries';
+import PrivateRoute from './components/PrivateRoute';
+import CreateProject from './pages/CreateProject';
+import CreateProjectSettings from './pages/CreateProjectSettings';
+import Dashboard from './pages/Dashboard';
 import Explorer from './pages/Explorer';
-import { ExplorerProvider } from './providers/ExplorerProvider';
+import Login from './pages/login';
+import { Projects } from './pages/Projects';
+import ProjectSettings from './pages/ProjectSettings';
+import Register from './pages/register';
+import SavedDashboards from './pages/SavedDashboards';
 import SavedExplorer from './pages/SavedExplorer';
+import SavedQueries from './pages/SavedQueries';
 import Signup from './pages/Signup';
+import SqlRunner from './pages/SqlRunner';
+import Welcome from './pages/Welcome';
+import { AppProvider } from './providers/AppProvider';
+import { ExplorerProvider } from './providers/ExplorerProvider';
 import { Page, TrackingProvider } from './providers/TrackingProvider';
 import { PageName } from './types/Events';
-import ProjectSettings from './pages/ProjectSettings';
-import { Projects } from './pages/Projects';
-import CreateProject from './pages/CreateProject';
-import Welcome from './pages/Welcome';
-import SavedDashboards from './pages/SavedDashboards';
-import Dashboard from './pages/Dashboard';
-import SqlRunner from './pages/SqlRunner';
-import CreateProjectSettings from './pages/CreateProjectSettings';
 
 const queryClient = new QueryClient({
     defaultOptions: {

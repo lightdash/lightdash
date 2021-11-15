@@ -1,8 +1,8 @@
 import { ApiError, TablesConfiguration } from 'common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
-import useQueryError from './useQueryError';
 import { useApp } from '../providers/AppProvider';
+import useQueryError from './useQueryError';
 
 const getProjectTablesConfigurationQuery = async (projectUuid: string) =>
     lightdashApi<TablesConfiguration>({

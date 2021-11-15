@@ -1,5 +1,6 @@
 import execa from 'execa';
 import * as fs from 'fs/promises';
+import { DbtError } from '../errors';
 import { DbtCliClient } from './dbtCliClient';
 import {
     catalogMock,
@@ -11,7 +12,6 @@ import {
     manifestMock,
     packagesYml,
 } from './dbtCliClient.mock';
-import { DbtError } from '../errors';
 
 const execaMock = execa as unknown as jest.Mock;
 

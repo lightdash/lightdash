@@ -1,6 +1,6 @@
-import { StringFilter, StringFilterGroup } from 'common';
-import React from 'react';
 import { InputGroup, TagInput } from '@blueprintjs/core';
+import { StringFilter } from 'common';
+import React from 'react';
 
 export const defaultValuesForNewStringFilter: {
     [key in StringFilter['operator']]: StringFilter;

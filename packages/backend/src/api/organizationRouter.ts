@@ -1,11 +1,11 @@
 import express from 'express';
-import { isAuthenticated, unauthorisedInDemo } from './authentication';
+import { ForbiddenError } from '../errors';
 import {
     organizationService,
     projectService,
     userService,
 } from '../services/services';
-import { ForbiddenError } from '../errors';
+import { isAuthenticated, unauthorisedInDemo } from './authentication';
 
 export const organizationRouter = express.Router();
 

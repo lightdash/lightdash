@@ -1,3 +1,5 @@
+import { CompileError } from './errors';
+import { compileExplore } from './exploreCompiler';
 import {
     exploreCircularReference,
     exploreComplexReference,
@@ -15,8 +17,6 @@ import {
     exploreWithMetricNumber,
     exploreWithMetricNumberCompiled,
 } from './exploreCompiler.mock';
-import { compileExplore } from './exploreCompiler';
-import { CompileError } from './errors';
 
 test('Should compile empty table', () => {
     expect(compileExplore(exploreOneEmptyTable)).toStrictEqual(

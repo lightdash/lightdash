@@ -1,5 +1,5 @@
-import { useQuery } from 'react-query';
 import { ApiError, ApiExploresResults } from 'common';
+import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import useQueryError from './useQueryError';

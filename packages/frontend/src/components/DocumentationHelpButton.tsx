@@ -1,6 +1,6 @@
-import React, { FC } from 'react';
-import { AnchorButton, Colors, Icon } from '@blueprintjs/core';
+import { Colors, Icon } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
+import React, { FC } from 'react';
 import './DocumentationHelpButton.css';
 
 type Props = {

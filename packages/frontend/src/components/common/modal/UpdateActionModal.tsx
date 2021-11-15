@@ -1,6 +1,6 @@
+import { ApiError } from 'common';
 import React, { Dispatch, SetStateAction, useEffect } from 'react';
 import { UseMutationResult } from 'react-query';
-import { ApiError } from 'common';
 import ActionModal, { ActionModalProps } from './ActionModal';
 
 type UpdateActionModalProps<T> = {

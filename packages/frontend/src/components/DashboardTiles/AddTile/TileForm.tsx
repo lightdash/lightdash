@@ -1,8 +1,8 @@
-import React from 'react';
 import { DashboardChartTile, SpaceQuery } from 'common';
+import React from 'react';
 import { useParams } from 'react-router-dom';
-import { ActionModalProps } from '../../common/modal/ActionModal';
 import { useSavedQuery } from '../../../hooks/useSpaces';
+import { ActionModalProps } from '../../common/modal/ActionModal';
 import SelectField from '../../ReactHookForm/Select';
 
 const TileForm = ({

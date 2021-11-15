@@ -1,9 +1,9 @@
-import React, { FC } from 'react';
 import { MenuItem } from '@blueprintjs/core';
 import {
     ItemRenderer,
     MultiSelect as BlueprintMultiSelect,
 } from '@blueprintjs/select';
+import React, { FC } from 'react';
 import { ControllerRenderProps, FieldValues } from 'react-hook-form';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 

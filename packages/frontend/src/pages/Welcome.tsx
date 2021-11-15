@@ -1,19 +1,19 @@
-import React, { FC } from 'react';
 import {
-    Colors,
+    AnchorButton,
+    Callout,
     Card,
+    Colors,
     H2,
     H4,
     H5,
-    Callout,
     Icon,
     Intent,
-    AnchorButton,
 } from '@blueprintjs/core';
+import React, { FC } from 'react';
 import { Redirect, useHistory } from 'react-router-dom';
-import { useApp } from '../providers/AppProvider';
 import AboutFooter from '../components/AboutFooter';
 import PageSpinner from '../components/PageSpinner';
+import { useApp } from '../providers/AppProvider';
 import './Welcome.css';
 
 const Step: FC<{

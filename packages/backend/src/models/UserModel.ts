@@ -1,18 +1,18 @@
-import { Knex } from 'knex';
 import bcrypt from 'bcrypt';
 import { CreateOrganizationUser } from 'common';
-import { NotExistsError, ParameterError } from '../errors';
+import { Knex } from 'knex';
+import { createEmail, EmailTableName } from '../database/entities/emails';
+import { InviteLinkTableName } from '../database/entities/inviteLinks';
+import { createOrganizationMembership } from '../database/entities/organizationMemberships';
+import { createPasswordLogin } from '../database/entities/passwordLogins';
 import {
     createUser,
     DbUserDetails,
     getUserDetailsByUuid,
     UserTableName,
 } from '../database/entities/users';
-import { createEmail, EmailTableName } from '../database/entities/emails';
-import { createPasswordLogin } from '../database/entities/passwordLogins';
-import { createOrganizationMembership } from '../database/entities/organizationMemberships';
+import { NotExistsError, ParameterError } from '../errors';
 import { InviteLinkModel } from './InviteLinkModel';
-import { InviteLinkTableName } from '../database/entities/inviteLinks';
 
 type DbOrganizationUser = Pick<
     DbUserDetails,

@@ -1,8 +1,8 @@
 import { SpaceQuery } from 'common';
 import React, { FC } from 'react';
 import { useCreateMutation } from '../../hooks/useSavedQuery';
-import CreateActionModal from '../common/modal/CreateActionModal';
 import { ActionModalProps } from '../common/modal/ActionModal';
+import CreateActionModal from '../common/modal/CreateActionModal';
 
 interface CreateSavedQueryModalProps {
     isOpen: boolean;

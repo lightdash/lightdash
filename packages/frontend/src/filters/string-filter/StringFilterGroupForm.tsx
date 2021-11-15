@@ -1,11 +1,11 @@
 import { ControlGroup } from '@blueprintjs/core';
-import React from 'react';
 import { StringFilter, StringFilterGroup } from 'common';
+import React from 'react';
+import FilterRows from '../common/FilterRows';
+import SelectFilterOperator from '../common/SelectFilterOperator';
 import StringFilterForm, {
     defaultValuesForNewStringFilter,
 } from './StringFilterForm';
-import SelectFilterOperator from '../common/SelectFilterOperator';
-import FilterRows from '../common/FilterRows';
 
 const options: { value: StringFilter['operator']; label: string }[] = [
     { value: 'isNull', label: 'is null' },

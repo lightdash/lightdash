@@ -1,7 +1,9 @@
-import React, { FC } from 'react';
-import { Button, Classes, Dialog, Intent, Callout } from '@blueprintjs/core';
+import { Button, Callout, Classes, Dialog, Intent } from '@blueprintjs/core';
 import { hasSpecialCharacters, snakeCaseName, TableCalculation } from 'common';
+import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
+import { useExplore } from '../hooks/useExplore';
+import { useExplorerAceEditorCompleter } from '../hooks/useExplorerAceEditorCompleter';
 import { useApp } from '../providers/AppProvider';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
@@ -9,8 +11,6 @@ import { EventName } from '../types/Events';
 import Form from './ReactHookForm/Form';
 import Input from './ReactHookForm/Input';
 import SqlInput from './ReactHookForm/SqlInput';
-import { useExplore } from '../hooks/useExplore';
-import { useExplorerAceEditorCompleter } from '../hooks/useExplorerAceEditorCompleter';
 
 const SQL_PLACEHOLDER =
     // eslint-disable-next-line no-template-curly-in-string

@@ -1,12 +1,12 @@
+import { lightdashConfig } from '../config/lightdashConfig';
 import database from '../database/database';
+import { EncryptionService } from '../services/EncryptionService/EncryptionService';
+import { DashboardModel } from './DashboardModel/DashboardModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { OrganizationModel } from './OrganizationModel';
-import { UserModel } from './UserModel';
-import { SessionModel } from './SessionModel';
-import { lightdashConfig } from '../config/lightdashConfig';
-import { EncryptionService } from '../services/EncryptionService/EncryptionService';
 import { ProjectModel } from './ProjectModel/ProjectModel';
-import { DashboardModel } from './DashboardModel/DashboardModel';
+import { SessionModel } from './SessionModel';
+import { UserModel } from './UserModel';
 
 export const encryptionService = new EncryptionService({ lightdashConfig });
 

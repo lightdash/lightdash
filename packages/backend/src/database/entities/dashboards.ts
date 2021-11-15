@@ -1,5 +1,5 @@
-import { Knex } from 'knex';
 import { DashboardTileTypes } from 'common';
+import { Knex } from 'knex';
 
 export const DashboardsTableName = 'dashboards';
 export const DashboardVersionsTableName = 'dashboard_versions';

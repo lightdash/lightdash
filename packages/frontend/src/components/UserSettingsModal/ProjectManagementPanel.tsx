@@ -1,6 +1,6 @@
-import React, { FC } from 'react';
+import { ButtonGroup, Card, Classes } from '@blueprintjs/core';
 import { OrganizationProject } from 'common';
-import { Card, Classes, ButtonGroup } from '@blueprintjs/core';
+import React, { FC } from 'react';
 import { useProjects } from '../../hooks/useProjects';
 import LinkButton from '../common/LinkButton';
 

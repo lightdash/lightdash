@@ -1,5 +1,5 @@
+import { Spinner } from '@blueprintjs/core';
 import React, { FC } from 'react';
-import { Colors, Spinner } from '@blueprintjs/core';
 
 const PageSpinner: FC = () => (
     <div

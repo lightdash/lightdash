@@ -1,3 +1,4 @@
+import { DimensionType, TableCalculation } from 'common';
 import {
     UseColumnOrderInstanceProps,
     UseColumnOrderState,
@@ -40,14 +41,7 @@ import {
     UseRowStateOptions,
     UseRowStateRowProps,
     UseRowStateState,
-    // UseSortByColumnOptions,
-    // UseSortByColumnProps,
-    // UseSortByHooks,
-    // UseSortByInstanceProps,
-    // UseSortByOptions,
-    // UseSortByState
 } from 'react-table';
-import { DimensionType, TableCalculation } from 'common';
 
 declare module 'react-table' {
     // take this file as-is, or comment out the sections that don't apply to your plugin configuration

@@ -1,10 +1,10 @@
+import { Colors, Divider, H1 } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useQueryClient } from 'react-query';
-import { Colors, Divider, H1 } from '@blueprintjs/core';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
 import PageSpinner from '../components/PageSpinner';
-import { useApp } from '../providers/AppProvider';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
+import { useApp } from '../providers/AppProvider';
 
 const CreateProjectSettings: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();

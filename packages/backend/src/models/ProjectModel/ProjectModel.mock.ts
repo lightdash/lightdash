@@ -9,8 +9,8 @@ import {
     WarehouseTypes,
 } from 'common';
 import { LightdashConfig } from '../../config/parseConfig';
-import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import { ProjectTable } from '../../database/entities/projects';
+import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 
 export const lightdashConfigMock: LightdashConfig = {
     mode: LightdashMode.DEFAULT,

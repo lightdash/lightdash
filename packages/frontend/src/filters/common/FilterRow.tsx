@@ -1,3 +1,4 @@
+import { Button } from '@blueprintjs/core';
 import {
     BooleanFilter,
     DateAndTimestampFilter,
@@ -5,7 +6,6 @@ import {
     NumberFilter,
     StringFilter,
 } from 'common';
-import { Button } from '@blueprintjs/core';
 import React, { ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 

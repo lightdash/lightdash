@@ -1,6 +1,6 @@
+import { MenuItem } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { Route, useHistory } from 'react-router-dom';
-import { MenuItem } from '@blueprintjs/core';
 
 interface Props {
     to: string;

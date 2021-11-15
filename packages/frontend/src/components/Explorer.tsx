@@ -1,4 +1,3 @@
-import React, { FC, useEffect, useRef, useState } from 'react';
 import {
     Button,
     ButtonGroup,
@@ -15,24 +14,25 @@ import {
 import { Popover2 } from '@blueprintjs/popover2';
 import { DBChartTypes, SavedQuery } from 'common';
 import EChartsReact from 'echarts-for-react';
+import React, { FC, useEffect, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import FiltersForm from '../filters';
-import { ExplorerResults } from './ExplorerResults';
-import { SimpleChart } from './SimpleChart';
-import { RenderedSql } from './RenderedSql';
-import { RefreshServerButton } from './RefreshServerButton';
-import { RefreshButton } from './RefreshButton';
-import { ChartConfigPanel } from './ChartConfigPanel';
 import { useChartConfig } from '../hooks/useChartConfig';
-import { ChartDownloadMenu } from './ChartDownload';
-import { useExplorer } from '../providers/ExplorerProvider';
-import CreateSavedQueryModal from './SavedQueries/CreateSavedQueryModal';
+import { useQueryResults } from '../hooks/useQueryResults';
 import { useAddVersionMutation, useSavedQuery } from '../hooks/useSavedQuery';
+import { useExplorer } from '../providers/ExplorerProvider';
 import { Section } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
-import SavedQueryForm from './SavedQueries/SavedQueryForm';
-import { useQueryResults } from '../hooks/useQueryResults';
+import { ChartConfigPanel } from './ChartConfigPanel';
+import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
+import { ExplorerResults } from './ExplorerResults';
+import { RefreshButton } from './RefreshButton';
+import { RefreshServerButton } from './RefreshServerButton';
+import { RenderedSql } from './RenderedSql';
+import CreateSavedQueryModal from './SavedQueries/CreateSavedQueryModal';
+import SavedQueryForm from './SavedQueries/SavedQueryForm';
+import { SimpleChart } from './SimpleChart';
 
 interface Props {
     savedQueryUuid?: string;

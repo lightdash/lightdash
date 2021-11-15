@@ -1,6 +1,6 @@
 import { Button, Menu, MenuItem } from '@blueprintjs/core';
-import React, { Dispatch, SetStateAction, useState } from 'react';
 import { Popover2 } from '@blueprintjs/popover2';
+import React, { Dispatch, SetStateAction, useState } from 'react';
 import { ActionTypeModal } from './ActionModal';
 
 type ModalActionButtonsProps = {

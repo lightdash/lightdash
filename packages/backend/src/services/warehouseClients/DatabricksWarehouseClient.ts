@@ -1,11 +1,11 @@
-import odbc, { Result } from 'odbc';
 import { CreateDatabricksCredentials, DimensionType } from 'common';
-import { WarehouseCatalog, WarehouseClient } from '../../types';
+import odbc, { Result } from 'odbc';
 import {
     ParseError,
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '../../errors';
+import { WarehouseCatalog, WarehouseClient } from '../../types';
 
 export const DRIVER_PATH = '/opt/simba/spark/lib/64/libsparkodbc_sb64.so';
 

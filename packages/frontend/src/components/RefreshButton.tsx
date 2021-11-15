@@ -1,9 +1,9 @@
 import React from 'react';
+import useDefaultSortField from '../hooks/useDefaultSortField';
+import { useQueryResults } from '../hooks/useQueryResults';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
-import { useQueryResults } from '../hooks/useQueryResults';
-import useDefaultSortField from '../hooks/useDefaultSortField';
 import { BigButton } from './common/BigButton';
 
 export const RefreshButton = () => {

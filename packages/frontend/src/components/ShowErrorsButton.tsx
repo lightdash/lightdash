@@ -1,5 +1,5 @@
-import React from 'react';
 import { Button } from '@blueprintjs/core';
+import React from 'react';
 import { ErrorLogs } from '../hooks/useErrorLogs';
 
 export const ShowErrorsButton: React.FC<

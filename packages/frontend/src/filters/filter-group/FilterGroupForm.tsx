@@ -1,10 +1,10 @@
-import React from 'react';
 import { FilterGroup } from 'common';
-import { assertFilterId } from '../common/FilterRow';
-import StringFilterGroupForm from '../string-filter/StringFilterGroupForm';
-import NumberFilterGroupForm from '../number-filter/NumberFilterGroupForm';
-import DateFilterGroupForm from '../date-filter/DateFilterGroupForm';
+import React from 'react';
 import BooleanFilterGroupForm from '../boolean-filter/BooleanFilterGroupForm';
+import { assertFilterId } from '../common/FilterRow';
+import DateFilterGroupForm from '../date-filter/DateFilterGroupForm';
+import NumberFilterGroupForm from '../number-filter/NumberFilterGroupForm';
+import StringFilterGroupForm from '../string-filter/StringFilterGroupForm';
 
 type FilterGroupFormProps = {
     filterGroup: FilterGroup;

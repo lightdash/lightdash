@@ -1,16 +1,16 @@
+import { Spinner } from '@blueprintjs/core';
+import { DashboardChartTile, DashboardTileTypes } from 'common';
 import React, { useEffect, useState } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
-import '../styles/react-grid.css';
 import { useParams } from 'react-router-dom';
-import { DashboardChartTile, DashboardTileTypes } from 'common';
-import { Spinner } from '@blueprintjs/core';
+import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
+import ChartTile from '../components/DashboardTiles/DashboardChartTile';
+import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
 import {
     useDashboardQuery,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
-import ChartTile from '../components/DashboardTiles/DashboardChartTile';
-import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
-import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
+import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 

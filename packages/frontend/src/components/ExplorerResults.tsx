@@ -2,13 +2,13 @@ import { NonIdealState, Spinner } from '@blueprintjs/core';
 import React from 'react';
 import { useColumns } from '../hooks/useColumns';
 import { useExplore } from '../hooks/useExplore';
-import { RefreshButton } from './RefreshButton';
+import { useQueryResults } from '../hooks/useQueryResults';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { Section } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
-import { useQueryResults } from '../hooks/useQueryResults';
-import { ResultsTable as Table } from './ResultsTable/ResultsTable';
 import AddColumnButton from './AddColumnButton';
+import { RefreshButton } from './RefreshButton';
+import { ResultsTable as Table } from './ResultsTable/ResultsTable';
 
 const EmptyStateNoColumns = () => (
     <div style={{ padding: '50px 0' }}>

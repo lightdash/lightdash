@@ -1,5 +1,5 @@
-import React, { FC } from 'react';
 import { Switch } from '@blueprintjs/core';
+import React, { FC } from 'react';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 
 interface Props extends Omit<InputWrapperProps, 'render'> {

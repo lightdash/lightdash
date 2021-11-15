@@ -1,7 +1,7 @@
-import React from 'react';
-import { friendlyName, SummaryExplore } from 'common';
 import { Icon, Intent, MenuItem } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
+import { friendlyName, SummaryExplore } from 'common';
+import React from 'react';
 
 type ExploreMenuItemProps = {
     explore: SummaryExplore;

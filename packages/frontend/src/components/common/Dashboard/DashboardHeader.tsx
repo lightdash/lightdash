@@ -1,6 +1,6 @@
-import React from 'react';
-import { Button, Intent, H3 } from '@blueprintjs/core';
+import { Button, H3, Intent } from '@blueprintjs/core';
 import { DashboardChartTile } from 'common';
+import React from 'react';
 import styled from 'styled-components';
 import AddTileButton from '../../DashboardTiles/AddTile/AddTileButton';
 

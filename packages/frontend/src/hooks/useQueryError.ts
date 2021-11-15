@@ -1,6 +1,6 @@
-import { useEffect, useState, Dispatch, SetStateAction } from 'react';
-import { useQueryClient } from 'react-query';
 import { ApiError } from 'common';
+import { Dispatch, SetStateAction, useEffect, useState } from 'react';
+import { useQueryClient } from 'react-query';
 import { useApp } from '../providers/AppProvider';
 
 const useQueryError = (): Dispatch<SetStateAction<ApiError | undefined>> => {

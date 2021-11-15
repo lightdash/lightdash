@@ -1,8 +1,4 @@
-import React, { FC, useEffect } from 'react';
-import { Button, Colors, Intent, Card, H2 } from '@blueprintjs/core';
-import { useMutation } from 'react-query';
-import { useForm } from 'react-hook-form';
-import { Redirect, useLocation } from 'react-router-dom';
+import { Button, Card, Colors, H2, Intent } from '@blueprintjs/core';
 import {
     ApiError,
     LightdashMode,
@@ -10,14 +6,18 @@ import {
     SEED_EMAIL,
     SEED_PASSWORD,
 } from 'common';
+import React, { FC, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { useMutation } from 'react-query';
+import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
 import AboutFooter from '../components/AboutFooter';
 import PageSpinner from '../components/PageSpinner';
-import { useTracking } from '../providers/TrackingProvider';
 import Form from '../components/ReactHookForm/Form';
 import Input from '../components/ReactHookForm/Input';
 import PasswordInput from '../components/ReactHookForm/PasswordInput';
+import { useApp } from '../providers/AppProvider';
+import { useTracking } from '../providers/TrackingProvider';
 
 type LoginParams = { email: string; password: string };
 

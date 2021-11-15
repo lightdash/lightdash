@@ -1,15 +1,15 @@
 import { CreateWarehouseCredentials } from 'common';
-import tempy from 'tempy';
+import { writeFileSync } from 'fs';
 import * as fspromises from 'fs/promises';
 import * as path from 'path';
-import { writeFileSync } from 'fs';
+import tempy from 'tempy';
 import {
     LIGHTDASH_PROFILE_NAME,
     LIGHTDASH_TARGET_NAME,
     profileFromCredentials,
 } from '../dbt/profiles';
-import { DbtLocalProjectAdapter } from './dbtLocalProjectAdapter';
 import { WarehouseClient } from '../types';
+import { DbtLocalProjectAdapter } from './dbtLocalProjectAdapter';
 
 type DbtLocalCredentialsProjectAdapterArgs = {
     warehouseClient: WarehouseClient;

@@ -1,18 +1,17 @@
 import {
-    SessionUser,
     CreateInviteLink,
-    InviteLink,
     CreateOrganizationUser,
+    InviteLink,
     LightdashUser,
+    SessionUser,
 } from 'common';
-
 import { nanoid } from 'nanoid';
-import { InviteLinkModel } from '../models/InviteLinkModel';
-import { ForbiddenError, NotExistsError } from '../errors';
 import { analytics, identifyUser } from '../analytics/client';
-import { UserModel } from '../models/UserModel';
-import { mapDbUserDetailsToLightdashUser } from '../models/User';
+import { ForbiddenError, NotExistsError } from '../errors';
+import { InviteLinkModel } from '../models/InviteLinkModel';
 import { SessionModel } from '../models/SessionModel';
+import { mapDbUserDetailsToLightdashUser } from '../models/User';
+import { UserModel } from '../models/UserModel';
 
 type UserServiceDependencies = {
     inviteLinkModel: InviteLinkModel;

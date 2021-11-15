@@ -6,7 +6,6 @@ import {
     getFields,
     isDimension,
     SortField,
-    TableCalculation,
 } from 'common';
 import React, { useMemo } from 'react';
 import { Column } from 'react-table';

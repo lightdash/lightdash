@@ -1,10 +1,10 @@
 import React, { FC } from 'react';
 import { FormProvider } from 'react-hook-form';
+import { UseFormReturn } from 'react-hook-form/dist/types';
 import {
     SubmitErrorHandler,
     SubmitHandler,
 } from 'react-hook-form/dist/types/form';
-import { UseFormReturn } from 'react-hook-form/dist/types';
 
 interface FormProps<T extends object = any> {
     disableSubmitOnEnter?: boolean;

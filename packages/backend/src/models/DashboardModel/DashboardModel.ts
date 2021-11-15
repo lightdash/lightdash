@@ -1,4 +1,3 @@
-import { Knex } from 'knex';
 import {
     CreateDashboard,
     Dashboard,
@@ -7,7 +6,7 @@ import {
     DashboardUnversionedFields,
     DashboardVersionedFields,
 } from 'common';
-import { NotFoundError } from '../../errors';
+import { Knex } from 'knex';
 import {
     DashboardsTableName,
     DashboardTable,
@@ -17,12 +16,13 @@ import {
     DashboardVersionsTableName,
     DashboardVersionTable,
 } from '../../database/entities/dashboards';
+import { ProjectTableName } from '../../database/entities/projects';
 import {
     SavedQueriesTableName,
     SavedQueryTable,
 } from '../../database/entities/savedQueries';
-import { ProjectTableName } from '../../database/entities/projects';
 import { SpaceTableName } from '../../database/entities/spaces';
+import { NotFoundError } from '../../errors';
 import Transaction = Knex.Transaction;
 
 export type GetDashboardQuery = Pick<

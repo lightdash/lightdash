@@ -1,12 +1,12 @@
 import {
-    DashboardUnversionedFields,
     CreateDashboard,
+    CreateDashboardChartTile,
     Dashboard,
     DashboardBasicDetails,
-    DashboardTileTypes,
-    DashboardVersionedFields,
-    CreateDashboardChartTile,
     DashboardChartTile,
+    DashboardTileTypes,
+    DashboardUnversionedFields,
+    DashboardVersionedFields,
 } from 'common';
 import {
     DashboardTable,

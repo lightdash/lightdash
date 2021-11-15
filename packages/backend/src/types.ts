@@ -1,5 +1,4 @@
 import {
-    DbtModelNode,
     DbtPackages,
     DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,

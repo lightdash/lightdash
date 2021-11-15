@@ -1,5 +1,5 @@
-import React from 'react';
 import { NonIdealState, Spinner } from '@blueprintjs/core';
+import React from 'react';
 import styled from 'styled-components';
 
 const NonIdealStateWithPadding = styled(NonIdealState)`

@@ -1,10 +1,10 @@
-import React, { FC } from 'react';
 import { Button } from '@blueprintjs/core';
+import React, { FC } from 'react';
 import { useToggle } from 'react-use';
+import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
-import FormSection from '../../ReactHookForm/FormSection';
 
 const RedshiftForm: FC<{
     disabled: boolean;

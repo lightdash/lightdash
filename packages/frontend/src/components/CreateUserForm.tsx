@@ -1,4 +1,3 @@
-import React, { FC, useState } from 'react';
 import {
     Button,
     FormGroup,
@@ -7,6 +6,7 @@ import {
     Switch,
 } from '@blueprintjs/core';
 import { CreateInitialUserArgs, LightdashMode, validateEmail } from 'common';
+import React, { FC, useState } from 'react';
 import { useApp } from '../providers/AppProvider';
 import PasswordInput from './PasswordInput';
 

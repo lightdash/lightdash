@@ -1,13 +1,13 @@
-import React, { FC, useEffect } from 'react';
-import { Colors, Card, H2 } from '@blueprintjs/core';
-import { useMutation } from 'react-query';
+import { Card, Colors, H2 } from '@blueprintjs/core';
 import { ApiError, CreateInitialUserArgs, LightdashUser } from 'common';
+import React, { FC } from 'react';
+import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
 import AboutFooter from '../components/AboutFooter';
-import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/CreateUserForm';
+import PageSpinner from '../components/PageSpinner';
+import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 
 const registerQuery = async (data: CreateInitialUserArgs) =>

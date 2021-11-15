@@ -1,8 +1,8 @@
-import React, { FC, useState } from 'react';
 import { Button, PopoverPosition } from '@blueprintjs/core';
-import { ProjectCatalog } from 'common';
-import AceEditor from 'react-ace';
 import { Tooltip2 } from '@blueprintjs/popover2';
+import { ProjectCatalog } from 'common';
+import React, { FC, useState } from 'react';
+import AceEditor from 'react-ace';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 import { useProjectCatalogAceEditorCompleter } from '../../hooks/useProjectCatalogAceEditorCompleter';
 

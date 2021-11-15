@@ -1,9 +1,9 @@
-import React, { FC, useState } from 'react';
-import { Tooltip2 } from '@blueprintjs/popover2';
 import { Button } from '@blueprintjs/core';
-import { CreateTableCalculationModal } from './TableCalculationModal';
+import { Tooltip2 } from '@blueprintjs/popover2';
+import React, { FC, useState } from 'react';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
+import { CreateTableCalculationModal } from './TableCalculationModal';
 
 const AddColumnButton: FC = () => {
     const [isOpen, setIsOpen] = useState<boolean>(false);

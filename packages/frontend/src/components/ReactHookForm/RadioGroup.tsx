@@ -1,5 +1,5 @@
-import React, { FC } from 'react';
 import { RadioGroup as BlueprintRadioGroup } from '@blueprintjs/core';
+import React, { FC } from 'react';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 
 const RadioGroup: FC<Omit<InputWrapperProps, 'render'>> = ({ ...rest }) => (

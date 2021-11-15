@@ -1,6 +1,6 @@
 import { CreateSnowflakeCredentials, WarehouseTypes } from 'common';
-import { config } from './WarehouseClient.mock';
 import { SnowflakeTypes } from './SnowflakeWarehouseClient';
+import { config } from './WarehouseClient.mock';
 
 export const credentials: CreateSnowflakeCredentials = {
     type: WarehouseTypes.SNOWFLAKE,

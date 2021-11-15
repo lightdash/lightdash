@@ -1,15 +1,15 @@
+import { ControlGroup } from '@blueprintjs/core';
 import {
     DateAndTimestampFilter,
     DateFilterGroup,
     TimestampFilterGroup,
 } from 'common';
-import { ControlGroup } from '@blueprintjs/core';
 import React from 'react';
+import FilterRows from '../common/FilterRows';
+import SelectFilterOperator from '../common/SelectFilterOperator';
 import DateFilterForm, {
     defaultValuesForNewDateFilter,
 } from './DateFilterForm';
-import SelectFilterOperator from '../common/SelectFilterOperator';
-import FilterRows from '../common/FilterRows';
 
 const options: { value: DateAndTimestampFilter['operator']; label: string }[] =
     [

@@ -1,21 +1,21 @@
-import React, { FC, useMemo } from 'react';
 import {
+    Colors,
+    Divider,
+    H3,
     Menu,
     MenuDivider,
     NonIdealState,
     Spinner,
-    Divider,
-    H3,
-    Colors,
 } from '@blueprintjs/core';
+import React, { FC, useMemo } from 'react';
 import { Redirect, Route, Switch, useParams } from 'react-router-dom';
-import { useProject } from '../hooks/useProject';
-import { UpdateProjectConnection } from '../components/ProjectConnection';
+import Content from '../components/common/Page/Content';
 import PageBase from '../components/common/Page/PageBase';
 import Sidebar from '../components/common/Page/Sidebar';
-import Content from '../components/common/Page/Content';
 import RouterMenuItem from '../components/common/RouterMenuItem';
+import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
+import { useProject } from '../hooks/useProject';
 
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();

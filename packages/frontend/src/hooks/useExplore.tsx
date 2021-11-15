@@ -1,9 +1,6 @@
 import { ApiError, ApiExploreResults } from 'common';
 import { useQuery } from 'react-query';
-import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useExplorer } from '../providers/ExplorerProvider';
-import { useApp } from '../providers/AppProvider';
 import { lightdashApi } from '../api';
 import useQueryError from './useQueryError';
 

@@ -1,4 +1,5 @@
 import { CompiledMetricQuery } from 'common';
+import { CompileError } from './errors';
 import { compileMetricQuery } from './queryCompiler';
 import {
     EXPLORE,
@@ -9,7 +10,6 @@ import {
     METRIC_QUERY_VALID_REFERENCES,
     METRIC_QUERY_VALID_REFERENCES_COMPILED,
 } from './queryCompiler.mock';
-import { CompileError } from './errors';
 
 test('Should compile without table calculations', () => {
     const expected: CompiledMetricQuery = {

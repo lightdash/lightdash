@@ -1,29 +1,29 @@
-import React, { FC, useEffect, useMemo } from 'react';
 import {
     Button,
     Card,
+    Classes,
     Collapse,
     Colors,
     H5,
     Intent,
     Radio,
-    Classes,
     Text,
 } from '@blueprintjs/core';
-import { useForm } from 'react-hook-form';
 import { hasIntersection, TableSelectionType } from 'common';
+import React, { FC, useEffect, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';
-import { useTracking } from '../../providers/TrackingProvider';
-import Form from '../ReactHookForm/Form';
-import RadioGroup from '../ReactHookForm/RadioGroup';
-import { EventName } from '../../types/Events';
+import { useExplores } from '../../hooks/useExplores';
 import {
     useProjectTablesConfiguration,
     useUpdateProjectTablesConfiguration,
 } from '../../hooks/useProjectTablesConfiguration';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
 import DocumentationHelpButton from '../DocumentationHelpButton';
-import { useExplores } from '../../hooks/useExplores';
+import Form from '../ReactHookForm/Form';
 import MultiSelect from '../ReactHookForm/MultiSelect';
+import RadioGroup from '../ReactHookForm/RadioGroup';
 
 type FormData = {
     type: TableSelectionType;

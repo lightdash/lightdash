@@ -1,21 +1,21 @@
+import { analytics } from '../../analytics/client';
 import { projectModel } from '../../models/models';
 import { ProjectService } from './ProjectService';
 import {
+    allExplores,
+    expectedAllExploreSummary,
     expectedCatalog,
+    expectedExploreSummaryFilteredByName,
+    expectedExploreSummaryFilteredByTags,
     expectedSqlResults,
+    exploreWithError,
+    projectAdapterMock,
     tablesConfiguration,
     tablesConfigurationWithNames,
     tablesConfigurationWithTags,
-    exploreWithError,
-    projectAdapterMock,
     user,
     validExplore,
-    expectedExploreSummaryFilteredByTags,
-    expectedExploreSummaryFilteredByName,
-    expectedAllExploreSummary,
-    allExplores,
 } from './ProjectService.mock';
-import { analytics } from '../../analytics/client';
 
 jest.mock('../../analytics/client', () => ({
     analytics: {

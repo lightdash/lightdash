@@ -1,4 +1,3 @@
-import React, { useEffect, useState } from 'react';
 import {
     ApiQueryResults,
     CompiledDimension,
@@ -8,8 +7,9 @@ import {
     getDimensions,
     TableCalculation,
 } from 'common';
-import { useExplore } from './useExplore';
+import { useEffect, useState } from 'react';
 import { getDimensionFormatter } from './useColumns';
+import { useExplore } from './useExplore';
 
 const getDimensionFormatterByKey = (
     dimensions: CompiledDimension[],

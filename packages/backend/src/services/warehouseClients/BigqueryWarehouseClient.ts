@@ -1,4 +1,3 @@
-import { CreateBigqueryCredentials, DimensionType } from 'common';
 import {
     BigQuery,
     BigQueryDate,
@@ -8,10 +7,11 @@ import {
     Dataset,
 } from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
+import { CreateBigqueryCredentials, DimensionType } from 'common';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
 import {
-    WarehouseClient,
     WarehouseCatalog,
+    WarehouseClient,
     WarehouseTableSchema,
 } from '../../types';
 

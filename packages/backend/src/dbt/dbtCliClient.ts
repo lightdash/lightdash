@@ -1,8 +1,4 @@
-import execa from 'execa';
-import yaml, { load as loadYaml } from 'js-yaml';
-import * as fs from 'fs/promises';
 import * as Sentry from '@sentry/node';
-import path from 'path';
 import {
     DbtPackages,
     DbtRpcDocsGenerateResults,
@@ -11,6 +7,10 @@ import {
     isDbtRpcDocsGenerateResults,
     isDbtRpcManifestResults,
 } from 'common';
+import execa from 'execa';
+import * as fs from 'fs/promises';
+import yaml, { load as loadYaml } from 'js-yaml';
+import path from 'path';
 import { DbtError, ParseError } from '../errors';
 import { DbtClient } from '../types';
 

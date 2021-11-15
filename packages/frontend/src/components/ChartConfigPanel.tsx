@@ -1,5 +1,3 @@
-import React, { useState } from 'react';
-import { Popover2, Classes } from '@blueprintjs/popover2';
 import {
     Alignment,
     Button,
@@ -9,8 +7,9 @@ import {
     Icon,
     Switch,
 } from '@blueprintjs/core';
-
+import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { friendlyName } from 'common';
+import React, { useState } from 'react';
 import { ChartConfig } from '../hooks/useChartConfig';
 
 type ContentProps = {

@@ -1,17 +1,17 @@
-import React, { FC, useState } from 'react';
-import { Explore, Source } from 'common';
 import {
     Button,
     Classes,
-    InputGroup,
     Dialog,
-    PopoverPosition,
     FormGroup,
+    InputGroup,
+    PopoverPosition,
 } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
+import { Explore, Source } from 'common';
+import React, { FC, useState } from 'react';
+import { CopyToClipboard } from 'react-copy-to-clipboard';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { a11yDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { CopyToClipboard } from 'react-copy-to-clipboard';
 import TableTree from './TableTree';
 
 type ExploreTreeProps = {

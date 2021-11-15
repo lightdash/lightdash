@@ -1,20 +1,18 @@
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
-import { ProjectModel } from './ProjectModel';
 import { ProjectTableName } from '../../database/entities/projects';
+import { ProjectModel } from './ProjectModel';
 import {
-    lightdashConfigMock,
     encryptionServiceMock,
-    projectMock,
     expectedProject,
-    projectUuid,
     expectedTablesConfiguration,
+    lightdashConfigMock,
+    projectMock,
+    projectUuid,
     tableSelectionMock,
     updateTableSelectionMock,
 } from './ProjectModel.mock';
-import { DashboardsTableName } from '../../database/entities/dashboards';
-import { updateDashboard } from '../DashboardModel/DashboardModel.mock';
 
 function queryMatcher(
     tableName: string,

@@ -1,5 +1,5 @@
-import React, { FC, useState } from 'react';
 import { FileInput as File } from '@blueprintjs/core';
+import React, { FC, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 

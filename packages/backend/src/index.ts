@@ -1,27 +1,27 @@
-import express, { NextFunction, Request, Response } from 'express';
-import path from 'path';
-import morgan from 'morgan';
-import passport from 'passport';
-import { Strategy as LocalStrategy } from 'passport-local';
-import expressSession from 'express-session';
-import cookieParser from 'cookie-parser';
-import { LightdashMode, SessionUser } from 'common';
-import reDoc from 'redoc-express';
-import connectSessionKnex from 'connect-session-knex';
-import bodyParser from 'body-parser';
-import * as OpenApiValidator from 'express-openapi-validator';
-import apiSpec from 'common/dist/openapibundle.json';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
 import { SamplingContext } from '@sentry/types';
-import { AuthorizationError, errorHandler } from './errors';
-import { apiV1Router } from './api/apiV1';
-import { UserModel } from './models/User';
-import database from './database/database';
-import { lightdashConfig } from './config/lightdashConfig';
+import bodyParser from 'body-parser';
+import { LightdashMode, SessionUser } from 'common';
+import apiSpec from 'common/dist/openapibundle.json';
+import connectSessionKnex from 'connect-session-knex';
+import cookieParser from 'cookie-parser';
+import express, { NextFunction, Request, Response } from 'express';
+import * as OpenApiValidator from 'express-openapi-validator';
+import expressSession from 'express-session';
+import morgan from 'morgan';
+import passport from 'passport';
+import { Strategy as LocalStrategy } from 'passport-local';
+import path from 'path';
+import reDoc from 'redoc-express';
 import { analytics } from './analytics/client';
-import { VERSION } from './version';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
+import { apiV1Router } from './api/apiV1';
+import { lightdashConfig } from './config/lightdashConfig';
+import database from './database/database';
+import { AuthorizationError, errorHandler } from './errors';
+import { UserModel } from './models/User';
+import { VERSION } from './version';
 
 // @ts-ignore
 // eslint-disable-next-line no-extend-native
