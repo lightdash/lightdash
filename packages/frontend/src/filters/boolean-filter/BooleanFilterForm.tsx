@@ -1,6 +1,6 @@
-import React from 'react';
-import { BooleanFilter } from 'common';
 import { HTMLSelect } from '@blueprintjs/core';
+import { BooleanFilter } from 'common';
+import React from 'react';
 
 export const defaultValuesForNewBooleanFilter: {
     [key in BooleanFilter['operator']]: BooleanFilter;
@@ -39,12 +39,12 @@ const BooleanFilterForm = ({ filter, onChange }: BooleanFilterFormProps) => {
                     value={filter.value ? 'true' : 'false'}
                 />
             );
-        default:
-            // eslint-disable-next-line
+        default: {
             const nope: never = filter;
             throw Error(
                 `No form implemented for Boolean filter operator ${operator}`,
             );
+        }
     }
 };
 

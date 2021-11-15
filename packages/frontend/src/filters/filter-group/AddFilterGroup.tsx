@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { Button, HTMLSelect } from '@blueprintjs/core';
 import {
     DimensionType,
     fieldId,
@@ -9,13 +9,13 @@ import {
     friendlyName,
     getDimensions,
 } from 'common';
-import { Button, HTMLSelect } from '@blueprintjs/core';
-import { useExplorer } from '../../providers/ExplorerProvider';
+import React, { useState } from 'react';
 import { useExplore } from '../../hooks/useExplore';
-import { defaultValuesForNewStringFilter } from '../string-filter/StringFilterForm';
-import { defaultValuesForNewNumberFilter } from '../number-filter/NumberFilterForm';
-import { defaultValuesForNewDateFilter } from '../date-filter/DateFilterForm';
+import { useExplorer } from '../../providers/ExplorerProvider';
 import { defaultValuesForNewBooleanFilter } from '../boolean-filter/BooleanFilterForm';
+import { defaultValuesForNewDateFilter } from '../date-filter/DateFilterForm';
+import { defaultValuesForNewNumberFilter } from '../number-filter/NumberFilterForm';
+import { defaultValuesForNewStringFilter } from '../string-filter/StringFilterForm';
 
 const AddFilterGroup = () => {
     const {
@@ -105,12 +105,12 @@ const AddFilterGroup = () => {
                     }),
                 );
                 break;
-            default:
-                // eslint-disable-next-line no-case-declarations
+            default: {
                 const nope: never = dimensionType;
                 throw Error(
                     `No default filter group implemented for filter group with type ${dimensionType}`,
                 );
+            }
         }
     };
 

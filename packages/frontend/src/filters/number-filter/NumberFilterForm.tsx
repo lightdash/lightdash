@@ -1,6 +1,6 @@
 import { NumericInput, TagInput } from '@blueprintjs/core';
-import React from 'react';
 import { NumberFilter } from 'common';
+import React from 'react';
 
 export const defaultValuesForNewNumberFilter: {
     [key in NumberFilter['operator']]: NumberFilter;
@@ -62,12 +62,12 @@ const NumberFilterForm = ({ filter, onChange }: NumberFilterFormProps) => {
                     onValueChange={(value) => onChange({ ...filter, value })}
                 />
             );
-        default:
-            // eslint-disable-next-line
+        default: {
             const nope: never = filter;
             throw Error(
                 `No form implemented for String filter operator ${filterType}`,
             );
+        }
     }
 };
 

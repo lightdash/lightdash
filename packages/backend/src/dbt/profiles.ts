@@ -10,9 +10,8 @@ const envVarReference = (v: string) => `{{ env_var('${envVar(v)}') }}`;
 const credentialsTarget = (
     credentials: CreateWarehouseCredentials,
 ): { target: Record<string, any>; environment: Record<string, string> } => {
-    // eslint-disable-next-line default-case
     switch (credentials.type) {
-        case 'bigquery':
+        case WarehouseTypes.BIGQUERY:
             return {
                 target: {
                     type: credentials.type,
@@ -37,7 +36,7 @@ const credentialsTarget = (
                     ),
                 ),
             };
-        case 'redshift':
+        case WarehouseTypes.REDSHIFT:
             return {
                 target: {
                     type: credentials.type,
@@ -56,7 +55,7 @@ const credentialsTarget = (
                     [envVar('password')]: credentials.password,
                 },
             };
-        case 'postgres':
+        case WarehouseTypes.POSTGRES:
             return {
                 target: {
                     type: credentials.type,
@@ -77,7 +76,7 @@ const credentialsTarget = (
                     [envVar('password')]: credentials.password,
                 },
             };
-        case 'snowflake':
+        case WarehouseTypes.SNOWFLAKE:
             return {
                 target: {
                     type: credentials.type,
@@ -114,10 +113,14 @@ const credentialsTarget = (
                     [envVar('token')]: credentials.personalAccessToken,
                 },
             };
+        default: {
+            const { type } = credentials;
+            const nope: never = credentials;
+            throw new Error(
+                `No profile implemented for warehouse type: ${type}`,
+            );
+        }
     }
-    throw new Error(
-        `No profile implemented for warehouse type: ${credentials.type}`,
-    );
 };
 export const profileFromCredentials = (
     credentials: CreateWarehouseCredentials,

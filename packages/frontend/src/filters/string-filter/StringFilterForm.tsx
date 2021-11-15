@@ -1,6 +1,6 @@
-import { StringFilter, StringFilterGroup } from 'common';
-import React from 'react';
 import { InputGroup, TagInput } from '@blueprintjs/core';
+import { StringFilter } from 'common';
+import React from 'react';
 
 export const defaultValuesForNewStringFilter: {
     [key in StringFilter['operator']]: StringFilter;
@@ -60,12 +60,12 @@ const StringFilterForm = ({ filter, onChange }: StringFilterFormProps) => {
                     }
                 />
             );
-        default:
-            // eslint-disable-next-line
+        default: {
             const nope: never = filter;
             throw Error(
                 `No form implemented for String filter operator ${filterType}`,
             );
+        }
     }
 };
 

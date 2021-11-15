@@ -129,7 +129,6 @@ export const compileMetricSql = (
         case MetricType.BOOLEAN:
             return renderedSql;
         default:
-            // eslint-disable-next-line no-case-declarations
             const nope: never = metricType;
             throw new CompileError(
                 `No SQL render function implemented for metric with type "${metricType}"`,
