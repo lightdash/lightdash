@@ -253,7 +253,10 @@ export class ProjectService {
                 projectId: projectUuid,
                 properties: {
                     projectType: project.dbtConnection.type,
+                    warehouseType: project.warehouseConnection?.type,
                     modelsCount: explores.length,
+                    modelsWithErrorsCount:
+                        explores.filter(isExploreError).length,
                     metricsCount: explores.reduce<number>((acc, explore) => {
                         if (!isExploreError(explore)) {
                             return (

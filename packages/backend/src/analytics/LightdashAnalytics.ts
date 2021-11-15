@@ -92,7 +92,9 @@ type ProjectCompiledEvent = BaseTrack & {
     userId?: string;
     properties: {
         projectType: ProjectType;
+        warehouseType?: WarehouseTypes;
         modelsCount: number;
+        modelsWithErrorsCount: number;
         metricsCount: number;
         packages?: DbtPackages;
     };
