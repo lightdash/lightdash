@@ -96,7 +96,7 @@ type ProjectCompiledEvent = BaseTrack & {
         modelsCount: number;
         modelsWithErrorsCount: number;
         metricsCount: number;
-        packages?: DbtPackages;
+        packagesCount?: number;
     };
 };
 

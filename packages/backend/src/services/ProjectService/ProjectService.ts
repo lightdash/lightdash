@@ -243,6 +243,7 @@ export class ProjectService {
         // Might want to cache parts of this in future if slow
         this.projectLoading[projectUuid] = true;
         const adapter = await this.restartAdapter(projectUuid);
+        const packages = await adapter.getDbtPackages();
         this.cachedExplores[projectUuid] = adapter.compileAllExplores();
         try {
             const explores = await this.cachedExplores[projectUuid];
@@ -268,7 +269,9 @@ export class ProjectService {
                         }
                         return acc;
                     }, 0),
-                    packages: await adapter.getDbtPackages(),
+                    packagesCount: packages
+                        ? Object.keys(packages).length
+                        : undefined,
                 },
             });
         } catch (e) {
