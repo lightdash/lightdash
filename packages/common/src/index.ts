@@ -802,6 +802,19 @@ export const isDbtRpcDocsGenerateResults = (
             'columns' in node,
     );
 
+export interface DbtPackage {
+    package: string;
+    version: string;
+}
+
+export interface DbtPackages {
+    packages: DbtPackage[];
+}
+
+export const isDbtPackages = (
+    results: Record<string, any>,
+): results is DbtPackages => 'packages' in results;
+
 export interface DbtManifest {
     nodes: Record<string, DbtNode>;
     metadata: DbtRawManifestMetadata;

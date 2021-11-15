@@ -7,7 +7,9 @@ import {
     cliMockImplementation,
     dbtProjectYml,
     expectedCommandOptions,
+    expectedPackages,
     manifestMock,
+    packagesYml,
 } from './dbtCliClient.mock';
 import { DbtError } from '../errors';
 
@@ -81,5 +83,25 @@ describe('DbtCliClient', () => {
             ['docs', 'generate', ...expectedCommandOptions],
             expect.anything(),
         );
+    });
+    it('should get packages with success', async () => {
+        jest.spyOn(fs, 'readFile').mockImplementationOnce(
+            async () => packagesYml,
+        );
+
+        const client = new DbtCliClient(cliArgs);
+
+        await expect(client.getDbtPackages()).resolves.toEqual(
+            expectedPackages,
+        );
+    });
+    it('should ignore error when packages.yml doesnt exist', async () => {
+        jest.spyOn(fs, 'readFile').mockImplementationOnce(() => {
+            throw new Error('file not found');
+        });
+
+        const client = new DbtCliClient(cliArgs);
+
+        await expect(client.getDbtPackages()).resolves.toBeUndefined();
     });
 });

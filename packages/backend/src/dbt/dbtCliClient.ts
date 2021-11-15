@@ -1,11 +1,13 @@
 import execa from 'execa';
-import { load as loadYaml } from 'js-yaml';
+import yaml, { load as loadYaml } from 'js-yaml';
 import * as fs from 'fs/promises';
 import * as Sentry from '@sentry/node';
 import path from 'path';
 import {
+    DbtPackages,
     DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
+    isDbtPackages,
     isDbtRpcDocsGenerateResults,
     isDbtRpcManifestResults,
 } from 'common';
@@ -148,7 +150,7 @@ export class DbtCliClient implements DbtClient {
         });
         const dbtLogs = await this._runDbtCommand('compile');
         const rawManifest = {
-            manifest: await this._loadDbtArtifact('manifest.json'),
+            manifest: await this.loadDbtTargetArtifact('manifest.json'),
         };
         span?.finish();
         if (isDbtRpcManifestResults(rawManifest)) {
@@ -160,18 +162,48 @@ export class DbtCliClient implements DbtClient {
         );
     }
 
-    private async _loadDbtArtifact(filename: string): Promise<any> {
+    async getDbtPackages(): Promise<DbtPackages | undefined> {
+        const packagesPath = path.join(
+            this.dbtProjectDirectory,
+            'packages.yml',
+        );
+        let packages;
+        try {
+            packages = await DbtCliClient.loadDbtFile(packagesPath, 'YML');
+            if (isDbtPackages(packages)) {
+                return packages;
+            }
+            return undefined;
+        } catch {
+            // ignore error if file not available
+            return undefined;
+        }
+    }
+
+    private async loadDbtTargetArtifact(filename: string): Promise<any> {
         const targetDir = await this._getTargetDirectory();
         const fullPath = path.join(
             this.dbtProjectDirectory,
             targetDir,
             filename,
         );
+        return DbtCliClient.loadDbtFile(fullPath);
+    }
+
+    static async loadDbtFile(
+        fullPath: string,
+        fileType: 'JSON' | 'YML' = 'JSON',
+    ): Promise<any> {
+        console.log('fullPath', fullPath);
         try {
-            return JSON.parse(await fs.readFile(fullPath, 'utf-8'));
+            const file = await fs.readFile(fullPath, 'utf-8');
+            if (fileType === 'JSON') {
+                return JSON.parse(file);
+            }
+            return yaml.load(file);
         } catch (e) {
             throw new DbtError(
-                `Cannot read response from dbt, could not read dbt artifact: ${filename}`,
+                `Cannot read response from dbt, could not read dbt artifact: ${fullPath}`,
                 {},
             );
         }
@@ -186,7 +218,7 @@ export class DbtCliClient implements DbtClient {
             description: 'getDbtbCatalog',
         });
         const dbtLogs = await this._runDbtCommand('docs', 'generate');
-        const rawCatalog = await this._loadDbtArtifact('catalog.json');
+        const rawCatalog = await this.loadDbtTargetArtifact('catalog.json');
         span?.finish();
         if (isDbtRpcDocsGenerateResults(rawCatalog)) {
             return rawCatalog;
