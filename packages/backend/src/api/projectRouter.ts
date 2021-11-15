@@ -91,13 +91,14 @@ projectRouter.post(
                 limit: body.limit,
                 tableCalculations: body.tableCalculations,
             };
-            const results: ApiCompiledQueryResults =
+            const results: ApiCompiledQueryResults = (
                 await projectService.compileQuery(
                     req.user!,
                     metricQuery,
                     req.params.projectUuid,
                     req.params.exploreId,
-                );
+                )
+            ).query;
             res.json({
                 status: 'ok',
                 results,
