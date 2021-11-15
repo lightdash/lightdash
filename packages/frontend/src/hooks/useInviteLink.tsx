@@ -78,7 +78,7 @@ export const useRevokeInvitesMutation = () => {
         mutationKey: ['invite_link_revoke'],
         onSuccess: async () => {
             showToastSuccess({
-                title: `Invites revoked with success`,
+                title: `All invites were revoked`,
             });
         },
         onError: (error) => {

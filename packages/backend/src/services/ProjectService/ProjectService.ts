@@ -4,11 +4,16 @@ import {
     CreateProject,
     Explore,
     ExploreError,
+    getMetrics,
+    hasIntersection,
     isExploreError,
     MetricQuery,
     Project,
     ProjectCatalog,
     SessionUser,
+    SummaryExplore,
+    TablesConfiguration,
+    TableSelectionType,
     UpdateProject,
 } from 'common';
 import { analytics } from '../../analytics/client';
@@ -75,7 +80,9 @@ export class ProjectService {
     }
 
     async create(user: SessionUser, data: CreateProject): Promise<Project> {
-        await ProjectService.testProjectAdapter(data);
+        const [adapter, explores] = await ProjectService.testProjectAdapter(
+            data,
+        );
         const projectUuid = await this.projectModel.create(
             user.organizationUuid,
             data,
@@ -91,6 +98,9 @@ export class ProjectService {
                 warehouseConnectionType: data.warehouseConnection.type,
             },
         });
+        this.projectLoading[projectUuid] = false;
+        this.projectAdapters[projectUuid] = adapter;
+        this.cachedExplores[projectUuid] = Promise.resolve(explores);
         return this.getProject(projectUuid, user);
     }
 
@@ -99,7 +109,10 @@ export class ProjectService {
         user: SessionUser,
         data: UpdateProject,
     ): Promise<void> {
-        await ProjectService.testProjectAdapter(data);
+        this.projectLoading[projectUuid] = true;
+        const [adapter, explores] = await ProjectService.testProjectAdapter(
+            data,
+        );
         await this.projectModel.update(projectUuid, data);
         analytics.track({
             event: 'project.updated',
@@ -112,20 +125,27 @@ export class ProjectService {
                 warehouseConnectionType: data.warehouseConnection.type,
             },
         });
+        this.projectLoading[projectUuid] = false;
+        this.projectAdapters[projectUuid] = adapter;
+        this.cachedExplores[projectUuid] = Promise.resolve(explores);
     }
 
     private static async testProjectAdapter(
         data: UpdateProject,
-    ): Promise<void> {
+    ): Promise<[ProjectAdapter, (Explore | ExploreError)[]]> {
         const adapter = await projectAdapterFromConfig(
             data.dbtConnection,
             data.warehouseConnection,
         );
+        let explores: (Explore | ExploreError)[];
         try {
             await adapter.test();
-        } finally {
+            explores = await adapter.compileAllExplores();
+        } catch (e) {
             await adapter.destroy();
+            throw e;
         }
+        return [adapter, explores];
     }
 
     private async restartAdapter(projectUuid: string): Promise<ProjectAdapter> {
@@ -161,14 +181,13 @@ export class ProjectService {
         metricQuery: MetricQuery,
         projectUuid: string,
         exploreName: string,
-    ): Promise<string> {
+    ): Promise<{ query: string; hasExampleMetric: boolean }> {
         const explore = await this.getExplore(user, projectUuid, exploreName);
         const compiledMetricQuery = compileMetricQuery({
             explore,
             metricQuery,
         });
-        const sql = buildQuery({ explore, compiledMetricQuery });
-        return sql;
+        return buildQuery({ explore, compiledMetricQuery });
     }
 
     async runQuery(
@@ -177,20 +196,28 @@ export class ProjectService {
         projectUuid: string,
         exploreName: string,
     ): Promise<ApiQueryResults> {
-        await analytics.track({
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
-            userId: user.userUuid,
-            event: 'query.executed',
-        });
-        const sql = await this.compileQuery(
+        const { query, hasExampleMetric } = await this.compileQuery(
             user,
             metricQuery,
             projectUuid,
             exploreName,
         );
+        await analytics.track({
+            projectId: projectUuid,
+            organizationId: user.organizationUuid,
+            userId: user.userUuid,
+            event: 'query.executed',
+            properties: {
+                hasExampleMetric,
+                dimensionsCount: metricQuery.dimensions.length,
+                metricsCount: metricQuery.metrics.length,
+                filtersCount: metricQuery.filters.length,
+                sortsCount: metricQuery.sorts.length,
+                tableCalculationsCount: metricQuery.tableCalculations.length,
+            },
+        });
         const adapter = await this.getAdapter(projectUuid);
-        const rows = await adapter.runQuery(sql);
+        const rows = await adapter.runQuery(query);
         return {
             rows,
             metricQuery,
@@ -223,9 +250,10 @@ export class ProjectService {
         // Might want to cache parts of this in future if slow
         this.projectLoading[projectUuid] = true;
         const adapter = await this.restartAdapter(projectUuid);
+        const packages = await adapter.getDbtPackages();
         this.cachedExplores[projectUuid] = adapter.compileAllExplores();
         try {
-            await this.cachedExplores[projectUuid];
+            const explores = await this.cachedExplores[projectUuid];
             analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,
@@ -233,6 +261,24 @@ export class ProjectService {
                 projectId: projectUuid,
                 properties: {
                     projectType: project.dbtConnection.type,
+                    warehouseType: project.warehouseConnection?.type,
+                    modelsCount: explores.length,
+                    modelsWithErrorsCount:
+                        explores.filter(isExploreError).length,
+                    metricsCount: explores.reduce<number>((acc, explore) => {
+                        if (!isExploreError(explore)) {
+                            return (
+                                acc +
+                                getMetrics(explore).filter(
+                                    ({ isAutoGenerated }) => !isAutoGenerated,
+                                ).length
+                            );
+                        }
+                        return acc;
+                    }, 0),
+                    packagesCount: packages
+                        ? Object.keys(packages).length
+                        : undefined,
                 },
             });
         } catch (e) {
@@ -264,6 +310,44 @@ export class ProjectService {
             return this.refreshAllTables(user, projectUuid);
         }
         return explores;
+    }
+
+    async getAllExploresSummary(
+        user: SessionUser,
+        projectUuid: string,
+        filtered: boolean,
+    ): Promise<SummaryExplore[]> {
+        const explores = await this.getAllExplores(user, projectUuid);
+        const allExploreSummaries = explores.map<SummaryExplore>((explore) => {
+            if (isExploreError(explore)) {
+                return {
+                    name: explore.name,
+                    tags: explore.tags,
+                    errors: explore.errors,
+                };
+            }
+            return {
+                name: explore.name,
+                tags: explore.tags,
+            };
+        });
+
+        if (filtered) {
+            const {
+                tableSelection: { type, value },
+            } = await this.getTablesConfiguration(user, projectUuid);
+            if (type === TableSelectionType.WITH_TAGS) {
+                return allExploreSummaries.filter((explore) =>
+                    hasIntersection(explore.tags || [], value || []),
+                );
+            }
+            if (type === TableSelectionType.WITH_NAMES) {
+                return allExploreSummaries.filter((explore) =>
+                    (value || []).includes(explore.name),
+                );
+            }
+        }
+        return allExploreSummaries;
     }
 
     async getExplore(
@@ -302,5 +386,31 @@ export class ProjectService {
             }
             return acc;
         }, {});
+    }
+
+    async getTablesConfiguration(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<TablesConfiguration> {
+        return this.projectModel.getTablesConfiguration(projectUuid);
+    }
+
+    async updateTablesConfiguration(
+        user: SessionUser,
+        projectUuid: string,
+        data: TablesConfiguration,
+    ): Promise<TablesConfiguration> {
+        await this.projectModel.updateTablesConfiguration(projectUuid, data);
+        analytics.track({
+            event: 'project_tables_configuration.updated',
+            userId: user.userUuid,
+            projectId: projectUuid,
+            organizationId: user.organizationUuid,
+            properties: {
+                projectId: projectUuid,
+                project_table_selection_type: data.tableSelection.type,
+            },
+        });
+        return this.projectModel.getTablesConfiguration(projectUuid);
     }
 }

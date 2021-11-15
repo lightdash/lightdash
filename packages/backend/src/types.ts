@@ -1,4 +1,5 @@
 import {
+    DbtPackages,
     DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
     DimensionType,
@@ -8,6 +9,7 @@ import {
 
 export interface ProjectAdapter {
     compileAllExplores(): Promise<(Explore | ExploreError)[]>;
+    getDbtPackages(): Promise<DbtPackages | undefined>;
     runQuery(sql: string): Promise<Record<string, any>[]>;
     test(): Promise<void>;
     destroy(): Promise<void>;
@@ -17,6 +19,7 @@ export interface DbtClient {
     installDeps(): Promise<void>;
     getDbtManifest(): Promise<DbtRpcGetManifestResults>;
     getDbtCatalog(): Promise<DbtRpcDocsGenerateResults>;
+    getDbtPackages?(): Promise<DbtPackages | undefined>;
     test(): Promise<void>;
 }
 

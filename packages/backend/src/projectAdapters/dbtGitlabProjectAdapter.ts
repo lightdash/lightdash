@@ -8,7 +8,6 @@ type DbtGitlabProjectAdapterArgs = {
     gitlabRepository: string;
     gitlabBranch: string;
     projectDirectorySubPath: string;
-    port: number;
     warehouseCredentials: CreateWarehouseCredentials;
 };
 
@@ -19,7 +18,6 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
         gitlabPersonalAccessToken,
         gitlabRepository,
         projectDirectorySubPath,
-        port,
         warehouseCredentials,
     }: DbtGitlabProjectAdapterArgs) {
         const remoteRepositoryUrl = `https://:${gitlabPersonalAccessToken}@gitlab.com/${gitlabRepository}.git`;
@@ -28,7 +26,6 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
             gitBranch: gitlabBranch,
             remoteRepositoryUrl,
             projectDirectorySubPath,
-            port,
             warehouseCredentials,
         });
     }

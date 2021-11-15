@@ -1,4 +1,4 @@
-import { DbtManifest, DbtRpcDocsGenerateResults } from 'common';
+import { DbtManifest, DbtPackages, DbtRpcDocsGenerateResults } from 'common';
 import { ExecaError, ExecaReturnValue } from 'execa';
 
 export const cliArgs = {
@@ -63,4 +63,14 @@ export const catalogMock: DbtRpcDocsGenerateResults = {
             columns: {},
         },
     },
+};
+
+export const packagesYml = `
+packages:
+  - package: dbt-labs/dbt_utils
+    version: 0.7.3
+`;
+
+export const expectedPackages: DbtPackages = {
+    packages: [{ package: 'dbt-labs/dbt_utils', version: '0.7.3' }],
 };

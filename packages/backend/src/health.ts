@@ -1,11 +1,4 @@
-import {
-    DbtProjectConfig,
-    HealthState,
-    LightdashInstallType,
-    LightdashMode,
-    ProjectType,
-    sensitiveDbtCredentialsFieldNames,
-} from 'common';
+import { HealthState, LightdashInstallType, LightdashMode } from 'common';
 import fetch from 'node-fetch';
 import { lightdashConfig } from './config/lightdashConfig';
 import database from './database/database';
@@ -44,18 +37,6 @@ export const getHealthState = async (
         process.env.LIGHTDASH_INSTALL_TYPE !== LightdashInstallType.HEROKU &&
         lightdashConfig.mode !== LightdashMode.CLOUD_BETA;
 
-    const defaultProject =
-        needsProject && lightdashConfig.projects[0]
-            ? (Object.fromEntries(
-                  Object.entries(lightdashConfig.projects[0]).filter(
-                      ([key]) =>
-                          !sensitiveDbtCredentialsFieldNames.includes(
-                              key as any,
-                          ),
-                  ),
-              ) as DbtProjectConfig)
-            : undefined;
-
     return {
         healthy: true,
         mode: lightdashConfig.mode,
@@ -63,10 +44,7 @@ export const getHealthState = async (
         needsSetup: !(await hasUsers(database)),
         needsProject,
         localDbtEnabled,
-        defaultProject:
-            !localDbtEnabled && defaultProject?.type === ProjectType.DBT
-                ? undefined
-                : defaultProject,
+        defaultProject: undefined,
         isAuthenticated,
         latest: { version: latestVersion },
         rudder: lightdashConfig.rudder,

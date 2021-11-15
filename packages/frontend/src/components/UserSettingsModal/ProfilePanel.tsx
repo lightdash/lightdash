@@ -37,7 +37,7 @@ const ProfilePanel: FC = () => {
         onSuccess: (data) => {
             queryClient.setQueryData(['user'], data);
             showToastSuccess({
-                title: 'User updated with success',
+                title: 'Success! User details were updated.',
             });
         },
     });

@@ -2,7 +2,12 @@
 import Analytics, {
     Track as AnalyticsTrack,
 } from '@rudderstack/rudder-sdk-node';
-import { LightdashInstallType, ProjectType, WarehouseTypes } from 'common';
+import {
+    LightdashInstallType,
+    ProjectType,
+    TableSelectionType,
+    WarehouseTypes,
+} from 'common';
 import { v4 as uuidv4 } from 'uuid';
 import { VERSION } from '../version';
 
@@ -31,8 +36,19 @@ type TrackSimpleEvent = BaseTrack & {
         | 'password.updated'
         | 'invite_link.created'
         | 'invite_link.all_revoked'
-        | 'sql.executed'
-        | 'query.executed';
+        | 'sql.executed';
+};
+
+type QueryExecutionEvent = BaseTrack & {
+    event: 'query.executed';
+    properties: {
+        metricsCount: number;
+        dimensionsCount: number;
+        tableCalculationsCount: number;
+        filtersCount: number;
+        sortsCount: number;
+        hasExampleMetric: boolean;
+    };
 };
 
 type TrackOrganizationEvent = BaseTrack & {
@@ -72,11 +88,25 @@ type ProjectEvent = BaseTrack & {
     };
 };
 
+type ProjectTablesConfigurationEvent = BaseTrack & {
+    event: 'project_tables_configuration.updated';
+    userId: string;
+    properties: {
+        projectId: string;
+        project_table_selection_type: TableSelectionType;
+    };
+};
+
 type ProjectCompiledEvent = BaseTrack & {
     event: 'project.compiled';
     userId?: string;
     properties: {
         projectType: ProjectType;
+        warehouseType?: WarehouseTypes;
+        modelsCount: number;
+        modelsWithErrorsCount: number;
+        metricsCount: number;
+        packagesCount?: number;
     };
 };
 
@@ -116,6 +146,7 @@ type ApiErrorEvent = BaseTrack & {
 
 type Track =
     | TrackSimpleEvent
+    | QueryExecutionEvent
     | TrackSavedChart
     | TrackUserDeletedEvent
     | ProjectErrorEvent
@@ -123,6 +154,7 @@ type Track =
     | ProjectEvent
     | ProjectCompiledEvent
     | DashboardEvent
+    | ProjectTablesConfigurationEvent
     | TrackOrganizationEvent;
 
 export class LightdashAnalytics extends Analytics {

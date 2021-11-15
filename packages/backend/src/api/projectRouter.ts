@@ -5,9 +5,9 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     ApiStatusResults,
-    isExploreError,
     MetricQuery,
     ProjectCatalog,
+    TablesConfiguration,
 } from 'common';
 import express from 'express';
 import { SavedQueriesModel } from '../models/savedQueries';
@@ -45,15 +45,12 @@ projectRouter.patch(
 
 projectRouter.get('/explores', isAuthenticated, async (req, res, next) => {
     try {
-        const explores = await projectService.getAllExplores(
-            req.user!,
-            req.params.projectUuid,
-        );
-        const results: ApiExploresResults = explores.map((explore) =>
-            isExploreError(explore)
-                ? { name: explore.name, errors: explore.errors }
-                : { name: explore.name },
-        );
+        const results: ApiExploresResults =
+            await projectService.getAllExploresSummary(
+                req.user!,
+                req.params.projectUuid,
+                req.query.filtered === 'true',
+            );
         res.json({
             status: 'ok',
             results,
@@ -94,13 +91,14 @@ projectRouter.post(
                 limit: body.limit,
                 tableCalculations: body.tableCalculations,
             };
-            const results: ApiCompiledQueryResults =
+            const results: ApiCompiledQueryResults = (
                 await projectService.compileQuery(
                     req.user!,
                     metricQuery,
                     req.params.projectUuid,
                     req.params.exploreId,
-                );
+                )
+            ).query;
             res.json({
                 status: 'ok',
                 results,
@@ -270,3 +268,45 @@ projectRouter.get('/catalog', isAuthenticated, async (req, res, next) => {
         next(e);
     }
 });
+
+projectRouter.get(
+    '/tablesConfiguration',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results: TablesConfiguration =
+                await projectService.getTablesConfiguration(
+                    req.user!,
+                    req.params.projectUuid,
+                );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+projectRouter.patch(
+    '/tablesConfiguration',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        try {
+            const results: TablesConfiguration =
+                await projectService.updateTablesConfiguration(
+                    req.user!,
+                    req.params.projectUuid,
+                    req.body,
+                );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);

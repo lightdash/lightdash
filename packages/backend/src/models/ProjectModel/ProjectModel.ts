@@ -6,6 +6,7 @@ import {
     Project,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
+    TablesConfiguration,
     UpdateProject,
     WarehouseCredentials,
 } from 'common';
@@ -218,18 +219,16 @@ export class ProjectModel {
             );
         }
         const [project] = projects;
-        let dbtSensitiveCredentials: DbtProjectConfig =
-            this.lightdashConfig.projects[0];
-        if (project.dbt_connection) {
-            try {
-                dbtSensitiveCredentials = JSON.parse(
-                    this.encryptionService.decrypt(project.dbt_connection),
-                ) as DbtProjectConfig;
-            } catch (e) {
-                throw new UnexpectedServerError(
-                    'Failed to load dbt credentials',
-                );
-            }
+        if (!project.dbt_connection) {
+            throw new NotExistsError('Project has no valid dbt credentials');
+        }
+        let dbtSensitiveCredentials: DbtProjectConfig;
+        try {
+            dbtSensitiveCredentials = JSON.parse(
+                this.encryptionService.decrypt(project.dbt_connection),
+            ) as DbtProjectConfig;
+        } catch (e) {
+            throw new UnexpectedServerError('Failed to load dbt credentials');
         }
         const result = {
             projectUuid,
@@ -279,5 +278,36 @@ export class ProjectModel {
             dbtConnection: nonSensitiveDbtCredentials,
             warehouseConnection: nonSensitiveCredentials,
         };
+    }
+
+    async getTablesConfiguration(
+        projectUuid: string,
+    ): Promise<TablesConfiguration> {
+        const projects = await this.database(ProjectTableName)
+            .select(['table_selection_type', 'table_selection_value'])
+            .where('project_uuid', projectUuid);
+        if (projects.length === 0) {
+            throw new NotExistsError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+        return {
+            tableSelection: {
+                type: projects[0].table_selection_type,
+                value: projects[0].table_selection_value,
+            },
+        };
+    }
+
+    async updateTablesConfiguration(
+        projectUuid: string,
+        data: TablesConfiguration,
+    ): Promise<void> {
+        await this.database(ProjectTableName)
+            .update({
+                table_selection_type: data.tableSelection.type,
+                table_selection_value: data.tableSelection.value,
+            })
+            .where('project_uuid', projectUuid);
     }
 }

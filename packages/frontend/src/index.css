@@ -25,3 +25,10 @@ code {
 .bp3-tree-node-content-2 {
     cursor: pointer;
 }
+
+/* multi select */
+.bp3-multi-select-popover .bp3-menu {
+    max-height: 300px;
+    max-width: 400px;
+    overflow: auto;
+}

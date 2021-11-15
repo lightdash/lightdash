@@ -21,6 +21,7 @@ export enum PageName {
     INVITE_MANAGEMENT_SETTINGS = 'invite_management_settings',
     ABOUT_LIGHTDASH = 'about_lightdash',
     CREATE_PROJECT = 'create_project',
+    CREATE_PROJECT_SETTINGS = 'create_project_settings',
     SAVED_DASHBOARDS = 'saved_dashboards',
     DASHBOARD = 'DASHBOARD',
     SQL_RUNNER = 'SQL_RUNNER',
@@ -34,6 +35,7 @@ export enum SectionName {
     EMPTY_RESULTS_TABLE = 'empty_results_table',
     EXPLORER_TOP_BUTTONS = 'explorer_top_buttons',
     SIDEBAR = 'sidebar',
+    PAGE_CONTENT = 'page_content',
     RESULTS_TABLE = 'results_table',
 }
 
@@ -51,4 +53,5 @@ export enum EventName {
     UPDATE_PROJECT_BUTTON_CLICKED = 'update_project_button.click',
     CREATE_PROJECT_BUTTON_CLICKED = 'create_project_button.click',
     REFRESH_DBT_CONNECTION_BUTTON_CLICKED = 'refresh_dbt_connection_button.click',
+    UPDATE_PROJECT_TABLES_CONFIGURATION_BUTTON_CLICKED = 'update_project_tables_configuration.click',
 }

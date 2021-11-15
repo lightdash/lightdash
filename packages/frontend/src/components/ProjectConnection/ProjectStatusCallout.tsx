@@ -23,7 +23,7 @@ const ProjectStatusCallout: FC<
     } else if (isSuccess) {
         stateProps = {
             intent: 'success',
-            title: 'Connected with success',
+            title: 'Successfully connected! Updated project settings.',
         };
     } else if (isError) {
         stateProps = {

@@ -2,6 +2,7 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import {
     DbtModelNode,
+    DbtPackages,
     DbtRawModelNode,
     Explore,
     ExploreError,
@@ -44,6 +45,13 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     public async test(): Promise<void> {
         await this.dbtClient.test();
         await this.warehouseClient.test();
+    }
+
+    public async getDbtPackages(): Promise<DbtPackages | undefined> {
+        if (this.dbtClient.getDbtPackages) {
+            return this.dbtClient.getDbtPackages();
+        }
+        return undefined;
     }
 
     public async compileAllExplores(

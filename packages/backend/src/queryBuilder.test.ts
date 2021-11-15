@@ -6,6 +6,6 @@ test('Should build simple metric query', () => {
         buildQuery({
             explore: EXPLORE,
             compiledMetricQuery: METRIC_QUERY,
-        }),
+        }).query,
     ).toStrictEqual(METRIC_QUERY_SQL);
 });

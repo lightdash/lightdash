@@ -4,6 +4,32 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.10.1] - 2021-11-15
+### Added
+- We now provide example metrics for those tables that you haven't defined any metrics (#794)
+- You can pick the dbt models you want to appear as tables in Lightdash (#811)
+
+## [0.10.0] - 2021-11-12
+### Added
+- Project settings can be access from the explore menu (#774)
+- You can now click through from a chart on a dashboard tile to the edit view for that chart (#785)
+
+### Changed
+- Compile times are now faster: (#805)
+- Various improvements to developer experience: (#793), (#800)
+- Lightdash will now use a dbt profile name of `prod` by default (#802)
+
+### Fixed
+- Fix chart config where it was possible to remove the only line on a chart (#722)
+- Various UI improvements (#778), (#776), (#787), (#788), (#806)
+- Fixed a bug where the url would not change when changing explores (#779)
+- Fixed a bug where the sidebar would shrink for large sets of results in the explorer (#784), (#795)
+- Results tables with many columns are now horizontally scrollable rather than overflowing the display (#783)
+- `lightdash.yml` files are now valid without any projects defined (#733)
+
+### Removed
+- Users may no longer specify Lightdash projects in their `lightdash.yml` project (#792)
+
 ## [0.9.4] - 2021-11-09
 ### Added
 - You can now run raw SQL queries using the SQL Runner and visualise the results as a table

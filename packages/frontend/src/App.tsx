@@ -15,6 +15,7 @@ import './App.css';
 import AppBar from './components/AppBar';
 import PrivateRoute from './components/PrivateRoute';
 import CreateProject from './pages/CreateProject';
+import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
 import Explorer from './pages/Explorer';
 import Login from './pages/login';
@@ -69,6 +70,11 @@ const App = () => (
                                     <CreateProject />
                                 </Page>
                             </Route>
+                            <Route path="/createProjectSettings/:projectUuid">
+                                <Page name={PageName.CREATE_PROJECT_SETTINGS}>
+                                    <CreateProjectSettings />
+                                </Page>
+                            </Route>
                             <Route path="/login">
                                 <Page name={PageName.LOGIN}>
                                     <Login />
@@ -87,7 +93,7 @@ const App = () => (
                                     }}
                                 >
                                     <Switch>
-                                        <Route path="/projects/:projectUuid/settings">
+                                        <Route path="/projects/:projectUuid/settings/:tab?">
                                             <AppBar />
                                             <Page
                                                 name={PageName.PROJECT_SETTINGS}

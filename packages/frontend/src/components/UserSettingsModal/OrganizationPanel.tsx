@@ -32,7 +32,7 @@ const OrganizationPanel: FC = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries(['user']);
             showToastSuccess({
-                title: 'Organization name updated with success',
+                title: 'Success! Organization name was updated',
             });
         },
     });

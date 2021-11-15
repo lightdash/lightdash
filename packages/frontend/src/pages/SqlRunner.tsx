@@ -1,11 +1,13 @@
-import { Callout, Card, Divider, H3, H5, useHotkeys } from '@blueprintjs/core';
+import { Callout, H5, useHotkeys } from '@blueprintjs/core';
 import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { TableBase } from 'common';
 import React, { useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import AboutFooter from '../components/AboutFooter';
 import { CollapsableCard } from '../components/common/CollapsableCard';
+import Content from '../components/common/Page/Content';
+import PageBase from '../components/common/Page/PageBase';
+import Sidebar from '../components/common/Page/Sidebar';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
 import { Tree } from '../components/common/Tree';
 import { RefreshServerButton } from '../components/RefreshServerButton';
@@ -18,35 +20,6 @@ import { useSqlQueryMutation } from '../hooks/useSqlQuery';
 import { Section } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import './SqlRunner.css';
-
-const Wrapper = styled('div')`
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    justify-content: stretch;
-    align-items: flex-start;
-`;
-
-const Sidebar = styled(Card)`
-    height: calc(100vh - 50px);
-    flex-basis: 400px;
-    flex-shrink: 0;
-    flex-grow: 0;
-    margin-right: 10px;
-    overflow: hidden;
-    position: sticky;
-    top: 50px;
-`;
-
-const ContentSection = styled('div')`
-    padding: 10px 10px;
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: stretch;
-    min-width: 0;
-`;
 
 const CardDivider = styled('div')`
     padding-top: 10px;
@@ -103,53 +76,34 @@ const SqlRunnerPage = () => {
     );
 
     return (
-        <Wrapper>
-            <Sidebar elevation={1}>
-                <Section name={SectionName.SIDEBAR}>
-                    <div
-                        style={{
-                            height: '100%',
-                            overflow: 'hidden',
-                            display: 'flex',
-                            flexDirection: 'column',
-                        }}
+        <PageBase>
+            <Sidebar title="SQL runner">
+                <H5 style={{ paddingLeft: 10 }}>Warehouse schema</H5>
+                <div style={{ overflowY: 'auto' }}>
+                    {isCatalogLoading ? (
+                        <SideBarLoadingState />
+                    ) : (
+                        <Tree
+                            contents={catalogTree}
+                            handleSelect={false}
+                            onNodeClick={handleNodeClick}
+                        />
+                    )}
+                </div>
+                <Tooltip2
+                    content="Currently we only display tables that are declared in the dbt project."
+                    className="missing-tables-info"
+                >
+                    <Callout
+                        intent="none"
+                        icon="info-sign"
+                        style={{ marginTop: 20 }}
                     >
-                        <div style={{ flex: 1 }}>
-                            <H3 style={{ marginBottom: 20 }}>SQL runner</H3>
-                            <Divider />
-                            <H5 style={{ marginTop: 20, paddingLeft: 10 }}>
-                                Warehouse schema
-                            </H5>
-                            <div style={{ overflowY: 'auto' }}>
-                                {isCatalogLoading ? (
-                                    <SideBarLoadingState />
-                                ) : (
-                                    <Tree
-                                        contents={catalogTree}
-                                        handleSelect={false}
-                                        onNodeClick={handleNodeClick}
-                                    />
-                                )}
-                            </div>
-                            <Tooltip2
-                                content="Currently we only display tables that are declared in the dbt project."
-                                className="missing-tables-info"
-                            >
-                                <Callout
-                                    intent="none"
-                                    icon="info-sign"
-                                    style={{ marginTop: 20 }}
-                                >
-                                    Tables missing?
-                                </Callout>
-                            </Tooltip2>
-                        </div>
-
-                        <AboutFooter />
-                    </div>
-                </Section>
+                        Tables missing?
+                    </Callout>
+                </Tooltip2>
             </Sidebar>
-            <ContentSection>
+            <Content>
                 <Section name={SectionName.EXPLORER_TOP_BUTTONS}>
                     <div
                         style={{
@@ -182,8 +136,8 @@ const SqlRunnerPage = () => {
                         sqlQueryMutation={sqlQueryMutation}
                     />
                 </CollapsableCard>
-            </ContentSection>
-        </Wrapper>
+            </Content>
+        </PageBase>
     );
 };
 

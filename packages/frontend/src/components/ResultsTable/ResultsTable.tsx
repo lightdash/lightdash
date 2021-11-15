@@ -214,7 +214,12 @@ export const ResultsTable: FC<Props> = ({
                         }}
                     >
                         <div style={{ flex: 1, overflowX: 'auto' }}>
-                            <HTMLTable bordered condensed {...getTableProps()}>
+                            <HTMLTable
+                                style={{ width: '100%' }}
+                                bordered
+                                condensed
+                                {...getTableProps()}
+                            >
                                 {headerGroups.map((headerGroup) => (
                                     <colgroup
                                         key={`headerGroup_${headerGroup.id}`}

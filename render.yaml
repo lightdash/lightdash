@@ -40,18 +40,6 @@ services:
       - key: TRUST_PROXY
         value: true
 
-  - type: web
-    name: docsite
-    env: static
-    buildCommand: cd docs; yarn install; yarn build
-    staticPublishPath: docs/build
-    pullRequestPreviewsEnabled: true
-    envVars:
-      - key: RUDDERSTACK_DATAPLANE_URL
-        sync: false
-      - key: RUDDERSTACK_WRITE_KEY
-        sync: false
-
 envVarGroups:
   - name: rudder-settings
     envVars:

@@ -68,7 +68,7 @@ describe('health', () => {
             needsSetup: true,
         });
     });
-    it('Should return needsProject true and defaultProject if there are no projects in DB', async () => {
+    it('Should return needsProject true if there are no projects in DB', async () => {
         (projectService.hasProject as jest.Mock).mockImplementation(
             async () => false,
         );
@@ -76,12 +76,6 @@ describe('health', () => {
         expect(await getHealthState(false)).toEqual({
             ...BaseResponse,
             needsProject: true,
-            defaultProject: {
-                name: 'default',
-                type: 'dbt',
-                profiles_dir: '/',
-                project_dir: '/',
-            },
         });
     });
     it('Should return isAuthenticated true', async () => {

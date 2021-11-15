@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.9.4",
+    "version": "0.10.1",
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
@@ -44,7 +44,7 @@
         "ajv-formats": "^2.1.0",
         "bcrypt": "^5.0.1",
         "body-parser": "^1.19.0",
-        "common": "^0.9.4",
+        "common": "^0.10.1",
         "connect-session-knex": "^2.1.0",
         "cookie-parser": "^1.4.5",
         "dependency-graph": "^0.11.0",
@@ -53,7 +53,6 @@
         "express-openapi-validator": "^4.12.15",
         "express-session": "^1.17.2",
         "fuse.js": "^6.4.6",
-        "get-port": "^5.1.1",
         "isomorphic-git": "^1.9.2",
         "js-yaml": "^4.1.0",
         "knex": "^0.95.7",

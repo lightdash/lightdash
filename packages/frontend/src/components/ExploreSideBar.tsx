@@ -37,7 +37,7 @@ const SideBarLoadingState = () => (
 const BasePanel = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const exploresResult = useExplores();
+    const exploresResult = useExplores(true);
     const [showChangeExploreConfirmation, setShowChangeExploreConfirmation] =
         useState(false);
     const [selectedExploreName, setSelectedExploreName] = useState('');
