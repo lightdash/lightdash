@@ -41,6 +41,7 @@ export const expectedSqlResults: ApiSqlQueryResults = {
 
 export const projectAdapterMock: ProjectAdapter = {
     compileAllExplores: jest.fn(),
+    getDbtPackages: jest.fn(),
     test: jest.fn(),
     destroy: jest.fn(),
     runQuery: jest.fn(async () => expectedSqlResults.rows),
