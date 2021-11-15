@@ -4,9 +4,14 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.10.1] - 2021-11-15
+### Added
+- We now provide example metrics for those tables that you haven't defined any metrics (#794)
+- You can pick the dbt models you want to appear as tables in Lightdash (#811)
+
 ## [0.10.0] - 2021-11-12
 ### Added
-- Project settings can be access from the explore menu (#744)
+- Project settings can be access from the explore menu (#774)
 - You can now click through from a chart on a dashboard tile to the edit view for that chart (#785)
 
 ### Changed
