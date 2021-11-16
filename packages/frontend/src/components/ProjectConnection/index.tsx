@@ -2,12 +2,14 @@ import { Button, Card, H5, Intent } from '@blueprintjs/core';
 import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
+    friendlyName,
     ProjectType,
     WarehouseTypes,
 } from 'common';
 import React, { FC } from 'react';
-import { useForm } from 'react-hook-form';
+import { FieldErrors, useForm } from 'react-hook-form';
 import { UseFormReturn } from 'react-hook-form/dist/types';
+import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
 import { useHistory } from 'react-router-dom';
 import {
     useCreateMutation,
@@ -86,11 +88,37 @@ const ProjectForm: FC<Props> = ({ disabled, defaultType, methods }) => {
     );
 };
 
+const useOnProjectError = (): SubmitErrorHandler<ProjectConnectionForm> => {
+    const { showToastError } = useApp();
+    return async (errors: FieldErrors<ProjectConnectionForm>) => {
+        if (!errors) {
+            showToastError({
+                title: 'Form error',
+                subtitle: 'Unexpected error, please contact support',
+            });
+        } else {
+            const errorMessages: string[] = Object.values(errors).reduce<
+                string[]
+            >((acc, section) => {
+                const sectionErrors = Object.entries(section || {}).map(
+                    ([key, { message }]) => `${friendlyName(key)}: ${message}`,
+                );
+                return [...acc, ...sectionErrors];
+            }, []);
+            showToastError({
+                title: 'Form errors',
+                subtitle: errorMessages.join('\n\n'),
+            });
+        }
+    };
+};
+
 export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
     const { user } = useApp();
     const { data } = useProject(projectUuid);
+    const onError = useOnProjectError();
     const updateMutation = useUpdateMutation(projectUuid);
     const { isLoading: isSaving, mutateAsync, isIdle } = updateMutation;
 
@@ -123,7 +151,7 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
     };
 
     return (
-        <Form methods={methods} onSubmit={onSubmit}>
+        <Form methods={methods} onSubmit={onSubmit} onError={onError}>
             <ProjectForm disabled={isSaving} methods={methods} />
             {!isIdle && (
                 <ProjectStatusCallout
@@ -145,6 +173,7 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
 export const CreateProjectConnection: FC = () => {
     const history = useHistory();
     const { user, health } = useApp();
+    const onError = useOnProjectError();
     const createMutation = useCreateMutation();
     const {
         isLoading: isSaving,
@@ -181,7 +210,7 @@ export const CreateProjectConnection: FC = () => {
     };
 
     return (
-        <Form methods={methods} onSubmit={onSubmit}>
+        <Form methods={methods} onSubmit={onSubmit} onError={onError}>
             <ProjectForm
                 disabled={isSaving || isSuccess}
                 methods={methods}
