@@ -60,10 +60,10 @@ const FilterGroupForm = ({
                     onChange={onChange}
                 />
             );
-        default:
-            // eslint-disable-next-line no-case-declarations
+        default: {
             const nope: never = filterGroup;
             throw Error(`Filter group form not implemented for ${groupType}`);
+        }
     }
 };
 

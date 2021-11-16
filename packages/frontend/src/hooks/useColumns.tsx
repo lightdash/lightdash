@@ -40,12 +40,12 @@ export const getDimensionFormatter = (d: Dimension) => {
             return formatWrapper(formatDate);
         case DimensionType.TIMESTAMP:
             return formatWrapper(formatTimestamp);
-        default:
-            // eslint-disable-next-line
+        default: {
             const nope: never = dimensionType;
             throw Error(
                 `Dimension formatter is not implemented for dimension type ${dimensionType}`,
             );
+        }
     }
 };
 const getMetricFormatter = () => formatWrapper(formatNumber);

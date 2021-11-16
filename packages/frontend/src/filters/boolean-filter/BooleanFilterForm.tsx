@@ -39,12 +39,12 @@ const BooleanFilterForm = ({ filter, onChange }: BooleanFilterFormProps) => {
                     value={filter.value ? 'true' : 'false'}
                 />
             );
-        default:
-            // eslint-disable-next-line
+        default: {
             const nope: never = filter;
             throw Error(
                 `No form implemented for Boolean filter operator ${operator}`,
             );
+        }
     }
 };
 

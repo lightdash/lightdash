@@ -60,12 +60,12 @@ const StringFilterForm = ({ filter, onChange }: StringFilterFormProps) => {
                     }
                 />
             );
-        default:
-            // eslint-disable-next-line
+        default: {
             const nope: never = filter;
             throw Error(
                 `No form implemented for String filter operator ${filterType}`,
             );
+        }
     }
 };
 

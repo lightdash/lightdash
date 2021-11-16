@@ -105,12 +105,12 @@ const AddFilterGroup = () => {
                     }),
                 );
                 break;
-            default:
-                // eslint-disable-next-line no-case-declarations
+            default: {
                 const nope: never = dimensionType;
                 throw Error(
                     `No default filter group implemented for filter group with type ${dimensionType}`,
                 );
+            }
         }
     };
 
