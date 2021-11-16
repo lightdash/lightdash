@@ -218,7 +218,7 @@ const ProjectTablesConfiguration: FC<{
                         />
                         <p style={{ color: Colors.GRAY1 }}>
                             Write a list of tags you want to include, separated
-                            by commands.
+                            by commas.
                         </p>
                         {typeValue === TableSelectionType.WITH_TAGS && (
                             <MultiSelect
