@@ -46,6 +46,10 @@ export const ChartConfigOptions: React.FC<ContentProps> = ({ chartConfig }) => (
                     label={displayName}
                     alignIndicator={Alignment.RIGHT}
                     onChange={() => chartConfig.toggleYMetric(name)}
+                    disabled={
+                        chartConfig.tableCalculationOptions.length <= 1 &&
+                        chartConfig.metricOptions.length <= 0
+                    }
                 />
             </div>
         ))}
@@ -70,7 +74,10 @@ export const ChartConfigOptions: React.FC<ContentProps> = ({ chartConfig }) => (
                     label={friendlyName(metric)}
                     alignIndicator={Alignment.RIGHT}
                     onChange={() => chartConfig.toggleYMetric(metric)}
-                    disabled={chartConfig.metricOptions.length <= 1}
+                    disabled={
+                        chartConfig.metricOptions.length <= 1 &&
+                        chartConfig.tableCalculationOptions.length <= 0
+                    }
                 />
             </div>
         ))}
