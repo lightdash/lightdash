@@ -25,6 +25,7 @@ const ActionCard = <T extends { uuid: string; name: string }>(
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                textAlign: 'left',
             }}
             rightIcon={
                 <ModalActionButtons
