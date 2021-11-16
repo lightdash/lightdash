@@ -64,7 +64,6 @@ export const useSavedQuery = ({ id }: Args = {}) =>
     });
 
 export const useDeleteMutation = () => {
-    const history = useHistory();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
     return useMutation<undefined, ApiError, string>(deleteSavedQuery, {
@@ -73,9 +72,6 @@ export const useDeleteMutation = () => {
             await queryClient.invalidateQueries('spaces');
             showToastSuccess({
                 title: `Success! Chart was deleted.`,
-            });
-            history.push({
-                pathname: `/saved`,
             });
         },
         onError: (error) => {
