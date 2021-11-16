@@ -1,4 +1,4 @@
-import { Button } from '@blueprintjs/core';
+import { Button, Colors } from '@blueprintjs/core';
 import {
     BooleanFilter,
     DateAndTimestampFilter,
@@ -58,6 +58,13 @@ const FilterRow = ({
             }}
         >
             <div style={{ flex: '0 0 300px' }}>{isFirst && header}</div>
+            <div style={{ flex: '0 0 40px' }}>
+                {!isFirst && (
+                    <span style={{ paddingLeft: 5, color: Colors.GREEN1 }}>
+                        AND
+                    </span>
+                )}
+            </div>
             <div
                 style={{
                     maxWidth: '400px',
