@@ -95,7 +95,8 @@ export const SimpleChart: FC<SimpleChartProps> = ({
     const yAxis = {
         type: flipX ? 'category' : yType,
         name: flipX ? xlabel : ylabel,
-        nameTextStyle: { fontWeight: 'bold' },
+        nameTextStyle: { fontWeight: 'bold', align: 'left' },
+        nameLocation: 'end',
     };
 
     const legend = {
