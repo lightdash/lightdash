@@ -23,6 +23,13 @@ const SidebarColumn = styled('div')`
     flex-direction: column;
 `;
 
+const SidebarContent = styled('div')`
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+`;
+
 const TitleDivider = styled(Divider)`
     margin-top: 20px;
     margin-bottom: 20px;
@@ -35,11 +42,11 @@ const Sidebar: FC<{ title: string | React.ReactNode }> = ({
     <SidebarWrapper elevation={1}>
         <Section name={SectionName.SIDEBAR}>
             <SidebarColumn>
-                <div style={{ flex: 1 }}>
+                <SidebarContent>
                     {typeof title === 'string' ? <H3>{title}</H3> : title}
                     <TitleDivider />
                     {children}
-                </div>
+                </SidebarContent>
                 <AboutFooter />
             </SidebarColumn>
         </Section>
