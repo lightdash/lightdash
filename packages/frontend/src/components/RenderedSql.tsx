@@ -24,7 +24,7 @@ export const RenderedSql = () => {
     }
 
     return (
-        <Pre style={{ borderRadius: '0', boxShadow: 'none' }}>
+        <Pre style={{ borderRadius: '0', boxShadow: 'none', overflow: 'auto' }}>
             <Code>{data || ''}</Code>
         </Pre>
     );
