@@ -123,21 +123,26 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                 />
             </div>
             <div style={{ overflowY: 'auto' }}>
-                {Object.values(explore.tables).map((table) => (
-                    <TableTree
-                        key={table.name}
-                        search={search}
-                        table={table}
-                        joinSql={
-                            explore.joinedTables.find(
-                                (joinTable) => joinTable.table === table.name,
-                            )?.compiledSqlOn
-                        }
-                        selectedNodes={selectedNodes}
-                        onSelectedNodeChange={onSelectedFieldChange}
-                        onOpenSourceDialog={setSource}
-                    />
-                ))}
+                {Object.values(explore.tables)
+                    .sort((tableA) =>
+                        tableA.name === explore.baseTable ? -1 : 1,
+                    )
+                    .map((table) => (
+                        <TableTree
+                            key={table.name}
+                            search={search}
+                            table={table}
+                            joinSql={
+                                explore.joinedTables.find(
+                                    (joinTable) =>
+                                        joinTable.table === table.name,
+                                )?.compiledSqlOn
+                            }
+                            selectedNodes={selectedNodes}
+                            onSelectedNodeChange={onSelectedFieldChange}
+                            onOpenSourceDialog={setSource}
+                        />
+                    ))}
             </div>
             {source && (
                 <SourceDialog
