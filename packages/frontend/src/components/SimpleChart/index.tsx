@@ -122,12 +122,14 @@ const SimpleChart: FC<SimpleChartProps> = ({
     const yType = 'value';
 
     const flipX = flipXFromChartType(chartType);
+    const xAxisType = flipX ? yType : xType;
     const xAxis = {
-        type: flipX ? yType : xType,
+        type: xAxisType,
         name: flipX ? ylabel : xlabel,
         nameLocation: 'center',
         nameGap: 30,
         nameTextStyle: { fontWeight: 'bold' },
+        axisLabel: xAxisType === 'category' ? { interval: 0, rotate: 35 } : {},
     };
     const yAxis = {
         type: flipX ? 'category' : yType,
