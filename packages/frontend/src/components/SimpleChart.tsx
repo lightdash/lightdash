@@ -129,6 +129,7 @@ export const SimpleChart: FC<SimpleChartProps> = ({
         tooltip: {
             show: true,
             trigger: 'item',
+            confine: true,
         },
     };
     return (
