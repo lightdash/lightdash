@@ -11,6 +11,8 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 
+export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
+
 const SavedDashboardsWrapper = styled.div`
     width: 100%;
     margin-top: 20px;
@@ -66,7 +68,7 @@ const SavedDashboards = () => {
                         loading={isCreatingDashboard}
                         onClick={() =>
                             createDashboard({
-                                name: 'Untitled dashboard',
+                                name: DEFAULT_DASHBOARD_NAME,
                                 tiles: [],
                             })
                         }

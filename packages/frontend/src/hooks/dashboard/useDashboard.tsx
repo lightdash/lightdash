@@ -50,14 +50,19 @@ export const useUpdateDashboard = (id: string) => {
         (data) => updateDashboard(id, data),
         {
             mutationKey: ['dashboard_update'],
-            onSuccess: async () => {
+            onSuccess: async (_, variables) => {
                 await queryClient.invalidateQueries('dashboards');
                 await queryClient.invalidateQueries([
                     'saved_dashboard_query',
                     id,
                 ]);
+                const onlyUpdatedName: boolean =
+                    Object.keys(variables).length === 1 &&
+                    Object.keys(variables).includes('name');
                 showToastSuccess({
-                    title: `Success! Dashboard was updated.`,
+                    title: `Success! Dashboard ${
+                        onlyUpdatedName ? 'name ' : ''
+                    }was updated.`,
                 });
             },
             onError: (error) => {
