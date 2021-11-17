@@ -24,6 +24,16 @@ const CreateProject: FC = () => {
         );
     }
 
+    if (health.status === 'success' && !health.data?.isAuthenticated) {
+        return (
+            <Redirect
+                to={{
+                    pathname: '/login',
+                }}
+            />
+        );
+    }
+
     return (
         <div
             style={{
