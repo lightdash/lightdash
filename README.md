@@ -1,8 +1,8 @@
 <h1 align="center">
-        <a target="_blank" href="https://www.lightdash.com"><img align="center" style="max-width:300px;" src="/static/screenshots/lightdash_logo_banner.png"> </a>
+        <a target="_blank" href="https://www.lightdash.com"><img align="center" style="max-width:300px;" src="/static/screenshots/lightdash_logo_banner_dark.png"> </a>
 </h1>
 
-<p align="center">Open source BI for your whole team.</p>
+<p align="center">The open-source looker alternative.</p>
 
 <div align="center">
         <a target="_blank" href="https://www.loom.com/share/f3725e98ce4840bda3f719da647f58b0"><img align="center" style="max-width:300px;" src="/static/screenshots/lightdashpreview.gif"> </a>
@@ -38,7 +38,10 @@ Our mission is simple: we want to enable everybody in your company to answer the
 * [x] 👩‍💻 Declare dimensions and metrics in yaml alongside your dbt project
 * [x] 🤖 Automatically creates dimensions from your dbt models
 * [x] 📖 All dbt descriptions synced for your users
+* [x] 🧮 Table calculations make it easy to dig into your data, on the fly
+* [x] 🕵️‍♀️ Lineage lets you see the upstream and downstream dependencies of a model
 * [x] 📊 Simple data visualisations for your metrics
+* [x] 👷‍♂️ Save charts & build dashboards to share your insights with your team
 * [x] 🚀 Share your work as a URL or export results to use in any other tool
 
 You can also check out our future plans for the
