@@ -13,6 +13,7 @@ import {
 } from 'react-router-dom';
 import './App.css';
 import AppBar from './components/AppBar';
+import AppRoute from './components/AppRoute';
 import PrivateRoute from './components/PrivateRoute';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
@@ -65,16 +66,6 @@ const App = () => (
                                     <Register />
                                 </Page>
                             </Route>
-                            <Route path="/createProject">
-                                <Page name={PageName.CREATE_PROJECT}>
-                                    <CreateProject />
-                                </Page>
-                            </Route>
-                            <Route path="/createProjectSettings/:projectUuid">
-                                <Page name={PageName.CREATE_PROJECT_SETTINGS}>
-                                    <CreateProjectSettings />
-                                </Page>
-                            </Route>
                             <Route path="/login">
                                 <Page name={PageName.LOGIN}>
                                     <Login />
@@ -93,74 +84,114 @@ const App = () => (
                                     }}
                                 >
                                     <Switch>
-                                        <Route path="/projects/:projectUuid/settings/:tab?">
-                                            <AppBar />
+                                        <Route path="/createProject">
                                             <Page
-                                                name={PageName.PROJECT_SETTINGS}
+                                                name={PageName.CREATE_PROJECT}
                                             >
-                                                <ProjectSettings />
+                                                <CreateProject />
                                             </Page>
                                         </Route>
-                                        <Route path="/projects/:projectUuid/saved/:savedQueryUuid">
-                                            <AppBar />
+                                        <Route path="/createProjectSettings/:projectUuid">
                                             <Page
                                                 name={
-                                                    PageName.SAVED_QUERY_EXPLORER
+                                                    PageName.CREATE_PROJECT_SETTINGS
                                                 }
                                             >
-                                                <ExplorerProvider>
-                                                    <SavedExplorer />
-                                                </ExplorerProvider>
+                                                <CreateProjectSettings />
                                             </Page>
                                         </Route>
-                                        <Route path="/projects/:projectUuid/saved">
-                                            <AppBar />
-                                            <Page name={PageName.SAVED_QUERIES}>
-                                                <SavedQueries />
-                                            </Page>
-                                        </Route>
-                                        <Route path="/projects/:projectUuid/dashboards/:dashboardUuid">
-                                            <AppBar />
-                                            <Page name={PageName.DASHBOARD}>
-                                                <Dashboard />
-                                            </Page>
-                                        </Route>
-                                        <Route path="/projects/:projectUuid/dashboards">
-                                            <AppBar />
-                                            <Page
-                                                name={PageName.SAVED_DASHBOARDS}
-                                            >
-                                                <SavedDashboards />
-                                            </Page>
-                                        </Route>
-                                        <Route path="/projects/:projectUuid/sqlRunner">
-                                            <AppBar />
-                                            <Page name={PageName.SQL_RUNNER}>
-                                                <SqlRunner />
-                                            </Page>
-                                        </Route>
-                                        <Route path="/projects/:projectUuid/tables/:tableId">
-                                            <AppBar />
-                                            <Page name={PageName.EXPLORER}>
-                                                <ExplorerProvider>
-                                                    <Explorer />
-                                                </ExplorerProvider>
-                                            </Page>
-                                        </Route>
-                                        <Route path="/projects/:projectUuid/tables">
-                                            <AppBar />
-                                            <Page
-                                                name={PageName.EXPLORE_TABLES}
-                                            >
-                                                <ExplorerProvider>
-                                                    <Explorer />
-                                                </ExplorerProvider>
-                                            </Page>
-                                        </Route>
-                                        <Route path="/projects" exact>
-                                            <Projects />
-                                        </Route>
-                                        <Redirect to="/projects" />
+                                        <AppRoute path="/">
+                                            <Switch>
+                                                <Route path="/projects/:projectUuid/settings/:tab?">
+                                                    <AppBar />
+                                                    <Page
+                                                        name={
+                                                            PageName.PROJECT_SETTINGS
+                                                        }
+                                                    >
+                                                        <ProjectSettings />
+                                                    </Page>
+                                                </Route>
+                                                <Route path="/projects/:projectUuid/saved/:savedQueryUuid">
+                                                    <AppBar />
+                                                    <Page
+                                                        name={
+                                                            PageName.SAVED_QUERY_EXPLORER
+                                                        }
+                                                    >
+                                                        <ExplorerProvider>
+                                                            <SavedExplorer />
+                                                        </ExplorerProvider>
+                                                    </Page>
+                                                </Route>
+                                                <Route path="/projects/:projectUuid/saved">
+                                                    <AppBar />
+                                                    <Page
+                                                        name={
+                                                            PageName.SAVED_QUERIES
+                                                        }
+                                                    >
+                                                        <SavedQueries />
+                                                    </Page>
+                                                </Route>
+                                                <Route path="/projects/:projectUuid/dashboards/:dashboardUuid">
+                                                    <AppBar />
+                                                    <Page
+                                                        name={
+                                                            PageName.DASHBOARD
+                                                        }
+                                                    >
+                                                        <Dashboard />
+                                                    </Page>
+                                                </Route>
+                                                <Route path="/projects/:projectUuid/dashboards">
+                                                    <AppBar />
+                                                    <Page
+                                                        name={
+                                                            PageName.SAVED_DASHBOARDS
+                                                        }
+                                                    >
+                                                        <SavedDashboards />
+                                                    </Page>
+                                                </Route>
+                                                <Route path="/projects/:projectUuid/sqlRunner">
+                                                    <AppBar />
+                                                    <Page
+                                                        name={
+                                                            PageName.SQL_RUNNER
+                                                        }
+                                                    >
+                                                        <SqlRunner />
+                                                    </Page>
+                                                </Route>
+                                                <Route path="/projects/:projectUuid/tables/:tableId">
+                                                    <AppBar />
+                                                    <Page
+                                                        name={PageName.EXPLORER}
+                                                    >
+                                                        <ExplorerProvider>
+                                                            <Explorer />
+                                                        </ExplorerProvider>
+                                                    </Page>
+                                                </Route>
+                                                <Route path="/projects/:projectUuid/tables">
+                                                    <AppBar />
+                                                    <Page
+                                                        name={
+                                                            PageName.EXPLORE_TABLES
+                                                        }
+                                                    >
+                                                        <ExplorerProvider>
+                                                            <Explorer />
+                                                        </ExplorerProvider>
+                                                    </Page>
+                                                </Route>
+                                                <Route path="/projects" exact>
+                                                    <Projects />
+                                                </Route>
+                                                <Redirect to="/projects" />
+                                            </Switch>
+                                        </AppRoute>
                                     </Switch>
                                     <ReactQueryDevtools />
                                 </div>
