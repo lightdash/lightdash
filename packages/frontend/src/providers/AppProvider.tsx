@@ -1,5 +1,7 @@
 import { Intent } from '@blueprintjs/core';
 import { IToastProps } from '@blueprintjs/core/src/components/toast/toast';
+import * as Sentry from '@sentry/react';
+import { Integrations } from '@sentry/tracing';
 import { ApiError, ApiHealthResults, HealthState, LightdashUser } from 'common';
 import Markdown from 'markdown-to-jsx';
 import React, {
@@ -8,6 +10,7 @@ import React, {
     useCallback,
     useContext,
     useEffect,
+    useState,
 } from 'react';
 import { useQuery } from 'react-query';
 import { UseQueryResult } from 'react-query/types/react/types';
@@ -46,6 +49,7 @@ interface AppContext {
 const Context = createContext<AppContext>(undefined as any);
 
 export const AppProvider: FC = ({ children }) => {
+    const [isSentryLoaded, setIsSentryLoaded] = useState(false);
     const health = useQuery<HealthState, ApiError>({
         queryKey: 'health',
         queryFn: getHealthState,
@@ -56,6 +60,19 @@ export const AppProvider: FC = ({ children }) => {
         enabled: !!health.data?.isAuthenticated,
         retry: false,
     });
+
+    useEffect(() => {
+        if (health.data && !isSentryLoaded && health.data.sentry.dsn) {
+            Sentry.init({
+                dsn: health.data.sentry.dsn,
+                release: health.data.sentry.release,
+                environment: health.data.sentry.environment,
+                integrations: [new Integrations.BrowserTracing()],
+                tracesSampleRate: 1.0,
+            });
+            setIsSentryLoaded(true);
+        }
+    }, [isSentryLoaded, setIsSentryLoaded, health.data]);
 
     const showToastSuccess = useCallback<AppContext['showToastSuccess']>(
         ({ title, subtitle, key, ...rest }) => {

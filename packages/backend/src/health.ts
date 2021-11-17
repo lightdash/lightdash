@@ -48,5 +48,6 @@ export const getHealthState = async (
         isAuthenticated,
         latest: { version: latestVersion },
         rudder: lightdashConfig.rudder,
+        sentry: lightdashConfig.sentry,
     };
 };

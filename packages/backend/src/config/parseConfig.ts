@@ -13,6 +13,7 @@ import {
 } from 'common';
 import { ParseError } from '../errors';
 import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
+import { VERSION } from '../version';
 
 export type DbtProjectConfigIn<T extends DbtProjectConfig> = Partial<T> &
     DbtProjectConfigBase;
@@ -32,6 +33,13 @@ export type LightdashConfig = {
     rudder: RudderConfig;
     mode: LightdashMode;
     projects: Array<DbtProjectConfig>;
+    sentry: SentryConfig;
+};
+
+export type SentryConfig = {
+    dsn: string;
+    release: string;
+    environment: string;
 };
 
 export type RudderConfig = {
@@ -148,9 +156,11 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         );
     }
 
+    const mode = lightdashMode || config.mode;
+
     return {
         ...config,
-        mode: lightdashMode || config.mode,
+        mode,
         projects: mergedProjects,
         rudder: {
             writeKey:
@@ -159,6 +169,12 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             dataPlaneUrl:
                 process.env.RUDDERSTACK_DATA_PLANE_URL ||
                 'https://analytics.lightdash.com',
+        },
+        sentry: {
+            dsn: process.env.SENTRY_DSN || '',
+            release: VERSION,
+            environment:
+                process.env.NODE_ENV === 'development' ? 'development' : mode,
         },
         lightdashSecret,
         secureCookies: process.env.SECURE_COOKIES === 'true',
