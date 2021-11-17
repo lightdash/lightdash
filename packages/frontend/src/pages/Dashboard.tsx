@@ -70,6 +70,7 @@ const Dashboard = () => {
                 onSaveDashboard={() => mutate({ tiles: dashboardTiles })}
             />
             <ResponsiveGridLayout
+                useCSSTransforms={false}
                 draggableCancel=".non-draggable"
                 onDragStop={(layout) => updateTiles(layout)}
                 onResizeStop={(layout) => updateTiles(layout)}
