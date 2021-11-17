@@ -22,6 +22,11 @@ export const lightdashConfigMock: LightdashConfig = {
         writeKey: '',
         dataPlaneUrl: '',
     },
+    sentry: {
+        dsn: '',
+        release: '',
+        environment: '',
+    },
     projects: [],
 };
 
