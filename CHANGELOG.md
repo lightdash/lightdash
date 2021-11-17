@@ -4,6 +4,13 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.10.2] - 2021-11-17
+### Fixed
+- Show base table at the top of the sidebar (#830)
+- Fix bug where tables in the SQL runner page would overflow (#827)
+- Fix bug where tables and results wouldn't refresh after updating the project connections (#828)
+- Other small UI fixes (#823 #826 #829 #831 #832 #835 #837 #838 #839)
+
 ## [0.10.1] - 2021-11-15
 ### Added
 - We now provide example metrics for those tables that you haven't defined any metrics (#794)
