@@ -68,6 +68,7 @@ const Dashboard = () => {
                 hasTilesChanged={hasTilesChanged}
                 onAddTile={(tile: DashboardChartTile) => onAddTile(tile)}
                 onSaveDashboard={() => mutate({ tiles: dashboardTiles })}
+                onSaveTitle={(name) => mutate({ name })}
             />
             <ResponsiveGridLayout
                 useCSSTransforms={false}
