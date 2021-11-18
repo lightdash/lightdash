@@ -9,5 +9,3 @@ hide_table_of_contents: true
 :::note Article deprecated
 
 This article has been moved here: [Install Lightdash](./setup-lightdash/install-lightdash.mdx)
-
-:::
