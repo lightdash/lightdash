@@ -3,6 +3,10 @@ import {
     DashboardTable,
     DashboardTileChartTable,
     DashboardTileChartTableName,
+    DashboardTileLoomsTable,
+    DashboardTileLoomsTableName,
+    DashboardTileMarkdownsTable,
+    DashboardTileMarkdownsTableName,
     DashboardTilesTableName,
     DashboardTileTable,
     DashboardTileTypesTableName,
@@ -50,5 +54,7 @@ declare module 'knex/types/tables' {
         [DashboardTilesTableName]: DashboardTileTable;
         [DashboardTileTypesTableName]: DashboardTileTypesTable;
         [DashboardTileChartTableName]: DashboardTileChartTable;
+        [DashboardTileLoomsTableName]: DashboardTileLoomsTable;
+        [DashboardTileMarkdownsTableName]: DashboardTileMarkdownsTable;
     }
 }

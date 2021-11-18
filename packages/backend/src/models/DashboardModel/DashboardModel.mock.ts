@@ -4,6 +4,8 @@ import {
     Dashboard,
     DashboardBasicDetails,
     DashboardChartTile,
+    DashboardLoomTile,
+    DashboardMarkdownTile,
     DashboardTileTypes,
     DashboardUnversionedFields,
     DashboardVersionedFields,
@@ -46,6 +48,25 @@ export const createDashboardWithTileIds: CreateDashboard = {
 
 export const addDashboardVersion: DashboardVersionedFields = {
     tiles: [tileWithoutId],
+};
+
+export const addDashboardVersionWithAllTiles: DashboardVersionedFields = {
+    tiles: [
+        tileWithoutId,
+        {
+            ...tileWithoutId,
+            type: DashboardTileTypes.LOOM,
+            properties: { title: 'loom title', url: 'loom url' },
+        },
+        {
+            ...tileWithoutId,
+            type: DashboardTileTypes.MARKDOWN,
+            properties: {
+                title: 'markdown title',
+                content: 'markdown content',
+            },
+        },
+    ],
 };
 
 export const addDashboardVersionWithTileIds: DashboardVersionedFields = {
@@ -124,6 +145,20 @@ export const dashboardTileWithSavedChartEntry = {
     saved_query_uuid: '123',
 };
 
+export const loomTileEntry = {
+    ...dashboardTileEntry,
+    type: DashboardTileTypes.LOOM,
+    loomTitle: 'my loom title',
+    url: 'my loom url',
+};
+
+export const markdownTileEntry = {
+    ...dashboardTileEntry,
+    type: DashboardTileTypes.MARKDOWN,
+    markdownTitle: 'my markdown title',
+    content: 'my markdown content',
+};
+
 export const dashboardChartTileEntry: GetChartTileQuery = {
     dashboard_tile_uuid: 'my-tile',
     saved_query_uuid: savedChartEntry.saved_query_uuid,
@@ -147,7 +182,31 @@ export const expectedDashboard: Dashboard = {
             y: dashboardTileEntry.y_offset,
             h: dashboardTileEntry.height,
             w: dashboardTileEntry.width,
-        },
+        } as DashboardChartTile,
+        {
+            uuid: dashboardTileEntry.dashboard_tile_uuid,
+            type: DashboardTileTypes.LOOM,
+            properties: {
+                title: loomTileEntry.loomTitle,
+                url: loomTileEntry.url,
+            },
+            x: dashboardTileEntry.x_offset,
+            y: dashboardTileEntry.y_offset,
+            h: dashboardTileEntry.height,
+            w: dashboardTileEntry.width,
+        } as DashboardLoomTile,
+        {
+            uuid: dashboardTileEntry.dashboard_tile_uuid,
+            type: DashboardTileTypes.MARKDOWN,
+            properties: {
+                title: markdownTileEntry.markdownTitle,
+                content: markdownTileEntry.content,
+            },
+            x: dashboardTileEntry.x_offset,
+            y: dashboardTileEntry.y_offset,
+            h: dashboardTileEntry.height,
+            w: dashboardTileEntry.width,
+        } as DashboardMarkdownTile,
     ],
 };
 
