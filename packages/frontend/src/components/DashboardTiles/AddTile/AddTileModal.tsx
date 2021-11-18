@@ -1,29 +1,48 @@
-import { DashboardChartTile, DashboardTileTypes } from 'common';
+import { Dashboard, DashboardTileTypes } from 'common';
 import React, { FC, useState } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import ActionModal, { ActionTypeModal } from '../../common/modal/ActionModal';
-import TileForm from './TileForm';
+import ChartTileForm from './ChartTileForm';
+import MarkdownTileForm from './MarkdownTileForm';
 
 type Props = {
-    onAddTile: (tile: DashboardChartTile) => void;
+    onAddTile: (tile: Dashboard['tiles'][number]) => void;
+    type: DashboardTileTypes;
     onClose: () => void;
 };
 
-const AddTileModal: FC<Props> = ({ onClose, onAddTile }) => {
+const getFormComponent = (type: DashboardTileTypes) => {
+    switch (type) {
+        case DashboardTileTypes.SAVED_CHART:
+            return ChartTileForm;
+        case DashboardTileTypes.MARKDOWN:
+            return MarkdownTileForm;
+        case DashboardTileTypes.LOOM:
+            return MarkdownTileForm;
+        default: {
+            const never: never = type;
+            throw new Error('Tile type not supported');
+        }
+    }
+};
+
+const AddTileModal: FC<Props> = ({ onClose, onAddTile, type }) => {
     const [actionState, setActionState] = useState<{
         actionType: number;
-        data?: DashboardChartTile['properties'];
+        data?: any;
     }>({
         actionType: ActionTypeModal.UPDATE,
     });
     const [completedMutation, setCompletedMutation] = useState(false);
 
-    const onSubmitForm = (properties: DashboardChartTile['properties']) => {
+    const onSubmitForm = (
+        properties: Dashboard['tiles'][number]['properties'],
+    ) => {
         setCompletedMutation(true);
         onAddTile({
             uuid: uuid4(),
-            properties,
-            type: DashboardTileTypes.SAVED_CHART,
+            properties: properties as any,
+            type,
             h: 3,
             w: 5,
             x: 0,
@@ -33,13 +52,13 @@ const AddTileModal: FC<Props> = ({ onClose, onAddTile }) => {
 
     return (
         <ActionModal
-            title="Add chart to dashboard"
+            title="Add tile to dashboard"
             confirmButtonLabel="Add"
             useActionModalState={[actionState, setActionState]}
             isDisabled={false}
             onSubmitForm={onSubmitForm}
             completedMutation={completedMutation}
-            ModalContent={TileForm}
+            ModalContent={getFormComponent(type)}
             onClose={onClose}
         />
     );

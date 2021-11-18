@@ -8,8 +8,8 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import MDEditor from '@uiw/react-md-editor';
 import { DashboardMarkdownTile } from 'common';
-import Markdown from 'markdown-to-jsx';
 import React, { FC } from 'react';
 
 type Props = {
@@ -56,19 +56,7 @@ const MarkdownTile: FC<Props> = ({
         </div>
         <Divider />
         <div style={{ flex: 1, overflow: 'auto' }}>
-            <Markdown
-                options={{
-                    overrides: {
-                        a: {
-                            props: {
-                                target: '_blank',
-                            },
-                        },
-                    },
-                }}
-            >
-                {content}
-            </Markdown>
+            <MDEditor.Markdown source={content} linkTarget="_blank" />
         </div>
     </Card>
 );

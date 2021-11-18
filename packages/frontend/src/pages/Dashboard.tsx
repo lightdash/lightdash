@@ -1,9 +1,5 @@
 import { Spinner } from '@blueprintjs/core';
-import {
-    Dashboard as IDashboard,
-    DashboardChartTile,
-    DashboardTileTypes,
-} from 'common';
+import { Dashboard as IDashboard, DashboardTileTypes } from 'common';
 import React, { useEffect, useState } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useParams } from 'react-router-dom';
@@ -61,7 +57,7 @@ const Dashboard = () => {
     if (dashboard === undefined) {
         return <Spinner />;
     }
-    const onAddTile = (tile: DashboardChartTile) => {
+    const onAddTile = (tile: IDashboard['tiles'][number]) => {
         setHasTilesChanged(true);
         setTiles([...dashboardTiles, tile]);
     };
@@ -71,7 +67,7 @@ const Dashboard = () => {
                 dashboardName={dashboard.name}
                 isSaving={isSaving}
                 hasTilesChanged={hasTilesChanged}
-                onAddTile={(tile: DashboardChartTile) => onAddTile(tile)}
+                onAddTile={onAddTile}
                 onSaveDashboard={() => mutate({ tiles: dashboardTiles })}
                 onSaveTitle={(name) => mutate({ name })}
             />
@@ -115,9 +111,7 @@ const Dashboard = () => {
                 })}
             </ResponsiveGridLayout>
             {dashboardTiles.length <= 0 && (
-                <EmptyStateNoTiles
-                    onAddTile={(tile: DashboardChartTile) => onAddTile(tile)}
-                />
+                <EmptyStateNoTiles onAddTile={onAddTile} />
             )}
         </>
     );

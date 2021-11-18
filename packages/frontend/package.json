@@ -24,6 +24,7 @@
         "@types/react-table": "^7.0.29",
         "@types/styled-components": "^5.1.15",
         "@types/uuid": "^8.3.0",
+        "@uiw/react-md-editor": "^3.7.0",
         "ace-builds": "^1.4.12",
         "common": "^0.10.2",
         "dagre": "^0.8.5",
