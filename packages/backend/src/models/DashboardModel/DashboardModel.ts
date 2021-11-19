@@ -2,6 +2,9 @@ import {
     CreateDashboard,
     Dashboard,
     DashboardBasicDetails,
+    DashboardChartTile,
+    DashboardLoomTile,
+    DashboardMarkdownTile,
     DashboardTileTypes,
     DashboardUnversionedFields,
     DashboardVersionedFields,
@@ -12,6 +15,8 @@ import {
     DashboardTable,
     DashboardTileChartTable,
     DashboardTileChartTableName,
+    DashboardTileLoomsTableName,
+    DashboardTileMarkdownsTableName,
     DashboardTilesTableName,
     DashboardVersionsTableName,
     DashboardVersionTable,
@@ -22,7 +27,7 @@ import {
     SavedQueryTable,
 } from '../../database/entities/savedQueries';
 import { SpaceTableName } from '../../database/entities/spaces';
-import { NotFoundError } from '../../errors';
+import { NotFoundError, UnexpectedServerError } from '../../errors';
 import Transaction = Knex.Transaction;
 
 export type GetDashboardQuery = Pick<
@@ -65,57 +70,67 @@ export class DashboardModel {
         );
 
         const promises: Promise<any>[] = [];
-        version.tiles.forEach(
-            (
-                { uuid: dashboardTileId, type, w, h, x, y, properties },
-                index,
-            ) => {
-                promises.push(
-                    (async () => {
-                        const [insertedTile] = await trx(
-                            DashboardTilesTableName,
-                        )
-                            .insert({
-                                dashboard_version_id:
-                                    versionId.dashboard_version_id,
-                                dashboard_tile_uuid: dashboardTileId,
-                                type,
-                                height: h,
-                                width: w,
-                                x_offset: x,
-                                y_offset: y,
-                            })
-                            .returning('*');
-                        if (
-                            type === DashboardTileTypes.SAVED_CHART &&
-                            properties.savedChartUuid
-                        ) {
-                            const [savedChart] = await trx(
-                                SavedQueriesTableName,
+        version.tiles.forEach((tile) => {
+            const { uuid: dashboardTileId, type, w, h, x, y } = tile;
+            promises.push(
+                (async () => {
+                    const [insertedTile] = await trx(DashboardTilesTableName)
+                        .insert({
+                            dashboard_version_id:
+                                versionId.dashboard_version_id,
+                            dashboard_tile_uuid: dashboardTileId,
+                            type,
+                            height: h,
+                            width: w,
+                            x_offset: x,
+                            y_offset: y,
+                        })
+                        .returning('*');
+                    if (
+                        tile.type === DashboardTileTypes.SAVED_CHART &&
+                        tile.properties.savedChartUuid
+                    ) {
+                        const [savedChart] = await trx(SavedQueriesTableName)
+                            .select(['saved_query_id'])
+                            .where(
+                                'saved_query_uuid',
+                                tile.properties.savedChartUuid,
                             )
-                                .select(['saved_query_id'])
-                                .where(
-                                    'saved_query_uuid',
-                                    properties.savedChartUuid,
-                                )
-                                .limit(1);
-                            if (!savedChart) {
-                                throw new NotFoundError(
-                                    'Saved chart not found',
-                                );
-                            }
-                            await trx(DashboardTileChartTableName).insert({
-                                dashboard_version_id:
-                                    versionId.dashboard_version_id,
-                                dashboard_tile_uuid:
-                                    insertedTile.dashboard_tile_uuid,
-                                saved_chart_id: savedChart.saved_query_id,
-                            });
+                            .limit(1);
+                        if (!savedChart) {
+                            throw new NotFoundError('Saved chart not found');
                         }
-                    })(),
-                );
-            },
-        );
+                        await trx(DashboardTileChartTableName).insert({
+                            dashboard_version_id:
+                                versionId.dashboard_version_id,
+                            dashboard_tile_uuid:
+                                insertedTile.dashboard_tile_uuid,
+                            saved_chart_id: savedChart.saved_query_id,
+                        });
+                    }
+                    if (tile.type === DashboardTileTypes.MARKDOWN) {
+                        await trx(DashboardTileMarkdownsTableName).insert({
+                            dashboard_version_id:
+                                versionId.dashboard_version_id,
+                            dashboard_tile_uuid:
+                                insertedTile.dashboard_tile_uuid,
+                            title: tile.properties.title,
+                            content: tile.properties.content,
+                        });
+                    }
+                    if (tile.type === DashboardTileTypes.LOOM) {
+                        await trx(DashboardTileLoomsTableName).insert({
+                            dashboard_version_id:
+                                versionId.dashboard_version_id,
+                            dashboard_tile_uuid:
+                                insertedTile.dashboard_tile_uuid,
+                            title: tile.properties.title,
+                            url: tile.properties.url,
+                        });
+                    }
+                })(),
+            );
+        });
         await Promise.all(promises);
     }
 
@@ -197,6 +212,10 @@ export class DashboardModel {
                     height: number;
                     dashboard_tile_uuid: string;
                     saved_query_uuid: string | null;
+                    loomTitle: string | null;
+                    url: string | null;
+                    markdownTitle: string | null;
+                    content: string | null;
                 }[]
             >([
                 `${DashboardTilesTableName}.x_offset`,
@@ -206,8 +225,12 @@ export class DashboardModel {
                 `${DashboardTilesTableName}.height`,
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,
                 `${SavedQueriesTableName}.saved_query_uuid`,
+                `${DashboardTileLoomsTableName}.title as loomTitle`,
+                `${DashboardTileLoomsTableName}.url`,
+                `${DashboardTileMarkdownsTableName}.title as markdownTitle`,
+                `${DashboardTileMarkdownsTableName}.content`,
             ])
-            .leftJoin(DashboardTileChartTableName, function () {
+            .leftJoin(DashboardTileChartTableName, function chartsJoin() {
                 this.on(
                     `${DashboardTileChartTableName}.dashboard_tile_uuid`,
                     '=',
@@ -215,6 +238,30 @@ export class DashboardModel {
                 );
                 this.andOn(
                     `${DashboardTileChartTableName}.dashboard_version_id`,
+                    '=',
+                    `${DashboardTilesTableName}.dashboard_version_id`,
+                );
+            })
+            .leftJoin(DashboardTileLoomsTableName, function loomsJoin() {
+                this.on(
+                    `${DashboardTileLoomsTableName}.dashboard_tile_uuid`,
+                    '=',
+                    `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                );
+                this.andOn(
+                    `${DashboardTileLoomsTableName}.dashboard_version_id`,
+                    '=',
+                    `${DashboardTilesTableName}.dashboard_version_id`,
+                );
+            })
+            .leftJoin(DashboardTileMarkdownsTableName, function markdownJoin() {
+                this.on(
+                    `${DashboardTileMarkdownsTableName}.dashboard_tile_uuid`,
+                    '=',
+                    `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                );
+                this.andOn(
+                    `${DashboardTileMarkdownsTableName}.dashboard_version_id`,
                     '=',
                     `${DashboardTilesTableName}.dashboard_version_id`,
                 );
@@ -243,17 +290,54 @@ export class DashboardModel {
                     y_offset,
                     dashboard_tile_uuid,
                     saved_query_uuid,
-                }) => ({
-                    uuid: dashboard_tile_uuid,
-                    type,
-                    properties: {
-                        savedChartUuid: saved_query_uuid,
-                    },
-                    x: x_offset,
-                    y: y_offset,
-                    h: height,
-                    w: width,
-                }),
+                    loomTitle,
+                    url,
+                    markdownTitle,
+                    content,
+                }) => {
+                    const base: Omit<Dashboard['tiles'][number], 'properties'> =
+                        {
+                            uuid: dashboard_tile_uuid,
+                            x: x_offset,
+                            y: y_offset,
+                            h: height,
+                            w: width,
+                            type,
+                        };
+
+                    if (type === DashboardTileTypes.SAVED_CHART) {
+                        return {
+                            ...base,
+                            properties: {
+                                savedChartUuid: saved_query_uuid,
+                            },
+                        } as DashboardChartTile;
+                    }
+
+                    if (type === DashboardTileTypes.MARKDOWN) {
+                        return {
+                            ...base,
+                            properties: {
+                                title: markdownTitle || '',
+                                content: content || '',
+                            },
+                        } as DashboardMarkdownTile;
+                    }
+
+                    if (type === DashboardTileTypes.LOOM) {
+                        return {
+                            ...base,
+                            properties: {
+                                title: loomTitle || '',
+                                url: url || '',
+                            },
+                        } as DashboardLoomTile;
+                    }
+
+                    throw new UnexpectedServerError(
+                        `Dashboard tile type "${type}" not recognised`,
+                    );
+                },
             ),
         };
     }
