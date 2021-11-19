@@ -1,7 +1,7 @@
 import { Intent } from '@blueprintjs/core';
 import { IToastProps } from '@blueprintjs/core/src/components/toast/toast';
+import MDEditor from '@uiw/react-md-editor';
 import { ApiError, ApiHealthResults, HealthState, LightdashUser } from 'common';
-import Markdown from 'markdown-to-jsx';
 import React, {
     createContext,
     FC,
@@ -70,19 +70,10 @@ export const AppProvider: FC = ({ children }) => {
                                 {title}
                             </p>
                             {subtitle && (
-                                <Markdown
-                                    options={{
-                                        overrides: {
-                                            a: {
-                                                props: {
-                                                    target: '_blank',
-                                                },
-                                            },
-                                        },
-                                    }}
-                                >
-                                    {subtitle}
-                                </Markdown>
+                                <MDEditor.Markdown
+                                    source={subtitle}
+                                    linkTarget="_blank"
+                                />
                             )}
                         </div>
                     ),

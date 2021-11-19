@@ -1,5 +1,5 @@
 import { Callout, Classes, Spinner } from '@blueprintjs/core';
-import Markdown from 'markdown-to-jsx';
+import MDEditor from '@uiw/react-md-editor';
 import React, { ComponentProps, FC } from 'react';
 import { useCreateMutation, useUpdateMutation } from '../../hooks/useProject';
 
@@ -30,19 +30,10 @@ const ProjectStatusCallout: FC<
             intent: 'danger',
             title: 'There was an error getting connected',
             children: error ? (
-                <Markdown
-                    options={{
-                        overrides: {
-                            a: {
-                                props: {
-                                    target: '_blank',
-                                },
-                            },
-                        },
-                    }}
-                >
-                    {error.error.message.replaceAll('\n', '\n\n')}
-                </Markdown>
+                <MDEditor.Markdown
+                    source={error.error.message.replaceAll('\n', '\n\n')}
+                    linkTarget="_blank"
+                />
             ) : null,
         };
     } else {

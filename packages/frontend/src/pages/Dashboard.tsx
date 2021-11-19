@@ -95,16 +95,38 @@ const Dashboard = () => {
                         );
                         setHasTilesChanged(true);
                     };
+                    const onEdit = (
+                        updatedTile: IDashboard['tiles'][number],
+                    ) => {
+                        setTiles(
+                            dashboardTiles.map((t) =>
+                                t.uuid === tile.uuid ? updatedTile : t,
+                            ),
+                        );
+                        setHasTilesChanged(true);
+                    };
                     return (
                         <div key={tile.uuid}>
                             {tile.type === DashboardTileTypes.SAVED_CHART && (
-                                <ChartTile tile={tile} onDelete={onDelete} />
+                                <ChartTile
+                                    tile={tile}
+                                    onDelete={onDelete}
+                                    onEdit={onEdit}
+                                />
                             )}
                             {tile.type === DashboardTileTypes.MARKDOWN && (
-                                <MarkdownTile tile={tile} onDelete={onDelete} />
+                                <MarkdownTile
+                                    tile={tile}
+                                    onDelete={onDelete}
+                                    onEdit={onEdit}
+                                />
                             )}
                             {tile.type === DashboardTileTypes.LOOM && (
-                                <LoomTile tile={tile} onDelete={onDelete} />
+                                <LoomTile
+                                    tile={tile}
+                                    onDelete={onDelete}
+                                    onEdit={onEdit}
+                                />
                             )}
                         </div>
                     );

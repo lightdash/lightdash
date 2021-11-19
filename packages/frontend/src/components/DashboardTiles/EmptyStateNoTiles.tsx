@@ -3,7 +3,7 @@ import { Dashboard } from 'common';
 import React from 'react';
 import { Section } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
-import AddTileButton from './AddTile/AddTileButton';
+import AddTileButton from './AddTileButton';
 
 type EmptyStateNoTilesProps = {
     onAddTile: (tile: Dashboard['tiles'][number]) => void;

@@ -23,7 +23,7 @@ const BaseModal = ({
     handleSubmit,
     ...modalProps
 }: BaseModalProps<any>) => (
-    <Dialog lazy {...modalProps}>
+    <Dialog lazy {...modalProps} className="non-draggable">
         <Wrap
             wrap={(children) => {
                 if (methods && handleSubmit) {

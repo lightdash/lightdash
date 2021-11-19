@@ -5,7 +5,7 @@ import styled from 'styled-components';
 import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import AddTileButton from '../../DashboardTiles/AddTile/AddTileButton';
+import AddTileButton from '../../DashboardTiles/AddTileButton';
 
 const WrapperAddTileButton = styled.div`
     display: flex;

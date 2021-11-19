@@ -4,7 +4,7 @@ import { ActionModalProps } from '../../common/modal/ActionModal';
 import Input from '../../ReactHookForm/Input';
 import MarkdownInput from '../../ReactHookForm/MarkdownInput';
 
-const ChartTileForm = ({
+const MarkdownTileForm = ({
     isDisabled,
 }: Pick<
     ActionModalProps<DashboardChartTile['properties']>,
@@ -27,8 +27,12 @@ const ChartTileForm = ({
             rules={{
                 required: 'Required field',
             }}
+            attributes={{
+                preview: 'edit',
+                height: 400,
+            }}
         />
     </>
 );
 
-export default ChartTileForm;
+export default MarkdownTileForm;
