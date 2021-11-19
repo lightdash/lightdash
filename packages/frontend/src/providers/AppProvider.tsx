@@ -72,7 +72,7 @@ export const AppProvider: FC = ({ children }) => {
             });
             setIsSentryLoaded(true);
         }
-    }, [isSentryLoaded, setIsSentryLoaded, health.data]);
+    }, [isSentryLoaded, setIsSentryLoaded, health]);
 
     const showToastSuccess = useCallback<AppContext['showToastSuccess']>(
         ({ title, subtitle, key, ...rest }) => {
