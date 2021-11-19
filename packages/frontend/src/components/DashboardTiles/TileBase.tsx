@@ -19,7 +19,7 @@ type Props<T> = {
     tile: T;
     isLoading?: boolean;
     extraMenuItems?: React.ReactNode;
-    onDelete: () => void;
+    onDelete: (tile: T) => void;
     onEdit: (tile: T) => void;
     children: ReactNode;
 };
@@ -66,7 +66,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 icon="delete"
                                 intent="danger"
                                 text="Remove tile"
-                                onClick={onDelete}
+                                onClick={() => onDelete(tile)}
                             />
                         </Menu>
                     }

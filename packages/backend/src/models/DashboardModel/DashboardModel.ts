@@ -2,9 +2,6 @@ import {
     CreateDashboard,
     Dashboard,
     DashboardBasicDetails,
-    DashboardChartTile,
-    DashboardLoomTile,
-    DashboardMarkdownTile,
     DashboardTileTypes,
     DashboardUnversionedFields,
     DashboardVersionedFields,
@@ -86,47 +83,58 @@ export class DashboardModel {
                             y_offset: y,
                         })
                         .returning('*');
-                    if (
-                        tile.type === DashboardTileTypes.SAVED_CHART &&
-                        tile.properties.savedChartUuid
-                    ) {
-                        const [savedChart] = await trx(SavedQueriesTableName)
-                            .select(['saved_query_id'])
-                            .where(
-                                'saved_query_uuid',
-                                tile.properties.savedChartUuid,
-                            )
-                            .limit(1);
-                        if (!savedChart) {
-                            throw new NotFoundError('Saved chart not found');
+                    switch (tile.type) {
+                        case DashboardTileTypes.SAVED_CHART:
+                            if (tile.properties.savedChartUuid) {
+                                const [savedChart] = await trx(
+                                    SavedQueriesTableName,
+                                )
+                                    .select(['saved_query_id'])
+                                    .where(
+                                        'saved_query_uuid',
+                                        tile.properties.savedChartUuid,
+                                    )
+                                    .limit(1);
+                                if (!savedChart) {
+                                    throw new NotFoundError(
+                                        'Saved chart not found',
+                                    );
+                                }
+                                await trx(DashboardTileChartTableName).insert({
+                                    dashboard_version_id:
+                                        versionId.dashboard_version_id,
+                                    dashboard_tile_uuid:
+                                        insertedTile.dashboard_tile_uuid,
+                                    saved_chart_id: savedChart.saved_query_id,
+                                });
+                            }
+                            break;
+                        case DashboardTileTypes.MARKDOWN:
+                            await trx(DashboardTileMarkdownsTableName).insert({
+                                dashboard_version_id:
+                                    versionId.dashboard_version_id,
+                                dashboard_tile_uuid:
+                                    insertedTile.dashboard_tile_uuid,
+                                title: tile.properties.title,
+                                content: tile.properties.content,
+                            });
+                            break;
+                        case DashboardTileTypes.LOOM:
+                            await trx(DashboardTileLoomsTableName).insert({
+                                dashboard_version_id:
+                                    versionId.dashboard_version_id,
+                                dashboard_tile_uuid:
+                                    insertedTile.dashboard_tile_uuid,
+                                title: tile.properties.title,
+                                url: tile.properties.url,
+                            });
+                            break;
+                        default: {
+                            const never: never = tile;
+                            throw new UnexpectedServerError(
+                                `Dashboard tile type "${type}" not recognised`,
+                            );
                         }
-                        await trx(DashboardTileChartTableName).insert({
-                            dashboard_version_id:
-                                versionId.dashboard_version_id,
-                            dashboard_tile_uuid:
-                                insertedTile.dashboard_tile_uuid,
-                            saved_chart_id: savedChart.saved_query_id,
-                        });
-                    }
-                    if (tile.type === DashboardTileTypes.MARKDOWN) {
-                        await trx(DashboardTileMarkdownsTableName).insert({
-                            dashboard_version_id:
-                                versionId.dashboard_version_id,
-                            dashboard_tile_uuid:
-                                insertedTile.dashboard_tile_uuid,
-                            title: tile.properties.title,
-                            content: tile.properties.content,
-                        });
-                    }
-                    if (tile.type === DashboardTileTypes.LOOM) {
-                        await trx(DashboardTileLoomsTableName).insert({
-                            dashboard_version_id:
-                                versionId.dashboard_version_id,
-                            dashboard_tile_uuid:
-                                insertedTile.dashboard_tile_uuid,
-                            title: tile.properties.title,
-                            url: tile.properties.url,
-                        });
                     }
                 })(),
             );
@@ -295,48 +303,51 @@ export class DashboardModel {
                     markdownTitle,
                     content,
                 }) => {
-                    const base: Omit<Dashboard['tiles'][number], 'properties'> =
-                        {
-                            uuid: dashboard_tile_uuid,
-                            x: x_offset,
-                            y: y_offset,
-                            h: height,
-                            w: width,
-                            type,
-                        };
+                    const base: Omit<
+                        Dashboard['tiles'][number],
+                        'type' | 'properties'
+                    > = {
+                        uuid: dashboard_tile_uuid,
+                        x: x_offset,
+                        y: y_offset,
+                        h: height,
+                        w: width,
+                    };
 
-                    if (type === DashboardTileTypes.SAVED_CHART) {
-                        return {
-                            ...base,
-                            properties: {
-                                savedChartUuid: saved_query_uuid,
-                            },
-                        } as DashboardChartTile;
+                    switch (type) {
+                        case DashboardTileTypes.SAVED_CHART:
+                            return {
+                                ...base,
+                                type: DashboardTileTypes.SAVED_CHART,
+                                properties: {
+                                    savedChartUuid: saved_query_uuid,
+                                },
+                            };
+                        case DashboardTileTypes.MARKDOWN:
+                            return {
+                                ...base,
+                                type: DashboardTileTypes.MARKDOWN,
+                                properties: {
+                                    title: markdownTitle || '',
+                                    content: content || '',
+                                },
+                            };
+                        case DashboardTileTypes.LOOM:
+                            return {
+                                ...base,
+                                type: DashboardTileTypes.LOOM,
+                                properties: {
+                                    title: loomTitle || '',
+                                    url: url || '',
+                                },
+                            };
+                        default: {
+                            const never: never = type;
+                            throw new UnexpectedServerError(
+                                `Dashboard tile type "${type}" not recognised`,
+                            );
+                        }
                     }
-
-                    if (type === DashboardTileTypes.MARKDOWN) {
-                        return {
-                            ...base,
-                            properties: {
-                                title: markdownTitle || '',
-                                content: content || '',
-                            },
-                        } as DashboardMarkdownTile;
-                    }
-
-                    if (type === DashboardTileTypes.LOOM) {
-                        return {
-                            ...base,
-                            properties: {
-                                title: loomTitle || '',
-                                url: url || '',
-                            },
-                        } as DashboardLoomTile;
-                    }
-
-                    throw new UnexpectedServerError(
-                        `Dashboard tile type "${type}" not recognised`,
-                    );
                 },
             ),
         };
