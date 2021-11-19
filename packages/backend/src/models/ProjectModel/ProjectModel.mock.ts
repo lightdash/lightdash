@@ -27,6 +27,9 @@ export const lightdashConfigMock: LightdashConfig = {
         release: '',
         environment: '',
     },
+    papercups: {
+        token: '',
+    },
     projects: [],
 };
 

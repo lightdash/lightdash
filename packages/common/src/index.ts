@@ -763,6 +763,9 @@ export type HealthState = {
         environment: string;
         release: string;
     };
+    papercups: {
+        token: string;
+    };
 };
 
 export interface DbtCatalogNode {
