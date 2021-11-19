@@ -1,4 +1,5 @@
 import { ParseError } from '../errors';
+import { VERSION } from '../version';
 import { parseConfig } from './parseConfig';
 import {
     DBT_CLOUD_IDE_PROJECT,
@@ -82,6 +83,30 @@ test('Should parse rudder config from env', () => {
     process.env.RUDDERSTACK_DATA_PLANE_URL = 'customurl';
     process.env.RUDDERSTACK_WRITE_KEY = 'customkey';
     expect(parseConfig(wrapProject(LOCAL_PROJECT)).rudder).toEqual(expected);
+});
+
+test('Should use default sentry configuration if no environment vars', () => {
+    const expected = {
+        dsn: '',
+        release: VERSION,
+        environment: wrapProject(LOCAL_PROJECT).mode,
+    };
+    expect(parseConfig(wrapProject(LOCAL_PROJECT)).sentry).toStrictEqual(
+        expected,
+    );
+});
+
+test('Should parse sentry config from env', () => {
+    const expected = {
+        dsn: 'mydsn.sentry.io',
+        release: VERSION,
+        environment: 'development',
+    };
+    process.env.SENTRY_DSN = 'mydsn.sentry.io';
+    process.env.NODE_ENV = 'development';
+    expect(parseConfig(wrapProject(LOCAL_PROJECT)).sentry).toStrictEqual(
+        expected,
+    );
 });
 
 test('Should throw error when secret missing', () => {

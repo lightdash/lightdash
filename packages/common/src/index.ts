@@ -757,6 +757,11 @@ export type HealthState = {
         writeKey: string;
         dataPlaneUrl: string;
     };
+    sentry: {
+        dsn: string;
+        environment: string;
+        release: string;
+    };
 };
 
 export interface DbtCatalogNode {

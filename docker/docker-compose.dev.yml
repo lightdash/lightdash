@@ -20,6 +20,7 @@ services:
       - SECURE_COOKIES=${SECURE_COOKIES}
       - LIGHTDASH_SECRET=${LIGHTDASH_SECRET}
       - SENTRY_DSN=${SENTRY_DSN}
+      - NODE_ENV=${NODE_ENV}
     volumes:
       - "${DEMO_PROFILES_DIR}:/usr/app/profiles"
       - "${DEMO_PROJECT_DIR}:/usr/app/dbt"
