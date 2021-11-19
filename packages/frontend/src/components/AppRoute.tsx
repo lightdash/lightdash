@@ -3,10 +3,7 @@ import { Redirect, Route } from 'react-router-dom';
 import { useApp } from '../providers/AppProvider';
 import PageSpinner from './PageSpinner';
 
-const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
-    children,
-    ...rest
-}) => {
+const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
     const { health } = useApp();
 
     return (
@@ -17,7 +14,7 @@ const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
                     return <PageSpinner />;
                 }
 
-                if (!health.data?.isAuthenticated) {
+                if (health.data?.needsSetup || health.data?.needsProject) {
                     return (
                         <Redirect
                             to={{
@@ -34,4 +31,4 @@ const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
     );
 };
 
-export default PrivateRoute;
+export default AppRoute;

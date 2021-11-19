@@ -197,16 +197,14 @@ export const CreateProjectConnection: FC = () => {
         dbt: DbtProjectConfig;
         warehouse: CreateWarehouseCredentials;
     }) => {
-        if (user.data) {
-            track({
-                name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
-            });
-            await mutateAsync({
-                name: user.data.organizationName,
-                dbtConnection,
-                warehouseConnection,
-            });
-        }
+        track({
+            name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
+        });
+        await mutateAsync({
+            name: user.data?.organizationName || `My project`,
+            dbtConnection,
+            warehouseConnection,
+        });
     };
 
     return (
