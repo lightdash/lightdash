@@ -1,9 +1,5 @@
 import { Spinner } from '@blueprintjs/core';
-import {
-    Dashboard as IDashboard,
-    DashboardChartTile,
-    DashboardTileTypes,
-} from 'common';
+import { Dashboard as IDashboard, DashboardTileTypes } from 'common';
 import React, { useEffect, useState } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useParams } from 'react-router-dom';
@@ -61,7 +57,7 @@ const Dashboard = () => {
     if (dashboard === undefined) {
         return <Spinner />;
     }
-    const onAddTile = (tile: DashboardChartTile) => {
+    const onAddTile = (tile: IDashboard['tiles'][number]) => {
         setHasTilesChanged(true);
         setTiles([...dashboardTiles, tile]);
     };
@@ -71,7 +67,7 @@ const Dashboard = () => {
                 dashboardName={dashboard.name}
                 isSaving={isSaving}
                 hasTilesChanged={hasTilesChanged}
-                onAddTile={(tile: DashboardChartTile) => onAddTile(tile)}
+                onAddTile={onAddTile}
                 onSaveDashboard={() => mutate({ tiles: dashboardTiles })}
                 onSaveTitle={(name) => mutate({ name })}
             />
@@ -99,25 +95,45 @@ const Dashboard = () => {
                         );
                         setHasTilesChanged(true);
                     };
+                    const onEdit = (
+                        updatedTile: IDashboard['tiles'][number],
+                    ) => {
+                        setTiles(
+                            dashboardTiles.map((t) =>
+                                t.uuid === tile.uuid ? updatedTile : t,
+                            ),
+                        );
+                        setHasTilesChanged(true);
+                    };
                     return (
                         <div key={tile.uuid}>
                             {tile.type === DashboardTileTypes.SAVED_CHART && (
-                                <ChartTile tile={tile} onDelete={onDelete} />
+                                <ChartTile
+                                    tile={tile}
+                                    onDelete={onDelete}
+                                    onEdit={onEdit}
+                                />
                             )}
                             {tile.type === DashboardTileTypes.MARKDOWN && (
-                                <MarkdownTile tile={tile} onDelete={onDelete} />
+                                <MarkdownTile
+                                    tile={tile}
+                                    onDelete={onDelete}
+                                    onEdit={onEdit}
+                                />
                             )}
                             {tile.type === DashboardTileTypes.LOOM && (
-                                <LoomTile tile={tile} onDelete={onDelete} />
+                                <LoomTile
+                                    tile={tile}
+                                    onDelete={onDelete}
+                                    onEdit={onEdit}
+                                />
                             )}
                         </div>
                     );
                 })}
             </ResponsiveGridLayout>
             {dashboardTiles.length <= 0 && (
-                <EmptyStateNoTiles
-                    onAddTile={(tile: DashboardChartTile) => onAddTile(tile)}
-                />
+                <EmptyStateNoTiles onAddTile={onAddTile} />
             )}
         </>
     );

@@ -1,12 +1,12 @@
 import { NonIdealState } from '@blueprintjs/core';
-import { DashboardChartTile } from 'common';
+import { Dashboard } from 'common';
 import React from 'react';
 import { Section } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
-import AddTileButton from './AddTile/AddTileButton';
+import AddTileButton from './AddTileButton';
 
 type EmptyStateNoTilesProps = {
-    onAddTile: (tile: DashboardChartTile) => void;
+    onAddTile: (tile: Dashboard['tiles'][number]) => void;
 };
 
 const EmptyStateNoTiles = ({ onAddTile }: EmptyStateNoTilesProps) => (
@@ -14,13 +14,7 @@ const EmptyStateNoTiles = ({ onAddTile }: EmptyStateNoTilesProps) => (
         <div style={{ padding: '50px 0' }}>
             <NonIdealState
                 description="No charts available"
-                action={
-                    <AddTileButton
-                        onAddTile={(tile: DashboardChartTile) =>
-                            onAddTile(tile)
-                        }
-                    />
-                }
+                action={<AddTileButton onAddTile={onAddTile} />}
             />
         </div>
     </Section>

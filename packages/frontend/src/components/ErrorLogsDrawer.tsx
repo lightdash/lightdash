@@ -7,7 +7,7 @@ import {
     Position,
     Tag,
 } from '@blueprintjs/core';
-import Markdown from 'markdown-to-jsx';
+import MDEditor from '@uiw/react-md-editor';
 import React from 'react';
 import { ErrorLogEntry } from '../hooks/useErrorLogs';
 import { useApp } from '../providers/AppProvider';
@@ -42,19 +42,10 @@ const ErrorCard: React.FC<ErrorLogEntry & { onDismiss: () => void }> = ({
         >
             <p style={{ fontWeight: 'bold', marginBottom: 0 }}>{title}</p>
             {body && (
-                <Markdown
-                    options={{
-                        overrides: {
-                            a: {
-                                props: {
-                                    target: '_blank',
-                                },
-                            },
-                        },
-                    }}
-                >
-                    {body.replace('\n', '\n\n')}
-                </Markdown>
+                <MDEditor.Markdown
+                    source={body.replace('\n', '\n\n')}
+                    linkTarget="_blank"
+                />
             )}
         </div>
         <Button
