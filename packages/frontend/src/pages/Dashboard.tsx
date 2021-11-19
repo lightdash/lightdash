@@ -9,6 +9,8 @@ import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useParams } from 'react-router-dom';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
+import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
+import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
 import {
     useDashboardQuery,
@@ -87,30 +89,30 @@ const Dashboard = () => {
                     })),
                 }}
             >
-                {dashboardTiles.map((tile) => (
-                    <div key={tile.uuid}>
-                        {tile.type === DashboardTileTypes.SAVED_CHART && (
-                            <ChartTile
-                                tile={tile}
-                                onDelete={() => {
-                                    setTiles(
-                                        dashboardTiles.filter(
-                                            (filteredTile) =>
-                                                filteredTile.uuid !== tile.uuid,
-                                        ),
-                                    );
-                                    setHasTilesChanged(true);
-                                }}
-                            />
-                        )}
-                        {tile.type === DashboardTileTypes.MARKDOWN && (
-                            <span>TODO</span>
-                        )}
-                        {tile.type === DashboardTileTypes.LOOM && (
-                            <span>TODO</span>
-                        )}
-                    </div>
-                ))}
+                {dashboardTiles.map((tile) => {
+                    const onDelete = () => {
+                        setTiles(
+                            dashboardTiles.filter(
+                                (filteredTile) =>
+                                    filteredTile.uuid !== tile.uuid,
+                            ),
+                        );
+                        setHasTilesChanged(true);
+                    };
+                    return (
+                        <div key={tile.uuid}>
+                            {tile.type === DashboardTileTypes.SAVED_CHART && (
+                                <ChartTile tile={tile} onDelete={onDelete} />
+                            )}
+                            {tile.type === DashboardTileTypes.MARKDOWN && (
+                                <MarkdownTile tile={tile} onDelete={onDelete} />
+                            )}
+                            {tile.type === DashboardTileTypes.LOOM && (
+                                <LoomTile tile={tile} onDelete={onDelete} />
+                            )}
+                        </div>
+                    );
+                })}
             </ResponsiveGridLayout>
             {dashboardTiles.length <= 0 && (
                 <EmptyStateNoTiles
