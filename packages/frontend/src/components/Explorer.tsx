@@ -168,20 +168,28 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                     text="Save chart as"
                                     onClick={() => setIsQueryModalOpen(true)}
                                 />
-                                <MenuItem
-                                    icon="add"
-                                    text="Add chart to a new dashboard"
-                                    onClick={() =>
-                                        setIsAddToNewDashboardModalOpen(true)
-                                    }
-                                />
-                                <MenuItem
-                                    icon="add"
-                                    text="Add chart to an existing dashboard"
-                                    onClick={() =>
-                                        setIsAddToDashboardModalOpen(true)
-                                    }
-                                />
+                                {savedQueryUuid && (
+                                    <>
+                                        <MenuItem
+                                            icon="add"
+                                            text="Add chart to a new dashboard"
+                                            onClick={() =>
+                                                setIsAddToNewDashboardModalOpen(
+                                                    true,
+                                                )
+                                            }
+                                        />
+                                        <MenuItem
+                                            icon="add"
+                                            text="Add chart to an existing dashboard"
+                                            onClick={() =>
+                                                setIsAddToDashboardModalOpen(
+                                                    true,
+                                                )
+                                            }
+                                        />
+                                    </>
+                                )}
                             </Menu>
                         }
                         placement="bottom"
