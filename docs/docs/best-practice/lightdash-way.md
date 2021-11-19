@@ -4,17 +4,16 @@ Our mission at Lightdash is:
 
 > To enable everybody in your company to answer their own questions using data.
 
-Lightdash is where the data team (👷‍♀️ the builders) and the rest of the business (👩‍🌾 the consumers)
-come together to make better data-driven decisions.
+Lightdash is where the data team (👷‍♀️ the builders) and the rest of the business (👩‍🌾 the
+ consumers) come together to make better data-driven decisions.
 
-We have some pretty strong opinions about how this relationship between data builders and
-data consumers should work. So, we thought it would be useful to explain this to you because
-it's an important part of how we've decided to build Lightdash.
+We have some pretty strong opinions about how this relationship between data builders
+and data consumers should work. So, we thought it would be useful to explain the
+principles that make up The Lightdash Way.
 
-
-The Lightdash Way isn't just semantics (😏) - it's about the entire experience of enabling
-everybody in your company to answer their own data questions. We'll go over all of the
-principles that make up The Lightdash Way, but we'll start off with one for now:
+The Lightdash Way isn't just semantics (😏) - it's about the entire experience of
+enabling everybody in your company to answer their own data questions. But, we'll start
+off slow and just go through one of the principles for now:
 
 > How should you serve data to people who want to answer their own data questions?
 
