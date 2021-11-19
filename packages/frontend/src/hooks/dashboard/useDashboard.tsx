@@ -32,7 +32,7 @@ const deleteDashboard = async (id: string) =>
         body: undefined,
     });
 
-export const useDashboardQuery = (id: string) => {
+export const useDashboardQuery = (id?: string) => {
     const setErrorResponse = useQueryError();
     return useQuery<Dashboard, ApiError>({
         queryKey: ['saved_dashboard_query', id],
@@ -43,36 +43,37 @@ export const useDashboardQuery = (id: string) => {
     });
 };
 
-export const useUpdateDashboard = (id: string) => {
+export const useUpdateDashboard = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
-    return useMutation<undefined, ApiError, UpdateDashboard>(
-        (data) => updateDashboard(id, data),
-        {
-            mutationKey: ['dashboard_update'],
-            onSuccess: async (_, variables) => {
-                await queryClient.invalidateQueries('dashboards');
-                await queryClient.invalidateQueries([
-                    'saved_dashboard_query',
-                    id,
-                ]);
-                const onlyUpdatedName: boolean =
-                    Object.keys(variables).length === 1 &&
-                    Object.keys(variables).includes('name');
-                showToastSuccess({
-                    title: `Success! Dashboard ${
-                        onlyUpdatedName ? 'name ' : ''
-                    }was updated.`,
-                });
-            },
-            onError: (error) => {
-                showToastError({
-                    title: `Failed to update dashboard`,
-                    subtitle: error.error.message,
-                });
-            },
+    return useMutation<
+        undefined,
+        ApiError,
+        { uuid: string; data: UpdateDashboard }
+    >(({ uuid, data }) => updateDashboard(uuid, data), {
+        mutationKey: ['dashboard_update'],
+        onSuccess: async (_, variables) => {
+            await queryClient.invalidateQueries('dashboards');
+            await queryClient.invalidateQueries([
+                'saved_dashboard_query',
+                variables.uuid,
+            ]);
+            const onlyUpdatedName: boolean =
+                Object.keys(variables.data).length === 1 &&
+                Object.keys(variables.data).includes('name');
+            showToastSuccess({
+                title: `Success! Dashboard ${
+                    onlyUpdatedName ? 'name ' : ''
+                }was updated.`,
+            });
         },
-    );
+        onError: (error) => {
+            showToastError({
+                title: `Failed to update dashboard`,
+                subtitle: error.error.message,
+            });
+        },
+    });
 };
 
 export const useCreateMutation = (projectId: string) => {

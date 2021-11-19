@@ -1,4 +1,4 @@
-import { Dashboard } from 'common';
+import { DashboardBasicDetails } from 'common';
 import React from 'react';
 import { ActionModalProps, ActionTypeModal } from '../common/modal/ActionModal';
 import Input from '../ReactHookForm/Input';
@@ -6,7 +6,10 @@ import Input from '../ReactHookForm/Input';
 const DashboardForm = ({
     useActionModalState,
     isDisabled,
-}: Pick<ActionModalProps<Dashboard>, 'useActionModalState' | 'isDisabled'>) => {
+}: Pick<
+    ActionModalProps<DashboardBasicDetails>,
+    'useActionModalState' | 'isDisabled'
+>) => {
     const [{ actionType, data }] = useActionModalState;
     return (
         <>

@@ -12,10 +12,11 @@ import {
     Tag,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import { DBChartTypes, SavedQuery } from 'common';
+import { DashboardTileTypes, DBChartTypes, SavedQuery } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, useEffect, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
+import { v4 as uuid4 } from 'uuid';
 import FiltersForm from '../filters';
 import { useChartConfig } from '../hooks/useChartConfig';
 import { useQueryResults } from '../hooks/useQueryResults';
@@ -30,6 +31,9 @@ import { ExplorerResults } from './ExplorerResults';
 import { RefreshButton } from './RefreshButton';
 import { RefreshServerButton } from './RefreshServerButton';
 import { RenderedSql } from './RenderedSql';
+import AddTilesToDashboardModal from './SavedDashboards/AddTilesToDashboardModal';
+import CreateSavedDashboardModal from './SavedDashboards/CreateSavedDashboardModal';
+import DashboardForm from './SavedDashboards/DashboardForm';
 import CreateSavedQueryModal from './SavedQueries/CreateSavedQueryModal';
 import SavedQueryForm from './SavedQueries/SavedQueryForm';
 import { SimpleChart } from './SimpleChart';
@@ -41,6 +45,10 @@ interface Props {
 export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
+    const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
+        useState<boolean>(false);
+    const [isAddToNewDashboardModalOpen, setIsAddToNewDashboardModalOpen] =
+        useState<boolean>(false);
     const chartRef = useRef<EChartsReact>(null);
     const location = useLocation<{ fromExplorer?: boolean } | undefined>();
     const {
@@ -159,6 +167,20 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                     icon="add"
                                     text="Save chart as"
                                     onClick={() => setIsQueryModalOpen(true)}
+                                />
+                                <MenuItem
+                                    icon="add"
+                                    text="Add chart to a new dashboard"
+                                    onClick={() =>
+                                        setIsAddToNewDashboardModalOpen(true)
+                                    }
+                                />
+                                <MenuItem
+                                    icon="add"
+                                    text="Add chart to an existing dashboard"
+                                    onClick={() =>
+                                        setIsAddToDashboardModalOpen(true)
+                                    }
                                 />
                             </Menu>
                         }
@@ -367,6 +389,32 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     savedData={queryData}
                     onClose={() => setIsQueryModalOpen(false)}
                     ModalContent={SavedQueryForm}
+                />
+            )}
+            {savedQueryUuid && (
+                <CreateSavedDashboardModal
+                    isOpen={isAddToNewDashboardModalOpen}
+                    tiles={[
+                        {
+                            uuid: uuid4(),
+                            type: DashboardTileTypes.SAVED_CHART,
+                            properties: {
+                                savedChartUuid: savedQueryUuid,
+                            },
+                            h: 3,
+                            w: 5,
+                            x: 0,
+                            y: 0,
+                        },
+                    ]}
+                    onClose={() => setIsAddToNewDashboardModalOpen(false)}
+                    ModalContent={DashboardForm}
+                />
+            )}
+            {savedQueryUuid && isAddToDashboardModalOpen && (
+                <AddTilesToDashboardModal
+                    savedChartUuid={savedQueryUuid}
+                    onClose={() => setIsAddToDashboardModalOpen(false)}
                 />
             )}
         </>

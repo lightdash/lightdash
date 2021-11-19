@@ -1,4 +1,4 @@
-import { Dashboard } from 'common';
+import { Dashboard, DashboardBasicDetails } from 'common';
 import React, { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../hooks/dashboard/useDashboard';
@@ -9,10 +9,11 @@ interface CreateSavedDashboardModalProps {
     isOpen: boolean;
     ModalContent: (
         props: Pick<
-            ActionModalProps<Dashboard>,
+            ActionModalProps<DashboardBasicDetails>,
             'useActionModalState' | 'isDisabled'
         >,
     ) => JSX.Element;
+    tiles?: Dashboard['tiles'];
     onClose?: () => void;
 }
 
@@ -21,11 +22,12 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = (
 ) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const useCreate = useCreateMutation(projectUuid);
+    const { tiles } = props;
 
     return (
         <CreateActionModal
             useCreate={useCreate}
-            savedData={{ tiles: [] }}
+            savedData={{ tiles: tiles || [] }}
             {...props}
         />
     );

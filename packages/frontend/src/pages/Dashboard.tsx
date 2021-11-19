@@ -46,7 +46,7 @@ const Dashboard = () => {
         isSuccess,
         reset,
         isLoading: isSaving,
-    } = useUpdateDashboard(dashboardUuid);
+    } = useUpdateDashboard();
     const [dashboardTiles, setTiles] = useState<IDashboard['tiles']>([]);
     const tileProperties = Object.fromEntries(
         dashboardTiles.map((tile) => [tile.uuid, tile]) || [],
@@ -106,8 +106,15 @@ const Dashboard = () => {
                 isSaving={isSaving}
                 hasTilesChanged={hasTilesChanged}
                 onAddTile={onAddTile}
-                onSaveDashboard={() => mutate({ tiles: dashboardTiles })}
-                onSaveTitle={(name) => mutate({ name })}
+                onSaveDashboard={() =>
+                    mutate({
+                        uuid: dashboardUuid,
+                        data: { tiles: dashboardTiles },
+                    })
+                }
+                onSaveTitle={(name) =>
+                    mutate({ uuid: dashboardUuid, data: { name } })
+                }
             />
             <ResponsiveGridLayout
                 useCSSTransforms={false}
