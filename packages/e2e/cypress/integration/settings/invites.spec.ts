@@ -9,13 +9,14 @@ describe('Dashboard List', () => {
         cy.get('[data-cy="settings-button"]').click();
         cy.contains('Invites').click();
         cy.get('[data-cy="create-invite-link-button"]').click();
-        cy.wait(1000);
-        cy.get('#invite-link-input').then(($input) => {
-            const value = $input.val();
-            if (typeof value === 'string') {
-                cy.visit(value);
-            }
-        });
+        cy.get('#invite-link-input')
+            .should('be.visible')
+            .then(($input) => {
+                const value = $input.val();
+                if (typeof value === 'string') {
+                    cy.visit(value);
+                }
+            });
         cy.findByLabelText('First name (required)').type('Mary');
         cy.findByLabelText('Last name (required)').type('Green');
         cy.findByLabelText('Email (required)').type('marygreen@lightdash.com');
