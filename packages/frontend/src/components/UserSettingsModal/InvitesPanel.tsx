@@ -62,6 +62,7 @@ const InvitePanel: FC = () => {
                             });
                             inviteLink.mutate();
                         }}
+                        data-cy="create-invite-link-button"
                     />
                 )}
             </FormGroup>
