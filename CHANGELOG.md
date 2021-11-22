@@ -4,6 +4,14 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.10.3] - 2021-11-22
+### Added
+- Dashboards now have a distinct view and edit mode
+- You can now add text and images to your dashboards using markdown tiles
+- You can now add loom videos to your dashboards using loom tiles
+- Ability to rename a dashboard from the dashboard page
+- Ability to add a chart to a dashboard from the explore page
+
 ## [0.10.2] - 2021-11-17
 ### Fixed
 - Show base table at the top of the sidebar (#830)
