@@ -194,7 +194,6 @@ export class DbtCliClient implements DbtClient {
         fullPath: string,
         fileType: 'JSON' | 'YML' = 'JSON',
     ): Promise<any> {
-        console.log('fullPath', fullPath);
         try {
             const file = await fs.readFile(fullPath, 'utf-8');
             if (fileType === 'JSON') {

@@ -34,6 +34,11 @@ export type LightdashConfig = {
     mode: LightdashMode;
     projects: Array<DbtProjectConfig>;
     sentry: SentryConfig;
+    papercups: PapercupsConfig;
+};
+
+export type PapercupsConfig = {
+    token: string;
 };
 
 export type SentryConfig = {
@@ -180,6 +185,9 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         secureCookies: process.env.SECURE_COOKIES === 'true',
         trustProxy: process.env.TRUST_PROXY === 'true',
         databaseConnectionUri: process.env.PGCONNECTIONURI,
+        papercups: {
+            token: process.env.PAPERCUPS_TOKEN || '',
+        },
     };
 };
 
