@@ -6,7 +6,7 @@ Recent and upcoming changes to lightdash
 
 ## [0.10.3] - 2021-11-22
 ### Added
-- Dashboard now have a view and edit mode
+- Dashboards now have a distinct view and edit mode
 - New dashboard tiles types ( markdown and loom ) available
 - Ability to rename a dashboard from the dashboard page
 - Ability to add a chart to a dashboard from the explore page
