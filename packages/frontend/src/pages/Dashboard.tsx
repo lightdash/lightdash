@@ -48,7 +48,6 @@ const Dashboard = () => {
         mode?: string;
     }>();
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
-    console.log('isEditMode', isEditMode, mode);
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
     const [hasTilesChanged, setHasTilesChanged] = useState(false);
     const {
