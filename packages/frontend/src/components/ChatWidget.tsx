@@ -15,7 +15,7 @@ export const ChatWidget = () => {
                 title="Ask us anything"
                 subtitle=""
                 primaryColor={Colors.BLUE1}
-                greeting="Enjoying the demo? Request your own free instance with Lightdash Cloud. Message below to learn more."
+                greeting="Enjoying the demo? Try Lightdash for free. Request access for Lightdash Cloud and we'll be in touch."
                 newMessagePlaceholder="Start typing..."
                 showAgentAvailability={false}
                 requireEmailUpfront
