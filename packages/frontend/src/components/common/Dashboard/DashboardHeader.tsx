@@ -129,7 +129,6 @@ const DashboardHeader = ({
                         <Button
                             style={{ height: '20px', marginLeft: 10 }}
                             text="Cancel"
-                            intent={Intent.DANGER}
                             disabled={isSaving}
                             onClick={onCancel}
                         />
