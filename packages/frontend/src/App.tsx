@@ -134,7 +134,7 @@ const App = () => (
                                                         <SavedQueries />
                                                     </Page>
                                                 </Route>
-                                                <Route path="/projects/:projectUuid/dashboards/:dashboardUuid">
+                                                <Route path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?">
                                                     <AppBar />
                                                     <Page
                                                         name={

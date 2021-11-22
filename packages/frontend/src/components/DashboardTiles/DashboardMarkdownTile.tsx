@@ -5,23 +5,25 @@ import TileBase from './TileBase';
 
 type Props = Pick<
     React.ComponentProps<typeof TileBase>,
-    'tile' | 'onEdit' | 'onDelete'
+    'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
 > & { tile: DashboardMarkdownTile };
 
-const MarkdownTile: FC<Props> = ({ tile, onDelete, onEdit }) => (
-    <TileBase
-        title={tile.properties.title}
-        tile={tile}
-        onDelete={onDelete}
-        onEdit={onEdit}
-    >
-        <div style={{ flex: 1, overflow: 'auto' }} className="non-draggable">
-            <MDEditor.Markdown
-                source={tile.properties.content}
-                linkTarget="_blank"
-            />
-        </div>
-    </TileBase>
-);
+const MarkdownTile: FC<Props> = (props) => {
+    const {
+        tile: {
+            properties: { title, content },
+        },
+    } = props;
+    return (
+        <TileBase title={title} {...props}>
+            <div
+                style={{ flex: 1, overflow: 'auto' }}
+                className="non-draggable"
+            >
+                <MDEditor.Markdown source={content} linkTarget="_blank" />
+            </div>
+        </TileBase>
+    );
+};
 
 export default MarkdownTile;

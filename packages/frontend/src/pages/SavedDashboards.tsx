@@ -59,7 +59,7 @@ const SavedDashboards = () => {
                 dataList={dashboards}
                 getURL={(savedDashboard) => {
                     const { uuid } = savedDashboard;
-                    return `/projects/${projectUuid}/dashboards/${uuid}`;
+                    return `/projects/${projectUuid}/dashboards/${uuid}/view`;
                 }}
                 ModalContent={DashboardForm}
                 headerAction={

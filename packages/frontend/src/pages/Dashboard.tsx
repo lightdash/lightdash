@@ -1,8 +1,8 @@
 import { Spinner } from '@blueprintjs/core';
 import { Dashboard as IDashboard, DashboardTileTypes } from 'common';
-import React, { FC, useEffect, useState } from 'react';
+import React, { FC, useEffect, useMemo, useState } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
-import { useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
@@ -18,7 +18,10 @@ import '../styles/react-grid.css';
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const GridTile: FC<
-    Pick<React.ComponentProps<typeof TileBase>, 'tile' | 'onEdit' | 'onDelete'>
+    Pick<
+        React.ComponentProps<typeof TileBase>,
+        'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
+    >
 > = (props) => {
     const { tile } = props;
     switch (tile.type) {
@@ -38,7 +41,14 @@ const GridTile: FC<
 };
 
 const Dashboard = () => {
-    const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
+    const history = useHistory();
+    const { projectUuid, dashboardUuid, mode } = useParams<{
+        projectUuid: string;
+        dashboardUuid: string;
+        mode?: string;
+    }>();
+    const isEditMode = useMemo(() => mode === 'edit', [mode]);
+    console.log('isEditMode', isEditMode, mode);
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
     const [hasTilesChanged, setHasTilesChanged] = useState(false);
     const {
@@ -51,6 +61,17 @@ const Dashboard = () => {
     const tileProperties = Object.fromEntries(
         dashboardTiles.map((tile) => [tile.uuid, tile]) || [],
     );
+    const layouts = useMemo(
+        () => ({
+            lg: dashboardTiles.map<Layout>((tile) => ({
+                ...tile,
+                i: tile.uuid,
+                isDraggable: isEditMode,
+                isResizable: isEditMode,
+            })),
+        }),
+        [dashboardTiles, isEditMode],
+    );
 
     useEffect(() => {
         setTiles(dashboard?.tiles || []);
@@ -60,8 +81,11 @@ const Dashboard = () => {
         if (isSuccess) {
             setHasTilesChanged(false);
             reset();
+            history.push(
+                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
+            );
         }
-    }, [isSuccess, reset]);
+    }, [dashboardUuid, history, isEditMode, isSuccess, projectUuid, reset]);
 
     const updateTiles = (layout: Layout[]) => {
         const tiles = layout.map((tile) => ({
@@ -99,33 +123,41 @@ const Dashboard = () => {
         setHasTilesChanged(true);
     };
 
+    const onCancel = () => {
+        setTiles(dashboard?.tiles);
+        setHasTilesChanged(false);
+        history.push(
+            `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
+        );
+    };
+
     return (
         <>
             <DashboardHeader
                 dashboardName={dashboard.name}
+                isEditMode={isEditMode}
                 isSaving={isSaving}
                 hasTilesChanged={hasTilesChanged}
                 onAddTile={onAddTile}
                 onSaveDashboard={() => mutate({ tiles: dashboardTiles })}
                 onSaveTitle={(name) => mutate({ name })}
+                onCancel={onCancel}
             />
             <ResponsiveGridLayout
+                isDraggable={isEditMode}
+                isResizable={isEditMode}
                 useCSSTransforms={false}
                 draggableCancel=".non-draggable"
-                onDragStop={(layout) => updateTiles(layout)}
-                onResizeStop={(layout) => updateTiles(layout)}
+                onDragStop={updateTiles}
+                onResizeStop={updateTiles}
                 breakpoints={{ lg: 1200, md: 996, sm: 768 }}
                 cols={{ lg: 12, md: 10, sm: 6 }}
-                layouts={{
-                    lg: dashboardTiles.map((tile) => ({
-                        ...tile,
-                        i: tile.uuid,
-                    })),
-                }}
+                layouts={layouts}
             >
                 {dashboardTiles.map((tile) => (
                     <div key={tile.uuid}>
                         <GridTile
+                            isEditMode={isEditMode}
                             tile={tile}
                             onDelete={onDelete}
                             onEdit={onEdit}
@@ -133,7 +165,7 @@ const Dashboard = () => {
                     </div>
                 ))}
             </ResponsiveGridLayout>
-            {dashboardTiles.length <= 0 && (
+            {dashboardTiles.length <= 0 && isEditMode && (
                 <EmptyStateNoTiles onAddTile={onAddTile} />
             )}
         </>

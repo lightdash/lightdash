@@ -1,5 +1,5 @@
-import { AnchorButton } from '@blueprintjs/core';
 import React, { Dispatch, SetStateAction } from 'react';
+import LinkButton from './LinkButton';
 import ModalActionButtons from './modal/ModalActionButtons';
 
 type ActionCardProps<T> = {
@@ -18,7 +18,7 @@ const ActionCard = <T extends { uuid: string; name: string }>(
         setActionState,
     } = props;
     return (
-        <AnchorButton
+        <LinkButton
             href={url}
             minimal
             style={{
@@ -36,7 +36,7 @@ const ActionCard = <T extends { uuid: string; name: string }>(
             }
         >
             <strong>{name}</strong>
-        </AnchorButton>
+        </LinkButton>
     );
 };
 
