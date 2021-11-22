@@ -14,7 +14,9 @@ export const analytics: LightdashAnalytics = new LightdashAnalytics(
     },
 );
 
-export const identifyUser = (user: LightdashUser): void => {
+export const identifyUser = (
+    user: LightdashUser & { isMarketingOptedIn?: boolean },
+): void => {
     if (lightdashConfig.mode === LightdashMode.DEMO) {
         return;
     }
@@ -27,6 +29,7 @@ export const identifyUser = (user: LightdashUser): void => {
                   first_name: user.firstName,
                   last_name: user.lastName,
                   is_tracking_anonymized: user.isTrackingAnonymized,
+                  is_marketing_opted_in: user.isMarketingOptedIn,
               },
     });
     if (user.organizationUuid) {
