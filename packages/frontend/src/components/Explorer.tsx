@@ -415,6 +415,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             y: 0,
                         },
                     ]}
+                    showRedirectButton
                     onClose={() => setIsAddToNewDashboardModalOpen(false)}
                     ModalContent={DashboardForm}
                 />

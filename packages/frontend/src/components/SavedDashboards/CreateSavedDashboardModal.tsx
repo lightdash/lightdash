@@ -14,6 +14,7 @@ interface CreateSavedDashboardModalProps {
         >,
     ) => JSX.Element;
     tiles?: Dashboard['tiles'];
+    showRedirectButton?: boolean;
     onClose?: () => void;
 }
 
@@ -21,8 +22,8 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = (
     props,
 ) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const useCreate = useCreateMutation(projectUuid);
-    const { tiles } = props;
+    const { tiles, showRedirectButton } = props;
+    const useCreate = useCreateMutation(projectUuid, showRedirectButton);
 
     return (
         <CreateActionModal

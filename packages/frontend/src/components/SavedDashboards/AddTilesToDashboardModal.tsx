@@ -41,6 +41,14 @@ const Form = ({
     );
 };
 
+const useUpdateMutation = (id?: string) => {
+    const hook = useUpdateDashboard(id || '', true);
+    if (id) {
+        return hook;
+    }
+    return { mutate: undefined, isIdle: undefined, isSuccess: undefined };
+};
+
 interface Props {
     savedChartUuid: string;
     onClose?: () => void;
@@ -50,7 +58,9 @@ const AddTilesToDashboardModal: FC<Props> = ({ savedChartUuid, onClose }) => {
     const [selectedDashboardUuid, setSelectedDashboardUuid] =
         useState<string>();
     const { data } = useDashboardQuery(selectedDashboardUuid);
-    const { mutate, isSuccess, isIdle } = useUpdateDashboard();
+    const { mutate, isSuccess, isIdle } = useUpdateMutation(
+        selectedDashboardUuid,
+    );
     const [actionState, setActionState] = useState<{
         actionType: number;
     }>({
@@ -64,25 +74,22 @@ const AddTilesToDashboardModal: FC<Props> = ({ savedChartUuid, onClose }) => {
     };
 
     useEffect(() => {
-        if (data && isIdle) {
+        if (data && mutate && isIdle) {
             mutate({
-                uuid: data.uuid,
-                data: {
-                    tiles: [
-                        ...data.tiles,
-                        {
-                            uuid: uuid4(),
-                            type: DashboardTileTypes.SAVED_CHART,
-                            properties: {
-                                savedChartUuid,
-                            },
-                            h: 3,
-                            w: 5,
-                            x: 0,
-                            y: 0,
+                tiles: [
+                    ...data.tiles,
+                    {
+                        uuid: uuid4(),
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: {
+                            savedChartUuid,
                         },
-                    ],
-                },
+                        h: 3,
+                        w: 5,
+                        x: 0,
+                        y: 0,
+                    },
+                ],
             });
         }
     }, [data, mutate, isIdle, savedChartUuid]);

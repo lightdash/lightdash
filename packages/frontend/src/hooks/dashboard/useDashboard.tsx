@@ -1,5 +1,6 @@
 import { ApiError, CreateDashboard, Dashboard, UpdateDashboard } from 'common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
 import { useApp } from '../../providers/AppProvider';
 import useQueryError from '../useQueryError';
@@ -43,50 +44,79 @@ export const useDashboardQuery = (id?: string) => {
     });
 };
 
-export const useUpdateDashboard = () => {
+export const useUpdateDashboard = (
+    id: string,
+    showRedirectButton: boolean = false,
+) => {
+    const history = useHistory();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
-    return useMutation<
-        undefined,
-        ApiError,
-        { uuid: string; data: UpdateDashboard }
-    >(({ uuid, data }) => updateDashboard(uuid, data), {
-        mutationKey: ['dashboard_update'],
-        onSuccess: async (_, variables) => {
-            await queryClient.invalidateQueries('dashboards');
-            await queryClient.invalidateQueries([
-                'saved_dashboard_query',
-                variables.uuid,
-            ]);
-            const onlyUpdatedName: boolean =
-                Object.keys(variables.data).length === 1 &&
-                Object.keys(variables.data).includes('name');
-            showToastSuccess({
-                title: `Success! Dashboard ${
-                    onlyUpdatedName ? 'name ' : ''
-                }was updated.`,
-            });
+    return useMutation<undefined, ApiError, UpdateDashboard>(
+        (data) => updateDashboard(id, data),
+        {
+            mutationKey: ['dashboard_update'],
+            onSuccess: async (_, variables) => {
+                await queryClient.invalidateQueries('dashboards');
+                await queryClient.invalidateQueries([
+                    'saved_dashboard_query',
+                    id,
+                ]);
+                const onlyUpdatedName: boolean =
+                    Object.keys(variables).length === 1 &&
+                    Object.keys(variables).includes('name');
+                showToastSuccess({
+                    title: `Success! Dashboard ${
+                        onlyUpdatedName ? 'name ' : ''
+                    }was updated.`,
+                    action: showRedirectButton
+                        ? {
+                              text: 'Open dashboard',
+                              icon: 'arrow-right',
+                              onClick: () =>
+                                  history.push(
+                                      `/projects/${projectUuid}/dashboards/${id}`,
+                                  ),
+                          }
+                        : undefined,
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to update dashboard`,
+                    subtitle: error.error.message,
+                });
+            },
         },
-        onError: (error) => {
-            showToastError({
-                title: `Failed to update dashboard`,
-                subtitle: error.error.message,
-            });
-        },
-    });
+    );
 };
 
-export const useCreateMutation = (projectId: string) => {
+export const useCreateMutation = (
+    projectId: string,
+    showRedirectButton: boolean = false,
+) => {
+    const history = useHistory();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { showToastSuccess, showToastError } = useApp();
     const queryClient = useQueryClient();
     return useMutation<Dashboard, ApiError, CreateDashboard>(
         (data) => createDashboard(projectId, data),
         {
             mutationKey: ['dashboard_create'],
-            onSuccess: async () => {
+            onSuccess: async (result) => {
                 await queryClient.invalidateQueries('dashboards');
                 showToastSuccess({
                     title: `Success! Dashboard was created.`,
+                    action: showRedirectButton
+                        ? {
+                              text: 'Open dashboard',
+                              icon: 'arrow-right',
+                              onClick: () =>
+                                  history.push(
+                                      `/projects/${projectUuid}/dashboards/${result.uuid}`,
+                                  ),
+                          }
+                        : undefined,
                 });
             },
             onError: (error) => {
