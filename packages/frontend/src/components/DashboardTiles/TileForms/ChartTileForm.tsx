@@ -5,7 +5,7 @@ import { useSavedQuery } from '../../../hooks/useSpaces';
 import { ActionModalProps } from '../../common/modal/ActionModal';
 import SelectField from '../../ReactHookForm/Select';
 
-const TileForm = ({
+const ChartTileForm = ({
     isDisabled,
 }: Pick<
     ActionModalProps<DashboardChartTile['properties']>,
@@ -38,4 +38,4 @@ const TileForm = ({
     );
 };
 
-export default TileForm;
+export default ChartTileForm;

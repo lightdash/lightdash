@@ -1,11 +1,11 @@
 import { Button, Colors, EditableText, H3, Intent } from '@blueprintjs/core';
-import { DashboardChartTile } from 'common';
+import { Dashboard } from 'common';
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import AddTileButton from '../../DashboardTiles/AddTile/AddTileButton';
+import AddTileButton from '../../DashboardTiles/AddTileButton';
 
 const WrapperAddTileButton = styled.div`
     display: flex;
@@ -16,7 +16,7 @@ const WrapperAddTileButton = styled.div`
 `;
 
 type DashboardHeaderProps = {
-    onAddTile: (tile: DashboardChartTile) => void;
+    onAddTile: (tile: Dashboard['tiles'][number]) => void;
     onSaveDashboard: () => void;
     hasTilesChanged: boolean;
     isSaving: boolean;
@@ -91,9 +91,7 @@ const DashboardHeader = ({
                     intent={Intent.PRIMARY}
                     onClick={onSaveDashboard}
                 />
-                <AddTileButton
-                    onAddTile={(tile: DashboardChartTile) => onAddTile(tile)}
-                />
+                <AddTileButton onAddTile={onAddTile} />
             </div>
         </WrapperAddTileButton>
     );

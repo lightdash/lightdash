@@ -1,10 +1,17 @@
-import { LightdashMode } from 'common';
+import {
+    CreateDashboardLoomTile,
+    CreateDashboardMarkdownTile,
+    DashboardChartTile,
+    LightdashMode,
+} from 'common';
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
 import {
     DashboardsTableName,
     DashboardTileChartTableName,
+    DashboardTileLoomsTableName,
+    DashboardTileMarkdownsTableName,
     DashboardTilesTableName,
     DashboardVersionsTableName,
 } from '../../database/entities/dashboards';
@@ -14,6 +21,7 @@ import { NotFoundError } from '../../errors';
 import { DashboardModel } from './DashboardModel';
 import {
     addDashboardVersion,
+    addDashboardVersionWithAllTiles,
     addDashboardVersionWithoutChart,
     addDashboardVersionWithTileIds,
     createDashboard,
@@ -24,6 +32,8 @@ import {
     dashboardWithVersionEntry,
     expectedAllDashboards,
     expectedDashboard,
+    loomTileEntry,
+    markdownTileEntry,
     savedChartEntry,
     spaceEntry,
     updateDashboard,
@@ -71,7 +81,11 @@ describe('DashboardModel', () => {
                     dashboardWithVersionEntry.dashboard_version_id,
                 ]),
             )
-            .response([dashboardTileWithSavedChartEntry]);
+            .response([
+                dashboardTileWithSavedChartEntry,
+                loomTileEntry,
+                markdownTileEntry,
+            ]);
 
         const dashboard = await model.getById(expectedDashboard.uuid);
 
@@ -136,7 +150,8 @@ describe('DashboardModel', () => {
         tracker.on
             .select(
                 queryMatcher(SavedQueriesTableName, [
-                    addDashboardVersion.tiles[0].properties.savedChartUuid,
+                    (addDashboardVersion.tiles[0] as DashboardChartTile)
+                        .properties.savedChartUuid,
                     1,
                 ]),
             )
@@ -192,7 +207,7 @@ describe('DashboardModel', () => {
             model.addVersion(expectedDashboard.uuid, addDashboardVersion),
         ).rejects.toThrowError(NotFoundError);
     });
-    test('should create dashboard version', async () => {
+    test('should create dashboard version with all tile types', async () => {
         tracker.on
             .select(
                 queryMatcher(DashboardsTableName, [expectedDashboard.uuid, 1]),
@@ -205,22 +220,27 @@ describe('DashboardModel', () => {
                 ]),
             )
             .response([dashboardVersionEntry]);
+
+        // Create saved chart tile
         tracker.on
             .insert(
                 queryMatcher(DashboardTilesTableName, [
                     dashboardVersionEntry.dashboard_version_id,
-                    addDashboardVersion.tiles[0].h,
-                    addDashboardVersion.tiles[0].type,
-                    addDashboardVersion.tiles[0].w,
-                    addDashboardVersion.tiles[0].x,
-                    addDashboardVersion.tiles[0].y,
+                    addDashboardVersionWithAllTiles.tiles[0].h,
+                    addDashboardVersionWithAllTiles.tiles[0].type,
+                    addDashboardVersionWithAllTiles.tiles[0].w,
+                    addDashboardVersionWithAllTiles.tiles[0].x,
+                    addDashboardVersionWithAllTiles.tiles[0].y,
                 ]),
             )
             .response([dashboardTileEntry]);
         tracker.on
             .select(
                 queryMatcher(SavedQueriesTableName, [
-                    addDashboardVersion.tiles[0].properties.savedChartUuid,
+                    (
+                        addDashboardVersionWithAllTiles
+                            .tiles[0] as DashboardChartTile
+                    ).properties.savedChartUuid,
                     1,
                 ]),
             )
@@ -235,10 +255,73 @@ describe('DashboardModel', () => {
             )
             .response([]);
 
-        await model.addVersion(expectedDashboard.uuid, addDashboardVersion);
+        // Create loom tile
+        tracker.on
+            .insert(
+                queryMatcher(DashboardTilesTableName, [
+                    dashboardVersionEntry.dashboard_version_id,
+                    addDashboardVersionWithAllTiles.tiles[1].h,
+                    addDashboardVersionWithAllTiles.tiles[1].type,
+                    addDashboardVersionWithAllTiles.tiles[1].w,
+                    addDashboardVersionWithAllTiles.tiles[1].x,
+                    addDashboardVersionWithAllTiles.tiles[1].y,
+                ]),
+            )
+            .response([loomTileEntry]);
+        tracker.on
+            .insert(
+                queryMatcher(DashboardTileLoomsTableName, [
+                    dashboardTileEntry.dashboard_tile_uuid,
+                    dashboardVersionEntry.dashboard_version_id,
+                    (
+                        addDashboardVersionWithAllTiles
+                            .tiles[1] as CreateDashboardLoomTile
+                    ).properties.title,
+                    (
+                        addDashboardVersionWithAllTiles
+                            .tiles[1] as CreateDashboardLoomTile
+                    ).properties.url,
+                ]),
+            )
+            .response([]);
+
+        // Create markddown tile
+        tracker.on
+            .insert(
+                queryMatcher(DashboardTilesTableName, [
+                    dashboardVersionEntry.dashboard_version_id,
+                    addDashboardVersionWithAllTiles.tiles[2].h,
+                    addDashboardVersionWithAllTiles.tiles[2].type,
+                    addDashboardVersionWithAllTiles.tiles[2].w,
+                    addDashboardVersionWithAllTiles.tiles[2].x,
+                    addDashboardVersionWithAllTiles.tiles[2].y,
+                ]),
+            )
+            .response([markdownTileEntry]);
+        tracker.on
+            .insert(
+                queryMatcher(DashboardTileMarkdownsTableName, [
+                    (
+                        addDashboardVersionWithAllTiles
+                            .tiles[2] as CreateDashboardMarkdownTile
+                    ).properties.content,
+                    dashboardTileEntry.dashboard_tile_uuid,
+                    dashboardVersionEntry.dashboard_version_id,
+                    (
+                        addDashboardVersionWithAllTiles
+                            .tiles[2] as CreateDashboardMarkdownTile
+                    ).properties.title,
+                ]),
+            )
+            .response([]);
+
+        await model.addVersion(
+            expectedDashboard.uuid,
+            addDashboardVersionWithAllTiles,
+        );
 
         expect(tracker.history.select).toHaveLength(2);
-        expect(tracker.history.insert).toHaveLength(3);
+        expect(tracker.history.insert).toHaveLength(7);
     });
     test('should create dashboard version with ids', async () => {
         tracker.on
@@ -269,7 +352,8 @@ describe('DashboardModel', () => {
         tracker.on
             .select(
                 queryMatcher(SavedQueriesTableName, [
-                    addDashboardVersion.tiles[0].properties.savedChartUuid,
+                    (addDashboardVersion.tiles[0] as DashboardChartTile)
+                        .properties.savedChartUuid,
                     1,
                 ]),
             )
@@ -354,7 +438,8 @@ describe('DashboardModel', () => {
         tracker.on
             .select(
                 queryMatcher(SavedQueriesTableName, [
-                    addDashboardVersion.tiles[0].properties.savedChartUuid,
+                    (addDashboardVersion.tiles[0] as DashboardChartTile)
+                        .properties.savedChartUuid,
                     1,
                 ]),
             )

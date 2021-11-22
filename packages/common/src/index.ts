@@ -1146,6 +1146,8 @@ export type UpdateProject = Omit<Project, 'projectUuid'> & {
 
 export enum DashboardTileTypes {
     SAVED_CHART = 'saved_chart',
+    MARKDOWN = 'markdown',
+    LOOM = 'loom',
 }
 
 type CreateDashboardTileBase = {
@@ -1159,12 +1161,37 @@ type CreateDashboardTileBase = {
 
 type DashboardTileBase = Required<CreateDashboardTileBase>;
 
+export type DashboardMarkdownTileProperties = {
+    type: DashboardTileTypes.MARKDOWN;
+    properties: {
+        title: string;
+        content: string;
+    };
+};
+
+export type DashboardLoomTileProperties = {
+    type: DashboardTileTypes.LOOM;
+    properties: {
+        title: string;
+        url: string;
+    };
+};
+
 type DashboardChartTileProperties = {
     type: DashboardTileTypes.SAVED_CHART;
     properties: {
         savedChartUuid: string | null;
     };
 };
+
+export type CreateDashboardMarkdownTile = CreateDashboardTileBase &
+    DashboardMarkdownTileProperties;
+export type DashboardMarkdownTile = DashboardTileBase &
+    DashboardMarkdownTileProperties;
+
+export type CreateDashboardLoomTile = CreateDashboardTileBase &
+    DashboardLoomTileProperties;
+export type DashboardLoomTile = DashboardTileBase & DashboardLoomTileProperties;
 
 export type CreateDashboardChartTile = CreateDashboardTileBase &
     DashboardChartTileProperties;
@@ -1174,7 +1201,11 @@ export type DashboardChartTile = DashboardTileBase &
 export type CreateDashboard = {
     name: string;
     description?: string;
-    tiles: CreateDashboardChartTile[];
+    tiles: Array<
+        | CreateDashboardChartTile
+        | CreateDashboardMarkdownTile
+        | CreateDashboardLoomTile
+    >;
 };
 
 export type Dashboard = {
@@ -1182,7 +1213,9 @@ export type Dashboard = {
     description?: string;
     uuid: string;
     updatedAt: Date;
-    tiles: DashboardChartTile[];
+    tiles: Array<
+        DashboardChartTile | DashboardMarkdownTile | DashboardLoomTile
+    >;
 };
 
 export type DashboardBasicDetails = Pick<
