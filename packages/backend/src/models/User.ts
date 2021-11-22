@@ -46,9 +46,13 @@ export const UserModel = {
         if (await hasUsers(database)) {
             throw new ForbiddenError('User already registered');
         }
+        const [createUser] = data;
         const user = await createInitialUser(...data);
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
-        identifyUser(lightdashUser);
+        identifyUser({
+            ...lightdashUser,
+            isMarketingOptedIn: createUser.isMarketingOptedIn,
+        });
         analytics.track({
             event: 'user.created',
             organizationId: lightdashUser.organizationUuid,

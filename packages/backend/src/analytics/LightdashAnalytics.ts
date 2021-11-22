@@ -18,6 +18,7 @@ type Identify = {
         first_name?: string;
         last_name?: string;
         is_tracking_anonymized: boolean;
+        is_marketing_opted_in?: boolean;
     };
 };
 type BaseTrack = Omit<AnalyticsTrack, 'context'>;
