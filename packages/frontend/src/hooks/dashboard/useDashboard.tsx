@@ -1,5 +1,6 @@
 import { ApiError, CreateDashboard, Dashboard, UpdateDashboard } from 'common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
 import { useApp } from '../../providers/AppProvider';
 import useQueryError from '../useQueryError';
@@ -32,7 +33,7 @@ const deleteDashboard = async (id: string) =>
         body: undefined,
     });
 
-export const useDashboardQuery = (id: string) => {
+export const useDashboardQuery = (id?: string) => {
     const setErrorResponse = useQueryError();
     return useQuery<Dashboard, ApiError>({
         queryKey: ['saved_dashboard_query', id],
@@ -43,7 +44,12 @@ export const useDashboardQuery = (id: string) => {
     });
 };
 
-export const useUpdateDashboard = (id: string) => {
+export const useUpdateDashboard = (
+    id: string,
+    showRedirectButton: boolean = false,
+) => {
+    const history = useHistory();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
     return useMutation<undefined, ApiError, UpdateDashboard>(
@@ -63,6 +69,16 @@ export const useUpdateDashboard = (id: string) => {
                     title: `Success! Dashboard ${
                         onlyUpdatedName ? 'name ' : ''
                     }was updated.`,
+                    action: showRedirectButton
+                        ? {
+                              text: 'Open dashboard',
+                              icon: 'arrow-right',
+                              onClick: () =>
+                                  history.push(
+                                      `/projects/${projectUuid}/dashboards/${id}`,
+                                  ),
+                          }
+                        : undefined,
                 });
             },
             onError: (error) => {
@@ -75,17 +91,32 @@ export const useUpdateDashboard = (id: string) => {
     );
 };
 
-export const useCreateMutation = (projectId: string) => {
+export const useCreateMutation = (
+    projectId: string,
+    showRedirectButton: boolean = false,
+) => {
+    const history = useHistory();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { showToastSuccess, showToastError } = useApp();
     const queryClient = useQueryClient();
     return useMutation<Dashboard, ApiError, CreateDashboard>(
         (data) => createDashboard(projectId, data),
         {
             mutationKey: ['dashboard_create'],
-            onSuccess: async () => {
+            onSuccess: async (result) => {
                 await queryClient.invalidateQueries('dashboards');
                 showToastSuccess({
                     title: `Success! Dashboard was created.`,
+                    action: showRedirectButton
+                        ? {
+                              text: 'Open dashboard',
+                              icon: 'arrow-right',
+                              onClick: () =>
+                                  history.push(
+                                      `/projects/${projectUuid}/dashboards/${result.uuid}`,
+                                  ),
+                          }
+                        : undefined,
                 });
             },
             onError: (error) => {

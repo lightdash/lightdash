@@ -704,6 +704,7 @@ export type ApiResults =
     | ProjectCatalog
     | TablesConfiguration
     | Dashboard
+    | DashboardBasicDetails[]
     | Dashboard[];
 
 export type ApiResponse =

@@ -98,7 +98,7 @@ const Dashboard = () => {
         );
         setHasTilesChanged(true);
     };
-    console.log('dashboardTiles', dashboardTiles);
+
     return (
         <>
             <DashboardHeader
