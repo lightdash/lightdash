@@ -30,24 +30,30 @@ const ModalActionButtons = ({
                         role="button"
                         icon="edit"
                         text="Rename"
-                        onClick={() =>
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsOpen(false);
                             setActionState({
                                 actionType: ActionTypeModal.UPDATE,
                                 data,
-                            })
-                        }
+                            });
+                        }}
                     />
                     <MenuItem
                         role="button"
                         icon="delete"
                         text="Delete"
                         intent="danger"
-                        onClick={() =>
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsOpen(false);
                             setActionState({
                                 actionType: ActionTypeModal.DELETE,
                                 data,
-                            })
-                        }
+                            });
+                        }}
                     />
                 </Menu>
             }
