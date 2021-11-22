@@ -15,6 +15,7 @@ import React, { ReactNode, useState } from 'react';
 import { TileModal } from './TileForms/TileModal';
 
 type Props<T> = {
+    isEditMode: boolean;
     title: string;
     tile: T;
     isLoading?: boolean;
@@ -25,6 +26,7 @@ type Props<T> = {
 };
 
 const TileBase = <T extends Dashboard['tiles'][number]>({
+    isEditMode,
     title,
     tile,
     isLoading,
@@ -46,37 +48,47 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     gap: 20,
+                    height: 30,
                 }}
             >
                 <H5 style={{ margin: 0 }} className="non-draggable">
                     {title}
                 </H5>
-                <Popover2
-                    className="non-draggable"
-                    content={
-                        <Menu>
-                            {extraMenuItems}
-                            <MenuItem
-                                icon="edit"
-                                text="Edit tile"
-                                onClick={() => setIsEditing(true)}
-                            />
-                            <MenuDivider />
-                            <MenuItem
-                                icon="delete"
-                                intent="danger"
-                                text="Remove tile"
-                                onClick={() => onDelete(tile)}
-                            />
-                        </Menu>
-                    }
-                    position={PopoverPosition.BOTTOM_RIGHT}
-                    lazy
-                >
-                    <Tooltip2 content="Tile configuration">
-                        <Button minimal icon="more" />
-                    </Tooltip2>
-                </Popover2>
+                {(isEditMode || (!isEditMode && extraMenuItems)) && (
+                    <Popover2
+                        className="non-draggable"
+                        content={
+                            <Menu>
+                                {extraMenuItems}
+                                {isEditMode && extraMenuItems && (
+                                    <MenuDivider />
+                                )}
+                                {isEditMode && (
+                                    <>
+                                        <MenuItem
+                                            icon="edit"
+                                            text="Edit tile"
+                                            onClick={() => setIsEditing(true)}
+                                        />
+                                        <MenuDivider />
+                                        <MenuItem
+                                            icon="delete"
+                                            intent="danger"
+                                            text="Remove tile"
+                                            onClick={() => onDelete(tile)}
+                                        />
+                                    </>
+                                )}
+                            </Menu>
+                        }
+                        position={PopoverPosition.BOTTOM_RIGHT}
+                        lazy
+                    >
+                        <Tooltip2 content="Tile configuration">
+                            <Button minimal icon="more" />
+                        </Tooltip2>
+                    </Popover2>
+                )}
             </div>
             <Divider />
             <div

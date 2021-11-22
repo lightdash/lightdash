@@ -1,4 +1,4 @@
-import { MenuDivider, MenuItem, NonIdealState } from '@blueprintjs/core';
+import { MenuItem, NonIdealState } from '@blueprintjs/core';
 import {
     DashboardChartTile as IDashboardChartTile,
     DBChartTypes,
@@ -52,7 +52,7 @@ const InvalidDashboardChartTile: FC = () => (
 
 type Props = Pick<
     React.ComponentProps<typeof TileBase>,
-    'tile' | 'onEdit' | 'onDelete'
+    'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
 > & { tile: IDashboardChartTile };
 
 const DashboardChartTile: FC<Props> = (props) => {
@@ -75,10 +75,9 @@ const DashboardChartTile: FC<Props> = (props) => {
                     <>
                         <MenuItem
                             icon="document-open"
-                            text="Open in explorer"
+                            text="Edit chart"
                             href={`/projects/${projectUuid}/saved/${savedChartUuid}`}
                         />
-                        <MenuDivider />
                     </>
                 )
             }

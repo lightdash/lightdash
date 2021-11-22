@@ -58,6 +58,7 @@ const ModalActionButtons = ({
                 minimal
                 onClick={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     setIsOpen(true);
                 }}
             />
