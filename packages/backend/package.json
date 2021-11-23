@@ -84,9 +84,5 @@
         "seed-production": "knex seed:run --knexfile dist/database/knexfile.js",
         "rollback-all": "knex migrate:rollback --all --knexfile src/database/knexfile.ts",
         "rollback-all-production": "knex migrate:rollback --all --knexfile dist/database/knexfile.js"
-    },
-    "resolutions": {
-        "tar": "^6.1.11",
-        "axios": "^0.21.2"
     }
 }

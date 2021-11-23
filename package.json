@@ -57,5 +57,9 @@
       "yarn workspace e2e prettier --write --ignore-unknown",
       "yarn workspace e2e eslint --fix"
     ]
+  },
+  "resolutions": {
+    "tar": "^6.1.11",
+    "axios": "^0.21.2"
   }
 }
