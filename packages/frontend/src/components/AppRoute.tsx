@@ -18,7 +18,7 @@ const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
                     return (
                         <Redirect
                             to={{
-                                pathname: '/login',
+                                pathname: '/welcome',
                                 state: { from: location },
                             }}
                         />

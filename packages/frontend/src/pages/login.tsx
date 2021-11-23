@@ -82,6 +82,10 @@ const Login: FC = () => {
         );
     }
 
+    if (health.status === 'success' && health.data?.isAuthenticated) {
+        return <Redirect to={{ pathname: '/' }} />;
+    }
+
     return (
         <div
             style={{
