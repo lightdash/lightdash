@@ -2,7 +2,6 @@ import { ApiError, ApiQueryResults, MetricQuery, SavedQuery } from 'common';
 import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
 import { useExplorer } from '../providers/ExplorerProvider';
 import useQueryError from './useQueryError';
 
@@ -30,11 +29,9 @@ export const useQueryResults = () => {
             limit,
             tableCalculations,
             selectedTableCalculations,
+            isValidQuery,
         },
     } = useExplorer();
-    const {
-        errorLogs: { showError },
-    } = useApp();
     const metricQuery: MetricQuery = {
         dimensions: Array.from(dimensions),
         metrics: Array.from(metrics),
@@ -49,7 +46,7 @@ export const useQueryResults = () => {
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,
         queryFn: () => getQueryResults(projectUuid, tableId || '', metricQuery),
-        enabled: !!tableId,
+        enabled: !!tableId && isValidQuery,
         retry: false,
         refetchOnMount: false,
         onError: (result) => setErrorResponse(result),
