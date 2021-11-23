@@ -67,7 +67,10 @@ const Dashboard = () => {
     const layouts = useMemo(
         () => ({
             lg: dashboardTiles.map<Layout>((tile) => ({
-                ...tile,
+                x: tile.x,
+                y: tile.y,
+                w: tile.w,
+                h: tile.h,
                 i: tile.uuid,
                 isDraggable: isEditMode,
                 isResizable: isEditMode,
