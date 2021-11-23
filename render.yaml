@@ -9,6 +9,7 @@ services:
   - type: web
     env: docker
     name: lightdash
+    buildCommand: ./docker/render-build.sh
     dockerContext: .
     dockerfilePath: dockerfile-demo
     envVars:
