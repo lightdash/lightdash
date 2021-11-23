@@ -1,6 +1,13 @@
 import { Spinner } from '@blueprintjs/core';
 import { Dashboard as IDashboard, DashboardTileTypes } from 'common';
-import React, { FC, useEffect, useMemo, useState } from 'react';
+import React, {
+    FC,
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useHistory, useParams } from 'react-router-dom';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
@@ -22,7 +29,7 @@ const GridTile: FC<
         React.ComponentProps<typeof TileBase>,
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     >
-> = (props) => {
+> = memo((props) => {
     const { tile } = props;
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
@@ -38,7 +45,7 @@ const GridTile: FC<
             );
         }
     }
-};
+});
 
 const Dashboard = () => {
     const history = useHistory();
@@ -57,9 +64,6 @@ const Dashboard = () => {
         isLoading: isSaving,
     } = useUpdateDashboard(dashboardUuid);
     const [dashboardTiles, setTiles] = useState<IDashboard['tiles']>([]);
-    const tileProperties = Object.fromEntries(
-        dashboardTiles.map((tile) => [tile.uuid, tile]) || [],
-    );
     const layouts = useMemo(
         () => ({
             lg: dashboardTiles.map<Layout>((tile) => ({
@@ -73,7 +77,9 @@ const Dashboard = () => {
     );
 
     useEffect(() => {
-        setTiles(dashboard?.tiles || []);
+        if (dashboard?.tiles) {
+            setTiles(dashboard.tiles);
+        }
     }, [dashboard]);
 
     useEffect(() => {
@@ -84,52 +90,63 @@ const Dashboard = () => {
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
             );
         }
-    }, [dashboardUuid, history, isEditMode, isSuccess, projectUuid, reset]);
+    }, [dashboardUuid, history, isSuccess, projectUuid, reset]);
 
-    const updateTiles = (layout: Layout[]) => {
-        const tiles = layout.map((tile) => ({
-            ...tileProperties[tile.i],
-            uuid: tile.i,
-            x: tile.x,
-            y: tile.y,
-            h: tile.h,
-            w: tile.w,
-        }));
-        setTiles(tiles);
+    const updateTiles = useCallback((layout: Layout[]) => {
+        setTiles((currentDashboardTiles) =>
+            currentDashboardTiles.map((tile) => {
+                const layoutTile = layout.find(({ i }) => i === tile.uuid);
+                if (
+                    layoutTile &&
+                    (tile.x !== layoutTile.x ||
+                        tile.y !== layoutTile.y ||
+                        tile.h !== layoutTile.h ||
+                        tile.w !== layoutTile.w)
+                ) {
+                    return {
+                        ...tile,
+                        x: layoutTile.x,
+                        y: layoutTile.y,
+                        h: layoutTile.h,
+                        w: layoutTile.w,
+                    };
+                }
+                return tile;
+            }),
+        );
         setHasTilesChanged(true);
-    };
-    if (dashboard === undefined) {
-        return <Spinner />;
-    }
-    const onAddTile = (tile: IDashboard['tiles'][number]) => {
+    }, []);
+    const onAddTile = useCallback((tile: IDashboard['tiles'][number]) => {
         setHasTilesChanged(true);
-        setTiles([...dashboardTiles, tile]);
-    };
-    const onDelete = (tile: IDashboard['tiles'][number]) => {
-        setTiles(
-            dashboardTiles.filter(
+        setTiles((currentDashboardTiles) => [...currentDashboardTiles, tile]);
+    }, []);
+    const onDelete = useCallback((tile: IDashboard['tiles'][number]) => {
+        setTiles((currentDashboardTiles) =>
+            currentDashboardTiles.filter(
                 (filteredTile) => filteredTile.uuid !== tile.uuid,
             ),
         );
         setHasTilesChanged(true);
-    };
-    const onEdit = (updatedTile: IDashboard['tiles'][number]) => {
-        setTiles(
-            dashboardTiles.map((tile) =>
+    }, []);
+    const onEdit = useCallback((updatedTile: IDashboard['tiles'][number]) => {
+        setTiles((currentDashboardTiles) =>
+            currentDashboardTiles.map((tile) =>
                 tile.uuid === updatedTile.uuid ? updatedTile : tile,
             ),
         );
         setHasTilesChanged(true);
-    };
-
-    const onCancel = () => {
-        setTiles(dashboard?.tiles);
+    }, []);
+    const onCancel = useCallback(() => {
+        setTiles(dashboard?.tiles || []);
         setHasTilesChanged(false);
         history.push(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
         );
-    };
+    }, [dashboard, dashboardUuid, history, projectUuid]);
 
+    if (dashboard === undefined) {
+        return <Spinner />;
+    }
     return (
         <>
             <DashboardHeader
@@ -143,8 +160,6 @@ const Dashboard = () => {
                 onCancel={onCancel}
             />
             <ResponsiveGridLayout
-                isDraggable={isEditMode}
-                isResizable={isEditMode}
                 useCSSTransforms={false}
                 draggableCancel=".non-draggable"
                 onDragStop={updateTiles}
