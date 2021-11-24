@@ -2,13 +2,13 @@
 sidebar_position: 4
 ---
 
-# How to deploy to production
-
 :::caution
 
 This guide is currently out of date.
 
 :::
+
+# How to deploy to production
 
 This guide will show you how to deploy your own Lightdash instance to production. By the end of this guide
 you'll have Lightdash running on your own server so that your whole team can access it.
