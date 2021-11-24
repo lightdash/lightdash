@@ -62,6 +62,9 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
+    await knex(TABLE_NAMES.dashboardTiles)
+        .delete()
+        .whereIn('type', ['loom', 'markdown']);
     await knex(TABLE_NAMES.dashboardTileTypes)
         .delete()
         .whereIn('dashboard_tile_type', ['loom', 'markdown']);
