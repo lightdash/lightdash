@@ -9,5 +9,22 @@
   "remoteEnv": {
     "LIGHTDASH_CONFIG_FILE": "/workspaces/lightdash/lightdash.yml",
     "DBT_DEMO_DIR": "/workspaces/lightdash/examples/full-jaffle-shop-demo"
+  },
+  "extensions": ["mtxr.sqltools", "mtxr.sqltools-driver-pg"],
+  "settings": {
+    "git.autofetch": true,
+    "sqltools.autoConnectTo": "Lightdash db",
+    "sqltools.connections": [
+      {
+        "name": "Lightdash db",
+        "driver": "PostgreSQL",
+        "previewLimit": 50,
+        "server": "db-dev",
+        "port": 5432,
+        "database": "postgres",
+        "username": "postgres",
+        "password": "password"
+      }
+    ]
   }
 }
