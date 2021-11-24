@@ -112,6 +112,36 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/lightd
 
 ### Your First Code Contribution
 
+First you must setup your development environment.
+
+#### Github Codespaces / VS Code Remote Containers
+
+The fastest way to setup a development environment is to use Github Codespaces or VS Code Remote Containers.
+This provides:
+
+* All dependencies
+* A postgres database for development
+* A sample dbt project
+* A pre-configured code editor
+
+#### Docker compose
+
+Alternatively you can create a developer environment using docker compose:
+
+```shell
+docker compose -f ./docker/docker-compose.dev.yml --env-file ./docker/.env up
+```
+
+To access the development container:
+
+```shell
+docker compose exec lightdash-dev /bin/bash
+```
+
+#### Setup development environment locally
+
+Finally you can build a development environment from scratch.
+
 Lightdash requires node.js, yarn and dbt. 
 
 ```shell
@@ -155,6 +185,10 @@ yarn dev
 > If you change files inside `/packages/common` you should run `yarn common-build` before `yarn dev`.
 
 #### How to debug Postgres DB
+
+In codespaces / VS Code - use the SQLTools extension provided.
+
+For manual development environments:
 
 ```shell
 docker run --name db-admin-panel --link lightdash-db:db -p 8181:8080 adminer
