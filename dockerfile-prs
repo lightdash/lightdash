@@ -119,6 +119,11 @@ ENV LIGHTDASH_CONFIG_FILE /usr/app/lightdash.yml
 
 COPY ./examples/full-jaffle-shop-demo/dbt /usr/app/dbt
 COPY ./examples/full-jaffle-shop-demo/profiles /usr/app/profiles
-COPY ./examples/full-jaffle-shop-demo/entrypoint.sh /usr/bin/entrypoint.sh
-ENTRYPOINT ["/usr/bin/entrypoint.sh"]
+
+RUN dbt seed --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles --full-refresh \
+    && dbt run --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles \
+    && yarn workspace backend rollback-all-production \
+    && yarn workspace backend migrate-production \
+    && yarn workspace backend seed-production
+
 CMD ["yarn", "start"]
