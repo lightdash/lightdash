@@ -128,6 +128,16 @@ To get started:
 * in Github [create a codespace](https://docs.github.com/en/codespaces/developing-in-codespaces/creating-a-codespace)
 * in VS Code [install the remote containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 
+Once connected run the following commands in the VS Code terminal:
+```shell
+# Setup the database
+yarn workspace backend migrate
+yarn workspace backend seed
+
+# Run Lightdash frontend and backend in dev mode
+yarn dev
+```
+
 #### Docker compose
 
 Alternatively you can create a developer environment using docker compose:
@@ -136,10 +146,18 @@ Alternatively you can create a developer environment using docker compose:
 docker compose -f ./docker/docker-compose.dev.yml --env-file ./docker/.env up
 ```
 
-To access the development container:
+When ready, access the development container and run these commands:
 
 ```shell
+# Connect to container
 docker compose exec lightdash-dev /bin/bash
+
+# Setup the database
+yarn workspace backend migrate
+yarn workspace backend seed
+
+# Run Lightdash frontend and backend in dev mode
+yarn dev
 ```
 
 #### Setup development environment locally
@@ -167,6 +185,7 @@ yarn install
 # Start DB
 docker run --name lightdash-db -p "5432:5432" -e POSTGRES_PASSWORD=mysecretpassword -d postgres
 yarn workspace backend migrate
+yarn workspace backend seed
 
 # Expose Lightdash configuration 
 # Note: Edit lightdash.yml to point to your dbt project and profile
