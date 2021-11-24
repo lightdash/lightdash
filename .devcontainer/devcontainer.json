@@ -4,5 +4,10 @@
   "service": "lightdash-dev",
   "workspaceFolder": "/workspaces/lightdash",
   "shutdownAction": "stopCompose",
-  "postCreateCommand": "yarn install && yarn common-build && /workspaces/lightdash/docker/seed.sh"
+  "postCreateCommand": "./docker/scripts/build.sh && ./docker/scripts/seed-jaffle.sh",
+  "forwardPorts": [3000, 8080],
+  "remoteEnv": {
+    "LIGHTDASH_CONFIG_FILE": "/workspaces/lightdash/lightdash.yml",
+    "DBT_DEMO_DIR": "/workspaces/lightdash/examples/full-jaffle-shop-demo"
+  }
 }

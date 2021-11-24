@@ -38,19 +38,11 @@ RUN python -m venv /usr/local/venv
 RUN /usr/local/venv/bin/pip install "dbt>=0.21.0,<0.22.0" "dbt-spark[ODBC]>=0.1.0,<0.22.0"
 ENV PATH $PATH:/usr/local/venv/bin
 
-# Setup common config
-COPY lightdash.yml /usr/app/lightdash.yml
-ENV LIGHTDASH_CONFIG_FILE /usr/app/lightdash.yml
-
-
 # -------------------------
 # Stage 3a: dev environment
 # -------------------------
 FROM base-dependencies as dev
 
-COPY . .
-COPY ./docker/dev-entrypoint.sh /usr/bin/dev-entrypoint.sh
-ENTRYPOINT ["/usr/bin/dev-entrypoint.sh"]
 EXPOSE 3000
 EXPOSE 8080
 
@@ -107,9 +99,12 @@ COPY package.json .
 COPY yarn.lock .
 RUN yarn install --pure-lockfile --non-interactive --production
 
+# Production config
+COPY lightdash.yml /usr/app/lightdash.yml
+ENV LIGHTDASH_CONFIG_FILE /usr/app/lightdash.yml
+
 # Run backend
 COPY ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
-WORKDIR /usr/app/packages/backend
 EXPOSE 8080
 ENTRYPOINT ["/usr/bin/prod-entrypoint.sh"]
-CMD ["yarn", "start"]
+CMD ["yarn", "workspace", "backend", "start"]
