@@ -40,8 +40,8 @@ const DashboardHeader = ({
     onSaveTitle,
     onCancel,
 }: DashboardHeaderProps) => {
-    const [timesPageLoaded] = useState(new Date());
-    const timeAgo = useTimeAgo(timesPageLoaded);
+    const [pageLoadedAt] = useState(new Date());
+    const timeAgo = useTimeAgo(pageLoadedAt);
     const { projectUuid, dashboardUuid } =
         useParams<{ projectUuid: string; dashboardUuid: string }>();
     const history = useHistory();
