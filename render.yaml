@@ -10,7 +10,7 @@ services:
     env: docker
     name: lightdash
     dockerContext: .
-    dockerfilePath: dockerfile-demo
+    dockerfilePath: dockerfile-prs
     envVars:
       - key: PGHOST
         fromDatabase:

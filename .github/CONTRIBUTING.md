@@ -112,6 +112,58 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/lightd
 
 ### Your First Code Contribution
 
+First you must setup your development environment.
+
+#### Github Codespaces / VS Code Remote Containers
+
+The fastest way to setup a development environment is to use Github Codespaces or VS Code Remote Containers.
+This provides:
+
+* All dependencies
+* A postgres database for development
+* A sample dbt project
+* A pre-configured code editor
+
+To get started:
+* in Github [create a codespace](https://docs.github.com/en/codespaces/developing-in-codespaces/creating-a-codespace)
+* in VS Code [install the remote containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+
+Once connected run the following commands in the VS Code terminal:
+```shell
+# Setup the database
+yarn workspace backend migrate
+yarn workspace backend seed
+
+# Run Lightdash frontend and backend in dev mode
+yarn dev
+```
+
+#### Docker compose
+
+Alternatively you can create a developer environment using docker compose:
+
+```shell
+docker compose -f ./docker/docker-compose.dev.yml --env-file ./docker/.env up
+```
+
+When ready, access the development container and run these commands:
+
+```shell
+# Connect to container
+docker compose exec lightdash-dev /bin/bash
+
+# Setup the database
+yarn workspace backend migrate
+yarn workspace backend seed
+
+# Run Lightdash frontend and backend in dev mode
+yarn dev
+```
+
+#### Setup development environment locally
+
+Finally you can build a development environment from scratch.
+
 Lightdash requires node.js, yarn and dbt. 
 
 ```shell
@@ -133,6 +185,7 @@ yarn install
 # Start DB
 docker run --name lightdash-db -p "5432:5432" -e POSTGRES_PASSWORD=mysecretpassword -d postgres
 yarn workspace backend migrate
+yarn workspace backend seed
 
 # Expose Lightdash configuration 
 # Note: Edit lightdash.yml to point to your dbt project and profile
@@ -155,6 +208,10 @@ yarn dev
 > If you change files inside `/packages/common` you should run `yarn common-build` before `yarn dev`.
 
 #### How to debug Postgres DB
+
+In codespaces / VS Code - use the SQLTools extension provided.
+
+For manual development environments:
 
 ```shell
 docker run --name db-admin-panel --link lightdash-db:db -p 8181:8080 adminer
