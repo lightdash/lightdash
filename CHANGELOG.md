@@ -4,6 +4,12 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.10.4] - 2021-11-24
+### Fixed
+- Fix bug where the user could not pass the login page (#881)
+- Fix bug where ran a query without dimensions or metrics (#876)
+- Improved performance in the dashboard page (#875)
+
 ## [0.10.3] - 2021-11-22
 ### Added
 - Dashboards now have a distinct view and edit mode
