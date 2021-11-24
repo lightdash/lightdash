@@ -1,6 +1,6 @@
 import { Button, Colors, EditableText, H3, Intent } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { Dashboard } from 'common';
+import { Dashboard, formatTimestamp } from 'common';
 import React, { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import styled from 'styled-components';
@@ -39,6 +39,7 @@ const DashboardHeader = ({
     onSaveTitle,
     onCancel,
 }: DashboardHeaderProps) => {
+    const [timesPageLoaded] = useState(formatTimestamp(new Date()));
     const { projectUuid, dashboardUuid } =
         useParams<{ projectUuid: string; dashboardUuid: string }>();
     const history = useHistory();
@@ -89,6 +90,18 @@ const DashboardHeader = ({
                         onEdit={() => setIsEditable(true)}
                     />
                 </H3>
+                {!isEditMode && (
+                    <p
+                        style={{
+                            color: Colors.GRAY1,
+                            margin: 0,
+                            alignSelf: 'flex-end',
+                            lineHeight: '20px',
+                        }}
+                    >
+                        refreshed at {timesPageLoaded}
+                    </p>
+                )}
                 {!isEditable && isEditMode && (
                     <Button
                         icon="edit"
