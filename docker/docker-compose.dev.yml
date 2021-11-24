@@ -1,6 +1,4 @@
 version: "3.9"
-volumes:
-  node_modules:
 services:
   lightdash-dev:
     build:
@@ -21,14 +19,15 @@ services:
       - LIGHTDASH_SECRET=${LIGHTDASH_SECRET}
       - SENTRY_DSN=${SENTRY_DSN}
       - NODE_ENV=${NODE_ENV}
+      - LIGHTDASH_CONFIG_FILE=${LIGHTDASH_CONFIG_FILE}
+      - DBT_DEMO_DIR=${DBT_DEMO_DIR}
     volumes:
-      - "${DEMO_PROFILES_DIR}:/usr/app/profiles"
-      - "${DEMO_PROJECT_DIR}:/usr/app/dbt"
-      - "../packages:/usr/app/packages"
-      - "node_modules:/usr/app/node_modules"
+      - "../:/usr/app"
     ports:
-      - ${PORT}:8080
-      - 3000:3000
+      - "${PORT}:8080"
+      - "3000:3000"
+    command: ""
+    entrypoint: ["/bin/sh", "-c", "sleep infinity"]
 
   db-dev:
     image: postgres
@@ -36,4 +35,4 @@ services:
     environment:
       POSTGRES_PASSWORD: ${PGPASSWORD}
     ports:
-      - 5432:${PGPORT}
+      - "5432:${PGPORT}"

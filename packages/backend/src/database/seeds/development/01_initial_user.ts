@@ -13,6 +13,7 @@ import {
     WarehouseTypes,
 } from 'common';
 import { Knex } from 'knex';
+import path from 'path';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { EncryptionService } from '../../../services/EncryptionService/EncryptionService';
 
@@ -42,11 +43,18 @@ export async function seed(knex: Knex): Promise<void> {
         organization_id: organizationId,
     });
 
+    // Try this with relative path
     const enc = new EncryptionService({ lightdashConfig });
+    const demoDir = process.env.DBT_DEMO_DIR;
+    if (!demoDir) {
+        throw new Error(
+            'Must specify absolute path to demo project with DBT_DEMO_DIR',
+        );
+    }
     const projectSettings: DbtLocalProjectConfig = {
         type: ProjectType.DBT,
-        project_dir: '/usr/app/dbt',
-        profiles_dir: '/usr/app/profiles',
+        project_dir: path.join(demoDir, '/dbt'),
+        profiles_dir: path.join(demoDir, '/profiles'),
         name: 'default',
     };
     const encryptedProjectSettings = enc.encrypt(
