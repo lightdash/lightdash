@@ -18,7 +18,6 @@ export interface InputWrapperProps {
     disabled?: boolean;
     placeholder?: string;
     defaultValue?: any;
-    autoFocus?: boolean;
     documentationUrl?: string;
     rules?: React.ComponentProps<typeof Controller>['rules'];
     render: (
