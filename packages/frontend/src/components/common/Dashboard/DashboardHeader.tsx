@@ -1,9 +1,10 @@
 import { Button, Colors, EditableText, H3, Intent } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { Dashboard, formatTimestamp } from 'common';
+import { Dashboard } from 'common';
 import React, { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import styled from 'styled-components';
+import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -39,7 +40,8 @@ const DashboardHeader = ({
     onSaveTitle,
     onCancel,
 }: DashboardHeaderProps) => {
-    const [timesPageLoaded] = useState(formatTimestamp(new Date()));
+    const [timesPageLoaded] = useState(new Date());
+    const timeAgo = useTimeAgo(timesPageLoaded);
     const { projectUuid, dashboardUuid } =
         useParams<{ projectUuid: string; dashboardUuid: string }>();
     const history = useHistory();
@@ -99,7 +101,7 @@ const DashboardHeader = ({
                             lineHeight: '20px',
                         }}
                     >
-                        refreshed at {timesPageLoaded}
+                        Last refreshed {timeAgo}
                     </p>
                 )}
                 {!isEditable && isEditMode && (
