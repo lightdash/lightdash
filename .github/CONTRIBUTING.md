@@ -124,6 +124,10 @@ This provides:
 * A sample dbt project
 * A pre-configured code editor
 
+To get started:
+* in Github [create a codespace](https://docs.github.com/en/codespaces/developing-in-codespaces/creating-a-codespace)
+* in VS Code [install the remote containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+
 #### Docker compose
 
 Alternatively you can create a developer environment using docker compose:
