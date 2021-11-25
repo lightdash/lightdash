@@ -160,6 +160,58 @@ const NodeItemButtons: FC<{
     );
 };
 
+type DimensionWithSubDimensions = Dimension & { subDimensions?: Dimension[] };
+
+const renderDimensionTreeNode = (
+    dimension: DimensionWithSubDimensions,
+    expandedNodes: Array<string | number>,
+    selectedNodes: Set<string>,
+    onOpenSourceDialog: (source: Source) => void,
+): TreeNodeInfo<NodeDataProps> => {
+    const baseNode = {
+        id: dimension.name,
+        label: (
+            <Tooltip2 content={dimension.description}>
+                {friendlyName(dimension.name)}
+            </Tooltip2>
+        ),
+        secondaryLabel: dimension.source && (
+            <NodeItemButtons
+                node={dimension}
+                onOpenSourceDialog={onOpenSourceDialog}
+            />
+        ),
+    };
+    if (dimension.subDimensions) {
+        const isSubDimensionSelected = dimension.subDimensions.some(
+            (subDimension) => selectedNodes.has(fieldId(subDimension)),
+        );
+        return {
+            ...baseNode,
+            isExpanded:
+                expandedNodes.includes(dimension.name) ||
+                isSubDimensionSelected,
+            hasCaret: !isSubDimensionSelected,
+            childNodes: dimension.subDimensions.map((subDimension) =>
+                renderDimensionTreeNode(
+                    subDimension,
+                    expandedNodes,
+                    selectedNodes,
+                    onOpenSourceDialog,
+                ),
+            ),
+        };
+    }
+    return {
+        ...baseNode,
+        nodeData: {
+            fieldId: fieldId(dimension),
+            isDimension: true,
+        } as NodeDataProps,
+        isSelected: selectedNodes.has(fieldId(dimension)),
+    };
+};
+
 const TableTree: FC<TableTreeProps> = ({
     search,
     table,
@@ -168,8 +220,31 @@ const TableTree: FC<TableTreeProps> = ({
     onSelectedNodeChange,
     onOpenSourceDialog,
 }) => {
-    const [expanded, setExpanded] = useState<boolean>(true);
-    const { metrics, dimensions } = table;
+    const [expandedNodes, setExpandedNodes] = useState<Array<string | number>>([
+        table.name,
+    ]);
+    const { metrics, dimensions: allDimensions } = table;
+    const dimensions: DimensionWithSubDimensions[] = useMemo(() => {
+        const dimensionsWithSubDimensions = Object.values(allDimensions).reduce<
+            Record<string, DimensionWithSubDimensions>
+        >((acc, dimension) => {
+            if (dimension.group) {
+                return {
+                    ...acc,
+                    [dimension.group]: {
+                        ...acc[dimension.group],
+                        subDimensions: [
+                            ...(acc[dimension.group].subDimensions || []),
+                            dimension,
+                        ],
+                    },
+                };
+            }
+            return { ...acc, [dimension.name]: dimension };
+        }, {});
+
+        return Object.values(dimensionsWithSubDimensions);
+    }, [allDimensions]);
 
     const filteredMetrics: Metric[] = useMemo(() => {
         if (search !== '') {
@@ -268,33 +343,21 @@ const TableTree: FC<TableTreeProps> = ({
         isExpanded: true,
         childNodes: filteredDimensions
             .sort((a, b) => a.name.localeCompare(b.name))
-            .map((dimension) => ({
-                key: dimension.name,
-                id: dimension.name,
-                label: (
-                    <Tooltip2 content={dimension.description}>
-                        {friendlyName(dimension.name)}
-                    </Tooltip2>
+            .map((dimension) =>
+                renderDimensionTreeNode(
+                    dimension,
+                    expandedNodes,
+                    selectedNodes,
+                    onOpenSourceDialog,
                 ),
-                nodeData: {
-                    fieldId: fieldId(dimension),
-                    isDimension: true,
-                } as NodeDataProps,
-                isSelected: selectedNodes.has(fieldId(dimension)),
-                secondaryLabel: dimension.source && (
-                    <NodeItemButtons
-                        node={dimension}
-                        onOpenSourceDialog={onOpenSourceDialog}
-                    />
-                ),
-            })),
+            ),
     };
 
     const contents: TreeNodeInfo<NodeDataProps>[] = [
         {
             id: table.name,
             label: friendlyName(table.name),
-            isExpanded: expanded,
+            isExpanded: expandedNodes.includes(table.name),
             secondaryLabel: (
                 <TableButtons
                     joinSql={joinSql}
@@ -321,8 +384,14 @@ const TableTree: FC<TableTreeProps> = ({
     return (
         <Tree
             contents={contents}
-            onNodeCollapse={() => setExpanded(false)}
-            onNodeExpand={() => setExpanded(true)}
+            onNodeCollapse={(node) => {
+                setExpandedNodes((prevState) =>
+                    prevState.filter((id) => id !== node.id),
+                );
+            }}
+            onNodeExpand={(node) => {
+                setExpandedNodes((prevState) => [...prevState, node.id]);
+            }}
             onNodeClick={handleNodeClick}
         />
     );

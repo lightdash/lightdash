@@ -42,10 +42,31 @@ const defaultSql = (columnName: string): string =>
     // eslint-disable-next-line no-useless-escape
     `\$\{TABLE\}.${columnName}`;
 
+const getDataTruncSql = (
+    adapterType: SupportedDbtAdapter,
+    timeInterval: string,
+    field: string,
+) => {
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+            return `DATE_TRUNC('${field}',  ${timeInterval.toUpperCase()})`;
+        case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.SNOWFLAKE:
+        case SupportedDbtAdapter.SPARK:
+            return `DATE_TRUNC('${timeInterval.toUpperCase()}', ${field})`;
+        default:
+            const never: never = adapterType;
+            throw new ParseError(`Cannot recognise warehouse ${adapterType}`);
+    }
+};
+
 const convertDimension = (
+    targetWarehouse: SupportedDbtAdapter,
     modelName: string,
     column: DbtModelColumn,
     source?: Source,
+    timeInterval?: string,
 ): Dimension => {
     const type = column.meta.dimension?.type || column.data_type;
     if (type === undefined) {
@@ -54,14 +75,29 @@ const convertDimension = (
             {},
         );
     }
+    let group: string | undefined;
+    let name = column.meta.dimension?.name || column.name;
+    let sql = column.meta.dimension?.sql || defaultSql(column.name);
+    if (timeInterval) {
+        sql = getDataTruncSql(
+            targetWarehouse,
+            timeInterval,
+            defaultSql(column.name),
+        );
+        name = `${column.name}_${timeInterval}`;
+        group = column.name;
+    }
+
     return {
         fieldType: FieldType.DIMENSION,
-        name: column.meta.dimension?.name || column.name,
-        sql: column.meta.dimension?.sql || defaultSql(column.name),
+        name,
+        sql,
         table: modelName,
         type,
         description: column.meta.dimension?.description || column.description,
         source,
+        group,
+        timeInterval,
     };
 };
 
@@ -156,6 +192,7 @@ const autoGenerateMetrics = ({
     );
 
 export const convertTable = (
+    adapterType: SupportedDbtAdapter,
     model: DbtModelNode,
 ): Omit<Table, 'lineageGraph'> => {
     const [dimensions, metrics]: [
@@ -177,10 +214,46 @@ export const convertTable = (
                 ),
             );
 
+            const dimension = convertDimension(adapterType, model.name, column);
+
+            let extraDimensions = {};
+
+            if (
+                [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
+                    dimension.type,
+                ) &&
+                column.meta.dimension?.time_intervals
+            ) {
+                let intervals: string[] = [];
+                if (Array.isArray(column.meta.dimension.time_intervals)) {
+                    intervals = column.meta.dimension.time_intervals;
+                } else {
+                    if (dimension.type === DimensionType.TIMESTAMP) {
+                        intervals = ['millisecond'];
+                    }
+                    intervals = [...intervals, 'day', 'week', 'month', 'year'];
+                }
+
+                extraDimensions = intervals.reduce(
+                    (acc, interval) => ({
+                        ...acc,
+                        [`${column.name}_${interval}`]: convertDimension(
+                            adapterType,
+                            model.name,
+                            column,
+                            undefined,
+                            interval,
+                        ),
+                    }),
+                    {},
+                );
+            }
+
             return [
                 {
                     ...prevDimensions,
-                    [column.name]: convertDimension(model.name, column),
+                    [column.name]: dimension,
+                    ...extraDimensions,
                 },
                 { ...prevMetrics, ...columnMetrics },
             ];
@@ -378,7 +451,7 @@ export const convertExplores = async (
             // If there are any errors compiling the table return an ExploreError
             try {
                 // base dimensions and metrics
-                const table = convertTable(model);
+                const table = convertTable(adapterType, model);
 
                 // add sources
                 if (loadSources && model.patch_path !== null) {
