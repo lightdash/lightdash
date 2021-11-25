@@ -2,6 +2,8 @@
 sidebar_position: 4
 ---
 
+# How to deploy to production
+
 :::caution
 
 This guide is currently out of date.
