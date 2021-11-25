@@ -210,6 +210,15 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "PriPatel",
+      "name": "PriPatel",
+      "avatar_url": "https://avatars.githubusercontent.com/u/12776522?v=4",
+      "profile": "https://github.com/PriPatel",
+      "contributions": [
+        "design"
+      ]
     }
   ],
   "contributorsPerLine": 7,
