@@ -168,6 +168,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/jkeech"><img src="https://avatars.githubusercontent.com/u/746020?v=4?s=100" width="100px;" alt=""/><br /><sub><b>John Keech</b></sub></a><br /><a href="#infra-jkeech" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a></td>
     <td align="center"><a href="http://ihack.us/"><img src="https://avatars.githubusercontent.com/u/19791?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Dr. Ernie Prabhakar</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Adrernie" title="Bug reports">🐛</a></td>
   </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/PriPatel"><img src="https://avatars.githubusercontent.com/u/12776522?v=4?s=100" width="100px;" alt=""/><br /><sub><b>PriPatel</b></sub></a><br /><a href="#design-PriPatel" title="Design">🎨</a></td>
+  </tr>
 </table>
 
 <!-- markdownlint-restore -->
