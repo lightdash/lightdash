@@ -267,14 +267,6 @@ export const buildQuery = ({
     const sqlFrom = `FROM ${baseTable} AS ${explore.baseTable}`;
     const q = getQuoteChar(explore.targetDatabase); // quote char
 
-    const sqlJoins = explore.joinedTables
-        .map((join) => {
-            const joinTable = explore.tables[join.table].sqlTable;
-            const alias = join.table;
-            return `LEFT JOIN ${joinTable} AS ${alias}\n  ON ${join.compiledSqlOn}`;
-        })
-        .join('\n');
-
     const dimensionSelects = dimensions.map((field) => {
         const alias = field;
         const dimension = getDimensionFromId(field, explore);
@@ -289,6 +281,20 @@ export const buildQuery = ({
         }
         return `  ${metric.compiledSql} AS ${q}${alias}${q}`;
     });
+
+    const selectedTables = new Set([
+        ...metrics.map((field) => getMetricFromId(field, explore).table),
+        ...dimensions.map((field) => getDimensionFromId(field, explore).table),
+    ]);
+
+    const sqlJoins = explore.joinedTables
+        .filter((join) => selectedTables.has(join.table))
+        .map((join) => {
+            const joinTable = explore.tables[join.table].sqlTable;
+            const alias = join.table;
+            return `LEFT JOIN ${joinTable} AS ${alias}\n  ON ${join.compiledSqlOn}`;
+        })
+        .join('\n');
 
     const sqlSelect = `SELECT\n${[...dimensionSelects, ...metricSelects].join(
         ',\n',
