@@ -19,7 +19,7 @@ Well, that's nice 😊.
 There are three things you can do to keep up with all things Lightdash:
 1. Star our [GitHub repo](https://github.com/lightdash/lightdash)
 
-  ![star github action](./assets/start_github_action.png)
+  ![star github action](./assets/star_github_action.png)
 
 2. [Sign up to our newsletter](https://www.lightdash.com/#:~:text=Get%20the%20latest%20Lightdash%20news%20and%20product%20updates) (we send out bi-weekly updates of all the fun things we've been up to!)
 
