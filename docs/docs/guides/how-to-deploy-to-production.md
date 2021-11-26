@@ -2,6 +2,8 @@
 sidebar_position: 4
 ---
 
+# How to deploy to production
+
 :::caution
 
 This guide is currently out of date.
@@ -15,7 +17,7 @@ you'll have Lightdash running on your own server so that your whole team can acc
 
 **Prerequisities**
 
-- A dbt repo
+- A dbt repo.
 - Ideally your dbt repo has some metrics defined [see how to create metrics](./how-to-create-metrics.md)
 
 ## 1. Setup your dbt repo for deployment
