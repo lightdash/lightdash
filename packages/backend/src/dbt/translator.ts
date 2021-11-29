@@ -49,7 +49,7 @@ const getDataTruncSql = (
 ) => {
     switch (adapterType) {
         case SupportedDbtAdapter.BIGQUERY:
-            return `DATE_TRUNC('${field}',  ${timeInterval.toUpperCase()})`;
+            return `DATE_TRUNC('${field}', ${timeInterval.toUpperCase()})`;
         case SupportedDbtAdapter.REDSHIFT:
         case SupportedDbtAdapter.POSTGRES:
         case SupportedDbtAdapter.SNOWFLAKE:
@@ -61,6 +61,8 @@ const getDataTruncSql = (
     }
 };
 
+const dateIntervals = ['DAY', 'WEEK', 'MONTH', 'YEAR'];
+
 const convertDimension = (
     targetWarehouse: SupportedDbtAdapter,
     modelName: string,
@@ -68,7 +70,7 @@ const convertDimension = (
     source?: Source,
     timeInterval?: string,
 ): Dimension => {
-    const type = column.meta.dimension?.type || column.data_type;
+    let type = column.meta.dimension?.type || column.data_type;
     if (type === undefined) {
         throw new MissingCatalogEntryError(
             `Could not automatically find type information for column "${column.name}" in dbt model "${modelName}". Check for this column in your warehouse or specify the type manually.`,
@@ -86,6 +88,9 @@ const convertDimension = (
         );
         name = `${column.name}_${timeInterval}`;
         group = column.name;
+        if (dateIntervals.includes(timeInterval.toUpperCase())) {
+            type = DimensionType.DATE;
+        }
     }
 
     return {
@@ -229,9 +234,9 @@ export const convertTable = (
                     intervals = column.meta.dimension.time_intervals;
                 } else {
                     if (dimension.type === DimensionType.TIMESTAMP) {
-                        intervals = ['millisecond'];
+                        intervals = ['MILLISECOND'];
                     }
-                    intervals = [...intervals, 'day', 'week', 'month', 'year'];
+                    intervals = [...intervals, ...dateIntervals];
                 }
 
                 extraDimensions = intervals.reduce(
