@@ -207,7 +207,7 @@ export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
     group?: string;
-    timeInterval?: string | string[];
+    timeInterval?: string;
 }
 
 export interface CompiledDimension extends Dimension {

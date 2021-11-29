@@ -86,7 +86,7 @@ const convertDimension = (
             timeInterval,
             defaultSql(column.name),
         );
-        name = `${column.name}_${timeInterval}`;
+        name = `${column.name}_${timeInterval.toLowerCase()}`;
         group = column.name;
         if (dateIntervals.includes(timeInterval.toUpperCase())) {
             type = DimensionType.DATE;

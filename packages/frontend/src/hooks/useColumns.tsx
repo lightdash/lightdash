@@ -7,13 +7,31 @@ import {
     isDimension,
     SortField,
 } from 'common';
+import moment from 'moment';
 import React, { useMemo } from 'react';
 import { Column } from 'react-table';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useExplore } from './useExplore';
 
-const formatDate = (date: string | Date) =>
-    new Date(date).toISOString().slice(0, 10);
+const getTimeIntervalFormat = (timeInterval?: string) => {
+    let format = 'YYYY-MM-DD';
+    if (timeInterval) {
+        switch (timeInterval.toUpperCase()) {
+            case 'YEAR':
+                format = 'YYYY';
+                break;
+            case 'MONTH':
+                format = 'YYYY-MM';
+                break;
+            default:
+                format = 'YYYY-MM-DD';
+        }
+    }
+    return format;
+};
+
+const formatDate = (timeInterval?: string) => (date: string | Date) =>
+    moment(date).format(getTimeIntervalFormat(timeInterval));
 const formatTimestamp = (datetime: string | Date) =>
     new Date(datetime).toISOString();
 const formatNumber = (v: number) => `${v}`;
@@ -37,7 +55,7 @@ export const getDimensionFormatter = (d: Dimension) => {
         case DimensionType.BOOLEAN:
             return formatWrapper(formatBoolean);
         case DimensionType.DATE:
-            return formatWrapper(formatDate);
+            return formatWrapper(formatDate(d.timeInterval));
         case DimensionType.TIMESTAMP:
             return formatWrapper(formatTimestamp);
         default: {
