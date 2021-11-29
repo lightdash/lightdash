@@ -36,7 +36,8 @@ Dimensions are created automatically when you define columns in your dbt model p
 new `.yml` file to your `models/` directory in your dbt project.
 
 For example, the following dbt project file contains properties that create a single dimension for the `orders` model in Lightdash:
-	@@ -44,29 +46,21 @@ version: 2
+```
+version: 2
 models:
   - name: orders
     description: "A table of all orders."
