@@ -5,6 +5,8 @@ sidebar_label: Create your first dimensions and metrics
 
 # Create your first dimensions and metrics
 
+[![tutorial create metrics](./assets/tutorial_adding_metrics.png)](https://www.loom.com/share/6b8d3d5ccc644fa8bf68ffb754cbb783)
+
 import DataQuestion from './assets/data-question.svg';
 
 You must define **metrics** and **dimensions** before you can start exploring and visualizing data with Lightdash.
@@ -36,7 +38,8 @@ Dimensions are created automatically when you define columns in your dbt model p
 new `.yml` file to your `models/` directory in your dbt project.
 
 For example, the following dbt project file contains properties that create a single dimension for the `orders` model in Lightdash:
-	@@ -44,29 +46,21 @@ version: 2
+```
+version: 2
 models:
   - name: orders
     description: "A table of all orders."

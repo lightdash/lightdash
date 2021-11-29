@@ -21,7 +21,7 @@ You can only share things with people you've invited to your Lightdash project.
 
 To invite your teammates, just click on `Settings` --> `Invite` --> `Create invite link`, then send your magic link to any of your teammates 🪄
 
-[invite user action pic]
+![invite user action](./assets/invite_user_action.png)
 
 ## Now that you've added some teammates, you can start sharing your work!
 
@@ -33,7 +33,7 @@ As you explore your data in Lightdash, the URL contains a unique link to your wo
 
 Copy and paste the url while you're exploring data and anybody with access to your Lightdash project can jump into an explore at exactly the same point you're at.
 
-[sharing link action pic]
+![share chart link action](./assets/share_chart_link_action.png)
 
 ### 2. Share a link to a saved chart
 
@@ -61,4 +61,4 @@ It's also easy to download your favourite chart images. You can pick between JPE
 
 If you're stuck for a last minute gift idea, we've heard that framed chart art can bring a smile to most people's faces 🖼
 
-[export image action pic]
+![export image action](./assets/export_image_action.png)
