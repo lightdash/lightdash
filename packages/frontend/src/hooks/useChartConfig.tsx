@@ -8,7 +8,7 @@ import {
     TableCalculation,
 } from 'common';
 import { useEffect, useState } from 'react';
-import { getDimensionFormatter } from './useColumns';
+import { getDimensionFormatter } from '../utils/resultFormatter';
 import { useExplore } from './useExplore';
 
 const getDimensionFormatterByKey = (

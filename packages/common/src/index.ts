@@ -206,6 +206,8 @@ export enum DimensionType {
 export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
+    group?: string;
+    timeInterval?: string;
 }
 
 export interface CompiledDimension extends Dimension {
@@ -472,6 +474,7 @@ type DbtColumnLightdashDimension = {
     type?: DimensionType;
     description?: string;
     sql?: string;
+    time_intervals?: string | string[];
 };
 
 export type DbtColumnLightdashMetric = {

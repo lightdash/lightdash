@@ -18,6 +18,19 @@
                 },
                 "sql": {
                     "type": "string"
+                },
+                "time_intervals": {
+                    "oneOf": [
+                        {
+                            "const": "default"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
                 }
             }
         },

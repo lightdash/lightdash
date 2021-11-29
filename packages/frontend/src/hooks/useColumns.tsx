@@ -1,6 +1,4 @@
 import {
-    Dimension,
-    DimensionType,
     fieldId as getFieldId,
     friendlyName,
     getFields,
@@ -10,45 +8,12 @@ import {
 import React, { useMemo } from 'react';
 import { Column } from 'react-table';
 import { useExplorer } from '../providers/ExplorerProvider';
+import {
+    getDimensionElementFormatter,
+    getMetricFormatter,
+} from '../utils/resultFormatter';
 import { useExplore } from './useExplore';
 
-const formatDate = (date: string | Date) =>
-    new Date(date).toISOString().slice(0, 10);
-const formatTimestamp = (datetime: string | Date) =>
-    new Date(datetime).toISOString();
-const formatNumber = (v: number) => `${v}`;
-const formatString = (v: string) => `${v}`;
-const formatBoolean = (v: boolean | string) =>
-    ['True', 'true', 'yes', 'Yes', '1', 'T'].includes(`${v}`) ? 'Yes' : 'No';
-const formatWrapper =
-    (formatter: (value: any) => string) =>
-    ({ value }: any) => {
-        if (value === null) return '∅';
-        if (value === undefined) return '-';
-        return formatter(value);
-    };
-export const getDimensionFormatter = (d: Dimension) => {
-    const dimensionType = d.type;
-    switch (dimensionType) {
-        case DimensionType.STRING:
-            return formatWrapper(formatString);
-        case DimensionType.NUMBER:
-            return formatWrapper(formatNumber);
-        case DimensionType.BOOLEAN:
-            return formatWrapper(formatBoolean);
-        case DimensionType.DATE:
-            return formatWrapper(formatDate);
-        case DimensionType.TIMESTAMP:
-            return formatWrapper(formatTimestamp);
-        default: {
-            const nope: never = dimensionType;
-            throw Error(
-                `Dimension formatter is not implemented for dimension type ${dimensionType}`,
-            );
-        }
-    }
-};
-const getMetricFormatter = () => formatWrapper(formatNumber);
 const getSortByProps = (
     fieldId: string,
     sortFields: SortField[],
@@ -102,7 +67,7 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                             ),
                             accessor: fieldId,
                             Cell: isDimension(field)
-                                ? getDimensionFormatter(field)
+                                ? getDimensionElementFormatter(field)
                                 : getMetricFormatter(),
                             type: isDimension(field) ? 'dimension' : 'metric',
                             dimensionType: isDimension(field)

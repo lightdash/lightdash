@@ -119,7 +119,7 @@ export class UnexpectedServerError extends LightdashError {
 export class ParseError extends LightdashError {
     constructor(
         message = 'Error parsing dbt project and lightdash metadata',
-        data: { [key: string]: any },
+        data: { [key: string]: any } = {},
     ) {
         super({
             message,
