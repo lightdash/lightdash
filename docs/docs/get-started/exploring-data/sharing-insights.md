@@ -61,4 +61,4 @@ It's also easy to download your favourite chart images. You can pick between JPE
 
 If you're stuck for a last minute gift idea, we've heard that framed chart art can bring a smile to most people's faces 🖼
 
-![export image action](.assets/export_image_action.png)
+![export image action](./assets/export_image_action.png)
