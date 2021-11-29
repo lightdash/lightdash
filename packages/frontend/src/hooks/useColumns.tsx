@@ -1,72 +1,19 @@
 import {
-    Dimension,
-    DimensionType,
     fieldId as getFieldId,
     friendlyName,
     getFields,
     isDimension,
     SortField,
 } from 'common';
-import moment from 'moment';
 import React, { useMemo } from 'react';
 import { Column } from 'react-table';
 import { useExplorer } from '../providers/ExplorerProvider';
+import {
+    getDimensionElementFormatter,
+    getMetricFormatter,
+} from '../utils/resultFormatter';
 import { useExplore } from './useExplore';
 
-const getTimeIntervalFormat = (timeInterval?: string) => {
-    let format = 'YYYY-MM-DD';
-    if (timeInterval) {
-        switch (timeInterval.toUpperCase()) {
-            case 'YEAR':
-                format = 'YYYY';
-                break;
-            case 'MONTH':
-                format = 'YYYY-MM';
-                break;
-            default:
-                format = 'YYYY-MM-DD';
-        }
-    }
-    return format;
-};
-
-const formatDate = (timeInterval?: string) => (date: string | Date) =>
-    moment(date).format(getTimeIntervalFormat(timeInterval));
-const formatTimestamp = (datetime: string | Date) =>
-    new Date(datetime).toISOString();
-const formatNumber = (v: number) => `${v}`;
-const formatString = (v: string) => `${v}`;
-const formatBoolean = (v: boolean | string) =>
-    ['True', 'true', 'yes', 'Yes', '1', 'T'].includes(`${v}`) ? 'Yes' : 'No';
-const formatWrapper =
-    (formatter: (value: any) => string) =>
-    ({ value }: any) => {
-        if (value === null) return '∅';
-        if (value === undefined) return '-';
-        return formatter(value);
-    };
-export const getDimensionFormatter = (d: Dimension) => {
-    const dimensionType = d.type;
-    switch (dimensionType) {
-        case DimensionType.STRING:
-            return formatWrapper(formatString);
-        case DimensionType.NUMBER:
-            return formatWrapper(formatNumber);
-        case DimensionType.BOOLEAN:
-            return formatWrapper(formatBoolean);
-        case DimensionType.DATE:
-            return formatWrapper(formatDate(d.timeInterval));
-        case DimensionType.TIMESTAMP:
-            return formatWrapper(formatTimestamp);
-        default: {
-            const nope: never = dimensionType;
-            throw Error(
-                `Dimension formatter is not implemented for dimension type ${dimensionType}`,
-            );
-        }
-    }
-};
-const getMetricFormatter = () => formatWrapper(formatNumber);
 const getSortByProps = (
     fieldId: string,
     sortFields: SortField[],
@@ -120,7 +67,7 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                             ),
                             accessor: fieldId,
                             Cell: isDimension(field)
-                                ? getDimensionFormatter(field)
+                                ? getDimensionElementFormatter(field)
                                 : getMetricFormatter(),
                             type: isDimension(field) ? 'dimension' : 'metric',
                             dimensionType: isDimension(field)
