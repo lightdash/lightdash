@@ -1,3 +1,5 @@
+import 'ace-builds/src-noconflict/mode-sql';
+import 'ace-builds/src-noconflict/theme-github';
 import React, { FC } from 'react';
 import AceEditor, { IAceEditorProps } from 'react-ace';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
@@ -10,7 +12,13 @@ const SqlInput: FC<TextareaProps> = ({ attributes, ...rest }) => (
     <InputWrapper
         {...rest}
         render={(props, { field }) => (
-            <AceEditor {...attributes} {...props} {...field} />
+            <AceEditor
+                mode="sql"
+                theme="github"
+                {...attributes}
+                {...props}
+                {...field}
+            />
         )}
     />
 );
