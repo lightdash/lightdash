@@ -1,5 +1,7 @@
 import { Button, PopoverPosition } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
+import 'ace-builds/src-noconflict/mode-sql';
+import 'ace-builds/src-noconflict/theme-github';
 import { ProjectCatalog } from 'common';
 import React, { FC, useState } from 'react';
 import AceEditor from 'react-ace';
@@ -24,6 +26,8 @@ const SqlRunnerInput: FC<{
             }}
         >
             <AceEditor
+                mode="sql"
+                theme="github"
                 readOnly={isDisabled}
                 value={sql}
                 height="300px"
