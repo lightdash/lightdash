@@ -44,6 +44,13 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             disabled={disabled}
             defaultValue="/"
         />
+        <Input
+            name="dbt.host_domain"
+            label="Host domain (for self-hosted instances)"
+            documentationUrl="https://docs.lightdash.com"
+            disabled={disabled}
+            defaultValue="gitlab.com"
+        />
     </>
 );
 
