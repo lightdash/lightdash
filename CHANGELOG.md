@@ -4,6 +4,14 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.10.5] - 2021-11-30
+### Added
+- Show how long ago the dashboard data was refreshed (#885)
+- You can now configure what date and time intervals you want for your dimensions (#895)
+
+### Changed
+- We now only join tables if the user selected fields from them (#905)
+
 ## [0.10.4] - 2021-11-24
 ### Fixed
 - Fix bug where the user could not pass the login page (#881)
