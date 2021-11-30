@@ -35,7 +35,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # dbt
 # TODO: prefer in stage 1
 RUN python -m venv /usr/local/venv
-RUN /usr/local/venv/bin/pip install "dbt>=0.21.0,<0.22.0" "dbt-spark[ODBC]>=0.1.0,<0.22.0"
+RUN /usr/local/venv/bin/pip install \
+    "dbt-core==1.0.0rc1" \
+    "dbt-postgres==1.0.0rc1" \
+    "dbt-redshift==1.0.0rc1" \
+    "dbt-snowflake==1.0.0rc1" \
+    "dbt-bigquery==1.0.0rc1" \
+    "dbt-spark[ODBC]==1.0.0rc1"
 ENV PATH $PATH:/usr/local/venv/bin
 
 # -------------------------
