@@ -1,6 +1,6 @@
 {
     "name": "frontend",
-    "version": "0.10.4",
+    "version": "0.10.5",
     "private": true,
     "proxy": "http://localhost:8080",
     "dependencies": {
@@ -18,7 +18,7 @@
         "@testing-library/user-event": "^12.1.10",
         "@uiw/react-md-editor": "^3.7.0",
         "ace-builds": "^1.4.12",
-        "common": "^0.10.4",
+        "common": "^0.10.5",
         "dagre": "^0.8.5",
         "echarts": "^5.2.2",
         "echarts-for-react": "^3.0.1",
