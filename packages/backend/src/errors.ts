@@ -133,6 +133,20 @@ export class UnexpectedGitError extends LightdashError {
     }
 }
 
+export class UnexpectedDatabaseError extends LightdashError {
+    constructor(
+        message = 'Unexpected error in Lightdash database',
+        data: { [key: string]: any } = {},
+    ) {
+        super({
+            message,
+            name: 'UnexpectedDatabaseError',
+            statusCode: 500,
+            data,
+        });
+    }
+}
+
 export class ParseError extends LightdashError {
     constructor(
         message = 'Error parsing dbt project and lightdash metadata',

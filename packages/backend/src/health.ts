@@ -1,8 +1,9 @@
 import { HealthState, LightdashInstallType, LightdashMode } from 'common';
 import fetch from 'node-fetch';
 import { lightdashConfig } from './config/lightdashConfig';
-import database from './database/database';
+import database, { getMigrationStatus } from './database/database';
 import { hasUsers } from './database/entities/users';
+import { UnexpectedDatabaseError } from './errors';
 import { projectService } from './services/services';
 import { VERSION } from './version';
 
@@ -18,6 +19,15 @@ const sorterByDate = (
 export const getHealthState = async (
     isAuthenticated: boolean,
 ): Promise<HealthState> => {
+    const { isComplete, currentVersion } = await getMigrationStatus();
+
+    if (!isComplete) {
+        throw new UnexpectedDatabaseError(
+            'Database has not been migrated yet',
+            { currentVersion },
+        );
+    }
+
     let latestVersion: string | undefined;
     try {
         const response = await fetch(
