@@ -106,12 +106,29 @@ export class MissingWarehouseCredentialsError extends LightdashError {
 }
 
 export class UnexpectedServerError extends LightdashError {
-    constructor(message = 'Unexpected error in Lightdash server') {
+    constructor(
+        message = 'Unexpected error in Lightdash server',
+        data: { [key: string]: any } = {},
+    ) {
         super({
             message,
             name: 'UnexpectedServerError',
             statusCode: 500,
-            data: {},
+            data,
+        });
+    }
+}
+
+export class UnexpectedGitError extends LightdashError {
+    constructor(
+        message = 'Unexpected error in Git adapter',
+        data: { [key: string]: any } = {},
+    ) {
+        super({
+            message,
+            name: 'UnexpectedGitError',
+            statusCode: 500,
+            data,
         });
     }
 }

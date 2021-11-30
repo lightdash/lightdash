@@ -2,10 +2,16 @@ import { CreateWarehouseCredentials } from 'common';
 import * as fs from 'fs';
 import * as fspromises from 'fs/promises';
 import * as git from 'isomorphic-git';
+import { Errors } from 'isomorphic-git';
 import * as http from 'isomorphic-git/http/node';
 import * as path from 'path';
 import tempy from 'tempy';
-import { UnexpectedServerError } from '../errors';
+import {
+    AuthorizationError,
+    NotFoundError,
+    UnexpectedGitError,
+    UnexpectedServerError,
+} from '../errors';
 import { WarehouseClient } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 
@@ -59,7 +65,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
             });
         } catch (e) {
             throw new UnexpectedServerError(
-                `Unexpected error while processing git repository: ${e}`,
+                `Unexpected error while cleaning local git directory: ${e}`,
             );
         }
     }
@@ -77,8 +83,26 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
                 ref: this.branch,
             });
         } catch (e) {
-            throw new UnexpectedServerError(
-                `Unexpected error while processing git repository: ${e}`,
+            if (e instanceof Errors.HttpError) {
+                if (e.data.statusCode === 401) {
+                    throw new AuthorizationError(
+                        'Git credentials not recognized',
+                        e.data,
+                    );
+                }
+                if (e.data.statusCode === 404) {
+                    throw new NotFoundError(`No git repository found`);
+                }
+                throw new UnexpectedGitError(
+                    `Unexpected error while cloning git repository: ${e.message}`,
+                    e.data,
+                );
+            }
+            if (e instanceof Errors.NotFoundError) {
+                throw new NotFoundError(e.message);
+            }
+            throw new UnexpectedGitError(
+                `Unexpected error while cloning git repository: ${e}`,
             );
         }
     }
@@ -94,8 +118,8 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
                 fastForwardOnly: true,
             });
         } catch (e) {
-            throw new UnexpectedServerError(
-                `Unexpected error while processing git repository: ${e}`,
+            throw new UnexpectedGitError(
+                `Unexpected error while pulling git repository: ${e}`,
             );
         }
     }
@@ -111,8 +135,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
 
     public async compileAllExplores() {
         await this._refreshRepo();
-        const results = await super.compileAllExplores();
-        return results;
+        return super.compileAllExplores();
     }
 
     public async test() {
