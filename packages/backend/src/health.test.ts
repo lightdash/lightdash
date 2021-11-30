@@ -10,6 +10,13 @@ jest.mock('./version', () => ({
     VERSION: '0.1.0',
 }));
 
+jest.mock('./database/database', () => ({
+    getMigrationStatus: jest.fn(() => ({
+        isComplete: true,
+        currentVersion: 'example',
+    })),
+}));
+
 jest.mock('./database/entities/users', () => ({
     hasUsers: jest.fn(),
 }));
