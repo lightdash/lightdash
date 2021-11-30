@@ -12,4 +12,15 @@ const getKnexInstance = () => {
     }
 };
 
-export default knex(getKnexInstance());
+const database = knex(getKnexInstance());
+
+export async function getMigrationStatus() {
+    const migrationStatus = await database.migrate.status();
+    const migrationCurrentVersion = await database.migrate.currentVersion();
+    return {
+        isComplete: migrationStatus === 0,
+        currentVersion: migrationCurrentVersion,
+    };
+}
+
+export default database;
