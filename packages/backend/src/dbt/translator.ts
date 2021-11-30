@@ -296,7 +296,7 @@ export const convertTable = (
             convertDbtMetricToLightdashMetric(metric),
         ]),
     );
-    const allMetrics = { ...metrics, ...convertedDbtMetrics }; // Dbt metric names take priority
+    const allMetrics = { ...convertedDbtMetrics, ...metrics }; // Model-level metric names take priority
 
     const enrichedMetrics =
         Object.keys(allMetrics).length > 0
