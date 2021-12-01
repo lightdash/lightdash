@@ -1126,6 +1126,7 @@ export interface DbtGitlabProjectConfig extends DbtProjectConfigBase {
     repository: string;
     branch: string;
     project_sub_path: string;
+    host_domain?: string;
 }
 
 export type DbtProjectConfig =
