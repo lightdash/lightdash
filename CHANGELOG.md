@@ -3,6 +3,9 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+## [0.10.6] - 2021-12-01
+### Fixed
+- Fix unhandled errors & improve error messages (#919 #923 #925)
 
 ## [0.10.5] - 2021-11-30
 ### Added
