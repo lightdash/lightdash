@@ -1,4 +1,4 @@
-import { ApiError, ApiResponse, ApiResults } from 'common';
+import { ApiError, ApiResponse } from 'common';
 
 const apiPrefix = '/api/v1';
 
@@ -24,7 +24,7 @@ type LightdashApiProps = {
     url: string;
     body: BodyInit | null | undefined;
 };
-export const lightdashApi = async <T extends ApiResults>({
+export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
     url,
     body,
@@ -38,7 +38,7 @@ export const lightdashApi = async <T extends ApiResults>({
             return r;
         })
         .then((r) => r.json())
-        .then((d: ApiResponse) => {
+        .then((d: ApiResponse | ApiError) => {
             switch (d.status) {
                 case 'ok':
                     return d.results as T;
