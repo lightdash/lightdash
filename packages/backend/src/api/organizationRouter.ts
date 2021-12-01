@@ -1,3 +1,4 @@
+import { OnboardingStatus } from 'common';
 import express from 'express';
 import { ForbiddenError } from '../errors';
 import {
@@ -78,5 +79,25 @@ organizationRouter.delete(
                 });
             })
             .catch(next);
+    },
+);
+
+organizationRouter.get(
+    '/onboardingStatus',
+    isAuthenticated,
+    async (req, res, next) => {
+        const mock: OnboardingStatus = {
+            connectedProject: true,
+            definedMetric: false,
+            ranQuery: false,
+            savedChart: false,
+            invitedUser: false,
+            completedAt: undefined,
+            shownSuccess: false,
+        };
+        res.json({
+            status: 'ok',
+            results: mock,
+        });
     },
 );

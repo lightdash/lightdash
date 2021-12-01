@@ -570,6 +570,16 @@ export type InviteLink = {
 };
 export type CreateInviteLink = Omit<InviteLink, 'inviteCode'>;
 
+export type OnboardingStatus = {
+    connectedProject: boolean;
+    definedMetric: boolean;
+    ranQuery: boolean;
+    savedChart: boolean;
+    invitedUser: boolean;
+    completedAt?: Date;
+    shownSuccess: boolean;
+};
+
 type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
@@ -591,6 +601,7 @@ type ApiResults =
     | TablesConfiguration
     | Dashboard
     | DashboardBasicDetails[]
+    | OnboardingStatus
     | Dashboard[];
 
 export type ApiResponse = {
