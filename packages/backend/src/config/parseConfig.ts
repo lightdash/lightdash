@@ -85,6 +85,7 @@ const dbtGitlabProjectConfigKeys: ConfigKeys<DbtGitlabProjectConfig> = {
     repository: true,
     branch: true,
     project_sub_path: true,
+    host_domain: true,
 };
 
 const mergeProjectWithEnvironment = <T extends DbtProjectConfig>(
