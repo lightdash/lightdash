@@ -483,36 +483,14 @@ export type DbtColumnLightdashMetric = {
     sql?: string;
 };
 
-type ApiErrorDetail = {
-    name: string;
-    statusCode: number;
-    message: string;
-    data: { [key: string]: string };
-};
-export type ApiError = {
-    status: 'error';
-    error: ApiErrorDetail;
-};
 export type ApiQueryResults = {
     metricQuery: MetricQuery;
     rows: { [col: string]: any }[];
 };
-export type ApiQueryResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: ApiQueryResults;
-      };
 
 export type ApiSqlQueryResults = {
     rows: { [col: string]: any }[];
 };
-export type ApiSqlQueryResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: ApiSqlQueryResults;
-      };
 
 export type ProjectCatalog = {
     [database: string]: {
@@ -521,12 +499,6 @@ export type ProjectCatalog = {
         };
     };
 };
-export type ApiCatalogResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: ProjectCatalog;
-      };
 
 export enum TableSelectionType {
     ALL = 'ALL',
@@ -540,59 +512,16 @@ export type TablesConfiguration = {
         value: string[] | null;
     };
 };
-export type ApiTablesConfigurationResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: TablesConfiguration;
-      };
 
 export type ApiCompiledQueryResults = string;
-export type ApiCompiledQueryResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: ApiCompiledQueryResults;
-      };
 
 export type ApiExploresResults = SummaryExplore[];
-export type ApiExploresResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: ApiExploresResults;
-      };
 
 export type ApiExploreResults = Explore;
-export type ApiExploreResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: ApiExploreResults;
-      };
 
 export type ApiStatusResults = 'loading' | 'ready' | 'error';
-export type ApiStatusResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: ApiStatusResults;
-      };
 
 export type ApiRefreshResults = undefined;
-export type ApiRefreshResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: ApiRefreshResults;
-      };
-
-export type ApiRegisterResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: undefined;
-      };
 
 export interface LightdashUser {
     userUuid: string;
@@ -634,60 +563,14 @@ export type UpdateUserArgs = {
     email: string;
 };
 
-export type ApiUserResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: LightdashUser;
-      };
-
 export type ApiHealthResults = HealthState;
-export type ApiHealthResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: ApiHealthResults;
-      };
 export type InviteLink = {
     expiresAt: Date;
     inviteCode: string;
 };
 export type CreateInviteLink = Omit<InviteLink, 'inviteCode'>;
-export type ApiInviteLinkResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: InviteLink;
-      };
-export type ApiOrganizationUsersResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: OrganizationUser[];
-      };
 
-export type ApiProjectsResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: OrganizationProject[];
-      };
-
-export type ApiProjectResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: Project;
-      };
-
-export type ApiUpdateWarehouseConnectionResponse =
-    | ApiError
-    | {
-          status: 'ok';
-          results: WarehouseCredentials;
-      };
-
-export type ApiResults =
+type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
     | ApiCompiledQueryResults
@@ -710,24 +593,21 @@ export type ApiResults =
     | DashboardBasicDetails[]
     | Dashboard[];
 
-export type ApiResponse =
-    | ApiQueryResponse
-    | ApiSqlQueryResponse
-    | ApiCatalogResponse
-    | ApiTablesConfigurationResponse
-    | ApiCompiledQueryResponse
-    | ApiExploresResponse
-    | ApiExploreResponse
-    | ApiStatusResponse
-    | ApiRefreshResponse
-    | ApiHealthResponse
-    | ApiUserResponse
-    | ApiRegisterResponse
-    | ApiInviteLinkResponse
-    | ApiProjectsResponse
-    | ApiProjectResponse
-    | ApiUpdateWarehouseConnectionResponse
-    | ApiOrganizationUsersResponse;
+export type ApiResponse = {
+    status: 'ok';
+    results: ApiResults;
+};
+
+type ApiErrorDetail = {
+    name: string;
+    statusCode: number;
+    message: string;
+    data: { [key: string]: string };
+};
+export type ApiError = {
+    status: 'error';
+    error: ApiErrorDetail;
+};
 
 export enum LightdashMode {
     DEFAULT = 'default',
