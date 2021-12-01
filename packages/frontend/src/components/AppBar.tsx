@@ -19,6 +19,7 @@ import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 import { UserAvatar } from './Avatar';
 import { ErrorLogsDrawer } from './ErrorLogsDrawer';
+import { ReactComponent as Logo } from './logo.svg';
 import NavLink from './NavLink';
 import { ShowErrorsButton } from './ShowErrorsButton';
 import UserSettingsModal from './UserSettingsModal/UserSettingsModal';
@@ -51,8 +52,12 @@ const AppBar = () => {
                 className={Classes.DARK}
             >
                 <NavbarGroup align={Alignment.LEFT}>
-                    <NavbarHeading>{user.data?.organizationName}</NavbarHeading>
-                    <NavbarDivider />
+                    <NavLink
+                        to={`/home/${projectUuid}`}
+                        style={{ marginRight: 24, display: 'flex' }}
+                    >
+                        <Logo title="Home" style={{ marginTop: 2 }} />
+                    </NavLink>
                     <Popover2
                         interactionKind={PopoverInteractionKind.CLICK}
                         content={
@@ -122,6 +127,10 @@ const AppBar = () => {
                         errorLogs={errorLogs}
                         setErrorLogsVisible={setErrorLogsVisible}
                     />
+                    <NavbarHeading style={{ margin: 0, fontSize: 14 }}>
+                        {user.data?.organizationName}
+                    </NavbarHeading>
+                    <NavbarDivider />
                     <Popover2
                         interactionKind={PopoverInteractionKind.CLICK}
                         content={
