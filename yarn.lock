@@ -5672,6 +5672,11 @@ code-point-at@^1.0.0:
   resolved "https://registry.yarnpkg.com/code-point-at/-/code-point-at-1.1.0.tgz#0d070b4d043a5bea33a2f1a40e2edb3d9a4ccf77"
   integrity sha1-DQcLTQQ6W+ozovGkDi7bPZpMz3c=
 
+cohere-js@^1.0.19:
+  version "1.0.19"
+  resolved "https://registry.yarnpkg.com/cohere-js/-/cohere-js-1.0.19.tgz#c9951e51b6fdf48d3b2457838983109d651a9d16"
+  integrity sha512-2XVX2LUKHjbJ4GCsnizXnAVHZfq9RM1RmHl8zE4G2ORdXmDpzSx5i0UIj/0GZ3AwjKIlYsrGA4kdCGT+WapjPQ==
+
 collect-v8-coverage@^1.0.0:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/collect-v8-coverage/-/collect-v8-coverage-1.0.1.tgz#cc2c8e94fc18bbdffe64d6534570c8a673b27f59"

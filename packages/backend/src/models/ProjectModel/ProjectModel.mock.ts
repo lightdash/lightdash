@@ -30,6 +30,9 @@ export const lightdashConfigMock: LightdashConfig = {
     papercups: {
         token: '',
     },
+    cohere: {
+        token: '',
+    },
     projects: [],
 };
 

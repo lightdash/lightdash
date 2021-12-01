@@ -310,7 +310,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     )}
                 </div>
                 <Collapse className="explorer-chart" isOpen={vizIsOpen}>
-                    <div style={{ height: '300px' }}>
+                    <div style={{ height: '300px' }} className="cohere-block">
                         <SimpleChart
                             isLoading={queryResults.isLoading}
                             chartRef={chartRef}

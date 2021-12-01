@@ -769,6 +769,9 @@ export type HealthState = {
     papercups: {
         token: string;
     };
+    cohere: {
+        token: string;
+    };
 };
 
 export interface DbtCatalogNode {
