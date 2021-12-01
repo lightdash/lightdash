@@ -17,9 +17,9 @@ import { useMutation } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
+import { ReactComponent as Logo } from '../svgs/logo.svg';
 import { UserAvatar } from './Avatar';
 import { ErrorLogsDrawer } from './ErrorLogsDrawer';
-import { ReactComponent as Logo } from './logo.svg';
 import NavLink from './NavLink';
 import { ShowErrorsButton } from './ShowErrorsButton';
 import UserSettingsModal from './UserSettingsModal/UserSettingsModal';
@@ -53,10 +53,13 @@ const AppBar = () => {
             >
                 <NavbarGroup align={Alignment.LEFT}>
                     <NavLink
-                        to={`/home/${projectUuid}`}
+                        to="/home"
                         style={{ marginRight: 24, display: 'flex' }}
                     >
-                        <Logo title="Home" style={{ marginTop: 2 }} />
+                        <Logo
+                            title="Home"
+                            style={{ marginTop: 2, height: 30, width: 90 }}
+                        />
                     </NavLink>
                     <Popover2
                         interactionKind={PopoverInteractionKind.CLICK}
