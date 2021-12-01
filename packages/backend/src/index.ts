@@ -24,7 +24,7 @@ import { UserModel } from './models/User';
 import { VERSION } from './version';
 
 // @ts-ignore
-// eslint-disable-next-line no-extend-native
+// eslint-disable-next-line no-extend-native, func-names
 BigInt.prototype.toJSON = function () {
     return this.toString();
 };
@@ -145,8 +145,12 @@ app.get('*', (req, res) => {
 
 // errors
 app.use(Sentry.Handlers.errorHandler());
-app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((error: Error, req: Request, res: Response, _: NextFunction) => {
     const errorResponse = errorHandler(error);
+    console.error(
+        `Handled error on [${req.method}] ${req.path}`,
+        errorResponse,
+    );
     analytics.track({
         event: 'api.error',
         organizationId: req.user?.organizationUuid,
