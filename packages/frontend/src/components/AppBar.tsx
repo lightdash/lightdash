@@ -17,6 +17,7 @@ import { useMutation } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
+import { ReactComponent as Logo } from '../svgs/logo.svg';
 import { UserAvatar } from './Avatar';
 import { ErrorLogsDrawer } from './ErrorLogsDrawer';
 import NavLink from './NavLink';
@@ -51,8 +52,15 @@ const AppBar = () => {
                 className={Classes.DARK}
             >
                 <NavbarGroup align={Alignment.LEFT}>
-                    <NavbarHeading>{user.data?.organizationName}</NavbarHeading>
-                    <NavbarDivider />
+                    <NavLink
+                        to="/home"
+                        style={{ marginRight: 24, display: 'flex' }}
+                    >
+                        <Logo
+                            title="Home"
+                            style={{ marginTop: 2, height: 30, width: 90 }}
+                        />
+                    </NavLink>
                     <Popover2
                         interactionKind={PopoverInteractionKind.CLICK}
                         content={
@@ -122,6 +130,10 @@ const AppBar = () => {
                         errorLogs={errorLogs}
                         setErrorLogsVisible={setErrorLogsVisible}
                     />
+                    <NavbarHeading style={{ margin: 0, fontSize: 14 }}>
+                        {user.data?.organizationName}
+                    </NavbarHeading>
+                    <NavbarDivider />
                     <Popover2
                         interactionKind={PopoverInteractionKind.CLICK}
                         content={
