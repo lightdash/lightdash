@@ -3,6 +3,7 @@ import { IToastProps } from '@blueprintjs/core/src/components/toast/toast';
 import * as Sentry from '@sentry/react';
 import { Integrations } from '@sentry/tracing';
 import MDEditor from '@uiw/react-md-editor';
+import Cohere from 'cohere-js';
 import { ApiError, ApiHealthResults, HealthState, LightdashUser } from 'common';
 import React, {
     createContext,
@@ -50,6 +51,7 @@ const Context = createContext<AppContext>(undefined as any);
 
 export const AppProvider: FC = ({ children }) => {
     const [isSentryLoaded, setIsSentryLoaded] = useState(false);
+    const [isCohereLoaded, setIsCohereLoaded] = useState(false);
     const health = useQuery<HealthState, ApiError>({
         queryKey: 'health',
         queryFn: getHealthState,
@@ -73,6 +75,23 @@ export const AppProvider: FC = ({ children }) => {
             setIsSentryLoaded(true);
         }
     }, [isSentryLoaded, setIsSentryLoaded, health]);
+
+    useEffect(() => {
+        if (
+            !isCohereLoaded &&
+            health.data &&
+            health.data.cohere.token.length > 0
+        ) {
+            Cohere.init(health.data.cohere.token);
+            setIsCohereLoaded(true);
+        }
+        if (user.data) {
+            Cohere.identify(user.data.userUuid, {
+                displayName: `${user.data.firstName} ${user.data.lastName}`,
+                email: user.data.email,
+            });
+        }
+    }, [health, isCohereLoaded, user]);
 
     const showToastSuccess = useCallback<AppContext['showToastSuccess']>(
         ({ title, subtitle, key, ...rest }) => {

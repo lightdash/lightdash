@@ -60,5 +60,6 @@ export const getHealthState = async (
         rudder: lightdashConfig.rudder,
         sentry: lightdashConfig.sentry,
         papercups: lightdashConfig.papercups,
+        cohere: lightdashConfig.cohere,
     };
 };

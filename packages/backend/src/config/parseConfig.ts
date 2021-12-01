@@ -34,10 +34,15 @@ export type LightdashConfig = {
     mode: LightdashMode;
     projects: Array<DbtProjectConfig>;
     sentry: SentryConfig;
+    cohere: CohereConfig;
     papercups: PapercupsConfig;
 };
 
 export type PapercupsConfig = {
+    token: string;
+};
+
+type CohereConfig = {
     token: string;
 };
 
@@ -187,6 +192,9 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         databaseConnectionUri: process.env.PGCONNECTIONURI,
         papercups: {
             token: process.env.PAPERCUPS_TOKEN || '',
+        },
+        cohere: {
+            token: process.env.COHERE_TOKEN || '',
         },
     };
 };

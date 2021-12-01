@@ -191,6 +191,7 @@ export const ResultsTable: FC<Props> = ({
     return (
         <Section name={SectionName.RESULTS_TABLE}>
             <div
+                className="cohere-block"
                 style={{
                     height: '100%',
                     padding: '10px',
