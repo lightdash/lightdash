@@ -222,6 +222,16 @@
         "design",
         "bug"
       ]
+    },
+    {
+      "login": "NaomiJohnson",
+      "name": "NaomiJohnson",
+      "avatar_url": "https://avatars.githubusercontent.com/u/29288519?v=4",
+      "profile": "https://github.com/NaomiJohnson",
+      "contributions": [
+        "design",
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
