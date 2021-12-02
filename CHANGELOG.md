@@ -3,6 +3,14 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+
+## [0.10.7] - 2021-12-02
+### Added
+- Support self hosted gitlab repositories (#931)
+
+### Fixed
+- Log unhandled rejections and uncaught exceptions (#930)
+
 ## [0.10.6] - 2021-12-01
 ### Fixed
 - Fix unhandled errors & improve error messages (#919 #923 #925)
