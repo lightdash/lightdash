@@ -1,7 +1,7 @@
 import { DashboardChartTile, SpaceQuery } from 'common';
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { useSavedQuery } from '../../../hooks/useSpaces';
+import { useSpaces } from '../../../hooks/useSpaces';
 import { ActionModalProps } from '../../common/modal/ActionModal';
 import SelectField from '../../ReactHookForm/Select';
 
@@ -12,7 +12,7 @@ const ChartTileForm = ({
     'useActionModalState' | 'isDisabled'
 >) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data, isLoading } = useSavedQuery(projectUuid);
+    const { data, isLoading } = useSpaces(projectUuid);
     const allSavedCharts =
         data?.reduce<SpaceQuery[]>(
             (sum, { queries }) => [...sum, ...queries],

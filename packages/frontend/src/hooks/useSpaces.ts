@@ -9,8 +9,13 @@ const getSpaces = async (projectUuid: string) =>
         body: undefined,
     });
 
-export const useSavedQuery = (projectUuid: string) =>
+export const useSpaces = (projectUuid: string) =>
     useQuery<Space[], ApiError>({
         queryKey: ['spaces'],
         queryFn: () => getSpaces(projectUuid),
     });
+
+export const useSavedCharts = (projectUuid: string) => {
+    const spaces = useSpaces(projectUuid);
+    return { ...spaces, data: spaces.data?.[0].queries };
+};

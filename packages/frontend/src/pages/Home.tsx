@@ -1,10 +1,16 @@
-import { Colors, H3, NonIdealState, Spinner } from '@blueprintjs/core';
+import { Colors, H3, NonIdealState, Spinner, Toaster } from '@blueprintjs/core';
 import { OnboardingStatus } from 'common';
 import React, { FC } from 'react';
+import { useToggle } from 'react-use';
 import styled from 'styled-components';
+import LinkButton from '../components/common/LinkButton';
+import LatestDashboards from '../components/Home/LatestDashboards';
+import LatestSavedCharts from '../components/Home/LatestSavedCharts';
+import SuccessfulOnboarding from '../components/Home/SuccessfulOnboarding';
 import OnboardingSteps from '../components/OnboardingSteps';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
-import { useProjects } from '../hooks/useProjects';
+import { useDefaultProject } from '../hooks/useProjects';
+import { useApp } from '../providers/AppProvider';
 
 const HomePageWrapper = styled.div`
     width: 100%;
@@ -36,11 +42,52 @@ const OnboardingPage: FC<{ status: OnboardingStatus; projectUuid: string }> = ({
     </div>
 );
 
+const LandingPage: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+    const { user } = useApp();
+
+    return (
+        <div style={{ width: 768, paddingTop: 60 }}>
+            <div
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginBottom: 35,
+                }}
+            >
+                <div style={{ flex: 1 }}>
+                    <H3 style={{ marginBottom: 15 }}>
+                        Welcome, {user.data?.firstName}! ⚡
+                    </H3>
+                    <p
+                        style={{
+                            color: Colors.GRAY1,
+                        }}
+                    >
+                        Run a query to ask a business question or browse your
+                        data below:
+                    </p>
+                </div>
+                <LinkButton
+                    style={{ height: 40 }}
+                    href={`/projects/${projectUuid}/tables`}
+                    intent="primary"
+                    icon="database"
+                >
+                    Ask a question
+                </LinkButton>
+            </div>
+            <LatestDashboards projectUuid={projectUuid} />
+            <LatestSavedCharts projectUuid={projectUuid} />
+        </div>
+    );
+};
+
 const Home: FC = () => {
+    const [dismissedSuccess, toggleDismissedSuccess] = useToggle(false);
     const onboarding = useOnboardingStatus();
-    const projects = useProjects();
-    const isLoading = onboarding.isLoading || projects.isLoading;
-    const error = onboarding.error || projects.error;
+    const project = useDefaultProject();
+    const isLoading = onboarding.isLoading || project.isLoading;
+    const error = onboarding.error || project.error;
 
     if (isLoading) {
         return (
@@ -59,7 +106,7 @@ const Home: FC = () => {
             </div>
         );
     }
-    if (!projects.data || !onboarding.data) {
+    if (!project.data || !onboarding.data) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <NonIdealState
@@ -71,17 +118,22 @@ const Home: FC = () => {
     }
     return (
         <HomePageWrapper>
+            <Toaster position="top">
+                {onboarding.data?.completedAt &&
+                    !onboarding.data.shownSuccess &&
+                    !dismissedSuccess && (
+                        <SuccessfulOnboarding
+                            onDismiss={toggleDismissedSuccess}
+                        />
+                    )}
+            </Toaster>
             {!onboarding.data.completedAt ? (
                 <OnboardingPage
                     status={onboarding.data}
-                    projectUuid={projects.data[0].projectUuid}
+                    projectUuid={project.data.projectUuid}
                 />
             ) : (
-                <div style={{ width: 570, paddingTop: 60 }}>
-                    <H3 style={{ textAlign: 'center', marginBottom: 15 }}>
-                        Welcome to Lightdash! 🎉
-                    </H3>
-                </div>
+                <LandingPage projectUuid={project.data.projectUuid} />
             )}
         </HomePageWrapper>
     );

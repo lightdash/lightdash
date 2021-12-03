@@ -16,6 +16,7 @@ import React, { useState } from 'react';
 import { useMutation } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
+import { useDefaultProject } from '../hooks/useProjects';
 import { useApp } from '../providers/AppProvider';
 import { ReactComponent as Logo } from '../svgs/logo.svg';
 import { UserAvatar } from './Avatar';
@@ -36,7 +37,9 @@ const AppBar = () => {
         user,
         errorLogs: { errorLogs, setErrorLogsVisible },
     } = useApp();
-    const { projectUuid } = useParams<{ projectUuid: string | undefined }>();
+    const defaultProject = useDefaultProject();
+    const params = useParams<{ projectUuid: string | undefined }>();
+    const projectUuid = params.projectUuid || defaultProject.data?.projectUuid;
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { mutate } = useMutation(logoutQuery, {
         mutationKey: ['logout'],
