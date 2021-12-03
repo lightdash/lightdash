@@ -9,6 +9,7 @@ export enum PageName {
     LOGIN = 'login',
     SIGNUP = 'signup',
     EXPLORER = 'explorer',
+    HOME = 'home',
     EXPLORE_TABLES = 'explore_tables',
     SAVED_QUERIES = 'saved_charts',
     SAVED_QUERY_EXPLORER = 'saved_chart_explorer',
