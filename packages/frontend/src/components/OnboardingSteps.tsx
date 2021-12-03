@@ -44,7 +44,7 @@ const OnboardingStep: FC<{
             >
                 <H5
                     style={{
-                        margin: 0,
+                        marginBottom: 2,
                         textDecorationLine: isComplete
                             ? 'line-through'
                             : undefined,
