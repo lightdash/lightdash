@@ -3,13 +3,13 @@ import { SpaceQuery } from 'common';
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import SavedQueriesContent from '../components/SavedQueries/SavedQueriesContent';
-import { useSavedQuery } from '../hooks/useSpaces';
+import { useSpaces } from '../hooks/useSpaces';
 
 const SavedQueries: FC = () => {
     const [selectedMenu, setSelectedMenu] = useState<string>();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const { isLoading, data } = useSavedQuery(projectUuid);
+    const { isLoading, data } = useSpaces(projectUuid);
 
     const savedQueries: SpaceQuery[] = useMemo(
         () => data?.find(({ uuid }) => uuid === selectedMenu)?.queries || [],
