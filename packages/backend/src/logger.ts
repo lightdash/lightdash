@@ -9,8 +9,8 @@ const levels = {
 };
 
 const level = () => {
-    if (process.env.LOG_LEVEL) {
-        return process.env.LOG_LEVEL.toLowerCase();
+    if (process.env.LIGHTDASH_LOG_LEVEL) {
+        return process.env.LIGHTDASH_LOG_LEVEL.toLowerCase();
     }
     const env = process.env.NODE_ENV || 'development';
     const isDevelopment = env === 'development';
@@ -46,12 +46,12 @@ const transports = [
         format: terminalFormat,
     }),
     new winston.transports.File({
-        filename: 'logs/error.json',
+        filename: 'logs/error.json.log',
         level: 'error',
         format: jsonFormat,
     }),
     new winston.transports.File({
-        filename: 'logs/all.json',
+        filename: 'logs/all.json.log',
         format: jsonFormat,
     }),
     new winston.transports.File({
