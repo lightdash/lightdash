@@ -18,10 +18,54 @@ import {
 } from '../types/Events';
 import { useApp } from './AppProvider';
 
-type EventData = {
-    name: EventName;
-    properties?: Record<string, any>;
+type GenericEvent = {
+    name:
+        | EventName.REVOKE_INVITES_BUTTON_CLICKED
+        | EventName.INVITE_BUTTON_CLICKED
+        | EventName.RUN_QUERY_BUTTON_CLICKED
+        | EventName.UPDATE_DASHBOARD_NAME_CLICKED
+        | EventName.ADD_COLUMN_BUTTON_CLICKED
+        | EventName.CONFIRM_DELETE_TABLE_CALCULATION_BUTTON_CLICKED
+        | EventName.DELETE_TABLE_CALCULATION_BUTTON_CLICKED
+        | EventName.EDIT_TABLE_CALCULATION_BUTTON_CLICKED
+        | EventName.SHOW_LINEAGE_BUTTON_CLICKED
+        | EventName.CREATE_PROJECT_BUTTON_CLICKED
+        | EventName.REFRESH_DBT_CONNECTION_BUTTON_CLICKED
+        | EventName.UPDATE_PROJECT_TABLES_CONFIGURATION_BUTTON_CLICKED
+        | EventName.UPDATE_PROJECT_BUTTON_CLICKED
+        | EventName.UPDATE_TABLE_CALCULATION_BUTTON_CLICKED
+        | EventName.CREATE_TABLE_CALCULATION_BUTTON_CLICKED;
+    properties?: {};
 };
+
+type DocumentationClickedEvent = {
+    name: EventName.DOCUMENTATION_BUTTON_CLICKED;
+    properties: {
+        action:
+            | 'invite_user'
+            | 'save_chart'
+            | 'run_query'
+            | 'define_metrics'
+            | 'connect_project';
+    };
+};
+
+export type OnboardingStepClickedEvent = {
+    name: EventName.ONBOARDING_STEP_CLICKED;
+    properties: {
+        action:
+            | 'invite_user'
+            | 'save_chart'
+            | 'run_query'
+            | 'define_metrics'
+            | 'connect_project';
+    };
+};
+
+type EventData =
+    | GenericEvent
+    | DocumentationClickedEvent
+    | OnboardingStepClickedEvent;
 
 type IdentifyData = {
     id: string;

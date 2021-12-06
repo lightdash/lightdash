@@ -127,9 +127,16 @@ const Home: FC = () => {
                         />
                     )}
             </Toaster>
-            {!onboarding.data.isComplete ? (
+            {onboarding.data.isComplete ? (
                 <OnboardingPage
-                    status={onboarding.data}
+                    status={{
+                        connectedProject: true,
+                        isComplete: false,
+                        invitedUser: false,
+                        definedMetric: false,
+                        savedChart: false,
+                        ranQuery: false,
+                    }}
                     projectUuid={project.data.projectUuid}
                 />
             ) : (

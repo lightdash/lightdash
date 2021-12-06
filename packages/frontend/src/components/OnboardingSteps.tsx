@@ -9,6 +9,11 @@ import {
 import { IncompleteOnboarding } from 'common';
 import React, { FC } from 'react';
 import { useHistory } from 'react-router-dom';
+import {
+    OnboardingStepClickedEvent,
+    useTracking,
+} from '../providers/TrackingProvider';
+import { EventName } from '../types/Events';
 
 const OnboardingStep: FC<{
     icon: IconName;
@@ -17,13 +22,23 @@ const OnboardingStep: FC<{
     href: string;
     buttonHref: string;
     isComplete: boolean;
-}> = ({ icon, title, description, href, buttonHref, isComplete }) => {
+    action: OnboardingStepClickedEvent['properties']['action'];
+}> = ({ icon, title, description, href, buttonHref, isComplete, action }) => {
     const history = useHistory();
+    const { track } = useTracking();
     return (
         <Card
             style={{ display: 'flex', alignItems: 'center', marginBottom: 20 }}
             interactive
-            onClick={() => history.push(href)}
+            onClick={() => {
+                track({
+                    name: EventName.ONBOARDING_STEP_CLICKED,
+                    properties: {
+                        action,
+                    },
+                });
+                history.push(href);
+            }}
         >
             <Tag
                 round
@@ -69,6 +84,12 @@ const OnboardingStep: FC<{
                 target="_blank"
                 onClick={(e) => {
                     e.stopPropagation();
+                    track({
+                        name: EventName.DOCUMENTATION_BUTTON_CLICKED,
+                        properties: {
+                            action,
+                        },
+                    });
                 }}
             >
                 Learn how
@@ -98,6 +119,7 @@ const OnboardingSteps: FC<{
             href={`/projects/${projectUuid}/settings`}
             buttonHref="https://docs.lightdash.com/get-started/setup-lightdash/connect-project"
             isComplete={connectedProject}
+            action="connect_project"
         />
         <OnboardingStep
             icon="numbered-list"
@@ -106,6 +128,7 @@ const OnboardingSteps: FC<{
             href="https://docs.lightdash.com/get-started/setup-lightdash/add-metrics"
             buttonHref="https://docs.lightdash.com/get-started/setup-lightdash/add-metrics"
             isComplete={definedMetric}
+            action="define_metrics"
         />
         <OnboardingStep
             icon="search-template"
@@ -114,6 +137,7 @@ const OnboardingSteps: FC<{
             href={`/projects/${projectUuid}/tables`}
             buttonHref="https://docs.lightdash.com/get-started/exploring-data/using-explores"
             isComplete={ranQuery}
+            action="run_query"
         />
         <OnboardingStep
             icon="grouped-bar-chart"
@@ -122,6 +146,7 @@ const OnboardingSteps: FC<{
             href={`/projects/${projectUuid}/tables`}
             buttonHref="https://docs.lightdash.com/get-started/exploring-data/sharing-insights"
             isComplete={savedChart}
+            action="save_chart"
         />
         <OnboardingStep
             icon="new-person"
@@ -130,6 +155,7 @@ const OnboardingSteps: FC<{
             href="https://docs.lightdash.com/get-started/exploring-data/sharing-insights#inviting-your-teammates-to-your-lightdash-project"
             buttonHref="https://docs.lightdash.com/get-started/exploring-data/sharing-insights#inviting-your-teammates-to-your-lightdash-project"
             isComplete={invitedUser}
+            action="invite_user"
         />
     </>
 );
