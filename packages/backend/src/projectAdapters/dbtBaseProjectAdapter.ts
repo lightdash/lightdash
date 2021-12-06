@@ -16,6 +16,7 @@ import {
     normaliseModelDatabase,
 } from '../dbt/translator';
 import { MissingCatalogEntryError, ParseError } from '../errors';
+import Logger from '../logger';
 import modelJsonSchema from '../schema.json';
 import {
     DbtClient,
@@ -43,7 +44,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     async destroy(): Promise<void> {}
 
     public async test(): Promise<void> {
+        Logger.debug('Test dbt client');
         await this.dbtClient.test();
+        Logger.debug('Test warehouse client');
         await this.warehouseClient.test();
     }
 
@@ -57,8 +60,10 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     public async compileAllExplores(
         loadSources: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
+        Logger.debug('Install dependencies');
         // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
         await this.dbtClient.installDeps();
+        Logger.debug('Get dbt manifest');
         const { manifest } = await this.dbtClient.getDbtManifest();
 
         // Type of the target warehouse
@@ -74,6 +79,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         const models = Object.values(manifest.nodes).filter(
             (node) => node.resource_type === 'model',
         ) as DbtRawModelNode[];
+        Logger.debug(`Validate ${models.length} models in manifest`);
         const [validModels, failedExplores] =
             await DbtBaseProjectAdapter._validateDbtModelMetadata(
                 adapterType,
@@ -82,11 +88,13 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
         // Be lazy and try to attach types to the remaining models without refreshing the catalog
         try {
+            Logger.debug(`Attach types to ${validModels.length} models`);
             const lazyTypedModels = attachTypesToModels(
                 validModels,
                 this.warehouseCatalog || {},
                 true,
             );
+            Logger.debug('Convert explores');
             const lazyExplores = await convertExplores(
                 lazyTypedModels,
                 loadSources,
@@ -95,8 +103,14 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             return [...lazyExplores, ...failedExplores];
         } catch (e) {
             if (e instanceof MissingCatalogEntryError) {
+                Logger.debug(
+                    'Get warehouse catalog after missing catalog error',
+                );
                 this.warehouseCatalog = await this.warehouseClient.getCatalog(
                     getSchemaStructureFromDbtModels(validModels),
+                );
+                Logger.debug(
+                    'Attach types to models after missing catalog error',
                 );
                 // Some types were missing so refresh the schema and try again
                 const typedModels = attachTypesToModels(
@@ -104,6 +118,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     this.warehouseCatalog,
                     false,
                 );
+                Logger.debug('Convert explores after missing catalog error');
                 const explores = await convertExplores(
                     typedModels,
                     loadSources,
