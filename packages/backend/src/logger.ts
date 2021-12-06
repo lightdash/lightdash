@@ -47,9 +47,9 @@ const transports = [
         format: terminalFormat,
     }),
     new winston.transports.File({
-        filename: 'logs/error.json.log',
+        filename: 'logs/error.log',
         level: 'error',
-        format: jsonFormat,
+        format: terminalFormat,
     }),
     new winston.transports.File({
         filename: 'logs/all.json.log',
@@ -59,7 +59,9 @@ const transports = [
         filename: 'logs/all.log',
         format: terminalFormat,
     }),
-    new LoggingWinston(),
+    new LoggingWinston({
+        levels,
+    }),
 ];
 
 const Logger = winston.createLogger({
