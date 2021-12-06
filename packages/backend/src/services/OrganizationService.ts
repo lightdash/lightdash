@@ -8,6 +8,7 @@ import {
 import { analytics } from '../analytics/client';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { NotExistsError } from '../errors';
+import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OnboardingModel } from '../models/OnboardingModel/OnboardingModel';
 import { OrganizationModel } from '../models/OrganizationModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
@@ -18,6 +19,7 @@ type OrganizationServiceDependencies = {
     userModel: UserModel;
     projectModel: ProjectModel;
     onboardingModel: OnboardingModel;
+    inviteLinkModel: InviteLinkModel;
 };
 
 export class OrganizationService {
@@ -29,16 +31,20 @@ export class OrganizationService {
 
     private readonly onboardingModel: OnboardingModel;
 
+    private readonly inviteLinkModel: InviteLinkModel;
+
     constructor({
         organizationModel,
         userModel,
         projectModel,
         onboardingModel,
+        inviteLinkModel,
     }: OrganizationServiceDependencies) {
         this.organizationModel = organizationModel;
         this.userModel = userModel;
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
+        this.inviteLinkModel = inviteLinkModel;
     }
 
     async updateOrg(
@@ -66,8 +72,10 @@ export class OrganizationService {
     }
 
     async hasInvitedUser(user: SessionUser): Promise<boolean> {
-        const users = await this.getUsers(user);
-        return users.length > 1;
+        return (
+            (await this.inviteLinkModel.hasActiveInvites()) ||
+            (await this.getUsers(user)).length > 1
+        );
     }
 
     async getUsers(user: SessionUser): Promise<OrganizationUser[]> {
