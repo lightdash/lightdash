@@ -102,4 +102,14 @@ export class OrganizationService {
         }
         return this.onboardingModel.getByOrganizationUuid(organizationUuid);
     }
+
+    async setOnboardingSuccessDate(user: SessionUser): Promise<void> {
+        const { shownSuccessAt } = await this.getOnboarding(user);
+        if (shownSuccessAt) {
+            throw new NotExistsError('Can not override "shown success" date');
+        }
+        return this.onboardingModel.update(user.organizationUuid, {
+            shownSuccessAt: new Date(),
+        });
+    }
 }

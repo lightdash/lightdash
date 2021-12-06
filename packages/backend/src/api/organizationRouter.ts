@@ -145,3 +145,19 @@ organizationRouter.get(
         }
     },
 );
+
+organizationRouter.post(
+    '/onboardingStatus/shownSuccess',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            await organizationService.setOnboardingSuccessDate(req.user!);
+            res.json({
+                status: 'ok',
+                results: undefined,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);

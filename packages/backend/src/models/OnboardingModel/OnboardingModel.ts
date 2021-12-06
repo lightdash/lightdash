@@ -36,4 +36,23 @@ export class OnboardingModel {
             shownSuccessAt: onboardings[0].shownSuccess_at,
         };
     }
+
+    async update(
+        organizationUuid: string,
+        data: Partial<OnbordingRecord>,
+    ): Promise<void> {
+        const orgs = await this.database(OrganizationTableName)
+            .where('organization_uuid', organizationUuid)
+            .select('organization_id');
+        if (orgs.length === 0) {
+            throw new NotExistsError('Cannot find organization');
+        }
+
+        await this.database(OnboardingTableName)
+            .update({
+                ranQuery_at: data.ranQueryAt,
+                shownSuccess_at: data.shownSuccessAt,
+            })
+            .where('organization_id', orgs[0].organization_id);
+    }
 }
