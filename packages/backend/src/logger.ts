@@ -1,3 +1,4 @@
+import { LoggingWinston } from '@google-cloud/logging-winston';
 import winston from 'winston';
 
 const levels = {
@@ -58,6 +59,7 @@ const transports = [
         filename: 'logs/all.log',
         format: terminalFormat,
     }),
+    new LoggingWinston(),
 ];
 
 const Logger = winston.createLogger({
