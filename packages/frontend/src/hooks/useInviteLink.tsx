@@ -4,7 +4,7 @@ import {
     formatTimestamp,
     InviteLink,
 } from 'common';
-import { useMutation, useQuery } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 
@@ -49,27 +49,25 @@ export const useInviteLink = (inviteCode: string) =>
     });
 
 export const useCreateInviteLinkMutation = () => {
+    const queryClient = useQueryClient();
     const { showToastError, showToastSuccess } = useApp();
-    const inviteLink = useMutation<InviteLink, ApiError>(
-        createInviteWith3DayExpiryQuery,
-        {
-            mutationKey: ['invite_link'],
-            onError: (error1) => {
-                const [title, ...rest] = error1.error.message.split('\n');
-                showToastError({
-                    title,
-                    subtitle: rest.join('\n'),
-                });
-            },
-            onSuccess: (data) => {
-                showToastSuccess({
-                    title: 'Created new invite link',
-                    subtitle: `Expires on ${formatTimestamp(data.expiresAt)}`,
-                });
-            },
+    return useMutation<InviteLink, ApiError>(createInviteWith3DayExpiryQuery, {
+        mutationKey: ['invite_link'],
+        onError: (error1) => {
+            const [title, ...rest] = error1.error.message.split('\n');
+            showToastError({
+                title,
+                subtitle: rest.join('\n'),
+            });
         },
-    );
-    return inviteLink;
+        onSuccess: async (data) => {
+            await queryClient.invalidateQueries(['onboarding-status']);
+            showToastSuccess({
+                title: 'Created new invite link',
+                subtitle: `Expires on ${formatTimestamp(data.expiresAt)}`,
+            });
+        },
+    });
 };
 
 export const useRevokeInvitesMutation = () => {
