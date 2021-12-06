@@ -29,7 +29,15 @@ export class OnboardingModel {
             .where('organization_id', orgs[0].organization_id)
             .limit(1);
         if (onboardings.length === 0) {
-            throw new NotExistsError('No onboarding records found');
+            await this.database(OnboardingTableName).insert({
+                organization_id: orgs[0].organization_id,
+                ranQuery_at: null,
+                shownSuccess_at: null,
+            });
+            return {
+                ranQueryAt: null,
+                shownSuccessAt: null,
+            };
         }
         return {
             ranQueryAt: onboardings[0].ranQuery_at,
