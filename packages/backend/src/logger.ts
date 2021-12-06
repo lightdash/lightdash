@@ -1,5 +1,5 @@
 import { LoggingWinston } from '@google-cloud/logging-winston';
-import winston from 'winston';
+import winston, { LoggerOptions } from 'winston';
 
 const levels = {
     error: 0,
@@ -42,7 +42,7 @@ const jsonFormat = winston.format.combine(
     winston.format.json(),
 );
 
-const transports = [
+const transports: LoggerOptions['transports'] = [
     new winston.transports.Console({
         format: terminalFormat,
     }),
@@ -59,10 +59,15 @@ const transports = [
         filename: 'logs/all.log',
         format: terminalFormat,
     }),
-    new LoggingWinston({
-        levels,
-    }),
 ];
+
+if (process.env.GOOGLE_CLOUD_PROJECT) {
+    transports.push(
+        new LoggingWinston({
+            levels,
+        }),
+    );
+}
 
 const Logger = winston.createLogger({
     level: level(),

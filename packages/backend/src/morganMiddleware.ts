@@ -5,7 +5,7 @@ const stream: StreamOptions = {
     write: (message) => Logger.http(message),
 };
 
-const SkipPaths = ['/health', '/status'];
+const SkipPaths = ['/api/v1/health', '/api/v1/status'];
 
 // Build the morgan middleware
 const morganMiddleware = morgan(':method :url :status - :response-time ms', {
