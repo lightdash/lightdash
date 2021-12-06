@@ -16,6 +16,7 @@ import { Knex } from 'knex';
 import path from 'path';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { EncryptionService } from '../../../services/EncryptionService/EncryptionService';
+import { OnboardingTableName } from '../../entities/onboarding';
 
 export async function seed(knex: Knex): Promise<void> {
     // Deletes ALL existing entries
@@ -41,6 +42,12 @@ export async function seed(knex: Knex): Promise<void> {
     await knex('organization_memberships').insert({
         user_id: userId,
         organization_id: organizationId,
+    });
+
+    await knex(OnboardingTableName).insert({
+        organization_id: organizationId,
+        ranQuery_at: new Date(),
+        shownSuccess_at: new Date(),
     });
 
     // Try this with relative path
