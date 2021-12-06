@@ -22,6 +22,7 @@ import {
     MissingWarehouseCredentialsError,
     NotExistsError,
 } from '../../errors';
+import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedQueriesModel } from '../../models/savedQueries';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
@@ -31,10 +32,13 @@ import { ProjectAdapter } from '../../types';
 
 type ProjectServiceDependencies = {
     projectModel: ProjectModel;
+    onboardingModel: OnboardingModel;
 };
 
 export class ProjectService {
     projectModel: ProjectModel;
+
+    onboardingModel: OnboardingModel;
 
     cachedExplores: Record<string, Promise<(Explore | ExploreError)[]>>;
 
@@ -42,8 +46,9 @@ export class ProjectService {
 
     projectAdapters: Record<string, ProjectAdapter>;
 
-    constructor({ projectModel }: ProjectServiceDependencies) {
+    constructor({ projectModel, onboardingModel }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
+        this.onboardingModel = onboardingModel;
         this.projectAdapters = {};
         this.projectLoading = {};
         this.cachedExplores = {};
@@ -203,6 +208,17 @@ export class ProjectService {
             projectUuid,
             exploreName,
         );
+
+        const onboardingRecord =
+            await this.onboardingModel.getByOrganizationUuid(
+                user.organizationUuid,
+            );
+        if (!onboardingRecord.ranQueryAt) {
+            await this.onboardingModel.update(user.organizationUuid, {
+                ranQueryAt: new Date(),
+            });
+        }
+
         await analytics.track({
             projectId: projectUuid,
             organizationId: user.organizationUuid,

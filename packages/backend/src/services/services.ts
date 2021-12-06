@@ -27,6 +27,7 @@ export const organizationService = new OrganizationService({
 
 export const projectService = new ProjectService({
     projectModel,
+    onboardingModel,
 });
 
 export const dashboardService = new DashboardService({
