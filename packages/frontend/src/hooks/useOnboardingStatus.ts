@@ -1,5 +1,5 @@
 import { ApiError, OnboardingStatus } from 'common';
-import { useQuery } from 'react-query';
+import { useMutation, useQuery } from 'react-query';
 import { lightdashApi } from '../api';
 
 const getOnboardingStatus = async () =>
@@ -11,8 +11,20 @@ const getOnboardingStatus = async () =>
 
 export const useOnboardingStatus = () =>
     useQuery<OnboardingStatus, ApiError>({
-        queryKey: ['onboardingStatus'],
+        queryKey: ['onboarding-status'],
         queryFn: getOnboardingStatus,
         retry: false,
         refetchOnMount: true,
+    });
+
+const setOnboardingShownSuccess = async () =>
+    lightdashApi<undefined>({
+        url: `/org/onboardingStatus/shownSuccess`,
+        method: 'POST',
+        body: undefined,
+    });
+
+export const useOnboardingShownSuccess = () =>
+    useMutation<void, ApiError, void>(setOnboardingShownSuccess, {
+        mutationKey: ['onboarding_shown_success'],
     });
