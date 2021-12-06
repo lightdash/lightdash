@@ -9,7 +9,6 @@ import cookieParser from 'cookie-parser';
 import express, { NextFunction, Request, Response } from 'express';
 import * as OpenApiValidator from 'express-openapi-validator';
 import expressSession from 'express-session';
-import morgan from 'morgan';
 import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import path from 'path';
@@ -20,7 +19,9 @@ import { apiV1Router } from './api/apiV1';
 import { lightdashConfig } from './config/lightdashConfig';
 import database from './database/database';
 import { AuthorizationError, errorHandler } from './errors';
+import Logger from './logger';
 import { UserModel } from './models/User';
+import morganMiddleware from './morganMiddleware';
 import { VERSION } from './version';
 
 // @ts-ignore
@@ -31,10 +32,10 @@ BigInt.prototype.toJSON = function () {
 
 process
     .on('unhandledRejection', (reason, p) => {
-        console.error('Unhandled Rejection at Promise', reason, p);
+        Logger.error('Unhandled Rejection at Promise', reason, p);
     })
     .on('uncaughtException', (err) => {
-        console.error('Uncaught Exception thrown', err);
+        Logger.error('Uncaught Exception thrown', err);
         process.exit(1);
     });
 
@@ -81,7 +82,7 @@ app.use(Sentry.Handlers.tracingHandler());
 app.use(express.json());
 
 // Logging
-app.use(morgan('dev'));
+app.use(morganMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
@@ -147,10 +148,7 @@ app.get('*', (req, res) => {
 app.use(Sentry.Handlers.errorHandler());
 app.use((error: Error, req: Request, res: Response, _: NextFunction) => {
     const errorResponse = errorHandler(error);
-    console.error(
-        `Handled error on [${req.method}] ${req.path}`,
-        errorResponse,
-    );
+    Logger.error(`Handled error on [${req.method}] ${req.path}`, errorResponse);
     analytics.track({
         event: 'api.error',
         organizationId: req.user?.organizationUuid,
@@ -179,8 +177,8 @@ app.use((error: Error, req: Request, res: Response, _: NextFunction) => {
 // Run the server
 const port = process.env.PORT || 8080;
 app.listen(port, () => {
-    console.log(
-        `   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |  \n \\ | / \\ | / \\ | / \\ | / \\ | / \\ | / \\ | /\n  \\|/   \\|/   \\|/   \\|/   \\|/   \\|/   \\|/\n------------------------------------------\nLaunch lightdash at http://localhost:${port}\n------------------------------------------\n  /|\\   /|\\   /|\\   /|\\   /|\\   /|\\   /|\\\n / | \\ / | \\ / | \\ / | \\ / | \\ / | \\ / | \\\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |`,
+    Logger.debug(
+        `\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |  \n \\ | / \\ | / \\ | / \\ | / \\ | / \\ | / \\ | /\n  \\|/   \\|/   \\|/   \\|/   \\|/   \\|/   \\|/\n------------------------------------------\nLaunch lightdash at http://localhost:${port}\n------------------------------------------\n  /|\\   /|\\   /|\\   /|\\   /|\\   /|\\   /|\\\n / | \\ / | \\ / | \\ / | \\ / | \\ / | \\ / | \\\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |`,
     );
 });
 

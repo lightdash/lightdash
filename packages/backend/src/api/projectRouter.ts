@@ -10,6 +10,7 @@ import {
     TablesConfiguration,
 } from 'common';
 import express from 'express';
+import Logger from '../logger';
 import { SavedQueriesModel } from '../models/savedQueries';
 import { dashboardService, projectService } from '../services/services';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
@@ -148,7 +149,7 @@ projectRouter.post(
             // Runs async - error will appear on status endpoint
             projectService
                 .refreshAllTables(req.user!, req.params.projectUuid)
-                .catch((e) => console.log(`Error running refresh: ${e}`));
+                .catch((e) => Logger.error(`Error running refresh: ${e}`));
             res.json({ status: 'ok' });
         } catch (e) {
             next(e);
