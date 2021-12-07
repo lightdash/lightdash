@@ -2,7 +2,7 @@
 name: Feature Request (big features)
 about: Suggest an idea for this project. "Big Features" are ones that require one
   week or more of planning + build time.
-title: "[Product Proposal]"
+title: ""
 labels: discussion, feature-request
 assignees: ''
 
