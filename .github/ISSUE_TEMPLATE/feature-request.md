@@ -1,38 +1,41 @@
 ---
-name: Product Proposal Template
-about: This is the "setup" phase of building big features. Product proposals help
-  us bring some structure to our ideas before we move on to the "solutions" phase.
-title: "[Product Proposal]"
-labels: discussion, feature-request
+name: Feature request
+about: Suggest an idea for Lightdash!
+title: ''
+labels: feature-request
 assignees: ''
 
 ---
 
 ### **Description: What is it?**
 
-*This should be short and sweet* 🍬*. How would you explain this feature in two lines to someone else at Lightdash?*
+*This should be short and sweet 🍬*
+*How would you explain this feature in two lines to someone else at Lightdash?*
 
 ...
 
 ---
 
-### **Problem: What problem are we solving?**
+### **Problem: What problem does this solve?**
 
-*Add the problem we’re solving (or potential opportunity we're looking at). Try to explain all parts of the problem and how if affects different parts of Lightdash.*
+*Describe the problem that this feature requests solves (or potential opportunity we're looking at).*
+*Add a clear and concise description of what the problem is. Ex. I'm always frustrated when [...]*
 
 ...
 
 ---
 
-### **Why: How do we know this is a real problem and worth solving?**
+### **(Optional) Why: How do we know this is a real problem and worth solving?**
 
-*Why are we solving this? Add any links to customer conversations or research.*
+*Why are we solving this?*
+*If you're a Lightdash user suggesting a feature, you can skip this!* 
+*Otherwise, add any links to customer conversations or research.*
 
 …
 
 ---
 
-### **Success: How do we know if we’ve solved this problem?**
+### **Success: How will we know if we’ve solved this problem?**
 
 *Add how we will determine whether the problem has being solved. Qualitative and
 quantitative measures.*
@@ -41,7 +44,7 @@ quantitative measures.*
 
 ---
 
-### **Audience: Who are we building for?**
+### **Audience: Who are we building this for?**
 
 *Add example user descriptions that would benefit from this solution (e.g. users who are onboarding, data consumers, data builders). It's unlikely that a solution is for everyone* 🙂
 
@@ -57,7 +60,7 @@ quantitative measures.*
 
 ---
 
-### **How: What is the experiment/release plan?**
+### **(Optional) How: What is the experiment/release plan?**
 
 *Once high level product design is figured out, add the release plan below and include what is in scope + out of scope.* 
 
