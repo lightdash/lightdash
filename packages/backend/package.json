@@ -34,7 +34,6 @@
     },
     "dependencies": {
         "@google-cloud/bigquery": "^5.9.1",
-        "@google-cloud/logging-winston": "^4.1.1",
         "@rudderstack/rudder-sdk-node": "^1.0.7",
         "@sentry/node": "^6.12.0",
         "@sentry/tracing": "^6.12.0",
