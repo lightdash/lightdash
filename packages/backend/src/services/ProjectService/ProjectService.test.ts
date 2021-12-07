@@ -17,6 +17,8 @@ import {
     validExplore,
 } from './ProjectService.mock';
 
+jest.mock('../../models/savedQueries', () => ({}));
+
 jest.mock('../../analytics/client', () => ({
     analytics: {
         track: jest.fn(),
