@@ -1,4 +1,3 @@
-import { LoggingWinston } from '@google-cloud/logging-winston';
 import winston, { LoggerOptions } from 'winston';
 
 const levels = {
@@ -60,14 +59,6 @@ const transports: LoggerOptions['transports'] = [
         format: terminalFormat,
     }),
 ];
-
-if (process.env.GOOGLE_CLOUD_PROJECT) {
-    transports.push(
-        new LoggingWinston({
-            levels,
-        }),
-    );
-}
 
 const Logger = winston.createLogger({
     level: level(),
