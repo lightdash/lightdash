@@ -4,6 +4,11 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.10.8] - 2021-12-07
+### Added
+- Added a home page where we display a few onboarding steps and the latest dashboards and saved charts in you organisation (#949)
+- Added a logger that provides more detailed logs and stores them in local files (#943)
+
 ## [0.10.7] - 2021-12-02
 ### Added
 - Support self hosted gitlab repositories (#931)
