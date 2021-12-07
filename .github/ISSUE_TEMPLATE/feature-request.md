@@ -18,7 +18,8 @@ assignees: ''
 
 ### **Problem: What problem does this solve?**
 
-*Add the problem we’re solving (or potential opportunity we're looking at). Try to explain all parts of the problem and how if affects different parts of Lightdash.*
+*Describe the problem that this feature requests solves (or potential opportunity we're looking at).*
+*Add a clear and concise description of what the problem is. Ex. I'm always frustrated when [...]*
 
 ...
 
