@@ -10,6 +10,7 @@ import {
     NavbarHeading,
     PopoverInteractionKind,
     Position,
+    Spinner,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { useState } from 'react';
@@ -67,25 +68,33 @@ const AppBar = () => {
                     <Popover2
                         interactionKind={PopoverInteractionKind.CLICK}
                         content={
-                            <Menu>
-                                <NavLink to={`/projects/${projectUuid}/tables`}>
-                                    <MenuItem
-                                        role="button"
-                                        icon="th"
-                                        text="Tables"
-                                        style={{ marginBottom: 5 }}
-                                    />
-                                </NavLink>
-                                <NavLink
-                                    to={`/projects/${projectUuid}/sqlRunner`}
-                                >
-                                    <MenuItem
-                                        role="button"
-                                        icon="console"
-                                        text="SQL Runner"
-                                    />
-                                </NavLink>
-                            </Menu>
+                            !projectUuid ? (
+                                <div style={{ padding: 10, minWidth: 90 }}>
+                                    <Spinner size={20} />
+                                </div>
+                            ) : (
+                                <Menu>
+                                    <NavLink
+                                        to={`/projects/${projectUuid}/tables`}
+                                    >
+                                        <MenuItem
+                                            role="button"
+                                            icon="th"
+                                            text="Tables"
+                                            style={{ marginBottom: 5 }}
+                                        />
+                                    </NavLink>
+                                    <NavLink
+                                        to={`/projects/${projectUuid}/sqlRunner`}
+                                    >
+                                        <MenuItem
+                                            role="button"
+                                            icon="console"
+                                            text="SQL Runner"
+                                        />
+                                    </NavLink>
+                                </Menu>
+                            )
                         }
                         position={Position.BOTTOM_LEFT}
                     >
@@ -94,27 +103,33 @@ const AppBar = () => {
                     <Popover2
                         interactionKind={PopoverInteractionKind.CLICK}
                         content={
-                            <Menu>
-                                <NavLink
-                                    to={`/projects/${projectUuid}/dashboards`}
-                                >
-                                    <MenuItem
-                                        role="button"
-                                        text="Dashboards"
-                                        icon="control"
+                            !projectUuid ? (
+                                <div style={{ padding: 10, minWidth: 90 }}>
+                                    <Spinner size={20} />
+                                </div>
+                            ) : (
+                                <Menu>
+                                    <NavLink
+                                        to={`/projects/${projectUuid}/dashboards`}
+                                    >
+                                        <MenuItem
+                                            role="button"
+                                            text="Dashboards"
+                                            icon="control"
+                                            style={{ marginBottom: 5 }}
+                                        />
+                                    </NavLink>
+                                    <NavLink
+                                        to={`/projects/${projectUuid}/saved`}
                                         style={{ marginBottom: 5 }}
-                                    />
-                                </NavLink>
-                                <NavLink
-                                    to={`/projects/${projectUuid}/saved`}
-                                    style={{ marginBottom: 5 }}
-                                >
-                                    <MenuItem
-                                        icon="chart"
-                                        text="Saved charts"
-                                    />
-                                </NavLink>
-                            </Menu>
+                                    >
+                                        <MenuItem
+                                            icon="chart"
+                                            text="Saved charts"
+                                        />
+                                    </NavLink>
+                                </Menu>
+                            )
                         }
                         position={Position.BOTTOM_LEFT}
                     >
