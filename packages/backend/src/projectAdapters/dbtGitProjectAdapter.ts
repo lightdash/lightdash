@@ -12,6 +12,7 @@ import {
     UnexpectedGitError,
     UnexpectedServerError,
 } from '../errors';
+import Logger from '../logger';
 import { WarehouseClient } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 
@@ -59,6 +60,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
 
     private async _cleanLocal() {
         try {
+            Logger.debug(`Clean ${this.localRepositoryDir}`);
             await fspromises.rm(this.localRepositoryDir, {
                 recursive: true,
                 force: true,
@@ -72,6 +74,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
 
     private async _clone() {
         try {
+            Logger.debug(`Git clone to ${this.localRepositoryDir}`);
             await git.clone({
                 fs,
                 http,
@@ -108,6 +111,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
     }
 
     private async _pull() {
+        Logger.debug(`Git pull to ${this.localRepositoryDir}`);
         try {
             await git.pull({
                 fs,

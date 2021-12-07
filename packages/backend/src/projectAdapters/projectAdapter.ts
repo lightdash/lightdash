@@ -3,6 +3,7 @@ import {
     DbtProjectConfig,
     ProjectType,
 } from 'common';
+import Logger from '../logger';
 import { warehouseClientFromCredentials } from '../services/warehouseClients/warehouseClientFromCredentials';
 import { ProjectAdapter } from '../types';
 import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
@@ -17,6 +18,7 @@ export const projectAdapterFromConfig = async (
     const warehouseClient =
         warehouseClientFromCredentials(warehouseCredentials);
     const configType = config.type;
+    Logger.debug(`Initialize project adaptor of type ${configType}`);
     switch (config.type) {
         case ProjectType.DBT:
             return new DbtLocalCredentialsProjectAdapter({

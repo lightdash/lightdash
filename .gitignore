@@ -11,6 +11,9 @@
 /cypress/screenshots/**/*
 /cypress/videos/**/*
 
+# logs
+/packages/backend/logs
+
 # development
 lightdash_dev.yml
 
