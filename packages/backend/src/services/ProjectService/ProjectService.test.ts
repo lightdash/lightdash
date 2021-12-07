@@ -1,5 +1,5 @@
 import { analytics } from '../../analytics/client';
-import { projectModel } from '../../models/models';
+import { onboardingModel, projectModel } from '../../models/models';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -28,12 +28,14 @@ jest.mock('../../models/models', () => ({
         getTablesConfiguration: jest.fn(async () => tablesConfiguration),
         updateTablesConfiguration: jest.fn(),
     },
+    onboardingModel: {},
 }));
 
 describe('ProjectService', () => {
     const projectUuid = 'projectUuid';
     const service = new ProjectService({
         projectModel,
+        onboardingModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
