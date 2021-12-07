@@ -14,7 +14,3 @@
 - [ ] E2E tests  
 - [ ] Docs  
 - [ ] CI/CD  
-
-### To do:
-- [ ] update Changelog  
-- [ ] ...
