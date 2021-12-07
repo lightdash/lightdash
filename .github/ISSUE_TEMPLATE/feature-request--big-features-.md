@@ -1,6 +1,7 @@
 ---
-name: Product Proposal Template
-about: Start the setup for building a (big) feature.
+name: Feature Request (big features)
+about: Suggest an idea for this project. "Big Features" are ones that require one
+  week or more of planning + build time.
 title: "[Product Proposal]"
 labels: discussion, feature-request
 assignees: ''
@@ -9,13 +10,14 @@ assignees: ''
 
 ### **Description: What is it?**
 
-*This should be short and sweet* 🍬*. How would you explain this feature in two lines to someone else at Lightdash?*
+*This should be short and sweet 🍬*
+*How would you explain this feature in two lines to someone else at Lightdash?*
 
 ...
 
 ---
 
-### **Problem: What problem are we solving?**
+### **Problem: What problem does this solve?**
 
 *Add the problem we’re solving (or potential opportunity we're looking at). Try to explain all parts of the problem and how if affects different parts of Lightdash.*
 
@@ -31,7 +33,7 @@ assignees: ''
 
 ---
 
-### **Success: How do we know if we’ve solved this problem?**
+### **Success: How will we know if we’ve solved this problem?**
 
 *Add how we will determine whether the problem has being solved. Qualitative and
 quantitative measures.*
