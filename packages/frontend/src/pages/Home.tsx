@@ -1,5 +1,5 @@
 import { Colors, H3, NonIdealState, Spinner, Toaster } from '@blueprintjs/core';
-import { OnboardingStatus } from 'common';
+import { IncompleteOnboarding } from 'common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import styled from 'styled-components';
@@ -21,10 +21,10 @@ const HomePageWrapper = styled.div`
     align-items: center;
 `;
 
-const OnboardingPage: FC<{ status: OnboardingStatus; projectUuid: string }> = ({
-    status,
-    projectUuid,
-}) => (
+const OnboardingPage: FC<{
+    status: IncompleteOnboarding;
+    projectUuid: string;
+}> = ({ status, projectUuid }) => (
     <div style={{ width: 570, paddingTop: 60 }}>
         <H3 style={{ textAlign: 'center', marginBottom: 15 }}>
             Welcome to Lightdash! 🎉
@@ -119,15 +119,15 @@ const Home: FC = () => {
     return (
         <HomePageWrapper>
             <Toaster position="top">
-                {onboarding.data?.completedAt &&
-                    !onboarding.data.shownSuccess &&
+                {onboarding.data?.isComplete &&
+                    onboarding.data.showSuccess &&
                     !dismissedSuccess && (
                         <SuccessfulOnboarding
                             onDismiss={toggleDismissedSuccess}
                         />
                     )}
             </Toaster>
-            {!onboarding.data.completedAt ? (
+            {!onboarding.data.isComplete ? (
                 <OnboardingPage
                     status={onboarding.data}
                     projectUuid={project.data.projectUuid}

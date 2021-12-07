@@ -19,6 +19,10 @@ import {
     InviteLinkTableName,
 } from '../database/entities/inviteLinks';
 import {
+    OnboardingTable,
+    OnboardingTableName,
+} from '../database/entities/onboarding';
+import {
     OrganizationTable,
     OrganizationTableName,
 } from '../database/entities/organizations';
@@ -56,5 +60,6 @@ declare module 'knex/types/tables' {
         [DashboardTileChartTableName]: DashboardTileChartTable;
         [DashboardTileLoomsTableName]: DashboardTileLoomsTable;
         [DashboardTileMarkdownsTableName]: DashboardTileMarkdownsTable;
+        [OnboardingTableName]: OnboardingTable;
     }
 }

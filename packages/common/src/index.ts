@@ -570,15 +570,26 @@ export type InviteLink = {
 };
 export type CreateInviteLink = Omit<InviteLink, 'inviteCode'>;
 
-export type OnboardingStatus = {
+export type OnbordingRecord = {
+    ranQueryAt: Date | null;
+    shownSuccessAt: Date | null;
+};
+
+export type IncompleteOnboarding = {
+    isComplete: false;
     connectedProject: boolean;
     definedMetric: boolean;
     ranQuery: boolean;
     savedChart: boolean;
     invitedUser: boolean;
-    completedAt?: Date;
-    shownSuccess: boolean;
 };
+
+export type CompleteOnboarding = {
+    isComplete: true;
+    showSuccess: boolean;
+};
+
+export type OnboardingStatus = IncompleteOnboarding | CompleteOnboarding;
 
 type ApiResults =
     | ApiQueryResults
