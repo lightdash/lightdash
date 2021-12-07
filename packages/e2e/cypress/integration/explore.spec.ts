@@ -11,7 +11,7 @@ describe('Explore', () => {
     });
 
     it('Should query orders', () => {
-        cy.visit('/');
+        cy.visit('/projects');
 
         cy.findByText('Orders').click();
         cy.findByText('First name').click();

@@ -6,7 +6,7 @@ describe('Login', () => {
         cy.findByLabelText('Email (required)').type(SEED_EMAIL.email);
         cy.findByLabelText('Password (required)').type(SEED_PASSWORD.password);
         cy.get('[data-cy="login-button"]').click();
-        cy.url().should('include', '/tables');
+        cy.url().should('include', '/home');
     });
     it('Should display error message when credentials are invalid', () => {
         cy.visit('/login');
