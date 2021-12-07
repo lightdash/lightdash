@@ -1,7 +1,7 @@
 import { Colors, H3, NonIdealState, Spinner, Toaster } from '@blueprintjs/core';
 import { IncompleteOnboarding } from 'common';
 import React, { FC } from 'react';
-import { useToggle } from 'react-use';
+import { useToggle, useUnmount } from 'react-use';
 import styled from 'styled-components';
 import LinkButton from '../components/common/LinkButton';
 import LatestDashboards from '../components/Home/LatestDashboards';
@@ -88,6 +88,8 @@ const Home: FC = () => {
     const project = useDefaultProject();
     const isLoading = onboarding.isLoading || project.isLoading;
     const error = onboarding.error || project.error;
+
+    useUnmount(() => onboarding.remove());
 
     if (isLoading) {
         return (
