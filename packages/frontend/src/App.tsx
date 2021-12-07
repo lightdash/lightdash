@@ -20,6 +20,7 @@ import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
 import Explorer from './pages/Explorer';
+import Home from './pages/Home';
 import Login from './pages/login';
 import { Projects } from './pages/Projects';
 import ProjectSettings from './pages/ProjectSettings';
@@ -190,7 +191,13 @@ const App = () => (
                                                 <Route path="/projects" exact>
                                                     <Projects />
                                                 </Route>
-                                                <Redirect to="/projects" />
+                                                <Route path="/home" exact>
+                                                    <AppBar />
+                                                    <Page name={PageName.HOME}>
+                                                        <Home />
+                                                    </Page>
+                                                </Route>
+                                                <Redirect to="/home" />
                                             </Switch>
                                         </AppRoute>
                                     </Switch>

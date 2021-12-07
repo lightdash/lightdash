@@ -58,6 +58,18 @@ export class ProjectModel {
         }));
     }
 
+    async getDefaultProject(
+        organizationUuid: string,
+    ): Promise<OrganizationProject> {
+        const projects = await this.getAllByOrganizationUuid(organizationUuid);
+
+        if (projects.length <= 0) {
+            throw new NotExistsError('No project found');
+        }
+
+        return projects[0];
+    }
+
     private async upsertWarehouseConnection(
         trx: Transaction,
         projectId: number,

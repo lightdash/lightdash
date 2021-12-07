@@ -9,6 +9,7 @@ export enum PageName {
     LOGIN = 'login',
     SIGNUP = 'signup',
     EXPLORER = 'explorer',
+    HOME = 'home',
     EXPLORE_TABLES = 'explore_tables',
     SAVED_QUERIES = 'saved_charts',
     SAVED_QUERY_EXPLORER = 'saved_chart_explorer',
@@ -55,4 +56,6 @@ export enum EventName {
     REFRESH_DBT_CONNECTION_BUTTON_CLICKED = 'refresh_dbt_connection_button.click',
     UPDATE_PROJECT_TABLES_CONFIGURATION_BUTTON_CLICKED = 'update_project_tables_configuration.click',
     UPDATE_DASHBOARD_NAME_CLICKED = 'update_dashboard_name.click',
+    DOCUMENTATION_BUTTON_CLICKED = 'documentation_button.click',
+    ONBOARDING_STEP_CLICKED = 'onboarding_step.click',
 }

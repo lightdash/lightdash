@@ -18,3 +18,8 @@ export const useProjects = () => {
         onError: (result) => setErrorResponse(result),
     });
 };
+
+export const useDefaultProject = () => {
+    const projects = useProjects();
+    return { ...projects, data: projects.data?.[0] };
+};

@@ -1,8 +1,10 @@
+import { OnboardingStatus } from 'common';
 import express from 'express';
 import { ForbiddenError } from '../errors';
 import {
     organizationService,
     projectService,
+    savedChartsService,
     userService,
 } from '../services/services';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
@@ -78,5 +80,84 @@ organizationRouter.delete(
                 });
             })
             .catch(next);
+    },
+);
+
+organizationRouter.get(
+    '/onboardingStatus',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            let results: OnboardingStatus;
+            const onboarding = await organizationService.getOnboarding(
+                req.user!,
+            );
+
+            if (onboarding.shownSuccessAt) {
+                results = {
+                    isComplete: true,
+                    showSuccess: false,
+                };
+            } else {
+                const connectedProject = await projectService.hasProject();
+                const definedMetric = await projectService.hasMetrics(
+                    req.user!,
+                );
+                const savedChart = await savedChartsService.hasSavedCharts(
+                    req.user!,
+                );
+                const invitedUser = await organizationService.hasInvitedUser(
+                    req.user!,
+                );
+
+                const ranQuery = !!onboarding.ranQueryAt;
+
+                const isComplete: boolean =
+                    connectedProject &&
+                    definedMetric &&
+                    savedChart &&
+                    invitedUser &&
+                    ranQuery;
+
+                if (isComplete) {
+                    results = {
+                        isComplete: true,
+                        showSuccess: true,
+                    };
+                } else {
+                    results = {
+                        isComplete: false,
+                        connectedProject,
+                        definedMetric,
+                        savedChart,
+                        invitedUser,
+                        ranQuery,
+                    };
+                }
+            }
+
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+organizationRouter.post(
+    '/onboardingStatus/shownSuccess',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            await organizationService.setOnboardingSuccessDate(req.user!);
+            res.json({
+                status: 'ok',
+                results: undefined,
+            });
+        } catch (e) {
+            next(e);
+        }
     },
 );

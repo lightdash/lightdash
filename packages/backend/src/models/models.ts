@@ -3,6 +3,7 @@ import database from '../database/database';
 import { EncryptionService } from '../services/EncryptionService/EncryptionService';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { InviteLinkModel } from './InviteLinkModel';
+import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OrganizationModel } from './OrganizationModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { SessionModel } from './SessionModel';
@@ -20,3 +21,4 @@ export const projectModel = new ProjectModel({
     lightdashConfig,
     encryptionService,
 });
+export const onboardingModel = new OnboardingModel({ database });
