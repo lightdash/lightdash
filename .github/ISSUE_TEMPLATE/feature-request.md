@@ -1,6 +1,6 @@
 ---
-name: Feature request (big feature)
-about: Suggest an idea for Lightdash! Big features take > 1 week to plan + build.
+name: Feature request
+about: Suggest an idea for Lightdash!
 title: ''
 labels: feature-request
 assignees: ''
@@ -24,9 +24,11 @@ assignees: ''
 
 ---
 
-### **Why: How do we know this is a real problem and worth solving?**
+### **(Optional) Why: How do we know this is a real problem and worth solving?**
 
-*Why are we solving this? Add any links to customer conversations or research.*
+*Why are we solving this?*
+*If you're a Lightdash user suggesting a feature, you can skip this!* 
+*Otherwise, add any links to customer conversations or research.*
 
 …
 
@@ -41,7 +43,7 @@ quantitative measures.*
 
 ---
 
-### **Audience: Who are we building for?**
+### **Audience: Who are we building this for?**
 
 *Add example user descriptions that would benefit from this solution (e.g. users who are onboarding, data consumers, data builders). It's unlikely that a solution is for everyone* 🙂
 
@@ -57,7 +59,7 @@ quantitative measures.*
 
 ---
 
-### **How: What is the experiment/release plan?**
+### **(Optional) How: What is the experiment/release plan?**
 
 *Once high level product design is figured out, add the release plan below and include what is in scope + out of scope.* 
 
