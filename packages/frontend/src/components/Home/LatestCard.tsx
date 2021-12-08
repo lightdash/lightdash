@@ -1,10 +1,11 @@
-import { Card, Colors, Divider, H5 } from '@blueprintjs/core';
+import { Card, Classes, Colors, Divider, H5 } from '@blueprintjs/core';
 import React, { FC } from 'react';
 
 const LatestCard: FC<{
+    isLoading: boolean;
     title: React.ReactNode;
     headerAction?: React.ReactNode;
-}> = ({ title, headerAction, children }) => (
+}> = ({ isLoading, title, headerAction, children }) => (
     <Card
         style={{
             display: 'flex',
@@ -18,13 +19,24 @@ const LatestCard: FC<{
                 width: '100%',
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'space-between',
             }}
         >
-            <H5 style={{ flex: 1, margin: 0, color: Colors.GRAY1 }}>{title}</H5>
-            {headerAction}
+            <H5
+                style={{ margin: 0, color: Colors.GRAY1 }}
+                className={isLoading ? Classes.SKELETON : undefined}
+            >
+                {title}
+            </H5>
+            {isLoading ? null : headerAction}
         </div>
         <Divider style={{ margin: '20px 0' }} />
-        {children}
+        <div
+            className={isLoading ? Classes.SKELETON : undefined}
+            style={{ flex: 1 }}
+        >
+            {children}
+        </div>
     </Card>
 );
 

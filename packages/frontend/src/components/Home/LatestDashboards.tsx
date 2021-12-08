@@ -41,6 +41,7 @@ const LatestDashboards: FC<{ projectUuid: string }> = ({ projectUuid }) => {
 
     return (
         <LatestCard
+            isLoading={dashboardsRequest.isLoading}
             title={`Browse dashboards (${dashboards.length})`}
             headerAction={
                 dashboards.length > 0 ? (

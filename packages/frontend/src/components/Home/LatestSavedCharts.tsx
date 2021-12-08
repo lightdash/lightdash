@@ -9,6 +9,7 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const savedCharts = savedChartsRequest.data || [];
     return (
         <LatestCard
+            isLoading={savedChartsRequest.isLoading}
             title={`Browse saved charts (${savedCharts.length})`}
             headerAction={
                 savedCharts.length > 0 ? (
