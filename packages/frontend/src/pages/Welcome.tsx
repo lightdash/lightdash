@@ -14,6 +14,11 @@ import { Redirect, useHistory } from 'react-router-dom';
 import AboutFooter from '../components/AboutFooter';
 import PageSpinner from '../components/PageSpinner';
 import { useApp } from '../providers/AppProvider';
+import {
+    SetupStepClickedEvent,
+    useTracking,
+} from '../providers/TrackingProvider';
+import { EventName } from '../types/Events';
 import './Welcome.css';
 
 const Step: FC<{
@@ -22,7 +27,9 @@ const Step: FC<{
     checked: boolean;
     disabled: boolean;
     pathname: string;
-}> = ({ title, focused, checked, disabled, pathname }) => {
+    action: SetupStepClickedEvent['properties']['action'];
+}> = ({ title, focused, checked, disabled, pathname, action }) => {
+    const { track } = useTracking();
     const history = useHistory();
     const isClickable = !checked && !disabled;
     let intent: Intent = 'none';
@@ -35,6 +42,12 @@ const Step: FC<{
 
     const onClick = () => {
         if (isClickable) {
+            track({
+                name: EventName.SETUP_STEP_CLICKED,
+                properties: {
+                    action,
+                },
+            });
             history.push({
                 pathname,
             });
@@ -136,6 +149,7 @@ const Welcome: FC = () => {
                         disabled={!health.data?.needsSetup}
                         checked={!health.data?.needsSetup}
                         pathname="/register"
+                        action="create_user"
                     />
                     <Step
                         title="2. Create project"
@@ -143,6 +157,7 @@ const Welcome: FC = () => {
                         disabled={!!health.data?.needsSetup}
                         checked={!health.data?.needsProject}
                         pathname="/createProject"
+                        action="create_project"
                     />
                 </Card>
                 <H4 style={{ marginBottom: 25 }}>

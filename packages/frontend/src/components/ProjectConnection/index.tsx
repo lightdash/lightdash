@@ -4,11 +4,9 @@ import {
     DbtProjectConfig,
     friendlyName,
     ProjectType,
-    WarehouseTypes,
 } from 'common';
-import React, { FC } from 'react';
+import React, { FC, useEffect } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
-import { UseFormReturn } from 'react-hook-form/dist/types';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
 import { useHistory } from 'react-router-dom';
 import {
@@ -33,60 +31,51 @@ type ProjectConnectionForm = {
 interface Props {
     disabled: boolean;
     defaultType?: ProjectType;
-    methods: UseFormReturn<ProjectConnectionForm>;
 }
 
-const ProjectForm: FC<Props> = ({ disabled, defaultType, methods }) => {
-    const type = methods.watch('dbt.type', defaultType || ProjectType.GITHUB);
-    const warehouseType = methods.watch(
-        'warehouse.type',
-        WarehouseTypes.BIGQUERY,
-    );
-
-    return (
-        <>
-            <Card
-                style={{
-                    marginBottom: '20px',
-                    display: 'flex',
-                    flexDirection: 'row',
-                }}
-                elevation={1}
-            >
-                <div style={{ flex: 1 }}>
-                    <H5 style={{ display: 'inline', marginRight: 5 }}>
-                        dbt connection
-                    </H5>
-                    <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
-                </div>
-                <div style={{ flex: 1 }}>
-                    <DbtSettingsForm disabled={disabled} type={type} />
-                </div>
-            </Card>
-            <Card
-                style={{
-                    marginBottom: '20px',
-                    display: 'flex',
-                    flexDirection: 'row',
-                }}
-                elevation={1}
-            >
-                <div style={{ flex: 1 }}>
-                    <H5 style={{ display: 'inline', marginRight: 5 }}>
-                        Warehouse connection
-                    </H5>
-                    <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
-                </div>
-                <div style={{ flex: 1 }}>
-                    <WarehouseSettingsForm
-                        disabled={disabled}
-                        warehouseType={warehouseType}
-                    />
-                </div>
-            </Card>
-        </>
-    );
-};
+const ProjectForm: FC<Props> = ({ disabled, defaultType }) => (
+    <>
+        <Card
+            style={{
+                marginBottom: '20px',
+                display: 'flex',
+                flexDirection: 'row',
+            }}
+            elevation={1}
+        >
+            <div style={{ flex: 1 }}>
+                <H5 style={{ display: 'inline', marginRight: 5 }}>
+                    dbt connection
+                </H5>
+                <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
+            </div>
+            <div style={{ flex: 1 }}>
+                <DbtSettingsForm
+                    disabled={disabled}
+                    defaultType={defaultType}
+                />
+            </div>
+        </Card>
+        <Card
+            style={{
+                marginBottom: '20px',
+                display: 'flex',
+                flexDirection: 'row',
+            }}
+            elevation={1}
+        >
+            <div style={{ flex: 1 }}>
+                <H5 style={{ display: 'inline', marginRight: 5 }}>
+                    Warehouse connection
+                </H5>
+                <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
+            </div>
+            <div style={{ flex: 1 }}>
+                <WarehouseSettingsForm disabled={disabled} />
+            </div>
+        </Card>
+    </>
+);
 
 const useOnProjectError = (): SubmitErrorHandler<ProjectConnectionForm> => {
     const { showToastError } = useApp();
@@ -129,6 +118,12 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
             warehouse: data?.warehouseConnection,
         },
     });
+    const { reset } = methods;
+    useEffect(() => {
+        if (data) {
+            reset();
+        }
+    }, [reset, data]);
     const { track } = useTracking();
 
     const onSubmit = async ({
@@ -151,8 +146,13 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
     };
 
     return (
-        <Form methods={methods} onSubmit={onSubmit} onError={onError}>
-            <ProjectForm disabled={isSaving} methods={methods} />
+        <Form
+            name="update_project"
+            methods={methods}
+            onSubmit={onSubmit}
+            onError={onError}
+        >
+            <ProjectForm disabled={isSaving} />
             {!isIdle && (
                 <ProjectStatusCallout
                     style={{ marginBottom: '20px' }}
@@ -208,10 +208,14 @@ export const CreateProjectConnection: FC = () => {
     };
 
     return (
-        <Form methods={methods} onSubmit={onSubmit} onError={onError}>
+        <Form
+            name="create_project"
+            methods={methods}
+            onSubmit={onSubmit}
+            onError={onError}
+        >
             <ProjectForm
                 disabled={isSaving || isSuccess}
-                methods={methods}
                 defaultType={health.data?.defaultProject?.type}
             />
             {!isIdle && (

@@ -145,7 +145,12 @@ const ProjectTablesConfiguration: FC<{
     };
 
     return (
-        <Form methods={methods} onSubmit={onSubmit} disableSubmitOnEnter>
+        <Form
+            name="project_table_configuration"
+            methods={methods}
+            onSubmit={onSubmit}
+            disableSubmitOnEnter
+        >
             <Card
                 style={{
                     marginBottom: '20px',

@@ -112,7 +112,7 @@ const Login: FC = () => {
                     elevation={2}
                 >
                     <H2 style={{ marginBottom: 25 }}>Login</H2>
-                    <Form methods={methods} onSubmit={handleLogin}>
+                    <Form name="login" methods={methods} onSubmit={handleLogin}>
                         <Input
                             label="Email"
                             name="email"
