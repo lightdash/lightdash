@@ -39,10 +39,28 @@ export const getSpaceWithQueries = async (
 ): Promise<Space> => {
     const space = await getSpace(database, projectUuid);
     const savedQueries = await database('saved_queries')
-        .select<{ saved_query_uuid: string; name: string }[]>([
-            'saved_queries.saved_query_uuid',
-            'saved_queries.name',
+        .leftJoin(
+            'saved_queries_versions',
+            `saved_queries.saved_query_id`,
+            `saved_queries_versions.saved_query_id`,
+        )
+        .select<{ saved_query_uuid: string; name: string; created_at: Date }[]>(
+            [
+                `saved_queries.saved_query_uuid`,
+                `saved_queries.name`,
+                `saved_queries_versions.created_at`,
+            ],
+        )
+        .orderBy([
+            {
+                column: `saved_queries_versions.saved_query_id`,
+            },
+            {
+                column: `saved_queries_versions.created_at`,
+                order: 'desc',
+            },
         ])
+        .distinctOn(`saved_queries_versions.saved_query_id`)
         .where('space_id', space.space_id);
     return {
         uuid: space.space_uuid,
@@ -50,6 +68,7 @@ export const getSpaceWithQueries = async (
         queries: savedQueries.map((savedQuery) => ({
             uuid: savedQuery.saved_query_uuid,
             name: savedQuery.name,
+            updatedAt: savedQuery.created_at,
         })),
     };
 };
