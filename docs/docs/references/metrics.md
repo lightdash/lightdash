@@ -39,7 +39,12 @@ Once you've got the hang of what these metrics look like, read more about the [m
 
 ### 2. Using dbt's `metrics` tag
 
-You can also add some metric to Lightdash using dbt's `metrics` tag in your model's `.yml` file. Here's an example:
+You can also add some metric to Lightdash using dbt's `metrics` tag in your model's `.yml` file. Here's a tutorial explaining how to do it:
+
+[![demo create dbt metrics](./assets/loom-adding-dbt-metrics.png)](https://www.loom.com/share/811d8f71a3864a74a4849bdb164e7a4b)
+
+
+So, metrics defined using dbt's `metrics` tag look something like this:
 
 ```
 # schema.yml
@@ -53,10 +58,6 @@ metrics:
     sql: customer_id # must be a simple column name that you want to apply this metric to
 ```
 
-[![demo create dbt metrics](./assets/loom-adding-dbt-metrics.png)](https://www.loom.com/share/811d8f71a3864a74a4849bdb164e7a4b)
-
-
-:::
 
 :::info
 
