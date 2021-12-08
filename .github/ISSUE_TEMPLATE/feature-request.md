@@ -42,10 +42,6 @@ quantitative measures.*
 *Don't actually design a solution here. Try to use words or simple sketched pictures. Talk more about how this would interact with other parts of the product than how it should look.*
 
 
-### **(Optional) How: What is the experiment/release plan?**
-
-*Once high level product design is figured out, add the release plan below and include what is in scope + out of scope.* 
-
 
 ### Notes on this template:
 
