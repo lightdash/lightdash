@@ -844,7 +844,7 @@ export type Space = {
     queries: SpaceQuery[];
 };
 
-export type CreateSavedQuery = Omit<SavedQuery, 'uuid'>;
+export type CreateSavedQuery = Omit<SavedQuery, 'uuid' | 'updatedAt'>;
 
 export type CreateSavedQueryVersion = Omit<
     SavedQuery,
