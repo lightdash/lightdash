@@ -4,7 +4,7 @@ sidebar_position: 4
 
 # Metrics
 
-A metric is a value that describes or summarizes features from a collection of data points. 
+A metric is a value that describes or summarizes features from a collection of data points.
 For example, `Num unique user ids` is a metric. It describes the unique number of `user_id`s in a collection of `user_id` data points.
 
 In Lightdash, metrics are used to summarize dimensions or, sometimes, other metrics.
@@ -13,7 +13,13 @@ In Lightdash, metrics are used to summarize dimensions or, sometimes, other metr
 
 ## Adding metrics to your project
 
-To add a metric to Lightdash, you define it in your dbt project under the dimension name you're trying to describe/summarize.
+There are two ways to add metrics to your project in Lightdash.
+1. (**Suggested**) [Using the `meta` tag](#using-the-meta-tag)
+2. [Using dbt's `metrics` tag](#using-dbts-metrics-tag) (this is still an Alpha feature)
+
+### 1. Using the `meta` tag (Suggested)
+
+To add a metric to Lightdash using the `meta` tag, you define it in your dbt project under the dimension name you're trying to describe/summarize.
 
 ```version: 2
 
@@ -28,6 +34,75 @@ models:
             num_user_ids:
               type: count
 ```
+
+Once you've got the hang of what these metrics look like, read more about the [metric types you can use below.](#metric-types)
+
+### 2. Using dbt's `metrics` tag
+
+You can also add some metric to Lightdash using dbt's `metrics` tag in your model's `.yml` file. Here's a tutorial explaining how to do it:
+
+[![demo create dbt metrics](./assets/loom-adding-dbt-metrics.png)](https://www.loom.com/share/811d8f71a3864a74a4849bdb164e7a4b)
+
+
+So, metrics defined using dbt's `metrics` tag look something like this:
+
+```
+# schema.yml
+version: 2
+metrics:
+  - name: customer_count
+    label: DBT METRIC!
+    model: customers
+    description: "A NEW DBT METRIC nuuuuuts"
+    type: count_distinct
+    sql: customer_id # must be a simple column name that you want to apply this metric to
+```
+
+
+:::info
+
+Using the `metrics` tag has a couple of limitations (a.k.a. "features" 😉) in Lightdash we think are worth pointing out. Read more about them below.
+
+:::
+
+- **The `sql` field must be a simple column name.**
+
+  It should be the column name that you want to apply your metric to (e.g. `customer_id` for the metric `total_customers`). Itcannot be anything more than a column name.
+
+  The reason for this limitation is that dbt assumes metrics are only from a single table. In Lightdash, metrics can be queried from many tables.
+
+- **Metrics automatically get all dimensions on the model**
+
+  The dbt metrics spec asks the user to specify explicit columns on the model that apply to that metric. So for a `customer_count` metric, a user might request that only 3 columns apply as valid dimensions for that metric. We ignore this because in the Lightdash UI a model simply shows all metrics and dimensions of that model.
+
+- **Metrics under the `meta:` tag on specific models take precedent over project metrics under the `metrics:` tag**
+
+  For example, if we have two metrics for `customer_count`: one using the dbt `metrics` tag and the other using the `meta` tag,
+  ```
+  metrics:
+    - name: customer_count
+      type: count_distinct
+      sql: customer_id
+      model: customers
+  ```
+  ```
+  models:
+    - name: customers
+      columns:
+        - name: customer_id
+          meta:
+          metrics:
+            customer_count:
+              type: count
+  ```
+  The second metric has the same name `customer_count` on the same model `customers` but the first uses type: count_distinct and the second uses type: count. Because the second metric is defined on the column `meta:` tag, it'll take priority over the first.
+
+- The `type` must be [one of the Lightdash types](#metric-types).
+
+- `timestamp`, `time_grains`, and `dimensions` are all ignored because metrics get all dimensions of the model.
+- `label` is ignored - but should be implemented soon!
+- `filters` are not supported - again this should be implemented soon for all metrics!
+
 
 ## Metric Categories
 Each metric type falls into one of these categories. The metric categories tell you whether the metric type is an aggregation and what type of fields the metric can reference:
