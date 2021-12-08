@@ -1,6 +1,8 @@
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
+import { AnyValidateFunction } from 'ajv/dist/types';
 import {
+    DbtMetric,
     DbtModelNode,
     DbtPackages,
     DbtRawModelNode,
@@ -17,7 +19,8 @@ import {
 } from '../dbt/translator';
 import { MissingCatalogEntryError, ParseError } from '../errors';
 import Logger from '../logger';
-import modelJsonSchema from '../schema.json';
+import dbtManifestSchema from '../manifestv4.json';
+import lightdashDbtSchema from '../schema.json';
 import {
     DbtClient,
     ProjectAdapter,
@@ -25,8 +28,33 @@ import {
     WarehouseClient,
 } from '../types';
 
-const ajv = new Ajv();
+const ajv = new Ajv({ schemas: [lightdashDbtSchema, dbtManifestSchema] });
 addFormats(ajv);
+
+const getModelValidator = () => {
+    const modelValidator = ajv.getSchema<DbtRawModelNode>(
+        'https://schemas.lightdash.com/dbt/manifest/v4.json#/definitions/LightdashCompiledModelNode',
+    );
+    if (modelValidator === undefined) {
+        throw new ParseError('Could not parse Lightdash schema.');
+    }
+    return modelValidator;
+};
+
+const getMetricValidator = () => {
+    const metricValidator = ajv.getSchema<DbtMetric>(
+        'https://schemas.getdbt.com/dbt/manifest/v4.json#/definitions/ParsedMetric',
+    );
+    if (metricValidator === undefined) {
+        throw new ParseError('Could not parse dbt schema.');
+    }
+    return metricValidator;
+};
+
+const formatAjvErrors = (validator: AnyValidateFunction): string =>
+    (validator.errors || [])
+        .map((err) => `Field at "${err.instancePath}" ${err.message}`)
+        .join('\n');
 
 export class DbtBaseProjectAdapter implements ProjectAdapter {
     dbtClient: DbtClient;
@@ -81,10 +109,15 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         ) as DbtRawModelNode[];
         Logger.debug(`Validate ${models.length} models in manifest`);
         const [validModels, failedExplores] =
-            await DbtBaseProjectAdapter._validateDbtModelMetadata(
+            DbtBaseProjectAdapter._validateDbtModelMetadata(
                 adapterType,
                 models,
             );
+
+        // Validate metrics in the manifest - compile fails if any invalid
+        const metrics = DbtBaseProjectAdapter._validateDbtMetrics(
+            Object.values(manifest.metrics),
+        );
 
         // Be lazy and try to attach types to the remaining models without refreshing the catalog
         try {
@@ -99,6 +132,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 lazyTypedModels,
                 loadSources,
                 adapterType,
+                metrics,
             );
             return [...lazyExplores, ...failedExplores];
         } catch (e) {
@@ -123,6 +157,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     typedModels,
                     loadSources,
                     adapterType,
+                    metrics,
                 );
                 return [...explores, ...failedExplores];
             }
@@ -135,11 +170,27 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return this.warehouseClient.runQuery(sql);
     }
 
-    static async _validateDbtModelMetadata(
+    static _validateDbtMetrics(metrics: DbtMetric[]): DbtMetric[] {
+        const validator = getMetricValidator();
+        metrics.forEach((metric) => {
+            const isValid = validator(metric);
+            if (!isValid) {
+                throw new ParseError(
+                    `Could not parse dbt metric with id ${
+                        metric.unique_id
+                    }: ${formatAjvErrors(validator)}`,
+                    {},
+                );
+            }
+        });
+        return metrics;
+    }
+
+    static _validateDbtModelMetadata(
         adapterType: SupportedDbtAdapter,
         models: DbtRawModelNode[],
-    ): Promise<[DbtModelNode[], ExploreError[]]> {
-        const validator = ajv.compile<DbtRawModelNode>(modelJsonSchema);
+    ): [DbtModelNode[], ExploreError[]] {
+        const validator = getModelValidator();
         return models.reduce(
             ([validModels, invalidModels], model) => {
                 // Match against json schema
@@ -157,12 +208,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     errors: [
                         {
                             type: 'MetadataParseError',
-                            message: (validator.errors || [])
-                                .map(
-                                    (err) =>
-                                        `Field at "${err.instancePath}" ${err.message}`,
-                                )
-                                .join('\n'),
+                            message: formatAjvErrors(validator),
                         },
                     ],
                 };
@@ -170,26 +216,5 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             },
             [[] as DbtModelNode[], [] as ExploreError[]],
         );
-    }
-
-    static async _unused(models: DbtModelNode[]): Promise<DbtModelNode[]> {
-        const validator = ajv.compile(modelJsonSchema);
-        const validateModel = (model: DbtModelNode) => {
-            const valid = validator(model);
-            if (!valid) {
-                const lineErrorMessages = (validator.errors || [])
-                    .map((err) => `Field at ${err.instancePath} ${err.message}`)
-                    .join('\n');
-                throw new ParseError(
-                    `Cannot parse lightdash metadata from schema.yml for model "${model.name}":\n${lineErrorMessages}`,
-                    {
-                        schema: modelJsonSchema.$id,
-                        errors: validator.errors,
-                    },
-                );
-            }
-        };
-        models.forEach(validateModel);
-        return models;
     }
 }

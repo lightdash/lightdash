@@ -238,6 +238,35 @@ export enum MetricType {
     BOOLEAN = ' boolean',
 }
 
+export const parseMetricType = (metricType: string): MetricType => {
+    switch (metricType) {
+        case 'average':
+            return MetricType.AVERAGE;
+        case 'count':
+            return MetricType.COUNT;
+        case 'count_distinct':
+            return MetricType.COUNT_DISTINCT;
+        case 'sum':
+            return MetricType.SUM;
+        case 'min':
+            return MetricType.MIN;
+        case 'max':
+            return MetricType.MAX;
+        case 'number':
+            return MetricType.NUMBER;
+        case 'string':
+            return MetricType.STRING;
+        case 'date':
+            return MetricType.DATE;
+        case 'boolean':
+            return MetricType.BOOLEAN;
+        default:
+            throw new Error(
+                `Cannot parse dbt metric with type '${metricType}'`,
+            );
+    }
+};
+
 const NonAggregateMetricTypes = [
     MetricType.STRING,
     MetricType.NUMBER,
@@ -732,9 +761,37 @@ export const isDbtPackages = (
     results: Record<string, any>,
 ): results is DbtPackages => 'packages' in results;
 
+type DbtMetricFilter = {
+    field: string;
+    operator: string;
+    value: string;
+};
+
+export type DbtMetric = {
+    unique_id: string;
+    package_name: string;
+    path: string;
+    root_path: string;
+    original_file_path: string;
+    model: string;
+    name: string;
+    description: string;
+    label: string;
+    type: string;
+    timestamp: string | null;
+    filters: DbtMetricFilter[];
+    time_grains: string[];
+    dimensions: string[];
+    resource_type?: 'metric';
+    meta?: Record<string, any>;
+    tags?: string[];
+    sql?: string | null;
+};
+
 export interface DbtManifest {
     nodes: Record<string, DbtNode>;
     metadata: DbtRawManifestMetadata;
+    metrics: Record<string, DbtMetric>;
 }
 
 export interface DbtRawManifestMetadata {
@@ -770,6 +827,7 @@ export const isDbtRpcManifestResults = (
     results.manifest !== null &&
     'nodes' in results.manifest &&
     'metadata' in results.manifest &&
+    'metrics' in results.manifest &&
     isDbtRawManifestMetadata(results.manifest.metadata);
 
 export interface DbtRpcCompileResults {
