@@ -52,6 +52,10 @@ metrics:
     type: count_distinct
     sql: customer_id # must be a simple column name that you want to apply this metric to
 ```
+
+[![demo create dbt metrics](./assets/loom-adding-dbt-metrics.png)](https://www.loom.com/share/811d8f71a3864a74a4849bdb164e7a4b)
+
+
 :::
 
 :::info
