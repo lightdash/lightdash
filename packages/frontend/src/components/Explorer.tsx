@@ -12,7 +12,11 @@ import {
     Tag,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import { DashboardTileTypes, DBChartTypes, SavedQuery } from 'common';
+import {
+    CreateSavedQueryVersion,
+    DashboardTileTypes,
+    DBChartTypes,
+} from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, useEffect, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
@@ -87,7 +91,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [activeVizTab, setActiveVizTab] = useState<DBChartTypes>(
         DBChartTypes.COLUMN,
     );
-    const queryData: Omit<SavedQuery, 'uuid' | 'name'> | undefined = tableName
+    const queryData: CreateSavedQueryVersion | undefined = tableName
         ? {
               tableName,
               metricQuery: {

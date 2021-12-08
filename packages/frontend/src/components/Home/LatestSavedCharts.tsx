@@ -31,20 +31,27 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 )
             }
         >
-            {savedCharts.slice(0, 5).map(({ uuid, name }) => (
-                <LinkButton
-                    minimal
-                    href={`/projects/${projectUuid}/saved/${uuid}`}
-                    style={{
-                        justifyContent: 'left',
-                        color: Colors.DARK_GRAY1,
-                        fontWeight: 600,
-                        marginBottom: 10,
-                    }}
-                >
-                    {name}
-                </LinkButton>
-            ))}
+            {savedCharts
+                .sort(
+                    (a, b) =>
+                        new Date(b.updatedAt).getTime() -
+                        new Date(a.updatedAt).getTime(),
+                )
+                .slice(0, 5)
+                .map(({ uuid, name }) => (
+                    <LinkButton
+                        minimal
+                        href={`/projects/${projectUuid}/saved/${uuid}`}
+                        style={{
+                            justifyContent: 'left',
+                            color: Colors.DARK_GRAY1,
+                            fontWeight: 600,
+                            marginBottom: 10,
+                        }}
+                    >
+                        {name}
+                    </LinkButton>
+                ))}
             {savedCharts.length === 0 && (
                 <LinkButton
                     minimal
