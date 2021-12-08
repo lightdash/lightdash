@@ -3,6 +3,10 @@
 Recent and upcoming changes to lightdash
 
 ## Unreleased
+## [0.10.9] - 2021-12-08
+### Changed
+- Saved charts in homepage are ordered by the most recently updated first
+- Improved loading states throughout the app
 
 ## [0.10.8] - 2021-12-07
 ### Added
