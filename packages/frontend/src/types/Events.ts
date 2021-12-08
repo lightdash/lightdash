@@ -59,4 +59,5 @@ export enum EventName {
     DOCUMENTATION_BUTTON_CLICKED = 'documentation_button.click',
     ONBOARDING_STEP_CLICKED = 'onboarding_step.click',
     SETUP_STEP_CLICKED = 'setup_step.click',
+    FORM_STATE_CHANGED = 'form-state.changed',
 }

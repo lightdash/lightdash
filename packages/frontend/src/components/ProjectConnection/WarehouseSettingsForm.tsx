@@ -1,5 +1,6 @@
 import { WarehouseTypes } from 'common';
 import React, { FC } from 'react';
+import { useWatch } from 'react-hook-form';
 import SelectField from '../ReactHookForm/Select';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
 import DatabricksForm from './WarehouseForms/DatabricksForm';
@@ -25,13 +26,15 @@ const WarehouseTypeForms = {
 
 interface WarehouseSettingsFormProps {
     disabled: boolean;
-    warehouseType: WarehouseTypes;
 }
 
 const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
     disabled,
-    warehouseType,
 }) => {
+    const warehouseType: WarehouseTypes = useWatch({
+        name: 'warehouse.type',
+        defaultValue: WarehouseTypes.BIGQUERY,
+    });
     const WarehouseForm = WarehouseTypeForms[warehouseType] || BigQueryForm;
     return (
         <div

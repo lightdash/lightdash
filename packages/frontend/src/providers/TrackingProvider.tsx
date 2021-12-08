@@ -8,6 +8,7 @@ import React, {
     useMemo,
     useState,
 } from 'react';
+import { FormState } from 'react-hook-form';
 import * as rudderSDK from 'rudder-sdk-js';
 import {
     CategoryName,
@@ -69,8 +70,17 @@ export type SetupStepClickedEvent = {
     };
 };
 
+export type FormClickedEvent = {
+    name: EventName.FORM_STATE_CHANGED;
+    properties: {
+        form: string;
+        formState: FormState<any>;
+    };
+};
+
 type EventData =
     | GenericEvent
+    | FormClickedEvent
     | SetupStepClickedEvent
     | DocumentationClickedEvent
     | OnboardingStepClickedEvent;

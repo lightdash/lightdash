@@ -29,6 +29,7 @@ const BaseModal = ({
                 if (methods && handleSubmit) {
                     return (
                         <Form
+                            name={modalProps.title}
                             methods={methods}
                             onSubmit={(data) => handleSubmit(data)}
                         >
