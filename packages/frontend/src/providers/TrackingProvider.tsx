@@ -62,8 +62,16 @@ export type OnboardingStepClickedEvent = {
     };
 };
 
+export type SetupStepClickedEvent = {
+    name: EventName.SETUP_STEP_CLICKED;
+    properties: {
+        action: 'create_user' | 'create_project';
+    };
+};
+
 type EventData =
     | GenericEvent
+    | SetupStepClickedEvent
     | DocumentationClickedEvent
     | OnboardingStepClickedEvent;
 

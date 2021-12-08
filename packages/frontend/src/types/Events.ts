@@ -58,4 +58,5 @@ export enum EventName {
     UPDATE_DASHBOARD_NAME_CLICKED = 'update_dashboard_name.click',
     DOCUMENTATION_BUTTON_CLICKED = 'documentation_button.click',
     ONBOARDING_STEP_CLICKED = 'onboarding_step.click',
+    SETUP_STEP_CLICKED = 'setup_step.click',
 }
