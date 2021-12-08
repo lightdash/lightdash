@@ -1,5 +1,6 @@
 import { ProjectType, ProjectTypeLabels } from 'common';
 import React, { FC, useMemo } from 'react';
+import { useWatch } from 'react-hook-form';
 import { useApp } from '../../providers/AppProvider';
 import SelectField from '../ReactHookForm/Select';
 import DbtCloudForm from './DbtForms/DbtCloudForm';
@@ -9,12 +10,18 @@ import GitlabForm from './DbtForms/GitlabForm';
 
 interface DbtSettingsFormProps {
     disabled: boolean;
-    type: ProjectType;
+    defaultType?: ProjectType;
 }
 
-const DbtSettingsForm: FC<DbtSettingsFormProps> = ({ disabled, type }) => {
+const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
+    disabled,
+    defaultType,
+}) => {
+    const type: ProjectType = useWatch({
+        name: 'dbt.type',
+        defaultValue: defaultType || ProjectType.GITHUB,
+    });
     const { health } = useApp();
-
     const options = useMemo(() => {
         const enabledTypes = [ProjectType.GITHUB, ProjectType.GITLAB];
         if (health.data?.localDbtEnabled) {

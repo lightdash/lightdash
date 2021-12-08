@@ -59,6 +59,7 @@ const TableCalculationModal: FC<Props> = ({
             canOutsideClickClose
         >
             <Form
+                name="table_calculation"
                 methods={methods}
                 onSubmit={(data) => {
                     const { name, sql } = data;
