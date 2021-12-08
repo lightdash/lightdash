@@ -4,6 +4,15 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.11.0] - 2021-12-08
+### Added
+- Metrics defined under the `metrics: ` tag in dbt projects are imported to Lightdash
+ 
+### Changed
+- Lightdash projects must be compatible with dbt version 1.0.0
+- Saved charts in homepage are ordered by the most recently updated first
+- Improved loading states throughout the app
+
 ## [0.10.8] - 2021-12-07
 ### Added
 - Added a home page where we display a few onboarding steps and the latest dashboards and saved charts in you organisation (#949)
