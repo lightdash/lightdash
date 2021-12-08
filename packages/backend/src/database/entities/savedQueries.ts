@@ -13,6 +13,7 @@ import database from '../database';
 import { getSpace } from './spaces';
 
 export const SavedQueriesTableName = 'saved_queries';
+export const SavedQueriesVersionsTableName = 'saved_queries_versions';
 
 type DbSavedQueryDetails = {
     saved_query_id: number;
@@ -25,6 +26,7 @@ type DbSavedQueryDetails = {
     x_dimension: string | undefined;
     group_dimension: string | undefined;
     chart_type: DBChartTypes;
+    created_at: Date;
 };
 
 type DbSavedQuery = {
@@ -144,6 +146,7 @@ export const getSavedQueryByUuid = async (
             'saved_queries_versions.x_dimension',
             'saved_queries_versions.group_dimension',
             'saved_queries_versions.chart_type',
+            'saved_queries_versions.created_at',
         ])
         .where('saved_query_uuid', savedQueryUuid)
         .orderBy('saved_queries_versions.created_at', 'desc')
@@ -196,6 +199,7 @@ export const getSavedQueryByUuid = async (
         uuid: savedQuery.saved_query_uuid,
         name: savedQuery.name,
         tableName: savedQuery.explore_name,
+        updatedAt: savedQuery.created_at,
         metricQuery: {
             dimensions,
             metrics,

@@ -833,9 +833,10 @@ export type SavedQuery = {
     tableConfig: {
         columnOrder: string[];
     };
+    updatedAt: Date;
 };
 
-export type SpaceQuery = Pick<SavedQuery, 'uuid' | 'name'>;
+export type SpaceQuery = Pick<SavedQuery, 'uuid' | 'name' | 'updatedAt'>;
 
 export type Space = {
     uuid: string;
@@ -843,9 +844,12 @@ export type Space = {
     queries: SpaceQuery[];
 };
 
-export type CreateSavedQuery = Omit<SavedQuery, 'uuid'>;
+export type CreateSavedQuery = Omit<SavedQuery, 'uuid' | 'updatedAt'>;
 
-export type CreateSavedQueryVersion = Omit<SavedQuery, 'uuid' | 'name'>;
+export type CreateSavedQueryVersion = Omit<
+    SavedQuery,
+    'uuid' | 'name' | 'updatedAt'
+>;
 
 export type UpdateSavedQuery = Pick<SavedQuery, 'name'>;
 

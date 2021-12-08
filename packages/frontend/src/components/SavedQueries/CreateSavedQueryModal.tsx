@@ -1,4 +1,4 @@
-import { SpaceQuery } from 'common';
+import { CreateSavedQueryVersion, SpaceQuery } from 'common';
 import React, { FC } from 'react';
 import { useCreateMutation } from '../../hooks/useSavedQuery';
 import { ActionModalProps } from '../common/modal/ActionModal';
@@ -6,7 +6,7 @@ import CreateActionModal from '../common/modal/CreateActionModal';
 
 interface CreateSavedQueryModalProps {
     isOpen: boolean;
-    savedData: Omit<SpaceQuery, 'uuid' | 'name'>;
+    savedData: CreateSavedQueryVersion;
     ModalContent: (
         props: Pick<
             ActionModalProps<SpaceQuery>,
