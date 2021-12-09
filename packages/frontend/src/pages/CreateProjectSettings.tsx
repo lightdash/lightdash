@@ -44,7 +44,7 @@ const CreateProjectSettings: FC = () => {
                 margin: '20px auto',
             }}
         >
-            <H1 style={{ margin: 0, flex: 1 }}>Configure you tables</H1>
+            <H1 style={{ margin: 0, flex: 1 }}>Configure your tables</H1>
             <Divider style={{ margin: '20px 0' }} />
             <p style={{ marginBottom: 0, color: Colors.GRAY1 }}>
                 Pick the dbt models you want to appear as tables in Lightdash
