@@ -44,6 +44,7 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         minimal
                         href={`/projects/${projectUuid}/saved/${uuid}`}
                         style={{
+                            width: '100%',
                             justifyContent: 'left',
                             color: Colors.DARK_GRAY1,
                             fontWeight: 600,
@@ -58,6 +59,7 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     minimal
                     href={`/projects/${projectUuid}/tables`}
                     style={{
+                        width: '100%',
                         justifyContent: 'left',
                         fontWeight: 500,
                         marginBottom: 10,
