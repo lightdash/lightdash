@@ -1,4 +1,4 @@
-import { Button, Colors, EditableText, H3, Intent } from '@blueprintjs/core';
+import { Button, Colors, Intent } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard } from 'common';
 import React, { useState } from 'react';
@@ -9,6 +9,7 @@ import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
+import EditableText from '../EditableText';
 
 const WrapperAddTileButton = styled.div`
     display: flex;
@@ -46,20 +47,12 @@ const DashboardHeader = ({
         useParams<{ projectUuid: string; dashboardUuid: string }>();
     const history = useHistory();
     const { track } = useTracking();
-    const [title, setTitle] = useState(dashboardName);
-    const [isEditable, setIsEditable] = useState(false);
-    const onRenameCancel = () => {
-        setTitle(dashboardName);
-        setIsEditable(false);
-    };
-    const onRename = () => {
-        if (dashboardName !== title) {
-            track({
-                name: EventName.UPDATE_DASHBOARD_NAME_CLICKED,
-            });
-            onSaveTitle(title);
-        }
-        setIsEditable(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const onRename = (value: string) => {
+        track({
+            name: EventName.UPDATE_DASHBOARD_NAME_CLICKED,
+        });
+        onSaveTitle(value);
     };
     return (
         <WrapperAddTileButton>
@@ -67,31 +60,20 @@ const DashboardHeader = ({
                 style={{
                     display: 'flex',
                     alignItems: 'center',
+                    color:
+                        !isEditing && dashboardName === DEFAULT_DASHBOARD_NAME
+                            ? Colors.GRAY1
+                            : undefined,
                 }}
             >
-                <H3
-                    style={{
-                        margin: 0,
-                        marginRight: 5,
-                        color:
-                            !isEditable && title === DEFAULT_DASHBOARD_NAME
-                                ? Colors.GRAY1
-                                : undefined,
-                    }}
-                >
-                    <EditableText
-                        type="h3"
-                        isEditing={isEditable}
-                        multiline={false}
-                        defaultValue={title}
-                        placeholder="Type the dashboard name"
-                        disabled={isSaving || !isEditMode}
-                        onConfirm={onRename}
-                        onChange={setTitle}
-                        onCancel={onRenameCancel}
-                        onEdit={() => setIsEditable(true)}
-                    />
-                </H3>
+                <EditableText
+                    readonly={!isEditMode}
+                    isDisabled={isSaving}
+                    onChange={onRename}
+                    value={dashboardName}
+                    placeholder="Type the dashboard name"
+                    onIsEditingChange={setIsEditing}
+                />
                 {!isEditMode && (
                     <p
                         style={{
@@ -99,18 +81,11 @@ const DashboardHeader = ({
                             margin: 0,
                             alignSelf: 'flex-end',
                             lineHeight: '20px',
+                            marginLeft: 5,
                         }}
                     >
                         Last refreshed {timeAgo}
                     </p>
-                )}
-                {!isEditable && isEditMode && (
-                    <Button
-                        icon="edit"
-                        disabled={isSaving}
-                        onClick={() => setIsEditable(true)}
-                        minimal
-                    />
                 )}
             </div>
             <div

@@ -83,11 +83,16 @@ export const useDeleteMutation = () => {
     });
 };
 
-export const useUpdateMutation = (savedQueryUuid: string) => {
+export const useUpdateMutation = (savedQueryUuid?: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
     return useMutation<SavedQuery, ApiError, UpdateSavedQuery>(
-        (data) => updateSavedQuery(savedQueryUuid, data),
+        (data) => {
+            if (savedQueryUuid) {
+                return updateSavedQuery(savedQueryUuid, data);
+            }
+            throw new Error('Saved chart ID is undefined');
+        },
         {
             mutationKey: ['saved_query_create'],
             onSuccess: async (data) => {
