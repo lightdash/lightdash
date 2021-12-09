@@ -6,6 +6,14 @@ import { SectionName } from '../../types/Events';
 import { ResultsTable as Table } from '../ResultsTable/ResultsTable';
 import RunSqlQueryButton from './RunSqlQueryButton';
 
+const ResultsErrorState: FC<{ error: string }> = ({ error }) => (
+    <Section name={SectionName.EMPTY_RESULTS_TABLE}>
+        <div style={{ padding: '50px 0' }}>
+            <NonIdealState icon="error" description={error} />
+        </div>
+    </Section>
+);
+
 const ResultsIdleState: FC<React.ComponentProps<typeof RunSqlQueryButton>> = (
     props,
 ) => (
@@ -22,7 +30,7 @@ const ResultsIdleState: FC<React.ComponentProps<typeof RunSqlQueryButton>> = (
 const SqlRunnerResultsTable: FC<{
     onSubmit: () => void;
     sqlQueryMutation: ReturnType<typeof useSqlQueryMutation>;
-}> = ({ onSubmit, sqlQueryMutation: { isIdle, isLoading, data } }) => {
+}> = ({ onSubmit, sqlQueryMutation: { isIdle, isLoading, data, error } }) => {
     const [columnsOrder, setColumnsOrder] = useState<string[]>([]);
 
     const dataColumns = useMemo(() => {
@@ -41,6 +49,10 @@ const SqlRunnerResultsTable: FC<{
         }
         return [];
     }, [data]);
+
+    if (error) {
+        return <ResultsErrorState error={error.error.message} />;
+    }
 
     return (
         <Table
