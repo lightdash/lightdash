@@ -5,14 +5,14 @@ import {
     OrganizationUser,
     SessionUser,
 } from 'common';
-import { analytics } from '../analytics/client';
-import { lightdashConfig } from '../config/lightdashConfig';
-import { NotExistsError } from '../errors';
-import { InviteLinkModel } from '../models/InviteLinkModel';
-import { OnboardingModel } from '../models/OnboardingModel/OnboardingModel';
-import { OrganizationModel } from '../models/OrganizationModel';
-import { ProjectModel } from '../models/ProjectModel/ProjectModel';
-import { UserModel } from '../models/UserModel';
+import { analytics } from '../../analytics/client';
+import { lightdashConfig } from '../../config/lightdashConfig';
+import { NotExistsError } from '../../errors';
+import { InviteLinkModel } from '../../models/InviteLinkModel';
+import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import { OrganizationModel } from '../../models/OrganizationModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { UserModel } from '../../models/UserModel';
 
 type OrganizationServiceDependencies = {
     organizationModel: OrganizationModel;
