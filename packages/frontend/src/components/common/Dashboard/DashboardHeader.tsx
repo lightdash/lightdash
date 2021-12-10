@@ -9,7 +9,7 @@ import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
-import EditableText from '../EditableText';
+import EditableHeader from '../EditableHeader';
 
 const WrapperAddTileButton = styled.div`
     display: flex;
@@ -64,9 +64,10 @@ const DashboardHeader = ({
                         !isEditing && dashboardName === DEFAULT_DASHBOARD_NAME
                             ? Colors.GRAY1
                             : undefined,
+                    overflow: 'hidden',
                 }}
             >
-                <EditableText
+                <EditableHeader
                     readonly={!isEditMode}
                     isDisabled={isSaving}
                     onChange={onRename}
@@ -82,6 +83,8 @@ const DashboardHeader = ({
                             alignSelf: 'flex-end',
                             lineHeight: '20px',
                             marginLeft: 5,
+                            marginRight: 10,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         Last refreshed {timeAgo}

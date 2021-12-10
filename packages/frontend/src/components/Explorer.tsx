@@ -34,7 +34,7 @@ import { SectionName } from '../types/Events';
 import { ChartConfigPanel } from './ChartConfigPanel';
 import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
-import EditableText from './common/EditableText';
+import EditableHeader from './common/EditableHeader';
 import { ExplorerResults } from './ExplorerResults';
 import { RefreshButton } from './RefreshButton';
 import { RefreshServerButton } from './RefreshServerButton';
@@ -150,10 +150,14 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         style={{
                             flex: 1,
                             justifyContent: 'flex-start',
+                            display: 'flex',
+                            alignItems: 'center',
+                            overflow: 'hidden',
+                            marginRight: 10,
                         }}
                     >
                         {chartName && (
-                            <EditableText
+                            <EditableHeader
                                 value={chartName}
                                 isDisabled={updateSavedChart.isLoading}
                                 onChange={(newName) =>

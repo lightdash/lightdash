@@ -1,5 +1,6 @@
 import {
     Button,
+    Classes,
     EditableText as BluePrintEditableText,
     H3,
 } from '@blueprintjs/core';
@@ -14,7 +15,7 @@ type Props = {
     onIsEditingChange?: (isEditing: boolean) => void;
 };
 
-const EditableText: FC<Props> = ({
+const EditableHeader: FC<Props> = ({
     readonly,
     placeholder,
     value,
@@ -24,7 +25,6 @@ const EditableText: FC<Props> = ({
 }) => {
     const [isEditable, setIsEditable] = useState(false);
     const [title, setTitle] = useState(value);
-
     const onConfirm = () => {
         if (value !== title) {
             onChange(title);
@@ -42,13 +42,9 @@ const EditableText: FC<Props> = ({
     }, [isEditable, onIsEditingChange]);
 
     return (
-        <div
-            style={{
-                display: 'flex',
-                alignItems: 'center',
-            }}
-        >
+        <>
             <H3
+                className={Classes.TEXT_OVERFLOW_ELLIPSIS}
                 style={{
                     margin: '0',
                 }}
@@ -77,12 +73,12 @@ const EditableText: FC<Props> = ({
                     minimal
                 />
             )}
-        </div>
+        </>
     );
 };
 
-EditableText.defaultProps = {
+EditableHeader.defaultProps = {
     readonly: false,
 };
 
-export default EditableText;
+export default EditableHeader;
