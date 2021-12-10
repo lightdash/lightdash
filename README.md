@@ -171,6 +171,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   <tr>
     <td align="center"><a href="https://github.com/PriPatel"><img src="https://avatars.githubusercontent.com/u/12776522?v=4?s=100" width="100px;" alt=""/><br /><sub><b>PriPatel</b></sub></a><br /><a href="#design-PriPatel" title="Design">🎨</a> <a href="https://github.com/lightdash/lightdash/issues?q=author%3APriPatel" title="Bug reports">🐛</a></td>
     <td align="center"><a href="https://github.com/NaomiJohnson"><img src="https://avatars.githubusercontent.com/u/29288519?v=4?s=100" width="100px;" alt=""/><br /><sub><b>NaomiJohnson</b></sub></a><br /><a href="#design-NaomiJohnson" title="Design">🎨</a> <a href="https://github.com/lightdash/lightdash/issues?q=author%3ANaomiJohnson" title="Bug reports">🐛</a></td>
+    <td align="center"><a href="https://github.com/rshen36"><img src="https://avatars.githubusercontent.com/u/20313306?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Rich Shen</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=rshen36" title="Code">💻</a> <a href="https://github.com/lightdash/lightdash/commits?author=rshen36" title="Tests">⚠️</a></td>
   </tr>
 </table>
 
