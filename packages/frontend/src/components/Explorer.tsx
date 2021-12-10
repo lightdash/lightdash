@@ -4,7 +4,6 @@ import {
     Card,
     Collapse,
     FormGroup,
-    H3,
     H5,
     Menu,
     MenuItem,
@@ -24,13 +23,18 @@ import { v4 as uuid4 } from 'uuid';
 import FiltersForm from '../filters';
 import { useChartConfig } from '../hooks/useChartConfig';
 import { useQueryResults } from '../hooks/useQueryResults';
-import { useAddVersionMutation, useSavedQuery } from '../hooks/useSavedQuery';
+import {
+    useAddVersionMutation,
+    useSavedQuery,
+    useUpdateMutation,
+} from '../hooks/useSavedQuery';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { Section } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import { ChartConfigPanel } from './ChartConfigPanel';
 import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
+import EditableHeader from './common/EditableHeader';
 import { ExplorerResults } from './ExplorerResults';
 import { RefreshButton } from './RefreshButton';
 import { RefreshServerButton } from './RefreshServerButton';
@@ -48,6 +52,7 @@ interface Props {
 
 export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const updateSavedChart = useUpdateMutation(savedQueryUuid);
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
         useState<boolean>(false);
@@ -141,15 +146,26 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         alignItems: 'center',
                     }}
                 >
-                    <H3
+                    <div
                         style={{
                             flex: 1,
                             justifyContent: 'flex-start',
-                            margin: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            overflow: 'hidden',
+                            marginRight: 10,
                         }}
                     >
-                        {chartName}
-                    </H3>
+                        {chartName && (
+                            <EditableHeader
+                                value={chartName}
+                                isDisabled={updateSavedChart.isLoading}
+                                onChange={(newName) =>
+                                    updateSavedChart.mutate({ name: newName })
+                                }
+                            />
+                        )}
+                    </div>
                     <RefreshButton />
                     <RefreshServerButton />
                     <Popover2
