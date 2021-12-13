@@ -20,7 +20,9 @@ All types of contributions are encouraged and valued. See the [Table of Contents
 - [I Want To Contribute](#i-want-to-contribute)
   - [Reporting Bugs](#reporting-bugs)
   - [Suggesting Enhancements](#suggesting-enhancements)
-  - [Your First Code Contribution](#your-first-code-contribution)
+- [Your First Pull Request](#your-first-pull-request)
+- [Sending a Pull Request](#sending-a-pull-request)
+- [Setup Development Environment](#setup-development-environment)
 - [Join The Project Team](#join-the-project-team)
 
 ## Code of Conduct
@@ -85,7 +87,7 @@ Once it's filed:
 
 - The project team will label the issue accordingly.
 - A team member will try to reproduce the issue with your provided steps. If there are no reproduction steps or no obvious way to reproduce the issue, the team will ask you for those steps and mark the issue as `needs-repro`. Bugs with the `needs-repro` tag will not be addressed until they are reproduced.
-- If the team is able to reproduce the issue, it will be marked `needs-fix`, as well as possibly other tags (such as `critical`), and the issue will be left to be [implemented by someone](#your-first-code-contribution).
+- If the team is able to reproduce the issue, it will be marked `needs-fix`, as well as possibly other tags (such as `critical`), and the issue will be left to be [implemented by someone](#your-first-pull-request).
 
 ### Suggesting Enhancements
 
@@ -110,9 +112,92 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/lightd
 - You may want to **include screenshots and animated GIFs** which help you demonstrate the steps or point out the part which the suggestion is related to.
 - **Explain why this enhancement would be useful** to most Lightdash users. You may also want to point out the other projects that solved it better and which could serve as inspiration.
 
-### Your First Code Contribution
+## Your First Pull Request
 
-First you must setup your development environment.
+Working on your first Pull Request? You can learn how from this free video series:
+
+[How to Contribute to an Open Source Project on GitHub](https://egghead.io/courses/how-to-contribute-to-an-open-source-project-on-github)
+
+To help you get your feet wet and get you familiar with our contribution process, we have a list of [good first issues](https://github.com/lightdash/lightdash/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) that contain changes that have a relatively limited scope. This label means that there is already a working solution to the issue in the discussion section. Therefore, it is a great place to get started.
+
+Pull requests working on other issues or completely new problems may take a bit longer to review when they don't fit into our current development cycle.
+
+If you decide to fix an issue, please be sure to check the comment thread in case somebody is already working on a fix. If nobody is working on it at the moment, please leave a comment stating that you have started to work on it so other people don't accidentally duplicate your effort.
+
+If somebody claims an issue but doesn't follow up for more than a week, it's fine to take it over but you should still leave a comment.
+If there has been no activity on the issue for 7 to 14 days, it is safe to assume that nobody is working on it.
+
+## Sending a Pull Request
+
+Lightdash is a community project, so Pull Requests are always welcome, but, before working on a large change, it is best to open an issue first to discuss it with the maintainers.
+
+When in doubt, keep your Pull Requests small. To give a Pull Request the best chance of getting accepted, don't bundle more than one feature or bug fix per Pull Request. It's often best to create two smaller Pull Requests than one big one.
+
+1. Fork the repository.
+
+2. Clone the fork to your local machine and add upstream remote:
+
+```sh
+git clone https://github.com/<your username>/lightdash.git
+cd lightdash
+git remote add upstream https://github.com/lightdash/lightdash.git
+```
+
+<!-- #default-branch-switch -->
+
+3. Synchronize your local `master` branch with the upstream one:
+
+```sh
+git checkout master
+git pull upstream master
+```
+
+4. Install the dependencies with yarn (npm isn't supported):
+
+```sh
+yarn install
+```
+
+5. Create a new topic branch:
+
+```sh
+git checkout -b my-topic-branch
+```
+
+6. Make changes, commit and push to your fork:
+
+```sh
+git push -u origin HEAD
+```
+
+7. Go to [the repository](https://github.com/lightdash/lightdash/pulls) and make a Pull Request.
+
+The core team is monitoring for Pull Requests. We will review your Pull Request and either merge it, request changes to it, or close it with an explanation.
+
+#### Commit & Pull Request Naming Conventions
+We follow the [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/) standard.
+
+```
+<type>[optional scope]: <description>
+```
+
+E.g:
+```
+feat: add table calculations
+fix: remove infinite loop during login
+docs: add page about metrics
+```
+
+You can see all the [supported types here](https://github.com/commitizen/conventional-commit-types/blob/v3.0.0/index.json).
+
+#### Merge Strategy
+We use `squash & merge` to keep the main branch history clean.
+
+#### Styleguides
+Our styleguides should be enforced via a pre-commit hook that runs prettier & eslint.
+The reviewers can still request adhoc changes for situations that haven't been experienced before.
+
+## Setup Development Environment
 
 #### Github Codespaces / VS Code Remote Containers
 
@@ -143,93 +228,76 @@ yarn dev
 Alternatively you can create a developer environment using docker compose:
 
 ```shell
-docker compose -f ./docker/docker-compose.dev.yml --env-file ./docker/.env up
+# Clone the Lightdash repo
+git clone https://github.com/lightdash/lightdash
+
+# Update submodules
+git submodule update --init --recursive
+
+# Create docker containers
+cd docker
+docker compose -p lightdash-app -f docker-compose.dev.yml --env-file .env up --detach --remove-orphans 
 ```
 
 When ready, access the development container and run these commands:
 
 ```shell
 # Connect to container
-docker compose exec lightdash-dev /bin/bash
+docker exec -it lightdash-app-lightdash-dev-1 bash
+
+# Install dependencies & build common package
+./docker/scripts/build.sh
+
+# Setup dbt
+./docker/scripts/seed-jaffle.sh
 
 # Setup the database
-yarn workspace backend migrate
-yarn workspace backend seed
+./docker/scripts/migrate.sh
+./docker/scripts/seed-lightdash.sh
 
 # Run Lightdash frontend and backend in dev mode
-yarn dev
-```
+yarn dev # http://localhost:3000
 
-#### Setup development environment locally
-
-Finally you can build a development environment from scratch.
-
-Lightdash requires node.js, yarn and dbt. 
-
-```shell
-# Install node with homebrew
-brew install node
-
-# Install yarn with node package manager
-npm install -g yarn
-
-# Clone the Lightdash repo
-git clone https://github.com/lightdash/lightdash
-
-# Enter the repo directory
-cd lightdash
-
-# Install Lightdash dependencies
-yarn install
-
-# Start DB
-docker run --name lightdash-db -p "5432:5432" -e POSTGRES_PASSWORD=mysecretpassword -d postgres
-yarn workspace backend migrate
-yarn workspace backend seed
-
-# Expose Lightdash configuration 
-# Note: Edit lightdash.yml to point to your dbt project and profile
-export LIGHTDASH_CONFIG_FILE=${PWD}/lightdash.yml
-export PGHOST=127.0.0.1
-export PGPORT=5432
-export PGDATABASE=postgres
-export PGUSER=postgres
-export PGPASSWORD=mysecretpassword
-
-# Run app in development mode in http://localhost:3000
-yarn common-build
-yarn dev
-
-# Or run in production mode in http://localhost:8080 with the commands bellow
+# Or run in production mode
 # yarn build
-# yarn start
+# yarn start # http://localhost:8080
 ```
 
-> If you change files inside `/packages/common` you should run `yarn common-build` before `yarn dev`.
+Notes: 
+- If you change files inside `/packages/common` you should run `yarn common-build` before `yarn dev`
+- If you rename files the container might not recognise the changes. To fix this, stop the containers and start again.
 
-#### How to debug Postgres DB
-
-In codespaces / VS Code - use the SQLTools extension provided.
-
-For manual development environments:
+When you want to stop: 
 
 ```shell
-docker run --name db-admin-panel --link lightdash-db:db -p 8181:8080 adminer
-# Open browser tab: http://localhost:8181
+docker compose -p lightdash-app -f docker-compose.dev.yml --env-file .env stop
+```
+
+When you want to start:
+
+```shell
+docker compose -p lightdash-app -f docker-compose.dev.yml --env-file .env start
 ```
 
 #### How to run unit tests
 
 ```shell
+# Prepare dependencies
+yarn install
+yarn common-build
+
+# Run unit tests
 yarn test
 ```
 
 #### How to run e2e tests
-Before running e2e tests make sure you'r running the app locally.
-
-> Edit `packages/e2e/cypress.json` if you'r running Lightdash on a different domain/port than `http://localhost:8080`
+Before running e2e tests make sure you're running the app locally.
 
 ```shell
+# Prepare dependencies
+yarn install
+yarn common-build
+
 # run cypress in interactive mode
 yarn e2e-open
 
@@ -237,19 +305,15 @@ yarn e2e-open
 yarn e2e-run
 ```
 
+Note:
+- Edit `packages/e2e/cypress.json` if you're running Lightdash on a different domain/port than `http://localhost:8080`
+
 #### How to check code quality
 
 ```shell
 yarn lint
 yarn format
 ```
-
-#### Merge strategy
-We only use `rebase & merge` so in case of conflicts you should rebase your branch. You can check these ['how to rebase'](https://www.w3docs.com/snippets/git/how-to-rebase-git-branch.html) instructions if you are unfamiliar with it.
-
-#### Styleguides
-Our styleguides should be enforced via a pre-commit hook that runs prettier & eslint.
-The reviewers can still request adhoc changes for situations that haven't been experienced before.
 
 ## Join The Project Team
 If you are interested in joining our team, check our [job board](https://www.notion.so/gethubble/Job-Board-a2c7d872794b45deb7b76ad68701d750)!
