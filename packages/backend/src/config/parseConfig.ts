@@ -35,11 +35,12 @@ export type LightdashConfig = {
     projects: Array<DbtProjectConfig>;
     sentry: SentryConfig;
     cohere: CohereConfig;
-    papercups: PapercupsConfig;
+    chatwoot: ChatwootConfig;
 };
 
-export type PapercupsConfig = {
-    token: string;
+export type ChatwootConfig = {
+    baseUrl: string;
+    websiteToken: string;
 };
 
 type CohereConfig = {
@@ -191,8 +192,9 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         secureCookies: process.env.SECURE_COOKIES === 'true',
         trustProxy: process.env.TRUST_PROXY === 'true',
         databaseConnectionUri: process.env.PGCONNECTIONURI,
-        papercups: {
-            token: process.env.PAPERCUPS_TOKEN || '',
+        chatwoot: {
+            websiteToken: process.env.CHATWOOT_TOKEN || '',
+            baseUrl: process.env.CHATWOOT_BASE_URL || '',
         },
         cohere: {
             token: process.env.COHERE_TOKEN || '',

@@ -13,7 +13,6 @@ import {
 import './App.css';
 import AppBar from './components/AppBar';
 import AppRoute from './components/AppRoute';
-import { ChatWidget } from './components/ChatWidget';
 import PrivateRoute from './components/PrivateRoute';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
@@ -202,7 +201,6 @@ const App = () => (
                                             </Switch>
                                         </AppRoute>
                                     </Switch>
-                                    <ChatWidget />
                                 </div>
                             </PrivateRoute>
                         </Switch>

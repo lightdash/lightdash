@@ -702,8 +702,9 @@ export type HealthState = {
         environment: string;
         release: string;
     };
-    papercups: {
-        token: string;
+    chatwoot: {
+        baseUrl: string;
+        websiteToken: string;
     };
     cohere: {
         token: string;
