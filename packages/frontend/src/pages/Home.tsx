@@ -2,8 +2,8 @@ import { Colors, H3, NonIdealState, Spinner, Toaster } from '@blueprintjs/core';
 import { IncompleteOnboarding } from 'common';
 import React, { FC } from 'react';
 import { useToggle, useUnmount } from 'react-use';
-import styled from 'styled-components';
 import LinkButton from '../components/common/LinkButton';
+import Page from '../components/common/Page/Page';
 import LatestDashboards from '../components/Home/LatestDashboards';
 import LatestSavedCharts from '../components/Home/LatestSavedCharts';
 import SuccessfulOnboarding from '../components/Home/SuccessfulOnboarding';
@@ -11,15 +11,6 @@ import OnboardingSteps from '../components/OnboardingSteps';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import { useDefaultProject } from '../hooks/useProjects';
 import { useApp } from '../providers/AppProvider';
-
-const HomePageWrapper = styled.div`
-    width: 100%;
-    margin-top: 20px;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-`;
 
 const OnboardingPage: FC<{
     status: IncompleteOnboarding;
@@ -119,7 +110,7 @@ const Home: FC = () => {
         );
     }
     return (
-        <HomePageWrapper>
+        <Page>
             <Toaster position="top">
                 {onboarding.data?.isComplete &&
                     onboarding.data.showSuccess &&
@@ -137,7 +128,7 @@ const Home: FC = () => {
             ) : (
                 <LandingPage projectUuid={project.data.projectUuid} />
             )}
-        </HomePageWrapper>
+        </Page>
     );
 };
 

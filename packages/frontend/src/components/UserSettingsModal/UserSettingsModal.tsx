@@ -1,7 +1,7 @@
 import { Dialog, Tab, Tabs } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import useLocationChange from '../../hooks/useLocationChange';
-import { Page } from '../../providers/TrackingProvider';
+import { TrackPage } from '../../providers/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../types/Events';
 import InvitesPanel from './InvitesPanel';
 import OrganizationPanel from './OrganizationPanel';
@@ -39,78 +39,78 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                         id="profile"
                         title="Profile"
                         panel={
-                            <Page
+                            <TrackPage
                                 name={PageName.PROFILE_SETTINGS}
                                 type={PageType.MODAL}
                                 category={CategoryName.SETTINGS}
                             >
                                 <ProfilePanel />
-                            </Page>
+                            </TrackPage>
                         }
                     />
                     <Tab
                         id="password"
                         title="Password"
                         panel={
-                            <Page
+                            <TrackPage
                                 name={PageName.PASSWORD_SETTINGS}
                                 type={PageType.MODAL}
                                 category={CategoryName.SETTINGS}
                             >
                                 <PasswordPanel />
-                            </Page>
+                            </TrackPage>
                         }
                     />
                     <Tab
                         id="organization"
                         title="Organization"
                         panel={
-                            <Page
+                            <TrackPage
                                 name={PageName.ORGANIZATION_SETTINGS}
                                 type={PageType.MODAL}
                                 category={CategoryName.SETTINGS}
                             >
                                 <OrganizationPanel />
-                            </Page>
+                            </TrackPage>
                         }
                     />
                     <Tab
                         id="invites"
                         title="Invites"
                         panel={
-                            <Page
+                            <TrackPage
                                 name={PageName.INVITE_MANAGEMENT_SETTINGS}
                                 type={PageType.MODAL}
                                 category={CategoryName.SETTINGS}
                             >
                                 <InvitesPanel />
-                            </Page>
+                            </TrackPage>
                         }
                     />
                     <Tab
                         id="userManagement"
                         title="User management"
                         panel={
-                            <Page
+                            <TrackPage
                                 name={PageName.USER_MANAGEMENT_SETTINGS}
                                 type={PageType.MODAL}
                                 category={CategoryName.SETTINGS}
                             >
                                 <UserManagementPanel />
-                            </Page>
+                            </TrackPage>
                         }
                     />
                     <Tab
                         id="projectManagement"
                         title="Project management"
                         panel={
-                            <Page
+                            <TrackPage
                                 name={PageName.PROJECT_MANAGEMENT_SETTINGS}
                                 type={PageType.MODAL}
                                 category={CategoryName.SETTINGS}
                             >
                                 <ProjectManagementPanel />
-                            </Page>
+                            </TrackPage>
                         }
                     />
                     <Tabs.Expander />

@@ -1,5 +1,6 @@
 import { Spinner } from '@blueprintjs/core';
 import React, { FC } from 'react';
+import { ReactComponent as Logo } from '../svgs/grey-icon-logo.svg';
 
 const PageSpinner: FC = () => (
     <div
@@ -10,14 +11,14 @@ const PageSpinner: FC = () => (
         data-testid="page-spinner"
     >
         <Spinner size={100} />
-        <img
-            src={`${process.env.PUBLIC_URL}/favicon-32x32.png`}
-            alt="Lightdash"
+        <Logo
             style={{
                 position: 'absolute',
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
+                height: 32,
+                width: 32,
             }}
         />
     </div>

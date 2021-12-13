@@ -1,8 +1,8 @@
 import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
 import React from 'react';
 import { Redirect, useParams } from 'react-router-dom';
-import styled from 'styled-components';
 import ActionCardList from '../components/common/ActionCardList';
+import Page from '../components/common/Page/Page';
 import DashboardForm from '../components/SavedDashboards/DashboardForm';
 import {
     useCreateMutation,
@@ -12,15 +12,6 @@ import {
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 
 export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
-
-const SavedDashboardsWrapper = styled.div`
-    width: 100%;
-    margin-top: 20px;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-`;
 
 const SavedDashboards = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -51,7 +42,7 @@ const SavedDashboards = () => {
     }
 
     return (
-        <SavedDashboardsWrapper>
+        <Page>
             <ActionCardList
                 title="Dashboards"
                 useUpdate={useUpdateDashboard}
@@ -76,7 +67,7 @@ const SavedDashboards = () => {
                     />
                 }
             />
-        </SavedDashboardsWrapper>
+        </Page>
     );
 };
 

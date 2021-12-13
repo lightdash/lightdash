@@ -1,10 +1,10 @@
-import { Card, Colors, H2 } from '@blueprintjs/core';
+import { Card, H2 } from '@blueprintjs/core';
 import { ApiError, CreateInitialUserArgs, LightdashUser } from 'common';
 import React, { FC } from 'react';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import AboutFooter from '../components/AboutFooter';
+import Page from '../components/common/Page/Page';
 import CreateUserForm from '../components/CreateUserForm';
 import PageSpinner from '../components/PageSpinner';
 import { useApp } from '../providers/AppProvider';
@@ -56,20 +56,14 @@ const Register: FC = () => {
     }
 
     return (
-        <div
-            style={{
-                height: '100vh',
-                display: 'grid',
-                justifyContent: 'center',
-                background: Colors.LIGHT_GRAY4,
-            }}
-        >
+        <Page isFullHeight>
             <div
                 style={{
                     width: '400px',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'center',
+                    flex: 1,
                 }}
             >
                 <Card
@@ -89,9 +83,8 @@ const Register: FC = () => {
                         }}
                     />
                 </Card>
-                <AboutFooter />
             </div>
-        </div>
+        </Page>
     );
 };
 

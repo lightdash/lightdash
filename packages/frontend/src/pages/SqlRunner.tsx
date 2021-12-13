@@ -6,7 +6,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { CollapsableCard } from '../components/common/CollapsableCard';
 import Content from '../components/common/Page/Content';
-import PageBase from '../components/common/Page/PageBase';
+import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
 import { Tree } from '../components/common/Tree';
@@ -17,7 +17,7 @@ import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable
 import { useProjectCatalog } from '../hooks/useProjectCatalog';
 import { useProjectCatalogTree } from '../hooks/useProjectCatalogTree';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
-import { Section } from '../providers/TrackingProvider';
+import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import './SqlRunner.css';
 
@@ -76,7 +76,7 @@ const SqlRunnerPage = () => {
     );
 
     return (
-        <PageBase>
+        <PageWithSidebar>
             <Sidebar title="SQL runner">
                 <H5 style={{ paddingLeft: 10 }}>Warehouse schema</H5>
                 <div style={{ overflowY: 'auto' }}>
@@ -104,7 +104,7 @@ const SqlRunnerPage = () => {
                 </Tooltip2>
             </Sidebar>
             <Content>
-                <Section name={SectionName.EXPLORER_TOP_BUTTONS}>
+                <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
                     <div
                         style={{
                             display: 'flex',
@@ -119,7 +119,7 @@ const SqlRunnerPage = () => {
                         />
                         <RefreshServerButton />
                     </div>
-                </Section>
+                </TrackSection>
                 <CardDivider />
                 <CollapsableCard title="SQL" isOpenByDefault>
                     <SqlRunnerInput
@@ -137,7 +137,7 @@ const SqlRunnerPage = () => {
                     />
                 </CollapsableCard>
             </Content>
-        </PageBase>
+        </PageWithSidebar>
     );
 };
 

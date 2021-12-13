@@ -1,30 +1,30 @@
 import { NonIdealState } from '@blueprintjs/core';
 import React, { FC, useMemo, useState } from 'react';
 import { useSqlQueryMutation } from '../../hooks/useSqlQuery';
-import { Section } from '../../providers/TrackingProvider';
+import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import { ResultsTable as Table } from '../ResultsTable/ResultsTable';
 import RunSqlQueryButton from './RunSqlQueryButton';
 
 const ResultsErrorState: FC<{ error: string }> = ({ error }) => (
-    <Section name={SectionName.EMPTY_RESULTS_TABLE}>
+    <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
         <div style={{ padding: '50px 0' }}>
             <NonIdealState icon="error" description={error} />
         </div>
-    </Section>
+    </TrackSection>
 );
 
 const ResultsIdleState: FC<React.ComponentProps<typeof RunSqlQueryButton>> = (
     props,
 ) => (
-    <Section name={SectionName.EMPTY_RESULTS_TABLE}>
+    <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
         <div style={{ padding: '50px 0' }}>
             <NonIdealState
                 description="Click run query to see your results"
                 action={<RunSqlQueryButton {...props} />}
             />
         </div>
-    </Section>
+    </TrackSection>
 );
 
 const SqlRunnerResultsTable: FC<{

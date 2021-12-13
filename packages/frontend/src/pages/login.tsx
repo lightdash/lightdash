@@ -1,4 +1,4 @@
-import { Button, Card, Colors, H2, Intent } from '@blueprintjs/core';
+import { Button, Card, H2, Intent } from '@blueprintjs/core';
 import {
     ApiError,
     LightdashMode,
@@ -11,7 +11,7 @@ import { useForm } from 'react-hook-form';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import AboutFooter from '../components/AboutFooter';
+import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import Form from '../components/ReactHookForm/Form';
 import Input from '../components/ReactHookForm/Input';
@@ -87,20 +87,14 @@ const Login: FC = () => {
     }
 
     return (
-        <div
-            style={{
-                height: '100vh',
-                display: 'grid',
-                justifyContent: 'center',
-                background: Colors.LIGHT_GRAY4,
-            }}
-        >
+        <Page isFullHeight>
             <div
                 style={{
                     width: '400px',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'center',
+                    flex: 1,
                 }}
             >
                 <Card
@@ -141,9 +135,8 @@ const Login: FC = () => {
                         />
                     </Form>
                 </Card>
-                <AboutFooter />
             </div>
-        </div>
+        </Page>
     );
 };
 

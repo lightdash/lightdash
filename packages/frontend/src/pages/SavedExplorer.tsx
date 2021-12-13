@@ -60,6 +60,7 @@ const SavedExplorer = () => {
                     overflow: 'hidden',
                     position: 'sticky',
                     top: '50px',
+                    paddingBottom: 0,
                 }}
                 elevation={1}
             >
@@ -72,7 +73,7 @@ const SavedExplorer = () => {
                     }}
                 >
                     <ExplorePanel onBack={onBack} />
-                    <AboutFooter />
+                    <AboutFooter minimal />
                 </div>
             </Card>
             <div

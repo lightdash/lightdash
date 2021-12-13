@@ -11,7 +11,7 @@ import {
 } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { Redirect, useHistory } from 'react-router-dom';
-import AboutFooter from '../components/AboutFooter';
+import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { useApp } from '../providers/AppProvider';
 import {
@@ -108,20 +108,14 @@ const Welcome: FC = () => {
     }
 
     return (
-        <div
-            style={{
-                height: '100vh',
-                display: 'grid',
-                justifyContent: 'center',
-                background: Colors.LIGHT_GRAY4,
-            }}
-        >
+        <Page isFullHeight>
             <div
                 style={{
                     width: '400px',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'center',
+                    flex: 1,
                 }}
             >
                 <H2 style={{ marginBottom: 25 }}>Welcome to Lightdash</H2>
@@ -194,9 +188,8 @@ const Welcome: FC = () => {
                         Join the conversation!
                     </AnchorButton>
                 </Card>
-                <AboutFooter />
             </div>
-        </div>
+        </Page>
     );
 };
 

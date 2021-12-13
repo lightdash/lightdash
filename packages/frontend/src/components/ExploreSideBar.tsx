@@ -16,7 +16,7 @@ import { useExplore } from '../hooks/useExplore';
 import { useExplores } from '../hooks/useExplores';
 import { useApp } from '../providers/AppProvider';
 import { useExplorer } from '../providers/ExplorerProvider';
-import { Section } from '../providers/TrackingProvider';
+import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import AboutFooter from './AboutFooter';
 import { ExploreMenuItem } from './ExploreMenuItem';
@@ -242,7 +242,7 @@ export const ExploreSideBar = () => {
     };
 
     return (
-        <Section name={SectionName.SIDEBAR}>
+        <TrackSection name={SectionName.SIDEBAR}>
             <div
                 style={{
                     height: '100%',
@@ -252,8 +252,8 @@ export const ExploreSideBar = () => {
                 }}
             >
                 {!tableName ? <BasePanel /> : <ExplorePanel onBack={onBack} />}
-                <AboutFooter />
+                <AboutFooter minimal />
             </div>
-        </Section>
+        </TrackSection>
     );
 };

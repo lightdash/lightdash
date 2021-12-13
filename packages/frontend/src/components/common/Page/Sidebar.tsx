@@ -1,7 +1,7 @@
 import { Card, Divider, H3 } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import { Section } from '../../../providers/TrackingProvider';
+import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
 
@@ -14,6 +14,7 @@ const SidebarWrapper = styled(Card)`
     overflow: hidden;
     position: sticky;
     top: 50px;
+    padding-bottom: 0;
 `;
 
 const SidebarColumn = styled('div')`
@@ -40,16 +41,16 @@ const Sidebar: FC<{ title: string | React.ReactNode }> = ({
     children,
 }) => (
     <SidebarWrapper elevation={1}>
-        <Section name={SectionName.SIDEBAR}>
+        <TrackSection name={SectionName.SIDEBAR}>
             <SidebarColumn>
                 <SidebarContent>
                     {typeof title === 'string' ? <H3>{title}</H3> : title}
                     <TitleDivider />
                     {children}
                 </SidebarContent>
-                <AboutFooter />
+                <AboutFooter minimal />
             </SidebarColumn>
-        </Section>
+        </TrackSection>
     </SidebarWrapper>
 );
 
