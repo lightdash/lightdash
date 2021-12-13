@@ -1,7 +1,9 @@
 ---
-name: Feature request about: Suggest an idea for Lightdash!
+name: Feature request
+about: Suggest an idea for Lightdash!
 title: ''
-labels: feature-request assignees: ''
+labels: feature-request
+assignees: ''
 
 ---
 
