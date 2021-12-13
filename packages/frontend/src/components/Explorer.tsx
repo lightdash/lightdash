@@ -29,7 +29,7 @@ import {
     useUpdateMutation,
 } from '../hooks/useSavedQuery';
 import { useExplorer } from '../providers/ExplorerProvider';
-import { Section } from '../providers/TrackingProvider';
+import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import { ChartConfigPanel } from './ChartConfigPanel';
 import { ChartDownloadMenu } from './ChartDownload';
@@ -137,7 +137,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const isChartEmpty: boolean = !chartConfig.plotData;
     return (
         <>
-            <Section name={SectionName.EXPLORER_TOP_BUTTONS}>
+            <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
                 <div
                     style={{
                         display: 'flex',
@@ -226,7 +226,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         />
                     </Popover2>
                 </div>
-            </Section>
+            </TrackSection>
             <div style={{ paddingTop: '10px' }} />
             <Card style={{ padding: 5 }} elevation={1}>
                 <div

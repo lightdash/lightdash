@@ -11,6 +11,7 @@ import React, {
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useHistory, useParams } from 'react-router-dom';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
+import Page from '../components/common/Page/Page';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
@@ -151,7 +152,7 @@ const Dashboard = () => {
         return <Spinner />;
     }
     return (
-        <>
+        <Page>
             <DashboardHeader
                 dashboardName={dashboard.name}
                 isEditMode={isEditMode}
@@ -185,7 +186,7 @@ const Dashboard = () => {
             {dashboardTiles.length <= 0 && isEditMode && (
                 <EmptyStateNoTiles onAddTile={onAddTile} />
             )}
-        </>
+        </Page>
     );
 };
 export default Dashboard;

@@ -1,6 +1,7 @@
 import { Divider, H1 } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { Redirect } from 'react-router-dom';
+import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { CreateProjectConnection } from '../components/ProjectConnection';
 import { useApp } from '../providers/AppProvider';
@@ -25,18 +26,21 @@ const CreateProject: FC = () => {
     }
 
     return (
-        <div
-            style={{
-                display: 'flex',
-                flexDirection: 'column',
-                width: '800px',
-                margin: '20px auto',
-            }}
-        >
-            <H1 style={{ margin: 0, flex: 1 }}>Connect project</H1>
-            <Divider style={{ margin: '20px 0' }} />
-            <CreateProjectConnection />
-        </div>
+        <Page isFullHeight>
+            <div
+                style={{
+                    display: 'flex',
+                    width: '800px',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    flex: 1,
+                }}
+            >
+                <H1 style={{ margin: 0, flex: 1 }}>Connect project</H1>
+                <Divider style={{ margin: '20px 0' }} />
+                <CreateProjectConnection />
+            </div>
+        </Page>
     );
 };
 

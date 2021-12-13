@@ -2,6 +2,7 @@ import { Colors, Divider, H1 } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useQueryClient } from 'react-query';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
+import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import { useApp } from '../providers/AppProvider';
@@ -36,28 +37,30 @@ const CreateProjectSettings: FC = () => {
     };
 
     return (
-        <div
-            style={{
-                display: 'flex',
-                flexDirection: 'column',
-                width: '800px',
-                margin: '20px auto',
-            }}
-        >
-            <H1 style={{ margin: 0, flex: 1 }}>Configure your tables</H1>
-            <Divider style={{ margin: '20px 0' }} />
-            <p style={{ marginBottom: 0, color: Colors.GRAY1 }}>
-                Pick the dbt models you want to appear as tables in Lightdash
-            </p>
-            <p style={{ marginBottom: 20, color: Colors.GRAY1 }}>
-                Can&apos;t decide? Don&apos;t worry, you can adjust this in your
-                project settings later.
-            </p>
-            <ProjectTablesConfiguration
-                projectUuid={projectUuid}
-                onSuccess={onSuccess}
-            />
-        </div>
+        <Page isFullHeight>
+            <div
+                style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    width: '800px',
+                }}
+            >
+                <H1 style={{ margin: 0, flex: 1 }}>Configure your tables</H1>
+                <Divider style={{ margin: '20px 0' }} />
+                <p style={{ marginBottom: 0, color: Colors.GRAY1 }}>
+                    Pick the dbt models you want to appear as tables in
+                    Lightdash
+                </p>
+                <p style={{ marginBottom: 20, color: Colors.GRAY1 }}>
+                    Can&apos;t decide? Don&apos;t worry, you can adjust this in
+                    your project settings later.
+                </p>
+                <ProjectTablesConfiguration
+                    projectUuid={projectUuid}
+                    onSuccess={onSuccess}
+                />
+            </div>
+        </Page>
     );
 };
 

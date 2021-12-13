@@ -17,7 +17,7 @@ import {
     usePagination,
     useTable as useReactTable,
 } from 'react-table';
-import { Section } from '../../providers/TrackingProvider';
+import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import TableCalculationHeaderButton from '../TableCalculationHeaderButton';
 import { EmptyState, IdleState, LoadingState } from './States';
@@ -189,7 +189,7 @@ export const ResultsTable: FC<Props> = ({
     }, [setColumnOrder, dataColumnOrder]);
 
     return (
-        <Section name={SectionName.RESULTS_TABLE}>
+        <TrackSection name={SectionName.RESULTS_TABLE}>
             <div
                 className="cohere-block"
                 style={{
@@ -452,7 +452,7 @@ export const ResultsTable: FC<Props> = ({
                     )}
                 </div>
             </div>
-        </Section>
+        </TrackSection>
     );
 };
 

@@ -4,7 +4,6 @@ import '@blueprintjs/popover2/lib/css/blueprint-popover2.css';
 import '@blueprintjs/table/lib/css/table.css';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from 'react-query';
-import { ReactQueryDevtools } from 'react-query/devtools';
 import {
     BrowserRouter as Router,
     Redirect,
@@ -24,7 +23,7 @@ import Home from './pages/Home';
 import Login from './pages/login';
 import { Projects } from './pages/Projects';
 import ProjectSettings from './pages/ProjectSettings';
-import Register from './pages/register';
+import Register from './pages/Register';
 import SavedDashboards from './pages/SavedDashboards';
 import SavedExplorer from './pages/SavedExplorer';
 import SavedQueries from './pages/SavedQueries';
@@ -33,7 +32,7 @@ import SqlRunner from './pages/SqlRunner';
 import Welcome from './pages/Welcome';
 import { AppProvider } from './providers/AppProvider';
 import { ExplorerProvider } from './providers/ExplorerProvider';
-import { Page, TrackingProvider } from './providers/TrackingProvider';
+import { TrackingProvider, TrackPage } from './providers/TrackingProvider';
 import { PageName } from './types/Events';
 
 const queryClient = new QueryClient({
@@ -59,24 +58,24 @@ const App = () => (
                     <Router>
                         <Switch>
                             <Route path="/welcome">
-                                <Page name={PageName.WELCOME}>
+                                <TrackPage name={PageName.WELCOME}>
                                     <Welcome />
-                                </Page>
+                                </TrackPage>
                             </Route>
                             <Route path="/register">
-                                <Page name={PageName.REGISTER}>
+                                <TrackPage name={PageName.REGISTER}>
                                     <Register />
-                                </Page>
+                                </TrackPage>
                             </Route>
                             <Route path="/login">
-                                <Page name={PageName.LOGIN}>
+                                <TrackPage name={PageName.LOGIN}>
                                     <Login />
-                                </Page>
+                                </TrackPage>
                             </Route>
                             <Route path="/invite/:inviteCode">
-                                <Page name={PageName.SIGNUP}>
+                                <TrackPage name={PageName.SIGNUP}>
                                     <Signup />
-                                </Page>
+                                </TrackPage>
                             </Route>
                             <PrivateRoute path="/">
                                 <div
@@ -87,36 +86,36 @@ const App = () => (
                                 >
                                     <Switch>
                                         <Route path="/createProject">
-                                            <Page
+                                            <TrackPage
                                                 name={PageName.CREATE_PROJECT}
                                             >
                                                 <CreateProject />
-                                            </Page>
+                                            </TrackPage>
                                         </Route>
                                         <Route path="/createProjectSettings/:projectUuid">
-                                            <Page
+                                            <TrackPage
                                                 name={
                                                     PageName.CREATE_PROJECT_SETTINGS
                                                 }
                                             >
                                                 <CreateProjectSettings />
-                                            </Page>
+                                            </TrackPage>
                                         </Route>
                                         <AppRoute path="/">
                                             <Switch>
                                                 <Route path="/projects/:projectUuid/settings/:tab?">
                                                     <AppBar />
-                                                    <Page
+                                                    <TrackPage
                                                         name={
                                                             PageName.PROJECT_SETTINGS
                                                         }
                                                     >
                                                         <ProjectSettings />
-                                                    </Page>
+                                                    </TrackPage>
                                                 </Route>
                                                 <Route path="/projects/:projectUuid/saved/:savedQueryUuid">
                                                     <AppBar />
-                                                    <Page
+                                                    <TrackPage
                                                         name={
                                                             PageName.SAVED_QUERY_EXPLORER
                                                         }
@@ -124,61 +123,61 @@ const App = () => (
                                                         <ExplorerProvider>
                                                             <SavedExplorer />
                                                         </ExplorerProvider>
-                                                    </Page>
+                                                    </TrackPage>
                                                 </Route>
                                                 <Route path="/projects/:projectUuid/saved">
                                                     <AppBar />
-                                                    <Page
+                                                    <TrackPage
                                                         name={
                                                             PageName.SAVED_QUERIES
                                                         }
                                                     >
                                                         <SavedQueries />
-                                                    </Page>
+                                                    </TrackPage>
                                                 </Route>
                                                 <Route path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?">
                                                     <AppBar />
-                                                    <Page
+                                                    <TrackPage
                                                         name={
                                                             PageName.DASHBOARD
                                                         }
                                                     >
                                                         <Dashboard />
-                                                    </Page>
+                                                    </TrackPage>
                                                 </Route>
                                                 <Route path="/projects/:projectUuid/dashboards">
                                                     <AppBar />
-                                                    <Page
+                                                    <TrackPage
                                                         name={
                                                             PageName.SAVED_DASHBOARDS
                                                         }
                                                     >
                                                         <SavedDashboards />
-                                                    </Page>
+                                                    </TrackPage>
                                                 </Route>
                                                 <Route path="/projects/:projectUuid/sqlRunner">
                                                     <AppBar />
-                                                    <Page
+                                                    <TrackPage
                                                         name={
                                                             PageName.SQL_RUNNER
                                                         }
                                                     >
                                                         <SqlRunner />
-                                                    </Page>
+                                                    </TrackPage>
                                                 </Route>
                                                 <Route path="/projects/:projectUuid/tables/:tableId">
                                                     <AppBar />
-                                                    <Page
+                                                    <TrackPage
                                                         name={PageName.EXPLORER}
                                                     >
                                                         <ExplorerProvider>
                                                             <Explorer />
                                                         </ExplorerProvider>
-                                                    </Page>
+                                                    </TrackPage>
                                                 </Route>
                                                 <Route path="/projects/:projectUuid/tables">
                                                     <AppBar />
-                                                    <Page
+                                                    <TrackPage
                                                         name={
                                                             PageName.EXPLORE_TABLES
                                                         }
@@ -186,22 +185,23 @@ const App = () => (
                                                         <ExplorerProvider>
                                                             <Explorer />
                                                         </ExplorerProvider>
-                                                    </Page>
+                                                    </TrackPage>
                                                 </Route>
                                                 <Route path="/projects" exact>
                                                     <Projects />
                                                 </Route>
                                                 <Route path="/home" exact>
                                                     <AppBar />
-                                                    <Page name={PageName.HOME}>
+                                                    <TrackPage
+                                                        name={PageName.HOME}
+                                                    >
                                                         <Home />
-                                                    </Page>
+                                                    </TrackPage>
                                                 </Route>
                                                 <Redirect to="/home" />
                                             </Switch>
                                         </AppRoute>
                                     </Switch>
-                                    <ReactQueryDevtools />
                                     <ChatWidget />
                                 </div>
                             </PrivateRoute>

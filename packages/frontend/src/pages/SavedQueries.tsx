@@ -2,6 +2,7 @@ import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { SpaceQuery } from 'common';
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import Page from '../components/common/Page/Page';
 import SavedQueriesContent from '../components/SavedQueries/SavedQueriesContent';
 import { useSpaces } from '../hooks/useSpaces';
 
@@ -31,20 +32,12 @@ const SavedQueries: FC = () => {
     }
 
     return (
-        <div
-            style={{
-                paddingTop: '30px',
-                width: '100%',
-                display: 'flex',
-                flexDirection: 'row',
-                justifyContent: 'center',
-            }}
-        >
+        <Page>
             <SavedQueriesContent
                 savedQueries={savedQueries}
                 projectUuid={projectUuid}
             />
-        </div>
+        </Page>
     );
 };
 

@@ -4,7 +4,7 @@ import { useColumns } from '../hooks/useColumns';
 import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useExplorer } from '../providers/ExplorerProvider';
-import { Section } from '../providers/TrackingProvider';
+import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import AddColumnButton from './AddColumnButton';
 import { RefreshButton } from './RefreshButton';
@@ -21,14 +21,14 @@ const EmptyStateNoColumns = () => (
 );
 
 const EmptyStateNoTableData = () => (
-    <Section name={SectionName.EMPTY_RESULTS_TABLE}>
+    <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
         <div style={{ padding: '50px 0' }}>
             <NonIdealState
                 description="Click run query to see your results"
                 action={<RefreshButton />}
             />
         </div>
-    </Section>
+    </TrackSection>
 );
 
 const EmptyStateExploreLoading = () => (

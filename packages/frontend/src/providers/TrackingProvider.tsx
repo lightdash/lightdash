@@ -254,7 +254,7 @@ const NestedTrackingProvider: FC<Partial<TrackingData>> = ({
     </Context.Consumer>
 );
 
-export const Page: FC<PageData> = ({ children, ...rest }) => {
+export const TrackPage: FC<PageData> = ({ children, ...rest }) => {
     const { page } = useTracking();
 
     useEffect(() => {
@@ -268,7 +268,7 @@ export const Page: FC<PageData> = ({ children, ...rest }) => {
     );
 };
 
-export const Section: FC<SectionData> = ({ children, ...rest }) => (
+export const TrackSection: FC<SectionData> = ({ children, ...rest }) => (
     <NestedTrackingProvider section={rest}>
         {children || null}
     </NestedTrackingProvider>

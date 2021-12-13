@@ -1,4 +1,4 @@
-import { Card, Colors, H2, NonIdealState } from '@blueprintjs/core';
+import { Card, H2, NonIdealState } from '@blueprintjs/core';
 import {
     ApiError,
     CreateInitialUserArgs,
@@ -9,7 +9,7 @@ import React, { FC } from 'react';
 import { useMutation } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import AboutFooter from '../components/AboutFooter';
+import Page from '../components/common/Page/Page';
 import CreateUserForm from '../components/CreateUserForm';
 import PageSpinner from '../components/PageSpinner';
 import { useInviteLink } from '../hooks/useInviteLink';
@@ -52,20 +52,14 @@ const Signup: FC = () => {
     }
 
     return (
-        <div
-            style={{
-                height: '100vh',
-                display: 'grid',
-                justifyContent: 'center',
-                background: Colors.LIGHT_GRAY4,
-            }}
-        >
+        <Page isFullHeight>
             <div
                 style={{
                     width: '400px',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'center',
+                    flex: 1,
                 }}
             >
                 <Card
@@ -102,9 +96,8 @@ const Signup: FC = () => {
                         </>
                     )}
                 </Card>
-                <AboutFooter />
             </div>
-        </div>
+        </Page>
     );
 };
 

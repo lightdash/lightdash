@@ -10,7 +10,7 @@ import {
 import React, { FC, useMemo } from 'react';
 import { Redirect, Route, Switch, useParams } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
-import PageBase from '../components/common/Page/PageBase';
+import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
 import RouterMenuItem from '../components/common/RouterMenuItem';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
@@ -45,7 +45,7 @@ const ProjectSettings: FC = () => {
         );
     }
     return (
-        <PageBase>
+        <PageWithSidebar>
             <Sidebar title="Project settings">
                 <Menu>
                     <RouterMenuItem
@@ -87,7 +87,7 @@ const ProjectSettings: FC = () => {
                     <Redirect to={basePath} />
                 </Switch>
             </Content>
-        </PageBase>
+        </PageWithSidebar>
     );
 };
 

@@ -1,19 +1,24 @@
 import {
     AnchorButton,
+    Button,
     Callout,
     Classes,
+    Colors,
     Dialog,
     H5,
-    H6,
     Intent,
     Tag,
 } from '@blueprintjs/core';
-import React, { useState } from 'react';
+import React, { FC, useState } from 'react';
 import { useApp } from '../providers/AppProvider';
-import { Page } from '../providers/TrackingProvider';
-import { PageName, PageType } from '../types/Events';
+import { TrackPage, TrackSection } from '../providers/TrackingProvider';
+import { ReactComponent as Logo } from '../svgs/grey-icon-logo.svg';
+import { PageName, PageType, SectionName } from '../types/Events';
 
-const AboutFooter = () => {
+const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
+    minimal,
+    maxWidth,
+}) => {
     const [isOpen, setIsOpen] = useState(false);
     const { health: healthState } = useApp();
     const hasUpdate =
@@ -21,107 +26,127 @@ const AboutFooter = () => {
         healthState.data.version !== healthState.data.latest.version;
 
     return (
-        <>
-            <footer
+        <TrackSection name={SectionName.PAGE_FOOTER}>
+            <div
                 style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    margin: '0 auto',
-                    marginTop: '20px',
                     width: '100%',
+                    borderTop: `1px solid ${Colors.LIGHT_GRAY2}`,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    marginTop: '20px',
                 }}
             >
-                <div
-                    role="button"
-                    tabIndex={0}
+                <footer
                     style={{
                         display: 'inline-flex',
-                        gap: '10px',
                         alignItems: 'center',
-                        flex: 1,
-                        cursor: 'pointer',
+                        justifyContent: 'space-between',
+                        width: '100%',
+                        maxWidth: maxWidth || 768,
+                        height: 75,
                     }}
-                    onClick={() => setIsOpen(true)}
                 >
-                    <img
-                        src={`${process.env.PUBLIC_URL}/favicon-16x16.png`}
-                        alt="Lightdash"
-                    />
-                    <H6 style={{ margin: 0, whiteSpace: 'nowrap' }}>
-                        Lightdash
-                        {healthState.data && ` - v${healthState.data.version}`}
-                    </H6>
-                    {hasUpdate && (
-                        <Tag minimal intent={Intent.PRIMARY}>
-                            New version available!
-                        </Tag>
-                    )}
-                </div>
-                <AnchorButton
-                    href="https://docs.lightdash.com/"
-                    target="_blank"
-                    minimal
-                    icon="lifesaver"
-                >
-                    Help
-                </AnchorButton>
-            </footer>
-            <Dialog
-                isOpen={isOpen}
-                onClose={() => setIsOpen(false)}
-                icon="info-sign"
-                title="About Lightdash"
-            >
-                <Page name={PageName.ABOUT_LIGHTDASH} type={PageType.MODAL}>
-                    <div className={Classes.DIALOG_BODY}>
-                        <H5>
-                            <b>Version:</b>{' '}
-                            {healthState.data
-                                ? `v${healthState.data.version}`
-                                : 'n/a'}
-                        </H5>
+                    <Button
+                        minimal
+                        icon={<Logo />}
+                        onClick={() => setIsOpen(true)}
+                        style={{
+                            whiteSpace: 'nowrap',
+                        }}
+                        loading={healthState.isLoading}
+                    >
+                        {!minimal && 'Lightdash - '}
+                        {healthState.data && `v${healthState.data.version}`}
                         {hasUpdate && (
-                            <Callout
-                                title="New version available!"
+                            <Tag
+                                minimal
                                 intent={Intent.PRIMARY}
+                                style={{ marginLeft: 5 }}
                             >
-                                The version v{healthState.data?.latest.version}{' '}
-                                is now available. Please follow the instructions
-                                in the{' '}
-                                <a
-                                    href="https://docs.lightdash.com/guides/how-to-update-docker-image"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                >
-                                    How to update version
-                                </a>{' '}
-                                documentation.
-                            </Callout>
+                                New version available!
+                            </Tag>
                         )}
+                    </Button>
+                    <div>
+                        <AnchorButton
+                            href="https://community.lightdash.com/"
+                            target="_blank"
+                            minimal
+                            icon="chat"
+                        >
+                            {!minimal && 'Join the conversation!'}
+                        </AnchorButton>
+                        <AnchorButton
+                            href="https://docs.lightdash.com/"
+                            target="_blank"
+                            minimal
+                            icon="lifesaver"
+                        >
+                            {!minimal && 'Help'}
+                        </AnchorButton>
                     </div>
-                    <div className={Classes.DIALOG_FOOTER}>
-                        <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                            <AnchorButton
-                                href="https://docs.lightdash.com/"
-                                target="_blank"
-                                outlined
-                                rightIcon="share"
-                            >
-                                Docs
-                            </AnchorButton>
-                            <AnchorButton
-                                href="https://github.com/lightdash/lightdash"
-                                target="_blank"
-                                outlined
-                                rightIcon="share"
-                            >
-                                Github
-                            </AnchorButton>
+                </footer>
+                <Dialog
+                    isOpen={isOpen}
+                    onClose={() => setIsOpen(false)}
+                    icon="info-sign"
+                    title="About Lightdash"
+                >
+                    <TrackPage
+                        name={PageName.ABOUT_LIGHTDASH}
+                        type={PageType.MODAL}
+                    >
+                        <div className={Classes.DIALOG_BODY}>
+                            <H5>
+                                <b>Version:</b>{' '}
+                                {healthState.data
+                                    ? `v${healthState.data.version}`
+                                    : 'n/a'}
+                            </H5>
+                            {hasUpdate && (
+                                <Callout
+                                    title="New version available!"
+                                    intent={Intent.PRIMARY}
+                                >
+                                    The version v
+                                    {healthState.data?.latest.version} is now
+                                    available. Please follow the instructions in
+                                    the{' '}
+                                    <a
+                                        href="https://docs.lightdash.com/guides/how-to-update-docker-image"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        How to update version
+                                    </a>{' '}
+                                    documentation.
+                                </Callout>
+                            )}
                         </div>
-                    </div>
-                </Page>
-            </Dialog>
-        </>
+                        <div className={Classes.DIALOG_FOOTER}>
+                            <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+                                <AnchorButton
+                                    href="https://docs.lightdash.com/"
+                                    target="_blank"
+                                    outlined
+                                    rightIcon="share"
+                                >
+                                    Docs
+                                </AnchorButton>
+                                <AnchorButton
+                                    href="https://github.com/lightdash/lightdash"
+                                    target="_blank"
+                                    outlined
+                                    rightIcon="share"
+                                >
+                                    Github
+                                </AnchorButton>
+                            </div>
+                        </div>
+                    </TrackPage>
+                </Dialog>
+            </div>
+        </TrackSection>
     );
 };
 
