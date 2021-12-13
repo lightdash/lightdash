@@ -1,6 +1,9 @@
 ---
-name: Documentation about: See some docs that need updating? Add an issue here. title: ''
-labels: documentation assignees: ''
+name: Documentation
+about: See some docs that need updating? Add an issue here.
+title: ''
+labels: documentation
+assignees: ''
 
 ---
 

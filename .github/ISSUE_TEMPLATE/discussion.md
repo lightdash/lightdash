@@ -1,6 +1,9 @@
 ---
-name: Discussion about: Some ideas just need to be discussed before they become feature proposals. title: ''
-labels: discussion assignees: ''
+name: Discussion
+about: Some ideas just need to be discussed before they become feature proposals.
+title: ''
+labels: discussion
+assignees: ''
 
 ---
 
