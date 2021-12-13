@@ -232,6 +232,17 @@
         "design",
         "bug"
       ]
+    },
+    {
+      "login": "rshen36",
+      "name": "Rich Shen",
+      "avatar_url": "https://avatars.githubusercontent.com/u/20313306?v=4",
+      "profile": "https://github.com/rshen36",
+      "contributions": [
+        "code",
+        "test",
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
