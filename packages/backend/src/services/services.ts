@@ -8,7 +8,7 @@ import {
     userModel,
 } from '../models/models';
 import { DashboardService } from './DashboardService/DashboardService';
-import { OrganizationService } from './OrganizationService';
+import { OrganizationService } from './OrganizationService/OrganizationService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { SavedChartsService } from './SavedChartsService/SavedChartsService';
 import { UserService } from './UserService';

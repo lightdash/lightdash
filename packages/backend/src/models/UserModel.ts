@@ -14,7 +14,7 @@ import {
 import { NotExistsError, ParameterError } from '../errors';
 import { InviteLinkModel } from './InviteLinkModel';
 
-type DbOrganizationUser = Pick<
+export type DbOrganizationUser = Pick<
     DbUserDetails,
     'user_uuid' | 'first_name' | 'last_name' | 'email'
 >;
