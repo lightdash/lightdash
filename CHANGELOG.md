@@ -4,14 +4,24 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.11.1] - 2021-12-14
+### Added
+- You can edit the saved chart name from the explore page (#978)
+- Added footer to all pages (#981)
+
+### Fixed
+- Add correct state when sql runner has an error (#974)
+- Fix latest saved charts to be full width (#971)
+- Docker containers created via the install script can now be restarted via docker (#973)
+
 ## [0.11.0] - 2021-12-08
 ### Added
-- Metrics defined under the `metrics: ` tag in dbt projects are imported to Lightdash
+- Metrics defined under the `metrics: ` tag in dbt projects are imported to Lightdash (#926)
  
 ### Changed
-- Lightdash projects must be compatible with dbt version 1.0.0
-- Saved charts in homepage are ordered by the most recently updated first
-- Improved loading states throughout the app
+- Lightdash projects must be compatible with dbt version 1.0.0 (#926)
+- Saved charts in homepage are ordered by the most recently updated first (#956)
+- Improved loading states throughout the app (#967)
 
 ## [0.10.8] - 2021-12-07
 ### Added
