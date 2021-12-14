@@ -15467,10 +15467,10 @@ react-popper@^2.2.4:
     react-fast-compare "^3.0.1"
     warning "^4.0.2"
 
-react-query@^3.16.0:
-  version "3.18.1"
-  resolved "https://registry.yarnpkg.com/react-query/-/react-query-3.18.1.tgz#893b5475a7b4add099e007105317446f7a2cd310"
-  integrity sha512-17lv3pQxU9n+cB5acUv0/cxNTjo9q8G+RsedC6Ax4V9D8xEM7Q5xf9xAbCPdEhDrrnzPjTls9fQEABKRSi7OJA==
+react-query@^3.34.3:
+  version "3.34.3"
+  resolved "https://registry.yarnpkg.com/react-query/-/react-query-3.34.3.tgz#0bf1017b61f0f24a75a7d72a4b1bf4d2403bcfb0"
+  integrity sha512-FQhYyRrLoCIryuYEcGexAIydiO+nKV9XPs6RVtRQx75OXsmwwnr5o+IICOP7GvX63mW5nmpNgeEmlufEFK5bqg==
   dependencies:
     "@babel/runtime" "^7.5.5"
     broadcast-channel "^3.4.1"

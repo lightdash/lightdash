@@ -1,6 +1,7 @@
 import React from 'react';
 import useDefaultSortField from '../hooks/useDefaultSortField';
 import { useQueryResults } from '../hooks/useQueryResults';
+import { useServerStatus } from '../hooks/useServerStatus';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
@@ -11,6 +12,7 @@ export const RefreshButton = () => {
         state: { isValidQuery, sorts },
         actions: { syncState },
     } = useExplorer();
+    const status = useServerStatus();
     const { isFetching, remove } = useQueryResults();
     const { track } = useTracking();
     const defaultSort = useDefaultSortField();
@@ -26,7 +28,7 @@ export const RefreshButton = () => {
                 });
             }}
             disabled={!isValidQuery}
-            loading={isFetching}
+            loading={isFetching || status.data === 'loading'}
         >
             Run query
         </BigButton>

@@ -1,8 +1,8 @@
 import { ApiError, ApiStatusResults } from 'common';
-import { useQuery } from 'react-query';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
 import useQueryError from './useQueryError';
 
 const getStatus = async (projectUuid: string) =>
@@ -14,15 +14,25 @@ const getStatus = async (projectUuid: string) =>
 
 export const useServerStatus = (refetchInterval = 5000) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const queryClient = useQueryClient();
     const setErrorResponse = useQueryError();
     const queryKey = 'status';
-    const {
-        errorLogs: { showError },
-    } = useApp();
+    const [previousState, setPreviousState] = useState<string>();
     return useQuery<ApiStatusResults, ApiError>({
         queryKey,
         queryFn: () => getStatus(projectUuid),
-        refetchInterval,
+        refetchInterval: (data) =>
+            data === 'loading' ? 1000 : refetchInterval,
+        onSuccess: async (data) => {
+            if (
+                !!previousState &&
+                previousState !== data &&
+                data !== 'loading'
+            ) {
+                await queryClient.invalidateQueries('tables');
+            }
+            setPreviousState(data);
+        },
         onError: (result) => setErrorResponse(result),
         refetchIntervalInBackground: false,
     });
