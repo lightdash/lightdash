@@ -22,8 +22,14 @@ export const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (
 
     if (status.data === 'loading') {
         return (
-            <BigButton {...props} disabled>
-                <div style={{ display: 'flex', flexDirection: 'row' }}>
+            <BigButton {...props} disabled style={{ width: 130 }}>
+                <div
+                    style={{
+                        display: 'flex',
+                        flexDirection: 'row',
+                        whiteSpace: 'nowrap',
+                    }}
+                >
                     <Spinner size={15} />
                     <div style={{ paddingRight: '5px' }} />
                     Refreshing dbt
@@ -32,7 +38,12 @@ export const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (
         );
     }
     return (
-        <BigButton {...props} icon="refresh" onClick={onClick}>
+        <BigButton
+            {...props}
+            icon="refresh"
+            onClick={onClick}
+            style={{ width: 130, whiteSpace: 'nowrap' }}
+        >
             Refresh dbt
         </BigButton>
     );

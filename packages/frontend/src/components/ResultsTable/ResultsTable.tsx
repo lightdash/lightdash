@@ -195,7 +195,7 @@ export const ResultsTable: FC<Props> = ({
                 style={{
                     height: '100%',
                     padding: '10px',
-                    minHeight: '500px',
+                    minHeight: 300,
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
