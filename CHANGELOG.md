@@ -4,6 +4,12 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.11.2] - 2021-12-15
+### Fixed
+- Refresh explore dimensions and metrics after project compiles (#991)
+- Fix chart when grouping by boolean dimension (#992)
+- Fix dashboard page to be full width again (#993)
+
 ## [0.11.1] - 2021-12-14
 ### Added
 - You can edit the saved chart name from the explore page (#978)
