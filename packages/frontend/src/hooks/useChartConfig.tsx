@@ -291,7 +291,7 @@ export const useChartConfig = (
             );
         } else if (groupDimension) {
             series = Array.from(
-                new Set(results.rows.map((r) => r[groupDimension])),
+                new Set(results.rows.map((r) => `${r[groupDimension]}`)),
             );
             const dimensionFormatter = getDimensionFormatterByKey(
                 dimensions,
