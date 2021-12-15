@@ -14,6 +14,7 @@ import React, { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useExplore } from '../hooks/useExplore';
 import { useExplores } from '../hooks/useExplores';
+import { useServerStatus } from '../hooks/useServerStatus';
 import { useApp } from '../providers/AppProvider';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { TrackSection } from '../providers/TrackingProvider';
@@ -164,7 +165,11 @@ export const ExplorePanel = ({ onBack }: ExplorePanelProps) => {
         state: { activeFields, tableName: activeTableName },
         actions: { toggleActiveField },
     } = useExplorer();
+    const status = useServerStatus();
     const exploresResult = useExplore(activeTableName);
+    if (exploresResult.status === 'loading' || status.data === 'loading') {
+        return <SideBarLoadingState />;
+    }
     if (exploresResult.data) {
         const activeExplore = exploresResult.data;
         const [databaseName, schemaName, tableName] = activeExplore.tables[
@@ -221,9 +226,6 @@ export const ExplorePanel = ({ onBack }: ExplorePanelProps) => {
     if (exploresResult.status === 'error') {
         onBack();
         return null;
-    }
-    if (exploresResult.status === 'loading') {
-        return <SideBarLoadingState />;
     }
     return <span>Cannot load explore</span>;
 };

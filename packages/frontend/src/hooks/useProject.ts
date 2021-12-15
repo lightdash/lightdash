@@ -49,7 +49,6 @@ export const useUpdateMutation = (id: string) => {
                     id,
                     'tables',
                     'queryResults',
-                    'table',
                     'status',
                 ]);
                 showToastSuccess({
