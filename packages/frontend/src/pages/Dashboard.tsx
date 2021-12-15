@@ -152,7 +152,7 @@ const Dashboard = () => {
         return <Spinner />;
     }
     return (
-        <Page>
+        <Page isContentFullWidth>
             <DashboardHeader
                 dashboardName={dashboard.name}
                 isEditMode={isEditMode}

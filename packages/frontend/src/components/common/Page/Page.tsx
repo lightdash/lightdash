@@ -6,6 +6,7 @@ import Content from './Content';
 
 type Props = {
     isFullHeight?: boolean;
+    isContentFullWidth?: boolean;
 };
 
 const PageBase = styled('div')<Props>`
@@ -15,12 +16,13 @@ const PageBase = styled('div')<Props>`
     width: 100%;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: ${(props) =>
+        props.isContentFullWidth ? 'stretch' : 'center'};
     background: ${Colors.LIGHT_GRAY4};
 `;
 
-const Page: FC<Props> = ({ isFullHeight, children }) => (
-    <PageBase isFullHeight={isFullHeight}>
+const Page: FC<Props> = ({ children, ...props }) => (
+    <PageBase {...props}>
         <Content>{children}</Content>
         <AboutFooter />
     </PageBase>
