@@ -175,6 +175,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://davidgasquez.github.io/"><img src="https://avatars.githubusercontent.com/u/1682202?v=4?s=100" width="100px;" alt=""/><br /><sub><b>David Gasquez</b></sub></a><br /><a href="#ideas-davidgasquez" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="https://github.com/xjaner"><img src="https://avatars.githubusercontent.com/u/2011404?v=4?s=100" width="100px;" alt=""/><br /><sub><b>xjaner</b></sub></a><br /><a href="#ideas-xjaner" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="https://github.com/chrisbol-lf"><img src="https://avatars.githubusercontent.com/u/94607640?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Chris Bol</b></sub></a><br /><a href="#ideas-chrisbol-lf" title="Ideas, Planning, & Feedback">🤔</a></td>
+    <td align="center"><a href="http://stackoverflow.com/users/815977/tigger"><img src="https://avatars.githubusercontent.com/u/841497?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Anil V</b></sub></a><br /><a href="#ideas-avaitla" title="Ideas, Planning, & Feedback">🤔</a></td>
   </tr>
 </table>
 
