@@ -177,6 +177,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/chrisbol-lf"><img src="https://avatars.githubusercontent.com/u/94607640?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Chris Bol</b></sub></a><br /><a href="#ideas-chrisbol-lf" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="http://stackoverflow.com/users/815977/tigger"><img src="https://avatars.githubusercontent.com/u/841497?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Anil V</b></sub></a><br /><a href="#ideas-avaitla" title="Ideas, Planning, & Feedback">🤔</a></td>
   </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/rlebrao"><img src="https://avatars.githubusercontent.com/u/18443331?v=4?s=100" width="100px;" alt=""/><br /><sub><b>rlebrao</b></sub></a><br /><a href="#ideas-rlebrao" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/lightdash/lightdash/issues?q=author%3Arlebrao" title="Bug reports">🐛</a></td>
+  </tr>
 </table>
 
 <!-- markdownlint-restore -->

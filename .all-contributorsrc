@@ -281,6 +281,16 @@
       "contributions": [
         "ideas"
       ]
+    },
+    {
+      "login": "rlebrao",
+      "name": "rlebrao",
+      "avatar_url": "https://avatars.githubusercontent.com/u/18443331?v=4",
+      "profile": "https://github.com/rlebrao",
+      "contributions": [
+        "ideas",
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
