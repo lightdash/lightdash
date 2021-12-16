@@ -8,6 +8,8 @@ import {
     DbtRawModelNode,
     Explore,
     ExploreError,
+    InlineError,
+    InlineErrorType,
     isSupportedDbtAdapter,
     SupportedDbtAdapter,
 } from 'common';
@@ -109,10 +111,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         ) as DbtRawModelNode[];
         Logger.debug(`Validate ${models.length} models in manifest`);
         const [validModels, failedExplores] =
-            DbtBaseProjectAdapter._validateDbtModelMetadata(
-                adapterType,
-                models,
-            );
+            DbtBaseProjectAdapter._validateDbtModel(adapterType, models);
 
         // Validate metrics in the manifest - compile fails if any invalid
         const metrics = DbtBaseProjectAdapter._validateDbtMetrics(
@@ -186,33 +185,43 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return metrics;
     }
 
-    static _validateDbtModelMetadata(
+    static _validateDbtModel(
         adapterType: SupportedDbtAdapter,
         models: DbtRawModelNode[],
     ): [DbtModelNode[], ExploreError[]] {
         const validator = getModelValidator();
         return models.reduce(
             ([validModels, invalidModels], model) => {
+                let error: InlineError | undefined;
                 // Match against json schema
                 const isValid = validator(model);
-                if (isValid) {
-                    // Fix null databases
-                    const validatedModel = normaliseModelDatabase(
-                        model,
-                        adapterType,
-                    );
-                    return [[...validModels, validatedModel], invalidModels];
+                if (!isValid) {
+                    error = {
+                        type: InlineErrorType.METADATA_PARSE_ERROR,
+                        message: formatAjvErrors(validator),
+                    };
+                } else if (
+                    isValid &&
+                    Object.values(model.columns).length <= 0
+                ) {
+                    error = {
+                        type: InlineErrorType.NO_DIMENSIONS_FOUND,
+                        message: 'No dimensions available',
+                    };
                 }
-                const exploreError: ExploreError = {
-                    name: model.name,
-                    errors: [
-                        {
-                            type: 'MetadataParseError',
-                            message: formatAjvErrors(validator),
-                        },
-                    ],
-                };
-                return [validModels, [...invalidModels, exploreError]];
+                if (error) {
+                    const exploreError: ExploreError = {
+                        name: model.name,
+                        errors: [error],
+                    };
+                    return [validModels, [...invalidModels, exploreError]];
+                }
+                // Fix null databases
+                const validatedModel = normaliseModelDatabase(
+                    model,
+                    adapterType,
+                );
+                return [[...validModels, validatedModel], invalidModels];
             },
             [[] as DbtModelNode[], [] as ExploreError[]],
         );
