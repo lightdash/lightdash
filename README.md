@@ -174,6 +174,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/rshen36"><img src="https://avatars.githubusercontent.com/u/20313306?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Rich Shen</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=rshen36" title="Code">💻</a> <a href="https://github.com/lightdash/lightdash/commits?author=rshen36" title="Tests">⚠️</a> <a href="https://github.com/lightdash/lightdash/issues?q=author%3Arshen36" title="Bug reports">🐛</a></td>
     <td align="center"><a href="https://davidgasquez.github.io/"><img src="https://avatars.githubusercontent.com/u/1682202?v=4?s=100" width="100px;" alt=""/><br /><sub><b>David Gasquez</b></sub></a><br /><a href="#ideas-davidgasquez" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="https://github.com/xjaner"><img src="https://avatars.githubusercontent.com/u/2011404?v=4?s=100" width="100px;" alt=""/><br /><sub><b>xjaner</b></sub></a><br /><a href="#ideas-xjaner" title="Ideas, Planning, & Feedback">🤔</a></td>
+    <td align="center"><a href="https://github.com/chrisbol-lf"><img src="https://avatars.githubusercontent.com/u/94607640?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Chris Bol</b></sub></a><br /><a href="#ideas-chrisbol-lf" title="Ideas, Planning, & Feedback">🤔</a></td>
   </tr>
 </table>
 
