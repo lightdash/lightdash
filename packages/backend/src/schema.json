@@ -141,6 +141,14 @@
                         },
                         "config": {
                             "$ref": "#/definitions/LightdashNodeConfig"
+                        },
+                        "columns": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/LightdashColumnInfo"
+                            },
+                            "default": {},
+                            "minProperties": 1
                         }
                     }
                 }
