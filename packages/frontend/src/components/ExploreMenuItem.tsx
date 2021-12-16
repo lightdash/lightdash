@@ -1,6 +1,6 @@
-import { Icon, Intent, MenuItem } from '@blueprintjs/core';
+import { Colors, Icon, Intent, MenuItem } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { friendlyName, SummaryExplore } from 'common';
+import { friendlyName, InlineErrorType, SummaryExplore } from 'common';
 import React from 'react';
 
 type ExploreMenuItemProps = {
@@ -8,11 +8,26 @@ type ExploreMenuItemProps = {
     onClick: () => void;
 };
 
+const NoDimensionsIcon = () => (
+    <a
+        role="button"
+        href="https://docs.lightdash.com/get-started/setup-lightdash/add-metrics/#1-add-a-dimension-to-your-project"
+        target="_blank"
+        rel="noreferrer"
+        style={{ color: Colors.GRAY5 }}
+    >
+        <Icon icon="info-sign" />
+    </a>
+);
+
 export const ExploreMenuItem: React.FC<ExploreMenuItemProps> = ({
     explore,
     onClick,
 }: ExploreMenuItemProps) => {
     if ('errors' in explore) {
+        const showNoDimensionsIcon = explore.errors.every(
+            (error) => error.type === InlineErrorType.NO_DIMENSIONS_FOUND,
+        );
         const errorMessage = explore.errors
             .map((error) => error.message)
             .join('\n');
@@ -23,7 +38,11 @@ export const ExploreMenuItem: React.FC<ExploreMenuItemProps> = ({
                     text={friendlyName(explore.name)}
                     disabled
                     labelElement={
-                        <Icon icon="warning-sign" intent={Intent.WARNING} />
+                        showNoDimensionsIcon ? (
+                            <NoDimensionsIcon />
+                        ) : (
+                            <Icon icon="warning-sign" intent={Intent.WARNING} />
+                        )
                     }
                 />
             </Tooltip2>

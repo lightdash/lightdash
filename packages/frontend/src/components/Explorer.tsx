@@ -35,7 +35,7 @@ import { ChartConfigPanel } from './ChartConfigPanel';
 import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
 import EditableHeader from './common/EditableHeader';
-import { ExplorerResults } from './ExplorerResults';
+import { ExplorerResults } from './Explorer/ExplorerResults';
 import { RefreshButton } from './RefreshButton';
 import { RefreshServerButton } from './RefreshServerButton';
 import { RenderedSql } from './RenderedSql';

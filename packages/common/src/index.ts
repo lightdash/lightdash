@@ -92,8 +92,13 @@ export type Explore = {
     targetDatabase: SupportedDbtAdapter; // Type of target database e.g. postgres/redshift/bigquery/snowflake/spark
 };
 
+export enum InlineErrorType {
+    METADATA_PARSE_ERROR = 'METADATA_PARSE_ERROR',
+    NO_DIMENSIONS_FOUND = 'NO_DIMENSIONS_FOUND',
+}
+
 export type InlineError = {
-    type: string;
+    type: InlineErrorType;
     message: string;
 };
 
