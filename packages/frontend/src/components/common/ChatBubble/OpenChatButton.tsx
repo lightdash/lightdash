@@ -1,9 +1,28 @@
 import { Card, Colors, Elevation, Icon, Overlay } from '@blueprintjs/core';
-import React from 'react';
+import { LightdashMode } from 'common';
+import React, { useCallback, useEffect } from 'react';
 import { useApp } from '../../../providers/AppProvider';
 
 export const OpenChatButton: React.FC = () => {
-    const { health } = useApp();
+    const { health, user } = useApp();
+
+    const identify = useCallback(() => {
+        if (
+            user.data &&
+            health.data?.mode !== LightdashMode.DEMO &&
+            !user.data.isTrackingAnonymized
+        ) {
+            (window as any).$chatwoot?.setUser(user.data.userUuid, {
+                email: user.data.email,
+                name: `${user.data.firstName} ${user.data.lastName}`,
+            });
+        }
+    }, [user, health]);
+
+    useEffect(() => {
+        identify();
+    }, [identify]);
+
     const openChatWindow = () => {
         (window as any).$chatwoot?.toggle('true');
     };

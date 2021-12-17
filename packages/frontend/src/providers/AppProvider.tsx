@@ -4,13 +4,7 @@ import * as Sentry from '@sentry/react';
 import { Integrations } from '@sentry/tracing';
 import MDEditor from '@uiw/react-md-editor';
 import Cohere from 'cohere-js';
-import {
-    ApiError,
-    ApiHealthResults,
-    HealthState,
-    LightdashMode,
-    LightdashUser,
-} from 'common';
+import { ApiError, ApiHealthResults, HealthState, LightdashUser } from 'common';
 import React, {
     createContext,
     FC,
@@ -101,18 +95,6 @@ export const AppProvider: FC = ({ children }) => {
     }, [health, isCohereLoaded, user]);
 
     useEffect(() => {
-        const identify = () => {
-            if (
-                user.data &&
-                health.data?.mode !== LightdashMode.DEMO &&
-                !user.data.isTrackingAnonymized
-            ) {
-                (window as any).$chatwoot?.setUser(user.data.userUuid, {
-                    email: user.data.email,
-                    name: `${user.data.firstName} ${user.data.lastName}`,
-                });
-            }
-        };
         if (
             !isChatwootLoaded &&
             health.data &&
@@ -138,9 +120,7 @@ export const AppProvider: FC = ({ children }) => {
                 });
             };
             setIsChatwootLoaded(true);
-            window.addEventListener('chatwoot:ready', identify);
         }
-        identify();
     }, [isChatwootLoaded, health, user]);
 
     const showToastSuccess = useCallback<AppContext['showToastSuccess']>(
