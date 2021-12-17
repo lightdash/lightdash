@@ -69,12 +69,12 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                     </Button>
                     <div>
                         <AnchorButton
-                            href="https://community.lightdash.com/"
+                            href="https://docs.lightdash.com/"
                             target="_blank"
                             minimal
-                            icon="chat"
+                            icon="document-open"
                         >
-                            {!minimal && 'Join the conversation!'}
+                            {!minimal && 'Documentation'}
                         </AnchorButton>
                         <AnchorButton
                             href="https://docs.lightdash.com/"

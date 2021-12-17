@@ -2,6 +2,7 @@ import { Colors, H3, NonIdealState, Spinner, Toaster } from '@blueprintjs/core';
 import { IncompleteOnboarding } from 'common';
 import React, { FC } from 'react';
 import { useToggle, useUnmount } from 'react-use';
+import { OpenChatButton } from '../components/common/ChatBubble/OpenChatButton';
 import LinkButton from '../components/common/LinkButton';
 import Page from '../components/common/Page/Page';
 import LatestDashboards from '../components/Home/LatestDashboards';
@@ -128,6 +129,7 @@ const Home: FC = () => {
             ) : (
                 <LandingPage projectUuid={project.data.projectUuid} />
             )}
+            <OpenChatButton />
         </Page>
     );
 };
