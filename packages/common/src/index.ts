@@ -46,6 +46,7 @@ export enum ProjectType {
     DBT_CLOUD_IDE = 'dbt_cloud_ide',
     GITHUB = 'github',
     GITLAB = 'gitlab',
+    BITBUCKET = 'bitbucket',
 }
 
 // Seeds
@@ -92,8 +93,13 @@ export type Explore = {
     targetDatabase: SupportedDbtAdapter; // Type of target database e.g. postgres/redshift/bigquery/snowflake/spark
 };
 
+export enum InlineErrorType {
+    METADATA_PARSE_ERROR = 'METADATA_PARSE_ERROR',
+    NO_DIMENSIONS_FOUND = 'NO_DIMENSIONS_FOUND',
+}
+
 export type InlineError = {
-    type: string;
+    type: InlineErrorType;
     message: string;
 };
 
@@ -1054,6 +1060,7 @@ export const ProjectTypeLabels: Record<ProjectType, string> = {
     [ProjectType.DBT_CLOUD_IDE]: 'dbt cloud',
     [ProjectType.GITHUB]: 'Github',
     [ProjectType.GITLAB]: 'GitLab',
+    [ProjectType.BITBUCKET]: 'BitBucket',
 };
 
 export interface DbtProjectConfigBase {
@@ -1093,10 +1100,21 @@ export interface DbtGitlabProjectConfig extends DbtProjectConfigBase {
     host_domain?: string;
 }
 
+export interface DbtBitBucketProjectConfig extends DbtProjectConfigBase {
+    type: ProjectType.BITBUCKET;
+    username: string;
+    personal_access_token: string;
+    repository: string;
+    branch: string;
+    project_sub_path: string;
+    host_domain?: string;
+}
+
 export type DbtProjectConfig =
     | DbtLocalProjectConfig
     | DbtCloudIDEProjectConfig
     | DbtGithubProjectConfig
+    | DbtBitBucketProjectConfig
     | DbtGitlabProjectConfig;
 
 export type OrganizationProject = {

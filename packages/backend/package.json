@@ -79,6 +79,7 @@
         "test": "jest",
         "lint": "eslint ./src",
         "format": "prettier --check --ignore-unknown ./src",
+        "create-migration": "knex migrate:make --knexfile src/database/knexfile.ts",
         "migrate": "knex migrate:latest --knexfile src/database/knexfile.ts",
         "migrate-production": "knex migrate:latest --knexfile dist/database/knexfile.js",
         "seed": "knex seed:run --knexfile src/database/knexfile.ts",

@@ -152,7 +152,8 @@
       "profile": "https://github.com/djayatillake",
       "contributions": [
         "design",
-        "code"
+        "code",
+        "ideas"
       ]
     },
     {
@@ -210,7 +211,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/19791?v=4",
       "profile": "http://ihack.us/",
       "contributions": [
-        "bug"
+        "bug",
+        "ideas"
       ]
     },
     {
@@ -242,6 +244,62 @@
         "code",
         "test",
         "bug"
+      ]
+    },
+    {
+      "login": "davidgasquez",
+      "name": "David Gasquez",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1682202?v=4",
+      "profile": "https://davidgasquez.github.io/",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "xjaner",
+      "name": "xjaner",
+      "avatar_url": "https://avatars.githubusercontent.com/u/2011404?v=4",
+      "profile": "https://github.com/xjaner",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "chrisbol-lf",
+      "name": "Chris Bol",
+      "avatar_url": "https://avatars.githubusercontent.com/u/94607640?v=4",
+      "profile": "https://github.com/chrisbol-lf",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "avaitla",
+      "name": "Anil V",
+      "avatar_url": "https://avatars.githubusercontent.com/u/841497?v=4",
+      "profile": "http://stackoverflow.com/users/815977/tigger",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "rlebrao",
+      "name": "rlebrao",
+      "avatar_url": "https://avatars.githubusercontent.com/u/18443331?v=4",
+      "profile": "https://github.com/rlebrao",
+      "contributions": [
+        "ideas",
+        "bug"
+      ]
+    },
+    {
+      "login": "philcarr-tsl",
+      "name": "philcarr-tsl",
+      "avatar_url": "https://avatars.githubusercontent.com/u/90601643?v=4",
+      "profile": "https://github.com/philcarr-tsl",
+      "contributions": [
+        "bug",
+        "data"
       ]
     }
   ],
