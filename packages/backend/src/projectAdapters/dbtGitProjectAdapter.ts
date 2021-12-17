@@ -1,20 +1,18 @@
 import { CreateWarehouseCredentials } from 'common';
-import * as fs from 'fs';
 import * as fspromises from 'fs/promises';
-import * as git from 'isomorphic-git';
-import { Errors } from 'isomorphic-git';
-import * as http from 'isomorphic-git/http/node';
 import * as path from 'path';
+import simpleGit, { SimpleGit, SimpleGitProgressEvent } from 'simple-git';
 import tempy from 'tempy';
-import {
-    AuthorizationError,
-    NotFoundError,
-    UnexpectedGitError,
-    UnexpectedServerError,
-} from '../errors';
+import { UnexpectedGitError, UnexpectedServerError } from '../errors';
 import Logger from '../logger';
 import { WarehouseClient } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
+
+const git: SimpleGit = simpleGit({
+    progress({ method, stage, progress }: SimpleGitProgressEvent) {
+        Logger.debug(`git.${method} ${stage} stage ${progress}% complete`);
+    },
+});
 
 export type DbtGitProjectAdapterArgs = {
     warehouseClient: WarehouseClient;
@@ -28,6 +26,8 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
     localRepositoryDir: string;
 
     remoteRepositoryUrl: string;
+
+    projectDirectorySubPath: string;
 
     branch: string;
 
@@ -48,6 +48,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
             projectDir,
             warehouseCredentials,
         });
+        this.projectDirectorySubPath = projectDirectorySubPath;
         this.localRepositoryDir = localRepositoryDir;
         this.remoteRepositoryUrl = remoteRepositoryUrl;
         this.branch = gitBranch;
@@ -75,66 +76,48 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
     private async _clone() {
         try {
             Logger.debug(`Git clone to ${this.localRepositoryDir}`);
-            await git.clone({
-                fs,
-                http,
-                dir: this.localRepositoryDir,
-                url: this.remoteRepositoryUrl,
-                singleBranch: true,
-                depth: 1,
-                noTags: true,
-                ref: this.branch,
+            await git.clone(this.remoteRepositoryUrl, this.localRepositoryDir, {
+                '--single-branch': null,
+                '--depth': 1,
+                '--branch': this.branch,
+                '--sparse': null,
+                '--no-tags': null,
+                '--progress': null,
             });
+            Logger.debug(`Git sparse-checkout to ${this.localRepositoryDir}`);
+            await simpleGit().raw(
+                'sparse-checkout',
+                `set "${this.projectDirectorySubPath}"`,
+            );
         } catch (e) {
-            if (e instanceof Errors.HttpError) {
-                if (e.data.statusCode === 401) {
-                    throw new AuthorizationError(
-                        'Git credentials not recognized',
-                        e.data,
-                    );
-                }
-                if (e.data.statusCode === 404) {
-                    throw new NotFoundError(`No git repository found`);
-                }
-                throw new UnexpectedGitError(
-                    `Unexpected error while cloning git repository: ${e.message}`,
-                    e.data,
-                );
-            }
-            if (e instanceof Errors.NotFoundError) {
-                throw new NotFoundError(e.message);
-            }
+            console.log(JSON.stringify(e));
+            // if (e instanceof Errors.HttpError) {
+            //     if (e.data.statusCode === 401) {
+            //         throw new AuthorizationError(
+            //             'Git credentials not recognized',
+            //             e.data,
+            //         );
+            //     }
+            //     if (e.data.statusCode === 404) {
+            //         throw new NotFoundError(`No git repository found`);
+            //     }
+            //     throw new UnexpectedGitError(
+            //         `Unexpected error while cloning git repository: ${e.message}`,
+            //         e.data,
+            //     );
+            // }
+            // if (e instanceof Errors.NotFoundError) {
+            //     throw new NotFoundError(e.message);
+            // }
             throw new UnexpectedGitError(
                 `Unexpected error while cloning git repository: ${e}`,
             );
         }
     }
 
-    private async _pull() {
-        Logger.debug(`Git pull to ${this.localRepositoryDir}`);
-        try {
-            await git.pull({
-                fs,
-                http,
-                dir: this.localRepositoryDir,
-                url: this.remoteRepositoryUrl,
-                singleBranch: true,
-                fastForwardOnly: true,
-            });
-        } catch (e) {
-            throw new UnexpectedGitError(
-                `Unexpected error while pulling git repository: ${e}`,
-            );
-        }
-    }
-
     private async _refreshRepo() {
-        try {
-            await this._pull();
-        } catch (e) {
-            await this._cleanLocal();
-            await this._clone();
-        }
+        await this._cleanLocal();
+        await this._clone();
     }
 
     public async compileAllExplores() {
