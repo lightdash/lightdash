@@ -243,7 +243,7 @@ When ready, access the development container and run these commands:
 
 ```shell
 # Connect to container
-docker exec -it lightdash-app-lightdash-dev-1 bash
+docker exec -it lightdash-app_lightdash-dev_1 bash
 
 # Install dependencies & build common package
 ./docker/scripts/build.sh

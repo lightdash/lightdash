@@ -3,6 +3,7 @@ import React, { FC, useMemo } from 'react';
 import { useWatch } from 'react-hook-form';
 import { useApp } from '../../providers/AppProvider';
 import SelectField from '../ReactHookForm/Select';
+import BitBucketForm from './DbtForms/BitBucketForm';
 import DbtCloudForm from './DbtForms/DbtCloudForm';
 import DbtLocalForm from './DbtForms/DbtLocalForm';
 import GithubForm from './DbtForms/GithubForm';
@@ -23,7 +24,11 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     });
     const { health } = useApp();
     const options = useMemo(() => {
-        const enabledTypes = [ProjectType.GITHUB, ProjectType.GITLAB];
+        const enabledTypes = [
+            ProjectType.GITHUB,
+            ProjectType.GITLAB,
+            ProjectType.BITBUCKET,
+        ];
         if (health.data?.localDbtEnabled) {
             enabledTypes.push(ProjectType.DBT);
         }
@@ -47,6 +52,8 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 return <GithubForm disabled={disabled} />;
             case ProjectType.GITLAB:
                 return <GitlabForm disabled={disabled} />;
+            case ProjectType.BITBUCKET:
+                return <BitBucketForm disabled={disabled} />;
             default: {
                 const never: never = type;
                 return null;

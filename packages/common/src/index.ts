@@ -46,6 +46,7 @@ export enum ProjectType {
     DBT_CLOUD_IDE = 'dbt_cloud_ide',
     GITHUB = 'github',
     GITLAB = 'gitlab',
+    BITBUCKET = 'bitbucket',
 }
 
 // Seeds
@@ -1059,6 +1060,7 @@ export const ProjectTypeLabels: Record<ProjectType, string> = {
     [ProjectType.DBT_CLOUD_IDE]: 'dbt cloud',
     [ProjectType.GITHUB]: 'Github',
     [ProjectType.GITLAB]: 'GitLab',
+    [ProjectType.BITBUCKET]: 'BitBucket',
 };
 
 export interface DbtProjectConfigBase {
@@ -1098,10 +1100,21 @@ export interface DbtGitlabProjectConfig extends DbtProjectConfigBase {
     host_domain?: string;
 }
 
+export interface DbtBitBucketProjectConfig extends DbtProjectConfigBase {
+    type: ProjectType.BITBUCKET;
+    username: string;
+    personal_access_token: string;
+    repository: string;
+    branch: string;
+    project_sub_path: string;
+    host_domain?: string;
+}
+
 export type DbtProjectConfig =
     | DbtLocalProjectConfig
     | DbtCloudIDEProjectConfig
     | DbtGithubProjectConfig
+    | DbtBitBucketProjectConfig
     | DbtGitlabProjectConfig;
 
 export type OrganizationProject = {
