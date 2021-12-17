@@ -13,6 +13,7 @@ import {
 import './App.css';
 import AppBar from './components/AppBar';
 import AppRoute from './components/AppRoute';
+import { OpenChatButton } from './components/common/ChatBubble/OpenChatButton';
 import PrivateRoute from './components/PrivateRoute';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
@@ -204,6 +205,7 @@ const App = () => (
                                 </div>
                             </PrivateRoute>
                         </Switch>
+                        <OpenChatButton />
                     </Router>
                 </TrackingProvider>
             </AppProvider>

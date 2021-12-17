@@ -4,7 +4,13 @@ import * as Sentry from '@sentry/react';
 import { Integrations } from '@sentry/tracing';
 import MDEditor from '@uiw/react-md-editor';
 import Cohere from 'cohere-js';
-import { ApiError, ApiHealthResults, HealthState, LightdashUser } from 'common';
+import {
+    ApiError,
+    ApiHealthResults,
+    HealthState,
+    LightdashMode,
+    LightdashUser,
+} from 'common';
 import React, {
     createContext,
     FC,
@@ -96,7 +102,7 @@ export const AppProvider: FC = ({ children }) => {
 
     useEffect(() => {
         const identify = () => {
-            if (user.data) {
+            if (user.data && health.data?.mode !== LightdashMode.DEMO) {
                 (window as any).$chatwoot?.setUser(user.data.userUuid, {
                     email: user.data.email,
                     name: `${user.data.firstName} ${user.data.lastName}`,
@@ -110,7 +116,7 @@ export const AppProvider: FC = ({ children }) => {
             health.data.chatwoot.baseUrl.length > 0
         ) {
             (window as any).chatwootSettings = {
-                hideMessageBubble: false,
+                hideMessageBubble: true,
                 position: 'right',
                 locale: 'en',
                 type: 'standard',

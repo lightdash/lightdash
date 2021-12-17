@@ -193,8 +193,10 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         trustProxy: process.env.TRUST_PROXY === 'true',
         databaseConnectionUri: process.env.PGCONNECTIONURI,
         chatwoot: {
-            websiteToken: process.env.CHATWOOT_TOKEN || '',
-            baseUrl: process.env.CHATWOOT_BASE_URL || '',
+            websiteToken:
+                process.env.CHATWOOT_TOKEN || 'qUs8eBDFmn9id6R8aa1pAePq',
+            baseUrl:
+                process.env.CHATWOOT_BASE_URL || 'https://chat.lightdash.com',
         },
         cohere: {
             token: process.env.COHERE_TOKEN || '',

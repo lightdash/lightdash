@@ -210,7 +210,6 @@ export const TrackingProvider: FC<TrackingData> = ({
         ({ id, traits }: IdentifyData) => {
             if (mode && mode !== LightdashMode.DEMO) {
                 rudderAnalytics?.identify(id, traits, lightdashContext);
-                (window as any).$chatwoot.setUser(id, traits);
             }
         },
         [lightdashContext, mode, rudderAnalytics],
