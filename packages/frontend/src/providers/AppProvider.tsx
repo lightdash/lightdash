@@ -102,7 +102,11 @@ export const AppProvider: FC = ({ children }) => {
 
     useEffect(() => {
         const identify = () => {
-            if (user.data && health.data?.mode !== LightdashMode.DEMO) {
+            if (
+                user.data &&
+                health.data?.mode !== LightdashMode.DEMO &&
+                !user.data.isTrackingAnonymized
+            ) {
                 (window as any).$chatwoot?.setUser(user.data.userUuid, {
                     email: user.data.email,
                     name: `${user.data.firstName} ${user.data.lastName}`,
