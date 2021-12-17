@@ -179,7 +179,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/rlebrao"><img src="https://avatars.githubusercontent.com/u/18443331?v=4?s=100" width="100px;" alt=""/><br /><sub><b>rlebrao</b></sub></a><br /><a href="#ideas-rlebrao" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/lightdash/lightdash/issues?q=author%3Arlebrao" title="Bug reports">🐛</a></td>
-    <td align="center"><a href="https://github.com/philcarr-tsl"><img src="https://avatars.githubusercontent.com/u/90601643?v=4?s=100" width="100px;" alt=""/><br /><sub><b>philcarr-tsl</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Aphilcarr-tsl" title="Bug reports">🐛</a></td>
+    <td align="center"><a href="https://github.com/philcarr-tsl"><img src="https://avatars.githubusercontent.com/u/90601643?v=4?s=100" width="100px;" alt=""/><br /><sub><b>philcarr-tsl</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Aphilcarr-tsl" title="Bug reports">🐛</a> <a href="#data-philcarr-tsl" title="Data">🔣</a></td>
   </tr>
 </table>
 
