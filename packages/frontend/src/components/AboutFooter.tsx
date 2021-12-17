@@ -72,7 +72,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                             href="https://docs.lightdash.com/"
                             target="_blank"
                             minimal
-                            icon="document-open"
+                            icon="manual"
                         >
                             {!minimal && 'Documentation'}
                         </AnchorButton>

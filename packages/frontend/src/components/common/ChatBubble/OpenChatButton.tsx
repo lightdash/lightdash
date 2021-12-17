@@ -1,4 +1,4 @@
-import { Button, Colors, Icon, Overlay } from '@blueprintjs/core';
+import { Card, Colors, Elevation, Icon, Overlay } from '@blueprintjs/core';
 import React from 'react';
 import { useApp } from '../../../providers/AppProvider';
 
@@ -20,21 +20,27 @@ export const OpenChatButton: React.FC = () => {
                 hasBackdrop={false}
                 usePortal={false}
             >
-                <Button
-                    onClick={openChatWindow}
+                <Card
+                    elevation={Elevation.TWO}
+                    interactive
                     style={{
-                        background: Colors.BLUE1,
-                        borderRadius: 30,
-                        width: 60,
-                        height: 60,
                         right: 0,
                         bottom: 0,
                         position: 'fixed',
-                        margin: 20,
+                        margin: 25,
+                        padding: 0,
+                        width: 60,
+                        height: 60,
+                        borderRadius: 30,
+                        background: Colors.BLUE1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                     }}
+                    onClick={openChatWindow}
                 >
                     <Icon icon="chat" style={{ color: Colors.LIGHT_GRAY5 }} />
-                </Button>
+                </Card>
             </Overlay>
         );
     }
