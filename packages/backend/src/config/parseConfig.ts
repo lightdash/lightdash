@@ -1,6 +1,7 @@
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import {
+    DbtBitBucketProjectConfig,
     DbtCloudIDEProjectConfig,
     DbtGithubProjectConfig,
     DbtGitlabProjectConfig,
@@ -92,6 +93,16 @@ const dbtGitlabProjectConfigKeys: ConfigKeys<DbtGitlabProjectConfig> = {
     project_sub_path: true,
     host_domain: true,
 };
+const dbtBitBucketProjectConfigKeys: ConfigKeys<DbtBitBucketProjectConfig> = {
+    type: true,
+    name: true,
+    username: true,
+    personal_access_token: true,
+    repository: true,
+    branch: true,
+    project_sub_path: true,
+    host_domain: true,
+};
 
 const mergeProjectWithEnvironment = <T extends DbtProjectConfig>(
     projectIndex: number,
@@ -140,6 +151,12 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                     idx,
                     project,
                     dbtGitlabProjectConfigKeys,
+                );
+            case ProjectType.BITBUCKET:
+                return mergeProjectWithEnvironment(
+                    idx,
+                    project,
+                    dbtBitBucketProjectConfigKeys,
                 );
             default: {
                 const never: never = project;

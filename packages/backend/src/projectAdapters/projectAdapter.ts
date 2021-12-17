@@ -6,6 +6,7 @@ import {
 import Logger from '../logger';
 import { warehouseClientFromCredentials } from '../services/warehouseClients/warehouseClientFromCredentials';
 import { ProjectAdapter } from '../types';
+import { DbtBitBucketProjectAdapter } from './dbtBitBucketProjectAdapter';
 import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
 import { DbtGitlabProjectAdapter } from './dbtGitlabProjectAdapter';
@@ -49,6 +50,17 @@ export const projectAdapterFromConfig = async (
                 gitlabPersonalAccessToken: config.personal_access_token,
                 gitlabRepository: config.repository,
                 gitlabBranch: config.branch,
+                projectDirectorySubPath: config.project_sub_path,
+                hostDomain: config.host_domain,
+                warehouseCredentials,
+            });
+        case ProjectType.BITBUCKET:
+            return new DbtBitBucketProjectAdapter({
+                warehouseClient,
+                username: config.username,
+                personalAccessToken: config.personal_access_token,
+                repository: config.repository,
+                branch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,
                 hostDomain: config.host_domain,
                 warehouseCredentials,
