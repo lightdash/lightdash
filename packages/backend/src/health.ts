@@ -59,7 +59,7 @@ export const getHealthState = async (
         latest: { version: latestVersion },
         rudder: lightdashConfig.rudder,
         sentry: lightdashConfig.sentry,
-        papercups: lightdashConfig.papercups,
+        chatwoot: lightdashConfig.chatwoot,
         cohere: lightdashConfig.cohere,
     };
 };
