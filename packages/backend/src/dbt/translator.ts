@@ -83,11 +83,13 @@ const convertDimension = (
     let name = column.meta.dimension?.name || column.name;
     let sql = column.meta.dimension?.sql || defaultSql(column.name);
     if (timeInterval) {
-        sql = getDataTruncSql(
-            targetWarehouse,
-            timeInterval,
-            defaultSql(column.name),
-        );
+        if (timeInterval !== 'RAW') {
+            sql = getDataTruncSql(
+                targetWarehouse,
+                timeInterval,
+                defaultSql(column.name),
+            );
+        }
         name = `${column.name}_${timeInterval.toLowerCase()}`;
         group = column.name;
         if (dateIntervals.includes(timeInterval.toUpperCase())) {
@@ -258,7 +260,7 @@ export const convertTable = (
                     intervals = column.meta.dimension.time_intervals;
                 } else {
                     if (dimension.type === DimensionType.TIMESTAMP) {
-                        intervals = ['MILLISECOND'];
+                        intervals = ['RAW'];
                     }
                     intervals = [...intervals, ...dateIntervals];
                 }

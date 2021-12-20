@@ -200,16 +200,16 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS: Omit<
             group: undefined,
             timeInterval: undefined,
         },
-        user_created_MILLISECOND: {
+        user_created_RAW: {
             fieldType: FieldType.DIMENSION,
             description: undefined,
             type: DimensionType.TIMESTAMP,
-            sql: "DATE_TRUNC('${TABLE}.user_created', MILLISECOND)",
-            name: 'user_created_millisecond',
+            sql: '${TABLE}.user_created',
+            name: 'user_created_raw',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             source: undefined,
             group: 'user_created',
-            timeInterval: 'MILLISECOND',
+            timeInterval: 'RAW',
         },
         user_created_DAY: {
             fieldType: FieldType.DIMENSION,

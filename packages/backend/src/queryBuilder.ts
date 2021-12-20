@@ -285,6 +285,11 @@ export const buildQuery = ({
     const selectedTables = new Set([
         ...metrics.map((field) => getMetricFromId(field, explore).table),
         ...dimensions.map((field) => getDimensionFromId(field, explore).table),
+        ...filters.map(
+            (filterGroup) =>
+                getDimensionFromId(fieldIdFromFilterGroup(filterGroup), explore)
+                    .table,
+        ),
     ]);
 
     const sqlJoins = explore.joinedTables

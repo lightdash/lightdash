@@ -3,6 +3,7 @@ import {
     DimensionType,
     Explore,
     FieldType,
+    FilterGroupOperator,
     MetricType,
     SupportedDbtAdapter,
 } from 'common';
@@ -141,6 +142,24 @@ export const METRIC_QUERY_TWO_TABLES: CompiledMetricQuery = {
     ],
 };
 
+export const METRIC_QUERY_WITH_FILTER: CompiledMetricQuery = {
+    dimensions: ['table1_dim1'],
+    metrics: [],
+    filters: [
+        {
+            type: 'number',
+            fieldName: 'dim2',
+            tableName: 'table2',
+            operator: FilterGroupOperator.and,
+            filters: [{ operator: 'equals', values: [0] }],
+        },
+    ],
+    sorts: [{ fieldId: 'table1_dim1', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+};
+
 export const METRIC_QUERY_SQL = `WITH metrics AS (
 SELECT
   table1.dim1 AS "table1_dim1",
@@ -172,4 +191,16 @@ SELECT
   table1_dim1 + table2_metric2 AS "calc3"
 FROM metrics
 ORDER BY "table2_metric2" DESC
+LIMIT 10`;
+
+export const METRIC_QUERY_WITH_FILTER_SQL = `SELECT
+  table1.dim1 AS "table1_dim1"
+FROM "db"."schema"."table1" AS table1
+LEFT JOIN "db"."schema"."table2" AS table2
+  ON (table1.shared) = (table2.shared)
+WHERE (
+  (table1.dim2) IN (0)
+)
+GROUP BY 1
+ORDER BY "table1_dim1" DESC
 LIMIT 10`;
