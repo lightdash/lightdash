@@ -253,10 +253,15 @@ export const convertTable = (
                 [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                     dimension.type,
                 ) &&
-                column.meta.dimension?.time_intervals !== 'OFF'
+                ((column.meta.dimension?.time_intervals &&
+                    column.meta.dimension.time_intervals !== 'OFF') ||
+                    !column.meta.dimension?.time_intervals)
             ) {
                 let intervals: string[] = [];
-                if (Array.isArray(column.meta.dimension.time_intervals)) {
+                if (
+                    column.meta.dimension?.time_intervals &&
+                    Array.isArray(column.meta.dimension.time_intervals)
+                ) {
                     intervals = column.meta.dimension.time_intervals;
                 } else {
                     if (dimension.type === DimensionType.TIMESTAMP) {
