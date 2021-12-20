@@ -38,7 +38,9 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         projectDirectorySubPath,
         warehouseCredentials,
     }: DbtGitProjectAdapterArgs) {
-        const localRepositoryDir = tempy.directory();
+        const localRepositoryDir = tempy.directory({
+            prefix: 'git_',
+        });
         const projectDir = path.join(
             localRepositoryDir,
             projectDirectorySubPath,
@@ -62,17 +64,45 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
     }
 
     async destroy(): Promise<void> {
-        await this._cleanLocal();
+        await this.removeLocalDir();
         await super.destroy();
     }
 
-    private async _cleanLocal() {
+    private async removeLocalDir() {
         try {
-            Logger.debug(`Clean ${this.localRepositoryDir}`);
+            Logger.debug(`Remove ${this.localRepositoryDir}`);
             await fspromises.rm(this.localRepositoryDir, {
                 recursive: true,
                 force: true,
             });
+        } catch (e) {
+            throw new UnexpectedServerError(
+                `Unexpected error while removing local git directory: ${e}`,
+            );
+        }
+    }
+
+    private async cleanLocalDir() {
+        try {
+            Logger.debug(`Clean ${this.localRepositoryDir}`);
+            await fspromises
+                .readdir(this.localRepositoryDir, { withFileTypes: true })
+                .then((f) =>
+                    Promise.all(
+                        f.map((e) => {
+                            if (e.isFile()) {
+                                return fspromises.unlink(e.name);
+                            }
+                            if (e.isDirectory()) {
+                                return fspromises.rm(e.name, {
+                                    recursive: true,
+                                    force: true,
+                                });
+                            }
+                            return Promise.resolve();
+                        }),
+                    ),
+                );
         } catch (e) {
             throw new UnexpectedServerError(
                 `Unexpected error while cleaning local git directory: ${e}`,
@@ -103,10 +133,13 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
                 Logger.debug(
                     `Git sparse-checkout ${this.projectDirectorySubPath}`,
                 );
-                await this.git.raw(
-                    'sparse-checkout',
-                    `set "${this.projectDirectorySubPath}"`,
-                );
+                await this.git
+                    .cwd(this.localRepositoryDir)
+                    .raw(
+                        `sparse-checkout`,
+                        `set`,
+                        `${this.projectDirectorySubPath}`,
+                    );
             } else {
                 Logger.debug(`Git clone to ${this.localRepositoryDir}`);
                 await this.git.clone(
@@ -129,14 +162,22 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
     }
 
     private async _pull() {
-        Logger.debug(`Git pull to ${this.localRepositoryDir}`);
-        await this.git.pull(this.remoteRepositoryUrl, this.branch, {
-            '--single-branch': null,
-            '--ff-only': null,
-            '--depth': 1,
-            '--no-tags': null,
-            '--progress': null,
-        });
+        try {
+            Logger.debug(`Git pull to ${this.localRepositoryDir}`);
+            await fspromises.access(this.localRepositoryDir);
+            await this.git
+                .cwd(this.localRepositoryDir)
+                .pull(this.remoteRepositoryUrl, this.branch, {
+                    '--ff-only': null,
+                    '--depth': 1,
+                    '--no-tags': null,
+                    '--progress': null,
+                });
+        } catch (e) {
+            throw new UnexpectedGitError(
+                `Unexpected error while pulling git repository: ${e}`,
+            );
+        }
     }
 
     private async _refreshRepo() {
@@ -144,7 +185,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
             await this._pull();
         } catch (e) {
             Logger.debug(`Failed git pull ${e}`);
-            await this._cleanLocal();
+            await this.cleanLocalDir();
             await this._clone();
         }
     }
