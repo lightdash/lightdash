@@ -3,16 +3,14 @@ import * as fspromises from 'fs/promises';
 import * as path from 'path';
 import simpleGit, { SimpleGit, SimpleGitProgressEvent } from 'simple-git';
 import tempy from 'tempy';
-import { UnexpectedGitError, UnexpectedServerError } from '../errors';
+import {
+    AuthorizationError,
+    UnexpectedGitError,
+    UnexpectedServerError,
+} from '../errors';
 import Logger from '../logger';
 import { WarehouseClient } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
-
-const git: SimpleGit = simpleGit({
-    progress({ method, stage, progress }: SimpleGitProgressEvent) {
-        Logger.debug(`git.${method} ${stage} stage ${progress}% complete`);
-    },
-});
 
 export type DbtGitProjectAdapterArgs = {
     warehouseClient: WarehouseClient;
@@ -30,6 +28,8 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
     projectDirectorySubPath: string;
 
     branch: string;
+
+    git: SimpleGit;
 
     constructor({
         warehouseClient,
@@ -52,6 +52,13 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         this.localRepositoryDir = localRepositoryDir;
         this.remoteRepositoryUrl = remoteRepositoryUrl;
         this.branch = gitBranch;
+        this.git = simpleGit({
+            progress({ method, stage, progress }: SimpleGitProgressEvent) {
+                Logger.debug(
+                    `git.${method} ${stage} stage ${progress}% complete`,
+                );
+            },
+        });
     }
 
     async destroy(): Promise<void> {
@@ -75,49 +82,71 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
 
     private async _clone() {
         try {
-            Logger.debug(`Git clone to ${this.localRepositoryDir}`);
-            await git.clone(this.remoteRepositoryUrl, this.localRepositoryDir, {
+            const defaultCloneOptions = {
                 '--single-branch': null,
                 '--depth': 1,
                 '--branch': this.branch,
-                '--sparse': null,
                 '--no-tags': null,
                 '--progress': null,
-            });
-            Logger.debug(`Git sparse-checkout to ${this.localRepositoryDir}`);
-            await simpleGit().raw(
-                'sparse-checkout',
-                `set "${this.projectDirectorySubPath}"`,
-            );
+            };
+
+            if (this.projectDirectorySubPath !== '/') {
+                Logger.debug(`Git clone sparse to ${this.localRepositoryDir}`);
+                await this.git.clone(
+                    this.remoteRepositoryUrl,
+                    this.localRepositoryDir,
+                    {
+                        ...defaultCloneOptions,
+                        '--sparse': null,
+                    },
+                );
+                Logger.debug(
+                    `Git sparse-checkout ${this.projectDirectorySubPath}`,
+                );
+                await this.git.raw(
+                    'sparse-checkout',
+                    `set "${this.projectDirectorySubPath}"`,
+                );
+            } else {
+                Logger.debug(`Git clone to ${this.localRepositoryDir}`);
+                await this.git.clone(
+                    this.remoteRepositoryUrl,
+                    this.localRepositoryDir,
+                    defaultCloneOptions,
+                );
+            }
         } catch (e) {
-            console.log(JSON.stringify(e));
-            // if (e instanceof Errors.HttpError) {
-            //     if (e.data.statusCode === 401) {
-            //         throw new AuthorizationError(
-            //             'Git credentials not recognized',
-            //             e.data,
-            //         );
-            //     }
-            //     if (e.data.statusCode === 404) {
-            //         throw new NotFoundError(`No git repository found`);
-            //     }
-            //     throw new UnexpectedGitError(
-            //         `Unexpected error while cloning git repository: ${e.message}`,
-            //         e.data,
-            //     );
-            // }
-            // if (e instanceof Errors.NotFoundError) {
-            //     throw new NotFoundError(e.message);
-            // }
+            if (e.message.includes('Authentication failed')) {
+                throw new AuthorizationError(
+                    'Git credentials not recognized for this repository',
+                    { message: e.message },
+                );
+            }
             throw new UnexpectedGitError(
                 `Unexpected error while cloning git repository: ${e}`,
             );
         }
     }
 
+    private async _pull() {
+        Logger.debug(`Git pull to ${this.localRepositoryDir}`);
+        await this.git.pull(this.remoteRepositoryUrl, this.branch, {
+            '--single-branch': null,
+            '--ff-only': null,
+            '--depth': 1,
+            '--no-tags': null,
+            '--progress': null,
+        });
+    }
+
     private async _refreshRepo() {
-        await this._cleanLocal();
-        await this._clone();
+        try {
+            await this._pull();
+        } catch (e) {
+            Logger.debug(`Failed git pull ${e}`);
+            await this._cleanLocal();
+            await this._clone();
+        }
     }
 
     public async compileAllExplores() {

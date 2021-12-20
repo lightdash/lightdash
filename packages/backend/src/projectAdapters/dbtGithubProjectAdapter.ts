@@ -20,7 +20,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         projectDirectorySubPath,
         warehouseCredentials,
     }: DbtGithubProjectAdapterArgs) {
-        const remoteRepositoryUrl = `https://${githubPersonalAccessToken}@github.com/${githubRepository}.git`;
+        const remoteRepositoryUrl = `https://:${githubPersonalAccessToken}@github.com/${githubRepository}.git`;
         super({
             warehouseClient,
             remoteRepositoryUrl,
