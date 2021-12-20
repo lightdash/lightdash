@@ -9,6 +9,7 @@ import {
     WarehouseTypes,
 } from 'common';
 import { v4 as uuidv4 } from 'uuid';
+import { lightdashConfig } from '../config/lightdashConfig';
 import { VERSION } from '../version';
 
 type Identify = {
@@ -164,6 +165,7 @@ export class LightdashAnalytics extends Analytics {
             namespace: 'lightdash',
             name: 'lightdash_server',
             version: VERSION,
+            mode: lightdashConfig.mode,
             installId: process.env.LIGHTDASH_INSTALL_ID || uuidv4(),
             installType:
                 process.env.LIGHTDASH_INSTALL_TYPE ||
