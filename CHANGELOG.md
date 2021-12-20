@@ -4,6 +4,19 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.11.3] - 2021-12-20
+### Added
+- Add support for BitBucket (#1026)
+- Improved messages and invalid states in explore page (#1008)
+- Temporary script to replace user passwords (#1017)
+- Add support widget (#987)
+
+### Changed
+- Replaced timestamp default time interval 'millisecond' for 'raw' (#1036)
+
+### Fixed
+- Fix sql join logic to include tables from filtered dimensions (#1036)
+
 ## [0.11.2] - 2021-12-15
 ### Fixed
 - Refresh explore dimensions and metrics after project compiles (#991)

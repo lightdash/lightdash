@@ -52,6 +52,7 @@ const Context = createContext<AppContext>(undefined as any);
 export const AppProvider: FC = ({ children }) => {
     const [isSentryLoaded, setIsSentryLoaded] = useState(false);
     const [isCohereLoaded, setIsCohereLoaded] = useState(false);
+    const [isChatwootLoaded, setIsChatwootLoaded] = useState(false);
     const health = useQuery<HealthState, ApiError>({
         queryKey: 'health',
         queryFn: getHealthState,
@@ -92,6 +93,35 @@ export const AppProvider: FC = ({ children }) => {
             });
         }
     }, [health, isCohereLoaded, user]);
+
+    useEffect(() => {
+        if (
+            !isChatwootLoaded &&
+            health.data &&
+            health.data.chatwoot.websiteToken.length > 0 &&
+            health.data.chatwoot.baseUrl.length > 0
+        ) {
+            (window as any).chatwootSettings = {
+                hideMessageBubble: true,
+                position: 'right',
+                locale: 'en',
+                type: 'standard',
+            };
+            const script = document.createElement('script');
+            const ref = document.getElementsByTagName('script')[0];
+            script.src = `${health.data.chatwoot.baseUrl}/packs/js/sdk.js`;
+            script.defer = true;
+            script.async = true;
+            ref.parentNode?.insertBefore(script, ref);
+            script.onload = () => {
+                (window as any).chatwootSDK.run({
+                    websiteToken: health.data.chatwoot.websiteToken,
+                    baseUrl: health.data.chatwoot.baseUrl,
+                });
+            };
+            setIsChatwootLoaded(true);
+        }
+    }, [isChatwootLoaded, health, user]);
 
     const showToastSuccess = useCallback<AppContext['showToastSuccess']>(
         ({ title, subtitle, key, ...rest }) => {

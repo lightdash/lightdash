@@ -1,6 +1,7 @@
 import { Divider, H1 } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { Redirect } from 'react-router-dom';
+import { OpenChatButton } from '../components/common/ChatBubble/OpenChatButton';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { CreateProjectConnection } from '../components/ProjectConnection';
@@ -40,6 +41,7 @@ const CreateProject: FC = () => {
                 <Divider style={{ margin: '20px 0' }} />
                 <CreateProjectConnection />
             </div>
+            <OpenChatButton />
         </Page>
     );
 };
