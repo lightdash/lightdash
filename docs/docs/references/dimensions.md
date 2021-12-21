@@ -52,7 +52,7 @@ All the properties you can customize:
 | type            | Dimension type        | |
 | description     | string                | |
 | sql             | string                | |
-| time_intervals  | `'default'` or string[] | `'default'` will be converted into `['DAY', 'WEEK', 'MONTH', 'YEAR']` for dates and `['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']` for timestamps, as will not setting anything; if you want no time intervals set 'OFF' |
+| time_intervals  | `'default'` or `OFF` or string[] | `'default'` will be converted into `['DAY', 'WEEK', 'MONTH', 'YEAR']` for dates and `['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']` for timestamps, as will not setting anything; if you want no time intervals set `'OFF'` |
 
 
 ## Dimension types
