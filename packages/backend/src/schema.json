@@ -24,6 +24,9 @@
                             "const": "default"
                         },
                         {
+                            "const": "OFF"
+                        },
+                        {
                             "type": "array",
                             "items": {
                                 "type": "string"
