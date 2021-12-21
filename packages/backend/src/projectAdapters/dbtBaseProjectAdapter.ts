@@ -70,8 +70,10 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         this.warehouseClient = warehouseClient;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-empty-function,class-methods-use-this
-    async destroy(): Promise<void> {}
+    // eslint-disable-next-line class-methods-use-this
+    async destroy(): Promise<void> {
+        Logger.debug(`Destroy base project adapter`);
+    }
 
     public async test(): Promise<void> {
         Logger.debug('Test dbt client');
@@ -81,6 +83,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     }
 
     public async getDbtPackages(): Promise<DbtPackages | undefined> {
+        Logger.debug(`Get dbt packages`);
         if (this.dbtClient.getDbtPackages) {
             return this.dbtClient.getDbtPackages();
         }
@@ -165,6 +168,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     }
 
     public async runQuery(sql: string): Promise<Record<string, any>[]> {
+        Logger.debug(`Run query against warehouse`);
         // Possible error if query is ran before dependencies are installed
         return this.warehouseClient.runQuery(sql);
     }

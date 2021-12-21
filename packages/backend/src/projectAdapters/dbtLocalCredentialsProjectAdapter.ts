@@ -8,6 +8,7 @@ import {
     LIGHTDASH_TARGET_NAME,
     profileFromCredentials,
 } from '../dbt/profiles';
+import Logger from '../logger';
 import { WarehouseClient } from '../types';
 import { DbtLocalProjectAdapter } from './dbtLocalProjectAdapter';
 
@@ -42,6 +43,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
     }
 
     async destroy() {
+        Logger.debug(`Destroy local project adapter`);
         await fspromises.rm(this.profilesDir, { recursive: true, force: true });
         await super.destroy();
     }
