@@ -11,11 +11,15 @@ import {
     LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
     LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
     LIGHTDASH_TABLE_WITH_METRIC,
+    LIGHTDASH_TABLE_WITH_NO_TIME_INTERVAL_DIMENSIONS,
+    LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
     model,
     MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_METRIC,
     MODEL_WITH_NO_METRICS,
+    MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
+    MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
     VALID_ID_COLUMN_NAMES,
     warehouseSchema,
     warehouseSchemaWithMissingColumn,
@@ -103,6 +107,24 @@ describe('convert tables from dbt models', () => {
                 [],
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS);
+    });
+    it('should convert dbt model with dimension with no time intervals', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
+                [],
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_NO_TIME_INTERVAL_DIMENSIONS);
+    });
+    it('should convert dbt model with dimension with off time intervals', () => {
+        expect(
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
+                [],
+            ),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS);
     });
     it('should convert dbt model with dimension with custom time intervals', () => {
         expect(
