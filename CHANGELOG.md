@@ -4,6 +4,14 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.11.4] - 2021-12-22
+### Added
+- Be able to turn off the time interval dimensions (#1044)
+
+### Changed
+- Changed the git clone process to only clone the dbt directory (#1038)
+- Set time interval dimensions by default (#1044)
+
 ## [0.11.3] - 2021-12-20
 ### Added
 - Add support for BitBucket (#1026)
