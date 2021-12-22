@@ -301,6 +301,15 @@
         "bug",
         "data"
       ]
+    },
+    {
+      "login": "HashimsGitHub",
+      "name": "HashimsGitHub",
+      "avatar_url": "https://avatars.githubusercontent.com/u/79075502?v=4",
+      "profile": "https://github.com/HashimsGitHub",
+      "contributions": [
+        "infra"
+      ]
     }
   ],
   "contributorsPerLine": 7,
