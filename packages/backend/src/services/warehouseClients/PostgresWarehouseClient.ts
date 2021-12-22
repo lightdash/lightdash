@@ -2,7 +2,9 @@ import {
     CreatePostgresCredentials,
     CreateRedshiftCredentials,
     DimensionType,
+    WarehouseTypes,
 } from 'common';
+import path from 'path';
 import * as pg from 'pg';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
 import { WarehouseClient } from '../../types';
@@ -103,7 +105,14 @@ export default class PostgresWarehouseClient implements WarehouseClient {
                     credentials.password
                 }@${credentials.host}:${credentials.port}/${
                     credentials.dbname
-                }?sslmode=${credentials.sslmode || 'prefer'}`,
+                }?sslmode=${credentials.sslmode || 'prefer'}${
+                    credentials.type === WarehouseTypes.REDSHIFT
+                        ? `&sslrootcert=${path.resolve(
+                              __dirname,
+                              './amazon-trust-ca-bundle.crt',
+                          )}`
+                        : ''
+                }`,
             });
             this.pool = pool;
         } catch (e) {
@@ -155,9 +164,9 @@ export default class PostgresWarehouseClient implements WarehouseClient {
                    column_name,
                    data_type
             FROM information_schema.columns
-            WHERE table_catalog IN (${Array.from(databases)}) 
-            AND table_schema IN (${Array.from(schemas)})
-            AND table_name IN (${Array.from(tables)})
+            WHERE table_catalog IN (${Array.from(databases)})
+              AND table_schema IN (${Array.from(schemas)})
+              AND table_name IN (${Array.from(tables)})
         `;
 
         const rows = await this.runQuery(query);
