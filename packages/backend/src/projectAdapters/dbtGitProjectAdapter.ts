@@ -1,14 +1,10 @@
 import { CreateWarehouseCredentials } from 'common';
-import * as fs from 'fs';
-import * as fspromises from 'fs/promises';
-import * as git from 'isomorphic-git';
-import { Errors } from 'isomorphic-git';
-import * as http from 'isomorphic-git/http/node';
+import * as fspromises from 'fs-extra';
 import * as path from 'path';
+import simpleGit, { SimpleGit, SimpleGitProgressEvent } from 'simple-git';
 import tempy from 'tempy';
 import {
     AuthorizationError,
-    NotFoundError,
     UnexpectedGitError,
     UnexpectedServerError,
 } from '../errors';
@@ -29,7 +25,11 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
 
     remoteRepositoryUrl: string;
 
+    projectDirectorySubPath: string;
+
     branch: string;
+
+    git: SimpleGit;
 
     constructor({
         warehouseClient,
@@ -38,7 +38,9 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         projectDirectorySubPath,
         warehouseCredentials,
     }: DbtGitProjectAdapterArgs) {
-        const localRepositoryDir = tempy.directory();
+        const localRepositoryDir = tempy.directory({
+            prefix: 'git_',
+        });
         const projectDir = path.join(
             localRepositoryDir,
             projectDirectorySubPath,
@@ -48,23 +50,43 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
             projectDir,
             warehouseCredentials,
         });
+        this.projectDirectorySubPath = projectDirectorySubPath;
         this.localRepositoryDir = localRepositoryDir;
         this.remoteRepositoryUrl = remoteRepositoryUrl;
         this.branch = gitBranch;
+        this.git = simpleGit({
+            progress({ method, stage, progress }: SimpleGitProgressEvent) {
+                Logger.debug(
+                    `git.${method} ${stage} stage ${progress}% complete`,
+                );
+            },
+        });
     }
 
     async destroy(): Promise<void> {
-        await this._cleanLocal();
+        Logger.debug(`Destroy git project adapter`);
+        await this._destroyLocal();
         await super.destroy();
+    }
+
+    private async _destroyLocal() {
+        try {
+            Logger.debug(`Destroy ${this.localRepositoryDir}`);
+            await fspromises.rm(this.localRepositoryDir, {
+                recursive: true,
+                force: true,
+            });
+        } catch (e) {
+            throw new UnexpectedServerError(
+                `Unexpected error while removing local git directory: ${e}`,
+            );
+        }
     }
 
     private async _cleanLocal() {
         try {
             Logger.debug(`Clean ${this.localRepositoryDir}`);
-            await fspromises.rm(this.localRepositoryDir, {
-                recursive: true,
-                force: true,
-            });
+            await fspromises.emptyDir(this.localRepositoryDir);
         } catch (e) {
             throw new UnexpectedServerError(
                 `Unexpected error while cleaning local git directory: ${e}`,
@@ -74,35 +96,48 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
 
     private async _clone() {
         try {
-            Logger.debug(`Git clone to ${this.localRepositoryDir}`);
-            await git.clone({
-                fs,
-                http,
-                dir: this.localRepositoryDir,
-                url: this.remoteRepositoryUrl,
-                singleBranch: true,
-                depth: 1,
-                noTags: true,
-                ref: this.branch,
-            });
-        } catch (e) {
-            if (e instanceof Errors.HttpError) {
-                if (e.data.statusCode === 401) {
-                    throw new AuthorizationError(
-                        'Git credentials not recognized',
-                        e.data,
+            const defaultCloneOptions = {
+                '--single-branch': null,
+                '--depth': 1,
+                '--branch': this.branch,
+                '--no-tags': null,
+                '--progress': null,
+            };
+
+            if (this.projectDirectorySubPath !== '/') {
+                Logger.debug(`Git clone sparse to ${this.localRepositoryDir}`);
+                await this.git.clone(
+                    this.remoteRepositoryUrl,
+                    this.localRepositoryDir,
+                    {
+                        ...defaultCloneOptions,
+                        '--sparse': null,
+                    },
+                );
+                Logger.debug(
+                    `Git sparse-checkout ${this.projectDirectorySubPath}`,
+                );
+                await this.git
+                    .cwd(this.localRepositoryDir)
+                    .raw(
+                        `sparse-checkout`,
+                        `set`,
+                        `${this.projectDirectorySubPath}`,
                     );
-                }
-                if (e.data.statusCode === 404) {
-                    throw new NotFoundError(`No git repository found`);
-                }
-                throw new UnexpectedGitError(
-                    `Unexpected error while cloning git repository: ${e.message}`,
-                    e.data,
+            } else {
+                Logger.debug(`Git clone to ${this.localRepositoryDir}`);
+                await this.git.clone(
+                    this.remoteRepositoryUrl,
+                    this.localRepositoryDir,
+                    defaultCloneOptions,
                 );
             }
-            if (e instanceof Errors.NotFoundError) {
-                throw new NotFoundError(e.message);
+        } catch (e) {
+            if (e.message.includes('Authentication failed')) {
+                throw new AuthorizationError(
+                    'Git credentials not recognized for this repository',
+                    { message: e.message },
+                );
             }
             throw new UnexpectedGitError(
                 `Unexpected error while cloning git repository: ${e}`,
@@ -111,16 +146,17 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
     }
 
     private async _pull() {
-        Logger.debug(`Git pull to ${this.localRepositoryDir}`);
         try {
-            await git.pull({
-                fs,
-                http,
-                dir: this.localRepositoryDir,
-                url: this.remoteRepositoryUrl,
-                singleBranch: true,
-                fastForwardOnly: true,
-            });
+            Logger.debug(`Git pull to ${this.localRepositoryDir}`);
+            await fspromises.access(this.localRepositoryDir);
+            await this.git
+                .cwd(this.localRepositoryDir)
+                .pull(this.remoteRepositoryUrl, this.branch, {
+                    '--ff-only': null,
+                    '--depth': 1,
+                    '--no-tags': null,
+                    '--progress': null,
+                });
         } catch (e) {
             throw new UnexpectedGitError(
                 `Unexpected error while pulling git repository: ${e}`,
@@ -132,6 +168,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         try {
             await this._pull();
         } catch (e) {
+            Logger.debug(`Failed git pull ${e}`);
             await this._cleanLocal();
             await this._clone();
         }

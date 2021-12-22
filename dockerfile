@@ -30,7 +30,12 @@ COPY --from=dependencies-builder /opt/simba /opt/simba
 # TODO: prefer in stage 1 - needed for yarn install and pip install
 RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
-    unixodbc-dev
+    unixodbc-dev \
+    software-properties-common
+
+# Install latest git
+RUN add-apt-repository "deb http://deb.debian.org/debian buster-backports main"
+RUN apt-get update && apt-get -y -t buster-backports install git
 
 # dbt
 # TODO: prefer in stage 1
