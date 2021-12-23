@@ -12,17 +12,13 @@ import {
     LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY,
     LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE,
     LIGHTDASH_TABLE_WITH_METRIC,
-    LIGHTDASH_TABLE_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY,
-    LIGHTDASH_TABLE_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE,
     LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
     model,
     MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
-    MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY,
-    MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE,
+    MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_METRIC,
     MODEL_WITH_NO_METRICS,
-    MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY,
-    MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE,
+    MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
     VALID_ID_COLUMN_NAMES,
     warehouseSchema,
@@ -107,7 +103,7 @@ describe('convert tables from dbt models', () => {
         expect(
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
-                MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY,
+                MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
                 [],
             ),
         ).toStrictEqual(
@@ -118,18 +114,18 @@ describe('convert tables from dbt models', () => {
         expect(
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
-                MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY,
+                MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
                 [],
             ),
         ).toStrictEqual(
-            LIGHTDASH_TABLE_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY,
+            LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY,
         );
     });
     it('should convert dbt model with dimension with default time intervals snowflake', () => {
         expect(
             convertTable(
                 SupportedDbtAdapter.SNOWFLAKE,
-                MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE,
+                MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
                 [],
             ),
         ).toStrictEqual(
@@ -140,11 +136,11 @@ describe('convert tables from dbt models', () => {
         expect(
             convertTable(
                 SupportedDbtAdapter.SNOWFLAKE,
-                MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE,
+                MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
                 [],
             ),
         ).toStrictEqual(
-            LIGHTDASH_TABLE_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE,
+            LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE,
         );
     });
     it('should convert dbt model with dimension with off time intervals', () => {

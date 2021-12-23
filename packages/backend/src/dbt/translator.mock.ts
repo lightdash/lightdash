@@ -53,10 +53,7 @@ const COLUMN_WITH_METRIC: Record<string, DbtModelColumn> = {
     },
 };
 
-const COLUMN_WITH_DEFAULT_TIME_INTERVALS_BIGQUERY: Record<
-    string,
-    DbtModelColumn
-> = {
+const COLUMN_WITH_DEFAULT_TIME_INTERVALS: Record<string, DbtModelColumn> = {
     user_created: {
         name: 'user_created',
         data_type: DimensionType.TIMESTAMP,
@@ -68,7 +65,7 @@ const COLUMN_WITH_DEFAULT_TIME_INTERVALS_BIGQUERY: Record<
     },
 };
 
-const COLUMN_WITH_NO_TIME_INTERVALS_BIGQUERY: Record<string, DbtModelColumn> = {
+const COLUMN_WITH_NO_TIME_INTERVALS: Record<string, DbtModelColumn> = {
     user_created: {
         name: 'user_created',
         data_type: DimensionType.TIMESTAMP,
@@ -79,34 +76,6 @@ const COLUMN_WITH_NO_TIME_INTERVALS_BIGQUERY: Record<string, DbtModelColumn> = {
         },
     },
 };
-
-const COLUMN_WITH_DEFAULT_TIME_INTERVALS_SNOWFLAKE: Record<
-    string,
-    DbtModelColumn
-> = {
-    user_created: {
-        name: 'user_created',
-        data_type: DimensionType.TIMESTAMP,
-        meta: {
-            dimension: {
-                time_intervals: 'default',
-            },
-        },
-    },
-};
-
-const COLUMN_WITH_NO_TIME_INTERVALS_SNOWFLAKE: Record<string, DbtModelColumn> =
-    {
-        user_created: {
-            name: 'user_created',
-            data_type: DimensionType.TIMESTAMP,
-            meta: {
-                dimension: {
-                    time_intervals: undefined,
-                },
-            },
-        },
-    };
 
 const COLUMN_WITH_OFF_TIME_INTERVALS: Record<string, DbtModelColumn> = {
     user_created: {
@@ -229,23 +198,25 @@ export const LIGHTDASH_TABLE_WITH_METRIC: Omit<Table, 'lineageGraph'> = {
     },
 };
 
-export const MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: DbtModelNode =
-    {
-        ...model,
-        columns: COLUMN_WITH_DEFAULT_TIME_INTERVALS_BIGQUERY,
-    };
+export const MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS: DbtModelNode = {
+    ...model,
+    columns: COLUMN_WITH_DEFAULT_TIME_INTERVALS,
+};
+
+export const MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS: DbtModelNode = {
+    ...model,
+    columns: COLUMN_WITH_NO_TIME_INTERVALS,
+};
 
 export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omit<
     Table,
     'lineageGraph'
 > = {
-    name: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY.name,
-    database: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY.database,
-    schema: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY.schema,
-    sqlTable:
-        MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY.relation_name,
-    description:
-        MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY.description,
+    name: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
+    database: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.database,
+    schema: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.schema,
+    sqlTable: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.relation_name,
+    description: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.description,
     dimensions: {
         user_created: {
             fieldType: FieldType.DIMENSION,
@@ -253,7 +224,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             type: DimensionType.TIMESTAMP,
             sql: '${TABLE}.user_created',
             name: 'user_created',
-            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY.name,
+            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             source: undefined,
             group: undefined,
             timeInterval: undefined,
@@ -264,7 +235,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             type: DimensionType.TIMESTAMP,
             sql: '${TABLE}.user_created',
             name: 'user_created_raw',
-            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY.name,
+            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             source: undefined,
             group: 'user_created',
             timeInterval: 'RAW',
@@ -275,7 +246,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             type: DimensionType.DATE,
             sql: "CAST(DATETIME_TRUNC('${TABLE}.user_created', DAY) as DATE)",
             name: 'user_created_day',
-            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY.name,
+            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             source: undefined,
             group: 'user_created',
             timeInterval: 'DAY',
@@ -286,7 +257,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             type: DimensionType.DATE,
             sql: "CAST(DATETIME_TRUNC('${TABLE}.user_created', WEEK) as DATE)",
             name: 'user_created_week',
-            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY.name,
+            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             source: undefined,
             group: 'user_created',
             timeInterval: 'WEEK',
@@ -297,7 +268,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             type: DimensionType.DATE,
             sql: "CAST(DATETIME_TRUNC('${TABLE}.user_created', MONTH) as DATE)",
             name: 'user_created_month',
-            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY.name,
+            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             source: undefined,
             group: 'user_created',
             timeInterval: 'MONTH',
@@ -308,7 +279,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             type: DimensionType.DATE,
             sql: "CAST(DATETIME_TRUNC('${TABLE}.user_created', YEAR) as DATE)",
             name: 'user_created_year',
-            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY.name,
+            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             source: undefined,
             group: 'user_created',
             timeInterval: 'YEAR',
@@ -316,109 +287,16 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
     },
     metrics: {},
 };
-
-export const MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY: DbtModelNode = {
-    ...model,
-    columns: COLUMN_WITH_NO_TIME_INTERVALS_BIGQUERY,
-};
-
-export const LIGHTDASH_TABLE_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omit<
-    Table,
-    'lineageGraph'
-> = {
-    name: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY.name,
-    database: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY.database,
-    schema: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY.schema,
-    sqlTable: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY.relation_name,
-    description: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY.description,
-    dimensions: {
-        user_created: {
-            fieldType: FieldType.DIMENSION,
-            description: undefined,
-            type: DimensionType.TIMESTAMP,
-            sql: '${TABLE}.user_created',
-            name: 'user_created',
-            table: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY.name,
-            source: undefined,
-            group: undefined,
-            timeInterval: undefined,
-        },
-        user_created_RAW: {
-            fieldType: FieldType.DIMENSION,
-            description: undefined,
-            type: DimensionType.TIMESTAMP,
-            sql: '${TABLE}.user_created',
-            name: 'user_created_raw',
-            table: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY.name,
-            source: undefined,
-            group: 'user_created',
-            timeInterval: 'RAW',
-        },
-        user_created_DAY: {
-            fieldType: FieldType.DIMENSION,
-            description: undefined,
-            type: DimensionType.DATE,
-            sql: "CAST(DATETIME_TRUNC('${TABLE}.user_created', DAY) as DATE)",
-            name: 'user_created_day',
-            table: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY.name,
-            source: undefined,
-            group: 'user_created',
-            timeInterval: 'DAY',
-        },
-        user_created_WEEK: {
-            fieldType: FieldType.DIMENSION,
-            description: undefined,
-            type: DimensionType.DATE,
-            sql: "CAST(DATETIME_TRUNC('${TABLE}.user_created', WEEK) as DATE)",
-            name: 'user_created_week',
-            table: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY.name,
-            source: undefined,
-            group: 'user_created',
-            timeInterval: 'WEEK',
-        },
-        user_created_MONTH: {
-            fieldType: FieldType.DIMENSION,
-            description: undefined,
-            type: DimensionType.DATE,
-            sql: "CAST(DATETIME_TRUNC('${TABLE}.user_created', MONTH) as DATE)",
-            name: 'user_created_month',
-            table: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY.name,
-            source: undefined,
-            group: 'user_created',
-            timeInterval: 'MONTH',
-        },
-        user_created_YEAR: {
-            fieldType: FieldType.DIMENSION,
-            description: undefined,
-            type: DimensionType.DATE,
-            sql: "CAST(DATETIME_TRUNC('${TABLE}.user_created', YEAR) as DATE)",
-            name: 'user_created_year',
-            table: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_BIGQUERY.name,
-            source: undefined,
-            group: 'user_created',
-            timeInterval: 'YEAR',
-        },
-    },
-    metrics: {},
-};
-
-export const MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: DbtModelNode =
-    {
-        ...model,
-        columns: COLUMN_WITH_DEFAULT_TIME_INTERVALS_SNOWFLAKE,
-    };
 
 export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Omit<
     Table,
     'lineageGraph'
 > = {
-    name: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.name,
-    database: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.database,
-    schema: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.schema,
-    sqlTable:
-        MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.relation_name,
-    description:
-        MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.description,
+    name: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
+    database: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.database,
+    schema: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.schema,
+    sqlTable: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.relation_name,
+    description: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.description,
     dimensions: {
         user_created: {
             fieldType: FieldType.DIMENSION,
@@ -426,7 +304,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             type: DimensionType.TIMESTAMP,
             sql: '${TABLE}.user_created',
             name: 'user_created',
-            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.name,
+            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             source: undefined,
             group: undefined,
             timeInterval: undefined,
@@ -437,7 +315,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             type: DimensionType.TIMESTAMP,
             sql: '${TABLE}.user_created',
             name: 'user_created_raw',
-            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.name,
+            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             source: undefined,
             group: 'user_created',
             timeInterval: 'RAW',
@@ -448,7 +326,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('DAY', ${TABLE}.user_created)",
             name: 'user_created_day',
-            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.name,
+            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             source: undefined,
             group: 'user_created',
             timeInterval: 'DAY',
@@ -459,7 +337,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('WEEK', ${TABLE}.user_created)",
             name: 'user_created_week',
-            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.name,
+            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             source: undefined,
             group: 'user_created',
             timeInterval: 'WEEK',
@@ -470,7 +348,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('MONTH', ${TABLE}.user_created)",
             name: 'user_created_month',
-            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.name,
+            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             source: undefined,
             group: 'user_created',
             timeInterval: 'MONTH',
@@ -481,92 +359,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('YEAR', ${TABLE}.user_created)",
             name: 'user_created_year',
-            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.name,
-            source: undefined,
-            group: 'user_created',
-            timeInterval: 'YEAR',
-        },
-    },
-    metrics: {},
-};
-
-export const MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: DbtModelNode = {
-    ...model,
-    columns: COLUMN_WITH_NO_TIME_INTERVALS_SNOWFLAKE,
-};
-
-export const LIGHTDASH_TABLE_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Omit<
-    Table,
-    'lineageGraph'
-> = {
-    name: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.name,
-    database: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.database,
-    schema: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.schema,
-    sqlTable: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.relation_name,
-    description: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.description,
-    dimensions: {
-        user_created: {
-            fieldType: FieldType.DIMENSION,
-            description: undefined,
-            type: DimensionType.TIMESTAMP,
-            sql: '${TABLE}.user_created',
-            name: 'user_created',
-            table: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.name,
-            source: undefined,
-            group: undefined,
-            timeInterval: undefined,
-        },
-        user_created_RAW: {
-            fieldType: FieldType.DIMENSION,
-            description: undefined,
-            type: DimensionType.TIMESTAMP,
-            sql: '${TABLE}.user_created',
-            name: 'user_created_raw',
-            table: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.name,
-            source: undefined,
-            group: 'user_created',
-            timeInterval: 'RAW',
-        },
-        user_created_DAY: {
-            fieldType: FieldType.DIMENSION,
-            description: undefined,
-            type: DimensionType.DATE,
-            sql: "DATE_TRUNC('DAY', ${TABLE}.user_created)",
-            name: 'user_created_day',
-            table: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.name,
-            source: undefined,
-            group: 'user_created',
-            timeInterval: 'DAY',
-        },
-        user_created_WEEK: {
-            fieldType: FieldType.DIMENSION,
-            description: undefined,
-            type: DimensionType.DATE,
-            sql: "DATE_TRUNC('WEEK', ${TABLE}.user_created)",
-            name: 'user_created_week',
-            table: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.name,
-            source: undefined,
-            group: 'user_created',
-            timeInterval: 'WEEK',
-        },
-        user_created_MONTH: {
-            fieldType: FieldType.DIMENSION,
-            description: undefined,
-            type: DimensionType.DATE,
-            sql: "DATE_TRUNC('MONTH', ${TABLE}.user_created)",
-            name: 'user_created_month',
-            table: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.name,
-            source: undefined,
-            group: 'user_created',
-            timeInterval: 'MONTH',
-        },
-        user_created_YEAR: {
-            fieldType: FieldType.DIMENSION,
-            description: undefined,
-            type: DimensionType.DATE,
-            sql: "DATE_TRUNC('YEAR', ${TABLE}.user_created)",
-            name: 'user_created_year',
-            table: MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE.name,
+            table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             source: undefined,
             group: 'user_created',
             timeInterval: 'YEAR',
