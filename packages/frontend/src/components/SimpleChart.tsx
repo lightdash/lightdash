@@ -76,7 +76,9 @@ export const SimpleChart: FC<SimpleChartProps> = ({
 }) => {
     if (isLoading) return <LoadingChart />;
     if (chartConfig.plotData === undefined) return <EmptyChart />;
+    // todo: use dimension label
     const xlabel = friendlyName(chartConfig.seriesLayout.xDimension);
+    // todo: use metric label
     const ylabel =
         chartConfig.seriesLayout.groupDimension &&
         chartConfig.seriesLayout.yMetrics.length === 1 &&

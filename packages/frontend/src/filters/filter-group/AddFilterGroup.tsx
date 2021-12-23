@@ -38,9 +38,10 @@ const AddFilterGroup = () => {
             ) === undefined,
     );
 
+    // todo: use table label
     const selectOptions = filterableDimensions.map((dim) => ({
         value: fieldId(dim),
-        label: `${friendlyName(dim.table)} ${friendlyName(dim.name)}`,
+        label: `${friendlyName(dim.table)} ${dim.label}`,
     }));
 
     // When user selects a new dimension to filter on

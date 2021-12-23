@@ -118,7 +118,7 @@ const BasePanel = () => {
                     onConfirm={() => onSubmitConfirmation()}
                     intent="primary"
                     cancelButtonText={`Go back to ${friendlyName(
-                        activeTableName || '',
+                        activeTableName || '', // todo: use table label
                     )}`}
                     confirmButtonText={`Explore ${friendlyName(
                         selectedExploreName || '',
@@ -128,7 +128,7 @@ const BasePanel = () => {
                         {`Start exploring ${friendlyName(
                             selectedExploreName || '',
                         )}? You will lose your current work on ${friendlyName(
-                            activeTableName || '',
+                            activeTableName || '', // todo: use table label
                         )}.`}
                     </Text>
                 </Alert>

@@ -71,7 +71,7 @@ export const ChartConfigOptions: React.FC<ContentProps> = ({ chartConfig }) => (
                             (m) => m === metric,
                         ) !== undefined
                     }
-                    label={friendlyName(metric)}
+                    label={friendlyName(metric)} // todo: use metric label
                     alignIndicator={Alignment.RIGHT}
                     onChange={() => chartConfig.toggleYMetric(metric)}
                     disabled={
@@ -96,7 +96,9 @@ export const ChartConfigOptions: React.FC<ContentProps> = ({ chartConfig }) => (
                     width: '100%',
                 }}
             >
-                <span>{friendlyName(dimension)}</span>
+                <span>
+                    {friendlyName(dimension) /* todo: use dimension label */}
+                </span>
                 <ButtonGroup minimal>
                     <Button
                         outlined

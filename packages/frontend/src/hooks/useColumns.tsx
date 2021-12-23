@@ -56,13 +56,14 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
             >((acc, field) => {
                 const fieldId = getFieldId(field);
                 if (activeFields.has(fieldId)) {
+                    // todo: use table label
                     return [
                         ...acc,
                         {
                             Header: (
                                 <span>
                                     {friendlyName(field.table)}{' '}
-                                    <b>{friendlyName(field.name)}</b>
+                                    <b>{field.label}</b>
                                 </span>
                             ),
                             accessor: fieldId,

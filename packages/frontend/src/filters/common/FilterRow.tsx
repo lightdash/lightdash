@@ -43,6 +43,7 @@ const FilterRow = ({
     children,
     onDelete,
 }: FilterRowProps) => {
+    // todo: use table label and field label
     const header = (
         <span>
             {friendlyName(tableName)} <b>{friendlyName(fieldName)}</b>

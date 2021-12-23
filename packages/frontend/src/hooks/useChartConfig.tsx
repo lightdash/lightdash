@@ -245,6 +245,7 @@ export const useChartConfig = (
         const { groupDimension } = seriesLayout;
         let plotData: any[];
         let series: string[];
+        // todo: use dimension label
         const eChartDimensions: ChartConfig['eChartDimensions'] = [
             {
                 name: seriesLayout.xDimension,
@@ -267,6 +268,7 @@ export const useChartConfig = (
                         const key = r[groupDimension];
                         const combinedKey = `${key} ${metricKey}`;
                         prevSeries.push(combinedKey);
+                        // todo: use metric label
                         prevGroupChartDimensions.push({
                             name: combinedKey,
                             displayName: dimensionFormatter
@@ -297,6 +299,7 @@ export const useChartConfig = (
                 dimensions,
                 groupDimension,
             );
+            // todo: use dimension label
             const groupChartDimensions: ChartConfig['eChartDimensions'] =
                 series.map((s) => ({
                     name: s,
@@ -315,6 +318,7 @@ export const useChartConfig = (
             );
         } else {
             series = seriesLayout.yMetrics;
+            // todo: use metric label
             const yMetricChartDimensions = series.map((s) => ({
                 name: s,
                 displayName: friendlyName(s),
