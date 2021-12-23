@@ -148,7 +148,7 @@ projectRouter.post(
         try {
             // Runs async - error will appear on status endpoint
             projectService
-                .refreshAllTables(req.user!, req.params.projectUuid)
+                .getAllExplores(req.user!, req.params.projectUuid, true)
                 .catch((e) => Logger.error(`Error running refresh: ${e}`));
             res.json({ status: 'ok' });
         } catch (e) {
