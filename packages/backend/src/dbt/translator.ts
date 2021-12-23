@@ -53,7 +53,7 @@ const getDataTruncSql = (
     switch (adapterType) {
         case SupportedDbtAdapter.BIGQUERY:
             if (type === DimensionType.TIMESTAMP) {
-                return `CAST(DATETIME_TRUNC('${field}', ${timeInterval.toUpperCase()}) as DATE)`;
+                return `DATETIME_TRUNC('${field}', ${timeInterval.toUpperCase()})`;
             }
             return `DATE_TRUNC('${field}', ${timeInterval.toUpperCase()})`;
         case SupportedDbtAdapter.REDSHIFT:
