@@ -259,7 +259,10 @@ export class ProjectService {
         };
     }
 
-    async refreshAllTables(user: SessionUser, projectUuid: string) {
+    private async refreshAllTables(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<(Explore | ExploreError)[]> {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
 
@@ -268,9 +271,8 @@ export class ProjectService {
         this.projectLoading[projectUuid] = true;
         const adapter = await this.restartAdapter(projectUuid);
         const packages = await adapter.getDbtPackages();
-        this.cachedExplores[projectUuid] = adapter.compileAllExplores();
         try {
-            const explores = await this.cachedExplores[projectUuid];
+            const explores = await adapter.compileAllExplores();
             analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,
@@ -298,6 +300,7 @@ export class ProjectService {
                         : undefined,
                 },
             });
+            return explores;
         } catch (e) {
             const errorResponse = errorHandler(e);
             analytics.track({
@@ -315,7 +318,6 @@ export class ProjectService {
         } finally {
             this.projectLoading[projectUuid] = false;
         }
-        return this.cachedExplores[projectUuid];
     }
 
     async hasMetrics(user: SessionUser): Promise<boolean> {
@@ -356,12 +358,15 @@ export class ProjectService {
     async getAllExplores(
         user: SessionUser,
         projectUuid: string,
+        forceRefresh: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
-        const explores = this.cachedExplores[projectUuid];
-        if (explores === undefined) {
-            return this.refreshAllTables(user, projectUuid);
+        if (!this.cachedExplores[projectUuid] || forceRefresh) {
+            this.cachedExplores[projectUuid] = this.refreshAllTables(
+                user,
+                projectUuid,
+            );
         }
-        return explores;
+        return this.cachedExplores[projectUuid];
     }
 
     async getAllExploresSummary(
