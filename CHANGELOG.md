@@ -4,6 +4,12 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.11.5] - 2021-12-23
+### Fixed
+- Use datetime_trunc instead of date_trunc for timestamps in bigquery (#1059)
+- Stop project from compiling multiple times (#1060)
+- Fix docker compose yml version (#1052)
+
 ## [0.11.4] - 2021-12-22
 ### Added
 - Be able to turn off the time interval dimensions (#1044)
