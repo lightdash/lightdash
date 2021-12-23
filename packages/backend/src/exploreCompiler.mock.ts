@@ -26,6 +26,7 @@ const sourceMock: Source = {
 export const exploreBase: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: '',
+    label: '',
     tags: [],
     baseTable: 'a',
     joinedTables: [],
@@ -37,6 +38,7 @@ export const exploreOneEmptyTable: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
+            label: 'a',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',
@@ -53,6 +55,7 @@ export const exploreOneEmptyTableCompiled: Explore = {
     tables: {
         a: {
             name: 'a',
+            label: 'a',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',
@@ -79,6 +82,7 @@ export const exploreMissingJoinTable: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
+            label: 'a',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',
@@ -95,6 +99,7 @@ export const exploreCircularReference: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
+            label: 'a',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',
@@ -103,6 +108,7 @@ export const exploreCircularReference: UncompiledExplore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
                     name: 'dim1',
+                    label: 'dim1',
                     table: 'a',
                     sql: '${a.dim1}', // circular reference
                     source: sourceMock,
@@ -120,6 +126,7 @@ export const exploreTableSelfReference: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
+            label: 'a',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',
@@ -128,6 +135,7 @@ export const exploreTableSelfReference: UncompiledExplore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
                     name: 'dim1',
+                    label: 'dim1',
                     table: 'a',
                     sql: '${TABLE}.dim1',
                     source: sourceMock,
@@ -145,6 +153,7 @@ export const exploreTableSelfReferenceCompiled: Explore = {
     tables: {
         a: {
             name: 'a',
+            label: 'a',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',
@@ -153,6 +162,7 @@ export const exploreTableSelfReferenceCompiled: Explore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
                     name: 'dim1',
+                    label: 'dim1',
                     table: 'a',
                     sql: '${TABLE}.dim1',
                     compiledSql: 'a.dim1',
@@ -171,6 +181,7 @@ export const exploreReferenceDimension: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
+            label: 'a',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',
@@ -179,6 +190,7 @@ export const exploreReferenceDimension: UncompiledExplore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
                     name: 'dim1',
+                    label: 'dim1',
                     table: 'a',
                     sql: '${TABLE}.dim1',
                     source: sourceMock,
@@ -187,6 +199,7 @@ export const exploreReferenceDimension: UncompiledExplore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
                     name: 'dim2',
+                    label: 'dim2',
                     table: 'a',
                     sql: '${a.dim1}',
                     source: sourceMock,
@@ -204,6 +217,7 @@ export const exploreReferenceDimensionCompiled: Explore = {
     tables: {
         a: {
             name: 'a',
+            label: 'a',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',
@@ -212,6 +226,7 @@ export const exploreReferenceDimensionCompiled: Explore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
                     name: 'dim1',
+                    label: 'dim1',
                     table: 'a',
                     sql: '${TABLE}.dim1',
                     compiledSql: 'a.dim1',
@@ -221,6 +236,7 @@ export const exploreReferenceDimensionCompiled: Explore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
                     name: 'dim2',
+                    label: 'dim2',
                     table: 'a',
                     sql: '${a.dim1}',
                     compiledSql: '(a.dim1)',
@@ -238,6 +254,7 @@ export const exploreComplexReference: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
+            label: 'a',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',
@@ -246,6 +263,7 @@ export const exploreComplexReference: UncompiledExplore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.NUMBER,
                     name: 'dim1',
+                    label: 'dim1',
                     table: 'a',
                     sql: '${TABLE}.dim1',
                     source: sourceMock,
@@ -254,6 +272,7 @@ export const exploreComplexReference: UncompiledExplore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.NUMBER,
                     name: 'dim2',
+                    label: 'dim2',
                     table: 'a',
                     sql: '${a.dim1}',
                     source: sourceMock,
@@ -262,6 +281,7 @@ export const exploreComplexReference: UncompiledExplore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.NUMBER,
                     name: 'dim3',
+                    label: 'dim3',
                     table: 'a',
                     sql: '${TABLE}.dim3 + ${a.dim2} + ${dim1}',
                     source: sourceMock,
@@ -272,6 +292,7 @@ export const exploreComplexReference: UncompiledExplore = {
                     fieldType: FieldType.METRIC,
                     type: MetricType.AVERAGE,
                     name: 'm1',
+                    label: 'm1',
                     table: 'a',
                     sql: '${dim3}',
                     source: sourceMock,
@@ -289,6 +310,7 @@ export const exploreComplexReferenceCompiled: Explore = {
     tables: {
         a: {
             name: 'a',
+            label: 'a',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',
@@ -297,6 +319,7 @@ export const exploreComplexReferenceCompiled: Explore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.NUMBER,
                     name: 'dim1',
+                    label: 'dim1',
                     table: 'a',
                     sql: '${TABLE}.dim1',
                     compiledSql: 'a.dim1',
@@ -306,6 +329,7 @@ export const exploreComplexReferenceCompiled: Explore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.NUMBER,
                     name: 'dim2',
+                    label: 'dim2',
                     table: 'a',
                     sql: '${a.dim1}',
                     compiledSql: '(a.dim1)',
@@ -315,6 +339,7 @@ export const exploreComplexReferenceCompiled: Explore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.NUMBER,
                     name: 'dim3',
+                    label: 'dim3',
                     table: 'a',
                     sql: '${TABLE}.dim3 + ${a.dim2} + ${dim1}',
                     compiledSql: 'a.dim3 + ((a.dim1)) + (a.dim1)',
@@ -326,6 +351,7 @@ export const exploreComplexReferenceCompiled: Explore = {
                     fieldType: FieldType.METRIC,
                     type: MetricType.AVERAGE,
                     name: 'm1',
+                    label: 'm1',
                     table: 'a',
                     sql: '${dim3}',
                     compiledSql: 'AVG((a.dim3 + ((a.dim1)) + (a.dim1)))',
@@ -350,6 +376,7 @@ export const exploreReferenceInJoin: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
+            label: 'a',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',
@@ -358,6 +385,7 @@ export const exploreReferenceInJoin: UncompiledExplore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
                     name: 'dim1',
+                    label: 'dim1',
                     table: 'a',
                     sql: '${TABLE}.dim1',
                     source: sourceMock,
@@ -369,6 +397,7 @@ export const exploreReferenceInJoin: UncompiledExplore = {
         },
         b: {
             name: 'b',
+            label: 'b',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.tableb',
@@ -377,6 +406,7 @@ export const exploreReferenceInJoin: UncompiledExplore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
                     name: 'dim1',
+                    label: 'dim1',
                     table: 'b',
                     sql: '${TABLE}.dim1',
                     source: sourceMock,
@@ -385,6 +415,7 @@ export const exploreReferenceInJoin: UncompiledExplore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
                     name: 'dim2',
+                    label: 'dim2',
                     table: 'b',
                     sql: '${a.dim1}',
                     source: sourceMock,
@@ -409,6 +440,7 @@ export const exploreReferenceInJoinCompiled: Explore = {
     tables: {
         a: {
             name: 'a',
+            label: 'a',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',
@@ -417,6 +449,7 @@ export const exploreReferenceInJoinCompiled: Explore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
                     name: 'dim1',
+                    label: 'dim1',
                     table: 'a',
                     sql: '${TABLE}.dim1',
                     compiledSql: 'a.dim1',
@@ -429,6 +462,7 @@ export const exploreReferenceInJoinCompiled: Explore = {
         },
         b: {
             name: 'b',
+            label: 'b',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.tableb',
@@ -437,6 +471,7 @@ export const exploreReferenceInJoinCompiled: Explore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
                     name: 'dim1',
+                    label: 'dim1',
                     table: 'b',
                     sql: '${TABLE}.dim1',
                     compiledSql: 'b.dim1',
@@ -446,6 +481,7 @@ export const exploreReferenceInJoinCompiled: Explore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
                     name: 'dim2',
+                    label: 'dim2',
                     table: 'b',
                     sql: '${a.dim1}',
                     compiledSql: '(a.dim1)',
@@ -464,6 +500,7 @@ export const exploreWithMetricNumber: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
+            label: 'a',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',
@@ -472,6 +509,7 @@ export const exploreWithMetricNumber: UncompiledExplore = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.NUMBER,
                     name: 'dim1',
+                    label: 'dim1',
                     table: 'a',
                     sql: '${TABLE}.dim1',
                     source: sourceMock,
@@ -482,6 +520,7 @@ export const exploreWithMetricNumber: UncompiledExplore = {
                     fieldType: FieldType.METRIC,
                     type: MetricType.SUM,
                     name: 'm1',
+                    label: 'm1',
                     table: 'a',
                     sql: '${dim1}',
                     source: sourceMock,
@@ -491,6 +530,7 @@ export const exploreWithMetricNumber: UncompiledExplore = {
                     fieldType: FieldType.METRIC,
                     type: MetricType.NUMBER,
                     name: 'm2',
+                    label: 'm2',
                     table: 'a',
                     sql: '2 + ${m1}',
                     source: sourceMock,
@@ -509,6 +549,7 @@ export const exploreWithMetricNumberCompiled: Explore = {
     tables: {
         a: {
             name: 'a',
+            label: 'a',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',

@@ -8,6 +8,7 @@ import {
     DbtRawModelNode,
     Explore,
     ExploreError,
+    friendlyName,
     InlineError,
     InlineErrorType,
     isSupportedDbtAdapter,
@@ -216,6 +217,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 if (error) {
                     const exploreError: ExploreError = {
                         name: model.name,
+                        label: model.meta.label || friendlyName(model.name),
                         errors: [error],
                     };
                     return [validModels, [...invalidModels, exploreError]];
