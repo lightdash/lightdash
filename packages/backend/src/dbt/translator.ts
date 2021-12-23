@@ -48,9 +48,13 @@ const getDataTruncSql = (
     adapterType: SupportedDbtAdapter,
     timeInterval: string,
     field: string,
+    type: DimensionType,
 ) => {
     switch (adapterType) {
         case SupportedDbtAdapter.BIGQUERY:
+            if (type === DimensionType.TIMESTAMP) {
+                return `DATETIME_TRUNC('${field}', ${timeInterval.toUpperCase()})`;
+            }
             return `DATE_TRUNC('${field}', ${timeInterval.toUpperCase()})`;
         case SupportedDbtAdapter.REDSHIFT:
         case SupportedDbtAdapter.POSTGRES:
@@ -88,6 +92,7 @@ const convertDimension = (
                 targetWarehouse,
                 timeInterval,
                 defaultSql(column.name),
+                type,
             );
         }
         name = `${column.name}_${timeInterval.toLowerCase()}`;
