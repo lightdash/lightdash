@@ -4,6 +4,10 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.11.6] - 2021-12-24
+### Fixed
+- Remove quotation from time interval sql for bigquery (#1063)
+
 ## [0.11.5] - 2021-12-23
 ### Fixed
 - Use datetime_trunc instead of date_trunc for timestamps in bigquery (#1059)
