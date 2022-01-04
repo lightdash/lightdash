@@ -123,8 +123,8 @@ export type CompiledExploreJoin = ExploreJoin & {
 };
 
 export type SummaryExplore =
-    | Pick<Explore, 'name' | 'tags'>
-    | Pick<ExploreError, 'name' | 'tags' | 'errors'>;
+    | Pick<Explore, 'name' | 'label' | 'tags'>
+    | Pick<ExploreError, 'name' | 'label' | 'tags' | 'errors'>;
 
 export type TableBase = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
@@ -198,6 +198,7 @@ export interface Field {
     name: string; // Field names are unique within a table
     label: string; // Friendly name
     table: string; // Table names are unique within the project
+    tableLabel: string; // Table friendly name
     sql: string; // Templated sql
     description?: string;
     source?: Source | undefined;

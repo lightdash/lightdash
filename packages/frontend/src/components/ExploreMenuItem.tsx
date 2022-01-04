@@ -1,6 +1,6 @@
 import { Colors, Icon, Intent, MenuItem } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { friendlyName, InlineErrorType, SummaryExplore } from 'common';
+import { InlineErrorType, SummaryExplore } from 'common';
 import React from 'react';
 
 type ExploreMenuItemProps = {
@@ -35,7 +35,7 @@ export const ExploreMenuItem: React.FC<ExploreMenuItemProps> = ({
             <Tooltip2 content={errorMessage} targetTagName="div">
                 <MenuItem
                     icon="database"
-                    text={friendlyName(explore.name)}
+                    text={explore.label}
                     disabled
                     labelElement={
                         showNoDimensionsIcon ? (
@@ -48,11 +48,5 @@ export const ExploreMenuItem: React.FC<ExploreMenuItemProps> = ({
             </Tooltip2>
         );
     }
-    return (
-        <MenuItem
-            icon="database"
-            text={friendlyName(explore.name)}
-            onClick={onClick}
-        />
-    );
+    return <MenuItem icon="database" text={explore.label} onClick={onClick} />;
 };

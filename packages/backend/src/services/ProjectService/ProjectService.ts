@@ -379,12 +379,14 @@ export class ProjectService {
             if (isExploreError(explore)) {
                 return {
                     name: explore.name,
+                    label: explore.label,
                     tags: explore.tags,
                     errors: explore.errors,
                 };
             }
             return {
                 name: explore.name,
+                label: explore.label,
                 tags: explore.tags,
             };
         });

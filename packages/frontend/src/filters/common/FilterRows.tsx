@@ -27,8 +27,8 @@ const FilterRows = <T extends FilterGroup>({
                 key={`filter_${filter.id}`}
                 isFirst={index === 0}
                 isLast={index === filterGroup.filters.length - 1}
-                tableName={filterGroup.tableName}
-                fieldName={filterGroup.fieldName}
+                tableLabel={filterGroup.tableName}
+                fieldLabel={filterGroup.fieldName}
                 onAdd={() =>
                     onChange({
                         ...filterGroup,

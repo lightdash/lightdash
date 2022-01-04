@@ -28,10 +28,9 @@ const mapActiveFieldsToCompletions = (
                 meta,
                 score: Number.MAX_VALUE,
             };
-            // todo: use table label
             const friendlyOption: Ace.Completion = {
                 ...technicalOption,
-                caption: `${friendlyName(field.table)} ${field.label}`,
+                caption: `${field.tableLabel} ${field.label}`,
             };
             return [...acc, technicalOption, friendlyOption];
         }

@@ -130,14 +130,17 @@ export const allExplores = [validExplore, exploreWithError, exploreWithTags];
 export const expectedAllExploreSummary: SummaryExplore[] = [
     {
         name: validExplore.name,
+        label: validExplore.label,
         tags: validExplore.tags,
     },
     {
         name: exploreWithError.name,
-        errors: exploreWithTags.errors,
+        label: exploreWithError.label,
+        errors: exploreWithError.errors,
     },
     {
-        name: exploreWithError.name,
+        name: exploreWithTags.name,
+        label: exploreWithTags.label,
         tags: exploreWithTags.tags,
         errors: exploreWithTags.errors,
     },
