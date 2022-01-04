@@ -7,6 +7,7 @@ import {
     findFieldByIdInExplore,
     friendlyName,
     getDimensions,
+    getFieldLabel,
     TableCalculation,
 } from 'common';
 import { useEffect, useMemo, useState } from 'react';
@@ -284,15 +285,20 @@ export const useChartConfig = (
             });
     };
 
-    if (results && isValidSeriesLayout(seriesLayout)) {
+    if (activeExplore.data && results && isValidSeriesLayout(seriesLayout)) {
         const { groupDimension } = seriesLayout;
         let plotData: any[];
         let series: string[];
-        // todo: use dimension label
+        const field = findFieldByIdInExplore(
+            activeExplore.data,
+            seriesLayout.xDimension,
+        );
         const eChartDimensions: ChartConfig['eChartDimensions'] = [
             {
                 name: seriesLayout.xDimension,
-                displayName: friendlyName(seriesLayout.xDimension),
+                displayName: field
+                    ? getFieldLabel(field)
+                    : friendlyName(seriesLayout.xDimension),
             },
         ];
 
@@ -311,13 +317,19 @@ export const useChartConfig = (
                         const key = r[groupDimension];
                         const combinedKey = `${key} ${metricKey}`;
                         prevSeries.push(combinedKey);
-                        // todo: use metric label
+                        const metricField = findFieldByIdInExplore(
+                            activeExplore.data,
+                            metricKey,
+                        );
+                        const metricLabel = metricField
+                            ? getFieldLabel(metricField)
+                            : friendlyName(metricKey);
                         prevGroupChartDimensions.push({
                             name: combinedKey,
                             displayName: dimensionFormatter
                                 ? `[${dimensionFormatter({
                                       value: key,
-                                  })}] ${friendlyName(metricKey)}`
+                                  })}] ${metricLabel}`
                                 : friendlyName(combinedKey),
                         });
                     });
@@ -342,7 +354,6 @@ export const useChartConfig = (
                 dimensions,
                 groupDimension,
             );
-            // todo: use dimension label
             const groupChartDimensions: ChartConfig['eChartDimensions'] =
                 series.map((s) => ({
                     name: s,
@@ -361,11 +372,18 @@ export const useChartConfig = (
             );
         } else {
             series = seriesLayout.yMetrics;
-            // todo: use metric label
-            const yMetricChartDimensions = series.map((s) => ({
-                name: s,
-                displayName: friendlyName(s),
-            }));
+            const yMetricChartDimensions = series.map((s) => {
+                const seriesField = findFieldByIdInExplore(
+                    activeExplore.data,
+                    s,
+                );
+                return {
+                    name: s,
+                    displayName: seriesField
+                        ? getFieldLabel(seriesField)
+                        : friendlyName(s),
+                };
+            });
             eChartDimensions.push(...yMetricChartDimensions);
             const dimensionFormatter = getDimensionFormatterByKey(
                 dimensions,

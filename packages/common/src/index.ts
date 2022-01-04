@@ -249,6 +249,9 @@ export const findFieldByReferenceInExplore = (
 ): Field | undefined =>
     getFields(explore).find((field) => getFieldRef(field) === fieldReference);
 
+export const getFieldLabel = (field: Field): string =>
+    `${field.tableLabel} ${field.label}`;
+
 export enum MetricType {
     AVERAGE = 'average',
     COUNT = 'count',

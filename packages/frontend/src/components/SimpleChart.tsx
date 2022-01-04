@@ -1,8 +1,16 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import { DBChartTypes, DimensionType, friendlyName } from 'common';
+import {
+    DBChartTypes,
+    DimensionType,
+    findFieldByIdInExplore,
+    friendlyName,
+    getFieldLabel,
+} from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject } from 'react';
 import { ChartConfig } from '../hooks/useChartConfig';
+import { useExplore } from '../hooks/useExplore';
+import { useExplorer } from '../providers/ExplorerProvider';
 
 const flipXFromChartType = (chartType: DBChartTypes) => {
     switch (chartType) {
@@ -74,15 +82,33 @@ export const SimpleChart: FC<SimpleChartProps> = ({
     chartType,
     chartConfig,
 }) => {
-    if (isLoading) return <LoadingChart />;
+    const {
+        state: { tableName },
+    } = useExplorer();
+    const activeExplore = useExplore(tableName);
+    if (isLoading || !activeExplore.data) return <LoadingChart />;
     if (chartConfig.plotData === undefined) return <EmptyChart />;
-    // todo: use dimension label
-    const xlabel = friendlyName(chartConfig.seriesLayout.xDimension);
-    // todo: use metric label
-    const ylabel =
+    const xDimensionField = findFieldByIdInExplore(
+        activeExplore.data,
+        chartConfig.seriesLayout.xDimension,
+    );
+    const xlabel = xDimensionField
+        ? getFieldLabel(xDimensionField)
+        : friendlyName(chartConfig.seriesLayout.xDimension);
+    let ylabel: string | undefined;
+    if (
         chartConfig.seriesLayout.groupDimension &&
-        chartConfig.seriesLayout.yMetrics.length === 1 &&
-        friendlyName(chartConfig.seriesLayout.yMetrics[0]);
+        chartConfig.seriesLayout.yMetrics.length === 1
+    ) {
+        const yDimensionField = findFieldByIdInExplore(
+            activeExplore.data,
+            chartConfig.seriesLayout.yMetrics[0],
+        );
+        ylabel = yDimensionField
+            ? getFieldLabel(yDimensionField)
+            : friendlyName(chartConfig.seriesLayout.yMetrics[0]);
+    }
+
     const xType = axisTypeFromDimensionType(chartConfig.xDimensionType);
     const yType = 'value';
 
