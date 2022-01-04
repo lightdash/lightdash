@@ -38,7 +38,7 @@ models:
     columns:
       - name: user_id # will be "User id" in LightDash
         description: 'Unique identifier for a user."
-        meta: 
+        meta:
           dimension:
             name: 'ID'
             description: 'My custom description'
@@ -61,13 +61,55 @@ Dimension types are automatically pulled from your tables schemas in Lightdash. 
 
 | Dimension Types |
 | --------------- |
-| String          |
-| Number          |
-| Timestamp       |
-| Date            |
-| Boolean         |
+| string          |
+| number          |
+| timestamp       |
+| date            |
+| boolean         |
 
 ## Time intervals
+Lightdash automatically adds intervals for dimensions that are timestamps or dates, so you don't have to!
 
-The most common intervals are `millisecond`, `second`, `minute`, `hour`, `day`, `week`, `month` and `year` but you can
-set any value supported by your warehouse.
+For example, here we have the timestamp dimension `created` defined in our dbt project:
+```
+      - name: created
+        description: 'Timestamp when the user was created.'
+```
+
+Lightdash breaks this out into the default intervals automatically. So, this is how `created` appears in our Lightdash project:
+
+![screenshot-default-intervals](assets/screenshot-default-intervals.png)
+
+### By default, the time intervals we use are:
+**Date**: ['DAY', 'WEEK', 'MONTH', 'YEAR']
+**Timestamp**: ['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']
+
+### To change the time intervals used for a dimension, specify your custom intervals using `time_intervals`
+If you want to change the time intervals shown for a dimension, you can specify the custom time intervals you'd like yo include using the `time_intervals` property for a dimension.
+
+In this example, only `created day`, `created month`, and `created quarter` would now appear for the `created` dimension in Lightdash.
+
+```
+      - name: created
+        description: 'Timestamp when the user was created.'
+        meta:
+          dimension:
+            time_intervals: ['DAY', 'MONTH', 'QUARTER']
+```
+
+![screenshot-custom-intervals](assets/screenshot-custom-intervals.png)
+
+### To turn off time intervals for a dimension, set `time_intervals: OFF`
+If you want to turn off time intervals for a dimension, you can simply set the `time_intervals` property to `OFF`.
+
+In this example, `created` would now appear as a single, timestamp dimension without a drop-down list of time intervals in Lightdash:
+
+```
+      - name: created
+        description: 'Timestamp when the user was created.'
+        meta:
+          dimension:
+            time_intervals: OFF
+```
+
+![screenshot-intervals-off](assets/screenshot-intervals-off.png)
