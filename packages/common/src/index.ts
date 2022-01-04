@@ -233,8 +233,21 @@ export type FieldId = string;
 export const fieldId = (field: Field): FieldId =>
     `${field.table}_${field.name}`;
 
-export const getFieldRef = (field: Field): string =>
+export const findFieldByIdInExplore = (
+    explore: Explore,
+    id: FieldId,
+): Field | undefined =>
+    getFields(explore).find((field) => fieldId(field) === id);
+
+export type FieldRef = string;
+export const getFieldRef = (field: Field): FieldRef =>
     `${field.table}.${field.name}`;
+
+export const findFieldByReferenceInExplore = (
+    explore: Explore,
+    fieldReference: FieldRef,
+): Field | undefined =>
+    getFields(explore).find((field) => getFieldRef(field) === fieldReference);
 
 export enum MetricType {
     AVERAGE = 'average',

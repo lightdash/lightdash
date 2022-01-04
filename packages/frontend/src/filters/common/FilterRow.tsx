@@ -1,4 +1,4 @@
-import { Button, Colors } from '@blueprintjs/core';
+import { Button, Classes, Colors } from '@blueprintjs/core';
 import {
     BooleanFilter,
     DateAndTimestampFilter,
@@ -43,7 +43,7 @@ const FilterRow = ({
     children,
     onDelete,
 }: FilterRowProps) => {
-    const { field } = useField(fieldName, tableName);
+    const { isLoading, field } = useField(fieldName, tableName);
     return (
         <div
             style={{
@@ -52,17 +52,26 @@ const FilterRow = ({
                 justifyContent: 'flex-start',
                 alignItems: 'center',
             }}
+            className={isLoading ? Classes.SKELETON : undefined}
         >
             <div style={{ flex: '0 0 300px' }}>
-                {isFirst ? (
-                    !field ? (
-                        'Field not found'
-                    ) : (
-                        <span>
-                            {field.tableLabel} <b>{field.label}</b>
-                        </span>
-                    )
-                ) : null}
+                {isFirst && (
+                    <span>
+                        {!field ? (
+                            <>
+                                Field{' '}
+                                <b>
+                                    {tableName}.{fieldName}
+                                </b>{' '}
+                                not found
+                            </>
+                        ) : (
+                            <>
+                                {field.tableLabel} <b>{field.label}</b>
+                            </>
+                        )}
+                    </span>
+                )}
             </div>
             <div style={{ flex: '0 0 40px' }}>
                 {!isFirst && (

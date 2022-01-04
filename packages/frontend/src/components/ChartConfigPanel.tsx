@@ -8,7 +8,7 @@ import {
     Switch,
 } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import { friendlyName } from 'common';
+import { fieldId as getFieldId } from 'common';
 import React, { useState } from 'react';
 import { ChartConfig } from '../hooks/useChartConfig';
 
@@ -63,74 +63,81 @@ export const ChartConfigOptions: React.FC<ContentProps> = ({ chartConfig }) => (
             <b>Metrics</b>
         </span>
         <Divider />
-        {chartConfig.metricOptions.map((metric) => (
-            <div key={metric} style={{ width: '100%' }}>
-                <Switch
-                    checked={
-                        chartConfig.seriesLayout.yMetrics?.find(
-                            (m) => m === metric,
-                        ) !== undefined
-                    }
-                    label={friendlyName(metric)} // todo: use metric label
-                    alignIndicator={Alignment.RIGHT}
-                    onChange={() => chartConfig.toggleYMetric(metric)}
-                    disabled={
-                        chartConfig.metricOptions.length <= 1 &&
-                        chartConfig.tableCalculationOptions.length <= 0
-                    }
-                />
-            </div>
-        ))}
+        {chartConfig.metricOptions.map((metric) => {
+            const metricId = getFieldId(metric);
+            return (
+                <div key={metricId} style={{ width: '100%' }}>
+                    <Switch
+                        checked={
+                            chartConfig.seriesLayout.yMetrics?.find(
+                                (m) => m === metricId,
+                            ) !== undefined
+                        }
+                        label={`${metric.tableLabel} ${metric.label}`}
+                        alignIndicator={Alignment.RIGHT}
+                        onChange={() => chartConfig.toggleYMetric(metricId)}
+                        disabled={
+                            chartConfig.metricOptions.length <= 1 &&
+                            chartConfig.tableCalculationOptions.length <= 0
+                        }
+                    />
+                </div>
+            );
+        })}
         <span style={{ color: Colors.BLUE1 }}>
             <Icon icon="tag" color={Colors.BLUE1} style={{ marginRight: 5 }} />
             <b>Dimensions</b>
         </span>
         <Divider />
-        {chartConfig.dimensionOptions.map((dimension) => (
-            <div
-                style={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    width: '100%',
-                }}
-            >
-                <span>
-                    {friendlyName(dimension) /* todo: use dimension label */}
-                </span>
-                <ButtonGroup minimal>
-                    <Button
-                        outlined
-                        active={
-                            dimension === chartConfig.seriesLayout.xDimension
-                        }
-                        onClick={() => chartConfig.setXDimension(dimension)}
-                        disabled={chartConfig.dimensionOptions.length <= 1}
-                    >
-                        X-axis
-                    </Button>
-                    <Button
-                        outlined
-                        active={
-                            dimension ===
-                            chartConfig.seriesLayout.groupDimension
-                        }
-                        onClick={() =>
-                            chartConfig.setGroupDimension(
-                                dimension ===
-                                    chartConfig.seriesLayout.groupDimension
-                                    ? undefined
-                                    : dimension,
-                            )
-                        }
-                        disabled={chartConfig.dimensionOptions.length <= 1}
-                    >
-                        Group
-                    </Button>
-                </ButtonGroup>
-            </div>
-        ))}
+        {chartConfig.dimensionOptions.map((dimension) => {
+            const dimensionId = getFieldId(dimension);
+            return (
+                <div
+                    style={{
+                        display: 'flex',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        width: '100%',
+                    }}
+                >
+                    <span>{`${dimension.tableLabel} ${dimension.label}`}</span>
+                    <ButtonGroup minimal>
+                        <Button
+                            outlined
+                            active={
+                                dimensionId ===
+                                chartConfig.seriesLayout.xDimension
+                            }
+                            onClick={() =>
+                                chartConfig.setXDimension(dimensionId)
+                            }
+                            disabled={chartConfig.dimensionOptions.length <= 1}
+                        >
+                            X-axis
+                        </Button>
+                        <Button
+                            outlined
+                            active={
+                                dimensionId ===
+                                chartConfig.seriesLayout.groupDimension
+                            }
+                            onClick={() =>
+                                chartConfig.setGroupDimension(
+                                    dimensionId ===
+                                        chartConfig.seriesLayout.groupDimension
+                                        ? undefined
+                                        : dimensionId,
+                                )
+                            }
+                            disabled={chartConfig.dimensionOptions.length <= 1}
+                        >
+                            Group
+                        </Button>
+                    </ButtonGroup>
+                </div>
+            );
+        })}
     </div>
 );
 

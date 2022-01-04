@@ -2,12 +2,14 @@ import {
     ApiQueryResults,
     CompiledDimension,
     DimensionType,
+    Field,
     fieldId as getFieldId,
+    findFieldByIdInExplore,
     friendlyName,
     getDimensions,
     TableCalculation,
 } from 'common';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getDimensionFormatter } from '../utils/resultFormatter';
 import { useExplore } from './useExplore';
 
@@ -55,8 +57,8 @@ type ChartConfigBase = {
     setXDimension: (x: string) => void;
     toggleYMetric: (y: string) => void;
     setGroupDimension: (g: string | undefined) => void;
-    dimensionOptions: string[];
-    metricOptions: string[];
+    dimensionOptions: Field[];
+    metricOptions: Field[];
     tableCalculationOptions: TableCalculation[];
     eChartDimensions: { name: string; displayName: string }[];
     series: string[];
@@ -132,8 +134,35 @@ export const useChartConfig = (
     const dimensions = activeExplore.data
         ? getDimensions(activeExplore.data)
         : [];
-    const dimensionOptions = results?.metricQuery.dimensions || [];
-    const metricOptions = results?.metricQuery.metrics || [];
+    const [dimensionOptions, metricOptions] = useMemo<
+        [Field[], Field[]]
+    >(() => {
+        let dimensionsFields: Field[] = [];
+        let metricsFields: Field[] = [];
+        if (activeExplore.data && results) {
+            dimensionsFields = results.metricQuery.dimensions.reduce<Field[]>(
+                (acc, reference) => {
+                    const field = findFieldByIdInExplore(
+                        activeExplore.data,
+                        reference,
+                    );
+                    return field ? [...acc, field] : acc;
+                },
+                [],
+            );
+            metricsFields = results.metricQuery.metrics.reduce<Field[]>(
+                (acc, reference) => {
+                    const field = findFieldByIdInExplore(
+                        activeExplore.data,
+                        reference,
+                    );
+                    return field ? [...acc, field] : acc;
+                },
+                [],
+            );
+        }
+        return [dimensionsFields, metricsFields];
+    }, [activeExplore, results]);
     const tableCalculationOptions =
         results?.metricQuery.tableCalculations || [];
 
@@ -197,10 +226,17 @@ export const useChartConfig = (
     const setXDimension = (xDimension: string) => {
         if (results)
             setSeriesLayout((layout) => {
-                const groupDimension =
-                    xDimension === layout.groupDimension
-                        ? dimensionOptions.find((d) => d !== xDimension)
-                        : layout.groupDimension;
+                const fallbackDimension = dimensionOptions.find(
+                    (d) => getFieldId(d) !== xDimension,
+                );
+                let groupDimension: string | undefined;
+                if (xDimension === layout.groupDimension) {
+                    groupDimension = fallbackDimension
+                        ? getFieldId(fallbackDimension)
+                        : undefined;
+                } else {
+                    groupDimension = layout.groupDimension;
+                }
                 return { ...layout, xDimension, groupDimension };
             });
     };
@@ -208,10 +244,17 @@ export const useChartConfig = (
     const setGroupDimension = (groupDimension: string | undefined) => {
         if (results)
             setSeriesLayout((layout) => {
-                const xDimension =
-                    groupDimension === layout.xDimension
-                        ? dimensionOptions.find((d) => d !== groupDimension)
-                        : layout.xDimension;
+                const fallbackDimension = dimensionOptions.find(
+                    (d) => getFieldId(d) !== groupDimension,
+                );
+                let xDimension: string | undefined;
+                if (groupDimension === layout.xDimension) {
+                    xDimension = fallbackDimension
+                        ? getFieldId(fallbackDimension)
+                        : undefined;
+                } else {
+                    xDimension = layout.xDimension;
+                }
                 return {
                     groupDimension,
                     yMetrics: layout.yMetrics,
