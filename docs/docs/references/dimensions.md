@@ -85,9 +85,9 @@ Lightdash breaks this out into the default intervals automatically. So, this is 
 **Timestamp**: ['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']
 
 ### To change the time intervals used for a dimension, specify your custom intervals using `time_intervals`
-If you want to change the time intervals shown for a dimension, you can specify the custom time intervals you'd like yo include using the `time_intervals` property for a dimension.
+If you want to change the time intervals shown for a dimension, you can specify the custom time intervals you'd like you include using the `time_intervals` property for a dimension. You can use any values supported by your warehouse.
 
-In this example, only `created day`, `created month`, and `created quarter` would now appear for the `created` dimension in Lightdash.
+In this example, I've only included the day, month, and quarter time intervals for the `created` dimension in Lightdash.
 
 ```
       - name: created
