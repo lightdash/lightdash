@@ -88,7 +88,7 @@ Step 3 - 👩‍💻 [Create your first metric](https://docs.lightdash.com/get-s
 
 Join our community if you need help, want to chat or have any other questions for us:
 
-- [Discourse](https://community.lightdash.com/) - Discussion forums and updates from the Lightdash team
+- [GitHub](https://github.com/lightdash/lightdash/discussions) - Discussion forums and updates from the Lightdash team
 - [Twitter](https://twitter.com/lightdash_devs) - For all the latest Lightdash news
 - [Slack](https://getdbt.slack.com/archives/C026WJE4A69) - Join the conversation! Get all the latest updates and chat to the devs
 
