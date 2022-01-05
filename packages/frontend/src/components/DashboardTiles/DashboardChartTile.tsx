@@ -35,6 +35,7 @@ const ValidDashboardChartTile: FC<{ data: SavedQuery }> = ({ data }) => {
     return (
         <SimpleChart
             isLoading={queryResults.isLoading}
+            tableName={data.tableName}
             chartRef={chartRef}
             chartType={activeVizTab}
             chartConfig={chartConfig}

@@ -10,7 +10,6 @@ import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject } from 'react';
 import { ChartConfig } from '../hooks/useChartConfig';
 import { useExplore } from '../hooks/useExplore';
-import { useExplorer } from '../providers/ExplorerProvider';
 
 const flipXFromChartType = (chartType: DBChartTypes) => {
     switch (chartType) {
@@ -72,19 +71,18 @@ const axisTypeFromDimensionType = (
 
 type SimpleChartProps = {
     isLoading: boolean;
+    tableName: string | undefined;
     chartRef: RefObject<EChartsReact>;
     chartType: DBChartTypes;
     chartConfig: ChartConfig;
 };
 export const SimpleChart: FC<SimpleChartProps> = ({
     isLoading,
+    tableName,
     chartRef,
     chartType,
     chartConfig,
 }) => {
-    const {
-        state: { tableName },
-    } = useExplorer();
     const activeExplore = useExplore(tableName);
     if (isLoading || !activeExplore.data) return <LoadingChart />;
     if (chartConfig.plotData === undefined) return <EmptyChart />;

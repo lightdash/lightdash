@@ -333,6 +333,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     <div style={{ height: '300px' }} className="cohere-block">
                         <SimpleChart
                             isLoading={queryResults.isLoading}
+                            tableName={tableName}
                             chartRef={chartRef}
                             chartType={activeVizTab}
                             chartConfig={chartConfig}
