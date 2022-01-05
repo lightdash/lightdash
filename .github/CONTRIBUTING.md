@@ -259,10 +259,10 @@ docker exec -it lightdash-app_lightdash-dev_1 bash
 yarn dev # http://localhost:3000
 
 # Log in dev mode
-When navigating to `http://localhost:3000` you will be prompt to the login page, you can use our demo login details: 
+When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details: 
 
-**Username:** demo@lightdash.com
-**Password:** demo_password!
+Username: demo@lightdash.com
+Password: demo_password!
 
 # Or run in production mode
 # yarn build
