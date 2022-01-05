@@ -310,6 +310,15 @@
       "contributions": [
         "infra"
       ]
+    },
+    {
+      "login": "nathaliabj",
+      "name": "Nathalia Buitrago Jurado",
+      "avatar_url": "https://avatars.githubusercontent.com/u/31137824?v=4",
+      "profile": "https://github.com/nathaliabj",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
