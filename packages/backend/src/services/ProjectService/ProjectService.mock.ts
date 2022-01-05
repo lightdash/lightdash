@@ -96,6 +96,7 @@ export const exploreWithMetrics: Explore = {
             metrics: {
                 myMetric: {
                     table: 'a',
+                    tableLabel: 'a',
                     sql: 'sql',
                     name: 'myMetric',
                     label: 'myMetric',

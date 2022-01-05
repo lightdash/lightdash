@@ -596,7 +596,6 @@ export const convertExplores = async (
     const explores: (Explore | ExploreError)[] = validModels.map((model) => {
         const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
         try {
-            console.log('model.meta.label', model.meta);
             return compileExplore({
                 name: model.name,
                 label: meta.label || friendlyName(model.name),

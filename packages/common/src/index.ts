@@ -243,12 +243,6 @@ export type FieldRef = string;
 export const getFieldRef = (field: Field): FieldRef =>
     `${field.table}.${field.name}`;
 
-export const findFieldByReferenceInExplore = (
-    explore: Explore,
-    fieldReference: FieldRef,
-): Field | undefined =>
-    getFields(explore).find((field) => getFieldRef(field) === fieldReference);
-
 export const getFieldLabel = (field: Field): string =>
     `${field.tableLabel} ${field.label}`;
 
