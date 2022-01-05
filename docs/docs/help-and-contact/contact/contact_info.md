@@ -34,10 +34,10 @@ We get it, repeated `error` messages can cause [rage clicking](https://www.fulls
 
 So, we're here to help.
 
-First, [check out our FAQs](https://github.com/lightdash/lightdash/discussions/q-a) to see if someone has found a solution to your problem already. 
+First, [check out our FAQs](https://github.com/lightdash/lightdash/discussions/categories/q-a) to see if someone has found a solution to your problem already. 
 
 If you can't find your answer there, the best ways to reach us are:
-1. Posting a [question in our Q&A](https://github.com/lightdash/lightdash/discussions/q-a)
+1. Posting a [question in our Q&A](https://github.com/lightdash/lightdash/discussions/categories/q-a)
 2. If it's a bug: [create a new GitHub issue](https://github.com/lightdash/lightdash/issues)
 3. Sending us an email at support@lightdash.com
 4. For less urgent issues, we hang out a lot in dbt's Slack community and we even have our own channel ([#tools-lightdash](https://getdbt.slack.com/archives/C026WJE4A69))!
