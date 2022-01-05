@@ -19,7 +19,6 @@ import {
     Dimension,
     FieldId,
     fieldId,
-    friendlyName,
     Metric,
     Source,
 } from 'common';
@@ -172,7 +171,7 @@ const renderDimensionTreeNode = (
         id: dimension.name,
         label: (
             <Tooltip2 content={dimension.description}>
-                {friendlyName(dimension.name)}
+                {dimension.label}
             </Tooltip2>
         ),
         secondaryLabel: dimension.source && (
@@ -320,7 +319,7 @@ const TableTree: FC<TableTreeProps> = ({
                       id: metric.name,
                       label: (
                           <Tooltip2 content={metric.description}>
-                              {friendlyName(metric.name)}
+                              {metric.label}
                           </Tooltip2>
                       ),
                       nodeData: {
@@ -368,7 +367,7 @@ const TableTree: FC<TableTreeProps> = ({
     const contents: TreeNodeInfo<NodeDataProps>[] = [
         {
             id: table.name,
-            label: friendlyName(table.name),
+            label: table.label,
             isExpanded: expandedNodes.includes(table.name),
             secondaryLabel: (
                 <TableButtons

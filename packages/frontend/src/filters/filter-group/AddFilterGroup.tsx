@@ -6,7 +6,6 @@ import {
     filterableDimensionsOnly,
     FilterGroup,
     FilterGroupOperator,
-    friendlyName,
     getDimensions,
 } from 'common';
 import React, { useState } from 'react';
@@ -40,7 +39,7 @@ const AddFilterGroup = () => {
 
     const selectOptions = filterableDimensions.map((dim) => ({
         value: fieldId(dim),
-        label: `${friendlyName(dim.table)} ${friendlyName(dim.name)}`,
+        label: `${dim.tableLabel} ${dim.label}`,
     }));
 
     // When user selects a new dimension to filter on

@@ -30,9 +30,7 @@ const mapActiveFieldsToCompletions = (
             };
             const friendlyOption: Ace.Completion = {
                 ...technicalOption,
-                caption: `${friendlyName(field.table)} ${friendlyName(
-                    field.name,
-                )}`,
+                caption: `${field.tableLabel} ${field.label}`,
             };
             return [...acc, technicalOption, friendlyOption];
         }

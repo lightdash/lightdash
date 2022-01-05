@@ -85,7 +85,8 @@ export type ArgumentsOf<F extends Function> = F extends (
     : never;
 
 export type Explore = {
-    name: string; // Friendly name any characters
+    name: string; // Must be sql friendly (a-Z, 0-9, _)
+    label: string; // Friendly name
     tags: string[];
     baseTable: string; // Must match a tableName in tables
     joinedTables: CompiledExploreJoin[]; // Must match a tableName in tables
@@ -105,6 +106,7 @@ export type InlineError = {
 
 export type ExploreError = Partial<Explore> & {
     name: string;
+    label: string;
     errors: InlineError[];
 };
 export const isExploreError = (
@@ -121,11 +123,12 @@ export type CompiledExploreJoin = ExploreJoin & {
 };
 
 export type SummaryExplore =
-    | Pick<Explore, 'name' | 'tags'>
-    | Pick<ExploreError, 'name' | 'tags' | 'errors'>;
+    | Pick<Explore, 'name' | 'label' | 'tags'>
+    | Pick<ExploreError, 'name' | 'label' | 'tags' | 'errors'>;
 
 export type TableBase = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
+    label: string; // Friendly name
     description?: string; // Optional description of table
     database: string;
     schema: string;
@@ -193,7 +196,9 @@ export interface Field {
     fieldType: FieldType;
     type: string; // Discriminator field
     name: string; // Field names are unique within a table
+    label: string; // Friendly name
     table: string; // Table names are unique within the project
+    tableLabel: string; // Table friendly name
     sql: string; // Templated sql
     description?: string;
     source?: Source | undefined;
@@ -228,8 +233,18 @@ export type FieldId = string;
 export const fieldId = (field: Field): FieldId =>
     `${field.table}_${field.name}`;
 
-export const getFieldRef = (field: Field): string =>
+export const findFieldByIdInExplore = (
+    explore: Explore,
+    id: FieldId,
+): Field | undefined =>
+    getFields(explore).find((field) => fieldId(field) === id);
+
+export type FieldRef = string;
+export const getFieldRef = (field: Field): FieldRef =>
     `${field.table}.${field.name}`;
+
+export const getFieldLabel = (field: Field): string =>
+    `${field.tableLabel} ${field.label}`;
 
 export enum MetricType {
     AVERAGE = 'average',
@@ -492,6 +507,7 @@ export type DbtModelColumn = {
 type DbtModelMetadata = DbtModelLightdashConfig & {};
 
 type DbtModelLightdashConfig = {
+    label?: string;
     joins?: DbtModelJoin[];
 };
 type DbtModelJoin = {
@@ -506,6 +522,7 @@ type DbtColumnLightdashConfig = {
 
 type DbtColumnLightdashDimension = {
     name?: string;
+    label?: string;
     type?: DimensionType;
     description?: string;
     sql?: string;
@@ -513,6 +530,7 @@ type DbtColumnLightdashDimension = {
 };
 
 export type DbtColumnLightdashMetric = {
+    label?: string;
     type: MetricType;
     description?: string;
     sql?: string;

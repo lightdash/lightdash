@@ -61,8 +61,7 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                         {
                             Header: (
                                 <span>
-                                    {friendlyName(field.table)}{' '}
-                                    <b>{friendlyName(field.name)}</b>
+                                    {field.tableLabel} <b>{field.label}</b>
                                 </span>
                             ),
                             accessor: fieldId,

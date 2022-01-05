@@ -1,13 +1,13 @@
-import { Button, Colors } from '@blueprintjs/core';
+import { Button, Classes, Colors } from '@blueprintjs/core';
 import {
     BooleanFilter,
     DateAndTimestampFilter,
-    friendlyName,
     NumberFilter,
     StringFilter,
 } from 'common';
 import React, { ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useField } from '../../hooks/useField';
 
 type Filter =
     | NumberFilter
@@ -43,11 +43,7 @@ const FilterRow = ({
     children,
     onDelete,
 }: FilterRowProps) => {
-    const header = (
-        <span>
-            {friendlyName(tableName)} <b>{friendlyName(fieldName)}</b>
-        </span>
-    );
+    const { isLoading, field } = useField(fieldName, tableName);
     return (
         <div
             style={{
@@ -56,8 +52,27 @@ const FilterRow = ({
                 justifyContent: 'flex-start',
                 alignItems: 'center',
             }}
+            className={isLoading ? Classes.SKELETON : undefined}
         >
-            <div style={{ flex: '0 0 300px' }}>{isFirst && header}</div>
+            <div style={{ flex: '0 0 300px' }}>
+                {isFirst && (
+                    <span>
+                        {!field ? (
+                            <>
+                                Field{' '}
+                                <b>
+                                    {tableName}.{fieldName}
+                                </b>{' '}
+                                not found
+                            </>
+                        ) : (
+                            <>
+                                {field.tableLabel} <b>{field.label}</b>
+                            </>
+                        )}
+                    </span>
+                )}
+            </div>
             <div style={{ flex: '0 0 40px' }}>
                 {!isFirst && (
                     <span style={{ paddingLeft: 5, color: Colors.GREEN1 }}>

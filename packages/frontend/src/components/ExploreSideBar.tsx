@@ -1,5 +1,4 @@
 import {
-    Alert,
     Button,
     Divider,
     H3,
@@ -9,8 +8,7 @@ import {
     NonIdealState,
     Text,
 } from '@blueprintjs/core';
-import { friendlyName } from 'common';
-import React, { useState } from 'react';
+import React from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useExplore } from '../hooks/useExplore';
 import { useExplores } from '../hooks/useExplores';
@@ -39,28 +37,7 @@ const BasePanel = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const exploresResult = useExplores(true);
-    const [showChangeExploreConfirmation, setShowChangeExploreConfirmation] =
-        useState(false);
-    const [selectedExploreName, setSelectedExploreName] = useState('');
-    const {
-        state: { tableName: activeTableName, activeFields },
-        actions: { setTableName: setActiveTableName },
-    } = useExplorer();
     const { errorLogs } = useApp();
-
-    const onCancelConfirmation = () => {
-        setShowChangeExploreConfirmation(false);
-    };
-
-    const onSubmitConfirmation = () => {
-        setShowChangeExploreConfirmation(false);
-        setActiveTableName(selectedExploreName);
-    };
-
-    const confirm = (exploreName: string) => {
-        setSelectedExploreName(exploreName);
-        setShowChangeExploreConfirmation(true);
-    };
 
     if (exploresResult.data) {
         return (
@@ -90,48 +67,21 @@ const BasePanel = () => {
                     }}
                 >
                     {(exploresResult.data || [])
-                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .sort((a, b) => a.label.localeCompare(b.label))
                         .map((explore) => (
                             <React.Fragment key={explore.name}>
                                 <ExploreMenuItem
                                     explore={explore}
                                     onClick={() => {
-                                        if (
-                                            activeFields.size > 0 &&
-                                            activeTableName !== explore.name
-                                        )
-                                            confirm(explore.name);
-                                        else {
-                                            history.push(
-                                                `/projects/${projectUuid}/tables/${explore.name}`,
-                                            );
-                                        }
+                                        history.push(
+                                            `/projects/${projectUuid}/tables/${explore.name}`,
+                                        );
                                     }}
                                 />
                                 <MenuDivider />
                             </React.Fragment>
                         ))}
                 </Menu>
-                <Alert
-                    isOpen={showChangeExploreConfirmation}
-                    onCancel={onCancelConfirmation}
-                    onConfirm={() => onSubmitConfirmation()}
-                    intent="primary"
-                    cancelButtonText={`Go back to ${friendlyName(
-                        activeTableName || '',
-                    )}`}
-                    confirmButtonText={`Explore ${friendlyName(
-                        selectedExploreName || '',
-                    )}`}
-                >
-                    <Text>
-                        {`Start exploring ${friendlyName(
-                            selectedExploreName || '',
-                        )}? You will lose your current work on ${friendlyName(
-                            activeTableName || '',
-                        )}.`}
-                    </Text>
-                </Alert>
             </>
         );
     }
@@ -190,7 +140,7 @@ export const ExplorePanel = ({ onBack }: ExplorePanelProps) => {
                 >
                     <Button onClick={onBack} icon="chevron-left" />
                     <H3 style={{ marginBottom: 0, marginLeft: '10px' }}>
-                        {friendlyName(activeExplore.name)}
+                        {exploresResult.data.label}
                     </H3>
                 </div>
                 <Divider />
