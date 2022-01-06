@@ -1,7 +1,6 @@
 import { CreateWarehouseCredentials, WarehouseTypes } from 'common';
 import * as yaml from 'js-yaml';
 import path from 'path';
-import { DRIVER_PATH } from '../services/warehouseClients/DatabricksWarehouseClient';
 
 export const LIGHTDASH_PROFILE_NAME = 'lightdash_profile';
 export const LIGHTDASH_TARGET_NAME = 'prod';
@@ -105,13 +104,11 @@ const credentialsTarget = (
         case WarehouseTypes.DATABRICKS:
             return {
                 target: {
-                    type: 'spark',
-                    method: 'odbc',
-                    driver: DRIVER_PATH,
+                    type: WarehouseTypes.DATABRICKS,
                     schema: credentials.database,
                     host: credentials.serverHostName,
                     token: envVarReference('token'),
-                    endpoint: credentials.httpPath,
+                    http_path: credentials.httpPath,
                     port: credentials.port,
                 },
                 environment: {
