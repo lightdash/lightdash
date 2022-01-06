@@ -91,7 +91,7 @@ const RedshiftForm: FC<{
                 />
                 <Select
                     name="warehouse.sslmode"
-                    label="SSL Mode"
+                    label="SSL mode"
                     options={[
                         'disable',
                         'allow',
