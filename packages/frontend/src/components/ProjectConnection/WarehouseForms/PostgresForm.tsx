@@ -98,6 +98,7 @@ const PostgresForm: FC<{
                 <Select
                     name="warehouse.sslmode"
                     label="SSL mode"
+                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#ssl-mode"
                     options={[
                         'disable',
                         'allow',
@@ -107,7 +108,6 @@ const PostgresForm: FC<{
                         'verify-full',
                     ].map((x) => ({ value: x, label: x }))}
                     defaultValue="prefer"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#ssl-mode"
                     disabled={disabled}
                 />
                 <Input name="warehouse.role" label="Role" disabled={disabled} />

@@ -92,6 +92,7 @@ const RedshiftForm: FC<{
                 <Select
                     name="warehouse.sslmode"
                     label="SSL mode"
+                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#ssl-mode-1"
                     options={[
                         'disable',
                         'allow',
@@ -101,7 +102,6 @@ const RedshiftForm: FC<{
                         'verify-full',
                     ].map((x) => ({ value: x, label: x }))}
                     defaultValue="prefer"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#ssl-mode"
                     disabled={disabled}
                 />
             </FormSection>
