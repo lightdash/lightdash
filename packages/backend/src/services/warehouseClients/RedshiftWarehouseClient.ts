@@ -9,7 +9,7 @@ const AMAZON_CA_BUNDLE = [
     fs.readFileSync(path.resolve(__dirname, './amazon-trust-ca-bundle.crt')),
 ];
 
-const sslConfigFromMode = (mode: string): PoolConfig['ssl'] => {
+const getSSLConfigFromMode = (mode: string): PoolConfig['ssl'] => {
     switch (mode) {
         case 'disable':
             return false;
@@ -36,7 +36,7 @@ export default class RedshiftWarehouseClient
 {
     constructor(credentials: CreateRedshiftCredentials) {
         const sslmode = credentials.sslmode || 'prefer';
-        const ssl = sslConfigFromMode(sslmode);
+        const ssl = getSSLConfigFromMode(sslmode);
         super({
             connectionString: `postgres://${credentials.user}:${credentials.password}@${credentials.host}:${credentials.port}/${credentials.dbname}`,
             ssl,
