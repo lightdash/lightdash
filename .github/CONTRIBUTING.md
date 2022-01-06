@@ -235,6 +235,8 @@ git clone https://github.com/lightdash/lightdash
 git submodule update --init --recursive
 
 # Create docker containers
+Note: before the next step make sure your docker has 4GB of memory ( Docker -> settings -> resources ) you should be able to manipulate the values here.
+
 cd docker
 docker compose -p lightdash-app -f docker-compose.dev.yml --env-file .env up --detach --remove-orphans 
 ```
