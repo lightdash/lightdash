@@ -1,11 +1,6 @@
-import {
-    CreatePostgresCredentials,
-    CreateRedshiftCredentials,
-    DimensionType,
-    WarehouseTypes,
-} from 'common';
-import path from 'path';
+import { CreatePostgresCredentials, DimensionType } from 'common';
 import * as pg from 'pg';
+import { PoolConfig } from 'pg';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
 import { WarehouseClient } from '../../types';
 
@@ -92,28 +87,12 @@ const mapFieldType = (type: string): DimensionType => {
     }
 };
 
-export default class PostgresWarehouseClient implements WarehouseClient {
+export class PostgresClient implements WarehouseClient {
     pool: pg.Pool;
 
-    constructor(
-        credentials: CreatePostgresCredentials | CreateRedshiftCredentials,
-    ) {
+    constructor(config: PoolConfig) {
         try {
-            const pool = new pg.Pool({
-                // Use connection string so we can use sslmode keywords for postgres
-                connectionString: `postgres://${credentials.user}:${
-                    credentials.password
-                }@${credentials.host}:${credentials.port}/${
-                    credentials.dbname
-                }?sslmode=${credentials.sslmode || 'prefer'}${
-                    credentials.type === WarehouseTypes.REDSHIFT
-                        ? `&sslrootcert=${path.resolve(
-                              __dirname,
-                              './amazon-trust-ca-bundle.crt',
-                          )}`
-                        : ''
-                }`,
-            });
+            const pool = new pg.Pool(config);
             this.pool = pool;
         } catch (e) {
             throw new WarehouseConnectionError(e.message);
@@ -205,5 +184,20 @@ export default class PostgresWarehouseClient implements WarehouseClient {
             },
             {},
         );
+    }
+}
+
+export default class PostgresWarehouseClient
+    extends PostgresClient
+    implements WarehouseClient
+{
+    constructor(credentials: CreatePostgresCredentials) {
+        super({
+            connectionString: `postgres://${credentials.user}:${
+                credentials.password
+            }@${credentials.host}:${credentials.port}/${
+                credentials.dbname
+            }?sslmode=${credentials.sslmode || 'prefer'}`,
+        });
     }
 }
