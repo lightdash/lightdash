@@ -5,6 +5,7 @@ import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
+import Select from '../../ReactHookForm/Select';
 
 const PostgresForm: FC<{
     disabled: boolean;
@@ -94,9 +95,18 @@ const PostgresForm: FC<{
                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#search-path"
                     disabled={disabled}
                 />
-                <Input
+                <Select
                     name="warehouse.sslmode"
-                    label="SSL mode"
+                    label="SSL Mode"
+                    options={[
+                        'disable',
+                        'allow',
+                        'prefer',
+                        'require',
+                        'verify-ca',
+                        'verify-full',
+                    ].map((x) => ({ value: x, label: x }))}
+                    defaultValue="prefer"
                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#ssl-mode"
                     disabled={disabled}
                 />
