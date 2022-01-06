@@ -5,6 +5,7 @@ import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
+import Select from '../../ReactHookForm/Select';
 
 const RedshiftForm: FC<{
     disabled: boolean;
@@ -88,10 +89,19 @@ const RedshiftForm: FC<{
                     disabled={disabled}
                     defaultValue={0}
                 />
-                <Input
+                <Select
                     name="warehouse.sslmode"
                     label="SSL mode"
                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#ssl-mode-1"
+                    options={[
+                        'disable',
+                        'allow',
+                        'prefer',
+                        'require',
+                        'verify-ca',
+                        'verify-full',
+                    ].map((x) => ({ value: x, label: x }))}
+                    defaultValue="prefer"
                     disabled={disabled}
                 />
             </FormSection>

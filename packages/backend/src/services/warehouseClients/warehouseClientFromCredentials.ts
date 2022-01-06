@@ -5,6 +5,7 @@ import { WarehouseClient } from '../../types';
 import BigqueryWarehouseClient from './BigqueryWarehouseClient';
 import DatabricksWarehouseClient from './DatabricksWarehouseClient';
 import PostgresWarehouseClient from './PostgresWarehouseClient';
+import RedshiftWarehouseClient from './RedshiftWarehouseClient';
 import SnowflakeWarehouseClient from './SnowflakeWarehouseClient';
 
 export const warehouseClientFromCredentials = (
@@ -15,8 +16,9 @@ export const warehouseClientFromCredentials = (
         case WarehouseTypes.SNOWFLAKE:
             return new SnowflakeWarehouseClient(credentials);
         case WarehouseTypes.POSTGRES:
-        case WarehouseTypes.REDSHIFT:
             return new PostgresWarehouseClient(credentials);
+        case WarehouseTypes.REDSHIFT:
+            return new RedshiftWarehouseClient(credentials);
         case WarehouseTypes.BIGQUERY:
             return new BigqueryWarehouseClient(credentials);
         case WarehouseTypes.DATABRICKS:

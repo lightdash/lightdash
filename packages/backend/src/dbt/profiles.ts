@@ -1,5 +1,6 @@
 import { CreateWarehouseCredentials, WarehouseTypes } from 'common';
 import * as yaml from 'js-yaml';
+import path from 'path';
 import { DRIVER_PATH } from '../services/warehouseClients/DatabricksWarehouseClient';
 
 export const LIGHTDASH_PROFILE_NAME = 'lightdash_profile';
@@ -49,6 +50,10 @@ const credentialsTarget = (
                     threads: credentials.threads,
                     keepalives_idle: credentials.keepalivesIdle,
                     sslmode: credentials.sslmode,
+                    sslrootcert: path.resolve(
+                        __dirname,
+                        '../services/warehouseClients/amazon-trust-ca-bundle.crt',
+                    ),
                 },
                 environment: {
                     [envVar('user')]: credentials.user,

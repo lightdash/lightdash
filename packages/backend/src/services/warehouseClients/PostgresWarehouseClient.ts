@@ -1,9 +1,6 @@
-import {
-    CreatePostgresCredentials,
-    CreateRedshiftCredentials,
-    DimensionType,
-} from 'common';
+import { CreatePostgresCredentials, DimensionType } from 'common';
 import * as pg from 'pg';
+import { PoolConfig } from 'pg';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
 import { WarehouseClient } from '../../types';
 
@@ -90,21 +87,12 @@ const mapFieldType = (type: string): DimensionType => {
     }
 };
 
-export default class PostgresWarehouseClient implements WarehouseClient {
+export class PostgresClient implements WarehouseClient {
     pool: pg.Pool;
 
-    constructor(
-        credentials: CreatePostgresCredentials | CreateRedshiftCredentials,
-    ) {
+    constructor(config: PoolConfig) {
         try {
-            const pool = new pg.Pool({
-                // Use connection string so we can use sslmode keywords for postgres
-                connectionString: `postgres://${credentials.user}:${
-                    credentials.password
-                }@${credentials.host}:${credentials.port}/${
-                    credentials.dbname
-                }?sslmode=${credentials.sslmode || 'prefer'}`,
-            });
+            const pool = new pg.Pool(config);
             this.pool = pool;
         } catch (e) {
             throw new WarehouseConnectionError(e.message);
@@ -155,9 +143,9 @@ export default class PostgresWarehouseClient implements WarehouseClient {
                    column_name,
                    data_type
             FROM information_schema.columns
-            WHERE table_catalog IN (${Array.from(databases)}) 
-            AND table_schema IN (${Array.from(schemas)})
-            AND table_name IN (${Array.from(tables)})
+            WHERE table_catalog IN (${Array.from(databases)})
+              AND table_schema IN (${Array.from(schemas)})
+              AND table_name IN (${Array.from(tables)})
         `;
 
         const rows = await this.runQuery(query);
@@ -196,5 +184,20 @@ export default class PostgresWarehouseClient implements WarehouseClient {
             },
             {},
         );
+    }
+}
+
+export default class PostgresWarehouseClient
+    extends PostgresClient
+    implements WarehouseClient
+{
+    constructor(credentials: CreatePostgresCredentials) {
+        super({
+            connectionString: `postgres://${credentials.user}:${
+                credentials.password
+            }@${credentials.host}:${credentials.port}/${
+                credentials.dbname
+            }?sslmode=${credentials.sslmode || 'prefer'}`,
+        });
     }
 }
