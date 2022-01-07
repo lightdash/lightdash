@@ -61,7 +61,7 @@ export type RudderConfig = {
 };
 
 export type SmtpConfig = {
-    host: string;
+    host: string | undefined;
     port: number;
     secure: boolean;
 };
@@ -199,7 +199,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         mode,
         projects: mergedProjects,
         smtp: {
-            host: process.env.EMAIL_SMTP_HOST || '',
+            host: process.env.EMAIL_SMTP_HOST,
             port: parseInt(process.env.EMAIL_SMTP_PORT || '465', 10),
             secure: process.env.EMAIL_SMTP_SECURE === 'true',
         },

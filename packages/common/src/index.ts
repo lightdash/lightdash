@@ -728,6 +728,7 @@ export type HealthState = {
     cohere: {
         token: string;
     };
+    isEmailsEnabled: boolean;
 };
 
 export interface DbtCatalogNode {

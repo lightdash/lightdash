@@ -16,7 +16,8 @@ export class EncryptionService {
 
         // todo
         if (this.lightdashConfig) {
-            this.transporter = nodemailer.createTransport({
+            Logger.debug(`Create email transporter`);
+            const transporter = nodemailer.createTransport({
                 host: 'smtp.ethereal.email',
                 port: 587,
                 secure: false, // true for 465, false for other ports
@@ -25,22 +26,23 @@ export class EncryptionService {
                     pass: 'testAccount.pass',
                 },
             });
-        }
-    }
 
-    public async isTransportValid(): Promise<boolean> {
-        if (!this.transporter) {
-            return false;
+            transporter.verify((error: any) => {
+                if (error) {
+                    Logger.debug(
+                        `Failed to verify email transporter: ${error}`,
+                    );
+                    throw new Error();
+                } else {
+                    Logger.debug(`Email transporter verified with success`);
+                    this.transporter = transporter;
+                }
+            });
         }
-
-        return this.transporter.verify().catch((e) => {
-            Logger.debug(`Failed to verify email transporter: ${e}`);
-            return false;
-        });
     }
 
     public async sendEmail() {
-        if (this.transporter && (await this.isTransportValid())) {
+        if (this.transporter) {
             // send mail with defined transport object
             const info = await this.transporter.sendMail({
                 from: '"Fred Foo 👻" <foo@example.com>', // sender address
