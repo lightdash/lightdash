@@ -790,6 +790,7 @@ export type HealthState = {
         token: string;
     };
     siteUrl: string;
+    isEmailsEnabled: boolean;
 };
 
 export interface DbtCatalogNode {

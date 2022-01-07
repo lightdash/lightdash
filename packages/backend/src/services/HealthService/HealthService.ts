@@ -1,5 +1,6 @@
 import { HealthState, LightdashInstallType, LightdashMode } from 'common';
 import fetch from 'node-fetch';
+import { lightdashConfig } from '../../config/lightdashConfig';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getMigrationStatus } from '../../database/database';
 import { UnexpectedDatabaseError } from '../../errors';
@@ -90,6 +91,7 @@ export class HealthService {
                         this.lightdashConfig.auth.google.oauth2ClientId,
                 },
             },
+            isEmailsEnabled: !!lightdashConfig.smtp.host,
         };
     }
 }
