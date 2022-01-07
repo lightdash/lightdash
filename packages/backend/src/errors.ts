@@ -244,6 +244,17 @@ export class WarehouseQueryError extends LightdashError {
     }
 }
 
+export class SmptError extends LightdashError {
+    constructor(message: string, data: { [key: string]: any } = {}) {
+        super({
+            message,
+            name: 'SmptError',
+            statusCode: 400,
+            data,
+        });
+    }
+}
+
 export const errorHandler = (error: Error): LightdashError => {
     if (error instanceof LightdashError) {
         return error;

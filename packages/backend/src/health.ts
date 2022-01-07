@@ -3,6 +3,7 @@ import fetch from 'node-fetch';
 import { lightdashConfig } from './config/lightdashConfig';
 import database, { getMigrationStatus } from './database/database';
 import { hasUsers } from './database/entities/users';
+import emailClient from './emails/EmailClient';
 import { UnexpectedDatabaseError } from './errors';
 import { projectService } from './services/services';
 import { VERSION } from './version';
@@ -47,6 +48,8 @@ export const getHealthState = async (
         process.env.LIGHTDASH_INSTALL_TYPE !== LightdashInstallType.HEROKU &&
         lightdashConfig.mode !== LightdashMode.CLOUD_BETA;
 
+    await emailClient.sendPasswordRecoveryEmail();
+
     return {
         healthy: true,
         mode: lightdashConfig.mode,
@@ -61,6 +64,6 @@ export const getHealthState = async (
         sentry: lightdashConfig.sentry,
         chatwoot: lightdashConfig.chatwoot,
         cohere: lightdashConfig.cohere,
-        isEmailsEnabled: !!lightdashConfig.smtp.host,
+        isEmailEnabled: !!lightdashConfig.smtp.host,
     };
 };
