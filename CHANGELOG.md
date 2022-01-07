@@ -4,6 +4,18 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.11.7] - 2022-01-07
+### Added
+- Added support for custom labels for explores/model, metrics and dimensions (#1061)
+- Added support for dbt metric label (#1061)
+
+### Changed
+- Replaced dbt-spark[ODBC] adapter with dbt-databricks (#1104)
+
+### Fixed
+- Fix redshift connections to work with any ssl mode (#1057)
+- Fix connection to databricks during dbt compile (#1104)
+
 ## [0.11.6] - 2021-12-24
 ### Fixed
 - Remove quotation from time interval sql for bigquery (#1063)
