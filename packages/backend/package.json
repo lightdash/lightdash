@@ -18,6 +18,7 @@
         "@types/passport-local": "^1.0.34",
         "@types/pg": "^8.6.1",
         "@types/snowflake-sdk": "^1.6.1",
+        "copyfiles": "^2.4.1",
         "eslint": "^7.29.0",
         "eslint-config-airbnb-base": "^14.2.1",
         "eslint-config-prettier": "^8.3.0",
@@ -76,7 +77,8 @@
     "scripts": {
         "dev": "nodemon src/index.ts",
         "debug": "nodemon --exec \"node --inspect-brk=0.0.0.0:9229 --require ts-node/register src/index.ts\"",
-        "build": "tsc --build tsconfig.json",
+        "build": "tsc --build tsconfig.json && yarn copy-files",
+        "copy-files": "copyfiles -u 1 src/services/warehouseClients/amazon-trust-ca-bundle.crt dist/",
         "start": "node dist/index.js",
         "test": "jest",
         "lint": "eslint ./src",
