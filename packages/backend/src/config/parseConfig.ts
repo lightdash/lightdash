@@ -78,6 +78,12 @@ export type SmtpConfig = {
     host: string | undefined;
     port: number;
     secure: boolean;
+    allowInvalidCertificate: boolean;
+    auth: {
+        user: string | undefined;
+        pass: string | undefined;
+        accessToken: string | undefined;
+    };
 };
 
 type ConfigKeys<T extends DbtProjectConfig> = {
@@ -220,8 +226,15 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         projects: mergedProjects,
         smtp: {
             host: process.env.EMAIL_SMTP_HOST,
-            port: parseInt(process.env.EMAIL_SMTP_PORT || '465', 10),
+            port: parseInt(process.env.EMAIL_SMTP_PORT || '587', 10),
             secure: process.env.EMAIL_SMTP_SECURE === 'true',
+            allowInvalidCertificate:
+                process.env.EMAIL_SMTP_ALLOW_INVALID_CERT === 'true',
+            auth: {
+                user: process.env.EMAIL_SMTP_USER,
+                pass: process.env.EMAIL_SMTP_PASSWORD,
+                accessToken: process.env.EMAIL_SMTP_ACCESS_TOKEN,
+            },
         },
         rudder: {
             writeKey:
