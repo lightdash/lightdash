@@ -59,7 +59,7 @@ const getDataTruncSql = (
         case SupportedDbtAdapter.REDSHIFT:
         case SupportedDbtAdapter.POSTGRES:
         case SupportedDbtAdapter.SNOWFLAKE:
-        case SupportedDbtAdapter.SPARK:
+        case SupportedDbtAdapter.DATABRICKS:
             return `DATE_TRUNC('${timeInterval.toUpperCase()}', ${field})`;
         default:
             const never: never = adapterType;
@@ -635,7 +635,7 @@ export const normaliseModelDatabase = (
                 );
             }
             return { ...model, database: model.database };
-        case SupportedDbtAdapter.SPARK:
+        case SupportedDbtAdapter.DATABRICKS:
             return { ...model, database: 'SPARK' };
         default:
             const never: never = targetWarehouse;

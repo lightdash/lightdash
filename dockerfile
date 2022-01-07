@@ -46,7 +46,7 @@ RUN /usr/local/venv/bin/pip install \
     "dbt-redshift==1.0.0" \
     "dbt-snowflake==1.0.0" \
     "dbt-bigquery==1.0.0" \
-    "dbt-spark[ODBC]==1.0.0"
+    "dbt-databricks==1.0.0"
 ENV PATH $PATH:/usr/local/venv/bin
 
 

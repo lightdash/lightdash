@@ -467,7 +467,7 @@ export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 // DBT CONFIG
 export enum SupportedDbtAdapter {
     BIGQUERY = 'bigquery',
-    SPARK = 'spark',
+    DATABRICKS = 'databricks',
     SNOWFLAKE = 'snowflake',
     REDSHIFT = 'redshift',
     POSTGRES = 'postgres',

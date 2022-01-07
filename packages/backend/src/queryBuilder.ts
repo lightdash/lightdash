@@ -246,7 +246,7 @@ export const getQuoteChar = (targetDatabase: SupportedDbtAdapter): string => {
         case SupportedDbtAdapter.REDSHIFT:
             return '"';
         case SupportedDbtAdapter.BIGQUERY:
-        case SupportedDbtAdapter.SPARK:
+        case SupportedDbtAdapter.DATABRICKS:
             return '`';
         default:
             return '"';
