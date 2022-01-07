@@ -4,12 +4,15 @@ import { useHistory, useParams } from 'react-router-dom';
 import AboutFooter from '../components/AboutFooter';
 import { Explorer } from '../components/Explorer';
 import { ExplorePanel } from '../components/ExploreSideBar';
+import MobileView from '../components/Mobile';
+import useBreakpoint from '../hooks/useBreakpoint';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useExplorer } from '../providers/ExplorerProvider';
 
 const SavedExplorer = () => {
     const history = useHistory();
     const pathParams = useParams<{ savedQueryUuid: string }>();
+    const { isOverBreakpoint } = useBreakpoint(768);
     const {
         actions: { setState, reset },
     } = useExplorer();
@@ -41,55 +44,61 @@ const SavedExplorer = () => {
     }, [data, setState]);
 
     return (
-        <div
-            style={{
-                display: 'flex',
-                flexDirection: 'row',
-                flexWrap: 'nowrap',
-                justifyContent: 'stretch',
-                alignItems: 'flex-start',
-            }}
-        >
-            <Card
-                style={{
-                    height: 'calc(100vh - 50px)',
-                    flexBasis: '400px',
-                    flexGrow: 0,
-                    flexShrink: 0,
-                    marginRight: '10px',
-                    overflow: 'hidden',
-                    position: 'sticky',
-                    top: '50px',
-                    paddingBottom: 0,
-                }}
-                elevation={1}
-            >
+        <>
+            {isOverBreakpoint ? (
                 <div
                     style={{
-                        height: '100%',
-                        overflow: 'hidden',
                         display: 'flex',
-                        flexDirection: 'column',
+                        flexDirection: 'row',
+                        flexWrap: 'nowrap',
+                        justifyContent: 'stretch',
+                        alignItems: 'flex-start',
                     }}
                 >
-                    <ExplorePanel onBack={onBack} />
-                    <AboutFooter minimal />
+                    <Card
+                        style={{
+                            height: 'calc(100vh - 50px)',
+                            flexBasis: '400px',
+                            flexGrow: 0,
+                            flexShrink: 0,
+                            marginRight: '10px',
+                            overflow: 'hidden',
+                            position: 'sticky',
+                            top: '50px',
+                            paddingBottom: 0,
+                        }}
+                        elevation={1}
+                    >
+                        <div
+                            style={{
+                                height: '100%',
+                                overflow: 'hidden',
+                                display: 'flex',
+                                flexDirection: 'column',
+                            }}
+                        >
+                            <ExplorePanel onBack={onBack} />
+                            <AboutFooter minimal />
+                        </div>
+                    </Card>
+                    <div
+                        style={{
+                            padding: '10px 10px',
+                            flexGrow: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'flex-start',
+                            alignItems: 'stretch',
+                            minWidth: 0,
+                        }}
+                    >
+                        <Explorer savedQueryUuid={pathParams.savedQueryUuid} />
+                    </div>
                 </div>
-            </Card>
-            <div
-                style={{
-                    padding: '10px 10px',
-                    flexGrow: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'flex-start',
-                    alignItems: 'stretch',
-                    minWidth: 0,
-                }}
-            >
-                <Explorer savedQueryUuid={pathParams.savedQueryUuid} />
-            </div>
-        </div>
+            ) : (
+                <MobileView />
+            )}
+        </>
     );
 };
 

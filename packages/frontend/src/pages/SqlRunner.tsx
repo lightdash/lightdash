@@ -10,10 +10,12 @@ import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
 import { Tree } from '../components/common/Tree';
+import MobileView from '../components/Mobile';
 import { RefreshServerButton } from '../components/RefreshServerButton';
 import RunSqlQueryButton from '../components/SqlRunner/RunSqlQueryButton';
 import SqlRunnerInput from '../components/SqlRunner/SqlRunnerInput';
 import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable';
+import useBreakpoint from '../hooks/useBreakpoint';
 import { useProjectCatalog } from '../hooks/useProjectCatalog';
 import { useProjectCatalogTree } from '../hooks/useProjectCatalogTree';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
@@ -35,6 +37,7 @@ const SqlRunnerPage = () => {
         useProjectCatalog();
     const sqlQueryMutation = useSqlQueryMutation();
     const { isLoading, mutate } = sqlQueryMutation;
+    const { isOverBreakpoint } = useBreakpoint(768);
     const onSubmit = useCallback(() => {
         if (sql) {
             mutate(sql);
@@ -76,68 +79,74 @@ const SqlRunnerPage = () => {
     );
 
     return (
-        <PageWithSidebar>
-            <Sidebar title="SQL runner">
-                <H5 style={{ paddingLeft: 10 }}>Warehouse schema</H5>
-                <div style={{ overflowY: 'auto' }}>
-                    {isCatalogLoading ? (
-                        <SideBarLoadingState />
-                    ) : (
-                        <Tree
-                            contents={catalogTree}
-                            handleSelect={false}
-                            onNodeClick={handleNodeClick}
-                        />
-                    )}
-                </div>
-                <Tooltip2
-                    content="Currently we only display tables that are declared in the dbt project."
-                    className="missing-tables-info"
-                >
-                    <Callout
-                        intent="none"
-                        icon="info-sign"
-                        style={{ marginTop: 20 }}
-                    >
-                        Tables missing?
-                    </Callout>
-                </Tooltip2>
-            </Sidebar>
-            <Content>
-                <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
-                    <div
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'row',
-                            justifyContent: 'flex-end',
-                            alignItems: 'center',
-                        }}
-                    >
-                        <RunSqlQueryButton
-                            onSubmit={onSubmit}
-                            isLoading={isLoading}
-                        />
-                        <RefreshServerButton />
-                    </div>
-                </TrackSection>
-                <CardDivider />
-                <CollapsableCard title="SQL" isOpenByDefault>
-                    <SqlRunnerInput
-                        sql={sql}
-                        onChange={setSql}
-                        projectCatalog={catalogData}
-                        isDisabled={isLoading}
-                    />
-                </CollapsableCard>
-                <CardDivider />
-                <CollapsableCard title="Results" isOpenByDefault>
-                    <SqlRunnerResultsTable
-                        onSubmit={onSubmit}
-                        sqlQueryMutation={sqlQueryMutation}
-                    />
-                </CollapsableCard>
-            </Content>
-        </PageWithSidebar>
+        <>
+            {isOverBreakpoint ? (
+                <PageWithSidebar>
+                    <Sidebar title="SQL runner">
+                        <H5 style={{ paddingLeft: 10 }}>Warehouse schema</H5>
+                        <div style={{ overflowY: 'auto' }}>
+                            {isCatalogLoading ? (
+                                <SideBarLoadingState />
+                            ) : (
+                                <Tree
+                                    contents={catalogTree}
+                                    handleSelect={false}
+                                    onNodeClick={handleNodeClick}
+                                />
+                            )}
+                        </div>
+                        <Tooltip2
+                            content="Currently we only display tables that are declared in the dbt project."
+                            className="missing-tables-info"
+                        >
+                            <Callout
+                                intent="none"
+                                icon="info-sign"
+                                style={{ marginTop: 20 }}
+                            >
+                                Tables missing?
+                            </Callout>
+                        </Tooltip2>
+                    </Sidebar>
+                    <Content>
+                        <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    flexDirection: 'row',
+                                    justifyContent: 'flex-end',
+                                    alignItems: 'center',
+                                }}
+                            >
+                                <RunSqlQueryButton
+                                    onSubmit={onSubmit}
+                                    isLoading={isLoading}
+                                />
+                                <RefreshServerButton />
+                            </div>
+                        </TrackSection>
+                        <CardDivider />
+                        <CollapsableCard title="SQL" isOpenByDefault>
+                            <SqlRunnerInput
+                                sql={sql}
+                                onChange={setSql}
+                                projectCatalog={catalogData}
+                                isDisabled={isLoading}
+                            />
+                        </CollapsableCard>
+                        <CardDivider />
+                        <CollapsableCard title="Results" isOpenByDefault>
+                            <SqlRunnerResultsTable
+                                onSubmit={onSubmit}
+                                sqlQueryMutation={sqlQueryMutation}
+                            />
+                        </CollapsableCard>
+                    </Content>
+                </PageWithSidebar>
+            ) : (
+                <MobileView />
+            )}
+        </>
     );
 };
 

@@ -3,7 +3,6 @@ import React from 'react';
 import {
     Content,
     DarkLogo,
-    DialogIcon,
     Icon,
     MobileFooter,
     MobileViewWrapper,
@@ -27,7 +26,6 @@ const MobileView = () => (
                 icon="chat"
                 style={{ margin: '0' }}
             >
-                <DialogIcon />
                 Join the conversation!
             </AnchorButton>
         </MobileFooter>
