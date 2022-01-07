@@ -71,10 +71,6 @@
         "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */
     },
     "include": ["src/**/*.ts", "src/**/*.json"],
-    "exclude": [
-        "src/**/*.test.ts",
-        "src/**/*.mock.ts",
-    ],
     "references": [
         {
             "path": "../common"
