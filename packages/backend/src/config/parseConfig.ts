@@ -32,6 +32,7 @@ export type LightdashConfig = {
     secureCookies: boolean;
     trustProxy: boolean;
     databaseConnectionUri?: string;
+    smtp: SmtpConfig;
     rudder: RudderConfig;
     mode: LightdashMode;
     projects: Array<DbtProjectConfig>;
@@ -71,6 +72,12 @@ export type AuthGoogleConfig = {
 
 export type AuthConfig = {
     google: AuthGoogleConfig;
+};
+
+export type SmtpConfig = {
+    host: string;
+    port: number;
+    secure: boolean;
 };
 
 type ConfigKeys<T extends DbtProjectConfig> = {
@@ -211,6 +218,11 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         ...config,
         mode,
         projects: mergedProjects,
+        smtp: {
+            host: process.env.EMAIL_SMTP_HOST || '',
+            port: parseInt(process.env.EMAIL_SMTP_PORT || '465', 10),
+            secure: process.env.EMAIL_SMTP_SECURE === 'true',
+        },
         rudder: {
             writeKey:
                 process.env.RUDDERSTACK_WRITE_KEY ||
