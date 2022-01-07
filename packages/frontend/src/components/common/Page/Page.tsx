@@ -1,7 +1,9 @@
 import { Colors } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import styled from 'styled-components';
+import useBreakpoint from '../../../hooks/useBreakpoint';
 import AboutFooter from '../../AboutFooter';
+import MobileView from '../../Mobile';
 import Content from './Content';
 
 type Props = {
@@ -21,11 +23,21 @@ const PageBase = styled('div')<Props>`
     background: ${Colors.LIGHT_GRAY4};
 `;
 
-const Page: FC<Props> = ({ children, ...props }) => (
-    <PageBase {...props}>
-        <Content>{children}</Content>
-        <AboutFooter />
-    </PageBase>
-);
+const Page: FC<Props> = ({ children, ...props }) => {
+    const { isOverBreakpoint } = useBreakpoint(768);
+
+    return (
+        <>
+            {isOverBreakpoint ? (
+                <PageBase {...props}>
+                    <Content>{children}</Content>
+                    <AboutFooter />
+                </PageBase>
+            ) : (
+                <MobileView />
+            )}
+        </>
+    );
+};
 
 export default Page;
