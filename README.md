@@ -40,7 +40,6 @@ If you're a fan, star the repo ⭐️ (we [plant a tree](#the-lightdash-forest) 
 Come join the team, [we're hiring](https://lightdash.notion.site/Lightdash-Job-Board-a2c7d872794b45deb7b76ad68701d750).
 
 </div>
----
 
 ## Features:
 
