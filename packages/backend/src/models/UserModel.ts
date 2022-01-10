@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import { CreateOrganizationUser } from 'common';
 import { Knex } from 'knex';
+import database from '../database/database';
 import { createEmail, EmailTableName } from '../database/entities/emails';
 import { InviteLinkTableName } from '../database/entities/inviteLinks';
 import { createOrganizationMembership } from '../database/entities/organizationMemberships';
@@ -9,6 +10,7 @@ import {
     createUser,
     DbUserDetails,
     getUserDetailsByUuid,
+    userDetailsQueryBuilder,
     UserTableName,
 } from '../database/entities/users';
 import { NotExistsError, ParameterError } from '../errors';
@@ -120,5 +122,13 @@ export class UserModel {
                 'emails.email',
             ])
             .where('organization_uuid', organizationUuid);
+    }
+
+    async findUserByEmail(email: string): Promise<DbUserDetails | undefined> {
+        const results = await userDetailsQueryBuilder(database).where(
+            'email',
+            email,
+        );
+        return results.length === 0 ? undefined : results[0];
     }
 }

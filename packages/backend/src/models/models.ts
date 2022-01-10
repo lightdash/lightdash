@@ -5,6 +5,7 @@ import { DashboardModel } from './DashboardModel/DashboardModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OrganizationModel } from './OrganizationModel';
+import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { SessionModel } from './SessionModel';
 import { UserModel } from './UserModel';
@@ -22,3 +23,4 @@ export const projectModel = new ProjectModel({
     encryptionService,
 });
 export const onboardingModel = new OnboardingModel({ database });
+export const passwordResetLinkModel = new PasswordResetLinkModel(database);

@@ -616,6 +616,12 @@ export type UpdateUserArgs = {
     email: string;
 };
 
+export type PasswordResetLink = {
+    expiresAt: Date;
+    code: string;
+    emailId: number;
+};
+
 export type ApiHealthResults = HealthState;
 export type InviteLink = {
     expiresAt: Date;

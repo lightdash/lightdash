@@ -55,7 +55,7 @@ export const createUser = async (
     return user[0];
 };
 
-const userDetailsQueryBuilder = (db: Knex) =>
+export const userDetailsQueryBuilder = (db: Knex) =>
     db<DbUser>('users')
         .joinRaw(
             'LEFT JOIN emails ON users.user_id = emails.user_id AND emails.is_primary',

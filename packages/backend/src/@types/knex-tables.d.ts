@@ -26,6 +26,10 @@ import {
     OrganizationTable,
     OrganizationTableName,
 } from '../database/entities/organizations';
+import {
+    PasswordResetTable,
+    PasswordResetTableName,
+} from '../database/entities/passwordResetLinks';
 import { ProjectTable, ProjectTableName } from '../database/entities/projects';
 import {
     SavedQueriesTableName,
@@ -61,5 +65,6 @@ declare module 'knex/types/tables' {
         [DashboardTileLoomsTableName]: DashboardTileLoomsTable;
         [DashboardTileMarkdownsTableName]: DashboardTileMarkdownsTable;
         [OnboardingTableName]: OnboardingTable;
+        [PasswordResetTableName]: PasswordResetTable;
     }
 }

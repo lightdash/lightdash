@@ -1,4 +1,4 @@
-import { Button, Card, H2, Intent } from '@blueprintjs/core';
+import { Button, Card, Colors, H2, Intent } from '@blueprintjs/core';
 import {
     ApiError,
     LightdashMode,
@@ -11,6 +11,7 @@ import { useForm } from 'react-hook-form';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
+import LinkButton from '../components/common/LinkButton';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import Form from '../components/ReactHookForm/Form';
@@ -125,14 +126,28 @@ const Login: FC = () => {
                                 required: 'Required field',
                             }}
                         />
-                        <Button
-                            type="submit"
-                            style={{ float: 'right', marginTop: 20 }}
-                            intent={Intent.PRIMARY}
-                            text="Login"
-                            loading={isLoading}
-                            data-cy="login-button"
-                        />
+                        <div
+                            style={{
+                                marginTop: 20,
+                                display: 'flex',
+                                justifyContent: 'flex-end',
+                            }}
+                        >
+                            <LinkButton
+                                href="/passwordRecovery"
+                                minimal
+                                style={{ marginRight: 10, color: Colors.GRAY1 }}
+                            >
+                                Forgot password ?
+                            </LinkButton>
+                            <Button
+                                type="submit"
+                                intent={Intent.PRIMARY}
+                                text="Login"
+                                loading={isLoading}
+                                data-cy="login-button"
+                            />
+                        </div>
                     </Form>
                 </Card>
             </div>

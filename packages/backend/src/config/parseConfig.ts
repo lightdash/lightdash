@@ -27,6 +27,8 @@ export type LightdashConfigIn = {
 
 export type LightdashConfig = {
     version: '1.0';
+    protocol: string;
+    host: string;
     lightdashSecret: string;
     secureCookies: boolean;
     trustProxy: boolean;
@@ -69,6 +71,10 @@ export type SmtpConfig = {
         user: string | undefined;
         pass: string | undefined;
         accessToken: string | undefined;
+    };
+    sender: {
+        name: string;
+        email: string;
     };
 };
 
@@ -202,6 +208,8 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
     return {
         ...config,
         mode,
+        protocol: process.env.LIGHTDASH_PROTOCOL || 'http',
+        host: process.env.LIGHTDASH_HOST || 'localhost:3000',
         projects: mergedProjects,
         smtp: {
             host: process.env.EMAIL_SMTP_HOST,
@@ -213,6 +221,10 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 user: process.env.EMAIL_SMTP_USER,
                 pass: process.env.EMAIL_SMTP_PASSWORD,
                 accessToken: process.env.EMAIL_SMTP_ACCESS_TOKEN,
+            },
+            sender: {
+                name: process.env.EMAIL_SMTP_SENDER_NAME || 'Lightdash',
+                email: process.env.EMAIL_SMTP_SENDER_EMAIL || '',
             },
         },
         rudder: {

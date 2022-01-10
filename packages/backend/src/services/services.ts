@@ -1,8 +1,10 @@
+import emailClient from '../emails/EmailClient';
 import {
     dashboardModel,
     inviteLinkModel,
     onboardingModel,
     organizationModel,
+    passwordResetLinkModel,
     projectModel,
     sessionModel,
     userModel,
@@ -17,6 +19,8 @@ export const userService = new UserService({
     inviteLinkModel,
     userModel,
     sessionModel,
+    passwordResetLinkModel,
+    emailClient,
 });
 export const organizationService = new OrganizationService({
     organizationModel,
