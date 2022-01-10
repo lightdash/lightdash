@@ -15,6 +15,8 @@ import { EncryptionService } from '../../services/EncryptionService/EncryptionSe
 export const lightdashConfigMock: LightdashConfig = {
     mode: LightdashMode.DEFAULT,
     version: '1.0',
+    protocol: 'http',
+    host: 'localhost:3000',
     lightdashSecret: 'secret',
     secureCookies: true,
     trustProxy: true,
@@ -41,6 +43,21 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     cohere: {
         token: '',
+    },
+    smtp: {
+        host: undefined,
+        port: 587,
+        secure: false,
+        allowInvalidCertificate: false,
+        auth: {
+            user: 'process.env.EMAIL_SMTP_USER',
+            pass: 'process.env.EMAIL_SMTP_PASSWORD',
+            accessToken: 'process.env.EMAIL_SMTP_ACCESS_TOKEN',
+        },
+        sender: {
+            name: 'Lightdash',
+            email: '',
+        },
     },
     projects: [],
     siteUrl: '',

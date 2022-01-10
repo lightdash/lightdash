@@ -7,6 +7,7 @@ import { InviteLinkModel } from './InviteLinkModel';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationModel } from './OrganizationModel';
+import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { SessionModel } from './SessionModel';
 import { UserModel } from './UserModel';
@@ -26,3 +27,4 @@ export const projectModel = new ProjectModel({
 export const onboardingModel = new OnboardingModel({ database });
 export const emailModel = new EmailModel({ database });
 export const openIdIdentityModel = new OpenIdIdentityModel({ database });
+export const passwordResetLinkModel = new PasswordResetLinkModel(database);

@@ -1,3 +1,4 @@
+import { formatTimestamp, PasswordResetLink } from 'common';
 import * as nodemailer from 'nodemailer';
 import Mail from 'nodemailer/lib/mailer';
 import { AuthenticationType } from 'nodemailer/lib/smtp-connection';
@@ -67,13 +68,19 @@ class EmailClient {
         }
     }
 
-    public async sendPasswordRecoveryEmail() {
+    public async sendPasswordRecoveryEmail(
+        email: string,
+        link: PasswordResetLink,
+    ) {
         return this.sendEmail({
-            from: '"Lightdash" <test@digest.gethubble.io>',
-            to: 'jose@lightdash.com',
+            from: `"${this.lightdashConfig.smtp.sender.name}" <${this.lightdashConfig.smtp.sender.email}>`,
+            to: email,
             subject: 'Reset Lightdash password',
-            text: 'Hello world?',
-            html: '<b>Hello world?</b>',
+            text: `Reset your password here: ${
+                this.lightdashConfig.protocol
+            }://${this.lightdashConfig.host}/passwordReset?token=${
+                link.code
+            } This link will expire at ${formatTimestamp(link.expiresAt)}`,
         });
     }
 }

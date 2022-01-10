@@ -1,4 +1,5 @@
 import { lightdashConfig } from '../config/lightdashConfig';
+import emailClient from '../emails/EmailClient';
 import {
     dashboardModel,
     emailModel,
@@ -6,6 +7,7 @@ import {
     onboardingModel,
     openIdIdentityModel,
     organizationModel,
+    passwordResetLinkModel,
     projectModel,
     sessionModel,
     userModel,
@@ -23,6 +25,8 @@ export const userService = new UserService({
     sessionModel,
     emailModel,
     openIdIdentityModel,
+    passwordResetLinkModel,
+    emailClient,
 });
 export const organizationService = new OrganizationService({
     organizationModel,

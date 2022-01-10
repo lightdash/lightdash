@@ -381,4 +381,12 @@ export class UserModel {
         const { userId, ...lightdashUser } = sessionUser;
         return lightdashUser;
     }
+
+    async findUserByEmail(email: string): Promise<LightdashUser | undefined> {
+        const [user] = await userDetailsQueryBuilder(this.database).where(
+            'email',
+            email,
+        );
+        return user ? mapDbUserDetailsToLightdashUser(user) : undefined;
+    }
 }

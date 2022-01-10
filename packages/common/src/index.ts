@@ -666,6 +666,12 @@ export type OpenIdIdentitySummary = Pick<
     'issuer' | 'email' | 'createdAt'
 >;
 
+export type PasswordResetLink = {
+    expiresAt: Date;
+    code: string;
+    emailId: number;
+};
+
 export type ApiHealthResults = HealthState;
 export type InviteLink = {
     expiresAt: Date;

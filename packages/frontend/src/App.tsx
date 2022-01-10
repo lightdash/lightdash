@@ -20,7 +20,9 @@ import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
 import Explorer from './pages/Explorer';
 import Home from './pages/Home';
-import Login from './pages/login';
+import Login from './pages/Login';
+import PasswordRecovery from './pages/PasswordRecovery';
+import PasswordReset from './pages/PasswordReset';
 import { Projects } from './pages/Projects';
 import ProjectSettings from './pages/ProjectSettings';
 import Register from './pages/Register';
@@ -60,6 +62,7 @@ const App = () => (
         <HotkeysProvider>
             <AppProvider>
                 <TrackingProvider>
+<<<<<<< HEAD
                     {isMobile ? (
                         <MobileView />
                     ) : (
@@ -202,6 +205,72 @@ const App = () => (
                                                     <Route
                                                         path="/projects"
                                                         exact
+=======
+                    <Router>
+                        <Switch>
+                            <Route path="/welcome">
+                                <TrackPage name={PageName.WELCOME}>
+                                    <Welcome />
+                                </TrackPage>
+                            </Route>
+                            <Route path="/register">
+                                <TrackPage name={PageName.REGISTER}>
+                                    <Register />
+                                </TrackPage>
+                            </Route>
+                            <Route path="/login">
+                                <TrackPage name={PageName.LOGIN}>
+                                    <Login />
+                                </TrackPage>
+                            </Route>
+                            <Route path="/passwordRecovery">
+                                <TrackPage name={PageName.PASSWORD_RECOVERY}>
+                                    <PasswordRecovery />
+                                </TrackPage>
+                            </Route>
+                            <Route path="/passwordReset">
+                                <TrackPage name={PageName.PASSWORD_RECOVERY}>
+                                    <PasswordReset />
+                                </TrackPage>
+                            </Route>
+                            <Route path="/invite/:inviteCode">
+                                <TrackPage name={PageName.SIGNUP}>
+                                    <Signup />
+                                </TrackPage>
+                            </Route>
+                            <PrivateRoute path="/">
+                                <div
+                                    style={{
+                                        minHeight: '100vh',
+                                        background: Colors.LIGHT_GRAY5,
+                                    }}
+                                >
+                                    <Switch>
+                                        <Route path="/createProject">
+                                            <TrackPage
+                                                name={PageName.CREATE_PROJECT}
+                                            >
+                                                <CreateProject />
+                                            </TrackPage>
+                                        </Route>
+                                        <Route path="/createProjectSettings/:projectUuid">
+                                            <TrackPage
+                                                name={
+                                                    PageName.CREATE_PROJECT_SETTINGS
+                                                }
+                                            >
+                                                <CreateProjectSettings />
+                                            </TrackPage>
+                                        </Route>
+                                        <AppRoute path="/">
+                                            <Switch>
+                                                <Route path="/projects/:projectUuid/settings/:tab?">
+                                                    <AppBar />
+                                                    <TrackPage
+                                                        name={
+                                                            PageName.PROJECT_SETTINGS
+                                                        }
+>>>>>>> 29f1fd2 (wip: add endpoints and pages for reset password)
                                                     >
                                                         <Projects />
                                                     </Route>
