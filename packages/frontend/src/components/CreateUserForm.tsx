@@ -7,8 +7,11 @@ import {
 } from '@blueprintjs/core';
 import { CreateInitialUserArgs, LightdashMode, validateEmail } from 'common';
 import React, { FC, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { useApp } from '../providers/AppProvider';
 import PasswordInput from './PasswordInput';
+import Form from './ReactHookForm/Form';
+import SelectField from './ReactHookForm/Select';
 
 type CreateInitialUserCallback = (data: CreateInitialUserArgs) => void;
 type CreateUserCallback = (
@@ -35,6 +38,21 @@ const CreateUserForm: FC<Props> = ({
     const [isMarketingOptedIn, setIsMarketingOptedIn] = useState<boolean>(true);
     const [isTrackingAnonymized, setIsTrackingAnonymized] =
         useState<boolean>(false);
+
+    const jobTitles = [
+        ' data/analytics Leader (manager, director, etc.)',
+        'Data scientist',
+        'Data analyst',
+        'Data engineer',
+        'Analytics engineer',
+        'Sales',
+        'Marketing',
+        'Product',
+        'Operations',
+        'Customer service',
+        'Student',
+        'Other',
+    ];
 
     const handleLogin = () => {
         if (
@@ -79,101 +97,123 @@ const CreateUserForm: FC<Props> = ({
         }
     };
 
+    const methods = useForm({
+        mode: 'onSubmit',
+    });
+
     return (
         <>
-            <FormGroup
-                label="First name"
-                labelFor="first-name-input"
-                labelInfo="(required)"
+            <Form
+                name="update_project"
+                methods={methods}
+                onSubmit={handleLogin}
             >
-                <InputGroup
-                    id="first-name-input"
-                    placeholder="Jane"
-                    type="text"
-                    required
-                    disabled={isLoading}
-                    onChange={(e) => setFirstName(e.target.value)}
-                />
-            </FormGroup>
-            <FormGroup
-                label="Last name"
-                labelFor="last-name-input"
-                labelInfo="(required)"
-            >
-                <InputGroup
-                    id="last-name-input"
-                    placeholder="Doe"
-                    type="text"
-                    required
-                    disabled={isLoading}
-                    onChange={(e) => setLastName(e.target.value)}
-                />
-            </FormGroup>
-            {includeOrganizationName && (
                 <FormGroup
-                    label="Organization name"
-                    labelFor="organization-name-input"
+                    label="First name"
+                    labelFor="first-name-input"
                     labelInfo="(required)"
                 >
                     <InputGroup
-                        id="organization-name-input"
-                        placeholder="Lightdash"
+                        id="first-name-input"
+                        placeholder="Jane"
                         type="text"
                         required
                         disabled={isLoading}
-                        onChange={(e) => setOrganizationName(e.target.value)}
+                        onChange={(e) => setFirstName(e.target.value)}
                     />
                 </FormGroup>
-            )}
-            <FormGroup
-                label="Email"
-                labelFor="email-input"
-                labelInfo="(required)"
-            >
-                <InputGroup
-                    id="email-input"
-                    placeholder="Email"
-                    type="email"
+                <FormGroup
+                    label="Last name"
+                    labelFor="last-name-input"
+                    labelInfo="(required)"
+                >
+                    <InputGroup
+                        id="last-name-input"
+                        placeholder="Doe"
+                        type="text"
+                        required
+                        disabled={isLoading}
+                        onChange={(e) => setLastName(e.target.value)}
+                    />
+                </FormGroup>
+                {includeOrganizationName && (
+                    <FormGroup
+                        label="Organization name"
+                        labelFor="organization-name-input"
+                        labelInfo="(required)"
+                    >
+                        <InputGroup
+                            id="organization-name-input"
+                            placeholder="Lightdash"
+                            type="text"
+                            required
+                            disabled={isLoading}
+                            onChange={(e) =>
+                                setOrganizationName(e.target.value)
+                            }
+                        />
+                    </FormGroup>
+                )}
+                <FormGroup
+                    label="Email"
+                    labelFor="email-input"
+                    labelInfo="(required)"
+                >
+                    <InputGroup
+                        id="email-input"
+                        placeholder="Email"
+                        type="email"
+                        required
+                        disabled={isLoading}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value.trim())}
+                    />
+                </FormGroup>
+                <SelectField
+                    name="jobTitle"
+                    label="Select a job title"
+                    options={jobTitles}
+                    rules={{
+                        required: 'Required field',
+                    }}
+                    defaultValue="leader"
+                />
+
+                <PasswordInput
+                    label="Password"
+                    placeholder="Enter your password..."
                     required
                     disabled={isLoading}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value.trim())}
+                    value={password}
+                    onChange={setPassword}
                 />
-            </FormGroup>
-            <PasswordInput
-                label="Password"
-                placeholder="Enter your password..."
-                required
-                disabled={isLoading}
-                value={password}
-                onChange={setPassword}
-            />
-            <Switch
-                style={{ marginTop: '20px' }}
-                defaultChecked
-                disabled={isLoading}
-                label="Keep me updated on new Lightdash features"
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setIsMarketingOptedIn(e.target.checked)
-                }
-            />
-            {health.data?.mode !== LightdashMode.CLOUD_BETA && (
                 <Switch
                     style={{ marginTop: '20px' }}
+                    defaultChecked
                     disabled={isLoading}
-                    label="Anonymize my usage data. We collect data for measuring product usage."
+                    label="Keep me updated on new Lightdash features"
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setIsTrackingAnonymized(e.target.checked)
+                        setIsMarketingOptedIn(e.target.checked)
                     }
                 />
-            )}
-            <Button
-                style={{ alignSelf: 'flex-end', marginTop: 20 }}
-                intent={Intent.PRIMARY}
-                text="Create"
-                onClick={handleLogin}
-                loading={isLoading}
-            />
+                {health.data?.mode !== LightdashMode.CLOUD_BETA && (
+                    <Switch
+                        style={{ marginTop: '20px' }}
+                        disabled={isLoading}
+                        label="Anonymize my usage data. We collect data for measuring product usage."
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setIsTrackingAnonymized(e.target.checked)
+                        }
+                    />
+                )}
+                <Button
+                    style={{ alignSelf: 'flex-end', marginTop: 20 }}
+                    intent={Intent.PRIMARY}
+                    text="Create"
+                    onClick={handleLogin}
+                    loading={isLoading}
+                />
+            </Form>
         </>
     );
 };
