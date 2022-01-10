@@ -133,13 +133,18 @@ const Login: FC = () => {
                                 justifyContent: 'flex-end',
                             }}
                         >
-                            <LinkButton
-                                href="/passwordRecovery"
-                                minimal
-                                style={{ marginRight: 10, color: Colors.GRAY1 }}
-                            >
-                                Forgot password ?
-                            </LinkButton>
+                            {health.data?.hasEmailClient && (
+                                <LinkButton
+                                    href="/recover-password"
+                                    minimal
+                                    style={{
+                                        marginRight: 10,
+                                        color: Colors.GRAY1,
+                                    }}
+                                >
+                                    Forgot password ?
+                                </LinkButton>
+                            )}
                             <Button
                                 type="submit"
                                 intent={Intent.PRIMARY}

@@ -61,6 +61,6 @@ export const getHealthState = async (
         sentry: lightdashConfig.sentry,
         chatwoot: lightdashConfig.chatwoot,
         cohere: lightdashConfig.cohere,
-        isEmailEnabled: !!lightdashConfig.smtp.host,
+        hasEmailClient: !!lightdashConfig.smtp.host,
     };
 };

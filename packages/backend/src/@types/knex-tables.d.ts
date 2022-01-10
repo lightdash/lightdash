@@ -27,6 +27,10 @@ import {
     OrganizationTableName,
 } from '../database/entities/organizations';
 import {
+    PasswordLoginTable,
+    PasswordLoginTableName,
+} from '../database/entities/passwordLogins';
+import {
     PasswordResetTable,
     PasswordResetTableName,
 } from '../database/entities/passwordResetLinks';
@@ -66,5 +70,6 @@ declare module 'knex/types/tables' {
         [DashboardTileMarkdownsTableName]: DashboardTileMarkdownsTable;
         [OnboardingTableName]: OnboardingTable;
         [PasswordResetTableName]: PasswordResetTable;
+        [PasswordLoginTableName]: PasswordLoginTable;
     }
 }

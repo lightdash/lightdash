@@ -1,8 +1,10 @@
 import {
     CreateInviteLink,
     CreateOrganizationUser,
+    CreatePasswordResetLink,
     InviteLink,
     LightdashUser,
+    PasswordReset,
     PasswordResetLink,
     SessionUser,
 } from 'common';
@@ -147,10 +149,20 @@ export class UserService {
     }
 
     async getPasswordResetLink(code: string): Promise<PasswordResetLink> {
-        return this.passwordResetLinkModel.getByCode(code);
+        const link = await this.passwordResetLinkModel.getByCode(code);
+        const now = new Date();
+        if (link.expiresAt <= now) {
+            try {
+                await this.passwordResetLinkModel.deleteByCode(link.code);
+            } catch (e) {
+                throw new NotExistsError('Password reset link not found');
+            }
+            throw new NotExistsError('Password reset link expired');
+        }
+        return link;
     }
 
-    async recoverPassword(data: { email: string }): Promise<void> {
+    async recoverPassword(data: CreatePasswordResetLink): Promise<void> {
         const user = await this.userModel.findUserByEmail(data.email);
         if (user) {
             const code = nanoid(30);
@@ -164,11 +176,12 @@ export class UserService {
         }
     }
 
-    async resetPassword(data: {
-        code: string;
-        newPassword: string;
-    }): Promise<void> {
-        const link = await this.passwordResetLinkModel.getByCode(data.code);
-        // TODO: set user password
+    async resetPassword(data: PasswordReset): Promise<void> {
+        const link = await this.getPasswordResetLink(data.code);
+        const user = await this.userModel.findUserByEmail(link.email);
+        if (user) {
+            await this.userModel.resetPassword(user.user_id, data.newPassword);
+            await this.passwordResetLinkModel.deleteByCode(link.code);
+        }
     }
 }

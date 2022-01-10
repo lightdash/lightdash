@@ -78,7 +78,7 @@ class EmailClient {
             subject: 'Reset Lightdash password',
             text: `Reset your password here: ${
                 this.lightdashConfig.protocol
-            }://${this.lightdashConfig.host}/passwordReset?token=${
+            }://${this.lightdashConfig.host}/reset-password/${
                 link.code
             } This link will expire at ${formatTimestamp(link.expiresAt)}`,
         });

@@ -1,11 +1,13 @@
 import bcrypt from 'bcrypt';
 import { CreateOrganizationUser } from 'common';
 import { Knex } from 'knex';
-import database from '../database/database';
 import { createEmail, EmailTableName } from '../database/entities/emails';
 import { InviteLinkTableName } from '../database/entities/inviteLinks';
 import { createOrganizationMembership } from '../database/entities/organizationMemberships';
-import { createPasswordLogin } from '../database/entities/passwordLogins';
+import {
+    createPasswordLogin,
+    PasswordLoginTableName,
+} from '../database/entities/passwordLogins';
 import {
     createUser,
     DbUserDetails,
@@ -125,10 +127,23 @@ export class UserModel {
     }
 
     async findUserByEmail(email: string): Promise<DbUserDetails | undefined> {
-        const results = await userDetailsQueryBuilder(database).where(
+        const results = await userDetailsQueryBuilder(this.database).where(
             'email',
             email,
         );
         return results.length === 0 ? undefined : results[0];
+    }
+
+    async resetPassword(userId: number, password: string): Promise<void> {
+        await this.database(PasswordLoginTableName)
+            .where({
+                user_id: userId,
+            })
+            .update({
+                password_hash: await bcrypt.hash(
+                    password,
+                    await bcrypt.genSalt(),
+                ),
+            });
     }
 }

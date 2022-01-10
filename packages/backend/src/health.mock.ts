@@ -1,4 +1,4 @@
-import { LightdashMode } from 'common';
+import { HealthState, LightdashMode } from 'common';
 
 export const Image = {
     creator: 12969647,
@@ -55,10 +55,9 @@ export const ImagesResponse = {
     results: [DevImage, OldImage, LatestImage, Image],
 };
 
-export const BaseResponse = {
+export const BaseResponse: HealthState = {
     healthy: true,
     version: '0.1.0',
-    rudder: undefined,
     mode: LightdashMode.DEFAULT,
     isAuthenticated: false,
     localDbtEnabled: true,
@@ -66,4 +65,9 @@ export const BaseResponse = {
     needsProject: false,
     defaultProject: undefined,
     latest: { version: Image.name },
+    hasEmailClient: false,
+    chatwoot: { baseUrl: '', websiteToken: '' },
+    cohere: { token: '' },
+    rudder: { dataPlaneUrl: '', writeKey: '' },
+    sentry: { dsn: '', environment: '', release: '' },
 };

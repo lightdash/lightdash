@@ -73,13 +73,13 @@ const App = () => (
                                     <Login />
                                 </TrackPage>
                             </Route>
-                            <Route path="/passwordRecovery">
+                            <Route path="/recover-password">
                                 <TrackPage name={PageName.PASSWORD_RECOVERY}>
                                     <PasswordRecovery />
                                 </TrackPage>
                             </Route>
-                            <Route path="/passwordReset">
-                                <TrackPage name={PageName.PASSWORD_RECOVERY}>
+                            <Route path="/reset-password/:code">
+                                <TrackPage name={PageName.PASSWORD_RESET}>
                                     <PasswordReset />
                                 </TrackPage>
                             </Route>

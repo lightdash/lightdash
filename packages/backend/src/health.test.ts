@@ -27,20 +27,6 @@ jest.mock('./services/services', () => ({
     },
 }));
 
-jest.mock('./config/lightdashConfig', () => ({
-    lightdashConfig: {
-        mode: LightdashMode.DEFAULT,
-        projects: [
-            {
-                name: 'default',
-                type: 'dbt',
-                profiles_dir: '/',
-                project_dir: '/',
-            },
-        ],
-    },
-}));
-
 describe('health', () => {
     beforeEach(() => {
         process.env = {
