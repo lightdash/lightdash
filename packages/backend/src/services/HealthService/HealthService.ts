@@ -91,7 +91,7 @@ export class HealthService {
                         this.lightdashConfig.auth.google.oauth2ClientId,
                 },
             },
-            isEmailsEnabled: !!lightdashConfig.smtp.host,
+            hasEmailClient: !!lightdashConfig.smtp.host,
         };
     }
 }

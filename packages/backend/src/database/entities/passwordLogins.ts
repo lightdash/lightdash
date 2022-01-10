@@ -13,6 +13,13 @@ export type DbPasswordLoginIn = Pick<
     'user_id' | 'password_hash'
 >;
 
+export const PasswordLoginTableName = 'password_logins';
+
+export type PasswordLoginTable = Knex.CompositeTableType<
+    DbPasswordLogin,
+    DbPasswordLoginIn
+>;
+
 // DB Errors:
 // user_id does not exist (foreign key)
 // user_id already has password (not unique)

@@ -197,4 +197,4 @@ apiV1Router.use('/org', organizationRouter);
 apiV1Router.use('/user', userRouter);
 apiV1Router.use('/projects/:projectUuid', projectRouter);
 apiV1Router.use('/dashboards/:dashboardUuid', dashboardRouter);
-apiV1Router.use('/password-reset-links', passwordResetLinksRouter);
+apiV1Router.use('/password-reset', passwordResetLinksRouter);

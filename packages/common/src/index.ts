@@ -669,7 +669,17 @@ export type OpenIdIdentitySummary = Pick<
 export type PasswordResetLink = {
     expiresAt: Date;
     code: string;
-    emailId: number;
+    email: string;
+};
+
+export type CreatePasswordResetLink = Omit<
+    PasswordResetLink,
+    'code' | 'expiresAt'
+>;
+
+export type PasswordReset = {
+    code: string;
+    newPassword: string;
 };
 
 export type ApiHealthResults = HealthState;
@@ -770,6 +780,7 @@ export type HealthState = {
     localDbtEnabled: boolean;
     defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;
+    hasEmailClient: boolean;
     latest: {
         version?: string;
     };
@@ -796,7 +807,6 @@ export type HealthState = {
         token: string;
     };
     siteUrl: string;
-    isEmailsEnabled: boolean;
 };
 
 export interface DbtCatalogNode {

@@ -16,7 +16,10 @@ import { InviteLinkTableName } from '../database/entities/inviteLinks';
 import { DbOpenIdIssuer } from '../database/entities/openIdIdentities';
 import { createOrganizationMembership } from '../database/entities/organizationMemberships';
 import { createOrganization } from '../database/entities/organizations';
-import { createPasswordLogin } from '../database/entities/passwordLogins';
+import {
+    createPasswordLogin,
+    PasswordLoginTableName,
+} from '../database/entities/passwordLogins';
 import {
     DbUser,
     DbUserIn,
@@ -388,5 +391,18 @@ export class UserModel {
             email,
         );
         return user ? mapDbUserDetailsToLightdashUser(user) : undefined;
+    }
+
+    async resetPassword(userId: number, password: string): Promise<void> {
+        await this.database(PasswordLoginTableName)
+            .where({
+                user_id: userId,
+            })
+            .update({
+                password_hash: await bcrypt.hash(
+                    password,
+                    await bcrypt.genSalt(),
+                ),
+            });
     }
 }
