@@ -122,6 +122,7 @@ ENV NODE_ENV production
 ENV DBT_DEMO_DIR /usr/app
 COPY lightdash-pr.yml /usr/app/lightdash.yml
 ENV LIGHTDASH_CONFIG_FILE /usr/app/lightdash.yml
+ENV SITE_URL=$RENDER_EXTERNAL_HOSTNAME
 
 COPY ./examples/full-jaffle-shop-demo/dbt /usr/app/dbt
 COPY ./examples/full-jaffle-shop-demo/profiles /usr/app/profiles
