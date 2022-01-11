@@ -44,21 +44,7 @@ export const lightdashConfigMock: LightdashConfig = {
     cohere: {
         token: '',
     },
-    smtp: {
-        host: undefined,
-        port: 587,
-        secure: false,
-        allowInvalidCertificate: false,
-        auth: {
-            user: 'process.env.EMAIL_SMTP_USER',
-            pass: 'process.env.EMAIL_SMTP_PASSWORD',
-            accessToken: 'process.env.EMAIL_SMTP_ACCESS_TOKEN',
-        },
-        sender: {
-            name: 'Lightdash',
-            email: '',
-        },
-    },
+    smtp: undefined,
     projects: [],
     siteUrl: '',
 };

@@ -15,7 +15,7 @@ class EmailClient {
     constructor() {
         this.lightdashConfig = lightdashConfig;
 
-        if (this.lightdashConfig.smtp.host) {
+        if (this.lightdashConfig.smtp) {
             Logger.debug(`Create email transporter`);
 
             const auth: AuthenticationType = this.lightdashConfig.smtp.auth
@@ -30,15 +30,21 @@ class EmailClient {
                       pass: this.lightdashConfig.smtp.auth.pass,
                   };
 
-            this.transporter = nodemailer.createTransport({
-                host: this.lightdashConfig.smtp.host,
-                port: this.lightdashConfig.smtp.port,
-                secure: this.lightdashConfig.smtp.secure,
-                auth,
-                tls: this.lightdashConfig.smtp.allowInvalidCertificate
-                    ? { rejectUnauthorized: false }
-                    : undefined,
-            });
+            this.transporter = nodemailer.createTransport(
+                {
+                    host: this.lightdashConfig.smtp.host,
+                    port: this.lightdashConfig.smtp.port,
+                    secure: this.lightdashConfig.smtp.port === 465, // false for any port beside 465, other ports use STARTTLS instead.
+                    auth,
+                    requireTLS: this.lightdashConfig.smtp.secure,
+                    tls: this.lightdashConfig.smtp.allowInvalidCertificate
+                        ? { rejectUnauthorized: false }
+                        : undefined,
+                },
+                {
+                    from: `"${this.lightdashConfig.smtp.sender.name}" <${this.lightdashConfig.smtp.sender.email}>`,
+                },
+            );
 
             this.transporter.verify((error: any) => {
                 if (error) {
@@ -73,7 +79,6 @@ class EmailClient {
         link: PasswordResetLink,
     ) {
         return this.sendEmail({
-            from: `"${this.lightdashConfig.smtp.sender.name}" <${this.lightdashConfig.smtp.sender.email}>`,
             to: email,
             subject: 'Reset Lightdash password',
             text: `Reset your password here: ${
