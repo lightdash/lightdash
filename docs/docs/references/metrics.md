@@ -117,6 +117,36 @@ Non-aggregate metrics are metric types that, you guessed it, do *not* perform ag
 
 Numbers and booleans are examples of non-aggregate metrics. These metric types perform a calculation on a single data point, so they can only reference aggregate metrics. They *cannot* reference dimensions.
 
+## Metric configuration
+
+You can customize your metrics in your dbt model's YAML file. Here's an example of the properties used in defining a metric:
+
+```
+version: 2
+
+models:
+  - name: my_model
+    columns:
+      - name: user_id
+        description: 'Unique identifier for a user."
+        meta:
+          metrics:
+            count_unique_user_id:
+              label: 'total user IDs'
+              type: count_distinct
+              description: "Count the unique number of user IDs"
+              sql: "IF(${user_id} = 'katie@lightdash.com', NULL, ${user_id})"
+```
+
+Here are all of the properties you can customize:
+
+| Property                                            | Value                 | Note                                                                                  |
+| --------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------- |
+| label                                               | string                | Custom label. This is what you'll see in Lightdash instead of the metric name.        |
+| [type](#metric-types)                               | Metric type           | Metrics must be one of the supported types.                                           |
+| [description](#adding-your-own-metric-descriptions) | string                | Description of the metric that appears in Lightdash.                                  |
+| [sql](#using-custom-sql-in-aggregate-metrics)       | string                | Custom SQL used to define the metric.                                                 |
+
 ## Metric types:
 
 |       Type                        | Category  | Description                                                 |
