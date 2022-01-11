@@ -11,7 +11,7 @@ import { useForm } from 'react-hook-form';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import LinkButton from '../components/common/LinkButton';
+import AnchorLink from '../components/common/AnchorLink/index';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import Form from '../components/ReactHookForm/Form';
@@ -130,20 +130,19 @@ const Login: FC = () => {
                             style={{
                                 marginTop: 20,
                                 display: 'flex',
-                                justifyContent: 'flex-end',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
                             }}
                         >
                             {health.data?.hasEmailClient && (
-                                <LinkButton
+                                <AnchorLink
                                     href="/recover-password"
-                                    minimal
                                     style={{
-                                        marginRight: 10,
-                                        color: Colors.GRAY1,
+                                        color: Colors.BLUE4,
                                     }}
                                 >
-                                    Forgot password ?
-                                </LinkButton>
+                                    Forgot your password ?
+                                </AnchorLink>
                             )}
                             <Button
                                 type="submit"
