@@ -119,7 +119,7 @@ Numbers and booleans are examples of non-aggregate metrics. These metric types p
 
 ## Metric configuration
 
-You can customize your metrics in your dbt model's YAML file.
+You can customize your metrics in your dbt model's YAML file. Here's an example of the properties used in defining a metric:
 
 ```
 version: 2
