@@ -1,17 +1,15 @@
 import {
     Button,
     FormGroup,
+    HTMLSelect,
     InputGroup,
     Intent,
     Switch,
 } from '@blueprintjs/core';
 import { CreateInitialUserArgs, LightdashMode, validateEmail } from 'common';
 import React, { FC, useState } from 'react';
-import { useForm } from 'react-hook-form';
 import { useApp } from '../providers/AppProvider';
 import PasswordInput from './PasswordInput';
-import Form from './ReactHookForm/Form';
-import SelectField from './ReactHookForm/Select';
 
 type CreateInitialUserCallback = (data: CreateInitialUserArgs) => void;
 type CreateUserCallback = (
@@ -33,6 +31,7 @@ const CreateUserForm: FC<Props> = ({
     const [firstName, setFirstName] = useState<string>();
     const [lastName, setLastName] = useState<string>();
     const [email, setEmail] = useState<string>();
+    const [jobTitle, setJobTitle] = useState<string>();
     const [password, setPassword] = useState<string>();
     const [organizationName, setOrganizationName] = useState<string>();
     const [isMarketingOptedIn, setIsMarketingOptedIn] = useState<boolean>(true);
@@ -40,7 +39,8 @@ const CreateUserForm: FC<Props> = ({
         useState<boolean>(false);
 
     const jobTitles = [
-        ' data/analytics Leader (manager, director, etc.)',
+        { value: '', label: 'Select an option...' },
+        'Data/analytics Leader (manager, director, etc.)',
         'Data scientist',
         'Data analyst',
         'Data engineer',
@@ -58,6 +58,7 @@ const CreateUserForm: FC<Props> = ({
         if (
             !firstName ||
             !lastName ||
+            !jobTitle ||
             !email ||
             !password ||
             (includeOrganizationName && !organizationName)
@@ -82,6 +83,7 @@ const CreateUserForm: FC<Props> = ({
         const createUser: Omit<CreateInitialUserArgs, 'organizationName'> = {
             firstName,
             lastName,
+            jobTitle,
             email,
             password,
             isMarketingOptedIn,
@@ -97,123 +99,116 @@ const CreateUserForm: FC<Props> = ({
         }
     };
 
-    const methods = useForm({
-        mode: 'onSubmit',
-    });
-
     return (
         <>
-            <Form
-                name="update_project"
-                methods={methods}
-                onSubmit={handleLogin}
+            <FormGroup
+                label="First name"
+                labelFor="first-name-input"
+                labelInfo="(required)"
             >
-                <FormGroup
-                    label="First name"
-                    labelFor="first-name-input"
-                    labelInfo="(required)"
-                >
-                    <InputGroup
-                        id="first-name-input"
-                        placeholder="Jane"
-                        type="text"
-                        required
-                        disabled={isLoading}
-                        onChange={(e) => setFirstName(e.target.value)}
-                    />
-                </FormGroup>
-                <FormGroup
-                    label="Last name"
-                    labelFor="last-name-input"
-                    labelInfo="(required)"
-                >
-                    <InputGroup
-                        id="last-name-input"
-                        placeholder="Doe"
-                        type="text"
-                        required
-                        disabled={isLoading}
-                        onChange={(e) => setLastName(e.target.value)}
-                    />
-                </FormGroup>
-                {includeOrganizationName && (
-                    <FormGroup
-                        label="Organization name"
-                        labelFor="organization-name-input"
-                        labelInfo="(required)"
-                    >
-                        <InputGroup
-                            id="organization-name-input"
-                            placeholder="Lightdash"
-                            type="text"
-                            required
-                            disabled={isLoading}
-                            onChange={(e) =>
-                                setOrganizationName(e.target.value)
-                            }
-                        />
-                    </FormGroup>
-                )}
-                <FormGroup
-                    label="Email"
-                    labelFor="email-input"
-                    labelInfo="(required)"
-                >
-                    <InputGroup
-                        id="email-input"
-                        placeholder="Email"
-                        type="email"
-                        required
-                        disabled={isLoading}
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value.trim())}
-                    />
-                </FormGroup>
-                <SelectField
-                    name="jobTitle"
-                    label="Select a job title"
-                    options={jobTitles}
-                    rules={{
-                        required: 'Required field',
-                    }}
-                    defaultValue="leader"
-                />
-
-                <PasswordInput
-                    label="Password"
-                    placeholder="Enter your password..."
+                <InputGroup
+                    id="first-name-input"
+                    placeholder="Jane"
+                    type="text"
                     required
                     disabled={isLoading}
-                    value={password}
-                    onChange={setPassword}
+                    onChange={(e) => setFirstName(e.target.value)}
                 />
-                <Switch
-                    style={{ marginTop: '20px' }}
-                    defaultChecked
+            </FormGroup>
+            <FormGroup
+                label="Last name"
+                labelFor="last-name-input"
+                labelInfo="(required)"
+            >
+                <InputGroup
+                    id="last-name-input"
+                    placeholder="Doe"
+                    type="text"
+                    required
                     disabled={isLoading}
-                    label="Keep me updated on new Lightdash features"
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setIsMarketingOptedIn(e.target.checked)
+                    onChange={(e) => setLastName(e.target.value)}
+                />
+            </FormGroup>
+            {includeOrganizationName && (
+                <FormGroup
+                    label="Organization name"
+                    labelFor="organization-name-input"
+                    labelInfo="(required)"
+                >
+                    <InputGroup
+                        id="organization-name-input"
+                        placeholder="Lightdash"
+                        type="text"
+                        required
+                        disabled={isLoading}
+                        onChange={(e) => setOrganizationName(e.target.value)}
+                    />
+                </FormGroup>
+            )}
+            <FormGroup
+                label="Job Title"
+                labelFor="job-title-input"
+                labelInfo="(required)"
+            >
+                <HTMLSelect
+                    fill
+                    id="job-title-input"
+                    options={jobTitles}
+                    required
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                        setJobTitle(e.target.value)
                     }
                 />
-                {health.data?.mode !== LightdashMode.CLOUD_BETA && (
-                    <Switch
-                        style={{ marginTop: '20px' }}
-                        disabled={isLoading}
-                        label="Anonymize my usage data. We collect data for measuring product usage."
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                            setIsTrackingAnonymized(e.target.checked)
-                        }
-                    />
-                )}
-                <Button
-                    style={{ alignSelf: 'flex-end', marginTop: 20 }}
-                    intent={Intent.PRIMARY}
-                    text="Create"
-                    onClick={handleLogin}
-                    loading={isLoading}
+            </FormGroup>
+            <FormGroup
+                label="Email"
+                labelFor="email-input"
+                labelInfo="(required)"
+            >
+                <InputGroup
+                    id="email-input"
+                    placeholder="Email"
+                    type="email"
+                    required
+                    disabled={isLoading}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value.trim())}
                 />
-            </Form>
+            </FormGroup>
+            <PasswordInput
+                label="Password"
+                placeholder="Enter your password..."
+                required
+                disabled={isLoading}
+                value={password}
+                onChange={setPassword}
+            />
+            <Switch
+                style={{ marginTop: '20px' }}
+                defaultChecked
+                disabled={isLoading}
+                label="Keep me updated on new Lightdash features"
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setIsMarketingOptedIn(e.target.checked)
+                }
+            />
+            {health.data?.mode !== LightdashMode.CLOUD_BETA && (
+                <Switch
+                    style={{ marginTop: '20px' }}
+                    disabled={isLoading}
+                    label="Anonymize my usage data. We collect data for measuring product usage."
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setIsTrackingAnonymized(e.target.checked)
+                    }
+                />
+            )}
+            <Button
+                style={{ alignSelf: 'flex-end', marginTop: 20 }}
+                intent={Intent.PRIMARY}
+                text="Create"
+                onClick={handleLogin}
+                loading={isLoading}
+            />
         </>
     );
 };
