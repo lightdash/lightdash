@@ -249,7 +249,7 @@ export class SmptError extends LightdashError {
         super({
             message,
             name: 'SmptError',
-            statusCode: 400,
+            statusCode: 500,
             data,
         });
     }
