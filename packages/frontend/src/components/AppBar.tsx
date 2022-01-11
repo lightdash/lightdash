@@ -52,10 +52,7 @@ const AppBar = () => {
     return (
         <>
             <Navbar
-                style={{
-                    position: 'sticky',
-                    top: 0,
-                }}
+                style={{ position: 'sticky', top: 0 }}
                 className={Classes.DARK}
             >
                 <NavbarGroup align={Alignment.LEFT}>

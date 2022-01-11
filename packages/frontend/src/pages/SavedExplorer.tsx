@@ -10,7 +10,6 @@ import { useExplorer } from '../providers/ExplorerProvider';
 const SavedExplorer = () => {
     const history = useHistory();
     const pathParams = useParams<{ savedQueryUuid: string }>();
-
     const {
         actions: { setState, reset },
     } = useExplorer();

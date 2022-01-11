@@ -20,6 +20,7 @@ import { useProject } from '../hooks/useProject';
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isLoading, data, error } = useProject(projectUuid);
+
     const basePath = useMemo(
         () => `/projects/${projectUuid}/settings`,
         [projectUuid],
@@ -70,12 +71,7 @@ const ProjectSettings: FC = () => {
                             Configure you tables
                         </H3>
                         <Divider style={{ margin: '20px 0' }} />
-                        <p
-                            style={{
-                                marginBottom: 20,
-                                color: Colors.GRAY1,
-                            }}
-                        >
+                        <p style={{ marginBottom: 20, color: Colors.GRAY1 }}>
                             Pick the dbt models you want to appear as tables in
                             Lightdash
                         </p>
