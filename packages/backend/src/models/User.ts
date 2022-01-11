@@ -57,6 +57,9 @@ export const UserModel = {
             event: 'user.created',
             organizationId: lightdashUser.organizationUuid,
             userId: lightdashUser.userUuid,
+            properties: {
+                jobTitle: createUser.jobTitle,
+            },
         });
         analytics.track({
             event: 'organization.created',

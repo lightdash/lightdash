@@ -46,6 +46,9 @@ export class UserService {
             organizationId: user.organization_uuid,
             event: 'user.created',
             userId: lightdashUser.userUuid,
+            properties: {
+                jobTitle: createOrganizationUser.jobTitle,
+            },
         });
         return lightdashUser;
     }

@@ -23,6 +23,7 @@ userRouter.post('/', unauthorisedInDemo, async (req, res, next) => {
             password: sanitizeStringParam(req.body.password),
             isMarketingOptedIn: !!req.body.isMarketingOptedIn,
             isTrackingAnonymized: !!req.body.isTrackingAnonymized,
+            jobTitle: req.body.jobTitle,
         });
         const sessionUser = await UserModel.findSessionUserByUUID(
             lightdashUser.userUuid,
