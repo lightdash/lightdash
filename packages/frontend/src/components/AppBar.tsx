@@ -17,7 +17,6 @@ import React, { useState } from 'react';
 import { useMutation } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import useBreakpoint from '../hooks/useBreakpoint';
 import { useDefaultProject } from '../hooks/useProjects';
 import { useApp } from '../providers/AppProvider';
 import { ReactComponent as Logo } from '../svgs/logo.svg';
@@ -49,7 +48,6 @@ const AppBar = () => {
             window.location.href = '/login';
         },
     });
-    const { isOverBreakpoint } = useBreakpoint(768);
 
     return (
         <>
@@ -57,7 +55,6 @@ const AppBar = () => {
                 style={{
                     position: 'sticky',
                     top: 0,
-                    display: isOverBreakpoint ? 'block' : 'none',
                 }}
                 className={Classes.DARK}
             >
