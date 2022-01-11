@@ -33,7 +33,7 @@ export type LightdashConfig = {
     secureCookies: boolean;
     trustProxy: boolean;
     databaseConnectionUri?: string;
-    smtp: SmtpConfig;
+    smtp: SmtpConfig | undefined;
     rudder: RudderConfig;
     mode: LightdashMode;
     projects: Array<DbtProjectConfig>;
@@ -63,12 +63,12 @@ export type RudderConfig = {
 };
 
 export type SmtpConfig = {
-    host: string | undefined;
+    host: string;
     port: number;
     secure: boolean;
     allowInvalidCertificate: boolean;
     auth: {
-        user: string | undefined;
+        user: string;
         pass: string | undefined;
         accessToken: string | undefined;
     };
@@ -208,25 +208,27 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
     return {
         ...config,
         mode,
-        protocol: process.env.LIGHTDASH_PROTOCOL || 'http',
-        host: process.env.LIGHTDASH_HOST || 'localhost:3000',
+        protocol: process.env.LIGHTDASH_PROTOCOL || '',
+        host: process.env.LIGHTDASH_HOST || '',
         projects: mergedProjects,
-        smtp: {
-            host: process.env.EMAIL_SMTP_HOST,
-            port: parseInt(process.env.EMAIL_SMTP_PORT || '587', 10),
-            secure: process.env.EMAIL_SMTP_SECURE === 'true',
-            allowInvalidCertificate:
-                process.env.EMAIL_SMTP_ALLOW_INVALID_CERT === 'true',
-            auth: {
-                user: process.env.EMAIL_SMTP_USER,
-                pass: process.env.EMAIL_SMTP_PASSWORD,
-                accessToken: process.env.EMAIL_SMTP_ACCESS_TOKEN,
-            },
-            sender: {
-                name: process.env.EMAIL_SMTP_SENDER_NAME || 'Lightdash',
-                email: process.env.EMAIL_SMTP_SENDER_EMAIL || '',
-            },
-        },
+        smtp: process.env.EMAIL_SMTP_HOST
+            ? {
+                  host: process.env.EMAIL_SMTP_HOST,
+                  port: parseInt(process.env.EMAIL_SMTP_PORT || '587', 10),
+                  secure: process.env.EMAIL_SMTP_SECURE !== 'false', // default to true
+                  allowInvalidCertificate:
+                      process.env.EMAIL_SMTP_ALLOW_INVALID_CERT === 'true',
+                  auth: {
+                      user: process.env.EMAIL_SMTP_USER || '',
+                      pass: process.env.EMAIL_SMTP_PASSWORD,
+                      accessToken: process.env.EMAIL_SMTP_ACCESS_TOKEN,
+                  },
+                  sender: {
+                      name: process.env.EMAIL_SMTP_SENDER_NAME || 'Lightdash',
+                      email: process.env.EMAIL_SMTP_SENDER_EMAIL || '',
+                  },
+              }
+            : undefined,
         rudder: {
             writeKey:
                 process.env.RUDDERSTACK_WRITE_KEY ||
