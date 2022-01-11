@@ -852,9 +852,12 @@
                     },
                     "inviteCode": {
                         "type": "string"
+                    },
+                    "inviteUrl": {
+                        "type": "string"
                     }
                 },
-                "required": ["expiresAt", "inviteCode"]
+                "required": ["expiresAt", "inviteCode", "inviteUrl"]
             },
             "ProjectCatalog": {
                 "type": "object",

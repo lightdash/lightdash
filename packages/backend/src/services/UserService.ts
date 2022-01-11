@@ -79,15 +79,15 @@ export class UserService {
 
     async createOrganizationInviteLink(
         user: SessionUser,
-        inviteLink: CreateInviteLink,
+        createInviteLink: CreateInviteLink,
     ): Promise<InviteLink> {
         const { organizationUuid } = user;
-        const { expiresAt } = inviteLink;
+        const { expiresAt } = createInviteLink;
         const inviteCode = nanoid(30);
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
-        await this.inviteLinkModel.create(
+        const inviteLink = await this.inviteLinkModel.create(
             inviteCode,
             expiresAt,
             organizationUuid,
@@ -97,10 +97,7 @@ export class UserService {
             userId: user.userUuid,
             event: 'invite_link.created',
         });
-        return {
-            inviteCode,
-            expiresAt,
-        };
+        return inviteLink;
     }
 
     async revokeAllInviteLinks(user: SessionUser) {
@@ -127,9 +124,6 @@ export class UserService {
             }
             throw new NotExistsError('Invite link expired');
         }
-        return {
-            inviteCode,
-            expiresAt: inviteLink.expiresAt,
-        };
+        return inviteLink;
     }
 }

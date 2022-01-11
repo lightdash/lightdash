@@ -620,8 +620,9 @@ export type ApiHealthResults = HealthState;
 export type InviteLink = {
     expiresAt: Date;
     inviteCode: string;
+    inviteUrl: string;
 };
-export type CreateInviteLink = Omit<InviteLink, 'inviteCode'>;
+export type CreateInviteLink = Omit<InviteLink, 'inviteCode' | 'inviteUrl'>;
 
 export type OnbordingRecord = {
     ranQueryAt: Date | null;
@@ -728,6 +729,7 @@ export type HealthState = {
     cohere: {
         token: string;
     };
+    siteUrl: string;
 };
 
 export interface DbtCatalogNode {

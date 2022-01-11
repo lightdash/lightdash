@@ -30,10 +30,10 @@ const InvitePanel: FC = () => {
                             id="invite-link-input"
                             type="text"
                             readOnly
-                            value={`${window.location.protocol}//${window.location.host}/invite/${inviteLink.data.inviteCode}`}
+                            value={inviteLink.data.inviteUrl}
                             rightElement={
                                 <CopyToClipboard
-                                    text={`${window.location.protocol}//${window.location.host}/invite/${inviteLink.data.inviteCode}`}
+                                    text={inviteLink.data.inviteUrl}
                                     options={{ message: 'Copied' }}
                                     onCopy={() =>
                                         showToastSuccess({
