@@ -65,7 +65,7 @@ const CreateUserForm: FC<Props> = ({
         ) {
             showToastError({
                 title: 'Invalid form data',
-                subtitle: `Required fields: first name, last name,${
+                subtitle: `Required fields: first name, last name, job title,${
                     includeOrganizationName ? ' organization name,' : ''
                 } email and password`,
             });
@@ -146,7 +146,7 @@ const CreateUserForm: FC<Props> = ({
                 </FormGroup>
             )}
             <FormGroup
-                label="Job Title"
+                label="Job title"
                 labelFor="job-title-input"
                 labelInfo="(required)"
             >
