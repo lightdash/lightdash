@@ -1,6 +1,5 @@
 import express from 'express';
 import passport from 'passport';
-import { lightdashConfig } from '../config/lightdashConfig';
 import { userModel } from '../models/models';
 import { SavedQueriesModel } from '../models/savedQueries';
 import { UserModel } from '../models/UserModel';
@@ -38,7 +37,7 @@ apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
             isMarketingOptedIn: !!req.body.isMarketingOptedIn,
             isTrackingAnonymized: !!req.body.isTrackingAnonymized,
         });
-        const sessionUser = await userModel.findSessionUserByUuid(
+        const sessionUser = await userModel.findSessionUserByUUID(
             lightdashUser.userUuid,
         );
         req.login(sessionUser, (err) => {

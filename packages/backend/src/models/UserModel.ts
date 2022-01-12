@@ -329,7 +329,7 @@ export class UserModel {
         return this.getUserDetailsByUuid(user.user_uuid);
     }
 
-    async findSessionUserByUuid(userUuid: string): Promise<SessionUser> {
+    async findSessionUserByUUID(userUuid: string): Promise<SessionUser> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('user_uuid', userUuid)
             .select('*');

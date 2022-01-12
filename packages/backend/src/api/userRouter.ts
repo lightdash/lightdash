@@ -25,7 +25,7 @@ userRouter.post('/', unauthorisedInDemo, async (req, res, next) => {
             isMarketingOptedIn: !!req.body.isMarketingOptedIn,
             isTrackingAnonymized: !!req.body.isTrackingAnonymized,
         });
-        const sessionUser = await userModel.findSessionUserByUuid(
+        const sessionUser = await userModel.findSessionUserByUUID(
             lightdashUser.userUuid,
         );
         req.login(sessionUser, (err) => {
