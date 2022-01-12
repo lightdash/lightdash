@@ -1,6 +1,8 @@
 import { InviteLink } from 'common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
+import { URL } from 'url';
+import { lightdashConfig } from '../config/lightdashConfig';
 import { NotExistsError } from '../errors';
 
 export class InviteLinkModel {
@@ -8,6 +10,10 @@ export class InviteLinkModel {
 
     constructor(database: Knex) {
         this.database = database;
+    }
+
+    static transformInviteCodeToUrl(code: string): string {
+        return new URL(`/invite/${code}`, lightdashConfig.siteUrl).href;
     }
 
     static _hash(s: string): string {
@@ -39,6 +45,7 @@ export class InviteLinkModel {
         return {
             inviteCode,
             expiresAt: inviteLink.expires_at,
+            inviteUrl: InviteLinkModel.transformInviteCodeToUrl(inviteCode),
         };
     }
 
@@ -46,7 +53,7 @@ export class InviteLinkModel {
         inviteCode: string,
         expiresAt: Date,
         organizationUuid: string,
-    ) {
+    ): Promise<InviteLink> {
         const inviteCodeHash = InviteLinkModel._hash(inviteCode);
         const orgs = await this.database('organizations')
             .where('organization_uuid', organizationUuid)
@@ -60,6 +67,11 @@ export class InviteLinkModel {
             invite_code_hash: inviteCodeHash,
             expires_at: expiresAt,
         });
+        return {
+            inviteCode,
+            expiresAt,
+            inviteUrl: InviteLinkModel.transformInviteCodeToUrl(inviteCode),
+        };
     }
 
     async deleteByOrganization(organizationUuid: string) {

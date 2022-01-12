@@ -1,7 +1,6 @@
-import database from './database/database';
 import { updatePassword } from './database/entities/passwordLogins';
-import { getUserDetailsByPrimaryEmail } from './database/entities/users';
 import Logger from './logger';
+import { userModel } from './models/models';
 
 (async function init() {
     Logger.warn(`Override user password`);
@@ -17,9 +16,9 @@ import Logger from './logger';
     }
 
     Logger.info(`Get user by email: ${email}`);
-    const user = await getUserDetailsByPrimaryEmail(database, email);
-    Logger.info(`Update user (${user.user_id}) password`);
-    await updatePassword(user.user_id, newPassword);
-    Logger.info(`Successfully updated user (${user.user_id}) password`);
+    const user = await userModel.findSessionUserByPrimaryEmail(email);
+    Logger.info(`Update user (${user.userId}) password`);
+    await updatePassword(user.userId, newPassword);
+    Logger.info(`Successfully updated user (${user.userId}) password`);
     process.exit();
 })();

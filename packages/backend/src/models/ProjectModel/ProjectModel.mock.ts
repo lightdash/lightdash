@@ -35,6 +35,7 @@ export const lightdashConfigMock: LightdashConfig = {
         token: '',
     },
     projects: [],
+    siteUrl: '',
 };
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {

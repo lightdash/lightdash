@@ -28,9 +28,18 @@
 <img src="https://img.shields.io/static/v1?logo=data:image/png;base64,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&label=dbt-version&message=1.0.0&color=orange" />
 </div>
 
-Connect Lightdash to your dbt project, add metrics directly in your data transformation layer, then create and share your insights with your team.
+<div align="center">
 
-Our mission is simple: we want to enable everybody in your company to answer their own questions using data.
+### Enable everybody in your company to answer their own questions using data
+
+
+connect your dbt project --> add metrics into dbt --> share insights with your team
+
+If you're a fan, star the repo ⭐️ (we [plant a tree](#the-lightdash-forest) for every GitHub star we get 🌱).
+
+Come join the team, [we're hiring](https://lightdash.notion.site/Lightdash-Job-Board-a2c7d872794b45deb7b76ad68701d750).
+
+</div>
 
 ## Features:
 
@@ -133,6 +142,17 @@ our [Lightdash documentation](https://docs.lightdash.com/) to check out some tut
 
 Want to report a bug or request a feature? Open an [issue](https://github.com/lightdash/lightdash/issues/new/choose).
 
+## The Lightdash Forest
+We're planting trees with the help of the Lightdash community.
+
+Tree planting is one of the simplest and most cost-effective means of mitigating climate change, by absorbing CO2 from the atmosphere. So we thought it would be pretty neat to grow a forest while we grow Lightdash.
+
+Want to help us grow our forest?
+
+Just star this repo! We plant a tree for every star we get on Github. ⭐️ ➡️ 🌱
+
+We plant trees with TIST, you can read all about them here: https://program.tist.org/.
+
 ## Contributors ✨
 
 Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
@@ -181,7 +201,8 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/rlebrao"><img src="https://avatars.githubusercontent.com/u/18443331?v=4?s=100" width="100px;" alt=""/><br /><sub><b>rlebrao</b></sub></a><br /><a href="#ideas-rlebrao" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/lightdash/lightdash/issues?q=author%3Arlebrao" title="Bug reports">🐛</a></td>
     <td align="center"><a href="https://github.com/philcarr-tsl"><img src="https://avatars.githubusercontent.com/u/90601643?v=4?s=100" width="100px;" alt=""/><br /><sub><b>philcarr-tsl</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Aphilcarr-tsl" title="Bug reports">🐛</a> <a href="#data-philcarr-tsl" title="Data">🔣</a></td>
     <td align="center"><a href="https://github.com/HashimsGitHub"><img src="https://avatars.githubusercontent.com/u/79075502?v=4?s=100" width="100px;" alt=""/><br /><sub><b>HashimsGitHub</b></sub></a><br /><a href="#infra-HashimsGitHub" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a></td>
-    <td align="center"><a href="https://github.com/nathaliabj"><img src="https://avatars.githubusercontent.com/u/31137824?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Nathalia Buitrago Jurado</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=nathaliabj" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/nathaliabj"><img src="https://avatars.githubusercontent.com/u/31137824?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Nathalia Buitrago Jurado</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=nathaliabj" title="Documentation">📖</a> <a href="https://github.com/lightdash/lightdash/commits?author=nathaliabj" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/norbag"><img src="https://avatars.githubusercontent.com/u/1949405?v=4?s=100" width="100px;" alt=""/><br /><sub><b>norbag</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Anorbag" title="Bug reports">🐛</a></td>
   </tr>
 </table>
 
