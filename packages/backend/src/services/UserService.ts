@@ -352,6 +352,11 @@ export class UserService {
                 expiresAt,
                 data.email,
             );
+            analytics.track({
+                organizationId: user.organization_uuid,
+                userId: user.user_uuid,
+                event: 'password_reset_link.created',
+            });
             await this.emailClient.sendPasswordRecoveryEmail(data.email, link);
         }
     }
@@ -362,6 +367,11 @@ export class UserService {
         if (user) {
             await this.userModel.resetPassword(user.user_id, data.newPassword);
             await this.passwordResetLinkModel.deleteByCode(link.code);
+            analytics.track({
+                organizationId: user.organization_uuid,
+                userId: user.user_uuid,
+                event: 'password_reset_link.used',
+            });
         }
     }
 }
