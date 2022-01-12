@@ -27,4 +27,7 @@ export const projectModel = new ProjectModel({
 export const onboardingModel = new OnboardingModel({ database });
 export const emailModel = new EmailModel({ database });
 export const openIdIdentityModel = new OpenIdIdentityModel({ database });
-export const passwordResetLinkModel = new PasswordResetLinkModel(database);
+export const passwordResetLinkModel = new PasswordResetLinkModel({
+    database,
+    lightdashConfig,
+});

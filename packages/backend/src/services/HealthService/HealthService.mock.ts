@@ -1,4 +1,4 @@
-import { HealthState, LightdashMode } from 'common';
+import { LightdashMode } from 'common';
 import { LightdashConfig } from '../../config/parseConfig';
 
 export const Image = {
@@ -56,7 +56,7 @@ export const ImagesResponse = {
     results: [DevImage, OldImage, LatestImage, Image],
 };
 
-export const BaseResponse: HealthState = {
+export const BaseResponse = {
     healthy: true,
     version: '0.1.0',
     mode: LightdashMode.DEFAULT,
@@ -73,11 +73,11 @@ export const BaseResponse: HealthState = {
     defaultProject: undefined,
     latest: { version: Image.name },
     hasEmailClient: false,
-    siteUrl: '',
-    chatwoot: { baseUrl: '', websiteToken: '' },
-    cohere: { token: '' },
-    rudder: { dataPlaneUrl: '', writeKey: '' },
-    sentry: { dsn: '', environment: '', release: '' },
+    siteUrl: undefined,
+    chatwoot: undefined,
+    cohere: undefined,
+    rudder: undefined,
+    sentry: undefined,
 };
 
 export const Config = {

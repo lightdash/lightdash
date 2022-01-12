@@ -353,8 +353,8 @@ export class UserService {
                 data.email,
             );
             analytics.track({
-                organizationId: user.organization_uuid,
-                userId: user.user_uuid,
+                organizationId: user.organizationUuid,
+                userId: user.userUuid,
                 event: 'password_reset_link.created',
             });
             await this.emailClient.sendPasswordRecoveryEmail(data.email, link);
@@ -365,11 +365,11 @@ export class UserService {
         const link = await this.getPasswordResetLink(data.code);
         const user = await this.userModel.findUserByEmail(link.email);
         if (user) {
-            await this.userModel.resetPassword(user.user_id, data.newPassword);
+            await this.userModel.resetPassword(user.userUuid, data.newPassword);
             await this.passwordResetLinkModel.deleteByCode(link.code);
             analytics.track({
-                organizationId: user.organization_uuid,
-                userId: user.user_uuid,
+                organizationId: user.organizationUuid,
+                userId: user.userUuid,
                 event: 'password_reset_link.used',
             });
         }

@@ -1,15 +1,30 @@
 import { PasswordResetLink } from 'common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
+import { URL } from 'url';
+import { LightdashConfig } from '../config/parseConfig';
 import { EmailTableName } from '../database/entities/emails';
 import { PasswordResetTableName } from '../database/entities/passwordResetLinks';
 import { NotExistsError } from '../errors';
 
+type Dependencies = {
+    database: Knex;
+    lightdashConfig: LightdashConfig;
+};
+
 export class PasswordResetLinkModel {
     private database: Knex;
 
-    constructor(database: Knex) {
+    private lightdashConfig: LightdashConfig;
+
+    constructor({ database, lightdashConfig }: Dependencies) {
         this.database = database;
+        this.lightdashConfig = lightdashConfig;
+    }
+
+    transformCodeToUrl(code: string): string {
+        return new URL(`/reset-password/${code}`, this.lightdashConfig.siteUrl)
+            .href;
     }
 
     static _hash(s: string): string {
@@ -37,6 +52,7 @@ export class PasswordResetLinkModel {
             code,
             email: passwordResetLink.email,
             expiresAt: passwordResetLink.expires_at,
+            url: this.transformCodeToUrl(code),
         };
     }
 
@@ -64,6 +80,7 @@ export class PasswordResetLinkModel {
             code,
             email: result.email,
             expiresAt: links[0].expires_at,
+            url: this.transformCodeToUrl(code),
         };
     }
 

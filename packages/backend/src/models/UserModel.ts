@@ -393,10 +393,11 @@ export class UserModel {
         return user ? mapDbUserDetailsToLightdashUser(user) : undefined;
     }
 
-    async resetPassword(userId: number, password: string): Promise<void> {
+    async resetPassword(userUuid: string, password: string): Promise<void> {
         await this.database(PasswordLoginTableName)
+            .leftJoin(UserTableName, 'password_logins.user_id', 'users.user_id')
             .where({
-                user_id: userId,
+                user_uuid: userUuid,
             })
             .update({
                 password_hash: await bcrypt.hash(

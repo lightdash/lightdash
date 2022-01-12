@@ -670,12 +670,10 @@ export type PasswordResetLink = {
     expiresAt: Date;
     code: string;
     email: string;
+    url: string;
 };
 
-export type CreatePasswordResetLink = Omit<
-    PasswordResetLink,
-    'code' | 'expiresAt'
->;
+export type CreatePasswordResetLink = Pick<PasswordResetLink, 'email'>;
 
 export type PasswordReset = {
     code: string;
