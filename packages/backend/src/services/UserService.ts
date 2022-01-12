@@ -38,7 +38,7 @@ type UserServiceDependencies = {
     emailModel: EmailModel;
     openIdIdentityModel: OpenIdIdentityModel;
     passwordResetLinkModel: PasswordResetLinkModel;
-    emailClient: typeof EmailClient;
+    emailClient: EmailClient;
 };
 
 export class UserService {
@@ -54,7 +54,7 @@ export class UserService {
 
     private readonly passwordResetLinkModel: PasswordResetLinkModel;
 
-    private readonly emailClient: typeof EmailClient;
+    private readonly emailClient: EmailClient;
 
     constructor({
         inviteLinkModel,

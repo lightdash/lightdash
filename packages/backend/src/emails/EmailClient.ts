@@ -2,17 +2,20 @@ import { formatTimestamp, PasswordResetLink } from 'common';
 import * as nodemailer from 'nodemailer';
 import Mail from 'nodemailer/lib/mailer';
 import { AuthenticationType } from 'nodemailer/lib/smtp-connection';
-import { lightdashConfig } from '../config/lightdashConfig';
 import { LightdashConfig } from '../config/parseConfig';
 import { SmptError } from '../errors';
 import Logger from '../logger';
 
-class EmailClient {
+type Dependencies = {
+    lightdashConfig: LightdashConfig;
+};
+
+export default class EmailClient {
     lightdashConfig: LightdashConfig;
 
     transporter: nodemailer.Transporter | undefined;
 
-    constructor() {
+    constructor({ lightdashConfig }: Dependencies) {
         this.lightdashConfig = lightdashConfig;
 
         if (this.lightdashConfig.smtp) {
@@ -87,5 +90,3 @@ class EmailClient {
         });
     }
 }
-
-export default new EmailClient();

@@ -1,5 +1,5 @@
 import { lightdashConfig } from '../config/lightdashConfig';
-import emailClient from '../emails/EmailClient';
+import EmailClient from '../emails/EmailClient';
 import {
     dashboardModel,
     emailModel,
@@ -18,6 +18,8 @@ import { OrganizationService } from './OrganizationService/OrganizationService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { SavedChartsService } from './SavedChartsService/SavedChartsService';
 import { UserService } from './UserService';
+
+const emailClient = new EmailClient({ lightdashConfig });
 
 export const userService = new UserService({
     inviteLinkModel,

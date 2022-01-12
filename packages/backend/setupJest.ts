@@ -6,20 +6,7 @@ enableFetchMocks();
 
 jest.mock('./src/config/lightdashConfig', () => ({
     lightdashConfig: {
-        chatwoot: { websiteToken: '', baseUrl: '' },
-        cohere: { token: '' },
-        host: '',
-        lightdashSecret: '',
-        projects: [],
-        protocol: '',
-        rudder: { writeKey: '', dataPlaneUrl: '' },
-        secureCookies: false,
-        sentry: { dsn: '', release: '', environment: '' },
-        smtp: undefined,
-        trustProxy: false,
-        version: '1.0',
         mode: LightdashMode.DEFAULT,
-        siteUrl: '',
     },
 }));
 
