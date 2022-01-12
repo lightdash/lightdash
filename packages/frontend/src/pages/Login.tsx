@@ -1,4 +1,4 @@
-import { Button, Card, Colors, H2, Intent } from '@blueprintjs/core';
+import { Button, Card, H2, Intent } from '@blueprintjs/core';
 import {
     ApiError,
     LightdashMode,
@@ -11,8 +11,8 @@ import { useForm } from 'react-hook-form';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
+import AnchorLink from '../components/common/AnchorLink/index';
 import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
-import LinkButton from '../components/common/LinkButton';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import Form from '../components/ReactHookForm/Form';
@@ -131,20 +131,14 @@ const Login: FC = () => {
                             style={{
                                 marginTop: 20,
                                 display: 'flex',
-                                justifyContent: 'flex-end',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
                             }}
                         >
                             {health.data?.hasEmailClient && (
-                                <LinkButton
-                                    href="/recover-password"
-                                    minimal
-                                    style={{
-                                        marginRight: 10,
-                                        color: Colors.GRAY1,
-                                    }}
-                                >
-                                    Forgot password ?
-                                </LinkButton>
+                                <AnchorLink href="/recover-password">
+                                    Forgot your password ?
+                                </AnchorLink>
                             )}
                             <Button
                                 type="submit"
