@@ -179,7 +179,7 @@ const Welcome: FC = () => {
                         Lightdash Documentation
                     </AnchorButton>
                     <AnchorButton
-                        href="https://community.lightdash.com/"
+                        href="https://github.com/lightdash/lightdash/discussions"
                         target="_blank"
                         minimal
                         icon="chat"
