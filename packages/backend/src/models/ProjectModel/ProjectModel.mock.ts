@@ -27,6 +27,14 @@ export const lightdashConfigMock: LightdashConfig = {
         release: '',
         environment: '',
     },
+    auth: {
+        google: {
+            oauth2ClientId: undefined,
+            oauth2ClientSecret: undefined,
+            loginPath: '',
+            callbackPath: '',
+        },
+    },
     chatwoot: {
         websiteToken: '',
         baseUrl: '',

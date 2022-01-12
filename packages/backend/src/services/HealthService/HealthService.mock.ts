@@ -65,6 +65,12 @@ export const BaseResponse = {
     localDbtEnabled: true,
     needsSetup: false,
     needsProject: false,
+    auth: {
+        google: {
+            loginPath: '',
+            oauth2ClientId: '',
+        },
+    },
     defaultProject: undefined,
     latest: { version: Image.name },
     chatwoot: undefined,

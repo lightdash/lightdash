@@ -68,6 +68,25 @@ apiV1Router.post('/login', passport.authenticate('local'), (req, res, next) => {
     });
 });
 
+apiV1Router.get(
+    lightdashConfig.auth.google.loginPath,
+    passport.authenticate('google', {
+        scope: ['profile', 'email'],
+    }),
+);
+
+apiV1Router.get(
+    lightdashConfig.auth.google.callbackPath,
+    passport.authenticate('google', {
+        failureMessage: true,
+        failureRedirect: '/',
+    }),
+    (req, res) => {
+        console.log(req);
+        res.redirect('/');
+    },
+);
+
 apiV1Router.get('/logout', (req, res, next) => {
     req.logout();
     req.session.save((err) => {

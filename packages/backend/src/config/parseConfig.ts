@@ -36,6 +36,7 @@ export type LightdashConfig = {
     mode: LightdashMode;
     projects: Array<DbtProjectConfig>;
     sentry: SentryConfig;
+    auth: AuthConfig;
     cohere: CohereConfig;
     chatwoot: ChatwootConfig;
     siteUrl: string;
@@ -59,6 +60,17 @@ export type SentryConfig = {
 export type RudderConfig = {
     writeKey: string;
     dataPlaneUrl: string;
+};
+
+export type AuthGoogleConfig = {
+    oauth2ClientId: string | undefined;
+    oauth2ClientSecret: string | undefined;
+    loginPath: string;
+    callbackPath: string;
+};
+
+export type AuthConfig = {
+    google: AuthGoogleConfig;
 };
 
 type ConfigKeys<T extends DbtProjectConfig> = {
@@ -217,6 +229,15 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         secureCookies: process.env.SECURE_COOKIES === 'true',
         trustProxy: process.env.TRUST_PROXY === 'true',
         databaseConnectionUri: process.env.PGCONNECTIONURI,
+        auth: {
+            google: {
+                oauth2ClientId: process.env.AUTH_GOOGLE_OAUTH2_CLIENT_ID,
+                oauth2ClientSecret:
+                    process.env.AUTH_GOOGLE_OAUTH2_CLIENT_SECRET,
+                loginPath: '/login/google',
+                callbackPath: '/oauth/redirect/google',
+            },
+        },
         chatwoot: {
             websiteToken:
                 process.env.CHATWOOT_TOKEN || 'qUs8eBDFmn9id6R8aa1pAePq',

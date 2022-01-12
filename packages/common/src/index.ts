@@ -617,6 +617,16 @@ export type UpdateUserArgs = {
     email: string;
 };
 
+export type CreateOpenIdIdentity = {
+    subject: string;
+    issuer: string;
+    userId: number;
+};
+
+export type OpenIdIdentity = CreateOpenIdIdentity & {
+    createdAt: Date;
+};
+
 export type ApiHealthResults = HealthState;
 export type InviteLink = {
     expiresAt: Date;
@@ -726,6 +736,12 @@ export type HealthState = {
     chatwoot: {
         baseUrl: string;
         websiteToken: string;
+    };
+    auth: {
+        google: {
+            oauth2ClientId: string | undefined;
+            loginPath: string;
+        };
     };
     cohere: {
         token: string;

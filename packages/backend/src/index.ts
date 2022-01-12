@@ -1,3 +1,4 @@
+/// <reference path="./@types/passport-google-oidc.d.ts" />
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
 import { SamplingContext } from '@sentry/types';
@@ -10,9 +11,11 @@ import express, { NextFunction, Request, Response } from 'express';
 import * as OpenApiValidator from 'express-openapi-validator';
 import expressSession from 'express-session';
 import passport from 'passport';
+import { Strategy as GoogleStrategy } from 'passport-google-oidc';
 import { Strategy as LocalStrategy } from 'passport-local';
 import path from 'path';
 import reDoc from 'redoc-express';
+import { URL } from 'url';
 import { analytics } from './analytics/client';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import { apiV1Router } from './api/apiV1';
@@ -211,6 +214,28 @@ passport.use(
         },
     ),
 );
+if (
+    lightdashConfig.auth.google.oauth2ClientId &&
+    lightdashConfig.auth.google.oauth2ClientSecret
+) {
+    passport.use(
+        new GoogleStrategy(
+            {
+                clientID: lightdashConfig.auth.google.oauth2ClientId,
+                clientSecret: lightdashConfig.auth.google.oauth2ClientSecret,
+                callbackURL: new URL(
+                    `/api/v1${lightdashConfig.auth.google.callbackPath}`,
+                    lightdashConfig.siteUrl,
+                ).href,
+            },
+            (issuer, profile, done) => {
+                console.log(profile);
+                console.log(`Issuer: ${issuer}`);
+                throw new Error('nope');
+            },
+        ),
+    );
+}
 passport.serializeUser((user, done) => {
     done(null, user.userUuid);
 });

@@ -1,6 +1,7 @@
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     dashboardModel,
+    emailModel,
     inviteLinkModel,
     onboardingModel,
     organizationModel,
@@ -19,6 +20,7 @@ export const userService = new UserService({
     inviteLinkModel,
     userModel,
     sessionModel,
+    emailModel,
 });
 export const organizationService = new OrganizationService({
     organizationModel,

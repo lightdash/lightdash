@@ -11,6 +11,7 @@ import { useForm } from 'react-hook-form';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
+import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import Form from '../components/ReactHookForm/Form';
@@ -30,7 +31,7 @@ const loginQuery = async (data: LoginParams) =>
 
 const Login: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
-    const { health, showToastError } = useApp();
+    const { health, showToastError, showToastSuccess } = useApp();
     const methods = useForm<LoginParams>({
         mode: 'onSubmit',
     });
@@ -134,6 +135,7 @@ const Login: FC = () => {
                             data-cy="login-button"
                         />
                     </Form>
+                    <GoogleLoginButton />
                 </Card>
             </div>
         </Page>
