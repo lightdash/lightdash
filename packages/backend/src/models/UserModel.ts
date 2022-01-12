@@ -7,7 +7,11 @@ import {
     UpdateUserArgs,
 } from 'common';
 import { Knex } from 'knex';
-import { createEmail, EmailTableName } from '../database/entities/emails';
+import {
+    createEmail,
+    deleteEmail,
+    EmailTableName,
+} from '../database/entities/emails';
 import { InviteLinkTableName } from '../database/entities/inviteLinks';
 import { createOrganizationMembership } from '../database/entities/organizationMemberships';
 import { createOrganization } from '../database/entities/organizations';
