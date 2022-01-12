@@ -1,8 +1,10 @@
 import express from 'express';
 import passport from 'passport';
-import { getHealthState } from '../health';
+import { lightdashConfig } from '../config/lightdashConfig';
+import { userModel } from '../models/models';
 import { SavedQueriesModel } from '../models/savedQueries';
-import { UserModel } from '../models/User';
+import { UserModel } from '../models/UserModel';
+import { healthService, userService } from '../services/services';
 import { sanitizeEmailParam, sanitizeStringParam } from '../utils';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { dashboardRouter } from './dashboardRouter';
@@ -14,7 +16,8 @@ import { userRouter } from './userRouter';
 export const apiV1Router = express.Router();
 
 apiV1Router.get('/health', async (req, res, next) => {
-    getHealthState(!!req.user?.userUuid)
+    healthService
+        .getHealthState(!!req.user?.userUuid)
         .then((state) =>
             res.json({
                 status: 'ok',
@@ -26,7 +29,7 @@ apiV1Router.get('/health', async (req, res, next) => {
 
 apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
     try {
-        const lightdashUser = await UserModel.register({
+        const lightdashUser = await userService.registerInitialUser({
             firstName: sanitizeStringParam(req.body.firstName),
             lastName: sanitizeStringParam(req.body.lastName),
             organizationName: sanitizeStringParam(req.body.organizationName),
@@ -35,7 +38,7 @@ apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
             isMarketingOptedIn: !!req.body.isMarketingOptedIn,
             isTrackingAnonymized: !!req.body.isTrackingAnonymized,
         });
-        const sessionUser = await UserModel.findSessionUserByUUID(
+        const sessionUser = await userModel.findSessionUserByUuid(
             lightdashUser.userUuid,
         );
         req.login(sessionUser, (err) => {

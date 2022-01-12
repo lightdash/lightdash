@@ -20,9 +20,10 @@ import { lightdashConfig } from './config/lightdashConfig';
 import database from './database/database';
 import { AuthorizationError, errorHandler } from './errors';
 import Logger from './logger';
-import { UserModel } from './models/User';
 import morganMiddleware from './morganMiddleware';
 import { VERSION } from './version';
+import { userService } from './services/services';
+import { userModel } from './models/models';
 
 // @ts-ignore
 // eslint-disable-next-line no-extend-native, func-names
@@ -195,7 +196,10 @@ passport.use(
         { usernameField: 'email', passwordField: 'password' },
         async (email, password, done) => {
             try {
-                const user = await UserModel.login(email, password);
+                const user = await userService.loginWithPassword(
+                    email,
+                    password,
+                );
                 return done(null, user);
             } catch {
                 return done(
@@ -212,6 +216,6 @@ passport.serializeUser((user, done) => {
 });
 
 passport.deserializeUser(async (id: string, done) => {
-    const user = await UserModel.findSessionUserByUUID(id);
+    const user = await userModel.findSessionUserByUuid(id);
     done(null, user);
 });

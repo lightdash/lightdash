@@ -1,22 +1,33 @@
 import {
+    CreateInitialUserArgs,
     CreateInviteLink,
     CreateOrganizationUser,
     InviteLink,
+    LightdashMode,
     LightdashUser,
     SessionUser,
+    UpdateUserArgs,
 } from 'common';
 import { nanoid } from 'nanoid';
 import { analytics, identifyUser } from '../analytics/client';
-import { ForbiddenError, NotExistsError } from '../errors';
+import { lightdashConfig } from '../config/lightdashConfig';
+import { updatePassword } from '../database/entities/passwordLogins';
+import {
+    AuthorizationError,
+    ForbiddenError,
+    NotExistsError,
+    NotFoundError,
+} from '../errors';
+import { EmailModel } from '../models/EmailModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { SessionModel } from '../models/SessionModel';
-import { mapDbUserDetailsToLightdashUser } from '../models/User';
 import { UserModel } from '../models/UserModel';
 
 type UserServiceDependencies = {
     inviteLinkModel: InviteLinkModel;
     userModel: UserModel;
     sessionModel: SessionModel;
+    emailModel: EmailModel;
 };
 
 export class UserService {
@@ -26,28 +37,31 @@ export class UserService {
 
     private readonly sessionModel: SessionModel;
 
+    private readonly emailModel: EmailModel;
+
     constructor({
         inviteLinkModel,
         userModel,
         sessionModel,
+        emailModel,
     }: UserServiceDependencies) {
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
         this.sessionModel = sessionModel;
+        this.emailModel = emailModel;
     }
 
     async create(
         createOrganizationUser: CreateOrganizationUser,
     ): Promise<LightdashUser> {
         const user = await this.userModel.createUser(createOrganizationUser);
-        const lightdashUser = mapDbUserDetailsToLightdashUser(user);
-        identifyUser(lightdashUser);
+        identifyUser(user);
         analytics.track({
-            organizationId: user.organization_uuid,
+            organizationId: user.organizationUuid,
             event: 'user.created',
-            userId: lightdashUser.userUuid,
+            userId: user.userUuid,
         });
-        return lightdashUser;
+        return user;
     }
 
     async delete(user: SessionUser, userUuid: string): Promise<void> {
@@ -113,6 +127,28 @@ export class UserService {
         });
     }
 
+    async loginWithOpenId(issuer: string, subject: string, email: string) {
+        try {
+            // User exists with OpenId
+            return await this.userModel.getUserByOpenId(issuer, subject);
+        } catch (getUserError) {
+            if (getUserError instanceof NotFoundError) {
+                // Check email
+                try {
+                    const existingEmail =
+                        await this.emailModel.getEmailByAddress(email);
+                    // Associate account with email
+                } catch (getEmailError) {
+                    if (getEmailError instanceof NotFoundError) {
+                        // Create a new account
+                    }
+                    throw getEmailError;
+                }
+            }
+            throw getUserError;
+        }
+    }
+
     async getInviteLink(inviteCode: string): Promise<InviteLink> {
         const inviteLink = await this.inviteLinkModel.findByCode(inviteCode);
         const now = new Date();
@@ -125,5 +161,107 @@ export class UserService {
             throw new NotExistsError('Invite link expired');
         }
         return inviteLink;
+    }
+
+    async loginWithPassword(
+        email: string,
+        password: string,
+    ): Promise<LightdashUser> {
+        try {
+            // TODO: move to authorization service layer
+            const user = await this.userModel.getUserByPrimaryEmailAndPassword(
+                email,
+                password,
+            );
+            identifyUser(user);
+            analytics.track({
+                organizationId: user.organizationUuid,
+                userId: user.userUuid,
+                event: 'user.logged_in',
+            });
+            return user;
+        } catch (e) {
+            if (e instanceof NotFoundError) {
+                throw new AuthorizationError(
+                    'Email and password not recognized',
+                );
+            }
+            throw e;
+        }
+    }
+
+    async updatePassword(
+        userId: number,
+        userUuid: string,
+        data: { password: string; newPassword: string },
+    ): Promise<void> {
+        // Todo: Move to authorization service layer
+        let user: LightdashUser;
+        try {
+            user = await this.userModel.getUserByUuidAndPassword(
+                userUuid,
+                data.password,
+            );
+        } catch (e) {
+            if (e instanceof NotFoundError) {
+                throw new AuthorizationError('Password not recognized.');
+            }
+            throw e;
+        }
+        await updatePassword(userId, data.newPassword);
+        analytics.track({
+            userId: user.userUuid,
+            organizationId: user.organizationUuid,
+            event: 'password.updated',
+        });
+    }
+
+    async updateUser(
+        userId: number,
+        currentEmail: string | undefined,
+        data: UpdateUserArgs,
+    ): Promise<LightdashUser> {
+        const user = await this.userModel.updateUser(
+            userId,
+            currentEmail,
+            data,
+        );
+        identifyUser(user);
+        analytics.track({
+            userId: user.userUuid,
+            organizationId: user.organizationUuid,
+            event: 'user.updated',
+        });
+        return user;
+    }
+
+    async registerInitialUser(createUser: CreateInitialUserArgs) {
+        if (await this.userModel.hasUsers()) {
+            throw new ForbiddenError('User already registered');
+        }
+        const user = await this.userModel.createInitialUser(createUser);
+        identifyUser({
+            ...user,
+            isMarketingOptedIn: createUser.isMarketingOptedIn,
+        });
+        analytics.track({
+            event: 'user.created',
+            organizationId: user.organizationUuid,
+            userId: user.userUuid,
+        });
+        analytics.track({
+            event: 'organization.created',
+            userId: user.userUuid,
+            organizationId: user.organizationUuid,
+            properties: {
+                type:
+                    lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                        ? 'cloud'
+                        : 'self-hosted',
+                organizationId: user.organizationUuid,
+                organizationName: user.organizationName,
+            },
+        });
+        return user;
     }
 }

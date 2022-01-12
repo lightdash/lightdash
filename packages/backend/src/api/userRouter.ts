@@ -1,5 +1,6 @@
 import express from 'express';
-import { UserModel } from '../models/User';
+import { userModel } from '../models/models';
+import { UserModel } from '../models/UserModel';
 import { userService } from '../services/services';
 import { sanitizeEmailParam, sanitizeStringParam } from '../utils';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
@@ -24,7 +25,7 @@ userRouter.post('/', unauthorisedInDemo, async (req, res, next) => {
             isMarketingOptedIn: !!req.body.isMarketingOptedIn,
             isTrackingAnonymized: !!req.body.isTrackingAnonymized,
         });
-        const sessionUser = await UserModel.findSessionUserByUUID(
+        const sessionUser = await userModel.findSessionUserByUuid(
             lightdashUser.userUuid,
         );
         req.login(sessionUser, (err) => {
@@ -46,7 +47,8 @@ userRouter.patch(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        UserModel.updateProfile(req.user!.userId, req.user!.email, req.body)
+        userService
+            .updateUser(req.user!.userId, req.user!.email, req.body)
             .then((user) => {
                 res.json({
                     status: 'ok',
@@ -62,7 +64,8 @@ userRouter.post(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) =>
-        UserModel.updatePassword(req.user!.userId, req.user!.userUuid, req.body)
+        userService
+            .updatePassword(req.user!.userId, req.user!.userUuid, req.body)
             .then(() => {
                 req.logout();
                 req.session.save((err) => {
