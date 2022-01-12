@@ -1,3 +1,4 @@
+import { lightdashConfig } from '../config/lightdashConfig';
 import {
     dashboardModel,
     inviteLinkModel,
@@ -8,6 +9,7 @@ import {
     userModel,
 } from '../models/models';
 import { DashboardService } from './DashboardService/DashboardService';
+import { HealthService } from './HealthService/HealthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { SavedChartsService } from './SavedChartsService/SavedChartsService';
@@ -29,6 +31,12 @@ export const organizationService = new OrganizationService({
 export const projectService = new ProjectService({
     projectModel,
     onboardingModel,
+});
+
+export const healthService = new HealthService({
+    userModel,
+    projectModel,
+    lightdashConfig,
 });
 
 export const dashboardService = new DashboardService({

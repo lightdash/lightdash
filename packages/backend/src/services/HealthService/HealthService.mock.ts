@@ -1,4 +1,5 @@
 import { LightdashMode } from 'common';
+import { LightdashConfig } from '../../config/parseConfig';
 
 export const Image = {
     creator: 12969647,
@@ -66,4 +67,18 @@ export const BaseResponse = {
     needsProject: false,
     defaultProject: undefined,
     latest: { version: Image.name },
+    chatwoot: undefined,
+    cohere: undefined,
 };
+
+export const Config = {
+    mode: LightdashMode.DEFAULT,
+    projects: [
+        {
+            name: 'default',
+            type: 'dbt',
+            profiles_dir: '/',
+            project_dir: '/',
+        },
+    ],
+} as LightdashConfig;
