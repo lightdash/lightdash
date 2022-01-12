@@ -15,7 +15,7 @@ type RecoverPasswordForm = { email: string };
 
 const Text = styled.p`
     color: ${Colors.GRAY1};
-    margin-bottom: 20;
+    margin-bottom: 1.25em;
     line-height: 1.46;
 `;
 
@@ -29,10 +29,6 @@ const ListItem = styled.li`
     margin: 0 0 0.3em;
     color: ${Colors.GRAY1};
     line-height: 1.5;
-
-    & a {
-        color: ${Colors.BLUE4};
-    }
 `;
 
 const CtaWrapper = styled.div`
@@ -85,13 +81,7 @@ const PasswordRecovery: FC = () => {
                             <H2 style={{ marginBottom: 20 }}>
                                 Forgot your password? 🙈
                             </H2>
-                            <Text
-                                style={{
-                                    color: Colors.GRAY1,
-                                    marginBottom: 20,
-                                    lineHeight: 1.46,
-                                }}
-                            >
+                            <Text>
                                 Enter your email address and we’ll send you a
                                 password reset link
                             </Text>
@@ -116,11 +106,7 @@ const PasswordRecovery: FC = () => {
                                     <Button
                                         type="submit"
                                         intent={Intent.PRIMARY}
-                                        text={
-                                            isSuccess
-                                                ? 'Resend email'
-                                                : 'Send reset email'
-                                        }
+                                        text="Send reset email"
                                         loading={isLoading}
                                     />
                                 </CtaWrapper>
@@ -144,9 +130,9 @@ const PasswordRecovery: FC = () => {
                                 </ListItem>
                                 <ListItem>
                                     Try{' '}
-                                    <a href="/recover-password">
+                                    <AnchorLink href="/recover-password">
                                         resubmitting a password reset
-                                    </a>{' '}
+                                    </AnchorLink>{' '}
                                     request, ensuring that there are no typos!
                                 </ListItem>
                             </List>

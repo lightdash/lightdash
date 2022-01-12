@@ -1,10 +1,8 @@
-import { AnchorButton } from '@blueprintjs/core';
+import { Colors } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 
-const AnchorLink: FC<
-    { href: string } & React.ComponentProps<typeof AnchorButton>
-> = ({ href, children, ...rest }) => {
+const AnchorLink: FC<{ href: string }> = ({ href, children, ...rest }) => {
     const history = useHistory();
     return (
         <a
@@ -13,6 +11,9 @@ const AnchorLink: FC<
             onClick={(e) => {
                 e.preventDefault();
                 history.push(href);
+            }}
+            style={{
+                color: Colors.BLUE4,
             }}
         >
             {children}

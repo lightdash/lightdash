@@ -1,4 +1,4 @@
-import { Button, Card, Colors, H2, Intent } from '@blueprintjs/core';
+import { Button, Card, H2, Intent } from '@blueprintjs/core';
 import {
     ApiError,
     LightdashMode,
@@ -135,12 +135,7 @@ const Login: FC = () => {
                             }}
                         >
                             {health.data?.hasEmailClient && (
-                                <AnchorLink
-                                    href="/recover-password"
-                                    style={{
-                                        color: Colors.BLUE4,
-                                    }}
-                                >
+                                <AnchorLink href="/recover-password">
                                     Forgot your password ?
                                 </AnchorLink>
                             )}
