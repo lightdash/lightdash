@@ -14,6 +14,7 @@ import {
 } from 'common';
 import { ParseError } from '../errors';
 import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
+import Logger from '../logger';
 import { VERSION } from '../version';
 
 export type DbtProjectConfigIn<T extends DbtProjectConfig> = Partial<T> &
@@ -37,6 +38,7 @@ export type LightdashConfig = {
     sentry: SentryConfig;
     cohere: CohereConfig;
     chatwoot: ChatwootConfig;
+    siteUrl: string;
 };
 
 export type ChatwootConfig = {
@@ -186,6 +188,12 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
     }
 
     const mode = lightdashMode || config.mode;
+    const siteUrl = process.env.SITE_URL || 'http://localhost:8080';
+    if (siteUrl.includes('localhost')) {
+        Logger.warn(
+            `Using ${siteUrl} as the base SITE_URL for Lightdash. This is not suitable for production. Update with a top level domain using https such as https://lightdash.mycompany.com`,
+        );
+    }
 
     return {
         ...config,
@@ -218,6 +226,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         cohere: {
             token: process.env.COHERE_TOKEN || '',
         },
+        siteUrl,
     };
 };
 
