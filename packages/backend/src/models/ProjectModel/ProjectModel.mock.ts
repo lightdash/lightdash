@@ -15,8 +15,6 @@ import { EncryptionService } from '../../services/EncryptionService/EncryptionSe
 export const lightdashConfigMock: LightdashConfig = {
     mode: LightdashMode.DEFAULT,
     version: '1.0',
-    protocol: 'http',
-    host: 'localhost:3000',
     lightdashSecret: 'secret',
     secureCookies: true,
     trustProxy: true,

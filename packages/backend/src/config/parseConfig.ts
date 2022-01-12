@@ -28,8 +28,6 @@ export type LightdashConfigIn = {
 
 export type LightdashConfig = {
     version: '1.0';
-    protocol: string;
-    host: string;
     lightdashSecret: string;
     secureCookies: boolean;
     trustProxy: boolean;
@@ -229,8 +227,6 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
     return {
         ...config,
         mode,
-        protocol: process.env.LIGHTDASH_PROTOCOL || '',
-        host: process.env.LIGHTDASH_HOST || '',
         projects: mergedProjects,
         smtp: process.env.EMAIL_SMTP_HOST
             ? {

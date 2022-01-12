@@ -19,6 +19,7 @@ jest.mock('./src/config/lightdashConfig', () => ({
         trustProxy: false,
         version: '1.0',
         mode: LightdashMode.DEFAULT,
+        siteUrl: '',
     },
 }));
 

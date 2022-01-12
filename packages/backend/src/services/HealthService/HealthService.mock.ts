@@ -73,6 +73,7 @@ export const BaseResponse: HealthState = {
     defaultProject: undefined,
     latest: { version: Image.name },
     hasEmailClient: false,
+    siteUrl: '',
     chatwoot: { baseUrl: '', websiteToken: '' },
     cohere: { token: '' },
     rudder: { dataPlaneUrl: '', writeKey: '' },
