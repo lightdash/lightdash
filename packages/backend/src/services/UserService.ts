@@ -18,6 +18,7 @@ import {
     NotExistsError,
     NotFoundError,
 } from '../errors';
+import { EmailModel } from '../models/EmailModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
@@ -26,6 +27,7 @@ type UserServiceDependencies = {
     inviteLinkModel: InviteLinkModel;
     userModel: UserModel;
     sessionModel: SessionModel;
+    emailModel: EmailModel;
 };
 
 export class UserService {
@@ -35,14 +37,18 @@ export class UserService {
 
     private readonly sessionModel: SessionModel;
 
+    private readonly emailModel: EmailModel;
+
     constructor({
         inviteLinkModel,
         userModel,
         sessionModel,
+        emailModel,
     }: UserServiceDependencies) {
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
         this.sessionModel = sessionModel;
+        this.emailModel = emailModel;
     }
 
     async create(
@@ -122,6 +128,28 @@ export class UserService {
             userId: user.userUuid,
             event: 'invite_link.all_revoked',
         });
+    }
+
+    async loginWithOpenId(issuer: string, subject: string, email: string) {
+        try {
+            // User exists with OpenId
+            return await this.userModel.getUserByOpenId(issuer, subject);
+        } catch (getUserError) {
+            if (getUserError instanceof NotFoundError) {
+                // Check email
+                try {
+                    const existingEmail =
+                        await this.emailModel.getEmailByAddress(email);
+                    // Associate account with email
+                } catch (getEmailError) {
+                    if (getEmailError instanceof NotFoundError) {
+                        // Create a new account
+                    }
+                    throw getEmailError;
+                }
+            }
+            throw getUserError;
+        }
     }
 
     async getInviteLink(inviteCode: string): Promise<InviteLink> {
