@@ -15,9 +15,9 @@ import {
 } from 'common';
 import { nanoid } from 'nanoid';
 import { analytics, identifyUser } from '../analytics/client';
+import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { updatePassword } from '../database/entities/passwordLogins';
-import EmailClient from '../emails/EmailClient';
 import {
     AuthorizationError,
     ForbiddenError,
@@ -357,7 +357,7 @@ export class UserService {
                 userId: user.userUuid,
                 event: 'password_reset_link.created',
             });
-            await this.emailClient.sendPasswordRecoveryEmail(data.email, link);
+            await this.emailClient.sendPasswordRecoveryEmail(link);
         }
     }
 

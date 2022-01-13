@@ -2,16 +2,16 @@ import { formatTimestamp, PasswordResetLink } from 'common';
 import * as nodemailer from 'nodemailer';
 import Mail from 'nodemailer/lib/mailer';
 import { AuthenticationType } from 'nodemailer/lib/smtp-connection';
-import { LightdashConfig } from '../config/parseConfig';
-import { SmptError } from '../errors';
-import Logger from '../logger';
+import { LightdashConfig } from '../../config/parseConfig';
+import { SmptError } from '../../errors';
+import Logger from '../../logger';
 
 type Dependencies = {
-    lightdashConfig: LightdashConfig;
+    lightdashConfig: Pick<LightdashConfig, 'smtp'>;
 };
 
 export default class EmailClient {
-    lightdashConfig: LightdashConfig;
+    lightdashConfig: Pick<LightdashConfig, 'smtp'>;
 
     transporter: nodemailer.Transporter | undefined;
 
@@ -77,12 +77,9 @@ export default class EmailClient {
         }
     }
 
-    public async sendPasswordRecoveryEmail(
-        email: string,
-        link: PasswordResetLink,
-    ) {
+    public async sendPasswordRecoveryEmail(link: PasswordResetLink) {
         return this.sendEmail({
-            to: email,
+            to: link.email,
             subject: 'Reset Lightdash password',
             text: `Reset your password here: ${
                 link.url

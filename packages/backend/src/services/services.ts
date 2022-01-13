@@ -1,5 +1,5 @@
+import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../config/lightdashConfig';
-import EmailClient from '../emails/EmailClient';
 import {
     dashboardModel,
     emailModel,
