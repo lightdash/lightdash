@@ -599,6 +599,7 @@ export type CreateInitialUserArgs = {
     firstName: string;
     lastName: string;
     organizationName: string;
+    jobTitle: string;
     email: string;
     password: string;
     isMarketingOptedIn: boolean;

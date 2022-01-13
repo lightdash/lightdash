@@ -54,6 +54,9 @@ export class UserService {
             organizationId: user.organizationUuid,
             event: 'user.created',
             userId: user.userUuid,
+            properties: {
+                jobTitle: createOrganizationUser.jobTitle,
+            },
         });
         return user;
     }
@@ -220,6 +223,9 @@ export class UserService {
             event: 'user.created',
             organizationId: user.organizationUuid,
             userId: user.userUuid,
+            properties: {
+                jobTitle: createUser.jobTitle,
+            },
         });
         analytics.track({
             event: 'organization.created',
