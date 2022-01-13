@@ -394,16 +394,16 @@ export class UserModel {
     }
 
     async resetPassword(userUuid: string, password: string): Promise<void> {
+        const user = await this.findSessionUserByUUID(userUuid);
         await this.database(PasswordLoginTableName)
-            .leftJoin(UserTableName, 'password_logins.user_id', 'users.user_id')
-            .where({
-                user_uuid: userUuid,
-            })
-            .update({
+            .insert({
+                user_id: user.userId,
                 password_hash: await bcrypt.hash(
                     password,
                     await bcrypt.genSalt(),
                 ),
-            });
+            })
+            .onConflict('user_id')
+            .merge();
     }
 }
