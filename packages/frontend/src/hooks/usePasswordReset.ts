@@ -1,6 +1,5 @@
 import { ApiError, CreatePasswordResetLink, PasswordReset } from 'common';
 import { useMutation, useQuery } from 'react-query';
-import { useHistory } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 
@@ -55,7 +54,6 @@ export const usePasswordResetLinkMutation = () => {
 };
 
 export const usePasswordResetMutation = () => {
-    const history = useHistory();
     const { showToastError, showToastSuccess } = useApp();
     return useMutation<undefined, ApiError, PasswordReset>(resetPasswordQuery, {
         mutationKey: ['reset_password'],
@@ -63,7 +61,6 @@ export const usePasswordResetMutation = () => {
             showToastSuccess({
                 title: 'Password updated successfully',
             });
-            history.push('/login');
         },
         onError: (error) => {
             showToastError({

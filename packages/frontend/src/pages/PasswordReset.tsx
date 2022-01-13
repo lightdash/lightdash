@@ -26,7 +26,7 @@ type ResetPasswordForm = { password: string };
 const PasswordReset: FC = () => {
     const { code } = useParams<{ code: string }>();
     const { health } = useApp();
-    const { isLoading, isSuccess, error } = usePasswordResetLink(code);
+    const { isLoading, error } = usePasswordResetLink(code);
     const resetMutation = usePasswordResetMutation();
     const methods = useForm<ResetPasswordForm>({
         mode: 'onSubmit',
@@ -73,7 +73,7 @@ const PasswordReset: FC = () => {
                         />
                     ) : (
                         <>
-                            {!isSuccess ? (
+                            {!resetMutation.isSuccess ? (
                                 <>
                                     <H2 style={{ marginBottom: 25 }}>
                                         Reset password

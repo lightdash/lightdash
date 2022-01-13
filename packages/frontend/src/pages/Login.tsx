@@ -131,7 +131,9 @@ const Login: FC = () => {
                             style={{
                                 marginTop: 20,
                                 display: 'flex',
-                                justifyContent: 'space-between',
+                                justifyContent: health.data?.hasEmailClient
+                                    ? 'space-between'
+                                    : 'flex-end',
                                 alignItems: 'center',
                             }}
                         >
