@@ -92,6 +92,8 @@ export const SimpleChart: FC<SimpleChartProps> = ({
         };
 
         window.addEventListener('resize', listener);
+        /* eslint-disable-next-line */
+        return () => window.removeEventListener('resize', listener);
     });
 
     const activeExplore = useExplore(tableName);
