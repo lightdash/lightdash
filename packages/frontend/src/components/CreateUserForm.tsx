@@ -1,6 +1,7 @@
 import {
     Button,
     FormGroup,
+    HTMLSelect,
     InputGroup,
     Intent,
     Switch,
@@ -30,23 +31,41 @@ const CreateUserForm: FC<Props> = ({
     const [firstName, setFirstName] = useState<string>();
     const [lastName, setLastName] = useState<string>();
     const [email, setEmail] = useState<string>();
+    const [jobTitle, setJobTitle] = useState<string>();
     const [password, setPassword] = useState<string>();
     const [organizationName, setOrganizationName] = useState<string>();
     const [isMarketingOptedIn, setIsMarketingOptedIn] = useState<boolean>(true);
     const [isTrackingAnonymized, setIsTrackingAnonymized] =
         useState<boolean>(false);
 
+    const jobTitles = [
+        { value: '', label: 'Select an option...' },
+        'Data/analytics Leader (manager, director, etc.)',
+        'Data scientist',
+        'Data analyst',
+        'Data engineer',
+        'Analytics engineer',
+        'Sales',
+        'Marketing',
+        'Product',
+        'Operations',
+        'Customer service',
+        'Student',
+        'Other',
+    ];
+
     const handleLogin = () => {
         if (
             !firstName ||
             !lastName ||
+            !jobTitle ||
             !email ||
             !password ||
             (includeOrganizationName && !organizationName)
         ) {
             showToastError({
                 title: 'Invalid form data',
-                subtitle: `Required fields: first name, last name,${
+                subtitle: `Required fields: first name, last name, job title,${
                     includeOrganizationName ? ' organization name,' : ''
                 } email and password`,
             });
@@ -64,6 +83,7 @@ const CreateUserForm: FC<Props> = ({
         const createUser: Omit<CreateInitialUserArgs, 'organizationName'> = {
             firstName,
             lastName,
+            jobTitle,
             email,
             password,
             isMarketingOptedIn,
@@ -125,6 +145,21 @@ const CreateUserForm: FC<Props> = ({
                     />
                 </FormGroup>
             )}
+            <FormGroup
+                label="Job title"
+                labelFor="job-title-input"
+                labelInfo="(required)"
+            >
+                <HTMLSelect
+                    fill
+                    id="job-title-input"
+                    options={jobTitles}
+                    required
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                        setJobTitle(e.target.value)
+                    }
+                />
+            </FormGroup>
             <FormGroup
                 label="Email"
                 labelFor="email-input"

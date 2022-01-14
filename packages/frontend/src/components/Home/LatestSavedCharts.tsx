@@ -50,6 +50,7 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             fontWeight: 600,
                             marginBottom: 10,
                         }}
+                        alignText="left"
                     >
                         {name}
                     </LinkButton>

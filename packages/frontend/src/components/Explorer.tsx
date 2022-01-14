@@ -10,7 +10,7 @@ import {
     NumericInput,
     Tag,
 } from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import {
     CreateSavedQueryVersion,
     DashboardTileTypes,
@@ -176,40 +176,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                     text="Project settings"
                                     href={`/projects/${projectUuid}/settings`}
                                 />
-                                {savedQueryUuid && (
-                                    <MenuItem
-                                        icon="saved"
-                                        text="Save chart"
-                                        onClick={handleSavedQueryUpdate}
-                                    />
-                                )}
-                                <MenuItem
-                                    icon="add"
-                                    text="Save chart as"
-                                    onClick={() => setIsQueryModalOpen(true)}
-                                />
-                                {savedQueryUuid && (
-                                    <>
-                                        <MenuItem
-                                            icon="add"
-                                            text="Add chart to a new dashboard"
-                                            onClick={() =>
-                                                setIsAddToNewDashboardModalOpen(
-                                                    true,
-                                                )
-                                            }
-                                        />
-                                        <MenuItem
-                                            icon="add"
-                                            text="Add chart to an existing dashboard"
-                                            onClick={() =>
-                                                setIsAddToDashboardModalOpen(
-                                                    true,
-                                                )
-                                            }
-                                        />
-                                    </>
-                                )}
                             </Menu>
                         }
                         placement="bottom"
@@ -277,47 +243,82 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         <H5 style={{ margin: 0, padding: 0 }}>Charts</H5>
                     </div>
                     {vizIsOpen && (
-                        <ButtonGroup minimal>
-                            <Button
-                                active={activeVizTab === DBChartTypes.COLUMN}
-                                icon="timeline-bar-chart"
-                                onClick={() =>
-                                    setActiveVizTab(DBChartTypes.COLUMN)
-                                }
-                                disabled={isChartEmpty}
+                        <div
+                            style={{
+                                display: 'inline-flex',
+                                flexWrap: 'wrap',
+                                gap: '10px',
+                                marginRight: '10px',
+                            }}
+                        >
+                            <Tooltip2
+                                content="Column"
+                                placement="top"
+                                interactionKind="hover"
                             >
-                                Column
-                            </Button>
-                            <Button
-                                active={activeVizTab === DBChartTypes.BAR}
-                                icon="horizontal-bar-chart"
-                                onClick={() =>
-                                    setActiveVizTab(DBChartTypes.BAR)
-                                }
-                                disabled={isChartEmpty}
+                                <Button
+                                    minimal
+                                    active={
+                                        activeVizTab === DBChartTypes.COLUMN
+                                    }
+                                    icon="timeline-bar-chart"
+                                    onClick={() =>
+                                        setActiveVizTab(DBChartTypes.COLUMN)
+                                    }
+                                    disabled={isChartEmpty}
+                                    name="Column"
+                                />
+                            </Tooltip2>
+                            <Tooltip2
+                                content="Bar"
+                                placement="top"
+                                interactionKind="hover"
                             >
-                                Bar
-                            </Button>
-                            <Button
-                                active={activeVizTab === DBChartTypes.LINE}
-                                icon="timeline-line-chart"
-                                onClick={() =>
-                                    setActiveVizTab(DBChartTypes.LINE)
-                                }
-                                disabled={isChartEmpty}
+                                <Button
+                                    minimal
+                                    active={activeVizTab === DBChartTypes.BAR}
+                                    icon="horizontal-bar-chart"
+                                    onClick={() =>
+                                        setActiveVizTab(DBChartTypes.BAR)
+                                    }
+                                    disabled={isChartEmpty}
+                                    name="Bar"
+                                />
+                            </Tooltip2>
+                            <Tooltip2
+                                content="Line"
+                                placement="top"
+                                interactionKind="hover"
                             >
-                                Line
-                            </Button>
-                            <Button
-                                active={activeVizTab === DBChartTypes.SCATTER}
-                                icon="scatter-plot"
-                                onClick={() =>
-                                    setActiveVizTab(DBChartTypes.SCATTER)
-                                }
-                                disabled={isChartEmpty}
+                                <Button
+                                    minimal
+                                    active={activeVizTab === DBChartTypes.LINE}
+                                    icon="timeline-line-chart"
+                                    onClick={() =>
+                                        setActiveVizTab(DBChartTypes.LINE)
+                                    }
+                                    disabled={isChartEmpty}
+                                    name="Line"
+                                />
+                            </Tooltip2>
+                            <Tooltip2
+                                content="Scatter"
+                                placement="top"
+                                interactionKind="hover"
                             >
-                                Scatter
-                            </Button>
+                                <Button
+                                    minimal
+                                    active={
+                                        activeVizTab === DBChartTypes.SCATTER
+                                    }
+                                    icon="scatter-plot"
+                                    onClick={() =>
+                                        setActiveVizTab(DBChartTypes.SCATTER)
+                                    }
+                                    disabled={isChartEmpty}
+                                    name="Scatter"
+                                />
+                            </Tooltip2>
                             <ChartConfigPanel
                                 chartConfig={chartConfig}
                                 disabled={isChartEmpty}
@@ -326,7 +327,62 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                 chartRef={chartRef}
                                 disabled={isChartEmpty}
                             />
-                        </ButtonGroup>
+                            <ButtonGroup>
+                                <Button
+                                    intent="primary"
+                                    text="Save chart"
+                                    disabled={!tableName}
+                                    onClick={
+                                        savedQueryUuid
+                                            ? handleSavedQueryUpdate
+                                            : () => setIsQueryModalOpen(true)
+                                    }
+                                />
+                                {savedQueryUuid && (
+                                    <Popover2
+                                        placement="bottom"
+                                        disabled={!tableName}
+                                        content={
+                                            <Menu>
+                                                <MenuItem
+                                                    icon="add"
+                                                    text="Save chart as"
+                                                    onClick={() =>
+                                                        setIsQueryModalOpen(
+                                                            true,
+                                                        )
+                                                    }
+                                                />
+                                                <MenuItem
+                                                    icon="circle-arrow-right"
+                                                    text="Add chart to an existing dashboard"
+                                                    onClick={() =>
+                                                        setIsAddToDashboardModalOpen(
+                                                            true,
+                                                        )
+                                                    }
+                                                />
+                                                <MenuItem
+                                                    icon="control"
+                                                    text="Create dashboard with chart"
+                                                    onClick={() =>
+                                                        setIsAddToNewDashboardModalOpen(
+                                                            true,
+                                                        )
+                                                    }
+                                                />
+                                            </Menu>
+                                        }
+                                    >
+                                        <Button
+                                            icon="more"
+                                            intent="primary"
+                                            disabled={!tableName}
+                                        />
+                                    </Popover2>
+                                )}
+                            </ButtonGroup>
+                        </div>
                     )}
                 </div>
                 <Collapse className="explorer-chart" isOpen={vizIsOpen}>

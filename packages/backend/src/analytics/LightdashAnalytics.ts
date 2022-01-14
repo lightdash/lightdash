@@ -32,13 +32,19 @@ type Group = {
 };
 type TrackSimpleEvent = BaseTrack & {
     event:
-        | 'user.created'
         | 'user.logged_in'
         | 'user.updated'
         | 'password.updated'
         | 'invite_link.created'
         | 'invite_link.all_revoked'
         | 'sql.executed';
+};
+
+type CreateUserEvent = BaseTrack & {
+    event: 'user.created';
+    properties: {
+        jobTitle: string;
+    };
 };
 
 type QueryExecutionEvent = BaseTrack & {
@@ -148,6 +154,7 @@ type ApiErrorEvent = BaseTrack & {
 
 type Track =
     | TrackSimpleEvent
+    | CreateUserEvent
     | QueryExecutionEvent
     | TrackSavedChart
     | TrackUserDeletedEvent

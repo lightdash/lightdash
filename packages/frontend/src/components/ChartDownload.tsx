@@ -200,7 +200,7 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = ({
             disabled={disabled}
         >
             <Button
-                icon="export"
+                minimal
                 rightIcon="caret-down"
                 text="Export as"
                 disabled={disabled}
