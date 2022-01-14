@@ -204,25 +204,28 @@ export class UserModel {
             .delete();
     }
 
-    async getUserByOpenId(
+    async getSessionUserByOpenId(
         issuer: string,
         subject: string,
-    ): Promise<LightdashUser> {
+    ): Promise<SessionUser> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .leftJoin(
                 'openid_identities',
                 'users.user_id',
                 'openid_identities.user_id',
             )
-            .where('open_id.identities.issuer', issuer)
-            .andWhere('open_id.identities.subject', subject)
+            .where('openid_identities.issuer', issuer)
+            .andWhere('openid_identities.subject', subject)
             .select<(DbUserDetails & DbOpenIdIssuer)[]>('*');
         if (user === undefined) {
             throw new NotFoundError(
                 `No user found with associated OpenId for ${issuer}`,
             );
         }
-        return mapDbUserDetailsToLightdashUser(user);
+        return {
+            ...mapDbUserDetailsToLightdashUser(user),
+            userId: user.user_id,
+        };
     }
 
     async createUser({

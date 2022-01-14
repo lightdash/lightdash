@@ -1,9 +1,12 @@
 import express from 'express';
+import {
+    isAuthenticated,
+    unauthorisedInDemo,
+} from '../controllers/authentication';
 import { userModel } from '../models/models';
 import { UserModel } from '../models/UserModel';
 import { userService } from '../services/services';
 import { sanitizeEmailParam, sanitizeStringParam } from '../utils';
-import { isAuthenticated, unauthorisedInDemo } from './authentication';
 
 export const userRouter = express.Router();
 

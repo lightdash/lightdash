@@ -1,31 +1,31 @@
-/// <reference path="./@types/passport-google-oidc.d.ts" />
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
 import { SamplingContext } from '@sentry/types';
 import bodyParser from 'body-parser';
 import { LightdashMode, SessionUser } from 'common';
 import apiSpec from 'common/dist/openapibundle.json';
+import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
 import cookieParser from 'cookie-parser';
 import express, { NextFunction, Request, Response } from 'express';
 import * as OpenApiValidator from 'express-openapi-validator';
 import expressSession from 'express-session';
 import passport from 'passport';
-import { Strategy as GoogleStrategy } from 'passport-google-oidc';
-import { Strategy as LocalStrategy } from 'passport-local';
 import path from 'path';
 import reDoc from 'redoc-express';
-import { URL } from 'url';
 import { analytics } from './analytics/client';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
-import { apiV1Router } from './api/apiV1';
 import { lightdashConfig } from './config/lightdashConfig';
+import {
+    googlePassportStrategy,
+    localPassportStrategy,
+} from './controllers/authentication';
 import database from './database/database';
-import { AuthorizationError, errorHandler } from './errors';
+import { errorHandler } from './errors';
 import Logger from './logger';
 import { userModel } from './models/models';
 import morganMiddleware from './morganMiddleware';
-import { userService } from './services/services';
+import { apiV1Router } from './routers/apiV1Router';
 import { VERSION } from './version';
 
 // @ts-ignore
@@ -105,6 +105,7 @@ app.use(
         store,
     }),
 );
+app.use(flash());
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(
@@ -193,54 +194,19 @@ declare global {
     }
 }
 
-// passport config
-passport.use(
-    new LocalStrategy(
-        { usernameField: 'email', passwordField: 'password' },
-        async (email, password, done) => {
-            try {
-                const user = await userService.loginWithPassword(
-                    email,
-                    password,
-                );
-                return done(null, user);
-            } catch {
-                return done(
-                    new AuthorizationError(
-                        'Email and password not recognized.',
-                    ),
-                );
-            }
-        },
-    ),
-);
-if (
-    lightdashConfig.auth.google.oauth2ClientId &&
-    lightdashConfig.auth.google.oauth2ClientSecret
-) {
-    passport.use(
-        new GoogleStrategy(
-            {
-                clientID: lightdashConfig.auth.google.oauth2ClientId,
-                clientSecret: lightdashConfig.auth.google.oauth2ClientSecret,
-                callbackURL: new URL(
-                    `/api/v1${lightdashConfig.auth.google.callbackPath}`,
-                    lightdashConfig.siteUrl,
-                ).href,
-            },
-            (issuer, profile, done) => {
-                console.log(profile);
-                console.log(`Issuer: ${issuer}`);
-                throw new Error('nope');
-            },
-        ),
-    );
+passport.use(localPassportStrategy);
+if (googlePassportStrategy) {
+    passport.use(googlePassportStrategy);
 }
 passport.serializeUser((user, done) => {
+    // On login (user changes), user.userUuid is written to the session store in the `sess.passport.data` field
     done(null, user.userUuid);
 });
 
+// Before each request handler we read `sess.passport.user` from the session store
 passport.deserializeUser(async (id: string, done) => {
+    // Convert to a full user profile
     const user = await userModel.findSessionUserByUUID(id);
+    // Store that user on the request (`req`) object
     done(null, user);
 });

@@ -55,7 +55,7 @@ export class OpenIdIdentityModel {
         const [identity] = await this.database('openid_identities')
             .insert({
                 issuer,
-                subject: createIdentity.issuer,
+                subject: createIdentity.subject,
                 user_id: createIdentity.userId,
             })
             .returning('*');

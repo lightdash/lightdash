@@ -590,6 +590,34 @@ export interface SessionUser extends LightdashUser {
     userId: number;
 }
 
+export const isSessionUser = (user: any): user is SessionUser =>
+    typeof user === 'object' &&
+    user !== null &&
+    user.userUuid &&
+    user.userId &&
+    user.openId === undefined;
+
+export interface OpenIdUser {
+    openId: {
+        subject: string;
+        issuer: string;
+        email: string;
+        firstName: string | undefined;
+        lastName: string | undefined;
+    };
+}
+
+export const isOpenIdUser = (user: any): user is OpenIdUser =>
+    typeof user === 'object' &&
+    user !== null &&
+    user.userUuid === undefined &&
+    user.userId === undefined &&
+    typeof user.openId === 'object' &&
+    user.openId !== null &&
+    typeof user.openId.subject === 'string' &&
+    typeof user.openId.issuer === 'string' &&
+    typeof user.openId.email === 'string';
+
 export type OrganizationUser = Pick<
     LightdashUser,
     'userUuid' | 'firstName' | 'lastName' | 'email'
@@ -654,6 +682,8 @@ export type CompleteOnboarding = {
     showSuccess: boolean;
 };
 
+export type ApiFlashResults = Record<string, string[]>;
+
 export type OnboardingStatus = IncompleteOnboarding | CompleteOnboarding;
 
 type ApiResults =
@@ -678,7 +708,8 @@ type ApiResults =
     | Dashboard
     | DashboardBasicDetails[]
     | OnboardingStatus
-    | Dashboard[];
+    | Dashboard[]
+    | ApiFlashResults;
 
 export type ApiResponse = {
     status: 'ok';

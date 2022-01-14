@@ -5,6 +5,7 @@ import {
     InviteLink,
     LightdashMode,
     LightdashUser,
+    OpenIdUser,
     SessionUser,
     UpdateUserArgs,
 } from 'common';
@@ -20,6 +21,7 @@ import {
 } from '../errors';
 import { EmailModel } from '../models/EmailModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
+import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 
@@ -28,6 +30,7 @@ type UserServiceDependencies = {
     userModel: UserModel;
     sessionModel: SessionModel;
     emailModel: EmailModel;
+    openIdIdentityModel: OpenIdIdentityModel;
 };
 
 export class UserService {
@@ -39,16 +42,20 @@ export class UserService {
 
     private readonly emailModel: EmailModel;
 
+    private readonly openIdIdentityModel: OpenIdIdentityModel;
+
     constructor({
         inviteLinkModel,
         userModel,
         sessionModel,
         emailModel,
+        openIdIdentityModel,
     }: UserServiceDependencies) {
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
         this.sessionModel = sessionModel;
         this.emailModel = emailModel;
+        this.openIdIdentityModel = openIdIdentityModel;
     }
 
     async create(
@@ -130,26 +137,32 @@ export class UserService {
         });
     }
 
-    async loginWithOpenId(issuer: string, subject: string, email: string) {
+    async loginWithOpenId(
+        openIdUser: OpenIdUser,
+        sessionUser: SessionUser | undefined,
+    ): Promise<SessionUser | OpenIdUser> {
+        // Login to existing linked identity
         try {
-            // User exists with OpenId
-            return await this.userModel.getUserByOpenId(issuer, subject);
-        } catch (getUserError) {
-            if (getUserError instanceof NotFoundError) {
-                // Check email
-                try {
-                    const existingEmail =
-                        await this.emailModel.getEmailByAddress(email);
-                    // Associate account with email
-                } catch (getEmailError) {
-                    if (getEmailError instanceof NotFoundError) {
-                        // Create a new account
-                    }
-                    throw getEmailError;
-                }
+            return await this.userModel.getSessionUserByOpenId(
+                openIdUser.openId.issuer,
+                openIdUser.openId.subject,
+            );
+        } catch (e) {
+            if (!(e instanceof NotFoundError)) {
+                throw e;
             }
-            throw getUserError;
         }
+        // Link openid identity to logged-in user
+        if (sessionUser?.userId) {
+            await this.openIdIdentityModel.createIdentity({
+                userId: sessionUser.userId,
+                issuer: openIdUser.openId.issuer,
+                subject: openIdUser.openId.subject,
+            });
+            return sessionUser;
+        }
+        // Return an OpenId User
+        return openIdUser;
     }
 
     async getInviteLink(inviteCode: string): Promise<InviteLink> {

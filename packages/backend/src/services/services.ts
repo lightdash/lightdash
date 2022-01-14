@@ -4,6 +4,7 @@ import {
     emailModel,
     inviteLinkModel,
     onboardingModel,
+    openIdIdentityModel,
     organizationModel,
     projectModel,
     sessionModel,
@@ -21,6 +22,7 @@ export const userService = new UserService({
     userModel,
     sessionModel,
     emailModel,
+    openIdIdentityModel,
 });
 export const organizationService = new OrganizationService({
     organizationModel,

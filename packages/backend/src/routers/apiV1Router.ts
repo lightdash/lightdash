@@ -1,11 +1,19 @@
 import express from 'express';
 import passport from 'passport';
+import { lightdashConfig } from '../config/lightdashConfig';
+import {
+    getGoogleLogin,
+    getGoogleLoginFailure,
+    getGoogleLoginSuccess,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from '../controllers/authentication';
+import { getFlash } from '../controllers/flash';
 import { userModel } from '../models/models';
 import { SavedQueriesModel } from '../models/savedQueries';
 import { UserModel } from '../models/UserModel';
 import { healthService, userService } from '../services/services';
 import { sanitizeEmailParam, sanitizeStringParam } from '../utils';
-import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { dashboardRouter } from './dashboardRouter';
 import { inviteLinksRouter } from './inviteLinksRouter';
 import { organizationRouter } from './organizationRouter';
@@ -25,6 +33,8 @@ apiV1Router.get('/health', async (req, res, next) => {
         )
         .catch(next);
 });
+
+apiV1Router.get('/flash', getFlash);
 
 apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
     try {
@@ -70,6 +80,7 @@ apiV1Router.post('/login', passport.authenticate('local'), (req, res, next) => {
 
 apiV1Router.get(
     lightdashConfig.auth.google.loginPath,
+    getGoogleLogin,
     passport.authenticate('google', {
         scope: ['profile', 'email'],
     }),
@@ -78,14 +89,13 @@ apiV1Router.get(
 apiV1Router.get(
     lightdashConfig.auth.google.callbackPath,
     passport.authenticate('google', {
-        failureMessage: true,
-        failureRedirect: '/',
+        failureRedirect: '/api/v1/oauth/google/failure',
+        successRedirect: '/api/v1/oauth/google/success',
+        failureFlash: true,
     }),
-    (req, res) => {
-        console.log(req);
-        res.redirect('/');
-    },
 );
+apiV1Router.get('/oauth/google/failure', getGoogleLoginFailure);
+apiV1Router.get('/oauth/google/success', getGoogleLoginSuccess);
 
 apiV1Router.get('/logout', (req, res, next) => {
     req.logout();

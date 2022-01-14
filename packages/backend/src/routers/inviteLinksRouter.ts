@@ -1,7 +1,10 @@
 import { CreateInviteLink } from 'common';
 import express from 'express';
+import {
+    isAuthenticated,
+    unauthorisedInDemo,
+} from '../controllers/authentication';
 import { userService } from '../services/services';
-import { isAuthenticated, unauthorisedInDemo } from './authentication';
 
 export const inviteLinksRouter = express.Router();
 

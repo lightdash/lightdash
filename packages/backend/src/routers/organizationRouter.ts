@@ -1,5 +1,9 @@
 import { OnboardingStatus } from 'common';
 import express from 'express';
+import {
+    isAuthenticated,
+    unauthorisedInDemo,
+} from '../controllers/authentication';
 import { ForbiddenError } from '../errors';
 import {
     organizationService,
@@ -7,7 +11,6 @@ import {
     savedChartsService,
     userService,
 } from '../services/services';
-import { isAuthenticated, unauthorisedInDemo } from './authentication';
 
 export const organizationRouter = express.Router();
 

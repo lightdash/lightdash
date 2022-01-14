@@ -10,10 +10,13 @@ import {
     TablesConfiguration,
 } from 'common';
 import express from 'express';
+import {
+    isAuthenticated,
+    unauthorisedInDemo,
+} from '../controllers/authentication';
 import Logger from '../logger';
 import { SavedQueriesModel } from '../models/savedQueries';
 import { dashboardService, projectService } from '../services/services';
-import { isAuthenticated, unauthorisedInDemo } from './authentication';
 
 export const projectRouter = express.Router({ mergeParams: true });
 
