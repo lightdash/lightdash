@@ -1,6 +1,10 @@
 import { CreateSnowflakeCredentials, DimensionType } from 'common';
 import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
-import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
+import {
+    ParseError,
+    WarehouseConnectionError,
+    WarehouseQueryError,
+} from '../../errors';
 import { WarehouseCatalog, WarehouseClient } from '../../types';
 
 export enum SnowflakeTypes {
@@ -34,8 +38,20 @@ export enum SnowflakeTypes {
     GEOGRAPHY = 'GEOGRAPHY',
 }
 
+const normaliseSnowflakeType = (type: string): string => {
+    const r = /^[A-Z]+/;
+    const match = r.exec(type);
+    if (match === null) {
+        throw new ParseError(
+            `Cannot understand type from Databricks: ${type}`,
+            {},
+        );
+    }
+    return match[0];
+};
+
 const mapFieldType = (type: string): DimensionType => {
-    switch (type) {
+    switch (normaliseSnowflakeType(type)) {
         case SnowflakeTypes.NUMBER:
         case SnowflakeTypes.DECIMAL:
         case SnowflakeTypes.NUMERIC:
