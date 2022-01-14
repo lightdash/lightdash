@@ -44,7 +44,7 @@ import CreateSavedDashboardModal from './SavedDashboards/CreateSavedDashboardMod
 import DashboardForm from './SavedDashboards/DashboardForm';
 import CreateSavedQueryModal from './SavedQueries/CreateSavedQueryModal';
 import SavedQueryForm from './SavedQueries/SavedQueryForm';
-import { SimpleChart } from './SimpleChart';
+import SimpleChart from './SimpleChart';
 
 interface Props {
     savedQueryUuid?: string;

@@ -8,8 +8,8 @@ import {
 } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject, useEffect } from 'react';
-import { ChartConfig } from '../hooks/useChartConfig';
-import { useExplore } from '../hooks/useExplore';
+import { ChartConfig } from '../../hooks/useChartConfig';
+import { useExplore } from '../../hooks/useExplore';
 
 const flipXFromChartType = (chartType: DBChartTypes) => {
     switch (chartType) {
@@ -76,7 +76,7 @@ type SimpleChartProps = {
     chartType: DBChartTypes;
     chartConfig: ChartConfig;
 };
-export const SimpleChart: FC<SimpleChartProps> = ({
+const SimpleChart: FC<SimpleChartProps> = ({
     isLoading,
     tableName,
     chartRef,
@@ -84,15 +84,13 @@ export const SimpleChart: FC<SimpleChartProps> = ({
     chartConfig,
 }) => {
     useEffect(() => {
-        if (!chartRef.current) return;
-
         const listener = () => {
             const eCharts = chartRef.current?.getEchartsInstance();
             eCharts?.resize();
         };
 
         window.addEventListener('resize', listener);
-        /* eslint-disable-next-line */
+
         return () => window.removeEventListener('resize', listener);
     });
 
@@ -188,3 +186,5 @@ export const SimpleChart: FC<SimpleChartProps> = ({
         </div>
     );
 };
+
+export default SimpleChart;
