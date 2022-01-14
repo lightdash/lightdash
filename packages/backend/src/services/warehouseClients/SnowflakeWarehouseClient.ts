@@ -50,7 +50,7 @@ const normaliseSnowflakeType = (type: string): string => {
     return match[0];
 };
 
-const mapFieldType = (type: string): DimensionType => {
+export const mapFieldType = (type: string): DimensionType => {
     switch (normaliseSnowflakeType(type)) {
         case SnowflakeTypes.NUMBER:
         case SnowflakeTypes.DECIMAL:
