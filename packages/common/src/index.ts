@@ -649,11 +649,22 @@ export type CreateOpenIdIdentity = {
     subject: string;
     issuer: string;
     userId: number;
+    email: string;
 };
+
+export type UpdateOpenIdentity = Pick<
+    CreateOpenIdIdentity,
+    'subject' | 'issuer' | 'email'
+>;
 
 export type OpenIdIdentity = CreateOpenIdIdentity & {
     createdAt: Date;
 };
+
+export type OpenIdIdentitySummary = Pick<
+    OpenIdIdentity,
+    'issuer' | 'email' | 'createdAt'
+>;
 
 export type ApiHealthResults = HealthState;
 export type InviteLink = {
@@ -709,7 +720,8 @@ type ApiResults =
     | DashboardBasicDetails[]
     | OnboardingStatus
     | Dashboard[]
-    | ApiFlashResults;
+    | ApiFlashResults
+    | OpenIdIdentitySummary[];
 
 export type ApiResponse = {
     status: 'ok';

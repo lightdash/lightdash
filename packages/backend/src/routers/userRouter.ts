@@ -3,6 +3,7 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
+import { getUserIdentities } from '../controllers/userController';
 import { userModel } from '../models/models';
 import { UserModel } from '../models/UserModel';
 import { userService } from '../services/services';
@@ -84,3 +85,5 @@ userRouter.post(
             })
             .catch(next),
 );
+
+userRouter.get('/identities', isAuthenticated, getUserIdentities);

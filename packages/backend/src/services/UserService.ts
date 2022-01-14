@@ -5,6 +5,7 @@ import {
     InviteLink,
     LightdashMode,
     LightdashUser,
+    OpenIdIdentitySummary,
     OpenIdUser,
     SessionUser,
     UpdateUserArgs,
@@ -143,10 +144,14 @@ export class UserService {
     ): Promise<SessionUser | OpenIdUser> {
         // Login to existing linked identity
         try {
-            return await this.userModel.getSessionUserByOpenId(
+            const loginUser = await this.userModel.getSessionUserByOpenId(
                 openIdUser.openId.issuer,
                 openIdUser.openId.subject,
             );
+            await this.openIdIdentityModel.updateIdentityByOpenId(
+                openIdUser.openId,
+            );
+            return loginUser;
         } catch (e) {
             if (!(e instanceof NotFoundError)) {
                 throw e;
@@ -158,11 +163,18 @@ export class UserService {
                 userId: sessionUser.userId,
                 issuer: openIdUser.openId.issuer,
                 subject: openIdUser.openId.subject,
+                email: openIdUser.openId.email,
             });
             return sessionUser;
         }
         // Return an OpenId User
         return openIdUser;
+    }
+
+    async getLinkedIdentities({
+        userId,
+    }: Pick<SessionUser, 'userId'>): Promise<OpenIdIdentitySummary[]> {
+        return this.openIdIdentityModel.getIdentitiesByUserId(userId);
     }
 
     async getInviteLink(inviteCode: string): Promise<InviteLink> {

@@ -4,7 +4,6 @@ import React, { FC, useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
 import { useApp } from '../../providers/AppProvider';
-import { GoogleLoginButton } from '../common/GoogleLoginButton';
 
 const updateUserQuery = async (data: UpdateUserArgs) =>
     lightdashApi<LightdashUser>({
@@ -133,7 +132,6 @@ const ProfilePanel: FC = () => {
                 loading={isLoading}
                 data-cy="update-profile-settings"
             />
-            <GoogleLoginButton />
         </div>
     );
 };

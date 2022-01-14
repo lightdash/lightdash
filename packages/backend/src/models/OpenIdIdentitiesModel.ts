@@ -1,8 +1,13 @@
-import { CreateOpenIdIdentity, OpenIdIdentity } from 'common';
+import {
+    CreateOpenIdIdentity,
+    OpenIdIdentity,
+    OpenIdIdentitySummary,
+    UpdateOpenIdentity,
+} from 'common';
 import { Knex } from 'knex';
 import { URL } from 'url';
 import { DbOpenIdIdentity } from '../database/entities/openIdIdentities';
-import { NotExistsError } from '../errors';
+import { NotExistsError, NotFoundError } from '../errors';
 
 type OpenIdIdentityModelDependencies = {
     database: Knex;
@@ -23,6 +28,7 @@ export class OpenIdIdentityModel {
             subject: identity.subject,
             createdAt: identity.created_at,
             userId: identity.user_id,
+            email: identity.email,
         };
     }
 
@@ -40,12 +46,38 @@ export class OpenIdIdentityModel {
         return OpenIdIdentityModel._parseDbIdentity(identity);
     }
 
-    async getIdentitiesByUserId(userId: number): Promise<OpenIdIdentity[]> {
+    async updateIdentityByOpenId({
+        email,
+        subject,
+        issuer,
+    }: UpdateOpenIdentity): Promise<OpenIdIdentity> {
+        const [identity] = await this.database('openid_identities')
+            .update({ email })
+            .where('issuer', issuer)
+            .andWhere('subject', subject)
+            .returning('*');
+        if (!identity) {
+            throw new NotFoundError(
+                'No identity exists with subject and issuer',
+            );
+        }
+        return OpenIdIdentityModel._parseDbIdentity(identity);
+    }
+
+    async getIdentitiesByUserId(
+        userId: number,
+    ): Promise<OpenIdIdentitySummary[]> {
         const identities = await this.database('openid_identities').where(
             'user_id',
             userId,
         );
-        return identities.map(OpenIdIdentityModel._parseDbIdentity);
+        return identities
+            .map(OpenIdIdentityModel._parseDbIdentity)
+            .map((id) => ({
+                issuer: id.issuer,
+                email: id.email,
+                createdAt: id.createdAt,
+            }));
     }
 
     async createIdentity(
@@ -57,6 +89,7 @@ export class OpenIdIdentityModel {
                 issuer,
                 subject: createIdentity.subject,
                 user_id: createIdentity.userId,
+                email: createIdentity.email,
             })
             .returning('*');
         return OpenIdIdentityModel._parseDbIdentity(identity);

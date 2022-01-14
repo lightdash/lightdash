@@ -26,8 +26,9 @@ export async function up(knex: Knex): Promise<void> {
                 .onDelete('CASCADE');
             tableBuilder
                 .timestamp('created_at', { useTz: false })
-                .nullable()
+                .notNullable()
                 .defaultTo(knex.fn.now());
+            tableBuilder.string('email').notNullable();
         });
     }
 }

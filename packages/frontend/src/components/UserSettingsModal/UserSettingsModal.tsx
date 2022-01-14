@@ -8,6 +8,7 @@ import OrganizationPanel from './OrganizationPanel';
 import PasswordPanel from './PasswordPanel';
 import ProfilePanel from './ProfilePanel';
 import ProjectManagementPanel from './ProjectManagementPanel';
+import { SocialLoginsPanel } from './SocialLoginsPanel';
 import UserManagementPanel from './UserManagementPanel';
 import './UserSettingsModal.css';
 
@@ -110,6 +111,19 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                                 category={CategoryName.SETTINGS}
                             >
                                 <ProjectManagementPanel />
+                            </TrackPage>
+                        }
+                    />
+                    <Tab
+                        id="socialLogins"
+                        title="Social logins"
+                        panel={
+                            <TrackPage
+                                name={PageName.PASSWORD_SETTINGS}
+                                type={PageType.MODAL}
+                                category={CategoryName.SETTINGS}
+                            >
+                                <SocialLoginsPanel />
                             </TrackPage>
                         }
                     />

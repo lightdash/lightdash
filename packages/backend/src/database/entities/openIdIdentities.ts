@@ -5,6 +5,7 @@ export type DbOpenIdIdentity = {
     subject: string;
     user_id: number;
     created_at: Date;
+    email: string;
 };
 
 export const OpenIdIdentitiesTableName = 'openid_identities';
