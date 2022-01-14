@@ -204,10 +204,10 @@ export class UserModel {
             .delete();
     }
 
-    async getSessionUserByOpenId(
+    async findSessionUserByOpenId(
         issuer: string,
         subject: string,
-    ): Promise<SessionUser> {
+    ): Promise<SessionUser | undefined> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .leftJoin(
                 'openid_identities',
@@ -217,15 +217,12 @@ export class UserModel {
             .where('openid_identities.issuer', issuer)
             .andWhere('openid_identities.subject', subject)
             .select<(DbUserDetails & DbOpenIdIssuer)[]>('*');
-        if (user === undefined) {
-            throw new NotFoundError(
-                `No user found with associated OpenId for ${issuer}`,
-            );
-        }
-        return {
-            ...mapDbUserDetailsToLightdashUser(user),
-            userId: user.user_id,
-        };
+        return (
+            user && {
+                ...mapDbUserDetailsToLightdashUser(user),
+                userId: user.user_id,
+            }
+        );
     }
 
     async createUser({

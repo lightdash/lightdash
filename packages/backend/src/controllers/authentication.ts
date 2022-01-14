@@ -23,13 +23,22 @@ import { userService } from '../services/services';
 // 5. Then passport looks for `req.session.passport.user` and passes the data to `deserializeUser`
 // 6. `deserializeUser` translates `req.session.pasport.user` to a full user object and saves it on `req.user`
 
-// How a user is logs in
+// How a userlogs in
 // 1. User sends login credentials to /login
 // 2. passport.LocalStrategy compares the login details to data in postgres
 // 3. passport.LocalStrategy creates a full user object and attaches it to `req.user`
 // 4. `serializeUser` is called, which takes the full user object from `req.user`
 // 5. `serializeUser` stores the user id on the request session `req.session.passport.user`
 // 6. express-session saves the data on `req.session` to the session table in postgres under `sess`
+
+// How a user links accounts with Google
+// 1. User clicks button in frontend that opens /oauth/google/login - we also remember the page the user started on
+// 2. passport.GoogleStrategy redirects the browser to Google where the user signs in to google and agrees to pass info to Lightdash
+// 3. Google redirects the user to /oauth/google/callback with a secret token to show Lightdash that the user authenticated
+// 4. passport.GoogleStrategy uses the token to send a request to Google to get the full profile information OpenIdUser
+// 5. passport.GoogleStrategy compares the google details to data in postgres
+// 6. passport.GoogleStrategy creates a full user object and attaches it to `req.user`
+// 7. Follow steps 4-6 from "How a user is logs in"
 
 export const getSessionUserFromRequest = ({
     user,
@@ -65,8 +74,18 @@ export const localPassportStrategy = new LocalStrategy(
 export const getGoogleLogin: RequestHandler = (req, res, next) => {
     const { redirect } = req.query;
     if (typeof redirect === 'string') {
-        req.session.returnTo = redirect;
-        console.log(`Set redirect to ${req.session.returnTo}`);
+        try {
+            const redirectUrl = new URL(redirect);
+            const originUrl = new URL(lightdashConfig.siteUrl);
+            if (
+                redirectUrl.host === originUrl.host ||
+                process.env.NODE_ENV === 'development'
+            ) {
+                req.session.returnTo = redirect;
+            }
+        } catch (e) {
+            next(); // fail silently if we can't parse url
+        }
     }
     next();
 };

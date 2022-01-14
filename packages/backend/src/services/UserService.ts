@@ -141,23 +141,21 @@ export class UserService {
     async loginWithOpenId(
         openIdUser: OpenIdUser,
         sessionUser: SessionUser | undefined,
-    ): Promise<SessionUser | OpenIdUser> {
-        // Login to existing linked identity
-        try {
-            const loginUser = await this.userModel.getSessionUserByOpenId(
-                openIdUser.openId.issuer,
-                openIdUser.openId.subject,
-            );
+    ): Promise<SessionUser | undefined> {
+        const loginUser = await this.userModel.findSessionUserByOpenId(
+            openIdUser.openId.issuer,
+            openIdUser.openId.subject,
+        );
+
+        // Identity already exists. Update the identity attributes and login the user
+        if (loginUser) {
             await this.openIdIdentityModel.updateIdentityByOpenId(
                 openIdUser.openId,
             );
             return loginUser;
-        } catch (e) {
-            if (!(e instanceof NotFoundError)) {
-                throw e;
-            }
         }
-        // Link openid identity to logged-in user
+
+        // User already logged in? Link openid identity to logged-in user
         if (sessionUser?.userId) {
             await this.openIdIdentityModel.createIdentity({
                 userId: sessionUser.userId,
@@ -167,8 +165,7 @@ export class UserService {
             });
             return sessionUser;
         }
-        // Return an OpenId User
-        return openIdUser;
+        return undefined;
     }
 
     async getLinkedIdentities({

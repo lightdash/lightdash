@@ -135,7 +135,7 @@ const Login: FC = () => {
                             data-cy="login-button"
                         />
                     </Form>
-                    {health.data?.auth.google.loginPath && (
+                    {health.data?.auth.google.oauth2ClientId && (
                         <>
                             <span style={{ textAlign: 'center', margin: 15 }}>
                                 <b>or</b>

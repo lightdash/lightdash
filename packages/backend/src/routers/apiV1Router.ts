@@ -8,7 +8,6 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
-import { getFlash } from '../controllers/flash';
 import { userModel } from '../models/models';
 import { SavedQueriesModel } from '../models/savedQueries';
 import { UserModel } from '../models/UserModel';
@@ -34,7 +33,12 @@ apiV1Router.get('/health', async (req, res, next) => {
         .catch(next);
 });
 
-apiV1Router.get('/flash', getFlash);
+apiV1Router.get('/flash', (req, res) => {
+    res.json({
+        status: 'ok',
+        results: req.flash(),
+    });
+});
 
 apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
     try {
