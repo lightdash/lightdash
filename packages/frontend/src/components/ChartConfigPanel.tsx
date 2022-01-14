@@ -163,7 +163,6 @@ export const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
         >
             <Button
                 minimal
-                icon="settings"
                 rightIcon="caret-down"
                 text="Configure"
                 disabled={disabled}
