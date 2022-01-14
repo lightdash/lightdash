@@ -1,4 +1,9 @@
 import React, { FC } from 'react';
+import {
+    hasWhiteSpaces,
+    isGitRepository,
+    startWithSlash,
+} from '../../../utils/fieldValidators';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 
@@ -10,6 +15,9 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasWhiteSpaces: hasWhiteSpaces('Personal access token'),
+                },
             }}
             placeholder={disabled ? '*******' : undefined}
             disabled={disabled}
@@ -20,6 +28,10 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#repository"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasWhiteSpaces: hasWhiteSpaces('Repository'),
+                    isGitRepository: isGitRepository('Repository'),
+                },
             }}
             disabled={disabled}
             placeholder="org/project"
@@ -30,6 +42,9 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#branch"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasWhiteSpaces: hasWhiteSpaces('Branch'),
+                },
             }}
             disabled={disabled}
             defaultValue="main"
@@ -40,6 +55,10 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project-directory-path"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasWhiteSpaces: hasWhiteSpaces('Project directory path'),
+                    startWithSlash: startWithSlash('Project directory path'),
+                },
             }}
             disabled={disabled}
             defaultValue="/"

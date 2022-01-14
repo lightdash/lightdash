@@ -1,6 +1,7 @@
 import { Button } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
+import { hasWhiteSpaces } from '../../../utils/fieldValidators';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
@@ -19,6 +20,9 @@ const PostgresForm: FC<{
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#host"
                 rules={{
                     required: 'Required field',
+                    validate: {
+                        hasWhiteSpaces: hasWhiteSpaces('Host'),
+                    },
                 }}
                 disabled={disabled}
             />
@@ -28,6 +32,9 @@ const PostgresForm: FC<{
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#user"
                 rules={{
                     required: 'Required field',
+                    validate: {
+                        hasWhiteSpaces: hasWhiteSpaces('User'),
+                    },
                 }}
                 disabled={disabled}
             />
@@ -46,6 +53,9 @@ const PostgresForm: FC<{
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#db-name"
                 rules={{
                     required: 'Required field',
+                    validate: {
+                        hasWhiteSpaces: hasWhiteSpaces('DB name'),
+                    },
                 }}
                 disabled={disabled}
             />
@@ -55,6 +65,9 @@ const PostgresForm: FC<{
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#schema"
                 rules={{
                     required: 'Required field',
+                    validate: {
+                        hasWhiteSpaces: hasWhiteSpaces('Schema'),
+                    },
                 }}
                 disabled={disabled}
             />
@@ -65,6 +78,9 @@ const PostgresForm: FC<{
                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#port"
                     rules={{
                         required: 'Required field',
+                        validate: {
+                            hasWhiteSpaces: hasWhiteSpaces('Port'),
+                        },
                     }}
                     disabled={disabled}
                     defaultValue={5432}

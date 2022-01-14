@@ -1,4 +1,9 @@
 import React, { FC } from 'react';
+import {
+    hasWhiteSpaces,
+    isGitRepository,
+    startWithSlash,
+} from '../../../utils/fieldValidators';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 
@@ -20,6 +25,10 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#repository-1"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasWhiteSpaces: hasWhiteSpaces('Repository'),
+                    isGitRepository: isGitRepository('Repository'),
+                },
             }}
             disabled={disabled}
             placeholder="org/project"
@@ -30,6 +39,9 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#branch-1"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasWhiteSpaces: hasWhiteSpaces('Branch'),
+                },
             }}
             disabled={disabled}
             defaultValue="main"
@@ -40,6 +52,10 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project-directory-path-1"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasWhiteSpaces: hasWhiteSpaces('Project directory path'),
+                    startWithSlash: startWithSlash('Project directory path'),
+                },
             }}
             disabled={disabled}
             defaultValue="/"
@@ -50,6 +66,11 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com"
             disabled={disabled}
             defaultValue="gitlab.com"
+            rules={{
+                validate: {
+                    hasWhiteSpaces: hasWhiteSpaces('Host domain'),
+                },
+            }}
         />
     </>
 );
