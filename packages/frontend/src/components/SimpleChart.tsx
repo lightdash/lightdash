@@ -7,7 +7,7 @@ import {
     getFieldLabel,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
-import React, { FC, RefObject } from 'react';
+import React, { FC, RefObject, useEffect } from 'react';
 import { ChartConfig } from '../hooks/useChartConfig';
 import { useExplore } from '../hooks/useExplore';
 
@@ -83,6 +83,17 @@ export const SimpleChart: FC<SimpleChartProps> = ({
     chartType,
     chartConfig,
 }) => {
+    useEffect(() => {
+        if (!chartRef.current) return;
+
+        const listener = () => {
+            const eCharts = chartRef.current?.getEchartsInstance();
+            eCharts?.resize();
+        };
+
+        window.addEventListener('resize', listener);
+    });
+
     const activeExplore = useExplore(tableName);
     if (isLoading || !activeExplore.data) return <LoadingChart />;
     if (chartConfig.plotData === undefined) return <EmptyChart />;
@@ -159,6 +170,7 @@ export const SimpleChart: FC<SimpleChartProps> = ({
             confine: true,
         },
     };
+
     return (
         <div style={{ padding: 10, height: '100%' }}>
             <EChartsReact
