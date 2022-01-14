@@ -152,6 +152,15 @@ export class UserService {
             await this.openIdIdentityModel.updateIdentityByOpenId(
                 openIdUser.openId,
             );
+            identifyUser(loginUser);
+            analytics.track({
+                organizationId: loginUser.organizationUuid,
+                userId: loginUser.userUuid,
+                event: 'user.logged_in',
+                properties: {
+                    loginProvider: 'google',
+                },
+            });
             return loginUser;
         }
 
@@ -162,6 +171,14 @@ export class UserService {
                 issuer: openIdUser.openId.issuer,
                 subject: openIdUser.openId.subject,
                 email: openIdUser.openId.email,
+            });
+            analytics.track({
+                organizationId: sessionUser.organizationUuid,
+                userId: sessionUser.userUuid,
+                event: 'user.identity_linked',
+                properties: {
+                    loginProvider: 'google',
+                },
             });
             return sessionUser;
         }
@@ -203,6 +220,9 @@ export class UserService {
                 organizationId: user.organizationUuid,
                 userId: user.userUuid,
                 event: 'user.logged_in',
+                properties: {
+                    loginProvider: 'password',
+                },
             });
             return user;
         } catch (e) {
