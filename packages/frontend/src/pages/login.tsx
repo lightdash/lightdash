@@ -135,7 +135,14 @@ const Login: FC = () => {
                             data-cy="login-button"
                         />
                     </Form>
-                    <GoogleLoginButton />
+                    {health.data?.auth.google.loginPath && (
+                        <>
+                            <span style={{ textAlign: 'center', margin: 15 }}>
+                                <b>or</b>
+                            </span>
+                            <GoogleLoginButton />
+                        </>
+                    )}
                 </Card>
             </div>
         </Page>
