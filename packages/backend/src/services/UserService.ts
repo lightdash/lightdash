@@ -5,6 +5,8 @@ import {
     InviteLink,
     LightdashMode,
     LightdashUser,
+    OpenIdIdentitySummary,
+    OpenIdUser,
     SessionUser,
     UpdateUserArgs,
 } from 'common';
@@ -18,7 +20,9 @@ import {
     NotExistsError,
     NotFoundError,
 } from '../errors';
+import { EmailModel } from '../models/EmailModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
+import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 
@@ -26,6 +30,8 @@ type UserServiceDependencies = {
     inviteLinkModel: InviteLinkModel;
     userModel: UserModel;
     sessionModel: SessionModel;
+    emailModel: EmailModel;
+    openIdIdentityModel: OpenIdIdentityModel;
 };
 
 export class UserService {
@@ -35,14 +41,22 @@ export class UserService {
 
     private readonly sessionModel: SessionModel;
 
+    private readonly emailModel: EmailModel;
+
+    private readonly openIdIdentityModel: OpenIdIdentityModel;
+
     constructor({
         inviteLinkModel,
         userModel,
         sessionModel,
+        emailModel,
+        openIdIdentityModel,
     }: UserServiceDependencies) {
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
         this.sessionModel = sessionModel;
+        this.emailModel = emailModel;
+        this.openIdIdentityModel = openIdIdentityModel;
     }
 
     async create(
@@ -124,6 +138,59 @@ export class UserService {
         });
     }
 
+    async loginWithOpenId(
+        openIdUser: OpenIdUser,
+        sessionUser: SessionUser | undefined,
+    ): Promise<SessionUser | undefined> {
+        const loginUser = await this.userModel.findSessionUserByOpenId(
+            openIdUser.openId.issuer,
+            openIdUser.openId.subject,
+        );
+
+        // Identity already exists. Update the identity attributes and login the user
+        if (loginUser) {
+            await this.openIdIdentityModel.updateIdentityByOpenId(
+                openIdUser.openId,
+            );
+            identifyUser(loginUser);
+            analytics.track({
+                organizationId: loginUser.organizationUuid,
+                userId: loginUser.userUuid,
+                event: 'user.logged_in',
+                properties: {
+                    loginProvider: 'google',
+                },
+            });
+            return loginUser;
+        }
+
+        // User already logged in? Link openid identity to logged-in user
+        if (sessionUser?.userId) {
+            await this.openIdIdentityModel.createIdentity({
+                userId: sessionUser.userId,
+                issuer: openIdUser.openId.issuer,
+                subject: openIdUser.openId.subject,
+                email: openIdUser.openId.email,
+            });
+            analytics.track({
+                organizationId: sessionUser.organizationUuid,
+                userId: sessionUser.userUuid,
+                event: 'user.identity_linked',
+                properties: {
+                    loginProvider: 'google',
+                },
+            });
+            return sessionUser;
+        }
+        return undefined;
+    }
+
+    async getLinkedIdentities({
+        userId,
+    }: Pick<SessionUser, 'userId'>): Promise<OpenIdIdentitySummary[]> {
+        return this.openIdIdentityModel.getIdentitiesByUserId(userId);
+    }
+
     async getInviteLink(inviteCode: string): Promise<InviteLink> {
         const inviteLink = await this.inviteLinkModel.findByCode(inviteCode);
         const now = new Date();
@@ -153,6 +220,9 @@ export class UserService {
                 organizationId: user.organizationUuid,
                 userId: user.userUuid,
                 event: 'user.logged_in',
+                properties: {
+                    loginProvider: 'password',
+                },
             });
             return user;
         } catch (e) {

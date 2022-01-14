@@ -2,8 +2,10 @@ import { lightdashConfig } from '../config/lightdashConfig';
 import database from '../database/database';
 import { EncryptionService } from '../services/EncryptionService/EncryptionService';
 import { DashboardModel } from './DashboardModel/DashboardModel';
+import { EmailModel } from './EmailModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
+import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationModel } from './OrganizationModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { SessionModel } from './SessionModel';
@@ -22,3 +24,5 @@ export const projectModel = new ProjectModel({
     encryptionService,
 });
 export const onboardingModel = new OnboardingModel({ database });
+export const emailModel = new EmailModel({ database });
+export const openIdIdentityModel = new OpenIdIdentityModel({ database });

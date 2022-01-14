@@ -13,6 +13,7 @@ import {
     EmailTableName,
 } from '../database/entities/emails';
 import { InviteLinkTableName } from '../database/entities/inviteLinks';
+import { DbOpenIdIssuer } from '../database/entities/openIdIdentities';
 import { createOrganizationMembership } from '../database/entities/organizationMemberships';
 import { createOrganization } from '../database/entities/organizations';
 import { createPasswordLogin } from '../database/entities/passwordLogins';
@@ -201,6 +202,27 @@ export class UserModel {
         await this.database(UserTableName)
             .where('user_uuid', userUuid)
             .delete();
+    }
+
+    async findSessionUserByOpenId(
+        issuer: string,
+        subject: string,
+    ): Promise<SessionUser | undefined> {
+        const [user] = await userDetailsQueryBuilder(this.database)
+            .leftJoin(
+                'openid_identities',
+                'users.user_id',
+                'openid_identities.user_id',
+            )
+            .where('openid_identities.issuer', issuer)
+            .andWhere('openid_identities.subject', subject)
+            .select<(DbUserDetails & DbOpenIdIssuer)[]>('*');
+        return (
+            user && {
+                ...mapDbUserDetailsToLightdashUser(user),
+                userId: user.user_id,
+            }
+        );
     }
 
     async createUser({

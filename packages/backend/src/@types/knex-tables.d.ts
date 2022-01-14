@@ -23,6 +23,10 @@ import {
     OnboardingTableName,
 } from '../database/entities/onboarding';
 import {
+    OpenIdIdentitiesTable,
+    OpenIdIdentitiesTableName,
+} from '../database/entities/openIdIdentities';
+import {
     OrganizationTable,
     OrganizationTableName,
 } from '../database/entities/organizations';
@@ -61,5 +65,6 @@ declare module 'knex/types/tables' {
         [DashboardTileLoomsTableName]: DashboardTileLoomsTable;
         [DashboardTileMarkdownsTableName]: DashboardTileMarkdownsTable;
         [OnboardingTableName]: OnboardingTable;
+        [OpenIdIdentitiesTableName]: OpenIdIdentitiesTable;
     }
 }

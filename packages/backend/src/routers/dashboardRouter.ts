@@ -1,6 +1,9 @@
 import express from 'express';
+import {
+    isAuthenticated,
+    unauthorisedInDemo,
+} from '../controllers/authentication';
 import { dashboardService } from '../services/services';
-import { isAuthenticated, unauthorisedInDemo } from './authentication';
 
 export const dashboardRouter = express.Router({ mergeParams: true });
 

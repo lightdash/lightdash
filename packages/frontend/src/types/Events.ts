@@ -26,6 +26,7 @@ export enum PageName {
     SAVED_DASHBOARDS = 'saved_dashboards',
     DASHBOARD = 'DASHBOARD',
     SQL_RUNNER = 'SQL_RUNNER',
+    SOCIAL_LOGIN_SETTINGS = 'social_login_settings',
 }
 
 export enum CategoryName {
