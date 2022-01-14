@@ -39,7 +39,7 @@ Copy and paste the url while you're exploring data and anybody with access to yo
 
 #### Save your chart
 
-You can create a new saved chart or update an existing saved chart by clicking on the three dots beside `refresh dbt`.
+You can create a new saved chart or update an existing saved chart by clicking the 'Save chart' button on the chart panel.
 
 ![save chart action](./assets/save_chart_action.png)
 

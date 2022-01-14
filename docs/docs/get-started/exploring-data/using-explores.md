@@ -45,7 +45,7 @@ When you open a saved charts, it will always update to display the latest data i
 ![save chart button](./assets/save_chart_action.png)
 
 To save a chart: 
-1. In the top right of the Explore you will find the "three dots" and an option to save your chart.
+1. In chart panel of the Explore you will find the button to save your chart.
 2. Enter a memorable name for the chart, a good idea is to use a question as the name "How many orders are there at each stage?"
 3. Click on `Saved charts` to see your finished work of art 😚👌
 
