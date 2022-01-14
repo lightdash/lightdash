@@ -248,6 +248,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                 display: 'inline-flex',
                                 flexWrap: 'wrap',
                                 gap: '10px',
+                                marginRight: '10px',
                             }}
                         >
                             <Tooltip2
@@ -337,49 +338,49 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                             : () => setIsQueryModalOpen(true)
                                     }
                                 />
-                                <Popover2
-                                    content={
-                                        <Menu>
-                                            <MenuItem
-                                                icon="add"
-                                                text="Save chart as"
-                                                onClick={() =>
-                                                    setIsQueryModalOpen(true)
-                                                }
-                                            />
-                                            {savedQueryUuid && (
-                                                <>
-                                                    <MenuItem
-                                                        icon="circle-arrow-right"
-                                                        text="Add chart to an existing dashboard"
-                                                        onClick={() =>
-                                                            setIsAddToDashboardModalOpen(
-                                                                true,
-                                                            )
-                                                        }
-                                                    />
-                                                    <MenuItem
-                                                        icon="control"
-                                                        text="Create dashboard with chart"
-                                                        onClick={() =>
-                                                            setIsAddToNewDashboardModalOpen(
-                                                                true,
-                                                            )
-                                                        }
-                                                    />
-                                                </>
-                                            )}
-                                        </Menu>
-                                    }
-                                    placement="bottom"
-                                    disabled={!tableName}
-                                >
-                                    <Button
-                                        icon="more"
-                                        intent="primary"
+                                {savedQueryUuid && (
+                                    <Popover2
+                                        placement="bottom"
                                         disabled={!tableName}
-                                    />
-                                </Popover2>
+                                        content={
+                                            <Menu>
+                                                <MenuItem
+                                                    icon="add"
+                                                    text="Save chart as"
+                                                    onClick={() =>
+                                                        setIsQueryModalOpen(
+                                                            true,
+                                                        )
+                                                    }
+                                                />
+                                                <MenuItem
+                                                    icon="circle-arrow-right"
+                                                    text="Add chart to an existing dashboard"
+                                                    onClick={() =>
+                                                        setIsAddToDashboardModalOpen(
+                                                            true,
+                                                        )
+                                                    }
+                                                />
+                                                <MenuItem
+                                                    icon="control"
+                                                    text="Create dashboard with chart"
+                                                    onClick={() =>
+                                                        setIsAddToNewDashboardModalOpen(
+                                                            true,
+                                                        )
+                                                    }
+                                                />
+                                            </Menu>
+                                        }
+                                    >
+                                        <Button
+                                            icon="more"
+                                            intent="primary"
+                                            disabled={!tableName}
+                                        />
+                                    </Popover2>
+                                )}
                             </ButtonGroup>
                         </div>
                     )}
