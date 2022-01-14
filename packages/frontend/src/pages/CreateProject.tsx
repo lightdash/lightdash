@@ -1,4 +1,4 @@
-import { Divider, H1 } from '@blueprintjs/core';
+import { Colors, H1 } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { Redirect } from 'react-router-dom';
 import { OpenChatButton } from '../components/common/ChatBubble/OpenChatButton';
@@ -37,8 +37,21 @@ const CreateProject: FC = () => {
                     flex: 1,
                 }}
             >
-                <H1 style={{ margin: 0, flex: 1 }}>Connect project</H1>
-                <Divider style={{ margin: '20px 0' }} />
+                <H1 style={{ marginBottom: 30 }}>Connect your project ⚡</H1>
+                <p style={{ color: Colors.GRAY1, marginBottom: 30 }}>
+                    The following steps are best carried out by your
+                    organization&apos;s data/analytics engineering experts. Once
+                    you set up your dbt and warehouse connection, you will be
+                    ready to start exploring your data in Lightdash! If you are
+                    just itching to get start,{' '}
+                    <a
+                        target="_blank"
+                        rel="noreferrer"
+                        href="https://demo.lightdash.com"
+                    >
+                        check out our demo project!
+                    </a>
+                </p>
                 <CreateProjectConnection />
             </div>
             <OpenChatButton />
