@@ -87,4 +87,12 @@ export const Config = {
             project_dir: '/',
         },
     ],
+    auth: {
+        google: {
+            loginPath: '',
+            oauth2ClientId: '',
+            oauth2ClientSecret: '',
+            callbackPath: '',
+        },
+    },
 } as LightdashConfig;
