@@ -14,7 +14,7 @@ import {
 } from '../database/entities/emails';
 import { InviteLinkTableName } from '../database/entities/inviteLinks';
 import { DbOpenIdIssuer } from '../database/entities/openIdIdentities';
-import { createOrganizationMembership } from '../database/entities/organizationMemberships';
+import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { createOrganization } from '../database/entities/organizations';
 import {
     createPasswordLogin,
@@ -277,7 +277,7 @@ export class UserModel {
                         await bcrypt.genSalt(),
                     ),
                 });
-                await createOrganizationMembership(trx, {
+                await trx(OrganizationMembershipsTableName).insert({
                     organization_id: inviteLink.organization_id,
                     user_id: newUser.user_id,
                 });
@@ -340,11 +340,10 @@ export class UserModel {
                         await bcrypt.genSalt(),
                     ),
                 });
-                await createOrganizationMembership(trx, {
+                await trx(OrganizationMembershipsTableName).insert({
                     organization_id: newOrg.organization_id,
                     user_id: newUser.user_id,
                 });
-
                 return newUser;
             } catch (e) {
                 await trx.rollback(e);
