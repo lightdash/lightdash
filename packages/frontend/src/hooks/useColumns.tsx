@@ -72,6 +72,7 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                             dimensionType: isDimension(field)
                                 ? field.type
                                 : undefined,
+                            description: field.description,
                             ...getSortByProps(
                                 fieldId,
                                 sortFields,

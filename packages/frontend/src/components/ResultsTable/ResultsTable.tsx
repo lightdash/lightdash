@@ -1,5 +1,6 @@
 import { Button, Colors, HTMLTable, Icon, Tag } from '@blueprintjs/core';
-import { DimensionType, hexToRGB } from 'common';
+import { Tooltip2 } from '@blueprintjs/popover2';
+import { DimensionType, friendlyName, hexToRGB } from 'common';
 import React, { FC, ReactNode, useEffect } from 'react';
 import {
     DragDropContext,
@@ -313,37 +314,47 @@ export const ResultsTable: FC<Props> = ({
                                                                             : [],
                                                                     )}
                                                                 >
-                                                                    <Draggable
-                                                                        key={
-                                                                            column.id
-                                                                        }
-                                                                        draggableId={
-                                                                            column.id
-                                                                        }
-                                                                        index={
-                                                                            index
+                                                                    <Tooltip2
+                                                                        content={
+                                                                            column.description
+                                                                                ? column.description
+                                                                                : friendlyName(
+                                                                                      column.id,
+                                                                                  )
                                                                         }
                                                                     >
-                                                                        {(
-                                                                            provided,
-                                                                            snapshot,
-                                                                        ) => (
-                                                                            <Item
-                                                                                index={
-                                                                                    index
-                                                                                }
-                                                                                column={
-                                                                                    column
-                                                                                }
-                                                                                provided={
-                                                                                    provided
-                                                                                }
-                                                                                snapshot={
-                                                                                    snapshot
-                                                                                }
-                                                                            />
-                                                                        )}
-                                                                    </Draggable>
+                                                                        <Draggable
+                                                                            key={
+                                                                                column.id
+                                                                            }
+                                                                            draggableId={
+                                                                                column.id
+                                                                            }
+                                                                            index={
+                                                                                index
+                                                                            }
+                                                                        >
+                                                                            {(
+                                                                                provided,
+                                                                                snapshot,
+                                                                            ) => (
+                                                                                <Item
+                                                                                    index={
+                                                                                        index
+                                                                                    }
+                                                                                    column={
+                                                                                        column
+                                                                                    }
+                                                                                    provided={
+                                                                                        provided
+                                                                                    }
+                                                                                    snapshot={
+                                                                                        snapshot
+                                                                                    }
+                                                                                />
+                                                                            )}
+                                                                        </Draggable>
+                                                                    </Tooltip2>
                                                                 </th>
                                                             ),
                                                         )}
