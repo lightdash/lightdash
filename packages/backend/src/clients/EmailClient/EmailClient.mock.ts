@@ -5,6 +5,7 @@ export const passwordResetLinkMock = {
     expiresAt: new Date(),
     email: 'demo@lightdash.com',
     url: 'htt://localhost:3000/reset-password/code',
+    isExpired: false,
 };
 
 export const lightdashConfigWithNoSMTP: Pick<LightdashConfig, 'smtp'> = {

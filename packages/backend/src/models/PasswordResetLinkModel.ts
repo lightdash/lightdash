@@ -53,6 +53,7 @@ export class PasswordResetLinkModel {
             email: passwordResetLink.email,
             expiresAt: passwordResetLink.expires_at,
             url: this.transformCodeToUrl(code),
+            isExpired: passwordResetLink.expires_at <= new Date(),
         };
     }
 
@@ -81,6 +82,7 @@ export class PasswordResetLinkModel {
             email: result.email,
             expiresAt: links[0].expires_at,
             url: this.transformCodeToUrl(code),
+            isExpired: links[0].expires_at <= new Date(),
         };
     }
 

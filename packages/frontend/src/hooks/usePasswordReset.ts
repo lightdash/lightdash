@@ -21,8 +21,8 @@ const sendPasswordResetLinkQuery = async (
 
 const resetPasswordQuery = async (data: PasswordReset): Promise<undefined> =>
     lightdashApi<undefined>({
-        url: `/password-reset`,
-        method: 'PATCH',
+        url: `/user/password/reset`,
+        method: 'POST',
         body: JSON.stringify(data),
     });
 

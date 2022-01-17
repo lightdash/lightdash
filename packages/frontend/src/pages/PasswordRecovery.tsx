@@ -40,7 +40,8 @@ const CtaWrapper = styled.div`
 
 const PasswordRecovery: FC = () => {
     const { health } = useApp();
-    const { isLoading, isSuccess, mutate } = usePasswordResetLinkMutation();
+    const { isLoading, isSuccess, mutate, reset } =
+        usePasswordResetLinkMutation();
     const methods = useForm<RecoverPasswordForm>({
         mode: 'onSubmit',
     });
@@ -130,7 +131,10 @@ const PasswordRecovery: FC = () => {
                                 </ListItem>
                                 <ListItem>
                                     Try{' '}
-                                    <AnchorLink href="/recover-password">
+                                    <AnchorLink
+                                        href="/recover-password"
+                                        onClick={reset}
+                                    >
                                         resubmitting a password reset
                                     </AnchorLink>{' '}
                                     request, ensuring that there are no typos!

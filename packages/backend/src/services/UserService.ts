@@ -9,7 +9,6 @@ import {
     OpenIdIdentitySummary,
     OpenIdUser,
     PasswordReset,
-    PasswordResetLink,
     SessionUser,
     UpdateUserArgs,
 } from 'common';
@@ -328,10 +327,9 @@ export class UserService {
         return user;
     }
 
-    async getPasswordResetLink(code: string): Promise<PasswordResetLink> {
+    async verifyPasswordResetLink(code: string): Promise<void> {
         const link = await this.passwordResetLinkModel.getByCode(code);
-        const now = new Date();
-        if (link.expiresAt <= now) {
+        if (link.isExpired) {
             try {
                 await this.passwordResetLinkModel.deleteByCode(link.code);
             } catch (e) {
@@ -339,7 +337,6 @@ export class UserService {
             }
             throw new NotExistsError('Password reset link expired');
         }
-        return link;
     }
 
     async recoverPassword(data: CreatePasswordResetLink): Promise<void> {
@@ -362,10 +359,16 @@ export class UserService {
     }
 
     async resetPassword(data: PasswordReset): Promise<void> {
-        const link = await this.getPasswordResetLink(data.code);
+        const link = await this.passwordResetLinkModel.getByCode(data.code);
+        if (link.isExpired) {
+            throw new NotExistsError('Password reset link expired');
+        }
         const user = await this.userModel.findUserByEmail(link.email);
         if (user) {
-            await this.userModel.resetPassword(user.userUuid, data.newPassword);
+            await this.userModel.upsertPassword(
+                user.userUuid,
+                data.newPassword,
+            );
             await this.passwordResetLinkModel.deleteByCode(link.code);
             analytics.track({
                 organizationId: user.organizationUuid,

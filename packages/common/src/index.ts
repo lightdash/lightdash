@@ -671,6 +671,7 @@ export type PasswordResetLink = {
     code: string;
     email: string;
     url: string;
+    isExpired: boolean;
 };
 
 export type CreatePasswordResetLink = Pick<PasswordResetLink, 'email'>;

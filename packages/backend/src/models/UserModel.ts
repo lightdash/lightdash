@@ -393,7 +393,7 @@ export class UserModel {
         return user ? mapDbUserDetailsToLightdashUser(user) : undefined;
     }
 
-    async resetPassword(userUuid: string, password: string): Promise<void> {
+    async upsertPassword(userUuid: string, password: string): Promise<void> {
         const user = await this.findSessionUserByUUID(userUuid);
         await this.database(PasswordLoginTableName)
             .insert({
