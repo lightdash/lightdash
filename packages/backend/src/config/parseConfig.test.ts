@@ -1,6 +1,6 @@
 import { ParseError } from '../errors';
 import { VERSION } from '../version';
-import { parseConfig } from './parseConfig';
+import { getIntegerFromEnvironmentVariable, parseConfig } from './parseConfig';
 import {
     DBT_CLOUD_IDE_PROJECT,
     EMPTY_CONFIG,
@@ -137,4 +137,18 @@ test('Should parse optional project config from env', () => {
         ...LOCAL_PROJECT,
         target: 'dev',
     });
+});
+
+test('Should parse valid integer', () => {
+    process.env.MY_NUMBER = '100';
+    expect(getIntegerFromEnvironmentVariable('MY_NUMBER')).toEqual(100);
+});
+test('Should parse non existent integer as undefined', () => {
+    expect(getIntegerFromEnvironmentVariable('MY_NUMBER')).toEqual(undefined);
+});
+test('Should throw ParseError if not a valid integer', () => {
+    process.env.MY_NUMBER = 'hello';
+    expect(() => getIntegerFromEnvironmentVariable('MY_NUMBER')).toThrowError(
+        ParseError,
+    );
 });
