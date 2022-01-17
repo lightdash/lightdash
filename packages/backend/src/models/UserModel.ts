@@ -5,6 +5,7 @@ import {
     LightdashMode,
     LightdashUser,
     OpenIdUser,
+    OrganizationMemberRole,
     SessionUser,
     UpdateUserArgs,
 } from 'common';
@@ -21,7 +22,7 @@ import {
     DbOpenIdIssuer,
     OpenIdIdentitiesTableName,
 } from '../database/entities/openIdIdentities';
-import { createOrganizationMembership } from '../database/entities/organizationMemberships';
+import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { createOrganization } from '../database/entities/organizations';
 import {
     createPasswordLogin,
@@ -151,9 +152,10 @@ export class UserModel {
                 ),
             });
         }
-        await createOrganizationMembership(trx, {
+        await trx(OrganizationMembershipsTableName).insert({
             organization_id: organizationId,
             user_id: newUser.user_id,
+            role: OrganizationMemberRole.EDITOR,
         });
         return newUser;
     }
