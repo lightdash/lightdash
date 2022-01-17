@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import {
-    hasWhiteSpaces,
+    hasNoWhiteSpaces,
     isGitRepository,
     startWithSlash,
 } from '../../../utils/fieldValidators';
@@ -26,7 +26,7 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             rules={{
                 required: 'Required field',
                 validate: {
-                    hasWhiteSpaces: hasWhiteSpaces('Repository'),
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Repository'),
                     isGitRepository: isGitRepository('Repository'),
                 },
             }}
@@ -40,7 +40,7 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             rules={{
                 required: 'Required field',
                 validate: {
-                    hasWhiteSpaces: hasWhiteSpaces('Branch'),
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Branch'),
                 },
             }}
             disabled={disabled}
@@ -53,7 +53,9 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             rules={{
                 required: 'Required field',
                 validate: {
-                    hasWhiteSpaces: hasWhiteSpaces('Project directory path'),
+                    hasNoWhiteSpaces: hasNoWhiteSpaces(
+                        'Project directory path',
+                    ),
                     startWithSlash: startWithSlash('Project directory path'),
                 },
             }}
@@ -68,7 +70,7 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             defaultValue="gitlab.com"
             rules={{
                 validate: {
-                    hasWhiteSpaces: hasWhiteSpaces('Host domain'),
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Host domain'),
                 },
             }}
         />

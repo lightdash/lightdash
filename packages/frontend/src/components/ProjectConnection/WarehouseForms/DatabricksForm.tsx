@@ -1,5 +1,5 @@
 import React, { FC } from 'react';
-import { hasWhiteSpaces } from '../../../utils/fieldValidators';
+import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
@@ -15,7 +15,7 @@ const DatabricksForm: FC<{
             rules={{
                 required: 'Required field',
                 validate: {
-                    hasWhiteSpaces: hasWhiteSpaces('Server host name'),
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Server host name'),
                 },
             }}
             disabled={disabled}
@@ -28,7 +28,7 @@ const DatabricksForm: FC<{
             rules={{
                 required: 'Required field',
                 validate: {
-                    hasWhiteSpaces: hasWhiteSpaces('HTTP Path'),
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('HTTP Path'),
                 },
             }}
             disabled={disabled}
@@ -51,7 +51,7 @@ const DatabricksForm: FC<{
             rules={{
                 required: 'Required field',
                 validate: {
-                    hasWhiteSpaces: hasWhiteSpaces('Database'),
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Database'),
                 },
             }}
             disabled={disabled}
@@ -63,7 +63,7 @@ const DatabricksForm: FC<{
             rules={{
                 required: 'Required field',
                 validate: {
-                    hasWhiteSpaces: hasWhiteSpaces('Port'),
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Port'),
                 },
             }}
             disabled={disabled}

@@ -1,6 +1,6 @@
 import { Callout } from '@blueprintjs/core';
 import React, { FC } from 'react';
-import { hasWhiteSpaces } from '../../../utils/fieldValidators';
+import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 
@@ -24,7 +24,7 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             rules={{
                 required: 'Required field',
                 validate: {
-                    hasWhiteSpaces: hasWhiteSpaces('API key'),
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('API key'),
                 },
             }}
             placeholder={disabled ? '*******' : undefined}
@@ -37,7 +37,7 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             rules={{
                 required: 'Required field',
                 validate: {
-                    hasWhiteSpaces: hasWhiteSpaces('Account ID'),
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Account ID'),
                 },
             }}
             disabled={disabled}
@@ -49,7 +49,7 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             rules={{
                 required: 'Required field',
                 validate: {
-                    hasWhiteSpaces: hasWhiteSpaces('Project ID'),
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Project ID'),
                 },
             }}
             disabled={disabled}
@@ -61,7 +61,7 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             rules={{
                 required: 'Required field',
                 validate: {
-                    hasWhiteSpaces: hasWhiteSpaces('Environment ID'),
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Environment ID'),
                 },
             }}
             disabled={disabled}

@@ -1,7 +1,7 @@
 import { Button } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
-import { hasWhiteSpaces } from '../../../utils/fieldValidators';
+import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
@@ -21,7 +21,7 @@ const RedshiftForm: FC<{
                 rules={{
                     required: 'Required field',
                     validate: {
-                        hasWhiteSpaces: hasWhiteSpaces('Host'),
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Host'),
                     },
                 }}
                 disabled={disabled}
@@ -33,7 +33,7 @@ const RedshiftForm: FC<{
                 rules={{
                     required: 'Required field',
                     validate: {
-                        hasWhiteSpaces: hasWhiteSpaces('User'),
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('User'),
                     },
                 }}
                 disabled={disabled}
@@ -54,7 +54,7 @@ const RedshiftForm: FC<{
                 rules={{
                     required: 'Required field',
                     validate: {
-                        hasWhiteSpaces: hasWhiteSpaces('DB name'),
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('DB name'),
                     },
                 }}
                 disabled={disabled}
@@ -66,7 +66,7 @@ const RedshiftForm: FC<{
                 rules={{
                     required: 'Required field',
                     validate: {
-                        hasWhiteSpaces: hasWhiteSpaces('Schema'),
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Schema'),
                     },
                 }}
                 disabled={disabled}
@@ -79,7 +79,7 @@ const RedshiftForm: FC<{
                     rules={{
                         required: 'Required field',
                         validate: {
-                            hasWhiteSpaces: hasWhiteSpaces('Port'),
+                            hasNoWhiteSpaces: hasNoWhiteSpaces('Port'),
                         },
                     }}
                     disabled={disabled}

@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import {
-    hasWhiteSpaces,
+    hasNoWhiteSpaces,
     isGitRepository,
     startWithSlash,
 } from '../../../utils/fieldValidators';
@@ -16,7 +16,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             rules={{
                 required: 'Required field',
                 validate: {
-                    hasWhiteSpaces: hasWhiteSpaces('Personal access token'),
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Personal access token'),
                 },
             }}
             placeholder={disabled ? '*******' : undefined}
@@ -29,7 +29,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             rules={{
                 required: 'Required field',
                 validate: {
-                    hasWhiteSpaces: hasWhiteSpaces('Repository'),
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Repository'),
                     isGitRepository: isGitRepository('Repository'),
                 },
             }}
@@ -43,7 +43,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             rules={{
                 required: 'Required field',
                 validate: {
-                    hasWhiteSpaces: hasWhiteSpaces('Branch'),
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Branch'),
                 },
             }}
             disabled={disabled}
@@ -56,7 +56,9 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             rules={{
                 required: 'Required field',
                 validate: {
-                    hasWhiteSpaces: hasWhiteSpaces('Project directory path'),
+                    hasNoWhiteSpaces: hasNoWhiteSpaces(
+                        'Project directory path',
+                    ),
                     startWithSlash: startWithSlash('Project directory path'),
                 },
             }}

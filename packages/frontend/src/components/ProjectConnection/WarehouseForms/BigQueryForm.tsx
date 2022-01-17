@@ -1,7 +1,7 @@
 import { Button } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
-import { hasWhiteSpaces } from '../../../utils/fieldValidators';
+import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import FileInput from '../../ReactHookForm/FileInput';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
@@ -21,7 +21,7 @@ const BigQueryForm: FC<{
                 rules={{
                     required: 'Required field',
                     validate: {
-                        hasWhiteSpaces: hasWhiteSpaces('Project'),
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Project'),
                     },
                 }}
                 disabled={disabled}
@@ -33,7 +33,7 @@ const BigQueryForm: FC<{
                 rules={{
                     required: 'Required field',
                     validate: {
-                        hasWhiteSpaces: hasWhiteSpaces('Data set'),
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Data set'),
                     },
                 }}
                 disabled={disabled}
@@ -45,7 +45,7 @@ const BigQueryForm: FC<{
                 rules={{
                     required: 'Required field',
                     validate: {
-                        hasWhiteSpaces: hasWhiteSpaces('Location'),
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Location'),
                     },
                 }}
                 disabled={disabled}

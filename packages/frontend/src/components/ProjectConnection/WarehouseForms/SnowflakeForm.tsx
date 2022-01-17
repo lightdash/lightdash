@@ -1,7 +1,7 @@
 import { Button } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
-import { hasWhiteSpaces, isUppercase } from '../../../utils/fieldValidators';
+import { hasNoWhiteSpaces, isUppercase } from '../../../utils/fieldValidators';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
@@ -21,7 +21,7 @@ const SnowflakeForm: FC<{
                 rules={{
                     required: 'Required field',
                     validate: {
-                        hasWhiteSpaces: hasWhiteSpaces('Account'),
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Account'),
                     },
                 }}
                 disabled={disabled}
@@ -51,7 +51,7 @@ const SnowflakeForm: FC<{
                 rules={{
                     required: 'Required field',
                     validate: {
-                        hasWhiteSpaces: hasWhiteSpaces('Role'),
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Role'),
                     },
                 }}
                 disabled={disabled}
@@ -64,7 +64,7 @@ const SnowflakeForm: FC<{
                     required: 'Required field',
                     validate: {
                         isUppercase: isUppercase('Database'),
-                        hasWhiteSpaces: hasWhiteSpaces('Database'),
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Database'),
                     },
                 }}
                 disabled={disabled}
@@ -77,7 +77,7 @@ const SnowflakeForm: FC<{
                     required: 'Required field',
                     validate: {
                         isUppercase: isUppercase('Warehouse'),
-                        hasWhiteSpaces: hasWhiteSpaces('Warehouse'),
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Warehouse'),
                     },
                 }}
                 disabled={disabled}
@@ -89,7 +89,7 @@ const SnowflakeForm: FC<{
                 rules={{
                     required: 'Required field',
                     validate: {
-                        hasWhiteSpaces: hasWhiteSpaces('Schema'),
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Schema'),
                     },
                 }}
                 disabled={disabled}

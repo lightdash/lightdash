@@ -5,7 +5,7 @@ export const isUppercase =
             ? undefined
             : `${fieldName} should be uppercase`;
 
-export const hasWhiteSpaces =
+export const hasNoWhiteSpaces =
     (fieldName: string) =>
     (value: string): string | undefined =>
         value.indexOf(' ') <= 0
