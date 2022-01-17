@@ -17,6 +17,22 @@ import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
 import Logger from '../logger';
 import { VERSION } from '../version';
 
+export const getIntegerFromEnvironmentVariable = (
+    name: string,
+): number | undefined => {
+    const raw = process.env[name];
+    if (raw === undefined) {
+        return undefined;
+    }
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isNaN(parsed)) {
+        throw new ParseError(
+            `Cannot parse environment variable "${name}". Value must be an integer but ${name}=${raw}`,
+        );
+    }
+    return parsed;
+};
+
 export type DbtProjectConfigIn<T extends DbtProjectConfig> = Partial<T> &
     DbtProjectConfigBase;
 
@@ -41,6 +57,11 @@ export type LightdashConfig = {
     cohere: CohereConfig;
     chatwoot: ChatwootConfig;
     siteUrl: string;
+    database: {
+        connectionUri: string | undefined;
+        maxConnections: number | undefined;
+        minConnections: number | undefined;
+    };
 };
 
 export type ChatwootConfig = {
@@ -263,7 +284,13 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         lightdashSecret,
         secureCookies: process.env.SECURE_COOKIES === 'true',
         trustProxy: process.env.TRUST_PROXY === 'true',
-        databaseConnectionUri: process.env.PGCONNECTIONURI,
+        database: {
+            connectionUri: process.env.PGCONNECTIONURI,
+            maxConnections:
+                getIntegerFromEnvironmentVariable('PGMAXCONNECTIONS'),
+            minConnections:
+                getIntegerFromEnvironmentVariable('PGMINCONNECTIONS'),
+        },
         auth: {
             google: {
                 oauth2ClientId: process.env.AUTH_GOOGLE_OAUTH2_CLIENT_ID,
