@@ -1,6 +1,7 @@
 import { Button } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
+import { hasNoWhiteSpaces, isUppercase } from '../../../utils/fieldValidators';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
@@ -19,6 +20,9 @@ const SnowflakeForm: FC<{
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#account"
                 rules={{
                     required: 'Required field',
+                    validate: {
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Account'),
+                    },
                 }}
                 disabled={disabled}
             />
@@ -46,6 +50,9 @@ const SnowflakeForm: FC<{
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#role"
                 rules={{
                     required: 'Required field',
+                    validate: {
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Role'),
+                    },
                 }}
                 disabled={disabled}
             />
@@ -55,6 +62,10 @@ const SnowflakeForm: FC<{
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#database"
                 rules={{
                     required: 'Required field',
+                    validate: {
+                        isUppercase: isUppercase('Database'),
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Database'),
+                    },
                 }}
                 disabled={disabled}
             />
@@ -64,6 +75,10 @@ const SnowflakeForm: FC<{
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse"
                 rules={{
                     required: 'Required field',
+                    validate: {
+                        isUppercase: isUppercase('Warehouse'),
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Warehouse'),
+                    },
                 }}
                 disabled={disabled}
             />
@@ -73,6 +88,9 @@ const SnowflakeForm: FC<{
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#schema-2"
                 rules={{
                     required: 'Required field',
+                    validate: {
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Schema'),
+                    },
                 }}
                 disabled={disabled}
             />

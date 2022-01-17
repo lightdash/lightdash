@@ -1,5 +1,6 @@
 import { Callout } from '@blueprintjs/core';
 import React, { FC } from 'react';
+import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 
@@ -22,6 +23,9 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#how-to-get-your-api-key"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('API key'),
+                },
             }}
             placeholder={disabled ? '*******' : undefined}
             disabled={disabled}
@@ -32,6 +36,9 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#how-to-get-your-account-id-and-project-id-from-your-dbt-cloud-project"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Account ID'),
+                },
             }}
             disabled={disabled}
         />
@@ -41,6 +48,9 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#how-to-get-your-account-id-and-project-id-from-your-dbt-cloud-project"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Project ID'),
+                },
             }}
             disabled={disabled}
         />
@@ -50,6 +60,9 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#how-to-get-your-environment-id"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Environment ID'),
+                },
             }}
             disabled={disabled}
         />
