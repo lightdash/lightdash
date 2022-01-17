@@ -90,6 +90,7 @@ export class HealthService {
                         this.lightdashConfig.auth.google.oauth2ClientId,
                 },
             },
+            hasEmailClient: !!this.lightdashConfig.smtp,
         };
     }
 }

@@ -11,6 +11,7 @@ import { useForm } from 'react-hook-form';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
+import AnchorLink from '../components/common/AnchorLink/index';
 import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
@@ -126,14 +127,29 @@ const Login: FC = () => {
                                 required: 'Required field',
                             }}
                         />
-                        <Button
-                            type="submit"
-                            style={{ float: 'right', marginTop: 20 }}
-                            intent={Intent.PRIMARY}
-                            text="Login"
-                            loading={isLoading}
-                            data-cy="login-button"
-                        />
+                        <div
+                            style={{
+                                marginTop: 20,
+                                display: 'flex',
+                                justifyContent: health.data?.hasEmailClient
+                                    ? 'space-between'
+                                    : 'flex-end',
+                                alignItems: 'center',
+                            }}
+                        >
+                            {health.data?.hasEmailClient && (
+                                <AnchorLink href="/recover-password">
+                                    Forgot your password ?
+                                </AnchorLink>
+                            )}
+                            <Button
+                                type="submit"
+                                intent={Intent.PRIMARY}
+                                text="Login"
+                                loading={isLoading}
+                                data-cy="login-button"
+                            />
+                        </div>
                     </Form>
                     {health.data?.auth.google.oauth2ClientId && (
                         <>

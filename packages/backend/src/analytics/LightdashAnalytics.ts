@@ -36,6 +36,8 @@ type TrackSimpleEvent = BaseTrack & {
         | 'password.updated'
         | 'invite_link.created'
         | 'invite_link.all_revoked'
+        | 'password_reset_link.created'
+        | 'password_reset_link.used'
         | 'sql.executed';
 };
 

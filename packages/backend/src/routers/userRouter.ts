@@ -85,6 +85,17 @@ userRouter.post(
             .catch(next),
 );
 
+userRouter.post('/password/reset', unauthorisedInDemo, async (req, res, next) =>
+    userService
+        .resetPassword(req.body)
+        .then(() => {
+            res.json({
+                status: 'ok',
+            });
+        })
+        .catch(next),
+);
+
 userRouter.get('/identities', isAuthenticated, async (req, res, next) => {
     const identities = await userService.getLinkedIdentities(req.user!);
     res.json({

@@ -32,6 +32,7 @@ export type LightdashConfig = {
     secureCookies: boolean;
     trustProxy: boolean;
     databaseConnectionUri?: string;
+    smtp: SmtpConfig | undefined;
     rudder: RudderConfig;
     mode: LightdashMode;
     projects: Array<DbtProjectConfig>;
@@ -71,6 +72,22 @@ export type AuthGoogleConfig = {
 
 export type AuthConfig = {
     google: AuthGoogleConfig;
+};
+
+export type SmtpConfig = {
+    host: string;
+    port: number;
+    secure: boolean;
+    allowInvalidCertificate: boolean;
+    auth: {
+        user: string;
+        pass: string | undefined;
+        accessToken: string | undefined;
+    };
+    sender: {
+        name: string;
+        email: string;
+    };
 };
 
 type ConfigKeys<T extends DbtProjectConfig> = {
@@ -211,6 +228,24 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         ...config,
         mode,
         projects: mergedProjects,
+        smtp: process.env.EMAIL_SMTP_HOST
+            ? {
+                  host: process.env.EMAIL_SMTP_HOST,
+                  port: parseInt(process.env.EMAIL_SMTP_PORT || '587', 10),
+                  secure: process.env.EMAIL_SMTP_SECURE !== 'false', // default to true
+                  allowInvalidCertificate:
+                      process.env.EMAIL_SMTP_ALLOW_INVALID_CERT === 'true',
+                  auth: {
+                      user: process.env.EMAIL_SMTP_USER || '',
+                      pass: process.env.EMAIL_SMTP_PASSWORD,
+                      accessToken: process.env.EMAIL_SMTP_ACCESS_TOKEN,
+                  },
+                  sender: {
+                      name: process.env.EMAIL_SMTP_SENDER_NAME || 'Lightdash',
+                      email: process.env.EMAIL_SMTP_SENDER_EMAIL || '',
+                  },
+              }
+            : undefined,
         rudder: {
             writeKey:
                 process.env.RUDDERSTACK_WRITE_KEY ||

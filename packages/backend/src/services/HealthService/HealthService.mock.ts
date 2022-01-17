@@ -59,7 +59,6 @@ export const ImagesResponse = {
 export const BaseResponse = {
     healthy: true,
     version: '0.1.0',
-    rudder: undefined,
     mode: LightdashMode.DEFAULT,
     isAuthenticated: false,
     localDbtEnabled: true,
@@ -73,8 +72,12 @@ export const BaseResponse = {
     },
     defaultProject: undefined,
     latest: { version: Image.name },
+    hasEmailClient: false,
+    siteUrl: undefined,
     chatwoot: undefined,
     cohere: undefined,
+    rudder: undefined,
+    sentry: undefined,
 };
 
 export const Config = {

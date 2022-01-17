@@ -42,6 +42,7 @@ export const lightdashConfigMock: LightdashConfig = {
     cohere: {
         token: '',
     },
+    smtp: undefined,
     projects: [],
     siteUrl: '',
 };

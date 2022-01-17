@@ -2,16 +2,19 @@ import {
     CreateInitialUserArgs,
     CreateInviteLink,
     CreateOrganizationUser,
+    CreatePasswordResetLink,
     InviteLink,
     LightdashMode,
     LightdashUser,
     OpenIdIdentitySummary,
     OpenIdUser,
+    PasswordReset,
     SessionUser,
     UpdateUserArgs,
 } from 'common';
 import { nanoid } from 'nanoid';
 import { analytics, identifyUser } from '../analytics/client';
+import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { updatePassword } from '../database/entities/passwordLogins';
 import {
@@ -23,6 +26,7 @@ import {
 import { EmailModel } from '../models/EmailModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
+import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 
@@ -32,6 +36,8 @@ type UserServiceDependencies = {
     sessionModel: SessionModel;
     emailModel: EmailModel;
     openIdIdentityModel: OpenIdIdentityModel;
+    passwordResetLinkModel: PasswordResetLinkModel;
+    emailClient: EmailClient;
 };
 
 export class UserService {
@@ -45,18 +51,26 @@ export class UserService {
 
     private readonly openIdIdentityModel: OpenIdIdentityModel;
 
+    private readonly passwordResetLinkModel: PasswordResetLinkModel;
+
+    private readonly emailClient: EmailClient;
+
     constructor({
         inviteLinkModel,
         userModel,
         sessionModel,
         emailModel,
         openIdIdentityModel,
+        emailClient,
+        passwordResetLinkModel,
     }: UserServiceDependencies) {
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
         this.sessionModel = sessionModel;
         this.emailModel = emailModel;
         this.openIdIdentityModel = openIdIdentityModel;
+        this.passwordResetLinkModel = passwordResetLinkModel;
+        this.emailClient = emailClient;
     }
 
     async create(
@@ -311,5 +325,56 @@ export class UserService {
             },
         });
         return user;
+    }
+
+    async verifyPasswordResetLink(code: string): Promise<void> {
+        const link = await this.passwordResetLinkModel.getByCode(code);
+        if (link.isExpired) {
+            try {
+                await this.passwordResetLinkModel.deleteByCode(link.code);
+            } catch (e) {
+                throw new NotExistsError('Password reset link not found');
+            }
+            throw new NotExistsError('Password reset link expired');
+        }
+    }
+
+    async recoverPassword(data: CreatePasswordResetLink): Promise<void> {
+        const user = await this.userModel.findUserByEmail(data.email);
+        if (user) {
+            const code = nanoid(30);
+            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // expires in 1 day
+            const link = await this.passwordResetLinkModel.create(
+                code,
+                expiresAt,
+                data.email,
+            );
+            analytics.track({
+                organizationId: user.organizationUuid,
+                userId: user.userUuid,
+                event: 'password_reset_link.created',
+            });
+            await this.emailClient.sendPasswordRecoveryEmail(link);
+        }
+    }
+
+    async resetPassword(data: PasswordReset): Promise<void> {
+        const link = await this.passwordResetLinkModel.getByCode(data.code);
+        if (link.isExpired) {
+            throw new NotExistsError('Password reset link expired');
+        }
+        const user = await this.userModel.findUserByEmail(link.email);
+        if (user) {
+            await this.userModel.upsertPassword(
+                user.userUuid,
+                data.newPassword,
+            );
+            await this.passwordResetLinkModel.deleteByCode(link.code);
+            analytics.track({
+                organizationId: user.organizationUuid,
+                userId: user.userUuid,
+                event: 'password_reset_link.used',
+            });
+        }
     }
 }
