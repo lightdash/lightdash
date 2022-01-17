@@ -7,6 +7,7 @@ enableFetchMocks();
 jest.mock('./src/config/lightdashConfig', () => ({
     lightdashConfig: {
         mode: LightdashMode.DEFAULT,
+        database: {},
     },
 }));
 

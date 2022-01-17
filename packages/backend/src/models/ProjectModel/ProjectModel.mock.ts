@@ -45,6 +45,11 @@ export const lightdashConfigMock: LightdashConfig = {
     smtp: undefined,
     projects: [],
     siteUrl: '',
+    database: {
+        connectionUri: undefined,
+        maxConnections: undefined,
+        minConnections: undefined,
+    },
 };
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {
