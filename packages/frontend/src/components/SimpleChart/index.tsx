@@ -7,9 +7,9 @@ import {
     getFieldLabel,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
-import React, { FC, RefObject } from 'react';
-import { ChartConfig } from '../hooks/useChartConfig';
-import { useExplore } from '../hooks/useExplore';
+import React, { FC, RefObject, useEffect } from 'react';
+import { ChartConfig } from '../../hooks/useChartConfig';
+import { useExplore } from '../../hooks/useExplore';
 
 const flipXFromChartType = (chartType: DBChartTypes) => {
     switch (chartType) {
@@ -76,13 +76,24 @@ type SimpleChartProps = {
     chartType: DBChartTypes;
     chartConfig: ChartConfig;
 };
-export const SimpleChart: FC<SimpleChartProps> = ({
+const SimpleChart: FC<SimpleChartProps> = ({
     isLoading,
     tableName,
     chartRef,
     chartType,
     chartConfig,
 }) => {
+    useEffect(() => {
+        const listener = () => {
+            const eCharts = chartRef.current?.getEchartsInstance();
+            eCharts?.resize();
+        };
+
+        window.addEventListener('resize', listener);
+
+        return () => window.removeEventListener('resize', listener);
+    });
+
     const activeExplore = useExplore(tableName);
     if (isLoading || !activeExplore.data) return <LoadingChart />;
     if (chartConfig.plotData === undefined) return <EmptyChart />;
@@ -159,6 +170,7 @@ export const SimpleChart: FC<SimpleChartProps> = ({
             confine: true,
         },
     };
+
     return (
         <div style={{ padding: 10, height: '100%' }}>
             <EChartsReact
@@ -174,3 +186,5 @@ export const SimpleChart: FC<SimpleChartProps> = ({
         </div>
     );
 };
+
+export default SimpleChart;
