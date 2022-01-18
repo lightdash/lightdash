@@ -4,18 +4,14 @@ import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
 } from '../types/organizationMemberProfile';
-import { LightdashUser } from '../types/user';
 
-type Action = 'manage' | 'create' | 'update' | 'view';
+type Action = 'manage' | 'update' | 'view';
 
 type Subject =
-    | 'all'
     | Organization
+    | OrganizationMemberProfile
     | 'Organization'
-    | LightdashUser
-    | 'LightdashUser'
-    | 'OrganizationMemberProfile'
-    | OrganizationMemberProfile;
+    | 'OrganizationMemberProfile';
 
 type PossibleAbilities = [
     Action,

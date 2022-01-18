@@ -1,9 +1,8 @@
-import { ForbiddenError } from '@casl/ability';
+import { ForbiddenError, subject } from '@casl/ability';
 import {
     defineAbilityForOrganizationMember,
     LightdashMode,
     OnbordingRecord,
-    Organization,
     OrganizationMemberProfile,
     OrganizationProject,
     SessionUser,
@@ -60,10 +59,12 @@ export class OrganizationService {
         user: SessionUser,
         data: { organizationName: string },
     ): Promise<void> {
-        const ability = defineAbilityForOrganizationMember(user);
-        const org: Organization = { organizationUuid: user.organizationUuid };
-        ForbiddenError.from(ability).throwUnlessCan('update', org);
         const { organizationUuid, organizationName } = user;
+        const ability = defineAbilityForOrganizationMember(user);
+        ForbiddenError.from(ability).throwUnlessCan(
+            'update',
+            subject('Organization', { organizationUuid }),
+        );
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
@@ -105,7 +106,9 @@ export class OrganizationService {
             await this.organizationMemberProfileModel.getOrganizationMembers(
                 organizationUuid,
             );
-        return members.filter((member) => ability.can('view', member));
+        return members.filter((member) =>
+            ability.can('view', subject('OrganizationMemberProfile', member)),
+        );
     }
 
     async getProjects(user: SessionUser): Promise<OrganizationProject[]> {
