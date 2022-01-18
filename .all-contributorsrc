@@ -329,6 +329,15 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "Shrpp",
+      "name": "Shrpp",
+      "avatar_url": "https://avatars.githubusercontent.com/u/97470912?v=4",
+      "profile": "https://github.com/Shrpp",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
