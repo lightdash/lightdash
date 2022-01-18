@@ -1,17 +1,17 @@
 import { Knex } from 'knex';
 
-const organizationmembershipRolesTableName = 'organization_membership_roles';
+const organizationMembershipRolesTableName = 'organization_membership_roles';
 const organizationMembershipsTableName = 'organization_memberships';
 
 export async function up(knex: Knex): Promise<void> {
-    if (!(await knex.schema.hasTable(organizationmembershipRolesTableName))) {
+    if (!(await knex.schema.hasTable(organizationMembershipRolesTableName))) {
         await knex.schema.createTable(
-            organizationmembershipRolesTableName,
+            organizationMembershipRolesTableName,
             (tableBuilder) => {
                 tableBuilder.text('role').primary();
             },
         );
-        await knex(organizationmembershipRolesTableName).insert(
+        await knex(organizationMembershipRolesTableName).insert(
             ['viewer', 'editor', 'admin'].map((role) => ({ role })),
         );
     }
@@ -21,7 +21,7 @@ export async function up(knex: Knex): Promise<void> {
             tableBuilder
                 .text('role')
                 .references('role')
-                .inTable(organizationmembershipRolesTableName)
+                .inTable(organizationMembershipRolesTableName)
                 .notNullable()
                 .onDelete('RESTRICT')
                 .defaultTo('admin');
@@ -36,5 +36,5 @@ export async function down(knex: Knex): Promise<void> {
             tableBuilder.dropColumn('role');
         },
     );
-    await knex.schema.dropTableIfExists(organizationmembershipRolesTableName);
+    await knex.schema.dropTableIfExists(organizationMembershipRolesTableName);
 }
