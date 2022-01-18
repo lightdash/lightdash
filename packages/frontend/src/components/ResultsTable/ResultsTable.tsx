@@ -90,9 +90,13 @@ const getItemStyle = (
     ...(isDropAnimating && { transitionDuration: '0.001s' }),
 });
 
+interface ColumnProps extends HeaderGroup {
+    description?: string;
+}
+
 interface ItemProps {
     index?: number;
-    column?: HeaderGroup;
+    column?: ColumnProps;
     provided: DraggableProvided;
     snapshot: DraggableStateSnapshot;
 }
@@ -304,7 +308,10 @@ export const ResultsTable: FC<Props> = ({
                                                         {...droppableProvided.droppableProps}
                                                     >
                                                         {headerGroup.headers.map(
-                                                            (column, index) => (
+                                                            (
+                                                                column: ColumnProps,
+                                                                index,
+                                                            ) => (
                                                                 <th
                                                                     {...column.getHeaderProps(
                                                                         column.getSortByToggleProps
