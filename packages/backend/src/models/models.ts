@@ -6,6 +6,7 @@ import { EmailModel } from './EmailModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
+import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel';
 import { OrganizationModel } from './OrganizationModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
@@ -31,3 +32,5 @@ export const passwordResetLinkModel = new PasswordResetLinkModel({
     database,
     lightdashConfig,
 });
+export const organizationMemberProfileModel =
+    new OrganizationMemberProfileModel({ database });

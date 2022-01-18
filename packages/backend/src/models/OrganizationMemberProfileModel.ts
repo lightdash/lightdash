@@ -1,6 +1,6 @@
 import { OrganizationMemberProfile } from 'common';
 import { Knex } from 'knex';
-import { DbEmail } from '../database/entities/emails';
+import { DbEmail, EmailTableName } from '../database/entities/emails';
 import {
     DbOrganizationMembership,
     DbOrganizationMembershipIn,
@@ -26,19 +26,19 @@ export class OrganizationMemberProfileModel {
 
     constructor({ database }: { database: Knex }) {
         this.database = database;
-        this.queryBuilder = database(OrganizationTableName)
-            .joinRaw(
-                'LEFT JOIN emails ON users.user_id = emails.user_id AND emails.is_primary',
-            )
-            .leftJoin(
-                OrganizationMembershipsTableName,
-                'organizations.organization_id',
-                'organization_memberships.organization_id',
-            )
-            .leftJoin(
+        this.queryBuilder = database(OrganizationMembershipsTableName)
+            .innerJoin(
                 UserTableName,
-                'organization_memberships.user_id',
-                'users.user_id',
+                `${OrganizationMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .joinRaw(
+                `INNER JOIN ${EmailTableName} ON ${UserTableName}.user_id = ${EmailTableName}.user_id AND ${EmailTableName}.is_primary`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationMembershipsTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
             );
     }
 
@@ -69,10 +69,9 @@ export class OrganizationMemberProfileModel {
     async getOrganizationMembers(
         organizationUuid: string,
     ): Promise<OrganizationMemberProfile[]> {
-        const members = await this.queryBuilder.where(
-            'organization_uuid',
-            organizationUuid,
-        );
+        const members = await this.queryBuilder
+            .where('organization_uuid', organizationUuid)
+            .select('*');
         return members.map(OrganizationMemberProfileModel.parseRow);
     }
 
