@@ -78,9 +78,6 @@ const PostgresForm: FC<{
                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#port"
                     rules={{
                         required: 'Required field',
-                        validate: {
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('Port'),
-                        },
                     }}
                     disabled={disabled}
                     defaultValue={5432}

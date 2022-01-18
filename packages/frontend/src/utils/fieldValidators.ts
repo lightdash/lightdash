@@ -1,27 +1,24 @@
-export const isUppercase =
-    (fieldName: string) =>
-    (value: string): string | undefined =>
-        value === value.toUpperCase()
-            ? undefined
-            : `${fieldName} should be uppercase`;
+type FieldValidator<T> = (
+    fieldName: string,
+) => (value: T | undefined) => string | undefined;
 
-export const hasNoWhiteSpaces =
-    (fieldName: string) =>
-    (value: string): string | undefined =>
-        value.indexOf(' ') <= 0
+export const isUppercase: FieldValidator<string> = (fieldName) => (value) =>
+    !value || value === value.toUpperCase()
+        ? undefined
+        : `${fieldName} should be uppercase`;
+
+export const hasNoWhiteSpaces: FieldValidator<string> =
+    (fieldName) => (value) =>
+        !value || value.indexOf(' ') <= 0
             ? undefined
             : `${fieldName} should not have white spaces`;
 
-export const isGitRepository =
-    (fieldName: string) =>
-    (value: string): string | undefined =>
-        value.match(/.+\/.+/)
-            ? undefined
-            : `${fieldName} should match the pattern "org/project"`;
+export const isGitRepository: FieldValidator<string> = (fieldName) => (value) =>
+    !value || value.match(/.+\/.+/)
+        ? undefined
+        : `${fieldName} should match the pattern "org/project"`;
 
-export const startWithSlash =
-    (fieldName: string) =>
-    (value: string): string | undefined =>
-        value.match(/^\/.*/)
-            ? undefined
-            : `${fieldName} should start with a "/"`;
+export const startWithSlash: FieldValidator<string> = (fieldName) => (value) =>
+    !value || value.match(/^\/.*/)
+        ? undefined
+        : `${fieldName} should start with a "/"`;
