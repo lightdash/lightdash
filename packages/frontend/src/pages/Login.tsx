@@ -11,6 +11,8 @@ import { useForm } from 'react-hook-form';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
+import AnchorLink from '../components/common/AnchorLink/index';
+import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import Form from '../components/ReactHookForm/Form';
@@ -30,7 +32,7 @@ const loginQuery = async (data: LoginParams) =>
 
 const Login: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
-    const { health, showToastError } = useApp();
+    const { health, showToastError, showToastSuccess } = useApp();
     const methods = useForm<LoginParams>({
         mode: 'onSubmit',
     });
@@ -125,15 +127,38 @@ const Login: FC = () => {
                                 required: 'Required field',
                             }}
                         />
-                        <Button
-                            type="submit"
-                            style={{ float: 'right', marginTop: 20 }}
-                            intent={Intent.PRIMARY}
-                            text="Login"
-                            loading={isLoading}
-                            data-cy="login-button"
-                        />
+                        <div
+                            style={{
+                                marginTop: 20,
+                                display: 'flex',
+                                justifyContent: health.data?.hasEmailClient
+                                    ? 'space-between'
+                                    : 'flex-end',
+                                alignItems: 'center',
+                            }}
+                        >
+                            {health.data?.hasEmailClient && (
+                                <AnchorLink href="/recover-password">
+                                    Forgot your password ?
+                                </AnchorLink>
+                            )}
+                            <Button
+                                type="submit"
+                                intent={Intent.PRIMARY}
+                                text="Login"
+                                loading={isLoading}
+                                data-cy="login-button"
+                            />
+                        </div>
                     </Form>
+                    {health.data?.auth.google.oauth2ClientId && (
+                        <>
+                            <span style={{ textAlign: 'center', margin: 15 }}>
+                                <b>or</b>
+                            </span>
+                            <GoogleLoginButton />
+                        </>
+                    )}
                 </Card>
             </div>
         </Page>

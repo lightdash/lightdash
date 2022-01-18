@@ -1,4 +1,5 @@
 import React, { FC } from 'react';
+import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
@@ -13,6 +14,9 @@ const DatabricksForm: FC<{
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#server-host-name"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Server host name'),
+                },
             }}
             disabled={disabled}
             placeholder="xxxx.gcp.databricks.com"
@@ -23,6 +27,9 @@ const DatabricksForm: FC<{
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#http-path"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('HTTP Path'),
+                },
             }}
             disabled={disabled}
             placeholder="sql/protocolv1/o/xxxx/xxxx"
@@ -39,10 +46,13 @@ const DatabricksForm: FC<{
         />
         <Input
             name="warehouse.database"
-            label="database"
+            label="Database"
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#database-1"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Database'),
+                },
             }}
             disabled={disabled}
         />
@@ -52,6 +62,9 @@ const DatabricksForm: FC<{
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#port-2"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Port'),
+                },
             }}
             disabled={disabled}
             defaultValue={443}

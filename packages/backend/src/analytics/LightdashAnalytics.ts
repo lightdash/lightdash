@@ -32,12 +32,27 @@ type Group = {
 };
 type TrackSimpleEvent = BaseTrack & {
     event:
-        | 'user.logged_in'
         | 'user.updated'
         | 'password.updated'
         | 'invite_link.created'
         | 'invite_link.all_revoked'
+        | 'password_reset_link.created'
+        | 'password_reset_link.used'
         | 'sql.executed';
+};
+
+type LoginEvent = BaseTrack & {
+    event: 'user.logged_in';
+    properties: {
+        loginProvider: 'password' | 'google';
+    };
+};
+
+type IdentityLinkedEvent = BaseTrack & {
+    event: 'user.identity_linked';
+    properties: {
+        loginProvider: 'google';
+    };
 };
 
 type CreateUserEvent = BaseTrack & {
@@ -164,7 +179,9 @@ type Track =
     | ProjectCompiledEvent
     | DashboardEvent
     | ProjectTablesConfigurationEvent
-    | TrackOrganizationEvent;
+    | TrackOrganizationEvent
+    | LoginEvent
+    | IdentityLinkedEvent;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {

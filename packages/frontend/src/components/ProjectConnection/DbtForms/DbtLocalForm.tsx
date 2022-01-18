@@ -1,5 +1,6 @@
 import { Callout } from '@blueprintjs/core';
 import React, { FC } from 'react';
+import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import Input from '../../ReactHookForm/Input';
 
 const DbtLocalForm: FC<{ disabled: boolean }> = ({ disabled }) => (
@@ -22,6 +23,9 @@ const DbtLocalForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#local-dbt-project"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Project directory'),
+                },
             }}
             disabled={disabled}
         />

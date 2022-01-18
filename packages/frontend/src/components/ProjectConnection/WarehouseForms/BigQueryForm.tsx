@@ -1,6 +1,7 @@
 import { Button } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
+import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import FileInput from '../../ReactHookForm/FileInput';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
@@ -19,6 +20,9 @@ const BigQueryForm: FC<{
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project"
                 rules={{
                     required: 'Required field',
+                    validate: {
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Project'),
+                    },
                 }}
                 disabled={disabled}
             />
@@ -28,6 +32,9 @@ const BigQueryForm: FC<{
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#data-set"
                 rules={{
                     required: 'Required field',
+                    validate: {
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Data set'),
+                    },
                 }}
                 disabled={disabled}
             />
@@ -37,6 +44,9 @@ const BigQueryForm: FC<{
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#location"
                 rules={{
                     required: 'Required field',
+                    validate: {
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Location'),
+                    },
                 }}
                 disabled={disabled}
             />

@@ -83,6 +83,14 @@ export class HealthService {
             chatwoot: this.lightdashConfig.chatwoot,
             cohere: this.lightdashConfig.cohere,
             siteUrl: this.lightdashConfig.siteUrl,
+            auth: {
+                google: {
+                    loginPath: this.lightdashConfig.auth.google.loginPath,
+                    oauth2ClientId:
+                        this.lightdashConfig.auth.google.oauth2ClientId,
+                },
+            },
+            hasEmailClient: !!this.lightdashConfig.smtp,
         };
     }
 }

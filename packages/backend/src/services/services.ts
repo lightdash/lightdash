@@ -1,9 +1,13 @@
+import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     dashboardModel,
+    emailModel,
     inviteLinkModel,
     onboardingModel,
+    openIdIdentityModel,
     organizationModel,
+    passwordResetLinkModel,
     projectModel,
     sessionModel,
     userModel,
@@ -15,10 +19,16 @@ import { ProjectService } from './ProjectService/ProjectService';
 import { SavedChartsService } from './SavedChartsService/SavedChartsService';
 import { UserService } from './UserService';
 
+const emailClient = new EmailClient({ lightdashConfig });
+
 export const userService = new UserService({
     inviteLinkModel,
     userModel,
     sessionModel,
+    emailModel,
+    openIdIdentityModel,
+    passwordResetLinkModel,
+    emailClient,
 });
 export const organizationService = new OrganizationService({
     organizationModel,

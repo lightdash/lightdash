@@ -87,6 +87,7 @@ const convertDimension = (
     let group: string | undefined;
     let name = column.meta.dimension?.name || column.name;
     let sql = column.meta.dimension?.sql || defaultSql(column.name);
+    let label = column.meta.dimension?.label || friendlyName(name);
     if (timeInterval) {
         if (timeInterval !== 'RAW') {
             sql = getDataTruncSql(
@@ -97,6 +98,7 @@ const convertDimension = (
             );
         }
         name = `${column.name}_${timeInterval.toLowerCase()}`;
+        label = `${label} ${timeInterval.toLowerCase()}`;
         group = column.name;
         if (dateIntervals.includes(timeInterval.toUpperCase())) {
             type = DimensionType.DATE;
@@ -106,7 +108,7 @@ const convertDimension = (
     return {
         fieldType: FieldType.DIMENSION,
         name,
-        label: column.meta.dimension?.label || friendlyName(name),
+        label,
         sql,
         table: modelName,
         tableLabel,

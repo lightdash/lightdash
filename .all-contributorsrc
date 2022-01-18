@@ -329,6 +329,24 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "Shrpp",
+      "name": "Shrpp",
+      "avatar_url": "https://avatars.githubusercontent.com/u/97470912?v=4",
+      "profile": "https://github.com/Shrpp",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "elbination",
+      "name": "Cuong Vu",
+      "avatar_url": "https://avatars.githubusercontent.com/u/24672834?v=4",
+      "profile": "https://github.com/elbination",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,

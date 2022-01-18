@@ -17,6 +17,22 @@ import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
 import Logger from '../logger';
 import { VERSION } from '../version';
 
+export const getIntegerFromEnvironmentVariable = (
+    name: string,
+): number | undefined => {
+    const raw = process.env[name];
+    if (raw === undefined) {
+        return undefined;
+    }
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isNaN(parsed)) {
+        throw new ParseError(
+            `Cannot parse environment variable "${name}". Value must be an integer but ${name}=${raw}`,
+        );
+    }
+    return parsed;
+};
+
 export type DbtProjectConfigIn<T extends DbtProjectConfig> = Partial<T> &
     DbtProjectConfigBase;
 
@@ -32,13 +48,20 @@ export type LightdashConfig = {
     secureCookies: boolean;
     trustProxy: boolean;
     databaseConnectionUri?: string;
+    smtp: SmtpConfig | undefined;
     rudder: RudderConfig;
     mode: LightdashMode;
     projects: Array<DbtProjectConfig>;
     sentry: SentryConfig;
+    auth: AuthConfig;
     cohere: CohereConfig;
     chatwoot: ChatwootConfig;
     siteUrl: string;
+    database: {
+        connectionUri: string | undefined;
+        maxConnections: number | undefined;
+        minConnections: number | undefined;
+    };
 };
 
 export type ChatwootConfig = {
@@ -59,6 +82,33 @@ export type SentryConfig = {
 export type RudderConfig = {
     writeKey: string;
     dataPlaneUrl: string;
+};
+
+export type AuthGoogleConfig = {
+    oauth2ClientId: string | undefined;
+    oauth2ClientSecret: string | undefined;
+    loginPath: string;
+    callbackPath: string;
+};
+
+export type AuthConfig = {
+    google: AuthGoogleConfig;
+};
+
+export type SmtpConfig = {
+    host: string;
+    port: number;
+    secure: boolean;
+    allowInvalidCertificate: boolean;
+    auth: {
+        user: string;
+        pass: string | undefined;
+        accessToken: string | undefined;
+    };
+    sender: {
+        name: string;
+        email: string;
+    };
 };
 
 type ConfigKeys<T extends DbtProjectConfig> = {
@@ -199,6 +249,24 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         ...config,
         mode,
         projects: mergedProjects,
+        smtp: process.env.EMAIL_SMTP_HOST
+            ? {
+                  host: process.env.EMAIL_SMTP_HOST,
+                  port: parseInt(process.env.EMAIL_SMTP_PORT || '587', 10),
+                  secure: process.env.EMAIL_SMTP_SECURE !== 'false', // default to true
+                  allowInvalidCertificate:
+                      process.env.EMAIL_SMTP_ALLOW_INVALID_CERT === 'true',
+                  auth: {
+                      user: process.env.EMAIL_SMTP_USER || '',
+                      pass: process.env.EMAIL_SMTP_PASSWORD,
+                      accessToken: process.env.EMAIL_SMTP_ACCESS_TOKEN,
+                  },
+                  sender: {
+                      name: process.env.EMAIL_SMTP_SENDER_NAME || 'Lightdash',
+                      email: process.env.EMAIL_SMTP_SENDER_EMAIL || '',
+                  },
+              }
+            : undefined,
         rudder: {
             writeKey:
                 process.env.RUDDERSTACK_WRITE_KEY ||
@@ -216,7 +284,22 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         lightdashSecret,
         secureCookies: process.env.SECURE_COOKIES === 'true',
         trustProxy: process.env.TRUST_PROXY === 'true',
-        databaseConnectionUri: process.env.PGCONNECTIONURI,
+        database: {
+            connectionUri: process.env.PGCONNECTIONURI,
+            maxConnections:
+                getIntegerFromEnvironmentVariable('PGMAXCONNECTIONS'),
+            minConnections:
+                getIntegerFromEnvironmentVariable('PGMINCONNECTIONS'),
+        },
+        auth: {
+            google: {
+                oauth2ClientId: process.env.AUTH_GOOGLE_OAUTH2_CLIENT_ID,
+                oauth2ClientSecret:
+                    process.env.AUTH_GOOGLE_OAUTH2_CLIENT_SECRET,
+                loginPath: '/login/google',
+                callbackPath: '/oauth/redirect/google',
+            },
+        },
         chatwoot: {
             websiteToken:
                 process.env.CHATWOOT_TOKEN || 'qUs8eBDFmn9id6R8aa1pAePq',

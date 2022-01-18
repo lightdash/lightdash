@@ -4,6 +4,25 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.11.8] - 2022-01-17
+### Added
+- Adds the `SITE_URL` environment variable used to configure all links in the app (#1118)
+- We now have a warning when a user connects via mobile devices (#1110)
+- We now collect the user job title (#1120)
+- You can now login with your Google account (#1140)
+- Users can now reset forgotten passwords (#1119)
+- Adds `PGMINCONNECTIONS` and `PGMAXCONNECTIONS` environment variable to customize pg pool size (#1157)
+
+### Changed
+- Move save chart buttons to the chart section (#1141)
+
+### Fixed
+- Align latest saved chart names (#1137)
+- Fixed support for type NUMBER() and VARCHAR() in snowflake (#1144)
+- Apply custom labels to time interval dimensions (#1146)
+- Charts will resize with the screen (#1142)
+- Add field validation to project form (#1145)
+
 ## [0.11.7] - 2022-01-07
 ### Added
 - Added support for custom labels for explores/model, metrics and dimensions (#1061)

@@ -590,6 +590,34 @@ export interface SessionUser extends LightdashUser {
     userId: number;
 }
 
+export const isSessionUser = (user: any): user is SessionUser =>
+    typeof user === 'object' &&
+    user !== null &&
+    user.userUuid &&
+    user.userId &&
+    user.openId === undefined;
+
+export interface OpenIdUser {
+    openId: {
+        subject: string;
+        issuer: string;
+        email: string;
+        firstName: string | undefined;
+        lastName: string | undefined;
+    };
+}
+
+export const isOpenIdUser = (user: any): user is OpenIdUser =>
+    typeof user === 'object' &&
+    user !== null &&
+    user.userUuid === undefined &&
+    user.userId === undefined &&
+    typeof user.openId === 'object' &&
+    user.openId !== null &&
+    typeof user.openId.subject === 'string' &&
+    typeof user.openId.issuer === 'string' &&
+    typeof user.openId.email === 'string';
+
 export type OrganizationUser = Pick<
     LightdashUser,
     'userUuid' | 'firstName' | 'lastName' | 'email'
@@ -615,6 +643,42 @@ export type UpdateUserArgs = {
     firstName: string;
     lastName: string;
     email: string;
+};
+
+export type CreateOpenIdIdentity = {
+    subject: string;
+    issuer: string;
+    userId: number;
+    email: string;
+};
+
+export type UpdateOpenIdentity = Pick<
+    CreateOpenIdIdentity,
+    'subject' | 'issuer' | 'email'
+>;
+
+export type OpenIdIdentity = CreateOpenIdIdentity & {
+    createdAt: Date;
+};
+
+export type OpenIdIdentitySummary = Pick<
+    OpenIdIdentity,
+    'issuer' | 'email' | 'createdAt'
+>;
+
+export type PasswordResetLink = {
+    expiresAt: Date;
+    code: string;
+    email: string;
+    url: string;
+    isExpired: boolean;
+};
+
+export type CreatePasswordResetLink = Pick<PasswordResetLink, 'email'>;
+
+export type PasswordReset = {
+    code: string;
+    newPassword: string;
 };
 
 export type ApiHealthResults = HealthState;
@@ -644,6 +708,8 @@ export type CompleteOnboarding = {
     showSuccess: boolean;
 };
 
+export type ApiFlashResults = Record<string, string[]>;
+
 export type OnboardingStatus = IncompleteOnboarding | CompleteOnboarding;
 
 type ApiResults =
@@ -668,7 +734,9 @@ type ApiResults =
     | Dashboard
     | DashboardBasicDetails[]
     | OnboardingStatus
-    | Dashboard[];
+    | Dashboard[]
+    | ApiFlashResults
+    | OpenIdIdentitySummary[];
 
 export type ApiResponse = {
     status: 'ok';
@@ -711,6 +779,7 @@ export type HealthState = {
     localDbtEnabled: boolean;
     defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;
+    hasEmailClient: boolean;
     latest: {
         version?: string;
     };
@@ -726,6 +795,12 @@ export type HealthState = {
     chatwoot: {
         baseUrl: string;
         websiteToken: string;
+    };
+    auth: {
+        google: {
+            oauth2ClientId: string | undefined;
+            loginPath: string;
+        };
     };
     cohere: {
         token: string;

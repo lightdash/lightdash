@@ -10,7 +10,7 @@ import { useParams } from 'react-router-dom';
 import { useChartConfig } from '../../hooks/useChartConfig';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
-import { SimpleChart } from '../SimpleChart';
+import SimpleChart from '../SimpleChart';
 import TileBase from './TileBase';
 
 const ValidDashboardChartTile: FC<{ data: SavedQuery }> = ({ data }) => {

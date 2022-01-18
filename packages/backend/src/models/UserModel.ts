@@ -13,9 +13,13 @@ import {
     EmailTableName,
 } from '../database/entities/emails';
 import { InviteLinkTableName } from '../database/entities/inviteLinks';
+import { DbOpenIdIssuer } from '../database/entities/openIdIdentities';
 import { createOrganizationMembership } from '../database/entities/organizationMemberships';
 import { createOrganization } from '../database/entities/organizations';
-import { createPasswordLogin } from '../database/entities/passwordLogins';
+import {
+    createPasswordLogin,
+    PasswordLoginTableName,
+} from '../database/entities/passwordLogins';
 import {
     DbUser,
     DbUserIn,
@@ -203,6 +207,27 @@ export class UserModel {
             .delete();
     }
 
+    async findSessionUserByOpenId(
+        issuer: string,
+        subject: string,
+    ): Promise<SessionUser | undefined> {
+        const [user] = await userDetailsQueryBuilder(this.database)
+            .leftJoin(
+                'openid_identities',
+                'users.user_id',
+                'openid_identities.user_id',
+            )
+            .where('openid_identities.issuer', issuer)
+            .andWhere('openid_identities.subject', subject)
+            .select<(DbUserDetails & DbOpenIdIssuer)[]>('*');
+        return (
+            user && {
+                ...mapDbUserDetailsToLightdashUser(user),
+                userId: user.user_id,
+            }
+        );
+    }
+
     async createUser({
         inviteCode,
         firstName,
@@ -358,5 +383,27 @@ export class UserModel {
     static lightdashUserFromSession(sessionUser: SessionUser): LightdashUser {
         const { userId, ...lightdashUser } = sessionUser;
         return lightdashUser;
+    }
+
+    async findUserByEmail(email: string): Promise<LightdashUser | undefined> {
+        const [user] = await userDetailsQueryBuilder(this.database).where(
+            'email',
+            email,
+        );
+        return user ? mapDbUserDetailsToLightdashUser(user) : undefined;
+    }
+
+    async upsertPassword(userUuid: string, password: string): Promise<void> {
+        const user = await this.findSessionUserByUUID(userUuid);
+        await this.database(PasswordLoginTableName)
+            .insert({
+                user_id: user.userId,
+                password_hash: await bcrypt.hash(
+                    password,
+                    await bcrypt.genSalt(),
+                ),
+            })
+            .onConflict('user_id')
+            .merge();
     }
 }

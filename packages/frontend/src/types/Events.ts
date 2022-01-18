@@ -7,6 +7,8 @@ export enum PageName {
     WELCOME = 'welcome',
     REGISTER = 'register',
     LOGIN = 'login',
+    PASSWORD_RECOVERY = 'password_recovery',
+    PASSWORD_RESET = 'password_reset',
     SIGNUP = 'signup',
     EXPLORER = 'explorer',
     HOME = 'home',
@@ -26,6 +28,7 @@ export enum PageName {
     SAVED_DASHBOARDS = 'saved_dashboards',
     DASHBOARD = 'DASHBOARD',
     SQL_RUNNER = 'SQL_RUNNER',
+    SOCIAL_LOGIN_SETTINGS = 'social_login_settings',
 }
 
 export enum CategoryName {

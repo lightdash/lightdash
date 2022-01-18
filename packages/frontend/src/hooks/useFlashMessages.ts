@@ -1,0 +1,18 @@
+import { ApiError, ApiFlashResults } from 'common';
+import { useQuery } from 'react-query';
+import { lightdashApi } from '../api';
+
+const getFlash = async () =>
+    lightdashApi<ApiFlashResults>({
+        method: 'GET',
+        url: '/flash',
+        body: undefined,
+    });
+
+export const useFlashMessages = () =>
+    useQuery<ApiFlashResults, ApiError>({
+        queryKey: 'flash',
+        queryFn: getFlash,
+        cacheTime: 200,
+        refetchInterval: false,
+    });

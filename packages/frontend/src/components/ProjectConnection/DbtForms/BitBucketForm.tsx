@@ -1,4 +1,9 @@
 import React, { FC } from 'react';
+import {
+    hasNoWhiteSpaces,
+    isGitRepository,
+    startWithSlash,
+} from '../../../utils/fieldValidators';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 
@@ -10,6 +15,9 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#repository-1"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Username'),
+                },
             }}
             disabled={disabled}
             placeholder="BitBucket username"
@@ -30,6 +38,10 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#repository-1"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Repository'),
+                    isGitRepository: isGitRepository('Repository'),
+                },
             }}
             disabled={disabled}
             placeholder="org/project"
@@ -40,6 +52,9 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#branch-1"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Branch'),
+                },
             }}
             disabled={disabled}
             defaultValue="main"
@@ -50,6 +65,12 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project-directory-path-1"
             rules={{
                 required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces(
+                        'Project directory path',
+                    ),
+                    startWithSlash: startWithSlash('Project directory path'),
+                },
             }}
             disabled={disabled}
             defaultValue="/"
@@ -60,6 +81,11 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             documentationUrl="https://docs.lightdash.com"
             disabled={disabled}
             defaultValue="bitbucket.org"
+            rules={{
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Host domain'),
+                },
+            }}
         />
     </>
 );

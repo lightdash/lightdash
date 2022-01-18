@@ -65,7 +65,7 @@ const LandingPage: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     intent="primary"
                     icon="database"
                 >
-                    Ask a question
+                    Run a query
                 </LinkButton>
             </div>
             <LatestDashboards projectUuid={projectUuid} />
