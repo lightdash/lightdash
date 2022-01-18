@@ -1,18 +1,25 @@
 import { Ability, AbilityBuilder, ForcedSubject } from '@casl/ability';
+import { Organization } from '../types/organization';
 import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
 } from '../types/organizationMemberProfile';
+import { LightdashUser } from '../types/user';
 
-const actions = ['manage', 'create', 'update', 'view'] as const;
-const subjects = ['all'] as const;
+type Action = 'manage' | 'create' | 'update' | 'view';
+
+type Subject =
+    | 'all'
+    | Organization
+    | 'Organization'
+    | LightdashUser
+    | 'LightdashUser'
+    | 'OrganizationMemberProfile'
+    | OrganizationMemberProfile;
 
 type PossibleAbilities = [
-    typeof actions[number],
-    (
-        | typeof subjects[number]
-        | ForcedSubject<Exclude<typeof subjects[number], 'all'>>
-    ),
+    Action,
+    Subject | ForcedSubject<Exclude<Subject, 'all'>>,
 ];
 
 export type OrganizationMemberAbility = Ability<PossibleAbilities>;
@@ -20,24 +27,37 @@ export type OrganizationMemberAbility = Ability<PossibleAbilities>;
 const organizationMemberAbilities: Record<
     OrganizationMemberRole,
     (
-        member: OrganizationMemberProfile,
+        member: Pick<
+            OrganizationMemberProfile,
+            'role' | 'organizationUuid' | 'userUuid'
+        >,
         builder: AbilityBuilder<OrganizationMemberAbility>,
     ) => void
 > = {
     viewer(member, { can }) {
-        can('view', 'all');
+        can('manage', 'LightdashUser', { userUuid: member.userUuid });
     },
     editor(member, { can }) {
-        can('create', 'all');
-        can('update', 'all');
+        can('manage', 'LightdashUser', { userUuid: member.userUuid });
     },
     admin(member, { can }) {
-        can('manage', 'all');
+        can('manage', 'LightdashUser', { userUuid: member.userUuid });
+        can('manage', 'Organization', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'OrganizationMemberProfile', {
+            organizationUuid: member.organizationUuid,
+        });
     },
 };
 
 export const defineAbilityForOrganizationMember = (
-    member: OrganizationMemberProfile | undefined,
+    member:
+        | Pick<
+              OrganizationMemberProfile,
+              'role' | 'organizationUuid' | 'userUuid'
+          >
+        | undefined,
 ): OrganizationMemberAbility => {
     const builder = new AbilityBuilder<OrganizationMemberAbility>(Ability);
     if (member) {

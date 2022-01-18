@@ -50,6 +50,7 @@ export type DbUserDetails = {
     organization_uuid: string;
     organization_name: string;
     is_setup_complete: boolean;
+    role: OrganizationMemberRole;
 };
 export type DbOrganizationUser = Pick<
     DbUserDetails,
@@ -308,6 +309,7 @@ export class UserModel {
             user && {
                 ...mapDbUserDetailsToLightdashUser(user),
                 userId: user.user_id,
+                role: user.role,
             }
         );
     }
@@ -386,6 +388,7 @@ export class UserModel {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
         return {
+            role: user.role,
             userId: user.user_id,
             ...mapDbUserDetailsToLightdashUser(user),
         };
@@ -399,6 +402,7 @@ export class UserModel {
             throw new NotFoundError(`Cannot find user with uuid ${email}`);
         }
         return {
+            role: user.role,
             userId: user.user_id,
             ...mapDbUserDetailsToLightdashUser(user),
         };

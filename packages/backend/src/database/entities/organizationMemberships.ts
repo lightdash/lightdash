@@ -13,6 +13,7 @@ export type DbOrganizationMembership = {
 export type DbOrganizationMembershipIn = {
     user_id: number;
     organization_id: number;
+    role: OrganizationMemberRole;
 };
 
 export type OrganizationMembershipsTable = Knex.CompositeTableType<
