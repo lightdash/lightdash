@@ -3,6 +3,7 @@ import {
     CreateInitialUserArgs,
     CreateOrganizationUser,
     LightdashUser,
+    OrganizationMemberRole,
     SessionUser,
     UpdateUserArgs,
 } from 'common';
@@ -39,6 +40,7 @@ export type DbUserDetails = {
     email: string | undefined;
     organization_uuid: string;
     organization_name: string;
+    role: OrganizationMemberRole;
 };
 export type DbOrganizationUser = Pick<
     DbUserDetails,
@@ -224,6 +226,7 @@ export class UserModel {
             user && {
                 ...mapDbUserDetailsToLightdashUser(user),
                 userId: user.user_id,
+                role: user.role,
             }
         );
     }
@@ -361,6 +364,7 @@ export class UserModel {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
         return {
+            role: user.role,
             userId: user.user_id,
             ...mapDbUserDetailsToLightdashUser(user),
         };
@@ -374,6 +378,7 @@ export class UserModel {
             throw new NotFoundError(`Cannot find user with uuid ${email}`);
         }
         return {
+            role: user.role,
             userId: user.user_id,
             ...mapDbUserDetailsToLightdashUser(user),
         };

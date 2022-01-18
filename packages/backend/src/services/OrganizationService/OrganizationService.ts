@@ -1,8 +1,11 @@
+import { ForbiddenError } from '@casl/ability';
 import {
+    defineAbilityForOrganizationMember,
     LightdashMode,
     OnbordingRecord,
+    Organization,
+    OrganizationMemberProfile,
     OrganizationProject,
-    OrganizationUser,
     SessionUser,
 } from 'common';
 import { analytics } from '../../analytics/client';
@@ -10,6 +13,7 @@ import { lightdashConfig } from '../../config/lightdashConfig';
 import { NotExistsError } from '../../errors';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../models/UserModel';
@@ -20,6 +24,7 @@ type OrganizationServiceDependencies = {
     projectModel: ProjectModel;
     onboardingModel: OnboardingModel;
     inviteLinkModel: InviteLinkModel;
+    organizationMemberProfileModel: OrganizationMemberProfileModel;
 };
 
 export class OrganizationService {
@@ -33,24 +38,31 @@ export class OrganizationService {
 
     private readonly inviteLinkModel: InviteLinkModel;
 
+    private readonly organizationMemberProfileModel: OrganizationMemberProfileModel;
+
     constructor({
         organizationModel,
         userModel,
         projectModel,
         onboardingModel,
         inviteLinkModel,
+        organizationMemberProfileModel,
     }: OrganizationServiceDependencies) {
         this.organizationModel = organizationModel;
         this.userModel = userModel;
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
         this.inviteLinkModel = inviteLinkModel;
+        this.organizationMemberProfileModel = organizationMemberProfileModel;
     }
 
     async updateOrg(
         user: SessionUser,
         data: { organizationName: string },
     ): Promise<void> {
+        const ability = defineAbilityForOrganizationMember(user);
+        const org: Organization = { organizationUuid: user.organizationUuid };
+        ForbiddenError.from(ability).throwUnlessCan('update', org);
         const { organizationUuid, organizationName } = user;
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
@@ -78,21 +90,22 @@ export class OrganizationService {
         );
     }
 
-    async getUsers(user: SessionUser): Promise<OrganizationUser[]> {
+    async getUsers(user: SessionUser): Promise<OrganizationMemberProfile[]> {
         const { organizationUuid } = user;
+        const ability = defineAbilityForOrganizationMember(user);
+        ForbiddenError.from(ability).throwUnlessCan(
+            'view',
+            'OrganizationMemberProfile',
+        );
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
-        const users = await this.userModel.getAllByOrganization(
-            organizationUuid,
-        );
 
-        return users.map(({ user_uuid, first_name, last_name, email }) => ({
-            userUuid: user_uuid,
-            firstName: first_name,
-            lastName: last_name,
-            email,
-        }));
+        const members =
+            await this.organizationMemberProfileModel.getOrganizationMembers(
+                organizationUuid,
+            );
+        return members.filter((member) => ability.can('view', member));
     }
 
     async getProjects(user: SessionUser): Promise<OrganizationProject[]> {
