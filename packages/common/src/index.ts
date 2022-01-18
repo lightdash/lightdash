@@ -1,5 +1,8 @@
 import moment from 'moment';
 
+export * from './authorization/organizationMemberAbility';
+export * from './types/organizationMemberProfile';
+
 const DATE_FORMAT = 'YYYY-MM-DD';
 export const formatDate = (date: Date): string =>
     moment(date).format(DATE_FORMAT);
@@ -625,20 +628,6 @@ export type OrganizationUser = Pick<
     LightdashUser,
     'userUuid' | 'firstName' | 'lastName' | 'email'
 >;
-
-export enum OrganizationMemberRole {
-    VIEWER = 'viewer',
-    EDITOR = 'editor',
-    ADMIN = 'admin',
-}
-export type OrganizationMemberProfile = {
-    userUuid: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    organizationUuid: string;
-    role: OrganizationMemberRole;
-};
 
 export type CreateUserArgs = {
     firstName: string;

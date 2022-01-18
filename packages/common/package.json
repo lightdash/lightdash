@@ -12,6 +12,7 @@
         "typescript-json-schema": "^0.50.0"
     },
     "dependencies": {
+        "@casl/ability": "^5.4.3",
         "@typescript-eslint/eslint-plugin": "^4.4.1",
         "moment": "^2.29.1"
     },
