@@ -1,9 +1,9 @@
 import { Card, Classes, Tag } from '@blueprintjs/core';
 import { ApiError, OpenIdIdentitySummary } from 'common';
-import React from 'react';
+import React, { FC } from 'react';
 import { useQuery } from 'react-query';
-import { lightdashApi } from '../../api';
-import { GoogleLoginButton } from '../common/GoogleLoginButton';
+import { lightdashApi } from '../../../api';
+import { GoogleLoginButton } from '../../common/GoogleLoginButton';
 
 const getIdentitiesQuery = async () =>
     lightdashApi<OpenIdIdentitySummary[]>({
@@ -21,7 +21,7 @@ const renderIssuerUrl = (url: string): string => {
     }
 };
 
-export const SocialLoginsPanel: React.FC = () => {
+const SocialLoginsPanel: FC = () => {
     const { data } = useQuery<OpenIdIdentitySummary[], ApiError>({
         queryKey: 'user_identities',
         queryFn: getIdentitiesQuery,
@@ -67,3 +67,5 @@ export const SocialLoginsPanel: React.FC = () => {
         </div>
     );
 };
+
+export default SocialLoginsPanel;

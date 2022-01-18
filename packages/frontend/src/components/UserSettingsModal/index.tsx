@@ -4,11 +4,11 @@ import useLocationChange from '../../hooks/useLocationChange';
 import { TrackPage } from '../../providers/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../types/Events';
 import InvitesPanel from './InvitesPanel';
-import OrganizationPanel from './OrganizationPanel';
+import OrganisationPanel from './OrganisationPanel';
 import PasswordPanel from './PasswordPanel';
 import ProfilePanel from './ProfilePanel';
 import ProjectManagementPanel from './ProjectManagementPanel';
-import { SocialLoginsPanel } from './SocialLoginsPanel';
+import SocialLoginsPanel from './SocialLoginsPanel';
 import UserManagementPanel from './UserManagementPanel';
 import './UserSettingsModal.css';
 
@@ -71,7 +71,7 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                                 type={PageType.MODAL}
                                 category={CategoryName.SETTINGS}
                             >
-                                <OrganizationPanel />
+                                <OrganisationPanel />
                             </TrackPage>
                         }
                     />

@@ -11,8 +11,8 @@ import React, { FC, useState } from 'react';
 import {
     useDeleteUserMutation,
     useOrganizationUsers,
-} from '../../hooks/useOrganizationUsers';
-import { useApp } from '../../providers/AppProvider';
+} from '../../../hooks/useOrganizationUsers';
+import { useApp } from '../../../providers/AppProvider';
 
 const UserListItem: FC<{ disabled: boolean; user: OrganizationMemberProfile }> =
     ({ disabled, user: { userUuid, firstName, lastName, email } }) => {
@@ -91,7 +91,7 @@ const UserListItem: FC<{ disabled: boolean; user: OrganizationMemberProfile }> =
         );
     };
 
-const OrganizationPanel: FC = () => {
+const UserManagementPanel: FC = () => {
     const { user } = useApp();
     const { data: organizationUsers } = useOrganizationUsers();
 
@@ -115,4 +115,4 @@ const OrganizationPanel: FC = () => {
     );
 };
 
-export default OrganizationPanel;
+export default UserManagementPanel;
