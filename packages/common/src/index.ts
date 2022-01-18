@@ -1,5 +1,6 @@
 import moment from 'moment';
-import { LightdashUser, OrganizationUser } from './types/user';
+import { OrganizationMemberProfile } from './types/organizationMemberProfile';
+import { LightdashUser } from './types/user';
 
 export * from './authorization/organizationMemberAbility';
 export * from './types/organization';
@@ -698,7 +699,7 @@ type ApiResults =
     | OrganizationProject[]
     | Project
     | WarehouseCredentials
-    | OrganizationUser[]
+    | OrganizationMemberProfile[]
     | ProjectCatalog
     | TablesConfiguration
     | Dashboard

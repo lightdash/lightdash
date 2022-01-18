@@ -44,8 +44,3 @@ export const isOpenIdUser = (user: any): user is OpenIdUser =>
     typeof user.openId.subject === 'string' &&
     typeof user.openId.issuer === 'string' &&
     typeof user.openId.email === 'string';
-
-export type OrganizationUser = Pick<
-    LightdashUser,
-    'userUuid' | 'firstName' | 'lastName' | 'email'
->;
