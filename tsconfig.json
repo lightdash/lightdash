@@ -1,10 +1,41 @@
 {
   "references": [
-    {"path":  "./packages/frontend"},
-    {"path":  "./packages/backend"},
-    {"path":  "./packages/common"}
+    {
+      "path": "./packages/frontend"
+    },
+    {
+      "path": "./packages/backend"
+    },
+    {
+      "path": "./packages/common"
+    }
   ],
   "files": [],
   "include": [],
-  "exclude": ["**/node_modules", "packages/backend/**/*.test.ts", "packages/backend/**/*.mock.ts"]
+  "exclude": [
+    "**/node_modules",
+    "packages/backend/**/*.test.ts",
+    "packages/backend/**/*.mock.ts"
+  ],
+  "compilerOptions": {
+    "target": "es5",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx"
+  }
 }
