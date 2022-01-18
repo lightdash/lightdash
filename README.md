@@ -204,6 +204,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/nathaliabj"><img src="https://avatars.githubusercontent.com/u/31137824?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Nathalia Buitrago Jurado</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=nathaliabj" title="Documentation">📖</a> <a href="https://github.com/lightdash/lightdash/commits?author=nathaliabj" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/norbag"><img src="https://avatars.githubusercontent.com/u/1949405?v=4?s=100" width="100px;" alt=""/><br /><sub><b>norbag</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Anorbag" title="Bug reports">🐛</a></td>
     <td align="center"><a href="https://github.com/Shrpp"><img src="https://avatars.githubusercontent.com/u/97470912?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Shrpp</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3AShrpp" title="Bug reports">🐛</a></td>
+    <td align="center"><a href="https://github.com/elbination"><img src="https://avatars.githubusercontent.com/u/24672834?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Cuong Vu</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Aelbination" title="Bug reports">🐛</a></td>
   </tr>
 </table>
 
