@@ -7,7 +7,11 @@ import {
     HTMLSelect,
     Tag,
 } from '@blueprintjs/core';
+<<<<<<< HEAD
 import { OrganizationMemberProfile } from 'common';
+=======
+import { OrganizationMemberRole, OrganizationUser } from 'common';
+>>>>>>> 2ff21e6 (feat: connect with options org)
 import React, { FC, useState } from 'react';
 import {
     useDeleteUserMutation,
@@ -21,10 +25,8 @@ const UserListItem: FC<{ disabled: boolean; user: OrganizationUser }> = ({
 }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const { mutate, isLoading: isDeleting } = useDeleteUserMutation();
-    const [userRole, setUserRole] = useState<string>('');
+    const [userRole, setUserRole] = useState<OrganizationMemberRole>();
     const handleDelete = () => mutate(userUuid);
-
-    const userRoles = ['admin', 'editor', 'viewer'];
 
     return (
         <Card
@@ -55,10 +57,17 @@ const UserListItem: FC<{ disabled: boolean; user: OrganizationUser }> = ({
                     <HTMLSelect
                         fill
                         id="user-role"
-                        options={userRoles}
+                        options={Object.values(OrganizationMemberRole).map(
+                            (orgMemberRole) => ({
+                                value: orgMemberRole,
+                                label: orgMemberRole,
+                            }),
+                        )}
                         required
-                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                            setUserRole(e.target.value)
+                        onChange={(e) =>
+                            setUserRole(
+                                e.currentTarget.value as OrganizationMemberRole,
+                            )
                         }
                     />
                     <Button
