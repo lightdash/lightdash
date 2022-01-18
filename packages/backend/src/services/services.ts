@@ -6,6 +6,7 @@ import {
     inviteLinkModel,
     onboardingModel,
     openIdIdentityModel,
+    organizationMemberProfileModel,
     organizationModel,
     passwordResetLinkModel,
     projectModel,
@@ -37,6 +38,7 @@ export const organizationService = new OrganizationService({
     projectModel,
     onboardingModel,
     inviteLinkModel,
+    organizationMemberProfileModel,
 });
 
 export const projectService = new ProjectService({
