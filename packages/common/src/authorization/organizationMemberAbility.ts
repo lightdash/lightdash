@@ -34,14 +34,9 @@ const organizationMemberAbilities: Record<
         builder: AbilityBuilder<OrganizationMemberAbility>,
     ) => void
 > = {
-    viewer(member, { can }) {
-        can('manage', 'LightdashUser', { userUuid: member.userUuid });
-    },
-    editor(member, { can }) {
-        can('manage', 'LightdashUser', { userUuid: member.userUuid });
-    },
+    viewer() {},
+    editor() {},
     admin(member, { can }) {
-        can('manage', 'LightdashUser', { userUuid: member.userUuid });
         can('manage', 'Organization', {
             organizationUuid: member.organizationUuid,
         });
