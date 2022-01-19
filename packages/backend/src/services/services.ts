@@ -29,6 +29,7 @@ export const userService = new UserService({
     openIdIdentityModel,
     passwordResetLinkModel,
     emailClient,
+    organizationModel,
 });
 export const organizationService = new OrganizationService({
     organizationModel,

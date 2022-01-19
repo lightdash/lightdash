@@ -46,12 +46,8 @@ apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
         const lightdashUser = await userService.registerInitialUser({
             firstName: sanitizeStringParam(req.body.firstName),
             lastName: sanitizeStringParam(req.body.lastName),
-            organizationName: sanitizeStringParam(req.body.organizationName),
             email: sanitizeEmailParam(req.body.email),
             password: sanitizeStringParam(req.body.password),
-            isMarketingOptedIn: !!req.body.isMarketingOptedIn,
-            isTrackingAnonymized: !!req.body.isTrackingAnonymized,
-            jobTitle: req.body.jobTitle,
         });
         const sessionUser = await userModel.findSessionUserByUUID(
             lightdashUser.userUuid,
