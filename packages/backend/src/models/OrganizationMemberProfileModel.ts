@@ -1,4 +1,7 @@
-import { OrganizationMemberProfile } from 'common';
+import {
+    OrganizationMemberProfile,
+    OrganizationMemberProfileUpdate,
+} from 'common';
 import { Knex } from 'knex';
 import { DbEmail, EmailTableName } from '../database/entities/emails';
 import {
@@ -11,6 +14,7 @@ import {
     OrganizationTableName,
 } from '../database/entities/organizations';
 import { DbUser, UserTableName } from '../database/entities/users';
+import { NotFoundError } from '../errors';
 
 type DbOrganizationMemberProfile = DbUser &
     DbOrganizationMembership &
@@ -82,4 +86,45 @@ export class OrganizationMemberProfileModel {
             'organization_memberships',
         ).insert<DbOrganizationMembershipIn>(membershipIn);
     };
+
+    async getOrganizationMember(organizationUuid: string, userUuid: string) {
+        const member = await this.findOrganizationMember(
+            organizationUuid,
+            userUuid,
+        );
+        if (member) {
+            return member;
+        }
+        throw new NotFoundError('No matching member found in organization');
+    }
+
+    async updateOrganizationMember(
+        organizationUuid: string,
+        userUuid: string,
+        data: OrganizationMemberProfileUpdate,
+    ): Promise<OrganizationMemberProfile> {
+        if (data.role) {
+            const sqlParams = {
+                organizationUuid,
+                userUuid,
+                role: data.role,
+            };
+            await this.database.raw<
+                (DbOrganizationMemberProfile & DbOrganization & DbUser)[]
+            >(
+                `
+UPDATE organization_memberships AS m
+SET role = :role
+    FROM organizations AS o, users AS u
+WHERE o.organization_id = m.organization_id
+  AND u.user_id = m.user_id
+  AND user_uuid = :userUuid
+  AND organization_uuid = :organizationUuid
+RETURNING *
+        `,
+                sqlParams,
+            );
+        }
+        return this.getOrganizationMember(organizationUuid, userUuid);
+    }
 }
