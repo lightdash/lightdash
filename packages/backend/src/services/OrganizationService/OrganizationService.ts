@@ -4,6 +4,7 @@ import {
     LightdashMode,
     OnbordingRecord,
     OrganizationMemberProfile,
+    OrganizationMemberProfileUpdate,
     OrganizationProject,
     SessionUser,
 } from 'common';
@@ -135,5 +136,23 @@ export class OrganizationService {
         return this.onboardingModel.update(user.organizationUuid, {
             shownSuccessAt: new Date(),
         });
+    }
+
+    async updateMember(
+        authenticatedUser: SessionUser,
+        memberUserUuid: string,
+        data: OrganizationMemberProfileUpdate,
+    ): Promise<OrganizationMemberProfile> {
+        const { organizationUuid } = authenticatedUser;
+        const ability = defineAbilityForOrganizationMember(authenticatedUser);
+        ForbiddenError.from(ability).throwUnlessCan(
+            'update',
+            subject('OrganizationMemberProfile', { organizationUuid }),
+        );
+        return this.organizationMemberProfileModel.updateOrganizationMember(
+            organizationUuid,
+            memberUserUuid,
+            data,
+        );
     }
 }

@@ -12,3 +12,7 @@ export type OrganizationMemberProfile = {
     organizationUuid: string;
     role: OrganizationMemberRole;
 };
+
+export type OrganizationMemberProfileUpdate = Partial<
+    Pick<OrganizationMemberProfile, 'role'>
+>;

@@ -28,8 +28,28 @@ describe('Organization member permissions', () => {
                 true,
             );
         });
-        it('can view member profiles', () => {
-            expect(ability.can('view', 'OrganizationMemberProfile'));
+        it('can manage member profiles', () => {
+            expect(ability.can('manage', 'OrganizationMemberProfile')).toEqual(
+                true,
+            );
+        });
+        it('cannot manage other members from another organization', () => {
+            expect(
+                ability.can(
+                    'manage',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: 'notmine',
+                    }),
+                ),
+            ).toEqual(false);
         });
     });
 
