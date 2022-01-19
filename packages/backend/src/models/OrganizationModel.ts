@@ -9,6 +9,13 @@ export class OrganizationModel {
         this.database = database;
     }
 
+    async hasOrgs(): Promise<boolean> {
+        const orgs = await this.database(OrganizationTableName).select(
+            'organization_id',
+        );
+        return orgs.length > 0;
+    }
+
     async update(
         organizationUuid: string,
         data: { organizationName: string },

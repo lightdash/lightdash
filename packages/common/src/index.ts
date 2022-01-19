@@ -584,6 +584,7 @@ export interface LightdashUser {
     organizationUuid: string;
     organizationName: string;
     isTrackingAnonymized: boolean;
+    isMarketingOptedIn: boolean;
 }
 
 export interface SessionUser extends LightdashUser {
@@ -626,18 +627,16 @@ export type OrganizationUser = Pick<
 export type CreateInitialUserArgs = {
     firstName: string;
     lastName: string;
-    organizationName: string;
-    jobTitle: string;
     email: string;
     password: string;
-    isMarketingOptedIn: boolean;
-    isTrackingAnonymized: boolean;
 };
 
-export type CreateOrganizationUser = Omit<
-    CreateInitialUserArgs,
-    'organizationName'
-> & { inviteCode: string };
+export type CreateOrganizationUser = CreateInitialUserArgs & {
+    jobTitle: string;
+    isMarketingOptedIn: boolean;
+    isTrackingAnonymized: boolean;
+    inviteCode: string;
+};
 
 export type UpdateUserArgs = {
     firstName: string;

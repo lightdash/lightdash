@@ -1,10 +1,5 @@
 import { Card, H2, NonIdealState } from '@blueprintjs/core';
-import {
-    ApiError,
-    CreateInitialUserArgs,
-    CreateOrganizationUser,
-    LightdashUser,
-} from 'common';
+import { ApiError, CreateOrganizationUser, LightdashUser } from 'common';
 import React, { FC } from 'react';
 import { useMutation } from 'react-query';
 import { useParams } from 'react-router-dom';
@@ -79,12 +74,11 @@ const Signup: FC = () => {
                         <>
                             <H2 style={{ marginBottom: 25 }}>Create account</H2>
                             <CreateUserForm
-                                includeOrganizationName={false}
                                 isLoading={isLoading}
                                 onCreate={(
                                     data: Omit<
-                                        CreateInitialUserArgs,
-                                        'organizationName'
+                                        CreateOrganizationUser,
+                                        'inviteCode'
                                     >,
                                 ) => {
                                     mutate({

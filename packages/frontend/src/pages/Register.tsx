@@ -4,8 +4,9 @@ import React, { FC } from 'react';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
+import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
-import CreateUserForm from '../components/CreateUserForm';
+import CreateInitialUserForm from '../components/CreateInitialUserForm';
 import PageSpinner from '../components/PageSpinner';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
@@ -75,8 +76,15 @@ const Register: FC = () => {
                     elevation={2}
                 >
                     <H2 style={{ marginBottom: 25 }}>Create account</H2>
-                    <CreateUserForm
-                        includeOrganizationName
+                    {health.data?.auth.google.oauth2ClientId && (
+                        <>
+                            <GoogleLoginButton />
+                            <span style={{ textAlign: 'center', margin: 15 }}>
+                                <b>or</b>
+                            </span>
+                        </>
+                    )}
+                    <CreateInitialUserForm
                         isLoading={isLoading}
                         onCreate={(data: CreateInitialUserArgs) => {
                             mutate(data);

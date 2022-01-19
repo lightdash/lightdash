@@ -58,7 +58,7 @@ type IdentityLinkedEvent = BaseTrack & {
 type CreateUserEvent = BaseTrack & {
     event: 'user.created';
     properties: {
-        jobTitle: string;
+        jobTitle?: string;
     };
 };
 
