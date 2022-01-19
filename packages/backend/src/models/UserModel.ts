@@ -46,6 +46,7 @@ export type DbUserDetails = {
     email: string | undefined;
     organization_uuid: string;
     organization_name: string;
+    is_setup_complete: boolean;
 };
 export type DbOrganizationUser = Pick<
     DbUserDetails,
@@ -69,6 +70,7 @@ export const mapDbUserDetailsToLightdashUser = (
         organizationName: user.organization_name,
         isTrackingAnonymized: user.is_tracking_anonymized,
         isMarketingOptedIn: user.is_marketing_opted_in,
+        isSetupComplete: user.is_setup_complete,
     };
 };
 
@@ -271,6 +273,7 @@ export class UserModel {
                         last_name: lastName.trim(),
                         is_marketing_opted_in: isMarketingOptedIn,
                         is_tracking_anonymized: isTrackingAnonymized,
+                        is_setup_complete: true,
                     })
                     .returning('*');
                 await createEmail(trx, {
@@ -325,12 +328,14 @@ export class UserModel {
                           last_name: createUser.openId.lastName || '',
                           is_marketing_opted_in: false,
                           is_tracking_anonymized: true,
+                          is_setup_complete: false,
                       }
                     : {
                           first_name: createUser.firstName.trim(),
                           last_name: createUser.lastName.trim(),
                           is_marketing_opted_in: false,
                           is_tracking_anonymized: true,
+                          is_setup_complete: false,
                       };
 
                 const newOrg = await createOrganization(trx, {
