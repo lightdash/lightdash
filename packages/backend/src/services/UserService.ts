@@ -26,6 +26,7 @@ import {
 import { EmailModel } from '../models/EmailModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
+import { OrganizationModel } from '../models/OrganizationModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
@@ -38,6 +39,7 @@ type UserServiceDependencies = {
     openIdIdentityModel: OpenIdIdentityModel;
     passwordResetLinkModel: PasswordResetLinkModel;
     emailClient: EmailClient;
+    organizationModel: OrganizationModel;
 };
 
 export class UserService {
@@ -55,6 +57,8 @@ export class UserService {
 
     private readonly emailClient: EmailClient;
 
+    private readonly organizationModel: OrganizationModel;
+
     constructor({
         inviteLinkModel,
         userModel,
@@ -63,6 +67,7 @@ export class UserService {
         openIdIdentityModel,
         emailClient,
         passwordResetLinkModel,
+        organizationModel,
     }: UserServiceDependencies) {
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
@@ -71,6 +76,7 @@ export class UserService {
         this.openIdIdentityModel = openIdIdentityModel;
         this.passwordResetLinkModel = passwordResetLinkModel;
         this.emailClient = emailClient;
+        this.organizationModel = organizationModel;
     }
 
     async create(
@@ -155,7 +161,7 @@ export class UserService {
     async loginWithOpenId(
         openIdUser: OpenIdUser,
         sessionUser: SessionUser | undefined,
-    ): Promise<SessionUser | undefined> {
+    ): Promise<SessionUser> {
         const loginUser = await this.userModel.findSessionUserByOpenId(
             openIdUser.openId.issuer,
             openIdUser.openId.subject,
@@ -196,7 +202,19 @@ export class UserService {
             });
             return sessionUser;
         }
-        return undefined;
+
+        // Create user
+        return this.createUserWithOpenId(openIdUser);
+    }
+
+    async createUserWithOpenId(openIdUser: OpenIdUser): Promise<SessionUser> {
+        if (!(await this.organizationModel.hasOrgs())) {
+            const user = await this.registerInitialUser(openIdUser);
+            return this.userModel.findSessionUserByUUID(user.userUuid);
+        }
+        throw new AuthorizationError(
+            'Can not create user in existing organisation',
+        );
     }
 
     async getLinkedIdentities({
@@ -294,21 +312,21 @@ export class UserService {
         return user;
     }
 
-    async registerInitialUser(createUser: CreateInitialUserArgs) {
+    async registerInitialUser(createUser: CreateInitialUserArgs | OpenIdUser) {
         if (await this.userModel.hasUsers()) {
             throw new ForbiddenError('User already registered');
         }
         const user = await this.userModel.createInitialUser(createUser);
         identifyUser({
             ...user,
-            isMarketingOptedIn: createUser.isMarketingOptedIn,
+            isMarketingOptedIn: user.isMarketingOptedIn,
         });
         analytics.track({
             event: 'user.created',
             organizationId: user.organizationUuid,
             userId: user.userUuid,
             properties: {
-                jobTitle: createUser.jobTitle,
+                jobTitle: undefined,
             },
         });
         analytics.track({
