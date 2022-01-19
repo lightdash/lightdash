@@ -1,6 +1,7 @@
-import { Dialog, Tab, Tabs } from '@blueprintjs/core';
+import { Card, Dialog, Tab, Tabs } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import useLocationChange from '../../hooks/useLocationChange';
+import { useApp } from '../../providers/AppProvider';
 import { TrackPage } from '../../providers/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../types/Events';
 import InvitesPanel from './InvitesPanel';
@@ -19,6 +20,10 @@ interface Props {
 
 const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
     useLocationChange(onClose);
+    const { user } = useApp();
+    // @ts-ignore
+    const isViewer = user.data?.role === 'viewer';
+
     return (
         <Dialog
             isOpen={isOpen}
@@ -88,6 +93,7 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                             </TrackPage>
                         }
                     />
+
                     <Tab
                         id="userManagement"
                         title="User management"
@@ -97,7 +103,22 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                                 type={PageType.MODAL}
                                 category={CategoryName.SETTINGS}
                             >
-                                <UserManagementPanel />
+                                {!isViewer ? (
+                                    <UserManagementPanel />
+                                ) : (
+                                    <Card
+                                        elevation={0}
+                                        style={{ textAlign: 'center' }}
+                                    >
+                                        <p>
+                                            You seem to have viewers access 👀
+                                        </p>
+                                        <p>
+                                            You dont have the permissions to
+                                            access this section 🙅
+                                        </p>
+                                    </Card>
+                                )}
                             </TrackPage>
                         }
                     />
