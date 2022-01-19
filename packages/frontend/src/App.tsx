@@ -15,6 +15,7 @@ import AppBar from './components/AppBar';
 import AppRoute from './components/AppRoute';
 import MobileView from './components/Mobile';
 import PrivateRoute from './components/PrivateRoute';
+import UserCompletionModal from './components/UserCompletionModal';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
@@ -126,6 +127,7 @@ const App = () => (
                                                 </TrackPage>
                                             </Route>
                                             <AppRoute path="/">
+                                                <UserCompletionModal />
                                                 <Switch>
                                                     <Route path="/projects/:projectUuid/settings/:tab?">
                                                         <AppBar />
