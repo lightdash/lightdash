@@ -18,7 +18,7 @@
     },
     "servers": [
         {
-            "url": "/api/v1"
+            "url": "http://localhost:8080/api/v1"
         }
     ],
     "tags": [
@@ -28,6 +28,9 @@
         }
     ],
     "paths": {
+        "/login": {
+            "$ref": "./paths/login.json"
+        },
         "/user": {
             "$ref": "./paths/user.json"
         },
@@ -37,7 +40,7 @@
         "/org/users": {
             "$ref": "./paths/organizationUsers.json"
         },
-        "/org/user/{userUuid}": {
+        "/org/users/{userUuid}": {
             "$ref": "./paths/organizationUser.json"
         },
         "/invite-links": {

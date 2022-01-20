@@ -1,5 +1,6 @@
 {
     "type": "object",
+    "additionalProperties": false,
     "properties": {
         "userUuid": {
             "type": "string"

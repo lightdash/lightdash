@@ -18,7 +18,7 @@
     },
     "servers": [
         {
-            "url": "/api/v1"
+            "url": "http://localhost:8080/api/v1"
         }
     ],
     "tags": [
@@ -28,6 +28,50 @@
         }
     ],
     "paths": {
+        "/login": {
+            "post": {
+                "summary": "Login with email and password",
+                "tags": ["user"],
+                "operationId": "loginWithPassword",
+                "security": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Login"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successfully logged in",
+                        "headers": {
+                            "Set-Cookie": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
         "/user": {
             "post": {
                 "summary": "Create user",
@@ -93,7 +137,7 @@
                 "tags": ["organization"],
                 "operationId": "getOrganizationUsers",
                 "responses": {
-                    "201": {
+                    "200": {
                         "description": "Successfully get organization users",
                         "content": {
                             "application/json": {
@@ -124,7 +168,7 @@
                 }
             }
         },
-        "/org/user/{userUuid}": {
+        "/org/users/{userUuid}": {
             "delete": {
                 "summary": "Delete organization user",
                 "tags": ["organization"],
@@ -711,40 +755,17 @@
             }
         },
         "schemas": {
-            "CreateUser": {
+            "Login": {
                 "type": "object",
                 "properties": {
-                    "inviteCode": {
-                        "type": "string"
-                    },
-                    "firstName": {
-                        "type": "string"
-                    },
-                    "lastName": {
-                        "type": "string"
-                    },
                     "email": {
                         "type": "string"
                     },
                     "password": {
                         "type": "string"
-                    },
-                    "isMarketingOptedIn": {
-                        "type": "boolean"
-                    },
-                    "isTrackingAnonymized": {
-                        "type": "boolean"
                     }
                 },
-                "required": [
-                    "inviteCode",
-                    "firstName",
-                    "lastName",
-                    "email",
-                    "password",
-                    "isMarketingOptedIn",
-                    "isTrackingAnonymized"
-                ]
+                "required": ["email", "password"]
             },
             "Error": {
                 "type": "object",
@@ -783,8 +804,44 @@
                     }
                 }
             },
+            "CreateUser": {
+                "type": "object",
+                "properties": {
+                    "inviteCode": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "isMarketingOptedIn": {
+                        "type": "boolean"
+                    },
+                    "isTrackingAnonymized": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "inviteCode",
+                    "firstName",
+                    "lastName",
+                    "email",
+                    "password",
+                    "isMarketingOptedIn",
+                    "isTrackingAnonymized"
+                ]
+            },
             "LightdashUser": {
                 "type": "object",
+                "additionalProperties": false,
                 "properties": {
                     "userUuid": {
                         "type": "string"

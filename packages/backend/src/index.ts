@@ -90,6 +90,25 @@ app.use(morganMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
+if (process.env.NODE_ENV === 'development') {
+    app.use(
+        OpenApiValidator.middleware({
+            apiSpec: path.join(
+                __dirname,
+                '../../common/dist/openapibundle.json',
+            ),
+            // apiSpec,
+            validateRequests: true,
+            validateResponses: {
+                removeAdditional: 'failing',
+            },
+            validateSecurity: false,
+            validateApiSpec: true,
+            operationHandlers: false,
+            ignorePaths: (p: string) => !p.endsWith('invite-links'),
+        }),
+    );
+}
 app.use(
     expressSession({
         secret: lightdashConfig.lightdashSecret,
@@ -108,20 +127,6 @@ app.use(
 app.use(flash());
 app.use(passport.initialize());
 app.use(passport.session());
-app.use(
-    OpenApiValidator.middleware({
-        // @ts-ignore
-        apiSpec,
-        validateRequests: {
-            removeAdditional: 'all',
-        },
-        validateResponses: true,
-        validateApiSpec: true,
-        validateSecurity: false,
-        operationHandlers: false,
-        ignorePaths: (p: string) => !p.endsWith('invite-links'),
-    }),
-);
 // api router
 app.use('/api/v1', apiV1Router);
 
