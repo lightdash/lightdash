@@ -1,8 +1,7 @@
 import bcrypt from 'bcrypt';
 import {
     CompleteUserArgs,
-    CreateInitialUserArgs,
-    CreateOrganizationUser,
+    CreateUserArgs,
     isOpenIdUser,
     LightdashMode,
     LightdashUser,
@@ -37,6 +36,7 @@ import {
 } from '../database/entities/users';
 import { NotExistsError, NotFoundError, ParameterError } from '../errors';
 import { InviteLinkModel } from './InviteLinkModel';
+import Transaction = Knex.Transaction;
 
 export type DbUserDetails = {
     user_id: number;
@@ -103,6 +103,60 @@ export class UserModel {
 
     constructor(database: Knex) {
         this.database = database;
+    }
+
+    static async createUserTransaction(
+        trx: Transaction,
+        organizationId: number,
+        createUser: CreateUserArgs | OpenIdUser,
+    ) {
+        const userIn: DbUserIn = isOpenIdUser(createUser)
+            ? {
+                  first_name: createUser.openId.firstName || '',
+                  last_name: createUser.openId.lastName || '',
+                  is_marketing_opted_in: false,
+                  is_tracking_anonymized: canTrackingBeAnonymized(),
+                  is_setup_complete: false,
+              }
+            : {
+                  first_name: createUser.firstName.trim(),
+                  last_name: createUser.lastName.trim(),
+                  is_marketing_opted_in: false,
+                  is_tracking_anonymized: canTrackingBeAnonymized(),
+                  is_setup_complete: false,
+              };
+        const [newUser] = await trx<DbUser>('users')
+            .insert<DbUserIn>(userIn)
+            .returning('*');
+        if (isOpenIdUser(createUser)) {
+            const issuer = new URL('/', createUser.openId.issuer).origin; // normalise issuer
+            await trx(OpenIdIdentitiesTableName)
+                .insert({
+                    issuer,
+                    subject: createUser.openId.subject,
+                    user_id: newUser.user_id,
+                    email: createUser.openId.email,
+                })
+                .returning('*');
+        } else {
+            await createEmail(trx, {
+                user_id: newUser.user_id,
+                email: createUser.email,
+                is_primary: true,
+            });
+            await createPasswordLogin(trx, {
+                user_id: newUser.user_id,
+                password_hash: await bcrypt.hash(
+                    createUser.password,
+                    await bcrypt.genSalt(),
+                ),
+            });
+        }
+        await createOrganizationMembership(trx, {
+            organization_id: organizationId,
+            user_id: newUser.user_id,
+        });
+        return newUser;
     }
 
     async hasUsers(): Promise<boolean> {
@@ -263,15 +317,10 @@ export class UserModel {
         );
     }
 
-    async createUser({
-        inviteCode,
-        firstName,
-        lastName,
-        email,
-        password,
-        isMarketingOptedIn,
-        isTrackingAnonymized,
-    }: CreateOrganizationUser): Promise<LightdashUser> {
+    async createUser(
+        inviteCode: string,
+        createUser: CreateUserArgs | OpenIdUser,
+    ): Promise<LightdashUser> {
         const inviteCodeHash = InviteLinkModel._hash(inviteCode);
         const inviteLinks = await this.database(InviteLinkTableName).where(
             'invite_code_hash',
@@ -284,47 +333,21 @@ export class UserModel {
 
         const duplicatedEmails = await this.database(EmailTableName).where(
             'email',
-            email,
+            isOpenIdUser(createUser)
+                ? createUser.openId.email
+                : createUser.email,
         );
         if (duplicatedEmails.length > 0) {
-            throw new ParameterError('Email already exists');
+            throw new ParameterError('Email already in use');
         }
 
-        const user = await this.database.transaction(async (trx) => {
-            try {
-                const [newUser] = await trx<DbUser>('users')
-                    .insert<DbUserIn>({
-                        first_name: firstName.trim(),
-                        last_name: lastName.trim(),
-                        is_marketing_opted_in: isMarketingOptedIn,
-                        is_tracking_anonymized: canTrackingBeAnonymized()
-                            ? isTrackingAnonymized
-                            : false,
-                        is_setup_complete: true,
-                    })
-                    .returning('*');
-                await createEmail(trx, {
-                    user_id: newUser.user_id,
-                    email,
-                    is_primary: true,
-                });
-                await createPasswordLogin(trx, {
-                    user_id: newUser.user_id,
-                    password_hash: await bcrypt.hash(
-                        password,
-                        await bcrypt.genSalt(),
-                    ),
-                });
-                await createOrganizationMembership(trx, {
-                    organization_id: inviteLink.organization_id,
-                    user_id: newUser.user_id,
-                });
-                return newUser;
-            } catch (e) {
-                await trx.rollback(e);
-                throw e;
-            }
-        });
+        const user = await this.database.transaction(async (trx) =>
+            UserModel.createUserTransaction(
+                trx,
+                inviteLink.organization_id,
+                createUser,
+            ),
+        );
         return this.getUserDetailsByUuid(user.user_uuid);
     }
 
@@ -345,68 +368,17 @@ export class UserModel {
     }
 
     async createInitialUser(
-        createUser: CreateInitialUserArgs | OpenIdUser,
+        createUser: CreateUserArgs | OpenIdUser,
     ): Promise<LightdashUser> {
         const user = await this.database.transaction(async (trx) => {
-            try {
-                const userIn: DbUserIn = isOpenIdUser(createUser)
-                    ? {
-                          first_name: createUser.openId.firstName || '',
-                          last_name: createUser.openId.lastName || '',
-                          is_marketing_opted_in: false,
-                          is_tracking_anonymized: canTrackingBeAnonymized(),
-                          is_setup_complete: false,
-                      }
-                    : {
-                          first_name: createUser.firstName.trim(),
-                          last_name: createUser.lastName.trim(),
-                          is_marketing_opted_in: false,
-                          is_tracking_anonymized: canTrackingBeAnonymized(),
-                          is_setup_complete: false,
-                      };
-
-                const newOrg = await createOrganization(trx, {
-                    organization_name: '',
-                });
-                const [newUser] = await trx<DbUser>('users')
-                    .insert<DbUserIn>(userIn)
-                    .returning('*');
-                if (isOpenIdUser(createUser)) {
-                    const issuer = new URL('/', createUser.openId.issuer)
-                        .origin; // normalise issuer
-                    await trx(OpenIdIdentitiesTableName)
-                        .insert({
-                            issuer,
-                            subject: createUser.openId.subject,
-                            user_id: newUser.user_id,
-                            email: createUser.openId.email,
-                        })
-                        .returning('*');
-                } else {
-                    await createEmail(trx, {
-                        user_id: newUser.user_id,
-                        email: createUser.email,
-                        is_primary: true,
-                    });
-                    await createPasswordLogin(trx, {
-                        user_id: newUser.user_id,
-                        password_hash: await bcrypt.hash(
-                            createUser.password,
-                            await bcrypt.genSalt(),
-                        ),
-                    });
-                }
-
-                await createOrganizationMembership(trx, {
-                    organization_id: newOrg.organization_id,
-                    user_id: newUser.user_id,
-                });
-
-                return newUser;
-            } catch (e) {
-                await trx.rollback(e);
-                throw e;
-            }
+            const newOrg = await createOrganization(trx, {
+                organization_name: '',
+            });
+            return UserModel.createUserTransaction(
+                trx,
+                newOrg.organization_id,
+                createUser,
+            );
         });
         return this.getUserDetailsByUuid(user.user_uuid);
     }

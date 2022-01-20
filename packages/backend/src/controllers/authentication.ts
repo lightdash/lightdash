@@ -73,7 +73,10 @@ export const localPassportStrategy = new LocalStrategy(
     },
 );
 export const getGoogleLogin: RequestHandler = (req, res, next) => {
-    const { redirect } = req.query;
+    const { redirect, inviteCode } = req.query;
+    if (typeof inviteCode === 'string') {
+        req.session.inviteCode = inviteCode;
+    }
     if (typeof redirect === 'string') {
         try {
             const redirectUrl = new URL(redirect);
@@ -136,6 +139,7 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                   const user = await userService.loginWithOpenId(
                       openIdUser,
                       req.user,
+                      req.session.inviteCode,
                   );
                   return done(null, user);
               } catch (e) {

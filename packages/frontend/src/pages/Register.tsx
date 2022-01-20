@@ -1,17 +1,17 @@
 import { Card, H2 } from '@blueprintjs/core';
-import { ApiError, CreateInitialUserArgs, LightdashUser } from 'common';
+import { ApiError, CreateUserArgs, LightdashUser } from 'common';
 import React, { FC } from 'react';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
-import CreateInitialUserForm from '../components/CreateInitialUserForm';
+import CreateUserForm from '../components/CreateUserForm';
 import PageSpinner from '../components/PageSpinner';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 
-const registerQuery = async (data: CreateInitialUserArgs) =>
+const registerQuery = async (data: CreateUserArgs) =>
     lightdashApi<LightdashUser>({
         url: `/register`,
         method: 'POST',
@@ -25,7 +25,7 @@ const Register: FC = () => {
     const { isLoading, mutate } = useMutation<
         LightdashUser,
         ApiError,
-        CreateInitialUserArgs
+        CreateUserArgs
     >(registerQuery, {
         mutationKey: ['login'],
         onSuccess: (data) => {
@@ -84,9 +84,9 @@ const Register: FC = () => {
                             </span>
                         </>
                     )}
-                    <CreateInitialUserForm
+                    <CreateUserForm
                         isLoading={isLoading}
-                        onCreate={(data: CreateInitialUserArgs) => {
+                        onCreate={(data: CreateUserArgs) => {
                             mutate(data);
                         }}
                     />

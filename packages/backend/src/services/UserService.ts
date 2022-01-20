@@ -1,9 +1,8 @@
 import {
     CompleteUserArgs,
-    CreateInitialUserArgs,
     CreateInviteLink,
-    CreateOrganizationUser,
     CreatePasswordResetLink,
+    CreateUserArgs,
     InviteLink,
     LightdashMode,
     LightdashUser,
@@ -81,16 +80,17 @@ export class UserService {
     }
 
     async create(
-        createOrganizationUser: CreateOrganizationUser,
+        inviteCode: string,
+        createUser: CreateUserArgs | OpenIdUser,
     ): Promise<LightdashUser> {
-        const user = await this.userModel.createUser(createOrganizationUser);
+        const user = await this.userModel.createUser(inviteCode, createUser);
         identifyUser(user);
         analytics.track({
             organizationId: user.organizationUuid,
             event: 'user.created',
             userId: user.userUuid,
             properties: {
-                jobTitle: createOrganizationUser.jobTitle,
+                jobTitle: undefined,
             },
         });
         return user;
@@ -162,6 +162,7 @@ export class UserService {
     async loginWithOpenId(
         openIdUser: OpenIdUser,
         sessionUser: SessionUser | undefined,
+        inviteCode: string | undefined,
     ): Promise<SessionUser> {
         const loginUser = await this.userModel.findSessionUserByOpenId(
             openIdUser.openId.issuer,
@@ -205,12 +206,19 @@ export class UserService {
         }
 
         // Create user
-        return this.createUserWithOpenId(openIdUser);
+        return this.createUserWithOpenId(openIdUser, inviteCode);
     }
 
-    async createUserWithOpenId(openIdUser: OpenIdUser): Promise<SessionUser> {
+    async createUserWithOpenId(
+        openIdUser: OpenIdUser,
+        inviteCode: string | undefined,
+    ): Promise<SessionUser> {
         if (!(await this.organizationModel.hasOrgs())) {
             const user = await this.registerInitialUser(openIdUser);
+            return this.userModel.findSessionUserByUUID(user.userUuid);
+        }
+        if (inviteCode) {
+            const user = await this.create(inviteCode, openIdUser);
             return this.userModel.findSessionUserByUUID(user.userUuid);
         }
         throw new AuthorizationError(
@@ -358,7 +366,7 @@ export class UserService {
         return user;
     }
 
-    async registerInitialUser(createUser: CreateInitialUserArgs | OpenIdUser) {
+    async registerInitialUser(createUser: CreateUserArgs | OpenIdUser) {
         if (await this.userModel.hasUsers()) {
             throw new ForbiddenError('User already registered');
         }
