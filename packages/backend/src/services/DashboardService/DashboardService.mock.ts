@@ -1,9 +1,11 @@
+import { Ability } from '@casl/ability';
 import {
     CreateDashboard,
     CreateDashboardChartTile,
     Dashboard,
     DashboardBasicDetails,
     DashboardTileTypes,
+    OrganizationMemberRole,
     SessionUser,
     UpdateDashboard,
 } from 'common';
@@ -18,6 +20,8 @@ export const user: SessionUser = {
     organizationName: 'organizationName',
     isTrackingAnonymized: false,
     userId: 0,
+    role: OrganizationMemberRole.ADMIN,
+    ability: new Ability(),
 };
 
 export const space: SpaceTable['base'] = {

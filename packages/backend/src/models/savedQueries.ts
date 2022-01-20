@@ -1,7 +1,6 @@
 import {
     CreateSavedQuery,
     CreateSavedQueryVersion,
-    defineAbilityForOrganizationMember,
     SavedQuery,
     SessionUser,
     Space,
@@ -29,8 +28,7 @@ export const SavedQueriesModel = {
         projectUuid: string,
         savedQuery: CreateSavedQuery,
     ): Promise<SavedQuery> => {
-        const ability = defineAbilityForOrganizationMember(user);
-        if (ability.cannot('create', 'SavedChart')) {
+        if (user.ability.cannot('create', 'SavedChart')) {
             throw new ForbiddenError();
         }
         const newSavedQuery = await createSavedQuery(projectUuid, savedQuery);
@@ -53,8 +51,7 @@ export const SavedQueriesModel = {
         user: SessionUser,
         savedQueryUuid: string,
     ): Promise<void> => {
-        const ability = defineAbilityForOrganizationMember(user);
-        if (ability.cannot('delete', 'SavedChart')) {
+        if (user.ability.cannot('delete', 'SavedChart')) {
             throw new ForbiddenError();
         }
         await deleteSavedQuery(database, savedQueryUuid);
@@ -72,8 +69,7 @@ export const SavedQueriesModel = {
         savedQueryUuid: string,
         data: UpdateSavedQuery,
     ): Promise<SavedQuery> => {
-        const ability = defineAbilityForOrganizationMember(user);
-        if (ability.cannot('update', 'SavedChart')) {
+        if (user.ability.cannot('update', 'SavedChart')) {
             throw new ForbiddenError();
         }
         const savedQuery = await updateSavedQuery(savedQueryUuid, data);
@@ -92,8 +88,7 @@ export const SavedQueriesModel = {
         savedQueryUuid: string,
         data: CreateSavedQueryVersion,
     ): Promise<SavedQuery> => {
-        const ability = defineAbilityForOrganizationMember(user);
-        if (ability.cannot('update', 'SavedChart')) {
+        if (user.ability.cannot('update', 'SavedChart')) {
             throw new ForbiddenError();
         }
         const savedQuery = await addSavedQueryVersion(savedQueryUuid, data);

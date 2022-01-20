@@ -22,6 +22,9 @@
         },
         "isTrackingAnonymized": {
             "type": "boolean"
+        },
+        "role": {
+            "type": "string"
         }
     },
     "required": ["userUuid", "firstName", "lastName", "isTrackingAnonymized"]

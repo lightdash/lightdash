@@ -1,3 +1,4 @@
+import { OrganizationMemberAbility } from '../authorization/organizationMemberAbility';
 import { OrganizationMemberRole } from './organizationMemberProfile';
 
 export interface LightdashUser {
@@ -8,11 +9,12 @@ export interface LightdashUser {
     organizationUuid: string;
     organizationName: string;
     isTrackingAnonymized: boolean;
+    role: OrganizationMemberRole;
 }
 
 export interface SessionUser extends LightdashUser {
     userId: number;
-    role: OrganizationMemberRole;
+    ability: OrganizationMemberAbility;
 }
 
 export const isSessionUser = (user: any): user is SessionUser =>
