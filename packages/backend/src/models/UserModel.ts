@@ -231,7 +231,7 @@ export class UserModel {
         );
     }
 
-    async createUser({
+    async createUserFromInvite({
         inviteCode,
         firstName,
         lastName,
@@ -283,6 +283,7 @@ export class UserModel {
                 await trx(OrganizationMembershipsTableName).insert({
                     organization_id: inviteLink.organization_id,
                     user_id: newUser.user_id,
+                    role: OrganizationMemberRole.VIEWER,
                 });
                 return newUser;
             } catch (e) {
@@ -309,7 +310,7 @@ export class UserModel {
             ]);
     }
 
-    async createInitialUser({
+    async createInitialAdminUser({
         firstName,
         lastName,
         organizationName,
@@ -346,6 +347,7 @@ export class UserModel {
                 await trx(OrganizationMembershipsTableName).insert({
                     organization_id: newOrg.organization_id,
                     user_id: newUser.user_id,
+                    role: OrganizationMemberRole.ADMIN,
                 });
                 return newUser;
             } catch (e) {

@@ -76,7 +76,9 @@ export class UserService {
     async create(
         createOrganizationUser: CreateOrganizationUser,
     ): Promise<LightdashUser> {
-        const user = await this.userModel.createUser(createOrganizationUser);
+        const user = await this.userModel.createUserFromInvite(
+            createOrganizationUser,
+        );
         identifyUser(user);
         analytics.track({
             organizationId: user.organizationUuid,
@@ -298,7 +300,7 @@ export class UserService {
         if (await this.userModel.hasUsers()) {
             throw new ForbiddenError('User already registered');
         }
-        const user = await this.userModel.createInitialUser(createUser);
+        const user = await this.userModel.createInitialAdminUser(createUser);
         identifyUser({
             ...user,
             isMarketingOptedIn: createUser.isMarketingOptedIn,
