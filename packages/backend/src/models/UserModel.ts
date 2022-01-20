@@ -153,11 +153,6 @@ export class UserModel {
                 ),
             });
         }
-        await trx(OrganizationMembershipsTableName).insert({
-            organization_id: organizationId,
-            user_id: newUser.user_id,
-            role: OrganizationMemberRole.EDITOR,
-        });
         return newUser;
     }
 
@@ -338,12 +333,19 @@ export class UserModel {
             throw new ParameterError('Email already in use');
         }
 
-        const user = await this.database.transaction(async (trx) =>
-            UserModel.createUserTransaction(
-                trx,
-                inviteLink.organization_id,
-                createUser,
-            ),
+        const user = await this.database.transaction(async (trx) => {
+                const newUser = await UserModel.createUserTransaction(
+                    trx,
+                    inviteLink.organization_id,
+                    createUser,
+                )
+                await trx(OrganizationMembershipsTableName).insert({
+                    organization_id: inviteLink.organization_id,
+                    user_id: newUser.user_id,
+                    role: OrganizationMemberRole.EDITOR,
+                });
+                return newUser;
+            },
         );
         return this.getUserDetailsByUuid(user.user_uuid);
     }
@@ -364,18 +366,24 @@ export class UserModel {
             ]);
     }
 
-    async createInitialUser(
+    async createInitialAdminUser(
         createUser: CreateUserArgs | OpenIdUser,
     ): Promise<LightdashUser> {
         const user = await this.database.transaction(async (trx) => {
             const newOrg = await createOrganization(trx, {
                 organization_name: '',
             });
-            return UserModel.createUserTransaction(
+            const newUser = await UserModel.createUserTransaction(
                 trx,
                 newOrg.organization_id,
                 createUser,
             );
+            await trx(OrganizationMembershipsTableName).insert({
+                organization_id: newOrg.organization_id,
+                user_id: newUser.user_id,
+                role: OrganizationMemberRole.ADMIN,
+            });
+            return newUser;
         });
         return this.getUserDetailsByUuid(user.user_uuid);
     }

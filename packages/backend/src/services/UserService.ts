@@ -399,7 +399,7 @@ export class UserService {
         if (await this.userModel.hasUsers()) {
             throw new ForbiddenError('User already registered');
         }
-        const user = await this.userModel.createInitialUser(createUser);
+        const user = await this.userModel.createInitialAdminUser(createUser);
         identifyUser({
             ...user,
             isMarketingOptedIn: user.isMarketingOptedIn,
