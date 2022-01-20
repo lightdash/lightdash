@@ -68,6 +68,9 @@ describe('Organization member permissions', () => {
                 false,
             );
         });
+        it('can create invite links', () => {
+            expect(ability.can('create', 'InviteLink')).toEqual(true);
+        });
     });
 
     describe('when user is a viewer', () => {
@@ -79,18 +82,21 @@ describe('Organization member permissions', () => {
             expect(ability.can('create', 'SavedChart')).toEqual(false);
             expect(ability.can('create', 'Project')).toEqual(false);
             expect(ability.can('create', 'Organization')).toEqual(false);
+            expect(ability.can('create', 'InviteLink')).toEqual(false);
         });
         it('cannot update any resource', () => {
             expect(ability.can('update', 'Dashboard')).toEqual(false);
             expect(ability.can('update', 'SavedChart')).toEqual(false);
             expect(ability.can('update', 'Project')).toEqual(false);
             expect(ability.can('update', 'Organization')).toEqual(false);
+            expect(ability.can('update', 'InviteLink')).toEqual(false);
         });
         it('cannot delete any resource', () => {
             expect(ability.can('delete', 'Dashboard')).toEqual(false);
             expect(ability.can('delete', 'SavedChart')).toEqual(false);
             expect(ability.can('delete', 'Project')).toEqual(false);
             expect(ability.can('delete', 'Organization')).toEqual(false);
+            expect(ability.can('delete', 'InviteLink')).toEqual(false);
         });
     });
 });

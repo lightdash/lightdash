@@ -287,7 +287,7 @@ export class UserModel {
                 await trx(OrganizationMembershipsTableName).insert({
                     organization_id: inviteLink.organization_id,
                     user_id: newUser.user_id,
-                    role: OrganizationMemberRole.VIEWER,
+                    role: OrganizationMemberRole.EDITOR,
                 });
                 return newUser;
             } catch (e) {

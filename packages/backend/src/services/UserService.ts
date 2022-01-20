@@ -122,6 +122,9 @@ export class UserService {
         user: SessionUser,
         createInviteLink: CreateInviteLink,
     ): Promise<InviteLink> {
+        if (user.ability.cannot('create', 'InviteLink')) {
+            throw new ForbiddenError();
+        }
         const { organizationUuid } = user;
         const { expiresAt } = createInviteLink;
         const inviteCode = nanoid(30);
@@ -143,6 +146,9 @@ export class UserService {
 
     async revokeAllInviteLinks(user: SessionUser) {
         const { organizationUuid } = user;
+        if (user.ability.cannot('delete', 'InviteLink')) {
+            throw new ForbiddenError();
+        }
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
