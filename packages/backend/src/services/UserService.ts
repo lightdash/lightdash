@@ -214,22 +214,35 @@ export class UserService {
             return this.userModel.findSessionUserByUUID(user.userUuid);
         }
         throw new AuthorizationError(
-            'Can not create user in existing organisation',
+            'Can not create user in existing organization',
         );
     }
 
     async completeUserSetup(
         user: SessionUser,
         {
-            organisationName,
+            organizationName,
             jobTitle,
             isTrackingAnonymized,
             isMarketingOptedIn,
         }: CompleteUserArgs,
     ): Promise<LightdashUser> {
-        if (organisationName) {
+        if (organizationName) {
             await this.organizationModel.update(user.organizationUuid, {
-                organizationName: organisationName,
+                organizationName,
+            });
+            analytics.track({
+                userId: user.userUuid,
+                event: 'organization.updated',
+                organizationId: user.organizationUuid,
+                properties: {
+                    type:
+                        lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                            ? 'cloud'
+                            : 'self-hosted',
+                    organizationId: user.organizationUuid,
+                    organizationName,
+                },
             });
         }
 

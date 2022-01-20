@@ -52,11 +52,15 @@ const UserCompletionModal: FC = () => {
                 <H3 style={{ marginBottom: 25 }}>
                     Finish setting up your account
                 </H3>
-                <Form name="login" methods={methods} onSubmit={handleSubmit}>
+                <Form
+                    name="complete_user"
+                    methods={methods}
+                    onSubmit={handleSubmit}
+                >
                     {user.data.organizationName === '' && (
                         <Input
                             label="Organization name"
-                            name="organisationName"
+                            name="organizationName"
                             placeholder="Lightdash"
                             disabled={isLoading}
                             rules={{

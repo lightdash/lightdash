@@ -222,7 +222,7 @@ export class UserModel {
         {
             isMarketingOptedIn,
             isTrackingAnonymized,
-        }: Omit<CompleteUserArgs, 'organisationName' | 'jobTitle'>,
+        }: Omit<CompleteUserArgs, 'organizationName' | 'jobTitle'>,
     ): Promise<LightdashUser> {
         await this.database<DbUser>('users')
             .where('user_uuid', userUuid)
