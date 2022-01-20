@@ -5,13 +5,16 @@ import {
     OrganizationMemberRole,
 } from '../types/organizationMemberProfile';
 
-type Action = 'manage' | 'update' | 'view';
+type Action = 'manage' | 'update' | 'view' | 'create' | 'delete';
 
 type Subject =
     | Organization
     | OrganizationMemberProfile
     | 'Organization'
-    | 'OrganizationMemberProfile';
+    | 'OrganizationMemberProfile'
+    | 'Dashboard'
+    | 'SavedChart'
+    | 'Project';
 
 type PossibleAbilities = [
     Action,
@@ -27,12 +30,22 @@ const organizationMemberAbilities: Record<
             OrganizationMemberProfile,
             'role' | 'organizationUuid' | 'userUuid'
         >,
-        builder: AbilityBuilder<OrganizationMemberAbility>,
+        builder: Pick<AbilityBuilder<OrganizationMemberAbility>, 'can'>,
     ) => void
 > = {
-    viewer() {},
-    editor() {},
+    viewer(member, { can }) {
+        can('view', 'Dashboard');
+        can('view', 'SavedChart');
+        can('view', 'Project');
+    },
+    editor(member, { can }) {
+        organizationMemberAbilities.viewer(member, { can });
+        can('manage', 'Project');
+        can('manage', 'Dashboard');
+        can('manage', 'SavedChart');
+    },
     admin(member, { can }) {
+        organizationMemberAbilities.editor(member, { can });
         can('manage', 'Organization', {
             organizationUuid: member.organizationUuid,
         });
