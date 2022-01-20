@@ -181,9 +181,8 @@ projectRouter.post(
     unauthorisedInDemo,
     async (req, res, next) => {
         SavedQueriesModel.create(
-            req.user!.userUuid,
+            req.user!,
             req.params.projectUuid,
-            req.user!.organizationUuid,
             req.body.savedQuery,
         )
             .then((results) => {
