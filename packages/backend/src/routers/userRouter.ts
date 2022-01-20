@@ -103,3 +103,20 @@ userRouter.get('/identities', isAuthenticated, async (req, res, next) => {
         results: identities,
     });
 });
+
+userRouter.patch(
+    '/me/complete',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        userService
+            .completeUserSetup(req.user!, req.body)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);

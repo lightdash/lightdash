@@ -60,6 +60,7 @@ export const SEED_USER = {
     last_name: 'Doe',
     is_marketing_opted_in: true,
     is_tracking_anonymized: false,
+    is_setup_complete: true,
 };
 export const SEED_EMAIL = {
     email: 'demo@lightdash.com',
