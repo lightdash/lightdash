@@ -4,7 +4,7 @@
         "tags": ["organization"],
         "operationId": "getOrganizationUsers",
         "responses": {
-            "201": {
+            "200": {
                 "description": "Successfully get organization users",
                 "content": {
                     "application/json": {
