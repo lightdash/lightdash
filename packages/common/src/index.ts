@@ -641,7 +641,7 @@ export type CreateOrganizationUser = CreateInitialUserArgs & {
 };
 
 export type CompleteUserArgs = {
-    organisationName?: string;
+    organizationName?: string;
     jobTitle: string;
     isMarketingOptedIn: boolean;
     isTrackingAnonymized: boolean;
