@@ -78,9 +78,6 @@ const RedshiftForm: FC<{
                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#port-1"
                     rules={{
                         required: 'Required field',
-                        validate: {
-                            hasNoWhiteSpaces: hasNoWhiteSpaces('Port'),
-                        },
                     }}
                     disabled={disabled}
                     defaultValue={5439}

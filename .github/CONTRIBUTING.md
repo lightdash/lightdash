@@ -199,6 +199,15 @@ The reviewers can still request adhoc changes for situations that haven't been e
 
 ## Setup Development Environment
 
+#### Environent variables in developent
+
+When developing, you must activate the `./docker/.env` environent variable file, which configures Lightdash to run
+in development mode. The following two guides will set this up correctly but if you're manually creating a 
+development environment you must run:
+```shell
+source ./docker/.env
+```
+
 #### Github Codespaces / VS Code Remote Containers
 
 The fastest way to setup a development environment is to use Github Codespaces or VS Code Remote Containers.
@@ -323,7 +332,7 @@ yarn lint
 yarn format
 ```
 
-## Join The Project Team
+## Join The Lightdash Team
 If you are interested in joining our team, check our [job board](https://www.notion.so/gethubble/Job-Board-a2c7d872794b45deb7b76ad68701d750)!
 
 ## Attribution

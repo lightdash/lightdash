@@ -4,6 +4,10 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.11.9] - 2022-01-18
+### Fixed
+- Fixed fatal error when trying to connect a project (#1168)
+
 ## [0.11.8] - 2022-01-17
 ### Added
 - Adds the `SITE_URL` environment variable used to configure all links in the app (#1118)
