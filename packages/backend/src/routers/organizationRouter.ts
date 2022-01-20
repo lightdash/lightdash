@@ -76,7 +76,8 @@ organizationRouter.patch(
                     status: 'ok',
                     results,
                 });
-            });
+            })
+            .catch(next);
     },
 );
 
