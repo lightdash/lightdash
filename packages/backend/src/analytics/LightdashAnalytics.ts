@@ -56,7 +56,7 @@ type IdentityLinkedEvent = BaseTrack & {
 };
 
 type CreateUserEvent = BaseTrack & {
-    event: 'user.created';
+    event: 'user.created' | 'user.completed';
     properties: {
         jobTitle?: string;
     };

@@ -20,9 +20,15 @@ export type DbUserIn = Pick<
     | 'is_setup_complete'
 > &
     Partial<Pick<DbUser, 'user_uuid'>>;
-export type DbUserUpdate = Pick<
-    DbUser,
-    'first_name' | 'last_name' | 'is_setup_complete'
+export type DbUserUpdate = Partial<
+    Pick<
+        DbUser,
+        | 'first_name'
+        | 'last_name'
+        | 'is_marketing_opted_in'
+        | 'is_tracking_anonymized'
+        | 'is_setup_complete'
+    >
 >;
 
 export type UserTable = Knex.CompositeTableType<DbUser, DbUserIn, DbUserUpdate>;

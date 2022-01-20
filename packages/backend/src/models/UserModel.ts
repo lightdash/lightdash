@@ -1,8 +1,10 @@
 import bcrypt from 'bcrypt';
 import {
+    CompleteUserArgs,
     CreateInitialUserArgs,
     CreateOrganizationUser,
     isOpenIdUser,
+    LightdashMode,
     LightdashUser,
     OpenIdUser,
     SessionUser,
@@ -10,6 +12,7 @@ import {
 } from 'common';
 import { Knex } from 'knex';
 import { URL } from 'url';
+import { lightdashConfig } from '../config/lightdashConfig';
 import {
     createEmail,
     deleteEmail,
@@ -52,6 +55,9 @@ export type DbOrganizationUser = Pick<
     DbUserDetails,
     'user_uuid' | 'first_name' | 'last_name' | 'email'
 >;
+
+const canTrackingBeAnonymized = () =>
+    lightdashConfig.mode !== LightdashMode.CLOUD_BETA;
 
 export const mapDbUserDetailsToLightdashUser = (
     user: DbUserDetails,
@@ -211,6 +217,25 @@ export class UserModel {
         return this.getUserByPrimaryEmail(email);
     }
 
+    async completeUser(
+        userUuid: string,
+        {
+            isMarketingOptedIn,
+            isTrackingAnonymized,
+        }: Omit<CompleteUserArgs, 'organisationName' | 'jobTitle'>,
+    ): Promise<LightdashUser> {
+        await this.database<DbUser>('users')
+            .where('user_uuid', userUuid)
+            .update<DbUserUpdate>({
+                is_setup_complete: true,
+                is_marketing_opted_in: isMarketingOptedIn,
+                is_tracking_anonymized: canTrackingBeAnonymized()
+                    ? isTrackingAnonymized
+                    : false,
+            });
+        return this.getUserDetailsByUuid(userUuid);
+    }
+
     async delete(userUuid: string): Promise<void> {
         await this.database(UserTableName)
             .where('user_uuid', userUuid)
@@ -272,7 +297,9 @@ export class UserModel {
                         first_name: firstName.trim(),
                         last_name: lastName.trim(),
                         is_marketing_opted_in: isMarketingOptedIn,
-                        is_tracking_anonymized: isTrackingAnonymized,
+                        is_tracking_anonymized: canTrackingBeAnonymized()
+                            ? isTrackingAnonymized
+                            : false,
                         is_setup_complete: true,
                     })
                     .returning('*');
@@ -327,14 +354,14 @@ export class UserModel {
                           first_name: createUser.openId.firstName || '',
                           last_name: createUser.openId.lastName || '',
                           is_marketing_opted_in: false,
-                          is_tracking_anonymized: true,
+                          is_tracking_anonymized: canTrackingBeAnonymized(),
                           is_setup_complete: false,
                       }
                     : {
                           first_name: createUser.firstName.trim(),
                           last_name: createUser.lastName.trim(),
                           is_marketing_opted_in: false,
-                          is_tracking_anonymized: true,
+                          is_tracking_anonymized: canTrackingBeAnonymized(),
                           is_setup_complete: false,
                       };
 
