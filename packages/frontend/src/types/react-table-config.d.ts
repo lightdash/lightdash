@@ -110,7 +110,7 @@ declare module 'react-table' {
         // UseSortByColumnProps<D> {
         type: 'dimension' | 'metric' | 'table_calculation';
         dimensionType: DimensionType;
-        description: string;
+        description?: string;
         tableCalculation?: TableCalculation;
         sortedIndex: number;
         isMultiSort: boolean;
