@@ -18,9 +18,9 @@ const deleteUserQuery = async (id: string) =>
         body: undefined,
     });
 
-export const updateUser = async (id: string, data: OrganizationMemberProfile) =>
+export const updateUser = async (id: string, data: { role: string }) =>
     lightdashApi<undefined>({
-        url: `/org/user/${id}`,
+        url: `/org/users/${id}`,
         method: 'PATCH',
         body: JSON.stringify(data),
     });
@@ -65,13 +65,14 @@ export const useUpdateUserMutation = (userUuid: string) => {
             throw new Error('user ID is undefined');
         },
         {
-            mutationKey: ['organization_users'],
+            mutationKey: ['organization_membership_roles'],
             onSuccess: async (data) => {
-                await queryClient.invalidateQueries('organization_users');
-                queryClient.setQueryData(
-                    ['organization_users', userUuid],
-                    data,
-                );
+                await queryClient.invalidateQueries([
+                    'organization_membership_roles',
+                    'organization_memberships',
+                    'organization_users',
+                ]);
+
                 showToastSuccess({
                     title: `Success! Project was updated.`,
                 });
