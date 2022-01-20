@@ -1,7 +1,9 @@
 import {
     CreateSavedQuery,
     CreateSavedQueryVersion,
+    defineAbilityForOrganizationMember,
     SavedQuery,
+    SessionUser,
     Space,
     UpdateSavedQuery,
 } from 'common';
@@ -15,6 +17,7 @@ import {
     updateSavedQuery,
 } from '../database/entities/savedQueries';
 import { getSpaceWithQueries } from '../database/entities/spaces';
+import { ForbiddenError } from '../errors';
 
 export const SavedQueriesModel = {
     getAllSpaces: async (projectUuid: string): Promise<Space[]> => {
@@ -22,51 +25,62 @@ export const SavedQueriesModel = {
         return [space];
     },
     create: async (
-        userUuid: string,
-        projectId: string,
-        organizationId: string,
+        user: SessionUser,
+        projectUuid: string,
         savedQuery: CreateSavedQuery,
     ): Promise<SavedQuery> => {
-        const newSavedQuery = await createSavedQuery(projectId, savedQuery);
+        const ability = defineAbilityForOrganizationMember(user);
+        if (ability.cannot('create', 'SavedChart')) {
+            throw new ForbiddenError();
+        }
+        const newSavedQuery = await createSavedQuery(projectUuid, savedQuery);
         analytics.track({
             event: 'saved_chart.created',
-            projectId,
-            organizationId,
-            userId: userUuid,
+            projectId: projectUuid,
+            organizationId: user.organizationUuid,
+            userId: user.userUuid,
             properties: {
                 savedQueryId: newSavedQuery.uuid,
             },
         });
         return newSavedQuery;
     },
+
     getById: async (savedQueryUuid: string): Promise<SavedQuery> =>
         getSavedQueryByUuid(database, savedQueryUuid),
+
     delete: async (
-        userUuid: string,
-        organizationId: string,
+        user: SessionUser,
         savedQueryUuid: string,
     ): Promise<void> => {
+        const ability = defineAbilityForOrganizationMember(user);
+        if (ability.cannot('delete', 'SavedChart')) {
+            throw new ForbiddenError();
+        }
         await deleteSavedQuery(database, savedQueryUuid);
         analytics.track({
             event: 'saved_chart.deleted',
-            userId: userUuid,
-            organizationId,
+            userId: user.userUuid,
+            organizationId: user.organizationUuid,
             properties: {
                 savedQueryId: savedQueryUuid,
             },
         });
     },
     update: async (
-        userUuid: string,
-        organizationId: string,
+        user: SessionUser,
         savedQueryUuid: string,
         data: UpdateSavedQuery,
     ): Promise<SavedQuery> => {
+        const ability = defineAbilityForOrganizationMember(user);
+        if (ability.cannot('update', 'SavedChart')) {
+            throw new ForbiddenError();
+        }
         const savedQuery = await updateSavedQuery(savedQueryUuid, data);
         analytics.track({
             event: 'saved_chart.updated',
-            userId: userUuid,
-            organizationId,
+            userId: user.userUuid,
+            organizationId: user.organizationUuid,
             properties: {
                 savedQueryId: savedQueryUuid,
             },
@@ -74,16 +88,19 @@ export const SavedQueriesModel = {
         return savedQuery;
     },
     addVersion: async (
-        userUuid: string,
-        organizationId: string,
+        user: SessionUser,
         savedQueryUuid: string,
         data: CreateSavedQueryVersion,
     ): Promise<SavedQuery> => {
+        const ability = defineAbilityForOrganizationMember(user);
+        if (ability.cannot('update', 'SavedChart')) {
+            throw new ForbiddenError();
+        }
         const savedQuery = await addSavedQueryVersion(savedQueryUuid, data);
         analytics.track({
             event: 'saved_chart_version.created',
-            userId: userUuid,
-            organizationId,
+            userId: user.userUuid,
+            organizationId: user.organizationUuid,
             properties: {
                 savedQueryId: savedQuery.uuid,
             },

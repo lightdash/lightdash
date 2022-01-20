@@ -131,11 +131,7 @@ apiV1Router.delete(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        SavedQueriesModel.delete(
-            req.user!.userUuid,
-            req.user!.organizationUuid,
-            req.params.savedQueryUuid,
-        )
+        SavedQueriesModel.delete(req.user!, req.params.savedQueryUuid)
             .then(() => {
                 res.json({
                     status: 'ok',
@@ -152,8 +148,7 @@ apiV1Router.patch(
     unauthorisedInDemo,
     async (req, res, next) => {
         SavedQueriesModel.update(
-            req.user!.userUuid,
-            req.user!.organizationUuid,
+            req.user!,
             req.params.savedQueryUuid,
             req.body.savedQuery,
         )
@@ -173,8 +168,7 @@ apiV1Router.post(
     unauthorisedInDemo,
     async (req, res, next) => {
         SavedQueriesModel.addVersion(
-            req.user!.userUuid,
-            req.user!.organizationUuid,
+            req.user!,
             req.params.savedQueryUuid,
             req.body.savedQuery,
         )
