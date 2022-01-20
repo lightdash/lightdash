@@ -15,6 +15,7 @@ type Subject =
     | 'Dashboard'
     | 'SavedChart'
     | 'Project'
+    | 'InviteLink'
     | 'all';
 
 type PossibleAbilities = [
@@ -44,6 +45,7 @@ const organizationMemberAbilities: Record<
         can('manage', 'Project');
         can('manage', 'Dashboard');
         can('manage', 'SavedChart');
+        can('manage', 'InviteLink');
     },
     admin(member, { can }) {
         organizationMemberAbilities.editor(member, { can });
