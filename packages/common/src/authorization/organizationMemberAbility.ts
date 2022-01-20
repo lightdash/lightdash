@@ -14,7 +14,8 @@ type Subject =
     | 'OrganizationMemberProfile'
     | 'Dashboard'
     | 'SavedChart'
-    | 'Project';
+    | 'Project'
+    | 'all';
 
 type PossibleAbilities = [
     Action,

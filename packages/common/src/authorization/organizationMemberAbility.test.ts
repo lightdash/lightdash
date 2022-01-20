@@ -60,10 +60,37 @@ describe('Organization member permissions', () => {
         it('cannot manage organizations', () => {
             expect(ability.can('manage', 'Organization')).toEqual(false);
         });
+        it('can view dashboards', () => {
+            expect(ability.can('view', 'Dashboard')).toEqual(true);
+        });
         it('cannot view member profiles', () => {
             expect(ability.can('view', 'OrganizationMemberProfile')).toEqual(
                 false,
             );
+        });
+    });
+
+    describe('when user is a viewer', () => {
+        beforeEach(() => {
+            ability = defineAbilityForOrganizationMember(ORGANIZATION_VIEWER);
+        });
+        it('cannot create any resource', () => {
+            expect(ability.can('create', 'Dashboard')).toEqual(false);
+            expect(ability.can('create', 'SavedChart')).toEqual(false);
+            expect(ability.can('create', 'Project')).toEqual(false);
+            expect(ability.can('create', 'Organization')).toEqual(false);
+        });
+        it('cannot update any resource', () => {
+            expect(ability.can('update', 'Dashboard')).toEqual(false);
+            expect(ability.can('update', 'SavedChart')).toEqual(false);
+            expect(ability.can('update', 'Project')).toEqual(false);
+            expect(ability.can('update', 'Organization')).toEqual(false);
+        });
+        it('cannot delete any resource', () => {
+            expect(ability.can('delete', 'Dashboard')).toEqual(false);
+            expect(ability.can('delete', 'SavedChart')).toEqual(false);
+            expect(ability.can('delete', 'Project')).toEqual(false);
+            expect(ability.can('delete', 'Organization')).toEqual(false);
         });
     });
 });
