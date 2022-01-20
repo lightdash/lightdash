@@ -1,4 +1,5 @@
 import {
+    CompleteUserArgs,
     CreateInitialUserArgs,
     CreateInviteLink,
     CreateOrganizationUser,
@@ -215,6 +216,38 @@ export class UserService {
         throw new AuthorizationError(
             'Can not create user in existing organisation',
         );
+    }
+
+    async completeUserSetup(
+        user: SessionUser,
+        {
+            organisationName,
+            jobTitle,
+            isTrackingAnonymized,
+            isMarketingOptedIn,
+        }: CompleteUserArgs,
+    ): Promise<LightdashUser> {
+        if (organisationName) {
+            await this.organizationModel.update(user.organizationUuid, {
+                organizationName: organisationName,
+            });
+        }
+
+        const completeUser = await this.userModel.completeUser(user.userUuid, {
+            isTrackingAnonymized,
+            isMarketingOptedIn,
+        });
+
+        identifyUser(completeUser);
+        analytics.track({
+            organizationId: completeUser.organizationUuid,
+            event: 'user.completed',
+            userId: completeUser.userUuid,
+            properties: {
+                jobTitle,
+            },
+        });
+        return completeUser;
     }
 
     async getLinkedIdentities({

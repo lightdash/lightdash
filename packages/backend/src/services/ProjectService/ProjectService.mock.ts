@@ -22,6 +22,8 @@ export const user: SessionUser = {
     organizationUuid: 'organizationUuid',
     organizationName: 'organizationName',
     isTrackingAnonymized: false,
+    isMarketingOptedIn: false,
+    isSetupComplete: true,
     userId: 0,
 };
 

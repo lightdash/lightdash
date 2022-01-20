@@ -1,20 +1,14 @@
 import { Button, H3, Intent, Overlay } from '@blueprintjs/core';
-import { LightdashMode } from 'common';
+import { CompleteUserArgs, LightdashMode } from 'common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
+import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useApp } from '../../providers/AppProvider';
 import BooleanSwitch from '../ReactHookForm/BooleanSwitch';
 import Form from '../ReactHookForm/Form';
 import Input from '../ReactHookForm/Input';
 import Select from '../ReactHookForm/Select';
 import { UserCompletionModalCard } from './UserCompletionModal.styles';
-
-type CompleteUserArgs = {
-    organisationName?: string;
-    jobTitle: string;
-    isMarketingOptedIn: boolean;
-    isTrackingAnonymized: boolean;
-};
 
 const jobTitles = [
     { value: '', label: 'Select an option...' },
@@ -37,10 +31,10 @@ const UserCompletionModal: FC = () => {
     const methods = useForm<CompleteUserArgs>({
         mode: 'onSubmit',
     });
-    const isLoading = false;
+    const { isLoading, mutate, isSuccess } = useUserCompleteMutation();
 
     const handleSubmit = (data: CompleteUserArgs) => {
-        console.log('enter', data);
+        mutate(data);
     };
 
     if (!user.data || user.data.isSetupComplete) {
@@ -48,7 +42,7 @@ const UserCompletionModal: FC = () => {
     }
     return (
         <Overlay
-            isOpen
+            isOpen={!isSuccess}
             enforceFocus
             hasBackdrop
             canEscapeKeyClose={false}
@@ -59,16 +53,18 @@ const UserCompletionModal: FC = () => {
                     Finish setting up your account
                 </H3>
                 <Form name="login" methods={methods} onSubmit={handleSubmit}>
-                    <Input
-                        label="Organization name"
-                        name="organisationName"
-                        placeholder="Lightdash"
-                        disabled={isLoading}
-                        rules={{
-                            required: 'Required field',
-                        }}
-                        defaultValue={user.data.organizationName}
-                    />
+                    {user.data.organizationName === '' && (
+                        <Input
+                            label="Organization name"
+                            name="organisationName"
+                            placeholder="Lightdash"
+                            disabled={isLoading}
+                            rules={{
+                                required: 'Required field',
+                            }}
+                            defaultValue={user.data.organizationName}
+                        />
+                    )}
                     <Select
                         label="Job title"
                         name="jobTitle"
