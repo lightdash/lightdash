@@ -64,6 +64,9 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                                     {field.tableLabel} <b>{field.label}</b>
                                 </span>
                             ),
+                            description:
+                                field.description ||
+                                `${field.tableLabel} ${field.label}`,
                             accessor: fieldId,
                             Cell: isDimension(field)
                                 ? getDimensionElementFormatter(field)
@@ -72,7 +75,6 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                             dimensionType: isDimension(field)
                                 ? field.type
                                 : undefined,
-                            description: field.description,
                             ...getSortByProps(
                                 fieldId,
                                 sortFields,

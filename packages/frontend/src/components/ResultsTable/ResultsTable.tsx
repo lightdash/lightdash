@@ -316,11 +316,10 @@ export const ResultsTable: FC<Props> = ({
                                                                 >
                                                                     <Tooltip2
                                                                         content={
-                                                                            column.description
-                                                                                ? column.description
-                                                                                : friendlyName(
-                                                                                      column.id,
-                                                                                  )
+                                                                            column.description ||
+                                                                            friendlyName(
+                                                                                column.id,
+                                                                            )
                                                                         }
                                                                     >
                                                                         <Draggable
