@@ -2,6 +2,7 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     CreateProject,
+    defineAbilityForOrganizationMember,
     Explore,
     ExploreError,
     getMetrics,
@@ -19,6 +20,7 @@ import {
 import { analytics } from '../../analytics/client';
 import {
     errorHandler,
+    ForbiddenError,
     MissingWarehouseCredentialsError,
     NotExistsError,
 } from '../../errors';
@@ -86,6 +88,10 @@ export class ProjectService {
     }
 
     async create(user: SessionUser, data: CreateProject): Promise<Project> {
+        const ability = defineAbilityForOrganizationMember(user);
+        if (!ability.can('create', 'Project')) {
+            throw new ForbiddenError();
+        }
         const [adapter, explores] = await ProjectService.testProjectAdapter(
             data,
         );
@@ -115,6 +121,10 @@ export class ProjectService {
         user: SessionUser,
         data: UpdateProject,
     ): Promise<void> {
+        const ability = defineAbilityForOrganizationMember(user);
+        if (!ability.can('update', 'Project')) {
+            throw new ForbiddenError();
+        }
         this.projectLoading[projectUuid] = true;
         const [adapter, explores] = await ProjectService.testProjectAdapter(
             data,
@@ -263,6 +273,10 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<(Explore | ExploreError)[]> {
+        const ability = defineAbilityForOrganizationMember(user);
+        if (!ability.can('update', 'Project')) {
+            throw new ForbiddenError();
+        }
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
 
@@ -459,6 +473,10 @@ export class ProjectService {
         projectUuid: string,
         data: TablesConfiguration,
     ): Promise<TablesConfiguration> {
+        const ability = defineAbilityForOrganizationMember(user);
+        if (!ability.can('update', 'Project')) {
+            throw new ForbiddenError();
+        }
         await this.projectModel.updateTablesConfiguration(projectUuid, data);
         analytics.track({
             event: 'project_tables_configuration.updated',

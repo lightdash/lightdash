@@ -2,6 +2,7 @@ import {
     CreateDashboard,
     Dashboard,
     DashboardBasicDetails,
+    defineAbilityForOrganizationMember,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     SessionUser,
@@ -10,6 +11,7 @@ import {
 import { analytics } from '../../analytics/client';
 import database from '../../database/database';
 import { getSpace } from '../../database/entities/spaces';
+import { ForbiddenError } from '../../errors';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 
 type Dependencies = {
@@ -42,6 +44,10 @@ export class DashboardService {
         projectUuid: string,
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
+        const ability = defineAbilityForOrganizationMember(user);
+        if (!ability.can('create', 'Dashboard')) {
+            throw new ForbiddenError();
+        }
         const space = await getSpace(database, projectUuid);
         const dashboardUuid = await this.dashboardModel.create(
             space.space_uuid,
@@ -64,6 +70,10 @@ export class DashboardService {
         dashboardUuid: string,
         dashboard: UpdateDashboard,
     ): Promise<Dashboard> {
+        const ability = defineAbilityForOrganizationMember(user);
+        if (!ability.can('update', 'Dashboard')) {
+            throw new ForbiddenError();
+        }
         if (isDashboardUnversionedFields(dashboard)) {
             await this.dashboardModel.update(dashboardUuid, {
                 name: dashboard.name,
@@ -95,6 +105,10 @@ export class DashboardService {
     }
 
     async delete(user: SessionUser, dashboardUuid: string): Promise<void> {
+        const ability = defineAbilityForOrganizationMember(user);
+        if (!ability.can('delete', 'Dashboard')) {
+            throw new ForbiddenError();
+        }
         await this.dashboardModel.delete(dashboardUuid);
         analytics.track({
             event: 'dashboard.deleted',
