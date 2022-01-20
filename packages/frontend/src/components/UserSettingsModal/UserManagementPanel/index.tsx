@@ -32,7 +32,7 @@ const UserListItem: FC<{ disabled: boolean; user: OrganizationMemberProfile }> =
         const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
         const { mutate, isLoading: isDeleting } = useDeleteUserMutation();
         const updateUser = useUpdateUserMutation(userUuid);
-        const [userRole, setUserRole] = useState<OrganizationMemberRole>(role);
+        const [userRole, setUserRole] = useState<OrganizationMemberRole>();
         const handleDelete = () => mutate(userUuid);
 
         return (
@@ -61,9 +61,12 @@ const UserListItem: FC<{ disabled: boolean; user: OrganizationMemberProfile }> =
                                         .value as OrganizationMemberRole,
                                 );
                                 // @ts-ignore
-                                updateUser.mutate({ role: userRole });
+                                updateUser.mutate({
+                                    role: e.currentTarget
+                                        .value as OrganizationMemberRole,
+                                });
                             }}
-                            value={userRole}
+                            value={userRole || role}
                         />
                         <Button
                             icon="delete"

@@ -72,7 +72,7 @@ export const useUpdateUserMutation = (userUuid: string) => {
                     'organization_memberships',
                     'organization_users',
                 ]);
-
+                queryClient.refetchQueries('organization_users');
                 showToastSuccess({
                     title: `Success! Project was updated.`,
                 });
