@@ -3,6 +3,7 @@ import {
     CreateUserArgs,
     isOpenIdUser,
     LightdashMode,
+    defineAbilityForOrganizationMember,
     LightdashUser,
     OpenIdUser,
     OrganizationMemberRole,
@@ -78,6 +79,7 @@ export const mapDbUserDetailsToLightdashUser = (
         isTrackingAnonymized: user.is_tracking_anonymized,
         isMarketingOptedIn: user.is_marketing_opted_in,
         isSetupComplete: user.is_setup_complete,
+        role: user.role,
     };
 };
 
@@ -300,13 +302,15 @@ export class UserModel {
             .where('openid_identities.issuer', issuer)
             .andWhere('openid_identities.subject', subject)
             .select<(DbUserDetails & DbOpenIdIssuer)[]>('*');
-        return (
-            user && {
-                ...mapDbUserDetailsToLightdashUser(user),
-                userId: user.user_id,
-                role: user.role,
-            }
-        );
+        if (user === undefined) {
+            return user;
+        }
+        const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+        return {
+            userId: user.user_id,
+            ability: defineAbilityForOrganizationMember(lightdashUser),
+            ...lightdashUser,
+        };
     }
 
     async createUserFromInvite(
@@ -395,10 +399,11 @@ export class UserModel {
         if (user === undefined) {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
+        const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         return {
-            role: user.role,
+            ...lightdashUser,
             userId: user.user_id,
-            ...mapDbUserDetailsToLightdashUser(user),
+            ability: defineAbilityForOrganizationMember(lightdashUser),
         };
     }
 
@@ -409,10 +414,11 @@ export class UserModel {
         if (user === undefined) {
             throw new NotFoundError(`Cannot find user with uuid ${email}`);
         }
+        const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         return {
-            role: user.role,
+            ...lightdashUser,
+            ability: defineAbilityForOrganizationMember(lightdashUser),
             userId: user.user_id,
-            ...mapDbUserDetailsToLightdashUser(user),
         };
     }
 

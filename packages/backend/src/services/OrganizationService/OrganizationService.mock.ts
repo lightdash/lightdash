@@ -1,4 +1,5 @@
-import { SessionUser } from 'common';
+import { Ability } from '@casl/ability';
+import { OrganizationMemberRole, SessionUser } from 'common';
 import { DbOrganizationUser } from '../../models/UserModel';
 
 export const user: SessionUser = {
@@ -12,6 +13,8 @@ export const user: SessionUser = {
     userId: 0,
     isMarketingOptedIn: false,
     isSetupComplete: true,
+    role: OrganizationMemberRole.ADMIN,
+    ability: new Ability(),
 };
 
 export const orgUsers: DbOrganizationUser[] = [

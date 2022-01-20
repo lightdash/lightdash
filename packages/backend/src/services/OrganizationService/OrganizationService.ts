@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    defineAbilityForOrganizationMember,
     LightdashMode,
     OnbordingRecord,
     OrganizationMemberProfile,
@@ -61,9 +60,8 @@ export class OrganizationService {
         data: { organizationName: string },
     ): Promise<void> {
         const { organizationUuid, organizationName } = user;
-        const ability = defineAbilityForOrganizationMember(user);
         if (
-            !ability.can(
+            user.ability.cannot(
                 'update',
                 subject('Organization', { organizationUuid }),
             )
@@ -98,8 +96,7 @@ export class OrganizationService {
 
     async getUsers(user: SessionUser): Promise<OrganizationMemberProfile[]> {
         const { organizationUuid } = user;
-        const ability = defineAbilityForOrganizationMember(user);
-        if (!ability.can('view', 'OrganizationMemberProfile')) {
+        if (user.ability.cannot('view', 'OrganizationMemberProfile')) {
             throw new ForbiddenError();
         }
         if (organizationUuid === undefined) {
@@ -111,7 +108,10 @@ export class OrganizationService {
                 organizationUuid,
             );
         return members.filter((member) =>
-            ability.can('view', subject('OrganizationMemberProfile', member)),
+            user.ability.cannot(
+                'view',
+                subject('OrganizationMemberProfile', member),
+            ),
         );
     }
 
@@ -147,9 +147,8 @@ export class OrganizationService {
         data: OrganizationMemberProfileUpdate,
     ): Promise<OrganizationMemberProfile> {
         const { organizationUuid } = authenticatedUser;
-        const ability = defineAbilityForOrganizationMember(authenticatedUser);
         if (
-            !ability.can(
+            authenticatedUser.ability.cannot(
                 'update',
                 subject('OrganizationMemberProfile', { organizationUuid }),
             )

@@ -1,6 +1,7 @@
 import { LightdashMode } from 'common';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../models/UserModel';
@@ -32,6 +33,7 @@ describe('DashboardService', () => {
         projectModel: {} as ProjectModel,
         onboardingModel: {} as OnboardingModel,
         inviteLinkModel,
+        organizationMemberProfileModel: {} as OrganizationMemberProfileModel,
     });
     afterEach(() => {
         jest.clearAllMocks();

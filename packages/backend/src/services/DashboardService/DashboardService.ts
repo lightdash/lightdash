@@ -2,7 +2,6 @@ import {
     CreateDashboard,
     Dashboard,
     DashboardBasicDetails,
-    defineAbilityForOrganizationMember,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     SessionUser,
@@ -44,8 +43,7 @@ export class DashboardService {
         projectUuid: string,
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
-        const ability = defineAbilityForOrganizationMember(user);
-        if (!ability.can('create', 'Dashboard')) {
+        if (user.ability.cannot('create', 'Dashboard')) {
             throw new ForbiddenError();
         }
         const space = await getSpace(database, projectUuid);
@@ -70,8 +68,7 @@ export class DashboardService {
         dashboardUuid: string,
         dashboard: UpdateDashboard,
     ): Promise<Dashboard> {
-        const ability = defineAbilityForOrganizationMember(user);
-        if (!ability.can('update', 'Dashboard')) {
+        if (user.ability.cannot('update', 'Dashboard')) {
             throw new ForbiddenError();
         }
         if (isDashboardUnversionedFields(dashboard)) {
@@ -105,8 +102,7 @@ export class DashboardService {
     }
 
     async delete(user: SessionUser, dashboardUuid: string): Promise<void> {
-        const ability = defineAbilityForOrganizationMember(user);
-        if (!ability.can('delete', 'Dashboard')) {
+        if (user.ability.cannot('delete', 'Dashboard')) {
             throw new ForbiddenError();
         }
         await this.dashboardModel.delete(dashboardUuid);
