@@ -1,4 +1,4 @@
-import { ForbiddenError, subject } from '@casl/ability';
+import { subject } from '@casl/ability';
 import {
     defineAbilityForOrganizationMember,
     LightdashMode,
@@ -10,7 +10,7 @@ import {
 } from 'common';
 import { analytics } from '../../analytics/client';
 import { lightdashConfig } from '../../config/lightdashConfig';
-import { NotExistsError } from '../../errors';
+import { ForbiddenError, NotExistsError } from '../../errors';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
@@ -62,10 +62,14 @@ export class OrganizationService {
     ): Promise<void> {
         const { organizationUuid, organizationName } = user;
         const ability = defineAbilityForOrganizationMember(user);
-        ForbiddenError.from(ability).throwUnlessCan(
-            'update',
-            subject('Organization', { organizationUuid }),
-        );
+        if (
+            !ability.can(
+                'update',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
@@ -95,10 +99,9 @@ export class OrganizationService {
     async getUsers(user: SessionUser): Promise<OrganizationMemberProfile[]> {
         const { organizationUuid } = user;
         const ability = defineAbilityForOrganizationMember(user);
-        ForbiddenError.from(ability).throwUnlessCan(
-            'view',
-            'OrganizationMemberProfile',
-        );
+        if (!ability.can('view', 'OrganizationMemberProfile')) {
+            throw new ForbiddenError();
+        }
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
@@ -145,10 +148,14 @@ export class OrganizationService {
     ): Promise<OrganizationMemberProfile> {
         const { organizationUuid } = authenticatedUser;
         const ability = defineAbilityForOrganizationMember(authenticatedUser);
-        ForbiddenError.from(ability).throwUnlessCan(
-            'update',
-            subject('OrganizationMemberProfile', { organizationUuid }),
-        );
+        if (
+            !ability.can(
+                'update',
+                subject('OrganizationMemberProfile', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         return this.organizationMemberProfileModel.updateOrganizationMember(
             organizationUuid,
             memberUserUuid,

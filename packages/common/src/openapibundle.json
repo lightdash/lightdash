@@ -73,6 +73,38 @@
             }
         },
         "/user": {
+            "get": {
+                "summary": "Get user profile",
+                "tags": ["user"],
+                "operationId": "getUser",
+                "responses": {
+                    "200": {
+                        "description": "Successfully found user",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/LightdashUser"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            },
             "post": {
                 "summary": "Create user",
                 "tags": ["user"],
@@ -169,6 +201,59 @@
             }
         },
         "/org/users/{userUuid}": {
+            "patch": {
+                "summary": "Update organization member",
+                "tags": ["organization"],
+                "operationId": "updateOrganizationMember",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "userUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "role": {
+                                        "type": "string"
+                                    }
+                                },
+                                "additionalProperties": false
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated user",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/OrganizationUser"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            },
             "delete": {
                 "summary": "Delete organization user",
                 "tags": ["organization"],
@@ -804,6 +889,39 @@
                     }
                 }
             },
+            "LightdashUser": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "organizationName": {
+                        "type": "string"
+                    },
+                    "isTrackingAnonymized": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "userUuid",
+                    "firstName",
+                    "lastName",
+                    "isTrackingAnonymized"
+                ]
+            },
             "CreateUser": {
                 "type": "object",
                 "properties": {
@@ -836,39 +954,6 @@
                     "email",
                     "password",
                     "isMarketingOptedIn",
-                    "isTrackingAnonymized"
-                ]
-            },
-            "LightdashUser": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                    "userUuid": {
-                        "type": "string"
-                    },
-                    "firstName": {
-                        "type": "string"
-                    },
-                    "lastName": {
-                        "type": "string"
-                    },
-                    "email": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
-                    "organizationName": {
-                        "type": "string"
-                    },
-                    "isTrackingAnonymized": {
-                        "type": "boolean"
-                    }
-                },
-                "required": [
-                    "userUuid",
-                    "firstName",
-                    "lastName",
                     "isTrackingAnonymized"
                 ]
             },
