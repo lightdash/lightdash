@@ -1,6 +1,6 @@
 import { Button, Colors, HTMLTable, Icon, Tag } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { DimensionType, friendlyName, hexToRGB } from 'common';
+import { DimensionType, hexToRGB } from 'common';
 import React, { FC, ReactNode, useEffect } from 'react';
 import {
     DragDropContext,
@@ -316,10 +316,7 @@ export const ResultsTable: FC<Props> = ({
                                                                 >
                                                                     <Tooltip2
                                                                         content={
-                                                                            column.description ||
-                                                                            friendlyName(
-                                                                                column.id,
-                                                                            )
+                                                                            column.description
                                                                         }
                                                                     >
                                                                         <Draggable

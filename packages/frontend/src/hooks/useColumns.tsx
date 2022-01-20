@@ -96,6 +96,7 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                             Header: (
                                 <b>{friendlyName(tableCalculation.name)}</b>
                             ),
+                            description: friendlyName(tableCalculation.name),
                             accessor: fieldId,
                             Cell: getMetricFormatter(),
                             type: 'table_calculation',
