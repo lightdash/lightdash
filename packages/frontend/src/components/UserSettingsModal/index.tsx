@@ -1,4 +1,4 @@
-import { Card, Dialog, Tab, Tabs } from '@blueprintjs/core';
+import { Dialog, Tab, Tabs } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import useLocationChange from '../../hooks/useLocationChange';
 import { useApp } from '../../providers/AppProvider';
@@ -21,8 +21,7 @@ interface Props {
 const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
     useLocationChange(onClose);
     const { user } = useApp();
-    // @ts-ignore
-    const isViewer = user.data?.role === 'viewer';
+    const isAdmin = user.data?.role === 'admin';
 
     return (
         <Dialog
@@ -94,34 +93,21 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                         }
                     />
 
-                    <Tab
-                        id="userManagement"
-                        title="User management"
-                        panel={
-                            <TrackPage
-                                name={PageName.USER_MANAGEMENT_SETTINGS}
-                                type={PageType.MODAL}
-                                category={CategoryName.SETTINGS}
-                            >
-                                {!isViewer ? (
+                    {isAdmin ? (
+                        <Tab
+                            id="userManagement"
+                            title="User management"
+                            panel={
+                                <TrackPage
+                                    name={PageName.USER_MANAGEMENT_SETTINGS}
+                                    type={PageType.MODAL}
+                                    category={CategoryName.SETTINGS}
+                                >
                                     <UserManagementPanel />
-                                ) : (
-                                    <Card
-                                        elevation={0}
-                                        style={{ textAlign: 'center' }}
-                                    >
-                                        <p>
-                                            You seem to have viewers access 👀
-                                        </p>
-                                        <p>
-                                            You dont have the permissions to
-                                            access this section 🙅
-                                        </p>
-                                    </Card>
-                                )}
-                            </TrackPage>
-                        }
-                    />
+                                </TrackPage>
+                            }
+                        />
+                    ) : null}
                     <Tab
                         id="projectManagement"
                         title="Project management"

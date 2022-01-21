@@ -1,4 +1,4 @@
-import { ApiError, OrganizationMemberProfile } from 'common';
+import { ApiError, OrganizationMemberProfile, SessionUser } from 'common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
@@ -57,7 +57,7 @@ export const useDeleteUserMutation = () => {
 export const useUpdateUserMutation = (userUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
-    return useMutation<undefined, ApiError, OrganizationMemberProfile>(
+    return useMutation<undefined, ApiError, SessionUser>(
         (data) => {
             if (userUuid) {
                 return updateUser(userUuid, data);
