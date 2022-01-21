@@ -6,7 +6,7 @@ import {
     SEED_EMAIL,
     SEED_PASSWORD,
 } from 'common';
-import React, { FC } from 'react';
+import React, { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
@@ -38,7 +38,7 @@ const Login: FC = () => {
     });
     const { identify } = useTracking();
 
-    const { isLoading, mutate } = useMutation<
+    const { isIdle, isLoading, mutate } = useMutation<
         LightdashUser,
         ApiError,
         LoginParams
@@ -58,9 +58,23 @@ const Login: FC = () => {
         },
     });
 
+    const isDemo = health.data?.mode === LightdashMode.DEMO;
+    useEffect(() => {
+        if (isDemo && isIdle) {
+            mutate({
+                email: SEED_EMAIL.email,
+                password: SEED_PASSWORD.password,
+            });
+        }
+    }, [isDemo, mutate, isIdle]);
+
     const handleLogin = (data: LoginParams) => {
         mutate(data);
     };
+
+    if (health.isLoading || isDemo) {
+        return <PageSpinner />;
+    }
 
     if (health.status === 'success' && health.data?.needsSetup) {
         return (
@@ -75,17 +89,6 @@ const Login: FC = () => {
 
     if (health.status === 'success' && health.data?.isAuthenticated) {
         return <Redirect to={{ pathname: '/' }} />;
-    }
-
-    const isDemo = health.data?.mode === LightdashMode.DEMO;
-    if (health.isLoading || isDemo) {
-        if (isDemo && !isLoading) {
-            mutate({
-                email: SEED_EMAIL.email,
-                password: SEED_PASSWORD.password,
-            });
-        }
-        return <PageSpinner />;
     }
 
     return (
