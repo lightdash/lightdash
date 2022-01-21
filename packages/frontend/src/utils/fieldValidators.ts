@@ -1,3 +1,5 @@
+import { validateEmail } from 'common';
+
 type FieldValidator<T> = (
     fieldName: string,
 ) => (value: T | undefined) => string | undefined;
@@ -22,3 +24,6 @@ export const startWithSlash: FieldValidator<string> = (fieldName) => (value) =>
     !value || value.match(/^\/.*/)
         ? undefined
         : `${fieldName} should start with a "/"`;
+
+export const isValidEmail: FieldValidator<string> = (fieldName) => (value) =>
+    !value || validateEmail(value) ? undefined : `${fieldName} is not valid`;

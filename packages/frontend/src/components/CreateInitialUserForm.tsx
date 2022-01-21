@@ -1,112 +1,73 @@
-import { Button, FormGroup, InputGroup, Intent } from '@blueprintjs/core';
-import { CreateInitialUserArgs, validateEmail } from 'common';
-import React, { FC, useState } from 'react';
-import { useApp } from '../providers/AppProvider';
-import PasswordInput from './PasswordInput';
-
-type CreateInitialUserCallback = (data: CreateInitialUserArgs) => void;
-type CreateUserCallback = (
-    data: Omit<CreateInitialUserArgs, 'organizationName'>,
-) => void;
+import { Intent } from '@blueprintjs/core';
+import { CreateInitialUserArgs } from 'common';
+import React, { FC } from 'react';
+import { useForm } from 'react-hook-form';
+import { isValidEmail } from '../utils/fieldValidators';
+import { BigButton } from './common/BigButton';
+import Form from './ReactHookForm/Form';
+import Input from './ReactHookForm/Input';
+import PasswordInput from './ReactHookForm/PasswordInput';
 
 type Props = {
     isLoading: boolean;
-    onCreate: CreateInitialUserCallback | CreateUserCallback;
+    onSubmit: (data: CreateInitialUserArgs) => void;
 };
 
-const CreateInitialUserForm: FC<Props> = ({ isLoading, onCreate }) => {
-    const { showToastError } = useApp();
-    const [firstName, setFirstName] = useState<string>();
-    const [lastName, setLastName] = useState<string>();
-    const [email, setEmail] = useState<string>();
-    const [password, setPassword] = useState<string>();
-
-    const handleLogin = () => {
-        if (!firstName || !lastName || !email || !password) {
-            showToastError({
-                title: 'Invalid form data',
-                subtitle: `Required fields: first name, last name, email and password`,
-            });
-            return;
-        }
-
-        if (!validateEmail(email)) {
-            showToastError({
-                title: 'Invalid form data',
-                subtitle: 'Invalid email',
-            });
-            return;
-        }
-
-        onCreate({
-            firstName,
-            lastName,
-            email,
-            password,
-        });
-    };
-
+const CreateInitialUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
+    const methods = useForm<CreateInitialUserArgs>({
+        mode: 'onSubmit',
+    });
     return (
-        <>
-            <FormGroup
+        <Form name="register" methods={methods} onSubmit={onSubmit}>
+            <Input
                 label="First name"
-                labelFor="first-name-input"
-                labelInfo="(required)"
-            >
-                <InputGroup
-                    id="first-name-input"
-                    placeholder="Jane"
-                    type="text"
-                    required
-                    disabled={isLoading}
-                    onChange={(e) => setFirstName(e.target.value)}
-                />
-            </FormGroup>
-            <FormGroup
+                name="firstName"
+                placeholder="Jane"
+                disabled={isLoading}
+                rules={{
+                    required: 'Required field',
+                }}
+            />
+            <Input
                 label="Last name"
-                labelFor="last-name-input"
-                labelInfo="(required)"
-            >
-                <InputGroup
-                    id="last-name-input"
-                    placeholder="Doe"
-                    type="text"
-                    required
-                    disabled={isLoading}
-                    onChange={(e) => setLastName(e.target.value)}
-                />
-            </FormGroup>
-            <FormGroup
+                name="lastName"
+                placeholder="Doe"
+                disabled={isLoading}
+                rules={{
+                    required: 'Required field',
+                }}
+            />
+            <Input
                 label="Email"
-                labelFor="email-input"
-                labelInfo="(required)"
-            >
-                <InputGroup
-                    id="email-input"
-                    placeholder="Email"
-                    type="email"
-                    required
-                    disabled={isLoading}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value.trim())}
-                />
-            </FormGroup>
+                name="email"
+                placeholder="Email"
+                disabled={isLoading}
+                rules={{
+                    required: 'Required field',
+                    validate: {
+                        isValidEmail: isValidEmail('Email'),
+                    },
+                }}
+            />
             <PasswordInput
                 label="Password"
+                name="password"
                 placeholder="Enter your password..."
-                required
                 disabled={isLoading}
-                value={password}
-                onChange={setPassword}
+                rules={{
+                    required: 'Required field',
+                }}
             />
-            <Button
-                style={{ alignSelf: 'flex-end', marginTop: 20 }}
-                intent={Intent.PRIMARY}
-                text="Create"
-                onClick={handleLogin}
-                loading={isLoading}
-            />
-        </>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <BigButton
+                    type="submit"
+                    intent={Intent.PRIMARY}
+                    text="Next"
+                    loading={isLoading}
+                    style={{ minWidth: 82 }}
+                />
+            </div>
+        </Form>
     );
 };
 

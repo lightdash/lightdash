@@ -1,4 +1,5 @@
 .bp3-form-group.input-wrapper label.bp3-label {
+    font-weight: 500;
     display: inline-flex;
     gap: 3px;
 }

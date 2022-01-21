@@ -1,10 +1,11 @@
-import { Button, H3, Intent, Overlay } from '@blueprintjs/core';
+import { Colors, H3, Intent, Overlay } from '@blueprintjs/core';
 import { CompleteUserArgs, LightdashMode } from 'common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useApp } from '../../providers/AppProvider';
-import BooleanSwitch from '../ReactHookForm/BooleanSwitch';
+import { BigButton } from '../common/BigButton';
+import Checkbox from '../ReactHookForm/Checkbox';
 import Form from '../ReactHookForm/Form';
 import Input from '../ReactHookForm/Input';
 import Select from '../ReactHookForm/Select';
@@ -49,9 +50,11 @@ const UserCompletionModal: FC = () => {
             canOutsideClickClose={false}
         >
             <UserCompletionModalCard elevation={2}>
-                <H3 style={{ marginBottom: 25 }}>
-                    Finish setting up your account
-                </H3>
+                <H3>Nearly there!</H3>
+                <p style={{ color: Colors.GRAY1, marginBottom: 20 }}>
+                    Tell us a little bit more about yourself to finish setting
+                    up your account.
+                </p>
                 <Form
                     name="complete_user"
                     methods={methods}
@@ -61,7 +64,7 @@ const UserCompletionModal: FC = () => {
                         <Input
                             label="Organization name"
                             name="organizationName"
-                            placeholder="Lightdash"
+                            placeholder="Enter company name"
                             disabled={isLoading}
                             rules={{
                                 required: 'Required field',
@@ -70,7 +73,7 @@ const UserCompletionModal: FC = () => {
                         />
                     )}
                     <Select
-                        label="Job title"
+                        label="What's your role?"
                         name="jobTitle"
                         disabled={isLoading}
                         options={jobTitles}
@@ -78,26 +81,37 @@ const UserCompletionModal: FC = () => {
                             required: 'Required field',
                         }}
                     />
-                    <BooleanSwitch
-                        label="Keep me updated on new Lightdash features"
+                    <Checkbox
                         name="isMarketingOptedIn"
                         disabled={isLoading}
                         defaultValue
+                        checkboxProps={{
+                            label: 'Keep me updated on new Lightdash features',
+                            style: { color: Colors.GRAY1, margin: 0 },
+                        }}
                     />
                     {health.data?.mode !== LightdashMode.CLOUD_BETA && (
-                        <BooleanSwitch
-                            label="Anonymize my usage data. We collect data for measuring product usage."
+                        <Checkbox
                             name="isTrackingAnonymized"
                             disabled={isLoading}
                             defaultValue={false}
+                            checkboxProps={{
+                                label: 'Anonymize my usage data',
+                                style: { color: Colors.GRAY1, margin: 0 },
+                            }}
                         />
                     )}
-                    <Button
-                        type="submit"
-                        intent={Intent.PRIMARY}
-                        text="Save"
-                        loading={isLoading}
-                    />
+                    <div
+                        style={{ display: 'flex', justifyContent: 'flex-end' }}
+                    >
+                        <BigButton
+                            style={{ minWidth: 82 }}
+                            type="submit"
+                            intent={Intent.PRIMARY}
+                            text="Next"
+                            loading={isLoading}
+                        />
+                    </div>
                 </Form>
             </UserCompletionModalCard>
         </Overlay>
