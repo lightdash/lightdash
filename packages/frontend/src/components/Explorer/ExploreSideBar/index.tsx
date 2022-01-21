@@ -12,6 +12,7 @@ import {
 import Fuse from 'fuse.js';
 import React, { useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
+import { useToggle } from 'react-use';
 import { useExplores } from '../../../hooks/useExplores';
 import { useApp } from '../../../providers/AppProvider';
 import { useExplorer } from '../../../providers/ExplorerProvider';
@@ -24,9 +25,9 @@ import ExplorePanel from '../ExplorePanel/index';
 import {
     FooterWrapper,
     MenuWrapper,
-    SearchWrapper,
     SideBarDescription,
     SideBarTitleWrapper,
+    SwitchFilter,
 } from './ExploreSideBar.styles';
 
 const SideBarLoadingState = () => (
@@ -42,9 +43,10 @@ const SideBarLoadingState = () => (
 const BasePanel = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const exploresResult = useExplores(true);
     const { errorLogs } = useApp();
     const [search, setSearch] = useState<string>('');
+    const [filterExplores, toggleFilterExplores] = useToggle(true);
+    const exploresResult = useExplores(filterExplores);
 
     const filteredTables = useMemo(() => {
         if (exploresResult.data) {
@@ -71,7 +73,12 @@ const BasePanel = () => {
                         <Text>
                             Select a table to start exploring your metrics
                         </Text>
-                        <SearchWrapper>
+                        <SwitchFilter
+                            checked={filterExplores}
+                            label="See unlisted tables"
+                            onChange={toggleFilterExplores}
+                        />
+                        <div>
                             <InputGroup
                                 leftIcon="search"
                                 rightElement={
@@ -85,7 +92,7 @@ const BasePanel = () => {
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                             />
-                        </SearchWrapper>
+                        </div>
                     </SideBarDescription>
                     <Divider />
                 </div>

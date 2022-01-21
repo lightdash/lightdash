@@ -1,4 +1,4 @@
-import { Menu } from '@blueprintjs/core';
+import { Menu, Switch } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const SideBarTitleWrapper = styled.div`
@@ -12,8 +12,9 @@ export const SideBarDescription = styled.div`
     padding: 0.625em;
 `;
 
-export const SearchWrapper = styled.div`
-    padding: 1.25em 0 0 0;
+export const SwitchFilter = styled(Switch)`
+    margin: 1.25em 0 0.625em;
+    width: fit-content;
 `;
 
 export const MenuWrapper = styled(Menu)`
