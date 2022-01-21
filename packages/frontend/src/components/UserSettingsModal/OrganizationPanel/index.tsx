@@ -12,7 +12,7 @@ const updateOrgQuery = async (data: { organizationName: string }) =>
         body: JSON.stringify(data),
     });
 
-const OrganisationPanel: FC = () => {
+const OrganizationPanel: FC = () => {
     const queryClient = useQueryClient();
     const {
         errorLogs: { showError },
@@ -91,4 +91,4 @@ const OrganisationPanel: FC = () => {
     );
 };
 
-export default OrganisationPanel;
+export default OrganizationPanel;
