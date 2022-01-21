@@ -79,6 +79,16 @@ export class OrganizationMemberProfileModel {
         return members.map(OrganizationMemberProfileModel.parseRow);
     }
 
+    async getOrganizationAdmins(
+        organizationUuid: string,
+    ): Promise<OrganizationMemberProfile[]> {
+        const members = await this.queryBuilder
+            .where('organization_uuid', organizationUuid)
+            .andWhere('role', 'admin')
+            .select('*');
+        return members.map(OrganizationMemberProfileModel.parseRow);
+    }
+
     createOrganizationMembership = async (
         membershipIn: DbOrganizationMembershipIn,
     ) => {

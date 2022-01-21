@@ -423,7 +423,7 @@ export class UserModel {
     }
 
     static lightdashUserFromSession(sessionUser: SessionUser): LightdashUser {
-        const { userId, ...lightdashUser } = sessionUser;
+        const { userId, ability, ...lightdashUser } = sessionUser;
         return lightdashUser;
     }
 

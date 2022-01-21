@@ -15,11 +15,9 @@ import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { UserModel } from '../../models/UserModel';
 
 type OrganizationServiceDependencies = {
     organizationModel: OrganizationModel;
-    userModel: UserModel;
     projectModel: ProjectModel;
     onboardingModel: OnboardingModel;
     inviteLinkModel: InviteLinkModel;
@@ -28,8 +26,6 @@ type OrganizationServiceDependencies = {
 
 export class OrganizationService {
     private readonly organizationModel: OrganizationModel;
-
-    private readonly userModel: UserModel;
 
     private readonly projectModel: ProjectModel;
 
@@ -41,14 +37,12 @@ export class OrganizationService {
 
     constructor({
         organizationModel,
-        userModel,
         projectModel,
         onboardingModel,
         inviteLinkModel,
         organizationMemberProfileModel,
     }: OrganizationServiceDependencies) {
         this.organizationModel = organizationModel;
-        this.userModel = userModel;
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
         this.inviteLinkModel = inviteLinkModel;
@@ -108,7 +102,7 @@ export class OrganizationService {
                 organizationUuid,
             );
         return members.filter((member) =>
-            user.ability.cannot(
+            user.ability.can(
                 'view',
                 subject('OrganizationMemberProfile', member),
             ),
