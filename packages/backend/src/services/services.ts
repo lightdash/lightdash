@@ -30,10 +30,10 @@ export const userService = new UserService({
     openIdIdentityModel,
     passwordResetLinkModel,
     emailClient,
+    organizationMemberProfileModel,
 });
 export const organizationService = new OrganizationService({
     organizationModel,
-    userModel,
     projectModel,
     onboardingModel,
     inviteLinkModel,

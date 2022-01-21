@@ -26,6 +26,7 @@ import {
 import { EmailModel } from '../models/EmailModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
+import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
@@ -38,6 +39,7 @@ type UserServiceDependencies = {
     openIdIdentityModel: OpenIdIdentityModel;
     passwordResetLinkModel: PasswordResetLinkModel;
     emailClient: EmailClient;
+    organizationMemberProfileModel: OrganizationMemberProfileModel;
 };
 
 export class UserService {
@@ -55,6 +57,8 @@ export class UserService {
 
     private readonly emailClient: EmailClient;
 
+    private readonly organizationMemberProfileModel;
+
     constructor({
         inviteLinkModel,
         userModel,
@@ -63,6 +67,7 @@ export class UserService {
         openIdIdentityModel,
         emailClient,
         passwordResetLinkModel,
+        organizationMemberProfileModel,
     }: UserServiceDependencies) {
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
@@ -71,6 +76,7 @@ export class UserService {
         this.openIdIdentityModel = openIdIdentityModel;
         this.passwordResetLinkModel = passwordResetLinkModel;
         this.emailClient = emailClient;
+        this.organizationMemberProfileModel = organizationMemberProfileModel;
     }
 
     async create(
@@ -96,12 +102,18 @@ export class UserService {
             throw new NotExistsError('Organization not found');
         }
 
-        const users = await this.userModel.getAllByOrganization(
-            user.organizationUuid,
-        );
-        if (users.length <= 1) {
+        if (user.ability.cannot('delete', 'OrganizationMemberProfile')) {
+            throw new ForbiddenError();
+        }
+
+        // Race condition between check and delete
+        const [admin, ...remainingAdmins] =
+            await this.organizationMemberProfileModel.getOrganizationAdmins(
+                user.organizationUuid,
+            );
+        if (remainingAdmins.length === 0 && admin.userUuid === userUuid) {
             throw new ForbiddenError(
-                'Organization needs to have at least one user',
+                'Organization must have at least one admin',
             );
         }
 
