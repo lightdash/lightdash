@@ -6,7 +6,7 @@ import {
     SEED_EMAIL,
     SEED_PASSWORD,
 } from 'common';
-import React, { FC, useEffect } from 'react';
+import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
@@ -32,7 +32,7 @@ const loginQuery = async (data: LoginParams) =>
 
 const Login: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
-    const { health, showToastError, showToastSuccess } = useApp();
+    const { health, showToastError } = useApp();
     const methods = useForm<LoginParams>({
         mode: 'onSubmit',
     });
@@ -58,20 +58,9 @@ const Login: FC = () => {
         },
     });
 
-    useEffect(() => {
-        if (health.data?.mode === LightdashMode.DEMO) {
-            methods.setValue('email', SEED_EMAIL.email);
-            methods.setValue('password', SEED_PASSWORD.password);
-        }
-    }, [health, methods]);
-
     const handleLogin = (data: LoginParams) => {
         mutate(data);
     };
-
-    if (health.isLoading) {
-        return <PageSpinner />;
-    }
 
     if (health.status === 'success' && health.data?.needsSetup) {
         return (
@@ -86,6 +75,17 @@ const Login: FC = () => {
 
     if (health.status === 'success' && health.data?.isAuthenticated) {
         return <Redirect to={{ pathname: '/' }} />;
+    }
+
+    const isDemo = health.data?.mode === LightdashMode.DEMO;
+    if (health.isLoading || isDemo) {
+        if (isDemo && !isLoading) {
+            mutate({
+                email: SEED_EMAIL.email,
+                password: SEED_PASSWORD.password,
+            });
+        }
+        return <PageSpinner />;
     }
 
     return (
