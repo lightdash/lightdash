@@ -14,6 +14,8 @@ describe('Dashboard List', () => {
             .then(($input) => {
                 const value = $input.val();
                 if (typeof value === 'string') {
+                    // @ts-ignore
+                    cy.logout();
                     cy.visit(value);
                 }
             });

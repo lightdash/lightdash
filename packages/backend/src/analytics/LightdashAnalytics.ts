@@ -222,6 +222,7 @@ export class LightdashAnalytics extends Analytics {
             };
 
             super.track({
+                ...payload,
                 event: `${LightdashAnalytics.lightdashContext.app.name}.${payload.event}`,
                 context: { ...LightdashAnalytics.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
                 properties: payload.properties.isTrackingAnonymized
