@@ -16,7 +16,7 @@ const getExplores = async (projectUuid: string, filtered?: boolean) =>
 export const useExplores = (filtered?: boolean) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const setErrorResponse = useQueryError();
-    const queryKey = ['tables', filtered];
+    const queryKey = ['tables', filtered ? 'filtered' : 'all'];
     return useQuery<ApiExploresResults, ApiError>({
         queryKey,
         queryFn: () => getExplores(projectUuid, filtered),

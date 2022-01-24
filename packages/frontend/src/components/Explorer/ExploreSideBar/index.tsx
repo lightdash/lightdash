@@ -64,7 +64,7 @@ const BasePanel = () => {
         return [];
     }, [exploresResult.data, search]);
 
-    if (filteredTables) {
+    if (exploresResult.data) {
         return (
             <>
                 <div>
