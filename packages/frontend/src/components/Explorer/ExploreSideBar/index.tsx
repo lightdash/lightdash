@@ -25,6 +25,7 @@ import ExplorePanel from '../ExplorePanel/index';
 import {
     FooterWrapper,
     MenuWrapper,
+    SearchWrapper,
     SideBarDescription,
     SideBarTitleWrapper,
     SwitchFilter,
@@ -73,12 +74,7 @@ const BasePanel = () => {
                         <Text>
                             Select a table to start exploring your metrics
                         </Text>
-                        <SwitchFilter
-                            checked={filterExplores}
-                            label="See unlisted tables"
-                            onChange={toggleFilterExplores}
-                        />
-                        <div>
+                        <SearchWrapper>
                             <InputGroup
                                 leftIcon="search"
                                 rightElement={
@@ -92,7 +88,12 @@ const BasePanel = () => {
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                             />
-                        </div>
+                        </SearchWrapper>
+                        <SwitchFilter
+                            checked={filterExplores}
+                            label="See unlisted tables"
+                            onChange={toggleFilterExplores}
+                        />
                     </SideBarDescription>
                     <Divider />
                 </div>

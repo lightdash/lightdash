@@ -13,8 +13,11 @@ export const SideBarDescription = styled.div`
 `;
 
 export const SwitchFilter = styled(Switch)`
-    margin: 1.25em 0 0.625em;
     width: fit-content;
+`;
+
+export const SearchWrapper = styled.div`
+    margin: 1.5em 0 1.25em;
 `;
 
 export const MenuWrapper = styled(Menu)`
