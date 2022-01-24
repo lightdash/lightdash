@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
 import { useApp } from '../../providers/AppProvider';
 
-const updateUserQuery = async (data: UpdateUserArgs) =>
+const updateUserQuery = async (data: Partial<UpdateUserArgs>) =>
     lightdashApi<LightdashUser>({
         url: `/user/me`,
         method: 'PATCH',
@@ -31,7 +31,7 @@ const ProfilePanel: FC = () => {
     const { isLoading, error, mutate } = useMutation<
         LightdashUser,
         ApiError,
-        UpdateUserArgs
+        Partial<UpdateUserArgs>
     >(updateUserQuery, {
         mutationKey: ['user_update'],
         onSuccess: (data) => {
