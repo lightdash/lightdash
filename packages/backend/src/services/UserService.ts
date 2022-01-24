@@ -246,10 +246,15 @@ export class UserService {
             });
         }
 
-        const completeUser = await this.userModel.completeUser(user.userUuid, {
-            isTrackingAnonymized,
-            isMarketingOptedIn,
-        });
+        const completeUser = await this.userModel.updateUser(
+            user.userUuid,
+            undefined,
+            {
+                isSetupComplete: true,
+                isTrackingAnonymized,
+                isMarketingOptedIn,
+            },
+        );
 
         identifyUser(completeUser);
         analytics.track({
@@ -340,22 +345,21 @@ export class UserService {
     }
 
     async updateUser(
-        userId: number,
-        currentEmail: string | undefined,
+        user: SessionUser,
         data: UpdateUserArgs,
     ): Promise<LightdashUser> {
-        const user = await this.userModel.updateUser(
-            userId,
-            currentEmail,
+        const updatedUser = await this.userModel.updateUser(
+            user.userUuid,
+            user.email,
             data,
         );
-        identifyUser(user);
+        identifyUser(updatedUser);
         analytics.track({
-            userId: user.userUuid,
-            organizationId: user.organizationUuid,
+            userId: updatedUser.userUuid,
+            organizationId: updatedUser.organizationUuid,
             event: 'user.updated',
         });
-        return user;
+        return updatedUser;
     }
 
     async registerInitialUser(createUser: CreateInitialUserArgs | OpenIdUser) {
