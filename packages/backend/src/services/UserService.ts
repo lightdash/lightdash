@@ -346,7 +346,7 @@ export class UserService {
 
     async updateUser(
         user: SessionUser,
-        data: UpdateUserArgs,
+        data: Partial<UpdateUserArgs>,
     ): Promise<LightdashUser> {
         const updatedUser = await this.userModel.updateUser(
             user.userUuid,
