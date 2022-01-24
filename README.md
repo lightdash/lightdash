@@ -206,6 +206,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/Shrpp"><img src="https://avatars.githubusercontent.com/u/97470912?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Shrpp</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3AShrpp" title="Bug reports">🐛</a></td>
     <td align="center"><a href="https://github.com/elbination"><img src="https://avatars.githubusercontent.com/u/24672834?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Cuong Vu</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Aelbination" title="Bug reports">🐛</a></td>
   </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/nkotlyarov"><img src="https://avatars.githubusercontent.com/u/5070583?v=4?s=100" width="100px;" alt=""/><br /><sub><b>nkotlyarov</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Ankotlyarov" title="Bug reports">🐛</a></td>
+  </tr>
 </table>
 
 <!-- markdownlint-restore -->
