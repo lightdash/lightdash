@@ -14,7 +14,7 @@ interface InputProps {
 
 export interface InputWrapperProps {
     name: string;
-    label: string;
+    label?: string;
     disabled?: boolean;
     placeholder?: string;
     defaultValue?: any;
@@ -42,7 +42,7 @@ const InputWrapper: FC<InputWrapperProps> = ({
         formState: { errors },
     } = useFormContext();
     const id = `${name}-input`;
-    const requiredLabel = rules?.required ? '(required)' : '(optional)';
+    const requiredLabel = rules?.required ? '*' : '';
 
     return (
         <FormGroup

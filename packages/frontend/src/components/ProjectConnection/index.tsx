@@ -1,4 +1,4 @@
-import { Button, Card, H5, Intent } from '@blueprintjs/core';
+import { Button, Card, Colors, H5, Intent } from '@blueprintjs/core';
 import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
@@ -40,14 +40,37 @@ const ProjectForm: FC<Props> = ({ disabled, defaultType }) => (
                 marginBottom: '20px',
                 display: 'flex',
                 flexDirection: 'row',
+                gap: 20,
             }}
             elevation={1}
         >
             <div style={{ flex: 1 }}>
-                <H5 style={{ display: 'inline', marginRight: 5 }}>
-                    dbt connection
-                </H5>
-                <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
+                <div
+                    style={{
+                        marginBottom: 15,
+                    }}
+                >
+                    <H5
+                        style={{
+                            display: 'inline',
+                            marginRight: 5,
+                        }}
+                    >
+                        dbt connection
+                    </H5>
+                    <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
+                </div>
+
+                <p style={{ color: Colors.GRAY1 }}>
+                    Your dbt project must be compatible with{' '}
+                    <a
+                        href="https://docs.getdbt.com/docs/guides/migration-guide/upgrading-to-1-0-0"
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        dbt version <b>1.0.0</b>
+                    </a>
+                </p>
             </div>
             <div style={{ flex: 1 }}>
                 <DbtSettingsForm

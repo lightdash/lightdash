@@ -4,6 +4,7 @@ import {
     CreatePasswordResetLink,
     CreateUserArgs,
     InviteLink,
+    isOpenIdUser,
     LightdashMode,
     LightdashUser,
     OpenIdIdentitySummary,
@@ -90,7 +91,7 @@ export class UserService {
             event: 'user.created',
             userId: user.userUuid,
             properties: {
-                jobTitle: undefined,
+                userConnectionType: 'password',
             },
         });
         return user;
@@ -253,18 +254,23 @@ export class UserService {
                 },
             });
         }
-
-        const completeUser = await this.userModel.completeUser(user.userUuid, {
-            isTrackingAnonymized,
-            isMarketingOptedIn,
-        });
+        const completeUser = await this.userModel.updateUser(
+            user.userUuid,
+            undefined,
+            {
+                isSetupComplete: true,
+                isTrackingAnonymized,
+                isMarketingOptedIn,
+            },
+        );
 
         identifyUser(completeUser);
         analytics.track({
             organizationId: completeUser.organizationUuid,
-            event: 'user.completed',
+            event: 'user.updated',
             userId: completeUser.userUuid,
             properties: {
+                ...completeUser,
                 jobTitle,
             },
         });
@@ -348,22 +354,22 @@ export class UserService {
     }
 
     async updateUser(
-        userId: number,
-        currentEmail: string | undefined,
-        data: UpdateUserArgs,
+        user: SessionUser,
+        data: Partial<UpdateUserArgs>,
     ): Promise<LightdashUser> {
-        const user = await this.userModel.updateUser(
-            userId,
-            currentEmail,
+        const updatedUser = await this.userModel.updateUser(
+            user.userUuid,
+            user.email,
             data,
         );
-        identifyUser(user);
+        identifyUser(updatedUser);
         analytics.track({
-            userId: user.userUuid,
-            organizationId: user.organizationUuid,
+            userId: updatedUser.userUuid,
+            organizationId: updatedUser.organizationUuid,
             event: 'user.updated',
+            properties: updatedUser,
         });
-        return user;
+        return updatedUser;
     }
 
     async registerInitialUser(createUser: CreateUserArgs | OpenIdUser) {
@@ -380,7 +386,9 @@ export class UserService {
             organizationId: user.organizationUuid,
             userId: user.userUuid,
             properties: {
-                jobTitle: undefined,
+                userConnectionType: isOpenIdUser(createUser)
+                    ? 'google'
+                    : 'password',
             },
         });
         analytics.track({
@@ -396,6 +404,16 @@ export class UserService {
                 organizationName: user.organizationName,
             },
         });
+        if (isOpenIdUser(createUser)) {
+            analytics.track({
+                organizationId: user.organizationUuid,
+                userId: user.userUuid,
+                event: 'user.identity_linked',
+                properties: {
+                    loginProvider: 'google',
+                },
+            });
+        }
         return user;
     }
 

@@ -48,7 +48,7 @@ userRouter.patch(
     unauthorisedInDemo,
     async (req, res, next) => {
         userService
-            .updateUser(req.user!.userId, req.user!.email, req.body)
+            .updateUser(req.user!, req.body)
             .then((user) => {
                 res.json({
                     status: 'ok',

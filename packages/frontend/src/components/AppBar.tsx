@@ -65,76 +65,94 @@ const AppBar = () => {
                             style={{ marginTop: 2, height: 30, width: 90 }}
                         />
                     </NavLink>
-                    <Popover2
-                        interactionKind={PopoverInteractionKind.CLICK}
-                        content={
-                            !projectUuid ? (
-                                <div style={{ padding: 10, minWidth: 90 }}>
-                                    <Spinner size={20} />
-                                </div>
-                            ) : (
-                                <Menu>
-                                    <NavLink
-                                        to={`/projects/${projectUuid}/tables`}
-                                    >
-                                        <MenuItem
-                                            role="button"
-                                            icon="th"
-                                            text="Tables"
-                                            style={{ marginBottom: 5 }}
-                                        />
-                                    </NavLink>
-                                    <NavLink
-                                        to={`/projects/${projectUuid}/sqlRunner`}
-                                    >
-                                        <MenuItem
-                                            role="button"
-                                            icon="console"
-                                            text="SQL Runner"
-                                        />
-                                    </NavLink>
-                                </Menu>
-                            )
-                        }
-                        position={Position.BOTTOM_LEFT}
-                    >
-                        <Button minimal icon="database" text="Explore" />
-                    </Popover2>
-                    <Popover2
-                        interactionKind={PopoverInteractionKind.CLICK}
-                        content={
-                            !projectUuid ? (
-                                <div style={{ padding: 10, minWidth: 90 }}>
-                                    <Spinner size={20} />
-                                </div>
-                            ) : (
-                                <Menu>
-                                    <NavLink
-                                        to={`/projects/${projectUuid}/dashboards`}
-                                    >
-                                        <MenuItem
-                                            role="button"
-                                            text="Dashboards"
-                                            icon="control"
-                                            style={{ marginBottom: 5 }}
-                                        />
-                                    </NavLink>
-                                    <NavLink
-                                        to={`/projects/${projectUuid}/saved`}
-                                        style={{ marginBottom: 5 }}
-                                    >
-                                        <MenuItem
-                                            icon="chart"
-                                            text="Saved charts"
-                                        />
-                                    </NavLink>
-                                </Menu>
-                            )
-                        }
-                        position={Position.BOTTOM_LEFT}
-                    >
-                        <Button minimal icon="search" text="Browse" />
-                    </Popover2>
+                    {!!projectUuid && (
+                        <>
+                            <Popover2
+                                interactionKind={PopoverInteractionKind.CLICK}
+                                content={
+                                    !projectUuid ? (
+                                        <div
+                                            style={{
+                                                padding: 10,
+                                                minWidth: 90,
+                                            }}
+                                        >
+                                            <Spinner size={20} />
+                                        </div>
+                                    ) : (
+                                        <Menu>
+                                            <NavLink
+                                                to={`/projects/${projectUuid}/tables`}
+                                            >
+                                                <MenuItem
+                                                    role="button"
+                                                    icon="th"
+                                                    text="Tables"
+                                                    style={{ marginBottom: 5 }}
+                                                />
+                                            </NavLink>
+                                            <NavLink
+                                                to={`/projects/${projectUuid}/sqlRunner`}
+                                            >
+                                                <MenuItem
+                                                    role="button"
+                                                    icon="console"
+                                                    text="SQL Runner"
+                                                />
+                                            </NavLink>
+                                        </Menu>
+                                    )
+                                }
+                                position={Position.BOTTOM_LEFT}
+                            >
+                                <Button
+                                    minimal
+                                    icon="series-search"
+                                    text="Explore"
+                                />
+                            </Popover2>
+                            <Popover2
+                                interactionKind={PopoverInteractionKind.CLICK}
+                                content={
+                                    !projectUuid ? (
+                                        <div
+                                            style={{
+                                                padding: 10,
+                                                minWidth: 90,
+                                            }}
+                                        >
+                                            <Spinner size={20} />
+                                        </div>
+                                    ) : (
+                                        <Menu>
+                                            <NavLink
+                                                to={`/projects/${projectUuid}/dashboards`}
+                                            >
+                                                <MenuItem
+                                                    role="button"
+                                                    text="Dashboards"
+                                                    icon="control"
+                                                    style={{ marginBottom: 5 }}
+                                                />
+                                            </NavLink>
+                                            <NavLink
+                                                to={`/projects/${projectUuid}/saved`}
+                                                style={{ marginBottom: 5 }}
+                                            >
+                                                <MenuItem
+                                                    icon="chart"
+                                                    text="Saved charts"
+                                                />
+                                            </NavLink>
+                                        </Menu>
+                                    )
+                                }
+                                position={Position.BOTTOM_LEFT}
+                            >
+                                <Button minimal icon="search" text="Browse" />
+                            </Popover2>
+                        </>
+                    )}
                     <Button
                         minimal
                         icon="cog"

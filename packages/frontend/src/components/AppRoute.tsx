@@ -18,7 +18,7 @@ const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
                     return (
                         <Redirect
                             to={{
-                                pathname: '/welcome',
+                                pathname: '/createProject',
                                 state: { from: location },
                             }}
                         />

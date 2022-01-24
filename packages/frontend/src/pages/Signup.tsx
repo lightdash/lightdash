@@ -100,7 +100,7 @@ const Signup: FC = () => {
                             )}
                             <CreateUserForm
                                 isLoading={isLoading}
-                                onCreate={(data: CreateUserArgs) => {
+                                onSubmit={(data: CreateUserArgs) => {
                                     mutate({
                                         inviteCode,
                                         ...data,

@@ -86,7 +86,7 @@ const Register: FC = () => {
                     )}
                     <CreateUserForm
                         isLoading={isLoading}
-                        onCreate={(data: CreateUserArgs) => {
+                        onSubmit={(data: CreateUserArgs) => {
                             mutate(data);
                         }}
                     />

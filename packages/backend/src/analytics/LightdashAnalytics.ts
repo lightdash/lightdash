@@ -4,6 +4,7 @@ import Analytics, {
 } from '@rudderstack/rudder-sdk-node';
 import {
     LightdashInstallType,
+    LightdashUser,
     ProjectType,
     TableSelectionType,
     WarehouseTypes,
@@ -32,7 +33,6 @@ type Group = {
 };
 type TrackSimpleEvent = BaseTrack & {
     event:
-        | 'user.updated'
         | 'password.updated'
         | 'invite_link.created'
         | 'invite_link.all_revoked'
@@ -56,10 +56,15 @@ type IdentityLinkedEvent = BaseTrack & {
 };
 
 type CreateUserEvent = BaseTrack & {
-    event: 'user.created' | 'user.completed';
+    event: 'user.created';
     properties: {
-        jobTitle?: string;
+        userConnectionType: 'password' | 'google';
     };
+};
+
+type UpdateUserEvent = BaseTrack & {
+    event: 'user.updated';
+    properties: LightdashUser & { jobTitle?: string };
 };
 
 type QueryExecutionEvent = BaseTrack & {
@@ -170,6 +175,7 @@ type ApiErrorEvent = BaseTrack & {
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
+    | UpdateUserEvent
     | QueryExecutionEvent
     | TrackSavedChart
     | TrackUserDeletedEvent
@@ -207,6 +213,29 @@ export class LightdashAnalytics extends Analytics {
     }
 
     track(payload: Track) {
+        if (payload.event === 'user.updated') {
+            const basicEventProperties = {
+                is_tracking_anonymized: payload.properties.isTrackingAnonymized,
+                is_marketing_opted_in: payload.properties.isMarketingOptedIn,
+                job_title: payload.properties.jobTitle,
+                is_setup_complete: payload.properties.isSetupComplete,
+            };
+
+            super.track({
+                event: `${LightdashAnalytics.lightdashContext.app.name}.${payload.event}`,
+                context: { ...LightdashAnalytics.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
+                properties: payload.properties.isTrackingAnonymized
+                    ? basicEventProperties
+                    : {
+                          ...basicEventProperties,
+                          email: payload.properties.email,
+                          first_name: payload.properties.firstName,
+                          last_name: payload.properties.lastName,
+                      },
+            });
+            return;
+        }
+
         super.track({
             ...payload,
             event: `${LightdashAnalytics.lightdashContext.app.name}.${payload.event}`,

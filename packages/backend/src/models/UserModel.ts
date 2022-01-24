@@ -237,28 +237,41 @@ export class UserModel {
     }
 
     async updateUser(
-        userId: number,
+        userUuid: string,
         currentEmail: string | undefined,
-        { firstName, lastName, email }: UpdateUserArgs,
+        {
+            firstName,
+            lastName,
+            email,
+            isMarketingOptedIn,
+            isTrackingAnonymized,
+            isSetupComplete,
+        }: Partial<UpdateUserArgs>,
     ): Promise<LightdashUser> {
         await this.database.transaction(async (trx) => {
             try {
-                await trx<DbUser>('users')
-                    .where('user_id', userId)
+                const [user] = await trx(UserTableName)
+                    .where('user_uuid', userUuid)
                     .update<DbUserUpdate>({
                         first_name: firstName,
                         last_name: lastName,
-                    });
+                        is_setup_complete: isSetupComplete,
+                        is_marketing_opted_in: isMarketingOptedIn,
+                        is_tracking_anonymized: canTrackingBeAnonymized()
+                            ? isTrackingAnonymized
+                            : false,
+                    })
+                    .returning('*');
 
-                if (currentEmail !== email) {
+                if (email && currentEmail !== email) {
                     if (currentEmail) {
                         await deleteEmail(trx, {
-                            user_id: userId,
+                            user_id: user.user_id,
                             email: currentEmail,
                         });
                     }
                     await createEmail(trx, {
-                        user_id: userId,
+                        user_id: user.user_id,
                         email,
                         is_primary: true,
                     });
@@ -268,7 +281,7 @@ export class UserModel {
                 throw e;
             }
         });
-        return this.getUserByPrimaryEmail(email);
+        return this.getUserDetailsByUuid(userUuid);
     }
 
     async completeUser(

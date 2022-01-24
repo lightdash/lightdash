@@ -64,6 +64,9 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                                     {field.tableLabel} <b>{field.label}</b>
                                 </span>
                             ),
+                            description:
+                                field.description ||
+                                `${field.tableLabel} ${field.label}`,
                             accessor: fieldId,
                             Cell: isDimension(field)
                                 ? getDimensionElementFormatter(field)
@@ -93,6 +96,7 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                             Header: (
                                 <b>{friendlyName(tableCalculation.name)}</b>
                             ),
+                            description: friendlyName(tableCalculation.name),
                             accessor: fieldId,
                             Cell: getMetricFormatter(),
                             type: 'table_calculation',

@@ -648,6 +648,9 @@ export type UpdateUserArgs = {
     firstName: string;
     lastName: string;
     email: string;
+    isMarketingOptedIn: boolean;
+    isTrackingAnonymized: boolean;
+    isSetupComplete: boolean;
 };
 
 export type CreateOpenIdIdentity = {
