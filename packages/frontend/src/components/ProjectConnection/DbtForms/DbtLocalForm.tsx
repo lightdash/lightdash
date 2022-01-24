@@ -8,13 +8,13 @@ const DbtLocalForm: FC = () => (
         </Callout>
         <Callout intent="primary" style={{ marginBottom: 20 }}>
             <p>
-                If you are using the install script, when you are asked{' '}
+                When using the install script, when you&apos;re asked{' '}
                 <b>How do you want to setup Lightdash ?</b>, select the option{' '}
                 <b>with local dbt</b> and then provide the absolute path to your
                 dbt project.
             </p>
             <p>
-                If you are installing manually, set the env var{' '}
+                When using the install script, set the env var{' '}
                 <b>DBT_PROJECT_DIR</b> with the absolute path to your dbt
                 project.
             </p>
