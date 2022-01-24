@@ -1,11 +1,20 @@
-import { Button, FormGroup, InputGroup, Intent } from '@blueprintjs/core';
+import {
+    Button,
+    FormGroup,
+    InputGroup,
+    Intent,
+    TagInput,
+} from '@blueprintjs/core';
 import { ApiError } from 'common';
-import React, { FC, useEffect, useState } from 'react';
+import React, { FC, ReactNode, useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../../api';
 import { useApp } from '../../../providers/AppProvider';
 
-const updateOrgQuery = async (data: { organizationName: string }) =>
+const updateOrgQuery = async (data: {
+    organizationName?: string;
+    allowedDomains?: string[];
+}) =>
     lightdashApi<undefined>({
         url: `/org`,
         method: 'PATCH',
@@ -20,6 +29,9 @@ const OrganizationPanel: FC = () => {
         showToastSuccess,
         user,
     } = useApp();
+    const [allowedDomains, setAllowedDomains] = useState<
+        string[] | ReactNode[] | undefined
+    >(user.data?.allowedDomains);
     const [organizationName, setOrganizationName] = useState<
         string | undefined
     >(user.data?.organizationName);
@@ -58,6 +70,17 @@ const OrganizationPanel: FC = () => {
                 timeout: 3000,
             });
         }
+
+        if (allowedDomains) {
+            mutate({
+                allowedDomains,
+            });
+        } else {
+            showToastError({
+                title: 'Required fields: allowed email domains',
+                timeout: 3000,
+            });
+        }
     };
 
     return (
@@ -77,6 +100,17 @@ const OrganizationPanel: FC = () => {
                     disabled={isLoading}
                     value={organizationName}
                     onChange={(e) => setOrganizationName(e.target.value)}
+                />
+            </FormGroup>
+            <FormGroup label="Allowed email domains" labelInfo="(required)">
+                <TagInput
+                    addOnBlur
+                    addOnPaste
+                    onChange={(e: string[] | ReactNode[]) =>
+                        setAllowedDomains(e)
+                    }
+                    values={allowedDomains}
+                    placeholder="Allowed domains"
                 />
             </FormGroup>
             <div style={{ flex: 1 }} />
