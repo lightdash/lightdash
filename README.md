@@ -207,7 +207,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/elbination"><img src="https://avatars.githubusercontent.com/u/24672834?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Cuong Vu</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Aelbination" title="Bug reports">🐛</a></td>
   </tr>
   <tr>
-    <td align="center"><a href="https://2rara.github.io"><img src="https://avatars.githubusercontent.com/u/27809401?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Takaaki Yoshikawa</b></sub></a><br /><a href="#design-2rara" title="Design">🎨</a> <a href="#ideas-2rara" title="Ideas, Planning, & Feedback">🤔</a></td>
+    <td align="center"><a href="https://2rara.github.io"><img src="https://avatars.githubusercontent.com/u/27809401?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Takaaki Yoshikawa</b></sub></a><br /><a href="#ideas-2rara" title="Ideas, Planning, & Feedback">🤔</a></td>
   </tr>
 </table>
 
