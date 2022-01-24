@@ -1,19 +1,19 @@
-import {
-    Button,
-    FormGroup,
-    InputGroup,
-    Intent,
-    TagInput,
-} from '@blueprintjs/core';
+import { Button, Intent } from '@blueprintjs/core';
 import { ApiError } from 'common';
-import React, { FC, ReactNode, useEffect, useState } from 'react';
+import React, { FC, ReactNode, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../../api';
 import { useApp } from '../../../providers/AppProvider';
+import Form from '../../ReactHookForm/Form';
+import Input from '../../ReactHookForm/Input';
+import TagInput from '../../ReactHookForm/TagInput';
+
+type DomainsProps = [] | string[] | ReactNode[];
 
 const updateOrgQuery = async (data: {
-    organizationName?: string;
-    allowedDomains?: string[];
+    organizationName: string;
+    allowedDomains?: DomainsProps;
 }) =>
     lightdashApi<undefined>({
         url: `/org`,
@@ -29,16 +29,26 @@ const OrganizationPanel: FC = () => {
         showToastSuccess,
         user,
     } = useApp();
-    const [allowedDomains, setAllowedDomains] = useState<
-        string[] | ReactNode[] | undefined
-    >(user.data?.allowedDomains);
-    const [organizationName, setOrganizationName] = useState<
-        string | undefined
-    >(user.data?.organizationName);
+    const organizationName = user.data?.organizationName;
+    const allowedDomains = user.data?.allowedDomains || [];
+    const methods = useForm({
+        mode: 'onSubmit',
+    });
+
+    useEffect(() => {
+        if (user.data) {
+            methods.setValue('organizationName', organizationName);
+            methods.setValue('allowedDomains', allowedDomains);
+        }
+    }, [user, methods]);
+
     const { isLoading, error, mutate } = useMutation<
         undefined,
         ApiError,
-        { organizationName: string }
+        {
+            organizationName: string;
+            allowedDomains: DomainsProps;
+        }
     >(updateOrgQuery, {
         mutationKey: ['user_update'],
         onSuccess: async () => {
@@ -59,68 +69,44 @@ const OrganizationPanel: FC = () => {
         }
     }, [error, showError]);
 
-    const handleUpdate = () => {
-        if (organizationName) {
-            mutate({
-                organizationName,
-            });
-        } else {
-            showToastError({
-                title: 'Required fields: organization name',
-                timeout: 3000,
-            });
-        }
-
-        if (allowedDomains) {
-            mutate({
-                allowedDomains,
-            });
-        } else {
-            showToastError({
-                title: 'Required fields: allowed email domains',
-                timeout: 3000,
-            });
-        }
+    const handleUpdate = (data: {
+        organizationName: string;
+        allowedDomains: DomainsProps;
+    }) => {
+        mutate(data);
     };
 
     return (
         <div
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
         >
-            <FormGroup
-                label="Organization name"
-                labelFor="organization-name-input"
-                labelInfo="(required)"
-            >
-                <InputGroup
-                    id="organization-name-input"
+            <Form name="login" methods={methods} onSubmit={handleUpdate}>
+                <Input
+                    label="Organization name"
+                    name="organizationName"
                     placeholder="Lightdash"
-                    type="text"
-                    required
                     disabled={isLoading}
-                    value={organizationName}
-                    onChange={(e) => setOrganizationName(e.target.value)}
+                    defaultValue={organizationName}
+                    rules={{
+                        required: 'Required field',
+                    }}
                 />
-            </FormGroup>
-            <FormGroup label="Allowed email domains">
+
                 <TagInput
-                    addOnBlur
-                    addOnPaste
-                    onChange={(e: string[] | ReactNode[]) =>
-                        setAllowedDomains(e)
-                    }
-                    values={allowedDomains || ['gmail']}
-                    placeholder="Allowed domains"
+                    label="Allowed email domains"
+                    name="allowedDomains"
+                    defaultValue={allowedDomains}
                 />
-            </FormGroup>
-            <div style={{ flex: 1 }} />
-            <Button
-                style={{ alignSelf: 'flex-end', marginTop: 20 }}
-                intent={Intent.PRIMARY}
-                text="Update"
-                onClick={handleUpdate}
-                loading={isLoading}
-            />
+
+                <div style={{ flex: 1 }} />
+                <Button
+                    style={{ alignSelf: 'flex-end', marginTop: 20 }}
+                    intent={Intent.PRIMARY}
+                    text="Update"
+                    loading={isLoading}
+                    type="submit"
+                />
+            </Form>
         </div>
     );
 };
