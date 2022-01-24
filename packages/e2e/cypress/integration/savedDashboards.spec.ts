@@ -51,7 +51,7 @@ describe('Dashboard List', () => {
         // click on rename
         cy.findByRole('button', { name: 'more' }).click();
         cy.findByRole('button', { name: 'edit Rename' }).click();
-        cy.findByLabelText('Name (required)').clear().type('Jaffle dashboard');
+        cy.findByLabelText('Name *').clear().type('Jaffle dashboard');
         // click on save
         cy.findByRole('button', { name: 'Save' }).click();
 
