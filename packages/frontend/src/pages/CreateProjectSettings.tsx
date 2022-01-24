@@ -16,10 +16,7 @@ const CreateProjectSettings: FC = () => {
         return <PageSpinner />;
     }
 
-    if (
-        health.status === 'success' &&
-        (health.data?.needsSetup || !health.data?.needsProject)
-    ) {
+    if (health.status === 'success' && !health.data?.needsProject) {
         return (
             <Redirect
                 to={{
@@ -37,12 +34,13 @@ const CreateProjectSettings: FC = () => {
     };
 
     return (
-        <Page isFullHeight>
+        <Page>
             <div
                 style={{
                     display: 'flex',
                     flexDirection: 'column',
                     width: '800px',
+                    paddingTop: 60,
                 }}
             >
                 <H1 style={{ margin: 0, flex: 1 }}>Configure your tables</H1>

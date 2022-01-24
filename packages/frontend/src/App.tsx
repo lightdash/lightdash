@@ -107,8 +107,10 @@ const App = () => (
                                             background: Colors.LIGHT_GRAY5,
                                         }}
                                     >
+                                        <UserCompletionModal />
                                         <Switch>
                                             <Route path="/createProject">
+                                                <AppBar />
                                                 <TrackPage
                                                     name={
                                                         PageName.CREATE_PROJECT
@@ -118,6 +120,7 @@ const App = () => (
                                                 </TrackPage>
                                             </Route>
                                             <Route path="/createProjectSettings/:projectUuid">
+                                                <AppBar />
                                                 <TrackPage
                                                     name={
                                                         PageName.CREATE_PROJECT_SETTINGS
@@ -127,7 +130,6 @@ const App = () => (
                                                 </TrackPage>
                                             </Route>
                                             <AppRoute path="/">
-                                                <UserCompletionModal />
                                                 <Switch>
                                                     <Route path="/projects/:projectUuid/settings/:tab?">
                                                         <AppBar />
