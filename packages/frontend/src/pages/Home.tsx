@@ -63,7 +63,7 @@ const LandingPage: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     style={{ height: 40 }}
                     href={`/projects/${projectUuid}/tables`}
                     intent="primary"
-                    icon="database"
+                    icon="series-search"
                 >
                     Run a query
                 </LinkButton>

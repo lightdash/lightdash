@@ -98,7 +98,7 @@ const AppBar = () => {
                         }
                         position={Position.BOTTOM_LEFT}
                     >
-                        <Button minimal icon="database" text="Explore" />
+                        <Button minimal icon="series-search" text="Explore" />
                     </Popover2>
                     <Popover2
                         interactionKind={PopoverInteractionKind.CLICK}
