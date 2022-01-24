@@ -76,6 +76,8 @@ export const getGoogleLogin: RequestHandler = (req, res, next) => {
     const { redirect, inviteCode } = req.query;
     if (typeof inviteCode === 'string') {
         req.session.inviteCode = inviteCode;
+    } else {
+        req.session.inviteCode = undefined;
     }
     if (typeof redirect === 'string') {
         try {
@@ -86,21 +88,27 @@ export const getGoogleLogin: RequestHandler = (req, res, next) => {
                 process.env.NODE_ENV === 'development'
             ) {
                 req.session.returnTo = redirect;
+            } else {
+                req.session.returnTo = undefined;
             }
         } catch (e) {
             next(); // fail silently if we can't parse url
         }
+    } else {
+        req.session.returnTo = undefined;
     }
     next();
 };
 export const getGoogleLoginSuccess: RequestHandler = (req, res) => {
     const { returnTo } = req.session;
     req.session.returnTo = undefined;
+    req.session.inviteCode = undefined;
     res.redirect(returnTo || '/');
 };
 export const getGoogleLoginFailure: RequestHandler = (req, res) => {
     const { returnTo } = req.session;
     req.session.returnTo = undefined;
+    req.session.inviteCode = undefined;
     res.redirect(returnTo || '/');
 };
 export const googlePassportStrategy: GoogleStrategy | undefined = !(
