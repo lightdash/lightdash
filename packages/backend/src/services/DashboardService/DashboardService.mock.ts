@@ -23,7 +23,9 @@ export const user: SessionUser = {
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
-    ability: new Ability(),
+    ability: new Ability([
+        { subject: 'Dashboard', action: ['update', 'delete', 'create'] },
+    ]),
 };
 
 export const space: SpaceTable['base'] = {

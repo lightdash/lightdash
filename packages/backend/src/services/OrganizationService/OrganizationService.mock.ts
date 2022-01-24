@@ -1,5 +1,9 @@
 import { Ability } from '@casl/ability';
-import { OrganizationMemberRole, SessionUser } from 'common';
+import {
+    OrganizationMemberProfile,
+    OrganizationMemberRole,
+    SessionUser,
+} from 'common';
 import { DbOrganizationUser } from '../../models/UserModel';
 
 export const user: SessionUser = {
@@ -14,7 +18,9 @@ export const user: SessionUser = {
     isMarketingOptedIn: false,
     isSetupComplete: true,
     role: OrganizationMemberRole.ADMIN,
-    ability: new Ability(),
+    ability: new Ability([
+        { subject: 'OrganizationMemberProfile', action: 'view' },
+    ]),
 };
 
 export const orgUsers: DbOrganizationUser[] = [
@@ -29,5 +35,24 @@ export const orgUsers: DbOrganizationUser[] = [
         email: 'email',
         last_name: 'last name',
         first_name: 'first name',
+    },
+];
+
+export const ORGANIZATION_MEMBERS: OrganizationMemberProfile[] = [
+    {
+        organizationUuid: 'org',
+        userUuid: 'aaa',
+        firstName: 'Bubbles',
+        lastName: 'PowerPuff',
+        email: 'bubbles@powerpuff.com',
+        role: OrganizationMemberRole.VIEWER,
+    },
+    {
+        organizationUuid: 'org',
+        userUuid: 'bbb',
+        firstName: 'Buttercup',
+        lastName: 'PowerPuff',
+        email: 'buttercups@powerpuff.com',
+        role: OrganizationMemberRole.VIEWER,
     },
 ];
