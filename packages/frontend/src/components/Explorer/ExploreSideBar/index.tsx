@@ -50,12 +50,13 @@ const BasePanel = () => {
     const exploresResult = useExplores(filterExplores);
 
     const filteredTables = useMemo(() => {
+        const validSearch = search ? search.toLowerCase() : '';
         if (exploresResult.data) {
-            if (search !== '') {
+            if (validSearch !== '') {
                 return new Fuse(Object.values(exploresResult.data), {
-                    keys: ['name', 'description'],
+                    keys: ['name'],
                 })
-                    .search(search)
+                    .search(validSearch)
                     .map((res) => res.item);
             }
             return Object.values(exploresResult.data);
@@ -63,7 +64,7 @@ const BasePanel = () => {
         return [];
     }, [exploresResult.data, search]);
 
-    if (exploresResult.data) {
+    if (filteredTables) {
         return (
             <>
                 <div>
@@ -90,8 +91,8 @@ const BasePanel = () => {
                             />
                         </SearchWrapper>
                         <SwitchFilter
-                            checked={filterExplores}
-                            label="See unlisted tables"
+                            checked={!filterExplores}
+                            label="Show hidden tables"
                             onChange={toggleFilterExplores}
                         />
                     </SideBarDescription>
