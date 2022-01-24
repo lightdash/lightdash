@@ -382,7 +382,8 @@
       "profile": "https://github.com/rverheijen",
       "contributions": [
         "code",
-        "test"
+        "test",
+        "bug"
       ]
     }
   ],
