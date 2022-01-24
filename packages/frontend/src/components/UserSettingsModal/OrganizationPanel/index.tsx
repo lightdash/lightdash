@@ -102,14 +102,14 @@ const OrganizationPanel: FC = () => {
                     onChange={(e) => setOrganizationName(e.target.value)}
                 />
             </FormGroup>
-            <FormGroup label="Allowed email domains" labelInfo="(required)">
+            <FormGroup label="Allowed email domains">
                 <TagInput
                     addOnBlur
                     addOnPaste
                     onChange={(e: string[] | ReactNode[]) =>
                         setAllowedDomains(e)
                     }
-                    values={allowedDomains}
+                    values={allowedDomains || ['gmail']}
                     placeholder="Allowed domains"
                 />
             </FormGroup>
