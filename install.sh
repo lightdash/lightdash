@@ -293,7 +293,7 @@ set_vars() {
     if [ $setup_type == 'local_dbt' ]; then
         while [[ $dbt_project_dir == "" ]]
         do
-            read -rp 'dbt project directory: ' dbt_project_dir
+            read -rp 'Absolute path to dbt project directory (e.g ~/absolute/path/to/dbt/project): ' dbt_project_dir
         done
     fi
 
