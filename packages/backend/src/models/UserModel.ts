@@ -1,6 +1,5 @@
 import bcrypt from 'bcrypt';
 import {
-    CompleteUserArgs,
     CreateInitialUserArgs,
     CreateOrganizationUser,
     isOpenIdUser,
@@ -183,28 +182,41 @@ export class UserModel {
     }
 
     async updateUser(
-        userId: number,
+        userUuid: string,
         currentEmail: string | undefined,
-        { firstName, lastName, email }: UpdateUserArgs,
+        {
+            firstName,
+            lastName,
+            email,
+            isMarketingOptedIn,
+            isTrackingAnonymized,
+            isSetupComplete,
+        }: Partial<UpdateUserArgs>,
     ): Promise<LightdashUser> {
         await this.database.transaction(async (trx) => {
             try {
-                await trx<DbUser>('users')
-                    .where('user_id', userId)
+                const [user] = await trx(UserTableName)
+                    .where('user_uuid', userUuid)
                     .update<DbUserUpdate>({
                         first_name: firstName,
                         last_name: lastName,
-                    });
+                        is_setup_complete: isSetupComplete,
+                        is_marketing_opted_in: isMarketingOptedIn,
+                        is_tracking_anonymized: canTrackingBeAnonymized()
+                            ? isTrackingAnonymized
+                            : false,
+                    })
+                    .returning('*');
 
-                if (currentEmail !== email) {
+                if (email && currentEmail !== email) {
                     if (currentEmail) {
                         await deleteEmail(trx, {
-                            user_id: userId,
+                            user_id: user.user_id,
                             email: currentEmail,
                         });
                     }
                     await createEmail(trx, {
-                        user_id: userId,
+                        user_id: user.user_id,
                         email,
                         is_primary: true,
                     });
@@ -214,25 +226,6 @@ export class UserModel {
                 throw e;
             }
         });
-        return this.getUserByPrimaryEmail(email);
-    }
-
-    async completeUser(
-        userUuid: string,
-        {
-            isMarketingOptedIn,
-            isTrackingAnonymized,
-        }: Omit<CompleteUserArgs, 'organizationName' | 'jobTitle'>,
-    ): Promise<LightdashUser> {
-        await this.database<DbUser>('users')
-            .where('user_uuid', userUuid)
-            .update<DbUserUpdate>({
-                is_setup_complete: true,
-                is_marketing_opted_in: isMarketingOptedIn,
-                is_tracking_anonymized: canTrackingBeAnonymized()
-                    ? isTrackingAnonymized
-                    : false,
-            });
         return this.getUserDetailsByUuid(userUuid);
     }
 
