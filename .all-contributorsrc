@@ -347,6 +347,15 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "2rara",
+      "name": "Takaaki Yoshikawa",
+      "avatar_url": "https://avatars.githubusercontent.com/u/27809401?v=4",
+      "profile": "https://2rara.github.io",
+      "contributions": [
+        "design"
+      ]
     }
   ],
   "contributorsPerLine": 7,
