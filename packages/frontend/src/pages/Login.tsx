@@ -32,13 +32,13 @@ const loginQuery = async (data: LoginParams) =>
 
 const Login: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
-    const { health, showToastError, showToastSuccess } = useApp();
+    const { health, showToastError } = useApp();
     const methods = useForm<LoginParams>({
         mode: 'onSubmit',
     });
     const { identify } = useTracking();
 
-    const { isLoading, mutate } = useMutation<
+    const { isIdle, isLoading, mutate } = useMutation<
         LightdashUser,
         ApiError,
         LoginParams
@@ -58,18 +58,21 @@ const Login: FC = () => {
         },
     });
 
+    const isDemo = health.data?.mode === LightdashMode.DEMO;
     useEffect(() => {
-        if (health.data?.mode === LightdashMode.DEMO) {
-            methods.setValue('email', SEED_EMAIL.email);
-            methods.setValue('password', SEED_PASSWORD.password);
+        if (isDemo && isIdle) {
+            mutate({
+                email: SEED_EMAIL.email,
+                password: SEED_PASSWORD.password,
+            });
         }
-    }, [health, methods]);
+    }, [isDemo, mutate, isIdle]);
 
     const handleLogin = (data: LoginParams) => {
         mutate(data);
     };
 
-    if (health.isLoading) {
+    if (health.isLoading || isDemo) {
         return <PageSpinner />;
     }
 
