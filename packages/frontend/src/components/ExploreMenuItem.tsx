@@ -34,7 +34,7 @@ export const ExploreMenuItem: React.FC<ExploreMenuItemProps> = ({
         return (
             <Tooltip2 content={errorMessage} targetTagName="div">
                 <MenuItem
-                    icon="database"
+                    icon="th"
                     text={explore.label}
                     disabled
                     labelElement={
@@ -48,5 +48,5 @@ export const ExploreMenuItem: React.FC<ExploreMenuItemProps> = ({
             </Tooltip2>
         );
     }
-    return <MenuItem icon="database" text={explore.label} onClick={onClick} />;
+    return <MenuItem icon="th" text={explore.label} onClick={onClick} />;
 };

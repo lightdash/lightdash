@@ -45,7 +45,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     const form = useMemo(() => {
         switch (type) {
             case ProjectType.DBT:
-                return <DbtLocalForm disabled={disabled} />;
+                return <DbtLocalForm />;
             case ProjectType.DBT_CLOUD_IDE:
                 return <DbtCloudForm disabled={disabled} />;
             case ProjectType.GITHUB:

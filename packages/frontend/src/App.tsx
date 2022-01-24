@@ -130,6 +130,7 @@ const App = () => (
                                                 </TrackPage>
                                             </Route>
                                             <AppRoute path="/">
+                                                <UserCompletionModal />
                                                 <Switch>
                                                     <Route path="/projects/:projectUuid/settings/:tab?">
                                                         <AppBar />

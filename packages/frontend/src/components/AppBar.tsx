@@ -107,7 +107,7 @@ const AppBar = () => {
                             >
                                 <Button
                                     minimal
-                                    icon="database"
+                                    icon="series-search"
                                     text="Explore"
                                 />
                             </Popover2>
