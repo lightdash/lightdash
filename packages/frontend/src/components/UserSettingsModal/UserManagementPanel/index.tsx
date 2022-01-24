@@ -1,51 +1,63 @@
-import {
-    Button,
-    ButtonGroup,
-    Card,
-    Classes,
-    Dialog,
-    Tag,
-} from '@blueprintjs/core';
-import { OrganizationMemberProfile } from 'common';
+import { Button, ButtonGroup, Classes, Dialog } from '@blueprintjs/core';
+import { OrganizationMemberProfile, OrganizationMemberRole } from 'common';
 import React, { FC, useState } from 'react';
 import {
     useDeleteUserMutation,
     useOrganizationUsers,
-} from '../../hooks/useOrganizationUsers';
-import { useApp } from '../../providers/AppProvider';
+    useUpdateUserMutation,
+} from '../../../hooks/useOrganizationUsers';
+import { useApp } from '../../../providers/AppProvider';
+import {
+    ItemContent,
+    RoleSelectButton,
+    UserEmail,
+    UserInfo,
+    UserListItemWrapper,
+    UserManagementPanelWrapper,
+    UserName,
+} from './UserManagementPanel.styles';
 
 const UserListItem: FC<{ disabled: boolean; user: OrganizationMemberProfile }> =
-    ({ disabled, user: { userUuid, firstName, lastName, email } }) => {
+    ({ disabled, user: { userUuid, firstName, lastName, email, role } }) => {
         const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
         const { mutate, isLoading: isDeleting } = useDeleteUserMutation();
-
+        const updateUser = useUpdateUserMutation(userUuid);
+        const [userRole, setUserRole] = useState<OrganizationMemberRole>();
         const handleDelete = () => mutate(userUuid);
 
         return (
-            <Card
-                elevation={0}
-                style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    marginBottom: '20px',
-                }}
-            >
-                <div
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                    }}
-                >
-                    <p style={{ margin: 0, marginRight: '10px', flex: 1 }}>
-                        <b
-                            className={Classes.TEXT_OVERFLOW_ELLIPSIS}
-                            style={{ margin: 0, marginRight: '10px' }}
-                        >
+            <UserListItemWrapper elevation={0}>
+                <ItemContent>
+                    <UserInfo>
+                        <UserName className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
                             {firstName} {lastName}
-                        </b>
-                        {email && <Tag minimal>{email}</Tag>}
-                    </p>
+                        </UserName>
+                        {email && <UserEmail minimal>{email}</UserEmail>}
+                    </UserInfo>
                     <ButtonGroup>
+                        <RoleSelectButton
+                            fill
+                            id="user-role"
+                            options={Object.values(OrganizationMemberRole).map(
+                                (orgMemberRole) => ({
+                                    value: orgMemberRole,
+                                    label: orgMemberRole,
+                                }),
+                            )}
+                            required
+                            onChange={(e) => {
+                                setUserRole(
+                                    e.currentTarget
+                                        .value as OrganizationMemberRole,
+                                );
+                                // @ts-ignore
+                                updateUser.mutate({
+                                    role: e.currentTarget
+                                        .value as OrganizationMemberRole,
+                                });
+                            }}
+                            value={userRole || role}
+                        />
                         <Button
                             icon="delete"
                             intent="danger"
@@ -55,7 +67,7 @@ const UserListItem: FC<{ disabled: boolean; user: OrganizationMemberProfile }> =
                             disabled={disabled}
                         />
                     </ButtonGroup>
-                </div>
+                </ItemContent>
                 <Dialog
                     isOpen={isDeleteDialogOpen}
                     icon="person"
@@ -87,18 +99,16 @@ const UserListItem: FC<{ disabled: boolean; user: OrganizationMemberProfile }> =
                         </div>
                     </div>
                 </Dialog>
-            </Card>
+            </UserListItemWrapper>
         );
     };
 
-const OrganizationPanel: FC = () => {
+const UserManagementPanel: FC = () => {
     const { user } = useApp();
     const { data: organizationUsers } = useOrganizationUsers();
 
     return (
-        <div
-            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-        >
+        <UserManagementPanelWrapper>
             <div>
                 {organizationUsers?.map((orgUser) => (
                     <UserListItem
@@ -111,8 +121,8 @@ const OrganizationPanel: FC = () => {
                     />
                 ))}
             </div>
-        </div>
+        </UserManagementPanelWrapper>
     );
 };
 
-export default OrganizationPanel;
+export default UserManagementPanel;

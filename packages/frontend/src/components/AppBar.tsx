@@ -24,7 +24,7 @@ import { UserAvatar } from './Avatar';
 import { ErrorLogsDrawer } from './ErrorLogsDrawer';
 import NavLink from './NavLink';
 import { ShowErrorsButton } from './ShowErrorsButton';
-import UserSettingsModal from './UserSettingsModal/UserSettingsModal';
+import UserSettingsModal from './UserSettingsModal';
 
 const logoutQuery = async () =>
     lightdashApi({

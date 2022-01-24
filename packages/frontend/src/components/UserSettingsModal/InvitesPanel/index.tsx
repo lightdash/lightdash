@@ -5,10 +5,10 @@ import CopyToClipboard from 'react-copy-to-clipboard';
 import {
     useCreateInviteLinkMutation,
     useRevokeInvitesMutation,
-} from '../../hooks/useInviteLink';
-import { useApp } from '../../providers/AppProvider';
-import { useTracking } from '../../providers/TrackingProvider';
-import { EventName } from '../../types/Events';
+} from '../../../hooks/useInviteLink';
+import { useApp } from '../../../providers/AppProvider';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 
 const InvitePanel: FC = () => {
     const { track } = useTracking();

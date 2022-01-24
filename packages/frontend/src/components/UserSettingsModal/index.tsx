@@ -9,7 +9,7 @@ import OrganizationPanel from './OrganizationPanel';
 import PasswordPanel from './PasswordPanel';
 import ProfilePanel from './ProfilePanel';
 import ProjectManagementPanel from './ProjectManagementPanel';
-import { SocialLoginsPanel } from './SocialLoginsPanel';
+import SocialLoginsPanel from './SocialLoginsPanel';
 import UserManagementPanel from './UserManagementPanel';
 import './UserSettingsModal.css';
 
@@ -19,8 +19,10 @@ interface Props {
 }
 
 const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
-    const { health } = useApp();
     useLocationChange(onClose);
+    const { user, health } = useApp();
+    const isAdmin = user.data?.role === 'admin';
+
     return (
         <Dialog
             isOpen={isOpen}
@@ -90,19 +92,22 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                             </TrackPage>
                         }
                     />
-                    <Tab
-                        id="userManagement"
-                        title="User management"
-                        panel={
-                            <TrackPage
-                                name={PageName.USER_MANAGEMENT_SETTINGS}
-                                type={PageType.MODAL}
-                                category={CategoryName.SETTINGS}
-                            >
-                                <UserManagementPanel />
-                            </TrackPage>
-                        }
-                    />
+
+                    {isAdmin ? (
+                        <Tab
+                            id="userManagement"
+                            title="User management"
+                            panel={
+                                <TrackPage
+                                    name={PageName.USER_MANAGEMENT_SETTINGS}
+                                    type={PageType.MODAL}
+                                    category={CategoryName.SETTINGS}
+                                >
+                                    <UserManagementPanel />
+                                </TrackPage>
+                            }
+                        />
+                    ) : null}
                     {health.data && !health.data.needsProject && (
                         <Tab
                             id="projectManagement"
