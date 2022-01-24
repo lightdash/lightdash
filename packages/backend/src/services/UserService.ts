@@ -5,6 +5,7 @@ import {
     CreateOrganizationUser,
     CreatePasswordResetLink,
     InviteLink,
+    isOpenIdUser,
     LightdashMode,
     LightdashUser,
     OpenIdIdentitySummary,
@@ -91,6 +92,7 @@ export class UserService {
             userId: user.userUuid,
             properties: {
                 jobTitle: createOrganizationUser.jobTitle,
+                userConnectionType: 'password',
             },
         });
         return user;
@@ -259,9 +261,10 @@ export class UserService {
         identifyUser(completeUser);
         analytics.track({
             organizationId: completeUser.organizationUuid,
-            event: 'user.completed',
+            event: 'user.updated',
             userId: completeUser.userUuid,
             properties: {
+                ...completeUser,
                 jobTitle,
             },
         });
@@ -358,6 +361,7 @@ export class UserService {
             userId: updatedUser.userUuid,
             organizationId: updatedUser.organizationUuid,
             event: 'user.updated',
+            properties: updatedUser,
         });
         return updatedUser;
     }
@@ -377,6 +381,9 @@ export class UserService {
             userId: user.userUuid,
             properties: {
                 jobTitle: undefined,
+                userConnectionType: isOpenIdUser(createUser)
+                    ? 'google'
+                    : 'password',
             },
         });
         analytics.track({
@@ -392,6 +399,16 @@ export class UserService {
                 organizationName: user.organizationName,
             },
         });
+        if (isOpenIdUser(createUser)) {
+            analytics.track({
+                organizationId: user.organizationUuid,
+                userId: user.userUuid,
+                event: 'user.identity_linked',
+                properties: {
+                    loginProvider: 'google',
+                },
+            });
+        }
         return user;
     }
 
