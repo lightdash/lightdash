@@ -2,10 +2,8 @@ import { SEED_EMAIL, SEED_PASSWORD } from 'common';
 
 describe('Login', () => {
     beforeEach(() => {
-        cy.request({
-            url: 'api/v1/logout',
-            method: 'GET',
-        });
+        // @ts-ignore
+        cy.logout();
     });
     it('Should login successfully', () => {
         cy.visit('/login');
