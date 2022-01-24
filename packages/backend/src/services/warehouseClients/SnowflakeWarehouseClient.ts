@@ -155,7 +155,8 @@ export default class SnowflakeWarehouseClient implements WarehouseClient {
             columns: string[];
         }[],
     ) {
-        const sqlText = 'SHOW COLUMNS';
+        // needs to be custom database + schema + table.
+        const sqlText = 'SHOW COLUMNS IN ACCOUNT';
         const rows = await this.runQuery(sqlText);
         return rows.reduce<WarehouseCatalog>((acc, row) => {
             const match = config.find(
