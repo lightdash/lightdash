@@ -1,6 +1,5 @@
 import bcrypt from 'bcrypt';
 import {
-    CompleteUserArgs,
     CreateUserArgs,
     isOpenIdUser,
     LightdashMode,
@@ -281,25 +280,6 @@ export class UserModel {
                 throw e;
             }
         });
-        return this.getUserDetailsByUuid(userUuid);
-    }
-
-    async completeUser(
-        userUuid: string,
-        {
-            isMarketingOptedIn,
-            isTrackingAnonymized,
-        }: Omit<CompleteUserArgs, 'organizationName' | 'jobTitle'>,
-    ): Promise<LightdashUser> {
-        await this.database<DbUser>('users')
-            .where('user_uuid', userUuid)
-            .update<DbUserUpdate>({
-                is_setup_complete: true,
-                is_marketing_opted_in: isMarketingOptedIn,
-                is_tracking_anonymized: canTrackingBeAnonymized()
-                    ? isTrackingAnonymized
-                    : false,
-            });
         return this.getUserDetailsByUuid(userUuid);
     }
 

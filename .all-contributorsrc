@@ -347,6 +347,43 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "2rara",
+      "name": "Takaaki Yoshikawa",
+      "avatar_url": "https://avatars.githubusercontent.com/u/27809401?v=4",
+      "profile": "https://2rara.github.io",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "nkotlyarov",
+      "name": "nkotlyarov",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5070583?v=4",
+      "profile": "https://github.com/nkotlyarov",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "generalistcodes",
+      "name": "kim monzon",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1046316?v=4",
+      "profile": "http://kimmonzon.com",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "rverheijen",
+      "name": "rverheijen",
+      "avatar_url": "https://avatars.githubusercontent.com/u/68638877?v=4",
+      "profile": "https://github.com/rverheijen",
+      "contributions": [
+        "test",
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,

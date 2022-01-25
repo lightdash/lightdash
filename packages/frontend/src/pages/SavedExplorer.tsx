@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import AboutFooter from '../components/AboutFooter';
 import { Explorer } from '../components/Explorer';
-import { ExplorePanel } from '../components/ExploreSideBar';
+import ExplorePanel from '../components/Explorer/ExplorePanel/index';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useExplorer } from '../providers/ExplorerProvider';
 
