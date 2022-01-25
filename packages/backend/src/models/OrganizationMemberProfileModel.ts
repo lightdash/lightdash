@@ -24,26 +24,27 @@ type DbOrganizationMemberProfile = DbUser &
 export class OrganizationMemberProfileModel {
     private readonly database: Knex;
 
-    private readonly queryBuilder: Knex.QueryBuilder<
+    private readonly queryBuilder: () => Knex.QueryBuilder<
         DbOrganizationMemberProfile[]
     >;
 
     constructor({ database }: { database: Knex }) {
         this.database = database;
-        this.queryBuilder = database(OrganizationMembershipsTableName)
-            .innerJoin(
-                UserTableName,
-                `${OrganizationMembershipsTableName}.user_id`,
-                `${UserTableName}.user_id`,
-            )
-            .joinRaw(
-                `INNER JOIN ${EmailTableName} ON ${UserTableName}.user_id = ${EmailTableName}.user_id AND ${EmailTableName}.is_primary`,
-            )
-            .innerJoin(
-                OrganizationTableName,
-                `${OrganizationMembershipsTableName}.organization_id`,
-                `${OrganizationTableName}.organization_id`,
-            );
+        this.queryBuilder = () =>
+            database(OrganizationMembershipsTableName)
+                .innerJoin(
+                    UserTableName,
+                    `${OrganizationMembershipsTableName}.user_id`,
+                    `${UserTableName}.user_id`,
+                )
+                .joinRaw(
+                    `INNER JOIN ${EmailTableName} ON ${UserTableName}.user_id = ${EmailTableName}.user_id AND ${EmailTableName}.is_primary`,
+                )
+                .innerJoin(
+                    OrganizationTableName,
+                    `${OrganizationMembershipsTableName}.organization_id`,
+                    `${OrganizationTableName}.organization_id`,
+                );
     }
 
     private static parseRow(
@@ -63,7 +64,7 @@ export class OrganizationMemberProfileModel {
         organizationUuid: string,
         userUuid: string,
     ): Promise<OrganizationMemberProfile | undefined> {
-        const [member] = await this.queryBuilder
+        const [member] = await this.queryBuilder()
             .where('user_uuid', userUuid)
             .andWhere('organization_uuid', organizationUuid)
             .select('*');
@@ -73,16 +74,24 @@ export class OrganizationMemberProfileModel {
     async getOrganizationMembers(
         organizationUuid: string,
     ): Promise<OrganizationMemberProfile[]> {
-        const members = await this.queryBuilder
+        console.log(
+            await this.queryBuilder()
+                .where('organization_uuid', organizationUuid)
+                .select('*')
+                .toSQL()
+                .toNative(),
+        );
+        const members = await this.queryBuilder()
             .where('organization_uuid', organizationUuid)
             .select('*');
+        console.log(members);
         return members.map(OrganizationMemberProfileModel.parseRow);
     }
 
     async getOrganizationAdmins(
         organizationUuid: string,
     ): Promise<OrganizationMemberProfile[]> {
-        const members = await this.queryBuilder
+        const members = await this.queryBuilder()
             .where('organization_uuid', organizationUuid)
             .andWhere('role', 'admin')
             .select('*');

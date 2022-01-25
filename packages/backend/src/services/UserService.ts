@@ -107,7 +107,7 @@ export class UserService {
         return user;
     }
 
-    async delete(user: SessionUser, userUuid: string): Promise<void> {
+    async delete(user: SessionUser, userUuidToDelete: string): Promise<void> {
         if (user.organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
@@ -121,21 +121,24 @@ export class UserService {
             await this.organizationMemberProfileModel.getOrganizationAdmins(
                 user.organizationUuid,
             );
-        if (remainingAdmins.length === 0 && admin.userUuid === userUuid) {
+        if (
+            remainingAdmins.length === 0 &&
+            admin.userUuid === userUuidToDelete
+        ) {
             throw new ForbiddenError(
                 'Organization must have at least one admin',
             );
         }
 
-        await this.sessionModel.deleteAllByUserUuid(userUuid);
+        await this.sessionModel.deleteAllByUserUuid(userUuidToDelete);
 
-        await this.userModel.delete(userUuid);
+        await this.userModel.delete(userUuidToDelete);
         analytics.track({
             organizationId: user.organizationUuid,
             event: 'user.deleted',
             userId: user.userUuid,
             properties: {
-                deletedUserUuid: userUuid,
+                deletedUserUuid: userUuidToDelete,
             },
         });
     }

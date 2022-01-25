@@ -3,7 +3,7 @@ import { ApiError, OpenIdIdentitySummary } from 'common';
 import React, { FC } from 'react';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../../../api';
-import { useDeleteOpenIdentityMutation } from '../../hooks/user/useDeleteOpenIdentityMutation';
+import { useDeleteOpenIdentityMutation } from '../../../hooks/user/useDeleteOpenIdentityMutation';
 import { GoogleLoginButton } from '../../common/GoogleLoginButton';
 
 const getIdentitiesQuery = async () =>
