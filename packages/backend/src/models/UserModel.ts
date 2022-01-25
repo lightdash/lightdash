@@ -310,7 +310,7 @@ export class UserModel {
         );
     }
 
-    async createUser(
+    async createUserFromInvite(
         inviteCode: string,
         createUser: CreateUserArgs | OpenIdUser,
     ): Promise<LightdashUser> {

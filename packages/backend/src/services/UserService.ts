@@ -80,11 +80,14 @@ export class UserService {
         this.organizationModel = organizationModel;
     }
 
-    async create(
+    async createFromInvite(
         inviteCode: string,
         createUser: CreateUserArgs | OpenIdUser,
     ): Promise<LightdashUser> {
-        const user = await this.userModel.createUser(inviteCode, createUser);
+        const user = await this.userModel.createUserFromInvite(
+            inviteCode,
+            createUser,
+        );
         identifyUser(user);
         analytics.track({
             organizationId: user.organizationUuid,
@@ -219,7 +222,7 @@ export class UserService {
             return this.userModel.findSessionUserByUUID(user.userUuid);
         }
         if (inviteCode) {
-            const user = await this.create(inviteCode, openIdUser);
+            const user = await this.createFromInvite(inviteCode, openIdUser);
             return this.userModel.findSessionUserByUUID(user.userUuid);
         }
         throw new AuthorizationError(
