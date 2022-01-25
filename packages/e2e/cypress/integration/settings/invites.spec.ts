@@ -19,12 +19,11 @@ describe('Dashboard List', () => {
                     cy.visit(value);
                 }
             });
-        cy.findByLabelText('First name (required)').type('Mary');
-        cy.findByLabelText('Last name (required)').type('Green');
-        cy.findByLabelText('Job title (required)').select('Data engineer');
-        cy.findByLabelText('Email (required)').type('marygreen@lightdash.com');
-        cy.findByLabelText('Password (required)').type('PasswordMary1');
-        cy.findByRole('button', { name: 'Create' }).click();
+        cy.findByLabelText('First name *').type('Mary');
+        cy.findByLabelText('Last name *').type('Green');
+        cy.findByLabelText('Email *').type('marygreen@lightdash.com');
+        cy.findByLabelText('Password *').type('PasswordMary1');
+        cy.findByRole('button', { name: 'Next' }).click();
         cy.get('[data-cy="user-avatar"]').should('contain', 'MG');
     });
 

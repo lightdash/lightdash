@@ -1,9 +1,15 @@
 import { Card, H2, NonIdealState } from '@blueprintjs/core';
-import { ApiError, CreateOrganizationUser, LightdashUser } from 'common';
+import {
+    ApiError,
+    CreateOrganizationUser,
+    CreateUserArgs,
+    LightdashUser,
+} from 'common';
 import React, { FC } from 'react';
 import { useMutation } from 'react-query';
-import { useParams } from 'react-router-dom';
+import { Redirect, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
+import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
 import CreateUserForm from '../components/CreateUserForm';
 import PageSpinner from '../components/PageSpinner';
@@ -46,6 +52,10 @@ const Signup: FC = () => {
         return <PageSpinner />;
     }
 
+    if (health.status === 'success' && health.data?.isAuthenticated) {
+        return <Redirect to={{ pathname: '/' }} />;
+    }
+
     return (
         <Page isFullHeight>
             <div
@@ -73,14 +83,24 @@ const Signup: FC = () => {
                     ) : (
                         <>
                             <H2 style={{ marginBottom: 25 }}>Create account</H2>
+                            {health.data?.auth.google.oauth2ClientId && (
+                                <>
+                                    <GoogleLoginButton
+                                        inviteCode={inviteCode}
+                                    />
+                                    <span
+                                        style={{
+                                            textAlign: 'center',
+                                            margin: 15,
+                                        }}
+                                    >
+                                        <b>or</b>
+                                    </span>
+                                </>
+                            )}
                             <CreateUserForm
                                 isLoading={isLoading}
-                                onCreate={(
-                                    data: Omit<
-                                        CreateOrganizationUser,
-                                        'inviteCode'
-                                    >,
-                                ) => {
+                                onSubmit={(data: CreateUserArgs) => {
                                     mutate({
                                         inviteCode,
                                         ...data,

@@ -19,16 +19,15 @@ userRouter.get('/', isAuthenticated, async (req, res) => {
 
 userRouter.post('/', unauthorisedInDemo, async (req, res, next) => {
     try {
-        const lightdashUser = await userService.create({
-            inviteCode: req.body.inviteCode,
-            firstName: sanitizeStringParam(req.body.firstName),
-            lastName: sanitizeStringParam(req.body.lastName),
-            email: sanitizeEmailParam(req.body.email),
-            password: sanitizeStringParam(req.body.password),
-            isMarketingOptedIn: !!req.body.isMarketingOptedIn,
-            isTrackingAnonymized: !!req.body.isTrackingAnonymized,
-            jobTitle: req.body.jobTitle,
-        });
+        const lightdashUser = await userService.createFromInvite(
+            req.body.inviteCode,
+            {
+                firstName: sanitizeStringParam(req.body.firstName),
+                lastName: sanitizeStringParam(req.body.lastName),
+                email: sanitizeEmailParam(req.body.email),
+                password: sanitizeStringParam(req.body.password),
+            },
+        );
         const sessionUser = await userModel.findSessionUserByUUID(
             lightdashUser.userUuid,
         );

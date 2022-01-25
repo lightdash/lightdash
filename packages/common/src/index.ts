@@ -626,17 +626,14 @@ export type OrganizationUser = Pick<
     'userUuid' | 'firstName' | 'lastName' | 'email'
 >;
 
-export type CreateInitialUserArgs = {
+export type CreateUserArgs = {
     firstName: string;
     lastName: string;
     email: string;
     password: string;
 };
 
-export type CreateOrganizationUser = CreateInitialUserArgs & {
-    jobTitle: string;
-    isMarketingOptedIn: boolean;
-    isTrackingAnonymized: boolean;
+export type CreateOrganizationUser = CreateUserArgs & {
     inviteCode: string;
 };
 

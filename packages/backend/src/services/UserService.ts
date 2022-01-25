@@ -1,9 +1,8 @@
 import {
     CompleteUserArgs,
-    CreateInitialUserArgs,
     CreateInviteLink,
-    CreateOrganizationUser,
     CreatePasswordResetLink,
+    CreateUserArgs,
     InviteLink,
     isOpenIdUser,
     LightdashMode,
@@ -81,17 +80,20 @@ export class UserService {
         this.organizationModel = organizationModel;
     }
 
-    async create(
-        createOrganizationUser: CreateOrganizationUser,
+    async createFromInvite(
+        inviteCode: string,
+        createUser: CreateUserArgs | OpenIdUser,
     ): Promise<LightdashUser> {
-        const user = await this.userModel.createUser(createOrganizationUser);
+        const user = await this.userModel.createUserFromInvite(
+            inviteCode,
+            createUser,
+        );
         identifyUser(user);
         analytics.track({
             organizationId: user.organizationUuid,
             event: 'user.created',
             userId: user.userUuid,
             properties: {
-                jobTitle: createOrganizationUser.jobTitle,
                 userConnectionType: 'password',
             },
         });
@@ -164,6 +166,7 @@ export class UserService {
     async loginWithOpenId(
         openIdUser: OpenIdUser,
         sessionUser: SessionUser | undefined,
+        inviteCode: string | undefined,
     ): Promise<SessionUser> {
         const loginUser = await this.userModel.findSessionUserByOpenId(
             openIdUser.openId.issuer,
@@ -207,12 +210,19 @@ export class UserService {
         }
 
         // Create user
-        return this.createUserWithOpenId(openIdUser);
+        return this.createUserWithOpenId(openIdUser, inviteCode);
     }
 
-    async createUserWithOpenId(openIdUser: OpenIdUser): Promise<SessionUser> {
+    async createUserWithOpenId(
+        openIdUser: OpenIdUser,
+        inviteCode: string | undefined,
+    ): Promise<SessionUser> {
         if (!(await this.organizationModel.hasOrgs())) {
             const user = await this.registerInitialUser(openIdUser);
+            return this.userModel.findSessionUserByUUID(user.userUuid);
+        }
+        if (inviteCode) {
+            const user = await this.createFromInvite(inviteCode, openIdUser);
             return this.userModel.findSessionUserByUUID(user.userUuid);
         }
         throw new AuthorizationError(
@@ -247,7 +257,6 @@ export class UserService {
                 },
             });
         }
-
         const completeUser = await this.userModel.updateUser(
             user.userUuid,
             undefined,
@@ -366,7 +375,7 @@ export class UserService {
         return updatedUser;
     }
 
-    async registerInitialUser(createUser: CreateInitialUserArgs | OpenIdUser) {
+    async registerInitialUser(createUser: CreateUserArgs | OpenIdUser) {
         if (await this.userModel.hasUsers()) {
             throw new ForbiddenError('User already registered');
         }
@@ -380,7 +389,6 @@ export class UserService {
             organizationId: user.organizationUuid,
             userId: user.userUuid,
             properties: {
-                jobTitle: undefined,
                 userConnectionType: isOpenIdUser(createUser)
                     ? 'google'
                     : 'password',

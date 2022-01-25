@@ -73,7 +73,12 @@ export const localPassportStrategy = new LocalStrategy(
     },
 );
 export const getGoogleLogin: RequestHandler = (req, res, next) => {
-    const { redirect } = req.query;
+    const { redirect, inviteCode } = req.query;
+    req.session.oauth = {};
+
+    if (typeof inviteCode === 'string') {
+        req.session.oauth.inviteCode = inviteCode;
+    }
     if (typeof redirect === 'string') {
         try {
             const redirectUrl = new URL(redirect);
@@ -82,7 +87,7 @@ export const getGoogleLogin: RequestHandler = (req, res, next) => {
                 redirectUrl.host === originUrl.host ||
                 process.env.NODE_ENV === 'development'
             ) {
-                req.session.returnTo = redirect;
+                req.session.oauth.returnTo = redirect;
             }
         } catch (e) {
             next(); // fail silently if we can't parse url
@@ -91,13 +96,13 @@ export const getGoogleLogin: RequestHandler = (req, res, next) => {
     next();
 };
 export const getGoogleLoginSuccess: RequestHandler = (req, res) => {
-    const { returnTo } = req.session;
-    req.session.returnTo = undefined;
+    const { returnTo } = req.session.oauth || {};
+    req.session.oauth = {};
     res.redirect(returnTo || '/');
 };
 export const getGoogleLoginFailure: RequestHandler = (req, res) => {
-    const { returnTo } = req.session;
-    req.session.returnTo = undefined;
+    const { returnTo } = req.session.oauth || {};
+    req.session.oauth = {};
     res.redirect(returnTo || '/');
 };
 export const googlePassportStrategy: GoogleStrategy | undefined = !(
@@ -117,6 +122,8 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
           },
           async (req, issuer, profile, done) => {
               try {
+                  const { inviteCode } = req.session.oauth || {};
+                  req.session.oauth = {};
                   const [{ value: email }] = profile.emails;
                   const { id: subject } = profile;
                   if (!(email && subject)) {
@@ -136,6 +143,7 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                   const user = await userService.loginWithOpenId(
                       openIdUser,
                       req.user,
+                      inviteCode,
                   );
                   return done(null, user);
               } catch (e) {

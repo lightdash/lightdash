@@ -2,7 +2,9 @@ import React from 'react';
 import { useFlashMessages } from '../../hooks/useFlashMessages';
 import { useApp } from '../../providers/AppProvider';
 
-export const GoogleLoginButton: React.FC = () => {
+export const GoogleLoginButton: React.FC<{ inviteCode?: string }> = ({
+    inviteCode,
+}) => {
     const { health, showToastError } = useApp();
     const flashMessages = useFlashMessages();
 
@@ -21,7 +23,11 @@ export const GoogleLoginButton: React.FC = () => {
         <a
             href={`/api/v1${
                 health.data.auth.google.loginPath
-            }?redirect=${encodeURIComponent(window.location.href)}`}
+            }?redirect=${encodeURIComponent(window.location.href)}${
+                inviteCode
+                    ? `&inviteCode=${encodeURIComponent(inviteCode)}`
+                    : ''
+            }`}
             style={{
                 padding: '12px 16px 12px 42px',
                 border: 'none',

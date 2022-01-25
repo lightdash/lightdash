@@ -2,6 +2,9 @@ import 'express-session';
 
 declare module 'express-session' {
     interface SessionData {
-        returnTo?: string | undefined;
+        oauth: {
+            inviteCode?: string | undefined;
+            returnTo?: string | undefined;
+        };
     }
 }
