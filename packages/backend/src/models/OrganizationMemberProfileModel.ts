@@ -74,17 +74,9 @@ export class OrganizationMemberProfileModel {
     async getOrganizationMembers(
         organizationUuid: string,
     ): Promise<OrganizationMemberProfile[]> {
-        console.log(
-            await this.queryBuilder()
-                .where('organization_uuid', organizationUuid)
-                .select('*')
-                .toSQL()
-                .toNative(),
-        );
         const members = await this.queryBuilder()
             .where('organization_uuid', organizationUuid)
             .select('*');
-        console.log(members);
         return members.map(OrganizationMemberProfileModel.parseRow);
     }
 
