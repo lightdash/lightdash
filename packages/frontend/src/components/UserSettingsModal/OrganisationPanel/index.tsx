@@ -8,6 +8,7 @@ import { useApp } from '../../../providers/AppProvider';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
 import TagInput from '../../ReactHookForm/TagInput';
+import { FormWrapper } from './OrganisationPanel.styles';
 
 type DomainsProps = [] | string[] | ReactNode[];
 
@@ -21,7 +22,7 @@ const updateOrgQuery = async (data: {
         body: JSON.stringify(data),
     });
 
-const OrganizationPanel: FC = () => {
+const OrganisationPanel: FC = () => {
     const queryClient = useQueryClient();
     const {
         errorLogs: { showError },
@@ -77,9 +78,7 @@ const OrganizationPanel: FC = () => {
     };
 
     return (
-        <div
-            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-        >
+        <FormWrapper>
             <Form name="login" methods={methods} onSubmit={handleUpdate}>
                 <Input
                     label="Organization name"
@@ -91,13 +90,11 @@ const OrganizationPanel: FC = () => {
                         required: 'Required field',
                     }}
                 />
-
                 <TagInput
                     label="Allowed email domains"
                     name="allowedDomains"
                     defaultValue={allowedDomains}
                 />
-
                 <div style={{ flex: 1 }} />
                 <Button
                     style={{ alignSelf: 'flex-end', marginTop: 20 }}
@@ -107,8 +104,8 @@ const OrganizationPanel: FC = () => {
                     type="submit"
                 />
             </Form>
-        </div>
+        </FormWrapper>
     );
 };
 
-export default OrganizationPanel;
+export default OrganisationPanel;

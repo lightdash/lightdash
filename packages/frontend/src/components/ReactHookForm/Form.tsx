@@ -8,12 +8,13 @@ import {
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 
-interface FormProps<T extends object = any> {
+export interface FormProps<T extends object = any> {
     name: string;
     disableSubmitOnEnter?: boolean;
     methods: UseFormReturn<T>;
     onSubmit: SubmitHandler<T>;
     onError?: SubmitErrorHandler<T>;
+    style?: any;
 }
 
 const Form: FC<FormProps> = ({
