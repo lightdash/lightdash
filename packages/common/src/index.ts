@@ -658,8 +658,9 @@ export type InviteLink = {
     expiresAt: Date;
     inviteCode: string;
     inviteUrl: string;
+    organisationUuid: string;
 };
-export type CreateInviteLink = Omit<InviteLink, 'inviteCode' | 'inviteUrl'>;
+export type CreateInviteLink = Pick<InviteLink, 'expiresAt'>;
 
 export type OnbordingRecord = {
     ranQueryAt: Date | null;
