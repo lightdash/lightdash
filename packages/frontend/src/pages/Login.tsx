@@ -58,7 +58,7 @@ const Login: FC = () => {
         },
     });
 
-    const disablePasswordAuth = health.allowPasswordAuthentication;
+    const {allowPasswordAuthentication} = health.data;
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     useEffect(() => {
@@ -113,7 +113,7 @@ const Login: FC = () => {
                     elevation={2}
                 >
                     <H2 style={{ marginBottom: 25 }}>Login</H2>
-                    {!disablePasswordAuth && (
+                    {allowPasswordAuthentication && (
                         <Form
                             name="login"
                             methods={methods}
@@ -164,9 +164,13 @@ const Login: FC = () => {
                     )}
                     {health.data?.auth.google.oauth2ClientId && (
                         <>
-                            <span style={{ textAlign: 'center', margin: 15 }}>
-                                <b>or</b>
-                            </span>
+                            {allowPasswordAuthentication && (
+                                <span
+                                    style={{ textAlign: 'center', margin: 15 }}
+                                >
+                                    <b>or</b>
+                                </span>
+                            )}
                             <GoogleLoginButton />
                         </>
                     )}

@@ -20,7 +20,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
     });
     const { health } = useApp();
 
-    const disablePasswordAuth = health.allowPasswordAuthentication;
+    const {allowPasswordAuthentication} = health.data;
 
     return (
         <Form name="register" methods={methods} onSubmit={onSubmit}>
@@ -42,7 +42,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
                     required: 'Required field',
                 }}
             />
-            {!disablePasswordAuth && (
+            {allowPasswordAuthentication && (
                 <Input
                     label="Email"
                     name="email"
@@ -56,7 +56,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
                     }}
                 />
             )}
-            {!disablePasswordAuth && (
+            {allowPasswordAuthentication && (
                 <PasswordInput
                     label="Password"
                     name="password"

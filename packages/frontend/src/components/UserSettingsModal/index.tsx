@@ -20,7 +20,7 @@ interface Props {
 
 const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
     const { user, health } = useApp();
-    const disablePasswordTab = health.allowPasswordAuthentication;
+    const { allowPasswordAuthentication } = health.data;
     useLocationChange(onClose);
 
     return (
@@ -53,7 +53,7 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                             </TrackPage>
                         }
                     />
-                    {!disablePasswordTab && (
+                    {allowPasswordAuthentication && (
                         <Tab
                             id="password"
                             title="Password"
