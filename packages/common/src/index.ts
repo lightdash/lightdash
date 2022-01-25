@@ -684,6 +684,13 @@ export type ApiFlashResults = Record<string, string[]>;
 
 export type OnboardingStatus = IncompleteOnboarding | CompleteOnboarding;
 
+export type Organisation = {
+    name: string;
+    allowedEmailDomains: string[];
+};
+
+export type UpdateOrganisation = Partial<Organisation>;
+
 type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
@@ -693,6 +700,7 @@ type ApiResults =
     | ApiStatusResults
     | ApiRefreshResults
     | ApiHealthResults
+    | Organisation
     | LightdashUser
     | SavedQuery
     | Space[]

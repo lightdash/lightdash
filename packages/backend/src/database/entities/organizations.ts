@@ -4,11 +4,14 @@ export type DbOrganization = {
     organization_id: number;
     organization_uuid: string;
     organization_name: string;
+    allowed_email_domains: any; // jsonb
     created_at: Date;
 };
 
 export type DbOrganizationIn = Pick<DbOrganization, 'organization_name'>;
-export type DbOrganizationUpdate = Pick<DbOrganization, 'organization_name'>;
+export type DbOrganizationUpdate = Partial<
+    Pick<DbOrganization, 'organization_name' | 'allowed_email_domains'>
+>;
 
 export type OrganizationTable = Knex.CompositeTableType<
     DbOrganization,

@@ -263,7 +263,7 @@ export class UserService {
     ): Promise<LightdashUser> {
         if (organizationName) {
             await this.organizationModel.update(user.organizationUuid, {
-                organizationName,
+                name: organizationName,
             });
             analytics.track({
                 userId: user.userUuid,

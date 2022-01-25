@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     LightdashMode,
     OnbordingRecord,
+    Organisation,
     OrganizationMemberProfile,
     OrganizationMemberProfileUpdate,
     OrganizationProject,
@@ -49,11 +50,14 @@ export class OrganizationService {
         this.organizationMemberProfileModel = organizationMemberProfileModel;
     }
 
+    async get(user: SessionUser): Promise<Organisation> {
+        return this.organizationModel.get(user.organizationUuid);
+    }
+
     async updateOrg(
-        user: SessionUser,
-        data: { organizationName: string },
+        { organizationUuid, organizationName, userUuid }: SessionUser,
+        data: Organisation,
     ): Promise<void> {
-        const { organizationUuid, organizationName } = user;
         if (
             user.ability.cannot(
                 'update',
@@ -65,9 +69,9 @@ export class OrganizationService {
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
-        await this.organizationModel.update(organizationUuid, data);
+        const org = await this.organizationModel.update(organizationUuid, data);
         analytics.track({
-            userId: user.userUuid,
+            userId: userUuid,
             event: 'organization.updated',
             organizationId: organizationUuid,
             properties: {
@@ -76,7 +80,7 @@ export class OrganizationService {
                         ? 'cloud'
                         : 'self-hosted',
                 organizationId: organizationUuid,
-                organizationName,
+                organizationName: org.name,
             },
         });
     }

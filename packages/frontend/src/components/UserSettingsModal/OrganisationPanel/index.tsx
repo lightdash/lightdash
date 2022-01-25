@@ -1,99 +1,53 @@
 import { Button, Intent } from '@blueprintjs/core';
-import { ApiError } from 'common';
-import React, { FC, ReactNode, useEffect } from 'react';
+import { Organisation } from 'common';
+import React, { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { useMutation, useQueryClient } from 'react-query';
-import { lightdashApi } from '../../../api';
-import { useApp } from '../../../providers/AppProvider';
+import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
+import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
 import TagInput from '../../ReactHookForm/TagInput';
 import { FormWrapper } from './OrganisationPanel.styles';
 
-type DomainsProps = [] | string[] | ReactNode[];
-
-const updateOrgQuery = async (data: {
-    organizationName: string;
-    allowedDomains?: DomainsProps;
-}) =>
-    lightdashApi<undefined>({
-        url: `/org`,
-        method: 'PATCH',
-        body: JSON.stringify(data),
-    });
-
 const OrganisationPanel: FC = () => {
-    const queryClient = useQueryClient();
-    const {
-        errorLogs: { showError },
-        showToastError,
-        showToastSuccess,
-        user,
-    } = useApp();
-    const organizationName = user.data?.organizationName;
-    const allowedDomains = user.data?.allowedDomains || [];
-    const methods = useForm({
+    const org = useOrganisation();
+    const updateMutation = useOrganisationUpdateMutation();
+    const isLoading = updateMutation.isLoading || org.isLoading;
+    const methods = useForm<Organisation>({
         mode: 'onSubmit',
     });
 
     useEffect(() => {
-        if (user.data) {
-            methods.setValue('organizationName', organizationName);
-            methods.setValue('allowedDomains', allowedDomains);
+        if (org.data) {
+            methods.setValue('name', org.data?.name);
+            methods.setValue(
+                'allowedEmailDomains',
+                org.data?.allowedEmailDomains,
+            );
         }
-    }, [user, methods]);
+    }, [org, methods]);
 
-    const { isLoading, error, mutate } = useMutation<
-        undefined,
-        ApiError,
-        {
-            organizationName: string;
-            allowedDomains: DomainsProps;
-        }
-    >(updateOrgQuery, {
-        mutationKey: ['user_update'],
-        onSuccess: async () => {
-            await queryClient.invalidateQueries(['user']);
-            showToastSuccess({
-                title: 'Success! Organization name was updated',
-            });
-        },
-    });
-
-    useEffect(() => {
-        if (error) {
-            const [title, ...rest] = error.error.message.split('\n');
-            showError({
-                title,
-                body: rest.join('\n'),
-            });
-        }
-    }, [error, showError]);
-
-    const handleUpdate = (data: {
-        organizationName: string;
-        allowedDomains: DomainsProps;
-    }) => {
-        mutate(data);
+    const handleUpdate = (data: Organisation) => {
+        updateMutation.mutate(data);
     };
 
     return (
         <FormWrapper>
             <Form name="login" methods={methods} onSubmit={handleUpdate}>
                 <Input
-                    label="Organization name"
-                    name="organizationName"
+                    label="Organisation name"
+                    name="name"
                     placeholder="Lightdash"
                     disabled={isLoading}
-                    defaultValue={organizationName}
                     rules={{
                         required: 'Required field',
                     }}
                 />
                 <TagInput
                     label="Allowed email domains"
-                    name="allowedDomains"
-                    defaultValue={allowedDomains}
+                    name="allowedEmailDomains"
+                    disabled={isLoading}
+                    defaultValue={[]}
                 />
                 <div style={{ flex: 1 }} />
                 <Button
