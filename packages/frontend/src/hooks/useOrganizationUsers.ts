@@ -78,7 +78,6 @@ export const useUpdateUserMutation = (userUuid: string) => {
                 });
             },
             onError: (error) => {
-                queryClient.refetchQueries('organization_users');
                 showToastError({
                     title: `Failed to update user's permissions`,
                     subtitle: error.error.message,
