@@ -2,7 +2,6 @@ import { Intent } from '@blueprintjs/core';
 import { CreateUserArgs } from 'common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
-import { useApp } from '../providers/AppProvider';
 import { isValidEmail } from '../utils/fieldValidators';
 import { BigButton } from './common/BigButton';
 import Form from './ReactHookForm/Form';
@@ -18,9 +17,6 @@ const CreateUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
     const methods = useForm<CreateUserArgs>({
         mode: 'onSubmit',
     });
-    const { health } = useApp();
-
-    const {allowPasswordAuthentication} = health.data;
 
     return (
         <Form name="register" methods={methods} onSubmit={onSubmit}>
@@ -42,31 +38,27 @@ const CreateUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
                     required: 'Required field',
                 }}
             />
-            {allowPasswordAuthentication && (
-                <Input
-                    label="Email"
-                    name="email"
-                    placeholder="Email"
-                    disabled={isLoading}
-                    rules={{
-                        required: 'Required field',
-                        validate: {
-                            isValidEmail: isValidEmail('Email'),
-                        },
-                    }}
-                />
-            )}
-            {allowPasswordAuthentication && (
-                <PasswordInput
-                    label="Password"
-                    name="password"
-                    placeholder="Enter your password..."
-                    disabled={isLoading}
-                    rules={{
-                        required: 'Required field',
-                    }}
-                />
-            )}
+            <Input
+                label="Email"
+                name="email"
+                placeholder="Email"
+                disabled={isLoading}
+                rules={{
+                    required: 'Required field',
+                    validate: {
+                        isValidEmail: isValidEmail('Email'),
+                    },
+                }}
+            />
+            <PasswordInput
+                label="Password"
+                name="password"
+                placeholder="Enter your password..."
+                disabled={isLoading}
+                rules={{
+                    required: 'Required field',
+                }}
+            />
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <BigButton
                     type="submit"

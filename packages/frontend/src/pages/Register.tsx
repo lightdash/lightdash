@@ -21,6 +21,7 @@ const registerQuery = async (data: CreateUserArgs) =>
 const Register: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
     const { health, showToastError } = useApp();
+    const { allowPasswordAuthentication } = health.data;
     const { identify } = useTracking();
     const { isLoading, mutate } = useMutation<
         LightdashUser,
@@ -79,17 +80,23 @@ const Register: FC = () => {
                     {health.data?.auth.google.oauth2ClientId && (
                         <>
                             <GoogleLoginButton />
-                            <span style={{ textAlign: 'center', margin: 15 }}>
-                                <b>or</b>
-                            </span>
+                            {allowPasswordAuthentication && (
+                                <span
+                                    style={{ textAlign: 'center', margin: 15 }}
+                                >
+                                    <b>or</b>
+                                </span>
+                            )}
                         </>
                     )}
-                    <CreateUserForm
-                        isLoading={isLoading}
-                        onSubmit={(data: CreateUserArgs) => {
-                            mutate(data);
-                        }}
-                    />
+                    {allowPasswordAuthentication && (
+                        <CreateUserForm
+                            isLoading={isLoading}
+                            onSubmit={(data: CreateUserArgs) => {
+                                mutate(data);
+                            }}
+                        />
+                    )}
                 </Card>
             </div>
         </Page>
