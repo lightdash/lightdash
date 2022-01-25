@@ -270,9 +270,6 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<(Explore | ExploreError)[]> {
-        if (user.ability.cannot('update', 'Project')) {
-            throw new ForbiddenError();
-        }
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
 
