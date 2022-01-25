@@ -20,6 +20,9 @@ export const useProjects = () => {
 };
 
 export const useDefaultProject = () => {
-    const projects = useProjects();
-    return { ...projects, data: projects.data?.[0] };
+    const projectsQuery = useQuery<OrganizationProject[], ApiError>({
+        queryKey: ['projects', 'defaultProject'],
+        queryFn: getProjectsQuery,
+    });
+    return { ...projectsQuery, data: projectsQuery.data?.[0] };
 };

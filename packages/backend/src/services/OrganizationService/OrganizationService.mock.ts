@@ -10,6 +10,8 @@ export const user: SessionUser = {
     organizationName: 'organizationName',
     isTrackingAnonymized: false,
     userId: 0,
+    isMarketingOptedIn: false,
+    isSetupComplete: true,
 };
 
 export const orgUsers: DbOrganizationUser[] = [

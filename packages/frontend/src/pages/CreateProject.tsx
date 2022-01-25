@@ -13,10 +13,7 @@ const CreateProject: FC = () => {
         return <PageSpinner />;
     }
 
-    if (
-        health.status === 'success' &&
-        (health.data?.needsSetup || !health.data?.needsProject)
-    ) {
+    if (health.status === 'success' && !health.data?.needsProject) {
         return (
             <Redirect
                 to={{
@@ -27,14 +24,14 @@ const CreateProject: FC = () => {
     }
 
     return (
-        <Page isFullHeight>
+        <Page>
             <div
                 style={{
                     display: 'flex',
                     width: '800px',
                     flexDirection: 'column',
-                    justifyContent: 'center',
                     flex: 1,
+                    paddingTop: 60,
                 }}
             >
                 <H1 style={{ marginBottom: 30 }}>Connect your project ⚡</H1>

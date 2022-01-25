@@ -40,6 +40,7 @@ const ProjectForm: FC<Props> = ({ disabled, defaultType }) => (
                 marginBottom: '20px',
                 display: 'flex',
                 flexDirection: 'row',
+                gap: 20,
             }}
             elevation={1}
         >

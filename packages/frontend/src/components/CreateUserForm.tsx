@@ -6,34 +6,23 @@ import {
     Intent,
     Switch,
 } from '@blueprintjs/core';
-import { CreateInitialUserArgs, LightdashMode, validateEmail } from 'common';
+import { CreateOrganizationUser, LightdashMode, validateEmail } from 'common';
 import React, { FC, useState } from 'react';
 import { useApp } from '../providers/AppProvider';
 import PasswordInput from './PasswordInput';
 
-type CreateInitialUserCallback = (data: CreateInitialUserArgs) => void;
-type CreateUserCallback = (
-    data: Omit<CreateInitialUserArgs, 'organizationName'>,
-) => void;
-
 type Props = {
     isLoading: boolean;
-    includeOrganizationName: boolean;
-    onCreate: CreateInitialUserCallback | CreateUserCallback;
+    onCreate: (data: Omit<CreateOrganizationUser, 'inviteCode'>) => void;
 };
 
-const CreateUserForm: FC<Props> = ({
-    isLoading,
-    includeOrganizationName,
-    onCreate,
-}) => {
+const CreateUserForm: FC<Props> = ({ isLoading, onCreate }) => {
     const { showToastError, health } = useApp();
     const [firstName, setFirstName] = useState<string>();
     const [lastName, setLastName] = useState<string>();
     const [email, setEmail] = useState<string>();
     const [jobTitle, setJobTitle] = useState<string>();
     const [password, setPassword] = useState<string>();
-    const [organizationName, setOrganizationName] = useState<string>();
     const [isMarketingOptedIn, setIsMarketingOptedIn] = useState<boolean>(true);
     const [isTrackingAnonymized, setIsTrackingAnonymized] =
         useState<boolean>(false);
@@ -55,19 +44,10 @@ const CreateUserForm: FC<Props> = ({
     ];
 
     const handleLogin = () => {
-        if (
-            !firstName ||
-            !lastName ||
-            !jobTitle ||
-            !email ||
-            !password ||
-            (includeOrganizationName && !organizationName)
-        ) {
+        if (!firstName || !lastName || !jobTitle || !email || !password) {
             showToastError({
                 title: 'Invalid form data',
-                subtitle: `Required fields: first name, last name, job title,${
-                    includeOrganizationName ? ' organization name,' : ''
-                } email and password`,
+                subtitle: `Required fields: first name, last name, job title, email and password`,
             });
             return;
         }
@@ -80,7 +60,7 @@ const CreateUserForm: FC<Props> = ({
             return;
         }
 
-        const createUser: Omit<CreateInitialUserArgs, 'organizationName'> = {
+        onCreate({
             firstName,
             lastName,
             jobTitle,
@@ -88,15 +68,7 @@ const CreateUserForm: FC<Props> = ({
             password,
             isMarketingOptedIn,
             isTrackingAnonymized,
-        };
-        if (includeOrganizationName && organizationName) {
-            (onCreate as CreateInitialUserCallback)({
-                ...createUser,
-                organizationName,
-            });
-        } else {
-            (onCreate as CreateUserCallback)(createUser);
-        }
+        });
     };
 
     return (
@@ -129,22 +101,6 @@ const CreateUserForm: FC<Props> = ({
                     onChange={(e) => setLastName(e.target.value)}
                 />
             </FormGroup>
-            {includeOrganizationName && (
-                <FormGroup
-                    label="Organization name"
-                    labelFor="organization-name-input"
-                    labelInfo="(required)"
-                >
-                    <InputGroup
-                        id="organization-name-input"
-                        placeholder="Lightdash"
-                        type="text"
-                        required
-                        disabled={isLoading}
-                        onChange={(e) => setOrganizationName(e.target.value)}
-                    />
-                </FormGroup>
-            )}
             <FormGroup
                 label="Job title"
                 labelFor="job-title-input"

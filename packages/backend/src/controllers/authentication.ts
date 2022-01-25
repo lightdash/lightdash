@@ -13,6 +13,7 @@ import { Strategy as LocalStrategy } from 'passport-local';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { AuthorizationError } from '../errors';
+import Logger from '../logger';
 import { userService } from '../services/services';
 
 // How a user makes authenticated requests
@@ -119,11 +120,9 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                   const [{ value: email }] = profile.emails;
                   const { id: subject } = profile;
                   if (!(email && subject)) {
-                      return done(
-                          new AuthorizationError(
-                              'Could not parse authentication token',
-                          ),
-                      );
+                      return done(null, false, {
+                          message: 'Could not parse authentication token',
+                      });
                   }
                   const openIdUser: OpenIdUser = {
                       openId: {
@@ -138,18 +137,12 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                       openIdUser,
                       req.user,
                   );
-                  if (isSessionUser(user)) {
-                      return done(null, user);
-                  }
-                  return done(null, false, {
-                      message: 'Cannot find existing Lightdash account',
-                  });
+                  return done(null, user);
               } catch (e) {
-                  return done(
-                      new AuthorizationError(
-                          'There was an error authenticating',
-                      ),
-                  );
+                  Logger.warn(`Failed to authorize user. ${e}`);
+                  return done(null, false, {
+                      message: 'Failed to authorize user',
+                  });
               }
           },
       );

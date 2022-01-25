@@ -15,6 +15,7 @@ import AppBar from './components/AppBar';
 import AppRoute from './components/AppRoute';
 import MobileView from './components/Mobile';
 import PrivateRoute from './components/PrivateRoute';
+import UserCompletionModal from './components/UserCompletionModal';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
@@ -106,8 +107,10 @@ const App = () => (
                                             background: Colors.LIGHT_GRAY5,
                                         }}
                                     >
+                                        <UserCompletionModal />
                                         <Switch>
                                             <Route path="/createProject">
+                                                <AppBar />
                                                 <TrackPage
                                                     name={
                                                         PageName.CREATE_PROJECT
@@ -117,6 +120,7 @@ const App = () => (
                                                 </TrackPage>
                                             </Route>
                                             <Route path="/createProjectSettings/:projectUuid">
+                                                <AppBar />
                                                 <TrackPage
                                                     name={
                                                         PageName.CREATE_PROJECT_SETTINGS

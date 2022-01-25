@@ -60,6 +60,7 @@ export const SEED_USER = {
     last_name: 'Doe',
     is_marketing_opted_in: true,
     is_tracking_anonymized: false,
+    is_setup_complete: true,
 };
 export const SEED_EMAIL = {
     email: 'demo@lightdash.com',
@@ -584,6 +585,8 @@ export interface LightdashUser {
     organizationUuid: string;
     organizationName: string;
     isTrackingAnonymized: boolean;
+    isMarketingOptedIn: boolean;
+    isSetupComplete: boolean;
 }
 
 export interface SessionUser extends LightdashUser {
@@ -626,23 +629,31 @@ export type OrganizationUser = Pick<
 export type CreateInitialUserArgs = {
     firstName: string;
     lastName: string;
-    organizationName: string;
-    jobTitle: string;
     email: string;
     password: string;
+};
+
+export type CreateOrganizationUser = CreateInitialUserArgs & {
+    jobTitle: string;
+    isMarketingOptedIn: boolean;
+    isTrackingAnonymized: boolean;
+    inviteCode: string;
+};
+
+export type CompleteUserArgs = {
+    organizationName?: string;
+    jobTitle: string;
     isMarketingOptedIn: boolean;
     isTrackingAnonymized: boolean;
 };
-
-export type CreateOrganizationUser = Omit<
-    CreateInitialUserArgs,
-    'organizationName'
-> & { inviteCode: string };
 
 export type UpdateUserArgs = {
     firstName: string;
     lastName: string;
     email: string;
+    isMarketingOptedIn: boolean;
+    isTrackingAnonymized: boolean;
+    isSetupComplete: boolean;
 };
 
 export type CreateOpenIdIdentity = {

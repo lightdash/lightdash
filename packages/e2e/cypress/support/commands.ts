@@ -43,6 +43,12 @@ Cypress.Commands.add('login', () => {
         },
     });
 });
+Cypress.Commands.add('logout', () => {
+    cy.request({
+        url: 'api/v1/logout',
+        method: 'GET',
+    });
+});
 Cypress.Commands.add('preCompileProject', () => {
     cy.request({
         url: 'api/v1/login',

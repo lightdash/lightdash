@@ -1,9 +1,11 @@
 import {
+    CompleteUserArgs,
     CreateInitialUserArgs,
     CreateInviteLink,
     CreateOrganizationUser,
     CreatePasswordResetLink,
     InviteLink,
+    isOpenIdUser,
     LightdashMode,
     LightdashUser,
     OpenIdIdentitySummary,
@@ -26,6 +28,7 @@ import {
 import { EmailModel } from '../models/EmailModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
+import { OrganizationModel } from '../models/OrganizationModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
@@ -38,6 +41,7 @@ type UserServiceDependencies = {
     openIdIdentityModel: OpenIdIdentityModel;
     passwordResetLinkModel: PasswordResetLinkModel;
     emailClient: EmailClient;
+    organizationModel: OrganizationModel;
 };
 
 export class UserService {
@@ -55,6 +59,8 @@ export class UserService {
 
     private readonly emailClient: EmailClient;
 
+    private readonly organizationModel: OrganizationModel;
+
     constructor({
         inviteLinkModel,
         userModel,
@@ -63,6 +69,7 @@ export class UserService {
         openIdIdentityModel,
         emailClient,
         passwordResetLinkModel,
+        organizationModel,
     }: UserServiceDependencies) {
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
@@ -71,6 +78,7 @@ export class UserService {
         this.openIdIdentityModel = openIdIdentityModel;
         this.passwordResetLinkModel = passwordResetLinkModel;
         this.emailClient = emailClient;
+        this.organizationModel = organizationModel;
     }
 
     async create(
@@ -84,6 +92,7 @@ export class UserService {
             userId: user.userUuid,
             properties: {
                 jobTitle: createOrganizationUser.jobTitle,
+                userConnectionType: 'password',
             },
         });
         return user;
@@ -155,7 +164,7 @@ export class UserService {
     async loginWithOpenId(
         openIdUser: OpenIdUser,
         sessionUser: SessionUser | undefined,
-    ): Promise<SessionUser | undefined> {
+    ): Promise<SessionUser> {
         const loginUser = await this.userModel.findSessionUserByOpenId(
             openIdUser.openId.issuer,
             openIdUser.openId.subject,
@@ -196,7 +205,70 @@ export class UserService {
             });
             return sessionUser;
         }
-        return undefined;
+
+        // Create user
+        return this.createUserWithOpenId(openIdUser);
+    }
+
+    async createUserWithOpenId(openIdUser: OpenIdUser): Promise<SessionUser> {
+        if (!(await this.organizationModel.hasOrgs())) {
+            const user = await this.registerInitialUser(openIdUser);
+            return this.userModel.findSessionUserByUUID(user.userUuid);
+        }
+        throw new AuthorizationError(
+            'Can not create user in existing organization',
+        );
+    }
+
+    async completeUserSetup(
+        user: SessionUser,
+        {
+            organizationName,
+            jobTitle,
+            isTrackingAnonymized,
+            isMarketingOptedIn,
+        }: CompleteUserArgs,
+    ): Promise<LightdashUser> {
+        if (organizationName) {
+            await this.organizationModel.update(user.organizationUuid, {
+                organizationName,
+            });
+            analytics.track({
+                userId: user.userUuid,
+                event: 'organization.updated',
+                organizationId: user.organizationUuid,
+                properties: {
+                    type:
+                        lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                            ? 'cloud'
+                            : 'self-hosted',
+                    organizationId: user.organizationUuid,
+                    organizationName,
+                },
+            });
+        }
+
+        const completeUser = await this.userModel.updateUser(
+            user.userUuid,
+            undefined,
+            {
+                isSetupComplete: true,
+                isTrackingAnonymized,
+                isMarketingOptedIn,
+            },
+        );
+
+        identifyUser(completeUser);
+        analytics.track({
+            organizationId: completeUser.organizationUuid,
+            event: 'user.updated',
+            userId: completeUser.userUuid,
+            properties: {
+                ...completeUser,
+                jobTitle,
+            },
+        });
+        return completeUser;
     }
 
     async getLinkedIdentities({
@@ -276,39 +348,42 @@ export class UserService {
     }
 
     async updateUser(
-        userId: number,
-        currentEmail: string | undefined,
-        data: UpdateUserArgs,
+        user: SessionUser,
+        data: Partial<UpdateUserArgs>,
     ): Promise<LightdashUser> {
-        const user = await this.userModel.updateUser(
-            userId,
-            currentEmail,
+        const updatedUser = await this.userModel.updateUser(
+            user.userUuid,
+            user.email,
             data,
         );
-        identifyUser(user);
+        identifyUser(updatedUser);
         analytics.track({
-            userId: user.userUuid,
-            organizationId: user.organizationUuid,
+            userId: updatedUser.userUuid,
+            organizationId: updatedUser.organizationUuid,
             event: 'user.updated',
+            properties: updatedUser,
         });
-        return user;
+        return updatedUser;
     }
 
-    async registerInitialUser(createUser: CreateInitialUserArgs) {
+    async registerInitialUser(createUser: CreateInitialUserArgs | OpenIdUser) {
         if (await this.userModel.hasUsers()) {
             throw new ForbiddenError('User already registered');
         }
         const user = await this.userModel.createInitialUser(createUser);
         identifyUser({
             ...user,
-            isMarketingOptedIn: createUser.isMarketingOptedIn,
+            isMarketingOptedIn: user.isMarketingOptedIn,
         });
         analytics.track({
             event: 'user.created',
             organizationId: user.organizationUuid,
             userId: user.userUuid,
             properties: {
-                jobTitle: createUser.jobTitle,
+                jobTitle: undefined,
+                userConnectionType: isOpenIdUser(createUser)
+                    ? 'google'
+                    : 'password',
             },
         });
         analytics.track({
@@ -324,6 +399,16 @@ export class UserService {
                 organizationName: user.organizationName,
             },
         });
+        if (isOpenIdUser(createUser)) {
+            analytics.track({
+                organizationId: user.organizationUuid,
+                userId: user.userUuid,
+                event: 'user.identity_linked',
+                properties: {
+                    loginProvider: 'google',
+                },
+            });
+        }
         return user;
     }
 

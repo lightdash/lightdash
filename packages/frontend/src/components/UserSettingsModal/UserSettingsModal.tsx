@@ -1,6 +1,7 @@
 import { Dialog, Tab, Tabs } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import useLocationChange from '../../hooks/useLocationChange';
+import { useApp } from '../../providers/AppProvider';
 import { TrackPage } from '../../providers/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../types/Events';
 import InvitesPanel from './InvitesPanel';
@@ -18,6 +19,7 @@ interface Props {
 }
 
 const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
+    const { health } = useApp();
     useLocationChange(onClose);
     return (
         <Dialog
@@ -101,32 +103,36 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                             </TrackPage>
                         }
                     />
-                    <Tab
-                        id="projectManagement"
-                        title="Project management"
-                        panel={
-                            <TrackPage
-                                name={PageName.PROJECT_MANAGEMENT_SETTINGS}
-                                type={PageType.MODAL}
-                                category={CategoryName.SETTINGS}
-                            >
-                                <ProjectManagementPanel />
-                            </TrackPage>
-                        }
-                    />
-                    <Tab
-                        id="socialLogins"
-                        title="Social logins"
-                        panel={
-                            <TrackPage
-                                name={PageName.PASSWORD_SETTINGS}
-                                type={PageType.MODAL}
-                                category={CategoryName.SETTINGS}
-                            >
-                                <SocialLoginsPanel />
-                            </TrackPage>
-                        }
-                    />
+                    {health.data && !health.data.needsProject && (
+                        <Tab
+                            id="projectManagement"
+                            title="Project management"
+                            panel={
+                                <TrackPage
+                                    name={PageName.PROJECT_MANAGEMENT_SETTINGS}
+                                    type={PageType.MODAL}
+                                    category={CategoryName.SETTINGS}
+                                >
+                                    <ProjectManagementPanel />
+                                </TrackPage>
+                            }
+                        />
+                    )}
+                    {health.data?.auth.google.oauth2ClientId && (
+                        <Tab
+                            id="socialLogins"
+                            title="Social logins"
+                            panel={
+                                <TrackPage
+                                    name={PageName.PASSWORD_SETTINGS}
+                                    type={PageType.MODAL}
+                                    category={CategoryName.SETTINGS}
+                                >
+                                    <SocialLoginsPanel />
+                                </TrackPage>
+                            }
+                        />
+                    )}
                     <Tabs.Expander />
                 </Tabs>
             </div>

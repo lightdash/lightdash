@@ -52,7 +52,7 @@ userRouter.patch(
     unauthorisedInDemo,
     async (req, res, next) => {
         userService
-            .updateUser(req.user!.userId, req.user!.email, req.body)
+            .updateUser(req.user!, req.body)
             .then((user) => {
                 res.json({
                     status: 'ok',
@@ -103,3 +103,20 @@ userRouter.get('/identities', isAuthenticated, async (req, res, next) => {
         results: identities,
     });
 });
+
+userRouter.patch(
+    '/me/complete',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        userService
+            .completeUserSetup(req.user!, req.body)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
