@@ -49,7 +49,7 @@ type LoginEvent = BaseTrack & {
 };
 
 type IdentityLinkedEvent = BaseTrack & {
-    event: 'user.identity_linked';
+    event: 'user.identity_linked' | 'user.identity_removed';
     properties: {
         loginProvider: 'google';
     };

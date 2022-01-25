@@ -103,6 +103,22 @@ userRouter.get('/identities', isAuthenticated, async (req, res, next) => {
     });
 });
 
+userRouter.delete(
+    '/identity',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        userService
+            .deleteLinkedIdentity(req.user!, req.body)
+            .then(() => {
+                res.json({
+                    status: 'ok',
+                });
+            })
+            .catch(next);
+    },
+);
+
 userRouter.patch(
     '/me/complete',
     isAuthenticated,

@@ -674,6 +674,11 @@ export type OpenIdIdentitySummary = Pick<
     'issuer' | 'email' | 'createdAt'
 >;
 
+export type DeleteOpenIdentity = Pick<
+    OpenIdIdentitySummary,
+    'issuer' | 'email'
+>;
+
 export type PasswordResetLink = {
     expiresAt: Date;
     code: string;
@@ -743,6 +748,7 @@ type ApiResults =
     | DashboardBasicDetails[]
     | OnboardingStatus
     | Dashboard[]
+    | DeleteOpenIdentity
     | ApiFlashResults
     | OpenIdIdentitySummary[];
 
