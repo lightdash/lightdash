@@ -6,8 +6,12 @@ import {
 } from 'common';
 import { Knex } from 'knex';
 import { URL } from 'url';
-import { DbOpenIdIdentity } from '../database/entities/openIdIdentities';
-import { NotExistsError, NotFoundError } from '../errors';
+import {
+    DbOpenIdIdentity,
+    OpenIdIdentitiesTableName,
+} from '../database/entities/openIdIdentities';
+import { PasswordLoginTableName } from '../database/entities/passwordLogins';
+import { NotExistsError, NotFoundError, ParameterError } from '../errors';
 
 type OpenIdIdentityModelDependencies = {
     database: Knex;
@@ -95,10 +99,29 @@ export class OpenIdIdentityModel {
         return OpenIdIdentityModel._parseDbIdentity(identity);
     }
 
-    async deleteIdentityByOpenId(issuer: string, subject: string) {
-        await this.database('openid_identities')
-            .where('issuer', issuer)
-            .andWhere('subject', subject)
-            .delete();
+    async deleteIdentity(userId: number, issuer: string, email: string) {
+        await this.database.transaction(async (trx) => {
+            const identities = await this.database(
+                OpenIdIdentitiesTableName,
+            ).where('user_id', userId);
+            const passwords = await this.database(PasswordLoginTableName).where(
+                'user_id',
+                userId,
+            );
+
+            const loginOptionsCount = identities.length + passwords.length;
+
+            if (loginOptionsCount <= 1) {
+                throw new ParameterError(
+                    'Can not remove last login option. Please add another way to login into your account before deleting this one.',
+                );
+            }
+
+            await trx(OpenIdIdentitiesTableName)
+                .where('issuer', issuer)
+                .andWhere('email', email)
+                .andWhere('user_id', userId)
+                .delete();
+        });
     }
 }

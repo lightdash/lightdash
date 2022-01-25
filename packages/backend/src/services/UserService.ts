@@ -3,6 +3,7 @@ import {
     CreateInviteLink,
     CreatePasswordResetLink,
     CreateUserArgs,
+    DeleteOpenIdentity,
     InviteLink,
     isOpenIdUser,
     LightdashMode,
@@ -284,6 +285,25 @@ export class UserService {
         userId,
     }: Pick<SessionUser, 'userId'>): Promise<OpenIdIdentitySummary[]> {
         return this.openIdIdentityModel.getIdentitiesByUserId(userId);
+    }
+
+    async deleteLinkedIdentity(
+        user: SessionUser,
+        openIdentity: DeleteOpenIdentity,
+    ): Promise<void> {
+        await this.openIdIdentityModel.deleteIdentity(
+            user.userId,
+            openIdentity.issuer,
+            openIdentity.email,
+        );
+        analytics.track({
+            organizationId: user.organizationUuid,
+            userId: user.userUuid,
+            event: 'user.identity_removed',
+            properties: {
+                loginProvider: 'google',
+            },
+        });
     }
 
     async getInviteLink(inviteCode: string): Promise<InviteLink> {
