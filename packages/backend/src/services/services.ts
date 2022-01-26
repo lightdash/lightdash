@@ -6,6 +6,7 @@ import {
     inviteLinkModel,
     onboardingModel,
     openIdIdentityModel,
+    organizationMemberProfileModel,
     organizationModel,
     passwordResetLinkModel,
     projectModel,
@@ -29,14 +30,15 @@ export const userService = new UserService({
     openIdIdentityModel,
     passwordResetLinkModel,
     emailClient,
+    organizationMemberProfileModel,
     organizationModel,
 });
 export const organizationService = new OrganizationService({
     organizationModel,
-    userModel,
     projectModel,
     onboardingModel,
     inviteLinkModel,
+    organizationMemberProfileModel,
 });
 
 export const projectService = new ProjectService({

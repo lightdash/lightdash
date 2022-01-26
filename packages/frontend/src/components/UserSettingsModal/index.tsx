@@ -9,7 +9,7 @@ import OrganizationPanel from './OrganizationPanel';
 import PasswordPanel from './PasswordPanel';
 import ProfilePanel from './ProfilePanel';
 import ProjectManagementPanel from './ProjectManagementPanel';
-import { SocialLoginsPanel } from './SocialLoginsPanel';
+import SocialLoginsPanel from './SocialLoginsPanel';
 import UserManagementPanel from './UserManagementPanel';
 import './UserSettingsModal.css';
 
@@ -19,8 +19,9 @@ interface Props {
 }
 
 const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
-    const { health } = useApp();
     useLocationChange(onClose);
+    const { user, health } = useApp();
+
     return (
         <Dialog
             isOpen={isOpen}
@@ -64,60 +65,74 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                             </TrackPage>
                         }
                     />
-                    <Tab
-                        id="organization"
-                        title="Organization"
-                        panel={
-                            <TrackPage
-                                name={PageName.ORGANIZATION_SETTINGS}
-                                type={PageType.MODAL}
-                                category={CategoryName.SETTINGS}
-                            >
-                                <OrganizationPanel />
-                            </TrackPage>
-                        }
-                    />
-                    <Tab
-                        id="invites"
-                        title="Invites"
-                        panel={
-                            <TrackPage
-                                name={PageName.INVITE_MANAGEMENT_SETTINGS}
-                                type={PageType.MODAL}
-                                category={CategoryName.SETTINGS}
-                            >
-                                <InvitesPanel />
-                            </TrackPage>
-                        }
-                    />
-                    <Tab
-                        id="userManagement"
-                        title="User management"
-                        panel={
-                            <TrackPage
-                                name={PageName.USER_MANAGEMENT_SETTINGS}
-                                type={PageType.MODAL}
-                                category={CategoryName.SETTINGS}
-                            >
-                                <UserManagementPanel />
-                            </TrackPage>
-                        }
-                    />
-                    {health.data && !health.data.needsProject && (
+                    {user.data?.ability?.can('manage', 'Organization') && (
                         <Tab
-                            id="projectManagement"
-                            title="Project management"
+                            id="organization"
+                            title="Organization"
                             panel={
                                 <TrackPage
-                                    name={PageName.PROJECT_MANAGEMENT_SETTINGS}
+                                    name={PageName.ORGANIZATION_SETTINGS}
                                     type={PageType.MODAL}
                                     category={CategoryName.SETTINGS}
                                 >
-                                    <ProjectManagementPanel />
+                                    <OrganizationPanel />
                                 </TrackPage>
                             }
                         />
                     )}
+                    {user.data?.ability?.can('manage', 'InviteLink') && (
+                        <Tab
+                            id="invites"
+                            title="Invites"
+                            panel={
+                                <TrackPage
+                                    name={PageName.INVITE_MANAGEMENT_SETTINGS}
+                                    type={PageType.MODAL}
+                                    category={CategoryName.SETTINGS}
+                                >
+                                    <InvitesPanel />
+                                </TrackPage>
+                            }
+                        />
+                    )}
+
+                    {user.data?.ability?.can(
+                        'manage',
+                        'OrganizationMemberProfile',
+                    ) && (
+                        <Tab
+                            id="userManagement"
+                            title="User management"
+                            panel={
+                                <TrackPage
+                                    name={PageName.USER_MANAGEMENT_SETTINGS}
+                                    type={PageType.MODAL}
+                                    category={CategoryName.SETTINGS}
+                                >
+                                    <UserManagementPanel />
+                                </TrackPage>
+                            }
+                        />
+                    )}
+                    {health.data &&
+                        !health.data.needsProject &&
+                        user.data?.ability?.can('manage', 'Project') && (
+                            <Tab
+                                id="projectManagement"
+                                title="Project management"
+                                panel={
+                                    <TrackPage
+                                        name={
+                                            PageName.PROJECT_MANAGEMENT_SETTINGS
+                                        }
+                                        type={PageType.MODAL}
+                                        category={CategoryName.SETTINGS}
+                                    >
+                                        <ProjectManagementPanel />
+                                    </TrackPage>
+                                }
+                            />
+                        )}
                     {health.data?.auth.google.oauth2ClientId && (
                         <Tab
                             id="socialLogins"

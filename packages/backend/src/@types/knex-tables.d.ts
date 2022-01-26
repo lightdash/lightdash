@@ -27,6 +27,10 @@ import {
     OpenIdIdentitiesTableName,
 } from '../database/entities/openIdIdentities';
 import {
+    OrganizationMembershipsTable,
+    OrganizationMembershipsTableName,
+} from '../database/entities/organizationMemberships';
+import {
     OrganizationTable,
     OrganizationTableName,
 } from '../database/entities/organizations';
@@ -74,6 +78,7 @@ declare module 'knex/types/tables' {
         [DashboardTileMarkdownsTableName]: DashboardTileMarkdownsTable;
         [OnboardingTableName]: OnboardingTable;
         [OpenIdIdentitiesTableName]: OpenIdIdentitiesTable;
+        [OrganizationMembershipsTableName]: OrganizationMembershipsTable;
         [PasswordResetTableName]: PasswordResetTable;
         [PasswordLoginTableName]: PasswordLoginTable;
     }

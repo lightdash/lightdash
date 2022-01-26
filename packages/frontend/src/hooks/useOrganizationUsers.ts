@@ -1,11 +1,11 @@
-import { ApiError, OrganizationUser } from 'common';
+import { ApiError, OrganizationMemberProfile, SessionUser } from 'common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 import useQueryError from './useQueryError';
 
 const getOrganizationUsersQuery = async () =>
-    lightdashApi<OrganizationUser[]>({
+    lightdashApi<OrganizationMemberProfile[]>({
         url: `/org/users`,
         method: 'GET',
         body: undefined,
@@ -18,9 +18,16 @@ const deleteUserQuery = async (id: string) =>
         body: undefined,
     });
 
+export const updateUser = async (id: string, data: { role: string }) =>
+    lightdashApi<undefined>({
+        url: `/org/users/${id}`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
 export const useOrganizationUsers = () => {
     const setErrorResponse = useQueryError();
-    return useQuery<OrganizationUser[], ApiError>({
+    return useQuery<OrganizationMemberProfile[], ApiError>({
         queryKey: ['organization_users'],
         queryFn: getOrganizationUsersQuery,
         onError: (result) => setErrorResponse(result),
@@ -45,4 +52,37 @@ export const useDeleteUserMutation = () => {
             });
         },
     });
+};
+
+export const useUpdateUserMutation = (userUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useApp();
+    return useMutation<undefined, ApiError, SessionUser>(
+        (data) => {
+            if (userUuid) {
+                return updateUser(userUuid, data);
+            }
+            throw new Error('user ID is undefined');
+        },
+        {
+            mutationKey: ['organization_membership_roles'],
+            onSuccess: async (data) => {
+                await queryClient.invalidateQueries([
+                    'organization_membership_roles',
+                    'organization_memberships',
+                    'organization_users',
+                ]);
+                queryClient.refetchQueries('organization_users');
+                showToastSuccess({
+                    title: `Success! Project was updated.`,
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to update user's permissions`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
 };

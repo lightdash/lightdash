@@ -1,9 +1,11 @@
+import { Ability } from '@casl/ability';
 import {
     ApiSqlQueryResults,
     Explore,
     ExploreError,
     FieldType,
     MetricType,
+    OrganizationMemberRole,
     OrganizationProject,
     SessionUser,
     Space,
@@ -25,6 +27,8 @@ export const user: SessionUser = {
     isMarketingOptedIn: false,
     isSetupComplete: true,
     userId: 0,
+    role: OrganizationMemberRole.ADMIN,
+    ability: new Ability([{ subject: 'Project', action: 'update' }]),
 };
 
 export const expectedTablesConfiguration: TablesConfiguration = {

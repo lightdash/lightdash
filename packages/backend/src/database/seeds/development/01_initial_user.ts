@@ -3,6 +3,7 @@ import {
     CreatePostgresCredentials,
     DbtLocalProjectConfig,
     LightdashMode,
+    OrganizationMemberRole,
     ProjectType,
     SEED_EMAIL,
     SEED_ORGANIZATION,
@@ -42,6 +43,7 @@ export async function seed(knex: Knex): Promise<void> {
     await knex('organization_memberships').insert({
         user_id: userId,
         organization_id: organizationId,
+        role: OrganizationMemberRole.ADMIN,
     });
 
     await knex(OnboardingTableName).insert({

@@ -65,6 +65,22 @@ organizationRouter.get('/users', isAuthenticated, async (req, res, next) =>
         .catch(next),
 );
 
+organizationRouter.patch(
+    '/users/:userUuid',
+    isAuthenticated,
+    async (req, res, next) => {
+        organizationService
+            .updateMember(req.user!, req.params.userUuid, req.body)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
 organizationRouter.delete(
     '/user/:userUuid',
     isAuthenticated,

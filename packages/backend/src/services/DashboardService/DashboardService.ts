@@ -10,6 +10,7 @@ import {
 import { analytics } from '../../analytics/client';
 import database from '../../database/database';
 import { getSpace } from '../../database/entities/spaces';
+import { ForbiddenError } from '../../errors';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 
 type Dependencies = {
@@ -42,6 +43,9 @@ export class DashboardService {
         projectUuid: string,
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
+        if (user.ability.cannot('create', 'Dashboard')) {
+            throw new ForbiddenError();
+        }
         const space = await getSpace(database, projectUuid);
         const dashboardUuid = await this.dashboardModel.create(
             space.space_uuid,
@@ -64,6 +68,9 @@ export class DashboardService {
         dashboardUuid: string,
         dashboard: UpdateDashboard,
     ): Promise<Dashboard> {
+        if (user.ability.cannot('update', 'Dashboard')) {
+            throw new ForbiddenError();
+        }
         if (isDashboardUnversionedFields(dashboard)) {
             await this.dashboardModel.update(dashboardUuid, {
                 name: dashboard.name,
@@ -95,6 +102,9 @@ export class DashboardService {
     }
 
     async delete(user: SessionUser, dashboardUuid: string): Promise<void> {
+        if (user.ability.cannot('delete', 'Dashboard')) {
+            throw new ForbiddenError();
+        }
         await this.dashboardModel.delete(dashboardUuid);
         analytics.track({
             event: 'dashboard.deleted',

@@ -19,6 +19,7 @@ import {
 import { analytics } from '../../analytics/client';
 import {
     errorHandler,
+    ForbiddenError,
     MissingWarehouseCredentialsError,
     NotExistsError,
 } from '../../errors';
@@ -86,6 +87,9 @@ export class ProjectService {
     }
 
     async create(user: SessionUser, data: CreateProject): Promise<Project> {
+        if (user.ability.cannot('create', 'Project')) {
+            throw new ForbiddenError();
+        }
         const [adapter, explores] = await ProjectService.testProjectAdapter(
             data,
         );
@@ -115,6 +119,9 @@ export class ProjectService {
         user: SessionUser,
         data: UpdateProject,
     ): Promise<void> {
+        if (user.ability.cannot('update', 'Project')) {
+            throw new ForbiddenError();
+        }
         this.projectLoading[projectUuid] = true;
         const [adapter, explores] = await ProjectService.testProjectAdapter(
             data,
@@ -459,6 +466,9 @@ export class ProjectService {
         projectUuid: string,
         data: TablesConfiguration,
     ): Promise<TablesConfiguration> {
+        if (user.ability.cannot('update', 'Project')) {
+            throw new ForbiddenError();
+        }
         await this.projectModel.updateTablesConfiguration(projectUuid, data);
         analytics.track({
             event: 'project_tables_configuration.updated',

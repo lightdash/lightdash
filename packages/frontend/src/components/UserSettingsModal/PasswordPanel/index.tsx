@@ -2,9 +2,9 @@ import { Button, Intent } from '@blueprintjs/core';
 import { ApiError } from 'common';
 import React, { FC, useEffect, useState } from 'react';
 import { useMutation } from 'react-query';
-import { lightdashApi } from '../../api';
-import { useApp } from '../../providers/AppProvider';
-import PasswordInput from '../PasswordInput';
+import { lightdashApi } from '../../../api';
+import { useApp } from '../../../providers/AppProvider';
+import PasswordInput from '../../PasswordInput';
 
 const updateUserPasswordQuery = async (data: {
     password: string;

@@ -1,9 +1,11 @@
+import { Ability } from '@casl/ability';
 import {
     CreateDashboard,
     CreateDashboardChartTile,
     Dashboard,
     DashboardBasicDetails,
     DashboardTileTypes,
+    OrganizationMemberRole,
     SessionUser,
     UpdateDashboard,
 } from 'common';
@@ -20,6 +22,10 @@ export const user: SessionUser = {
     isMarketingOptedIn: false,
     isSetupComplete: true,
     userId: 0,
+    role: OrganizationMemberRole.ADMIN,
+    ability: new Ability([
+        { subject: 'Dashboard', action: ['update', 'delete', 'create'] },
+    ]),
 };
 
 export const space: SpaceTable['base'] = {

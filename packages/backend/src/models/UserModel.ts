@@ -1,10 +1,12 @@
 import bcrypt from 'bcrypt';
 import {
     CreateUserArgs,
+    defineAbilityForOrganizationMember,
     isOpenIdUser,
     LightdashMode,
     LightdashUser,
     OpenIdUser,
+    OrganizationMemberRole,
     SessionUser,
     UpdateUserArgs,
 } from 'common';
@@ -21,7 +23,7 @@ import {
     DbOpenIdIssuer,
     OpenIdIdentitiesTableName,
 } from '../database/entities/openIdIdentities';
-import { createOrganizationMembership } from '../database/entities/organizationMemberships';
+import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { createOrganization } from '../database/entities/organizations';
 import {
     createPasswordLogin,
@@ -49,6 +51,7 @@ export type DbUserDetails = {
     organization_uuid: string;
     organization_name: string;
     is_setup_complete: boolean;
+    role: OrganizationMemberRole;
 };
 export type DbOrganizationUser = Pick<
     DbUserDetails,
@@ -76,6 +79,7 @@ export const mapDbUserDetailsToLightdashUser = (
         isTrackingAnonymized: user.is_tracking_anonymized,
         isMarketingOptedIn: user.is_marketing_opted_in,
         isSetupComplete: user.is_setup_complete,
+        role: user.role,
     };
 };
 
@@ -137,6 +141,11 @@ export class UserModel {
                     email: createUser.openId.email,
                 })
                 .returning('*');
+            await createEmail(trx, {
+                user_id: newUser.user_id,
+                email: createUser.openId.email,
+                is_primary: true,
+            });
         } else {
             await createEmail(trx, {
                 user_id: newUser.user_id,
@@ -151,10 +160,6 @@ export class UserModel {
                 ),
             });
         }
-        await createOrganizationMembership(trx, {
-            organization_id: organizationId,
-            user_id: newUser.user_id,
-        });
         return newUser;
     }
 
@@ -302,12 +307,15 @@ export class UserModel {
             .where('openid_identities.issuer', issuer)
             .andWhere('openid_identities.subject', subject)
             .select<(DbUserDetails & DbOpenIdIssuer)[]>('*');
-        return (
-            user && {
-                ...mapDbUserDetailsToLightdashUser(user),
-                userId: user.user_id,
-            }
-        );
+        if (user === undefined) {
+            return user;
+        }
+        const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+        return {
+            userId: user.user_id,
+            ability: defineAbilityForOrganizationMember(lightdashUser),
+            ...lightdashUser,
+        };
     }
 
     async createUserFromInvite(
@@ -334,13 +342,19 @@ export class UserModel {
             throw new ParameterError('Email already in use');
         }
 
-        const user = await this.database.transaction(async (trx) =>
-            UserModel.createUserTransaction(
+        const user = await this.database.transaction(async (trx) => {
+            const newUser = await UserModel.createUserTransaction(
                 trx,
                 inviteLink.organization_id,
                 createUser,
-            ),
-        );
+            );
+            await trx(OrganizationMembershipsTableName).insert({
+                organization_id: inviteLink.organization_id,
+                user_id: newUser.user_id,
+                role: OrganizationMemberRole.EDITOR,
+            });
+            return newUser;
+        });
         return this.getUserDetailsByUuid(user.user_uuid);
     }
 
@@ -360,18 +374,24 @@ export class UserModel {
             ]);
     }
 
-    async createInitialUser(
+    async createInitialAdminUser(
         createUser: CreateUserArgs | OpenIdUser,
     ): Promise<LightdashUser> {
         const user = await this.database.transaction(async (trx) => {
             const newOrg = await createOrganization(trx, {
                 organization_name: '',
             });
-            return UserModel.createUserTransaction(
+            const newUser = await UserModel.createUserTransaction(
                 trx,
                 newOrg.organization_id,
                 createUser,
             );
+            await trx(OrganizationMembershipsTableName).insert({
+                organization_id: newOrg.organization_id,
+                user_id: newUser.user_id,
+                role: OrganizationMemberRole.ADMIN,
+            });
+            return newUser;
         });
         return this.getUserDetailsByUuid(user.user_uuid);
     }
@@ -383,9 +403,11 @@ export class UserModel {
         if (user === undefined) {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
+        const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         return {
+            ...lightdashUser,
             userId: user.user_id,
-            ...mapDbUserDetailsToLightdashUser(user),
+            ability: defineAbilityForOrganizationMember(lightdashUser),
         };
     }
 
@@ -396,14 +418,16 @@ export class UserModel {
         if (user === undefined) {
             throw new NotFoundError(`Cannot find user with uuid ${email}`);
         }
+        const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         return {
+            ...lightdashUser,
+            ability: defineAbilityForOrganizationMember(lightdashUser),
             userId: user.user_id,
-            ...mapDbUserDetailsToLightdashUser(user),
         };
     }
 
     static lightdashUserFromSession(sessionUser: SessionUser): LightdashUser {
-        const { userId, ...lightdashUser } = sessionUser;
+        const { userId, ability, ...lightdashUser } = sessionUser;
         return lightdashUser;
     }
 
