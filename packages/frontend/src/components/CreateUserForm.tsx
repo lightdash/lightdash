@@ -17,6 +17,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
     const methods = useForm<CreateUserArgs>({
         mode: 'onSubmit',
     });
+
     return (
         <Form name="register" methods={methods} onSubmit={onSubmit}>
             <Input

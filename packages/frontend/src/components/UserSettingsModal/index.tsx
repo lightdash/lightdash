@@ -19,8 +19,10 @@ interface Props {
 }
 
 const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
-    useLocationChange(onClose);
     const { user, health } = useApp();
+    const allowPasswordAuthentication =
+        !health.data?.auth.disablePasswordAuthentication;
+    useLocationChange(onClose);
 
     return (
         <Dialog
@@ -52,19 +54,21 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                             </TrackPage>
                         }
                     />
-                    <Tab
-                        id="password"
-                        title="Password"
-                        panel={
-                            <TrackPage
-                                name={PageName.PASSWORD_SETTINGS}
-                                type={PageType.MODAL}
-                                category={CategoryName.SETTINGS}
-                            >
-                                <PasswordPanel />
-                            </TrackPage>
-                        }
-                    />
+                    {allowPasswordAuthentication && (
+                        <Tab
+                            id="password"
+                            title="Password"
+                            panel={
+                                <TrackPage
+                                    name={PageName.PASSWORD_SETTINGS}
+                                    type={PageType.MODAL}
+                                    category={CategoryName.SETTINGS}
+                                >
+                                    <PasswordPanel />
+                                </TrackPage>
+                            }
+                        />
+                    )}
                     {user.data?.ability?.can('manage', 'Organization') && (
                         <Tab
                             id="organization"

@@ -48,6 +48,9 @@ const Signup: FC = () => {
     });
     const inviteLinkQuery = useInviteLink(inviteCode);
 
+    const allowPasswordAuthentication =
+        !health.data?.auth.disablePasswordAuthentication;
+
     if (health.isLoading || inviteLinkQuery.isLoading) {
         return <PageSpinner />;
     }
@@ -88,25 +91,29 @@ const Signup: FC = () => {
                                     <GoogleLoginButton
                                         inviteCode={inviteCode}
                                     />
-                                    <span
-                                        style={{
-                                            textAlign: 'center',
-                                            margin: 15,
-                                        }}
-                                    >
-                                        <b>or</b>
-                                    </span>
+                                    {allowPasswordAuthentication && (
+                                        <span
+                                            style={{
+                                                textAlign: 'center',
+                                                margin: 15,
+                                            }}
+                                        >
+                                            <b>or</b>
+                                        </span>
+                                    )}
                                 </>
                             )}
-                            <CreateUserForm
-                                isLoading={isLoading}
-                                onSubmit={(data: CreateUserArgs) => {
-                                    mutate({
-                                        inviteCode,
-                                        ...data,
-                                    });
-                                }}
-                            />
+                            {allowPasswordAuthentication && (
+                                <CreateUserForm
+                                    isLoading={isLoading}
+                                    onSubmit={(data: CreateUserArgs) => {
+                                        mutate({
+                                            inviteCode,
+                                            ...data,
+                                        });
+                                    }}
+                                />
+                            )}
                         </>
                     )}
                 </Card>

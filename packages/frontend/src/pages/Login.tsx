@@ -58,6 +58,9 @@ const Login: FC = () => {
         },
     });
 
+    const allowPasswordAuthentication =
+        !health.data?.auth.disablePasswordAuthentication;
+
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     useEffect(() => {
         if (isDemo && isIdle) {
@@ -111,54 +114,64 @@ const Login: FC = () => {
                     elevation={2}
                 >
                     <H2 style={{ marginBottom: 25 }}>Login</H2>
-                    <Form name="login" methods={methods} onSubmit={handleLogin}>
-                        <Input
-                            label="Email"
-                            name="email"
-                            placeholder="Email"
-                            disabled={isLoading}
-                            rules={{
-                                required: 'Required field',
-                            }}
-                        />
-                        <PasswordInput
-                            label="Password"
-                            name="password"
-                            placeholder="Enter your password..."
-                            disabled={isLoading}
-                            rules={{
-                                required: 'Required field',
-                            }}
-                        />
-                        <div
-                            style={{
-                                marginTop: 20,
-                                display: 'flex',
-                                justifyContent: health.data?.hasEmailClient
-                                    ? 'space-between'
-                                    : 'flex-end',
-                                alignItems: 'center',
-                            }}
+                    {allowPasswordAuthentication && (
+                        <Form
+                            name="login"
+                            methods={methods}
+                            onSubmit={handleLogin}
                         >
-                            {health.data?.hasEmailClient && (
-                                <AnchorLink href="/recover-password">
-                                    Forgot your password ?
-                                </AnchorLink>
-                            )}
-                            <Button
-                                type="submit"
-                                intent={Intent.PRIMARY}
-                                text="Login"
-                                loading={isLoading}
-                                data-cy="login-button"
+                            <Input
+                                label="Email"
+                                name="email"
+                                placeholder="Email"
+                                disabled={isLoading}
+                                rules={{
+                                    required: 'Required field',
+                                }}
                             />
-                        </div>
-                    </Form>
+                            <PasswordInput
+                                label="Password"
+                                name="password"
+                                placeholder="Enter your password..."
+                                disabled={isLoading}
+                                rules={{
+                                    required: 'Required field',
+                                }}
+                            />
+                            <div
+                                style={{
+                                    marginTop: 20,
+                                    display: 'flex',
+                                    justifyContent: health.data?.hasEmailClient
+                                        ? 'space-between'
+                                        : 'flex-end',
+                                    alignItems: 'center',
+                                }}
+                            >
+                                {health.data?.hasEmailClient && (
+                                    <AnchorLink href="/recover-password">
+                                        Forgot your password ?
+                                    </AnchorLink>
+                                )}
+                                <Button
+                                    type="submit"
+                                    intent={Intent.PRIMARY}
+                                    text="Login"
+                                    loading={isLoading}
+                                    data-cy="login-button"
+                                />
+                            </div>
+                        </Form>
+                    )}
                     {health.data?.auth.google.oauth2ClientId && (
                         <>
-                            <span style={{ textAlign: 'center', margin: 15 }}>
-                                <b>or</b>
-                            </span>
+                            {allowPasswordAuthentication && (
+                                <span
+                                    style={{ textAlign: 'center', margin: 15 }}
+                                >
+                                    <b>or</b>
+                                </span>
+                            )}
                             <GoogleLoginButton />
                         </>
                     )}
