@@ -1,9 +1,9 @@
 import bcrypt from 'bcrypt';
 import {
     CreateUserArgs,
+    defineAbilityForOrganizationMember,
     isOpenIdUser,
     LightdashMode,
-    defineAbilityForOrganizationMember,
     LightdashUser,
     OpenIdUser,
     OrganizationMemberRole,
@@ -141,6 +141,11 @@ export class UserModel {
                     email: createUser.openId.email,
                 })
                 .returning('*');
+            await createEmail(trx, {
+                user_id: newUser.user_id,
+                email: createUser.openId.email,
+                is_primary: true,
+            });
         } else {
             await createEmail(trx, {
                 user_id: newUser.user_id,
@@ -338,19 +343,18 @@ export class UserModel {
         }
 
         const user = await this.database.transaction(async (trx) => {
-                const newUser = await UserModel.createUserTransaction(
-                    trx,
-                    inviteLink.organization_id,
-                    createUser,
-                )
-                await trx(OrganizationMembershipsTableName).insert({
-                    organization_id: inviteLink.organization_id,
-                    user_id: newUser.user_id,
-                    role: OrganizationMemberRole.EDITOR,
-                });
-                return newUser;
-            },
-        );
+            const newUser = await UserModel.createUserTransaction(
+                trx,
+                inviteLink.organization_id,
+                createUser,
+            );
+            await trx(OrganizationMembershipsTableName).insert({
+                organization_id: inviteLink.organization_id,
+                user_id: newUser.user_id,
+                role: OrganizationMemberRole.EDITOR,
+            });
+            return newUser;
+        });
         return this.getUserDetailsByUuid(user.user_uuid);
     }
 

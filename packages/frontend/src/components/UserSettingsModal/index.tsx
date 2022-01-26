@@ -21,7 +21,6 @@ interface Props {
 const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
     useLocationChange(onClose);
     const { user, health } = useApp();
-    const isAdmin = user.data?.role === 'admin';
 
     return (
         <Dialog
@@ -66,7 +65,7 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                             </TrackPage>
                         }
                     />
-                    {user.data?.ability.can('manage', 'Organization') && (
+                    {user.data?.ability?.can('manage', 'Organization') && (
                         <Tab
                             id="organization"
                             title="Organization"
@@ -81,7 +80,7 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                             }
                         />
                     )}
-                    {user.data?.ability.can('manage', 'InviteLink') && (
+                    {user.data?.ability?.can('manage', 'InviteLink') && (
                         <Tab
                             id="invites"
                             title="Invites"
@@ -97,7 +96,7 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                         />
                     )}
 
-                    {user.data?.ability.can(
+                    {user.data?.ability?.can(
                         'manage',
                         'OrganizationMemberProfile',
                     ) && (
@@ -117,7 +116,7 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                     )}
                     {health.data &&
                         !health.data.needsProject &&
-                        user.data?.ability.can('manage', 'Project') && (
+                        user.data?.ability?.can('manage', 'Project') && (
                             <Tab
                                 id="projectManagement"
                                 title="Project management"
