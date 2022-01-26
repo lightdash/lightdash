@@ -65,6 +65,7 @@ export const BaseResponse = {
     needsSetup: false,
     needsProject: false,
     auth: {
+        disablePasswordAuthentication: false,
         google: {
             loginPath: '',
             oauth2ClientId: '',
@@ -91,6 +92,7 @@ export const Config = {
         },
     ],
     auth: {
+        disablePasswordAuthentication: false,
         google: {
             loginPath: '',
             oauth2ClientId: '',

@@ -35,7 +35,12 @@ import {
     DbUserUpdate,
     UserTableName,
 } from '../database/entities/users';
-import { NotExistsError, NotFoundError, ParameterError } from '../errors';
+import {
+    ForbiddenError,
+    NotExistsError,
+    NotFoundError,
+    ParameterError,
+} from '../errors';
 import { InviteLinkModel } from './InviteLinkModel';
 import Transaction = Knex.Transaction;
 
@@ -147,6 +152,12 @@ export class UserModel {
                 is_primary: true,
             });
         } else {
+            if (lightdashConfig.auth.disablePasswordAuthentication) {
+                throw new ForbiddenError(
+                    'Password credentials are not allowed',
+                );
+            }
+
             await createEmail(trx, {
                 user_id: newUser.user_id,
                 email: createUser.email,

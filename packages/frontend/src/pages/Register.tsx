@@ -21,7 +21,8 @@ const registerQuery = async (data: CreateUserArgs) =>
 const Register: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
     const { health, showToastError } = useApp();
-    const { allowPasswordAuthentication } = health.data;
+    const allowPasswordAuthentication =
+        !health.data?.auth.disablePasswordAuthentication;
     const { identify } = useTracking();
     const { isLoading, mutate } = useMutation<
         LightdashUser,

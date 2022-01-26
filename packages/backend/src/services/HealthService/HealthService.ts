@@ -84,6 +84,8 @@ export class HealthService {
             cohere: this.lightdashConfig.cohere,
             siteUrl: this.lightdashConfig.siteUrl,
             auth: {
+                disablePasswordAuthentication:
+                    this.lightdashConfig.auth.disablePasswordAuthentication,
                 google: {
                     loginPath: this.lightdashConfig.auth.google.loginPath,
                     oauth2ClientId:

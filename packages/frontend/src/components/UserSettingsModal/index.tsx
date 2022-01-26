@@ -20,7 +20,8 @@ interface Props {
 
 const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
     const { user, health } = useApp();
-    const { allowPasswordAuthentication } = health.data;
+    const allowPasswordAuthentication =
+        !health.data?.auth.disablePasswordAuthentication;
     useLocationChange(onClose);
 
     return (

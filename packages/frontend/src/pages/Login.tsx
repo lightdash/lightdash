@@ -58,7 +58,8 @@ const Login: FC = () => {
         },
     });
 
-    const {allowPasswordAuthentication} = health.data;
+    const allowPasswordAuthentication =
+        !health.data?.auth.disablePasswordAuthentication;
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     useEffect(() => {

@@ -769,6 +769,7 @@ export type HealthState = {
         websiteToken: string;
     };
     auth: {
+        disablePasswordAuthentication: boolean;
         google: {
             oauth2ClientId: string | undefined;
             loginPath: string;
