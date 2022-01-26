@@ -587,7 +587,6 @@ export type ApiRefreshResults = undefined;
 export type CreateUserArgs = {
     firstName: string;
     lastName: string;
-    allowedDomains: string[];
     email: string;
     password: string;
 };
