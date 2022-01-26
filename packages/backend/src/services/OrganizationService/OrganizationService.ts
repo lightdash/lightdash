@@ -55,11 +55,11 @@ export class OrganizationService {
     }
 
     async updateOrg(
-        { organizationUuid, organizationName, userUuid }: SessionUser,
+        { organizationUuid, organizationName, userUuid, ability }: SessionUser,
         data: Organisation,
     ): Promise<void> {
         if (
-            user.ability.cannot(
+            ability.cannot(
                 'update',
                 subject('Organization', { organizationUuid }),
             )
