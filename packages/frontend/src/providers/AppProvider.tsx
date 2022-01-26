@@ -4,7 +4,14 @@ import * as Sentry from '@sentry/react';
 import { Integrations } from '@sentry/tracing';
 import MDEditor from '@uiw/react-md-editor';
 import Cohere from 'cohere-js';
-import { ApiError, ApiHealthResults, HealthState, SessionUser } from 'common';
+import {
+    ApiError,
+    ApiHealthResults,
+    defineAbilityForOrganizationMember,
+    HealthState,
+    LightdashUser,
+    OrganizationMemberAbility,
+} from 'common';
 import React, {
     createContext,
     FC,
@@ -26,12 +33,15 @@ const getHealthState = async () =>
         body: undefined,
     });
 
-const getUserState = async () =>
-    lightdashApi<SessionUser>({
+type User = LightdashUser & { ability: OrganizationMemberAbility };
+const getUserState = async (): Promise<User> => {
+    const user = await lightdashApi<LightdashUser>({
         url: `/user`,
         method: 'GET',
         body: undefined,
     });
+    return { ...user, ability: defineAbilityForOrganizationMember(user) };
+};
 
 interface Message extends Omit<IToastProps, 'message'> {
     title: string;
@@ -41,7 +51,7 @@ interface Message extends Omit<IToastProps, 'message'> {
 
 interface AppContext {
     health: UseQueryResult<HealthState, ApiError>;
-    user: UseQueryResult<SessionUser, ApiError>;
+    user: UseQueryResult<User, ApiError>;
     showToastSuccess: (props: Message) => void;
     showToastError: (props: Message) => void;
     errorLogs: ErrorLogs;
@@ -57,7 +67,7 @@ export const AppProvider: FC = ({ children }) => {
         queryKey: 'health',
         queryFn: getHealthState,
     });
-    const user = useQuery<SessionUser, ApiError>({
+    const user = useQuery<User, ApiError>({
         queryKey: 'user',
         queryFn: getUserState,
         enabled: !!health.data?.isAuthenticated,

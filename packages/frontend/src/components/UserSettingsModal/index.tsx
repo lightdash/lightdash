@@ -66,34 +66,41 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                             </TrackPage>
                         }
                     />
-                    <Tab
-                        id="organization"
-                        title="Organization"
-                        panel={
-                            <TrackPage
-                                name={PageName.ORGANIZATION_SETTINGS}
-                                type={PageType.MODAL}
-                                category={CategoryName.SETTINGS}
-                            >
-                                <OrganizationPanel />
-                            </TrackPage>
-                        }
-                    />
-                    <Tab
-                        id="invites"
-                        title="Invites"
-                        panel={
-                            <TrackPage
-                                name={PageName.INVITE_MANAGEMENT_SETTINGS}
-                                type={PageType.MODAL}
-                                category={CategoryName.SETTINGS}
-                            >
-                                <InvitesPanel />
-                            </TrackPage>
-                        }
-                    />
+                    {user.data?.ability.can('manage', 'Organization') && (
+                        <Tab
+                            id="organization"
+                            title="Organization"
+                            panel={
+                                <TrackPage
+                                    name={PageName.ORGANIZATION_SETTINGS}
+                                    type={PageType.MODAL}
+                                    category={CategoryName.SETTINGS}
+                                >
+                                    <OrganizationPanel />
+                                </TrackPage>
+                            }
+                        />
+                    )}
+                    {user.data?.ability.can('manage', 'InviteLink') && (
+                        <Tab
+                            id="invites"
+                            title="Invites"
+                            panel={
+                                <TrackPage
+                                    name={PageName.INVITE_MANAGEMENT_SETTINGS}
+                                    type={PageType.MODAL}
+                                    category={CategoryName.SETTINGS}
+                                >
+                                    <InvitesPanel />
+                                </TrackPage>
+                            }
+                        />
+                    )}
 
-                    {isAdmin ? (
+                    {user.data?.ability.can(
+                        'manage',
+                        'OrganizationMemberProfile',
+                    ) && (
                         <Tab
                             id="userManagement"
                             title="User management"
@@ -107,22 +114,26 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
                                 </TrackPage>
                             }
                         />
-                    ) : null}
-                    {health.data && !health.data.needsProject && (
-                        <Tab
-                            id="projectManagement"
-                            title="Project management"
-                            panel={
-                                <TrackPage
-                                    name={PageName.PROJECT_MANAGEMENT_SETTINGS}
-                                    type={PageType.MODAL}
-                                    category={CategoryName.SETTINGS}
-                                >
-                                    <ProjectManagementPanel />
-                                </TrackPage>
-                            }
-                        />
                     )}
+                    {health.data &&
+                        !health.data.needsProject &&
+                        user.data?.ability.can('manage', 'Project') && (
+                            <Tab
+                                id="projectManagement"
+                                title="Project management"
+                                panel={
+                                    <TrackPage
+                                        name={
+                                            PageName.PROJECT_MANAGEMENT_SETTINGS
+                                        }
+                                        type={PageType.MODAL}
+                                        category={CategoryName.SETTINGS}
+                                    >
+                                        <ProjectManagementPanel />
+                                    </TrackPage>
+                                }
+                            />
+                        )}
                     {health.data?.auth.google.oauth2ClientId && (
                         <Tab
                             id="socialLogins"
