@@ -211,6 +211,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/nkotlyarov"><img src="https://avatars.githubusercontent.com/u/5070583?v=4?s=100" width="100px;" alt=""/><br /><sub><b>nkotlyarov</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Ankotlyarov" title="Bug reports">🐛</a></td>
     <td align="center"><a href="http://kimmonzon.com"><img src="https://avatars.githubusercontent.com/u/1046316?v=4?s=100" width="100px;" alt=""/><br /><sub><b>kim monzon</b></sub></a><br /><a href="#ideas-generalistcodes" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="https://github.com/rverheijen"><img src="https://avatars.githubusercontent.com/u/68638877?v=4?s=100" width="100px;" alt=""/><br /><sub><b>rverheijen</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=rverheijen" title="Tests">⚠️</a> <a href="https://github.com/lightdash/lightdash/issues?q=author%3Arverheijen" title="Bug reports">🐛</a></td>
+    <td align="center"><a href="https://github.com/scarrucciu"><img src="https://avatars.githubusercontent.com/u/8050761?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Spencer Carrucciu</b></sub></a><br /><a href="#ideas-scarrucciu" title="Ideas, Planning, & Feedback">🤔</a></td>
   </tr>
 </table>
 
