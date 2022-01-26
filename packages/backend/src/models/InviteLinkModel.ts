@@ -3,6 +3,14 @@ import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
+import {
+    DbInviteLink,
+    InviteLinkTableName,
+} from '../database/entities/inviteLinks';
+import {
+    DbOrganization,
+    OrganizationTableName,
+} from '../database/entities/organizations';
 import { NotExistsError } from '../errors';
 
 export class InviteLinkModel {
@@ -10,6 +18,18 @@ export class InviteLinkModel {
 
     constructor(database: Knex) {
         this.database = database;
+    }
+
+    static mapDbObjectToInviteLink(
+        inviteCode: string,
+        data: DbInviteLink & DbOrganization,
+    ): InviteLink {
+        return {
+            inviteCode,
+            expiresAt: data.expires_at,
+            inviteUrl: InviteLinkModel.transformInviteCodeToUrl(inviteCode),
+            organisationUuid: data.organization_uuid,
+        };
     }
 
     static transformInviteCodeToUrl(code: string): string {
@@ -32,21 +52,23 @@ export class InviteLinkModel {
             .delete();
     }
 
-    async findByCode(inviteCode: string): Promise<InviteLink> {
+    async getByCode(inviteCode: string): Promise<InviteLink> {
         const inviteCodeHash = InviteLinkModel._hash(inviteCode);
-        const inviteLinks = await this.database('invite_links').where(
-            'invite_code_hash',
-            inviteCodeHash,
-        );
+        const inviteLinks = await this.database(InviteLinkTableName)
+            .leftJoin(
+                OrganizationTableName,
+                `${InviteLinkTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .where('invite_code_hash', inviteCodeHash)
+            .select('*');
         if (inviteLinks.length === 0) {
             throw new NotExistsError('No invite link found');
         }
-        const inviteLink = inviteLinks[0];
-        return {
+        return InviteLinkModel.mapDbObjectToInviteLink(
             inviteCode,
-            expiresAt: inviteLink.expires_at,
-            inviteUrl: InviteLinkModel.transformInviteCodeToUrl(inviteCode),
-        };
+            inviteLinks[0],
+        );
     }
 
     async create(
@@ -67,11 +89,7 @@ export class InviteLinkModel {
             invite_code_hash: inviteCodeHash,
             expires_at: expiresAt,
         });
-        return {
-            inviteCode,
-            expiresAt,
-            inviteUrl: InviteLinkModel.transformInviteCodeToUrl(inviteCode),
-        };
+        return this.getByCode(inviteCode);
     }
 
     async deleteByOrganization(organizationUuid: string) {

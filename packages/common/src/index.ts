@@ -657,8 +657,9 @@ export type InviteLink = {
     expiresAt: Date;
     inviteCode: string;
     inviteUrl: string;
+    organisationUuid: string;
 };
-export type CreateInviteLink = Omit<InviteLink, 'inviteCode' | 'inviteUrl'>;
+export type CreateInviteLink = Pick<InviteLink, 'expiresAt'>;
 
 export type OnbordingRecord = {
     ranQueryAt: Date | null;
@@ -683,6 +684,13 @@ export type ApiFlashResults = Record<string, string[]>;
 
 export type OnboardingStatus = IncompleteOnboarding | CompleteOnboarding;
 
+export type Organisation = {
+    name: string;
+    allowedEmailDomains: string[];
+};
+
+export type UpdateOrganisation = Partial<Organisation>;
+
 type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
@@ -692,6 +700,7 @@ type ApiResults =
     | ApiStatusResults
     | ApiRefreshResults
     | ApiHealthResults
+    | Organisation
     | LightdashUser
     | SavedQuery
     | Space[]

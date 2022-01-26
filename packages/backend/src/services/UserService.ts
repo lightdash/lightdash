@@ -97,6 +97,17 @@ export class UserService {
         ) {
             throw new ForbiddenError('Password credentials are not allowed');
         }
+        const inviteLink = await this.inviteLinkModel.getByCode(inviteCode);
+        if (
+            !(await this.verifyUserEmail(
+                inviteLink.organisationUuid,
+                isOpenIdUser(createUser)
+                    ? createUser.openId.email
+                    : createUser.email,
+            ))
+        ) {
+            throw new AuthorizationError('Email domain not allowed');
+        }
         const user = await this.userModel.createUserFromInvite(
             inviteCode,
             createUser,
@@ -220,6 +231,14 @@ export class UserService {
 
         // User already logged in? Link openid identity to logged-in user
         if (sessionUser?.userId) {
+            if (
+                !(await this.verifyUserEmail(
+                    sessionUser.organizationUuid,
+                    openIdUser.openId.email,
+                ))
+            ) {
+                throw new AuthorizationError('Email domain not allowed');
+            }
             await this.openIdIdentityModel.createIdentity({
                 userId: sessionUser.userId,
                 issuer: openIdUser.openId.issuer,
@@ -269,7 +288,7 @@ export class UserService {
     ): Promise<LightdashUser> {
         if (organizationName) {
             await this.organizationModel.update(user.organizationUuid, {
-                organizationName,
+                name: organizationName,
             });
             analytics.track({
                 userId: user.userUuid,
@@ -308,6 +327,21 @@ export class UserService {
         return completeUser;
     }
 
+    async verifyUserEmail(
+        organisationUuid: string,
+        email: string,
+    ): Promise<boolean> {
+        const { allowedEmailDomains } = await this.organizationModel.get(
+            organisationUuid,
+        );
+        return (
+            allowedEmailDomains.length === 0 ||
+            allowedEmailDomains.some((allowedEmailDomain) =>
+                email.endsWith(`@${allowedEmailDomain}`),
+            )
+        );
+    }
+
     async getLinkedIdentities({
         userId,
     }: Pick<SessionUser, 'userId'>): Promise<OpenIdIdentitySummary[]> {
@@ -334,7 +368,7 @@ export class UserService {
     }
 
     async getInviteLink(inviteCode: string): Promise<InviteLink> {
-        const inviteLink = await this.inviteLinkModel.findByCode(inviteCode);
+        const inviteLink = await this.inviteLinkModel.getByCode(inviteCode);
         const now = new Date();
         if (inviteLink.expiresAt <= now) {
             try {

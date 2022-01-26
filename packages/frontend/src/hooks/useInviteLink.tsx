@@ -17,8 +17,7 @@ const createInviteQuery = async (
         body: JSON.stringify(data),
     });
     return {
-        inviteUrl: response.inviteUrl,
-        inviteCode: response.inviteCode,
+        ...response,
         expiresAt: new Date(response.expiresAt),
     };
 };

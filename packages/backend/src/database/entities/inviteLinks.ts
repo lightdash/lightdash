@@ -1,6 +1,6 @@
 import { Knex } from 'knex';
 
-type DbInviteLink = {
+export type DbInviteLink = {
     invite_code_hash: string;
     organization_id: number;
     created_at: Date;

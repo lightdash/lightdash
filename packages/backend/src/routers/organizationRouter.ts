@@ -14,6 +14,18 @@ import {
 
 export const organizationRouter = express.Router();
 
+organizationRouter.get('/', isAuthenticated, async (req, res, next) =>
+    organizationService
+        .get(req.user!)
+        .then((results) => {
+            res.json({
+                status: 'ok',
+                results,
+            });
+        })
+        .catch(next),
+);
+
 organizationRouter.patch(
     '/',
     isAuthenticated,
