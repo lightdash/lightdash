@@ -4,6 +4,27 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.11.10] - 2022-01-26
+### Added
+- The column title within the results table now displays a tooltip with the metric/dimension description (#1136)
+- Show message for the user to know that their project most be compatible with dbt v1 (#1043)
+- Filtering and search are now available in the tables side bar (#817 #997)
+- Use Google SSO to set up initial user (#1149)
+- Invited users can create an account with Google SSO (#1148)
+- Social authentications can now be revoked (#1152)
+- Organisation basic roles and permissions are now available (#1069)
+- Option to have email domain validation (#1221)
+- Added option to disable password authentication (#1234)
+- Allow user to revoke Google auth (#1232)
+
+### Changed
+- Update table icons to avoid confusion (#1182)
+
+### Fixed
+- Api request validation not working (#619)
+- Removes site url warning in dev mode (#1189)
+- Get columns from all snowflake databases and schemas(#1223, #1127)
+
 ## [0.11.9] - 2022-01-18
 ### Fixed
 - Fixed fatal error when trying to connect a project (#1168)
