@@ -319,6 +319,22 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                     name="Scatter"
                                 />
                             </Tooltip2>
+                            <Tooltip2
+                                content="Table"
+                                placement="top"
+                                interactionKind="hover"
+                            >
+                                <Button
+                                    minimal
+                                    active={activeVizTab === DBChartTypes.TABLE}
+                                    icon="panel-table"
+                                    onClick={() =>
+                                        setActiveVizTab(DBChartTypes.TABLE)
+                                    }
+                                    disabled={isChartEmpty}
+                                    name="Table"
+                                />
+                            </Tooltip2>
                             <ChartConfigPanel
                                 chartConfig={chartConfig}
                                 disabled={isChartEmpty}

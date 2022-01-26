@@ -10,6 +10,7 @@ import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject, useEffect } from 'react';
 import { ChartConfig } from '../../hooks/useChartConfig';
 import { useExplore } from '../../hooks/useExplore';
+import { ExplorerResults } from '../Explorer/ExplorerResults';
 
 const flipXFromChartType = (chartType: DBChartTypes) => {
     switch (chartType) {
@@ -18,6 +19,7 @@ const flipXFromChartType = (chartType: DBChartTypes) => {
         case DBChartTypes.SCATTER:
             return false;
         case DBChartTypes.BAR:
+        case DBChartTypes.TABLE:
             return true;
         default: {
             const nope: never = chartType;
@@ -35,6 +37,8 @@ const echartType = (chartType: DBChartTypes) => {
             return 'bar';
         case DBChartTypes.SCATTER:
             return 'scatter';
+        case DBChartTypes.TABLE:
+            return 'table';
         default: {
             const nope: never = chartType;
             return undefined;
@@ -83,6 +87,7 @@ const SimpleChart: FC<SimpleChartProps> = ({
     chartType,
     chartConfig,
 }) => {
+    console.log(chartType);
     useEffect(() => {
         const listener = () => {
             const eCharts = chartRef.current?.getEchartsInstance();
@@ -173,16 +178,20 @@ const SimpleChart: FC<SimpleChartProps> = ({
 
     return (
         <div style={{ padding: 10, height: '100%' }}>
-            <EChartsReact
-                style={{
-                    height: '100%',
-                    width: '100%',
-                }}
-                ref={chartRef}
-                option={options}
-                notMerge
-                opts={{ renderer: 'svg' }}
-            />
+            {chartType === 'table' ? (
+                <ExplorerResults />
+            ) : (
+                <EChartsReact
+                    style={{
+                        height: '100%',
+                        width: '100%',
+                    }}
+                    ref={chartRef}
+                    option={options}
+                    notMerge
+                    opts={{ renderer: 'svg' }}
+                />
+            )}
         </div>
     );
 };
