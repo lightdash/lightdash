@@ -92,6 +92,7 @@ export type AuthGoogleConfig = {
 };
 
 export type AuthConfig = {
+    disablePasswordAuthentication: boolean;
     google: AuthGoogleConfig;
 };
 
@@ -295,6 +296,8 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 getIntegerFromEnvironmentVariable('PGMINCONNECTIONS'),
         },
         auth: {
+            disablePasswordAuthentication:
+                process.env.AUTH_DISABLE_PASSWORD_AUTHENTICATION === 'true',
             google: {
                 oauth2ClientId: process.env.AUTH_GOOGLE_OAUTH2_CLIENT_ID,
                 oauth2ClientSecret:

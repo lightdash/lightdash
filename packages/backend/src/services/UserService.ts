@@ -91,6 +91,12 @@ export class UserService {
         inviteCode: string,
         createUser: CreateUserArgs | OpenIdUser,
     ): Promise<LightdashUser> {
+        if (
+            !isOpenIdUser(createUser) &&
+            lightdashConfig.auth.disablePasswordAuthentication
+        ) {
+            throw new ForbiddenError('Password credentials are not allowed');
+        }
         const user = await this.userModel.createUserFromInvite(
             inviteCode,
             createUser,
@@ -346,6 +352,11 @@ export class UserService {
         password: string,
     ): Promise<LightdashUser> {
         try {
+            if (lightdashConfig.auth.disablePasswordAuthentication) {
+                throw new ForbiddenError(
+                    'Password credentials are not allowed',
+                );
+            }
             // TODO: move to authorization service layer
             const user = await this.userModel.getUserByPrimaryEmailAndPassword(
                 email,
@@ -419,6 +430,12 @@ export class UserService {
     async registerInitialUser(createUser: CreateUserArgs | OpenIdUser) {
         if (await this.userModel.hasUsers()) {
             throw new ForbiddenError('User already registered');
+        }
+        if (
+            !isOpenIdUser(createUser) &&
+            lightdashConfig.auth.disablePasswordAuthentication
+        ) {
+            throw new ForbiddenError('Password credentials are not allowed');
         }
         const user = await this.userModel.createInitialAdminUser(createUser);
         identifyUser({

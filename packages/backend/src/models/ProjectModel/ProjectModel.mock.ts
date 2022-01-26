@@ -28,6 +28,7 @@ export const lightdashConfigMock: LightdashConfig = {
         environment: '',
     },
     auth: {
+        disablePasswordAuthentication: false,
         google: {
             oauth2ClientId: undefined,
             oauth2ClientSecret: undefined,
