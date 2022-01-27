@@ -1,6 +1,6 @@
-import { Button, Colors, HTMLTable, Icon, Tag } from '@blueprintjs/core';
+import { Button, Colors, HTMLTable } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { DimensionType, hexToRGB } from 'common';
+import { hexToRGB } from 'common';
 import React, { FC, useEffect, useMemo } from 'react';
 import {
     ColumnInstance,
@@ -14,45 +14,6 @@ import { useExplorer } from '../../providers/ExplorerProvider';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import { TableInnerWrapper, TableWrapper } from './SimpleTable';
-
-const getSortIndicator = (
-    type: ColumnInstance['type'],
-    dimensionType: DimensionType,
-    desc: boolean,
-    sortIndex: number,
-    isMultiSort: boolean,
-) => {
-    const style = { paddingLeft: '5px' };
-    if (type === 'dimension' && dimensionType === 'string')
-        return (
-            <>
-                {isMultiSort && (
-                    <Tag minimal style={style}>
-                        {sortIndex + 1}
-                    </Tag>
-                )}
-                {desc ? (
-                    <Icon style={style} icon="sort-alphabetical-desc" />
-                ) : (
-                    <Icon style={style} icon="sort-alphabetical" />
-                )}
-            </>
-        );
-    return (
-        <>
-            {isMultiSort && (
-                <Tag minimal style={style}>
-                    {sortIndex + 1}
-                </Tag>
-            )}
-            {desc ? (
-                <Icon style={style} icon="sort-numerical-desc" />
-            ) : (
-                <Icon style={style} icon="sort-numerical" />
-            )}
-        </>
-    );
-};
 
 const ColumnColors = {
     dimension: hexToRGB(Colors.BLUE1, 0.2),
@@ -81,7 +42,7 @@ const SimpleTable: FC = () => {
     );
 
     const {
-        state: { tableName: name, columnOrder: dataColumnOrder },
+        state: { columnOrder: dataColumnOrder },
     } = useExplorer();
 
     const {
@@ -89,7 +50,6 @@ const SimpleTable: FC = () => {
         getTableBodyProps,
         headerGroups,
         page,
-        rows,
         prepareRow,
         setColumnOrder,
         pageCount,

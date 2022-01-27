@@ -14,5 +14,3 @@ export const TableInnerWrapper = styled.div`
     max-width: 100%;
     flex-direction: row;
 `;
-
-export const TableContainer = styled.div``;
