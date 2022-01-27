@@ -10,7 +10,6 @@ import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject, useEffect } from 'react';
 import { ChartConfig } from '../../hooks/useChartConfig';
 import { useExplore } from '../../hooks/useExplore';
-import { ExplorerResults } from '../Explorer/ExplorerResults';
 
 const flipXFromChartType = (chartType: DBChartTypes) => {
     switch (chartType) {
@@ -87,7 +86,6 @@ const SimpleChart: FC<SimpleChartProps> = ({
     chartType,
     chartConfig,
 }) => {
-    console.log(chartType);
     useEffect(() => {
         const listener = () => {
             const eCharts = chartRef.current?.getEchartsInstance();
@@ -178,20 +176,16 @@ const SimpleChart: FC<SimpleChartProps> = ({
 
     return (
         <div style={{ padding: 10, height: '100%' }}>
-            {chartType === 'table' ? (
-                <ExplorerResults />
-            ) : (
-                <EChartsReact
-                    style={{
-                        height: '100%',
-                        width: '100%',
-                    }}
-                    ref={chartRef}
-                    option={options}
-                    notMerge
-                    opts={{ renderer: 'svg' }}
-                />
-            )}
+            <EChartsReact
+                style={{
+                    height: '100%',
+                    width: '100%',
+                }}
+                ref={chartRef}
+                option={options}
+                notMerge
+                opts={{ renderer: 'svg' }}
+            />
         </div>
     );
 };

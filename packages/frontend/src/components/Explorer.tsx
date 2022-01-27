@@ -36,6 +36,7 @@ import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
 import EditableHeader from './common/EditableHeader';
 import { ExplorerResults } from './Explorer/ExplorerResults';
+import LightdashVisualisation from './LightdashVisualisation';
 import { RefreshButton } from './RefreshButton';
 import { RefreshServerButton } from './RefreshServerButton';
 import { RenderedSql } from './RenderedSql';
@@ -44,7 +45,6 @@ import CreateSavedDashboardModal from './SavedDashboards/CreateSavedDashboardMod
 import DashboardForm from './SavedDashboards/DashboardForm';
 import CreateSavedQueryModal from './SavedQueries/CreateSavedQueryModal';
 import SavedQueryForm from './SavedQueries/SavedQueryForm';
-import SimpleChart from './SimpleChart';
 
 interface Props {
     savedQueryUuid?: string;
@@ -220,7 +220,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             </Card>
             <div style={{ paddingTop: '10px' }} />
 
-            <Card style={{ padding: 5 }} elevation={1}>
+            <Card style={{ padding: 5, overflowY: 'scroll' }} elevation={1}>
                 <div
                     style={{
                         display: 'flex',
@@ -339,10 +339,12 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                 chartConfig={chartConfig}
                                 disabled={isChartEmpty}
                             />
+
                             <ChartDownloadMenu
                                 chartRef={chartRef}
                                 disabled={isChartEmpty}
                             />
+
                             <ButtonGroup>
                                 <Button
                                     intent="primary"
@@ -403,7 +405,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                 </div>
                 <Collapse className="explorer-chart" isOpen={vizIsOpen}>
                     <div style={{ height: '300px' }} className="cohere-block">
-                        <SimpleChart
+                        <LightdashVisualisation
                             isLoading={queryResults.isLoading}
                             tableName={tableName}
                             chartRef={chartRef}
