@@ -3,23 +3,65 @@
     "properties": {
         "chartType": {
             "type": "string",
-            "enum": ["column", "bar", "line", "scatter"]
+            "enum": [
+                "series",
+                "echarts_raw",
+                "table",
+                "big_number",
+                "funnel",
+                "vega_raw"
+            ]
         },
-        "seriesLayout": {
-            "type": "object",
-            "properties": {
-                "xDimension": {
-                    "type": "string"
+        "config": {
+            "oneOf": [
+                {
+                    // Series type (multiple lines / scatter / bars / ...)
+                    // It's a Lightdash specific config that generates echart configurations
+                    "type": "object",
+                    "properties": {
+                        "axes": {}, // multiple axes, change labels, ticks, intervals, etc.
+                        "series": {} // could be lines, bars, different colours etc.
+                    }
                 },
-                "yMetrics": {
-                    "type": "array",
-                    "items": "string"
+                {
+                    // Table type (for showing raw tables as visualisations)
+                    "type": "object",
+                    "properties": {
+                        "hiddenColumns": {}, // perhaps some simple viz config
+                        "maxRows": {}
+                    }
                 },
-                "groupDimension": {
-                    "type": "string"
+                {
+                    // Big number (for showing.... a big number)
+                    "type": "object",
+                    "properties": {
+                        "suffix": {} // user requested custom suffix
+                    }
+                },
+                {
+                    // Funnel
+                    // Another Lightdash chart that just generates an echart config for you
+                    "type": "object",
+                    "properties": {
+                        "events": {} // a list of events?
+                    }
+                },
+                {
+                    // echarts raw for power users - they just provide their own echarts config
+                    "type": "object",
+                    "properties": {
+                        // everything from echarts
+                    }
+                },
+                {
+                    // vega raw - who knows maybe we can even support multiple charting languages
+                    "type": "object",
+                    "properties": {
+                        // everything from vega-lite
+                    }
                 }
-            }
+            ]
         }
     },
-    "required": ["seriesLayout", "chartType"]
+    "required": ["config", "chartType"]
 }
