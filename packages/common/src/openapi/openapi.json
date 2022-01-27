@@ -63,6 +63,46 @@
         },
         "/dashboards/{dashboardUuid}": {
             "$ref": "./paths/dashboards.json"
+        },
+        "/saved/{savedChartUuid}": {
+            "get": {
+                "summary": "Get a saved chart",
+                "tags": ["saved"],
+                "operationId": "getSavedChart",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "savedChartUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Details for a saved chart",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        { "$ref": "./schemas/Success.json" },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "./schemas/SavedChart.json"
+                                                }
+                                            },
+                                            "required": true
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "security": [{ "cookieAuth": [] }],
