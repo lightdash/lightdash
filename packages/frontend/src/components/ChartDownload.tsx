@@ -3,13 +3,24 @@ import {
     Divider,
     FormGroup,
     HTMLSelect,
+    Icon,
     Intent,
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
+import { DBChartTypes } from 'common';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { RefObject, useCallback, useState } from 'react';
+import { CSVLink } from 'react-csv';
+import {
+    useColumnOrder,
+    usePagination,
+    useTable as useReactTable,
+} from 'react-table';
+import { useColumns } from '../hooks/useColumns';
+import { useQueryResults } from '../hooks/useQueryResults';
+import { useExplorer } from '../providers/ExplorerProvider';
 
 const FILE_NAME = 'lightdash_chart';
 
@@ -24,6 +35,7 @@ enum DownloadType {
 type ChartDownloadMenuProps = {
     chartRef: RefObject<EChartsReact>;
     disabled: boolean;
+    chartType: DBChartTypes;
 };
 
 async function base64SvgToBase64Image(
@@ -99,11 +111,39 @@ function downloadPdf(base64: string, width: number, height: number) {
     doc.save(FILE_NAME);
 }
 
-export const ChartDownloadOptions: React.FC<
-    Pick<ChartDownloadMenuProps, 'chartRef'>
-> = ({ chartRef }) => {
+type DownloadOptions = {
+    chartRef: RefObject<EChartsReact>;
+    chartType: DBChartTypes;
+};
+export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
+    chartRef,
+    chartType,
+}) => {
     const [type, setType] = useState<DownloadType>(DownloadType.JPEG);
+    const dataColumns = useColumns();
+    const queryResults = useQueryResults();
+    const safeData = React.useMemo(
+        () => (queryResults.status === 'success' ? queryResults.data.rows : []),
+        [queryResults.status, queryResults.data],
+    );
+    const {
+        state: { tableName: activeTableName, columnOrder: explorerColumnOrder },
+    } = useExplorer();
 
+    const { rows } = useReactTable(
+        {
+            columns: dataColumns,
+            data: safeData,
+            initialState: {
+                pageIndex: 0,
+                pageSize: 25,
+                columnOrder: explorerColumnOrder,
+            },
+        },
+        usePagination,
+        useColumnOrder,
+    );
+    const isTable = chartType === DBChartTypes.TABLE;
     const onDownload = useCallback(async () => {
         const echartsInstance = chartRef.current?.getEchartsInstance();
 
@@ -158,28 +198,46 @@ export const ChartDownloadOptions: React.FC<
             </span>
             <Divider />
             <FormGroup label="File format" labelFor="download-type" inline>
-                <HTMLSelect
-                    id="download-type"
-                    value={type}
-                    onChange={(e) =>
-                        setType(e.currentTarget.value as DownloadType)
-                    }
-                    options={Object.values(DownloadType).map(
-                        (downloadType) => ({
-                            value: downloadType,
-                            label: downloadType,
-                        }),
-                    )}
-                />
+                {isTable ? (
+                    <CSVLink
+                        role="button"
+                        tabIndex={0}
+                        className="bp3-button"
+                        data={rows.map((row) => row.values)}
+                        filename={`lightdash-${
+                            activeTableName || 'export'
+                        }-${new Date().toISOString().slice(0, 10)}.csv`}
+                        target="_blank"
+                    >
+                        <Icon icon="export" />
+                        <span>Export CSV</span>
+                    </CSVLink>
+                ) : (
+                    <HTMLSelect
+                        id="download-type"
+                        value={type}
+                        onChange={(e) =>
+                            setType(e.currentTarget.value as DownloadType)
+                        }
+                        options={Object.values(DownloadType).map(
+                            (downloadType) => ({
+                                value: downloadType,
+                                label: downloadType,
+                            }),
+                        )}
+                    />
+                )}
             </FormGroup>
             <Divider />
-            <Button
-                style={{ alignSelf: 'flex-end' }}
-                intent={Intent.PRIMARY}
-                icon="cloud-download"
-                text="Download"
-                onClick={onDownload}
-            />
+            {!isTable && (
+                <Button
+                    style={{ alignSelf: 'flex-end' }}
+                    intent={Intent.PRIMARY}
+                    icon="cloud-download"
+                    text="Download"
+                    onClick={onDownload}
+                />
+            )}
         </div>
     );
 };
@@ -187,11 +245,17 @@ export const ChartDownloadOptions: React.FC<
 export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = ({
     chartRef,
     disabled,
+    chartType,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     return (
         <Popover2
-            content={<ChartDownloadOptions chartRef={chartRef} />}
+            content={
+                <ChartDownloadOptions
+                    chartRef={chartRef}
+                    chartType={chartType}
+                />
+            }
             popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
             isOpen={isOpen}
             onInteraction={setIsOpen}

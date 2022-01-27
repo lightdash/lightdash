@@ -343,6 +343,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             <ChartDownloadMenu
                                 chartRef={chartRef}
                                 disabled={isChartEmpty}
+                                chartType={activeVizTab}
                             />
 
                             <ButtonGroup>
