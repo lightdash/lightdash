@@ -58,16 +58,6 @@ type FilterRuleWithValuesBase<
 
 /* Specific filter types */
 
-export type StringFilterRule =
-    | FilterRuleBase<FilterOperator.NULL | FilterOperator.NOT_NULL>
-    | FilterRuleWithValuesBase<
-          | FilterOperator.EQUALS
-          | FilterOperator.NOT_EQUALS
-          | FilterOperator.STARTS_WITH
-          | FilterOperator.NOT_INCLUDE,
-          string
-      >;
-
 export const stringFilterOptions = getFilterOptions([
     FilterOperator.NULL,
     FilterOperator.NOT_NULL,
@@ -77,15 +67,6 @@ export const stringFilterOptions = getFilterOptions([
     FilterOperator.NOT_INCLUDE,
 ]);
 
-// type NumberFilterRule =
-//     | FilterRuleBase<FilterOperator.NULL | FilterOperator.NOT_NULL>
-//     | FilterRuleWithValuesBase<
-//           | FilterOperator.EQUALS
-//           | FilterOperator.NOT_EQUALS
-//           | FilterOperator.LESS_THAN
-//           | FilterOperator.GREATER_THAN,
-//           number
-//       >;
 export const numberFilterOptions = getFilterOptions([
     FilterOperator.NULL,
     FilterOperator.NOT_NULL,
@@ -95,14 +76,11 @@ export const numberFilterOptions = getFilterOptions([
     FilterOperator.GREATER_THAN,
 ]);
 
-// type BooleanFilterRule =
-//     | FilterRuleBase<FilterOperator.NULL | FilterOperator.NOT_NULL>
-//     | FilterRuleWithValuesBase<FilterOperator.EQUALS, boolean>;
-// export const booleanFilterOptions = getFilterOptions([
-//     FilterOperator.NULL,
-//     FilterOperator.NOT_NULL,
-//     FilterOperator.EQUALS,
-// ]);
+export const booleanFilterOptions = getFilterOptions([
+    FilterOperator.NULL,
+    FilterOperator.NOT_NULL,
+    FilterOperator.EQUALS,
+]);
 
 type TimeFilterRule =
     | FilterRuleBase<FilterOperator.NULL | FilterOperator.NOT_NULL>
@@ -134,10 +112,6 @@ export const timeFilterOptions: Array<{
 /* Group types */
 
 export type FilterRule = FilterRuleBase;
-// | StringFilterRule
-// | NumberFilterRule
-// | BooleanFilterRule
-// | TimeFilterRule;
 
 type OrFilterGroup = {
     id: string;
@@ -205,37 +179,15 @@ export const countTotalFilterRules = (filters: Filters): number =>
 
 export const example: FilterGroup = {
     id: '1',
-    or: [
+    and: [
         {
             id: '2',
             target: {
-                fieldId: 'a_a',
+                fieldId: 'customers_customer_id',
             },
             operator: FilterOperator.EQUALS,
             settings: undefined,
             values: ['some'],
-        },
-        {
-            id: '3',
-            and: [
-                {
-                    id: '4',
-                    target: {
-                        fieldId: 'a_b',
-                    },
-                    operator: FilterOperator.EQUALS,
-                    settings: undefined,
-                    values: ['other'],
-                },
-                {
-                    id: '5',
-                    target: {
-                        fieldId: 'a_c',
-                    },
-                    operator: FilterOperator.NULL,
-                    settings: undefined,
-                },
-            ],
         },
     ],
 };
