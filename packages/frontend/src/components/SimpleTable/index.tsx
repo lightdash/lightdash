@@ -1,19 +1,26 @@
 import { Button, Colors, HTMLTable } from '@blueprintjs/core';
 import { friendlyName } from 'common';
-import React, { FC } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
-import { LoadingState } from '../ResultsTable/States';
 import { TableHeader, TableInnerWrapper, TableWrapper } from './SimpleTable';
 
 interface Props {
     data: any;
-    isLoading: boolean;
 }
-const SimpleTable: FC<Props> = ({ data, isLoading }) => {
-    if (isLoading && !data) {
-        return <LoadingState />;
-    }
+const SimpleTable: FC<Props> = ({ data }) => {
+    const [paginatedData, setPaginatedData] = useState(data.slice(0, 25));
+
+    const [currentPage, setCurrentPage] = useState<number>(0);
+    const pageCount = Math.ceil(data?.length / 25);
+
+    const canNextPage =
+        currentPage + 1 < pageCount && currentPage + 1 !== pageCount;
+    const canPrevPage = currentPage > 0;
+
+    const headerGroup = paginatedData.map((item: {}) => Object.keys(item))[0];
+    const tableRows = paginatedData.map((row: {}) => Object.values(row));
+
     const modifiedItem = (item: string | boolean) => {
         if (typeof item === 'boolean') {
             return item ? 'Yes' : 'No';
@@ -21,19 +28,9 @@ const SimpleTable: FC<Props> = ({ data, isLoading }) => {
         return item;
     };
 
-    let currentPage = 0;
-    const pageCount = Math.round((data?.length + 1) / 25);
-    const canNextPage = currentPage < pageCount;
-    let paginatedData = data?.slice(0, 25);
-
-    const paginateNext = () => {
-        currentPage += 1;
-        paginatedData = data?.slice(currentPage * 25, currentPage * 25 + 25);
-    };
-
-    const headerGroup = paginatedData.map((item: {}) => Object.keys(item))[0];
-
-    const tableRows = paginatedData.map((row: {}) => Object.values(row));
+    useEffect(() => {
+        setPaginatedData(data.slice(currentPage * 25, currentPage * 25 + 25));
+    }, [currentPage]);
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
@@ -86,12 +83,14 @@ const SimpleTable: FC<Props> = ({ data, isLoading }) => {
                                 alignItems: 'center',
                             }}
                         >
-                            {/* {canPreviousPage && (
+                            {canPrevPage && (
                                 <Button
                                     icon="arrow-left"
-                                    onClick={previousPage}
+                                    onClick={() => {
+                                        setCurrentPage(currentPage - 1);
+                                    }}
                                 />
-                            )} */}
+                            )}
                             <span
                                 style={{
                                     paddingRight: '5px',
@@ -103,7 +102,9 @@ const SimpleTable: FC<Props> = ({ data, isLoading }) => {
                             {canNextPage && (
                                 <Button
                                     icon="arrow-right"
-                                    onClick={paginateNext}
+                                    onClick={() =>
+                                        setCurrentPage(currentPage + 1)
+                                    }
                                 />
                             )}
                         </div>
