@@ -53,8 +53,9 @@ Come join the team, [we're hiring](https://lightdash.notion.site/Lightdash-Job-B
 * [x] 👷‍♂️ Save charts & build dashboards to share your insights with your team
 * [x] 🚀 Share your work as a URL or export results to use in any other tool
 
-You can also check out our future plans for the
-product [in our roadmap.](https://lightdash.notion.site/Product-Roadmap-49e980c97bb44aa5a78ee2618851f11f)
+Something missing? Check out our [open issues](https://github.com/lightdash/lightdash/issues)
+to see if what you're looking for already exists (and give it a 👍). Otherwise, we'd love it if
+you'd [open a new issue with your request](https://github.com/lightdash/lightdash/issues/new/choose) 😊
 
 ## Demo
 

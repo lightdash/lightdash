@@ -16,10 +16,10 @@ Our mission is simple: we want to enable everybody in your company to answer the
 2. Demos are fun and all, but to get the full Lightdash experience, we recommend working through our [install guide](get-started/setup-lightdash/install-lightdash.mdx) and hooking it up to your own project 😊
 
 ---
-## See what we have planned in our Product Roadmap
-We’re sharing [our product roadmap](https://lightdash.notion.site/Product-Roadmap-49e980c97bb44aa5a78ee2618851f11f) because we want to give you an idea of where we’ll be in the next 3-6 months. We also want to hear if you think anything is missing.
+## Come join the conversation
+Come check out the latest hot topics in our [GitHub discussions](https://github.com/lightdash/lightdash/discussions). 
 
-You can add suggestions for a feature or functionality by [creating a new issue in our GitHub repo](https://github.com/lightdash/lightdash/issues/new/choose). If we spot something that we think is a new milestone for the near future, we’ll pull it into the product roadmap 👌
+You can also add suggestions for a feature or functionality by [creating a new issue in our GitHub repo](https://github.com/lightdash/lightdash/issues/new/choose). If we spot something that we think is a new milestone for the near future, we’ll pull it into the product roadmap 👌
 
 ---
 ## Reporting bugs and feature requests

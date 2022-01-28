@@ -1,5 +1,5 @@
 ---
-sidebar_position: 7
+sidebar_position: 8
 ---
 
 # Environment variables
@@ -38,4 +38,4 @@ This is a reference to all the SMTP environment variables that can be used to co
 |`EMAIL_SMTP_SENDER_EMAIL` | The email address that sends emails | ✅ | |
 |`EMAIL_SMTP_SENDER_NAME` | The name of the email address that sends emails | | Lightdash |
 
-[1] `EMAIL_SMTP_PASSWORD` or `EMAIL_SMTP_ACCESS_TOKEN` needs to be provided 
+[1] `EMAIL_SMTP_PASSWORD` or `EMAIL_SMTP_ACCESS_TOKEN` needs to be provided
