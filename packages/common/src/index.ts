@@ -1150,7 +1150,7 @@ export interface DbtProjectConfigBase {
 export interface DbtLocalProjectConfig extends DbtProjectConfigBase {
     type: ProjectType.DBT;
     profiles_dir?: string;
-    project_dir: string;
+    project_dir?: string;
     target?: string;
 }
 
