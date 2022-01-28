@@ -17,13 +17,15 @@ import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import {
     CompiledTable,
     Dimension,
-    FieldId,
     fieldId,
+    FieldId,
+    FieldType,
     Metric,
     Source,
 } from 'common';
 import Fuse from 'fuse.js';
 import React, { FC, useCallback, useMemo, useState } from 'react';
+import { useFilters } from '../hooks/useFilters';
 
 type NodeDataProps = {
     fieldId: FieldId;
@@ -118,43 +120,67 @@ const TableButtons: FC<{
 const NodeItemButtons: FC<{
     node: Metric | Dimension;
     onOpenSourceDialog: (source: Source) => void;
-}> = ({ node: { source }, onOpenSourceDialog }) => {
+}> = ({ node, onOpenSourceDialog }) => {
     const [isOpen, setIsOpen] = useState<boolean>();
+    const { isFilteredField, addDefaultFilterForDimension } = useFilters();
+    const isFiltered = isFilteredField(node);
+    const onFilter =
+        node.fieldType === FieldType.DIMENSION
+            ? () => addDefaultFilterForDimension(node)
+            : () => {};
     return (
         <div style={{ display: 'inline-flex', gap: '10px' }}>
-            <Popover2
-                isOpen={isOpen === undefined ? false : isOpen}
-                onInteraction={setIsOpen}
-                content={
-                    <Menu>
-                        <MenuItem
-                            icon={<Icon icon="console" />}
-                            text="Source"
-                            onClick={(e) => {
-                                if (source === undefined) {
-                                    return;
-                                }
-                                e.stopPropagation();
-                                onOpenSourceDialog(source);
-                                setIsOpen(false);
-                            }}
-                        />
-                    </Menu>
-                }
-                position={PopoverPosition.BOTTOM_LEFT}
-                lazy
-            >
-                <Tooltip2 content="View options">
+            {node.fieldType === FieldType.DIMENSION && (
+                <Tooltip2 content="Add filter">
                     <Button
                         minimal
-                        icon="more"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setIsOpen(true);
-                        }}
+                        icon={
+                            <Icon
+                                icon="filter"
+                                color={
+                                    isFiltered ? undefined : Colors.LIGHT_GRAY1
+                                }
+                                onClick={onFilter}
+                            />
+                        }
                     />
                 </Tooltip2>
-            </Popover2>
+            )}
+            {node.source && (
+                <Popover2
+                    isOpen={isOpen === undefined ? false : isOpen}
+                    onInteraction={setIsOpen}
+                    content={
+                        <Menu>
+                            <MenuItem
+                                icon={<Icon icon="console" />}
+                                text="Source"
+                                onClick={(e) => {
+                                    if (node.source === undefined) {
+                                        return;
+                                    }
+                                    e.stopPropagation();
+                                    onOpenSourceDialog(node.source);
+                                    setIsOpen(false);
+                                }}
+                            />
+                        </Menu>
+                    }
+                    position={PopoverPosition.BOTTOM_LEFT}
+                    lazy
+                >
+                    <Tooltip2 content="View options">
+                        <Button
+                            minimal
+                            icon="more"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsOpen(true);
+                            }}
+                        />
+                    </Tooltip2>
+                </Popover2>
+            )}
         </div>
     );
 };
@@ -174,7 +200,7 @@ const renderDimensionTreeNode = (
                 {dimension.label}
             </Tooltip2>
         ),
-        secondaryLabel: dimension.source && (
+        secondaryLabel: (
             <NodeItemButtons
                 node={dimension}
                 onOpenSourceDialog={onOpenSourceDialog}
