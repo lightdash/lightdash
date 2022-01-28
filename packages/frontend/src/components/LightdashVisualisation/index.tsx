@@ -22,13 +22,15 @@ const LightdashVisualisation: FC<Props> = ({
 }) => (
     <>
         {chartType === 'table' ? (
-            <SimpleTable />
+            <SimpleTable data={chartConfig.plotData} isLoading={isLoading} />
         ) : (
             <SimpleChart
                 isLoading={isLoading}
                 tableName={tableName}
                 chartRef={chartRef}
-                chartType={chartType}
+                chartType={
+                    chartType as Exclude<DBChartTypes, DBChartTypes.TABLE>
+                }
                 chartConfig={chartConfig}
             />
         )}

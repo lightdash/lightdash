@@ -1,145 +1,69 @@
 import { Button, Colors, HTMLTable } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
-import { hexToRGB } from 'common';
-import React, { FC, useEffect, useMemo } from 'react';
-import {
-    ColumnInstance,
-    useColumnOrder,
-    usePagination,
-    useTable as useReactTable,
-} from 'react-table';
-import { useColumns } from '../../hooks/useColumns';
-import { useQueryResults } from '../../hooks/useQueryResults';
-import { useExplorer } from '../../providers/ExplorerProvider';
+import { friendlyName } from 'common';
+import React, { FC } from 'react';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
-import { TableInnerWrapper, TableWrapper } from './SimpleTable';
+import { LoadingState } from '../ResultsTable/States';
+import { TableHeader, TableInnerWrapper, TableWrapper } from './SimpleTable';
 
-const ColumnColors = {
-    dimension: hexToRGB(Colors.BLUE1, 0.2),
-    metric: hexToRGB(Colors.ORANGE1, 0.2),
-    table_calculation: hexToRGB(Colors.GREEN1, 0.2),
-};
+interface Props {
+    data: any;
+    isLoading: boolean;
+}
+const SimpleTable: FC<Props> = ({ data, isLoading }) => {
+    if (isLoading && !data) {
+        return <LoadingState />;
+    }
+    const modifiedItem = (item: string | boolean) => {
+        if (typeof item === 'boolean') {
+            return item ? 'Yes' : 'No';
+        }
+        return item;
+    };
 
-const getColumnStyle = (type: ColumnInstance['type']) => ({
-    style: {
-        backgroundColor: ColumnColors[type],
-    },
-});
+    let currentPage = 0;
+    const pageCount = Math.round((data?.length + 1) / 25);
+    const canNextPage = currentPage < pageCount;
+    let paginatedData = data?.slice(0, 25);
 
-const getRowStyle = (rowIndex: number) => ({
-    style: {
-        backgroundColor: rowIndex % 2 ? undefined : Colors.LIGHT_GRAY4,
-    },
-});
+    const paginateNext = () => {
+        currentPage += 1;
+        paginatedData = data?.slice(currentPage * 25, currentPage * 25 + 25);
+    };
 
-const SimpleTable: FC = () => {
-    const dataColumns = useColumns();
-    const queryResults = useQueryResults();
-    const data = useMemo(
-        () => (queryResults.status === 'success' ? queryResults.data.rows : []),
-        [queryResults.status, queryResults.data],
-    );
+    const headerGroup = paginatedData.map((item: {}) => Object.keys(item))[0];
 
-    const {
-        state: { columnOrder: dataColumnOrder },
-    } = useExplorer();
-
-    const {
-        getTableProps,
-        getTableBodyProps,
-        headerGroups,
-        page,
-        prepareRow,
-        setColumnOrder,
-        pageCount,
-        nextPage,
-        canNextPage,
-        previousPage,
-        canPreviousPage,
-        state: { pageIndex },
-    } = useReactTable(
-        {
-            columns: dataColumns,
-            data,
-            initialState: {
-                pageIndex: 0,
-                pageSize: 25,
-                columnOrder: dataColumnOrder,
-            },
-        },
-        usePagination,
-        useColumnOrder,
-    );
-
-    useEffect(() => {
-        setColumnOrder(dataColumnOrder);
-    }, [setColumnOrder, dataColumnOrder]);
+    const tableRows = paginatedData.map((row: {}) => Object.values(row));
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
             <TableWrapper className="cohere-block">
                 <TableInnerWrapper>
-                    <HTMLTable
-                        style={{ width: '100%' }}
-                        bordered
-                        condensed
-                        {...getTableProps()}
-                    >
-                        {headerGroups.map((headerGroup) => (
-                            <colgroup key={`headerGroup_${headerGroup.id}`}>
-                                {headerGroup.headers.map((column) => (
-                                    <col
-                                        {...column.getHeaderProps([
-                                            getColumnStyle(column.type),
-                                        ])}
-                                    />
+                    <HTMLTable style={{ width: '100%' }} bordered condensed>
+                        <TableHeader>
+                            <tr>
+                                {headerGroup.map((header: string) => (
+                                    <th>{friendlyName(header)}</th>
                                 ))}
-                            </colgroup>
-                        ))}
-                        <thead>
-                            {headerGroups.map((headerGroup) => (
-                                <tr {...headerGroup.getHeaderGroupProps()}>
-                                    {headerGroup.headers.map((column) => (
-                                        <th
-                                            {...column.getHeaderProps(
-                                                column.getSortByToggleProps
-                                                    ? [
-                                                          column.getSortByToggleProps(),
-                                                      ]
-                                                    : [],
-                                            )}
-                                        >
-                                            <Tooltip2
-                                                content={column.description}
-                                            >
-                                                <div>
-                                                    {column?.render('Header')}
-                                                </div>
-                                            </Tooltip2>
-                                        </th>
+                            </tr>
+                        </TableHeader>
+
+                        <tbody>
+                            {tableRows.map((row: [], i: number) => (
+                                <tr
+                                    style={{
+                                        backgroundColor: `${
+                                            i % 2
+                                                ? Colors.LIGHT_GRAY5
+                                                : Colors.LIGHT_GRAY4
+                                        }`,
+                                    }}
+                                >
+                                    {row.map((item: string | boolean) => (
+                                        <td>{modifiedItem(item)}</td>
                                     ))}
                                 </tr>
                             ))}
-                        </thead>
-
-                        <tbody {...getTableBodyProps()}>
-                            {page.map((row) => {
-                                prepareRow(row);
-                                return (
-                                    <tr {...row.getRowProps()}>
-                                        {row.cells.map((cell) => (
-                                            <td
-                                                {...cell.getCellProps([
-                                                    getRowStyle(row.index),
-                                                ])}
-                                            >
-                                                {cell.render('Cell')}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                );
-                            })}
                         </tbody>
                     </HTMLTable>
                 </TableInnerWrapper>
@@ -162,22 +86,25 @@ const SimpleTable: FC = () => {
                                 alignItems: 'center',
                             }}
                         >
-                            {canPreviousPage && (
+                            {/* {canPreviousPage && (
                                 <Button
                                     icon="arrow-left"
                                     onClick={previousPage}
                                 />
-                            )}
+                            )} */}
                             <span
                                 style={{
                                     paddingRight: '5px',
                                     paddingLeft: '5px',
                                 }}
                             >
-                                Page {pageIndex + 1} of {pageCount}
+                                Page {currentPage + 1} of {pageCount}
                             </span>
                             {canNextPage && (
-                                <Button icon="arrow-right" onClick={nextPage} />
+                                <Button
+                                    icon="arrow-right"
+                                    onClick={paginateNext}
+                                />
                             )}
                         </div>
                     )}

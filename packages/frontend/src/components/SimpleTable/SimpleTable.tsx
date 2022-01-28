@@ -1,3 +1,4 @@
+import { Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const TableWrapper = styled.div`
@@ -13,4 +14,8 @@ export const TableInnerWrapper = styled.div`
     display: flex;
     max-width: 100%;
     flex-direction: row;
+`;
+
+export const TableHeader = styled.thead`
+    background: ${Colors.GRAY4};
 `;
