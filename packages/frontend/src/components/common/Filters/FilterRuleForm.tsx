@@ -100,7 +100,11 @@ const FilterRuleForm: FC<Props> = ({
             <MenuItem
                 active={modifiers.active}
                 key={getFieldId(field)}
-                text={`${field.tableLabel} ${field.label}`}
+                text={
+                    <span>
+                        {field.tableLabel} <b>{field.label}</b>
+                    </span>
+                }
                 onClick={handleClick}
                 shouldDismissPopover={false}
             />
@@ -108,9 +112,9 @@ const FilterRuleForm: FC<Props> = ({
     };
 
     return (
-        <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
             <FieldSuggest
-                inputProps={{}}
+                inputProps={{ style: { width: 250 } }}
                 items={fields}
                 itemsEqual={(value, other) =>
                     getFieldId(value) === getFieldId(other)
@@ -144,7 +148,6 @@ const FilterRuleForm: FC<Props> = ({
             <HTMLSelect
                 fill={false}
                 style={{ width: 150 }}
-                minimal
                 onChange={(e) =>
                     onChange({
                         ...filterRule,

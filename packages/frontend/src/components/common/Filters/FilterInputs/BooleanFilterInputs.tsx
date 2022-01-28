@@ -10,8 +10,6 @@ const BooleanFilterInputs: FC<FilterInputsProps> = (props) => {
             return (
                 <HTMLSelect
                     fill={false}
-                    minimal
-                    style={{ width: 166 }}
                     onChange={(e) =>
                         onChange({
                             ...filterRule,
