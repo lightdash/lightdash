@@ -393,6 +393,15 @@
       "contributions": [
         "ideas"
       ]
+    },
+    {
+      "login": "pixie79",
+      "name": "Mark Olliver",
+      "avatar_url": "https://avatars.githubusercontent.com/u/534416?v=4",
+      "profile": "https://github.com/pixie79",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
