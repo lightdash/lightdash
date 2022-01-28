@@ -1,8 +1,8 @@
 ---
-sidebar_position: 5
+sidebar_position: 6
 ---
 
-# Syncing your dbt changes
+# Syncing your dbt changes (refresh dbt)
 
 You can easily make changes in dbt and see them updated in your Lightdash project.
 
@@ -16,4 +16,4 @@ After you've launched Lightdash, if you make changes in your YAML file, you can 
 
 ## If you've made any changes to the underlying data, you need to run dbt
 
-If you've made any changes to the underlying data (for example,  adding a new column in your `model.sql` file or changing the SQL logic of an existing dimension),  then you need to run: `dbt run -m yourmodel` before you click `refresh` in Lightdash. 
+If you've made any changes to the underlying data (for example,  adding a new column in your `model.sql` file or changing the SQL logic of an existing dimension),  then you need to run: `dbt run -m yourmodel` before you click `refresh` in Lightdash.
