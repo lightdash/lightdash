@@ -4,6 +4,13 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.11.11] - 2022-01-28
+### Added
+- Added ssl "no-verify" option for postgres and redshift connections (#1253)
+
+### Fixed
+- Fixed deployments with local dbt project (#1258)
+
 ## [0.11.10] - 2022-01-26
 ### Added
 - The column title within the results table now displays a tooltip with the metric/dimension description (#1136)
