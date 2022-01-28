@@ -40,7 +40,6 @@ import { BigButton } from './common/BigButton';
 import EditableHeader from './common/EditableHeader';
 import FiltersForm from './common/Filters';
 import { ExplorerResults } from './Explorer/ExplorerResults';
-import LightdashVisualization from './LightdashVisualization';
 import { RefreshButton } from './RefreshButton';
 import { RefreshServerButton } from './RefreshServerButton';
 import { RenderedSql } from './RenderedSql';
@@ -346,6 +345,24 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                     name="Table"
                                 />
                             </Tooltip2>
+                            <Tooltip2
+                                content="Big number"
+                                placement="top"
+                                interactionKind="hover"
+                            >
+                                <Button
+                                    minimal
+                                    active={
+                                        activeVizTab === DBChartTypes.BIG_NUMBER
+                                    }
+                                    icon="scatter-plot"
+                                    onClick={() =>
+                                        setActiveVizTab(DBChartTypes.BIG_NUMBER)
+                                    }
+                                    disabled={isChartEmpty}
+                                    name="Big Number"
+                                />
+                            </Tooltip2>
                             <ChartConfigPanel
                                 chartConfig={chartConfig}
                                 disabled={isChartEmpty}
@@ -418,16 +435,12 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         </div>
                     )}
                 </div>
+
                 <Collapse className="explorer-chart" isOpen={vizIsOpen}>
-                    <div style={{ height: '300px' }} className="cohere-block">
-                        <LightdashVisualization
-                            isLoading={queryResults.isLoading}
-                            tableName={tableName}
-                            chartRef={chartRef}
-                            chartType={activeVizTab}
-                            chartConfig={chartConfig}
-                        />
-                    </div>
+                    <div
+                        style={{ height: '300px' }}
+                        className="cohere-block"
+                    ></div>
                 </Collapse>
             </Card>
             <div style={{ paddingTop: '10px' }} />

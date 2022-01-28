@@ -1,13 +1,13 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
+import { NonIdealState,Spinner } from '@blueprintjs/core';
 import {
-    DBChartTypes,
-    DimensionType,
-    findFieldByIdInExplore,
-    friendlyName,
-    getFieldLabel,
+DBChartTypes,
+DimensionType,
+findFieldByIdInExplore,
+friendlyName,
+getFieldLabel
 } from 'common';
 import EChartsReact from 'echarts-for-react';
-import React, { FC, RefObject, useEffect } from 'react';
+import React,{ FC,RefObject,useEffect } from 'react';
 import { ChartConfig } from '../../hooks/useChartConfig';
 import { useExplore } from '../../hooks/useExplore';
 
@@ -18,6 +18,7 @@ const flipXFromChartType = (
         case DBChartTypes.COLUMN:
         case DBChartTypes.LINE:
         case DBChartTypes.SCATTER:
+        case DBChartTypes.BIG_NUMBER:
             return false;
         case DBChartTypes.BAR:
             return true;
@@ -37,6 +38,8 @@ const echartType = (chartType: Exclude<DBChartTypes, DBChartTypes.TABLE>) => {
             return 'bar';
         case DBChartTypes.SCATTER:
             return 'scatter';
+        case DBChartTypes.BIG_NUMBER:
+            return 'big_number';
         default: {
             const nope: never = chartType;
             return undefined;
