@@ -13,6 +13,10 @@ const getSSLConfigFromMode = (mode: string): PoolConfig['ssl'] => {
     switch (mode) {
         case 'disable':
             return false;
+        case 'no-verify':
+            return {
+                rejectUnauthorized: false,
+            };
         case 'allow':
         case 'prefer':
         case 'require':
