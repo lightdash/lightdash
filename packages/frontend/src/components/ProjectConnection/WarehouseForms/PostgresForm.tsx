@@ -114,6 +114,7 @@ const PostgresForm: FC<{
                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#ssl-mode"
                     options={[
                         'disable',
+                        'no-verify',
                         'allow',
                         'prefer',
                         'require',

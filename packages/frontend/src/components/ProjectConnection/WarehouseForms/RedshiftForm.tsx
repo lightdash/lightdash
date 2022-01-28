@@ -108,6 +108,7 @@ const RedshiftForm: FC<{
                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#ssl-mode-1"
                     options={[
                         'disable',
+                        'no-verify',
                         'allow',
                         'prefer',
                         'require',
