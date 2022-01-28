@@ -1,6 +1,7 @@
 import {
     ApiQueryResults,
     ApiSqlQueryResults,
+    countTotalFilterRules,
     CreateProject,
     Explore,
     ExploreError,
@@ -235,7 +236,7 @@ export class ProjectService {
                 hasExampleMetric,
                 dimensionsCount: metricQuery.dimensions.length,
                 metricsCount: metricQuery.metrics.length,
-                filtersCount: metricQuery.filters.length,
+                filtersCount: countTotalFilterRules(metricQuery.filters),
                 sortsCount: metricQuery.sorts.length,
                 tableCalculationsCount: metricQuery.tableCalculations.length,
             },

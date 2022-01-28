@@ -1,4 +1,4 @@
-import { FieldId, FilterGroup, SortField, TableCalculation } from 'common';
+import { FieldId, MetricQuery, SortField, TableCalculation } from 'common';
 import React, {
     createContext,
     FC,
@@ -47,7 +47,7 @@ type Action =
       }
     | {
           type: ActionType.SET_FILTERS;
-          payload: FilterGroup[];
+          payload: MetricQuery['filters'];
       }
     | {
           type: ActionType.ADD_TABLE_CALCULATION;
@@ -75,7 +75,7 @@ interface ExplorerReduceState {
     selectedTableCalculations: FieldId[];
     dimensions: FieldId[];
     metrics: FieldId[];
-    filters: FilterGroup[];
+    filters: MetricQuery['filters'];
     sorts: SortField[];
     sorting: boolean;
     columnOrder: string[];
@@ -100,7 +100,7 @@ interface ExplorerContext {
         toggleSortField: (fieldId: FieldId) => void;
         setSortFields: (sortFields: SortField[]) => void;
         setRowLimit: (limit: number) => void;
-        setFilters: (filters: FilterGroup[]) => void;
+        setFilters: (filters: MetricQuery['filters']) => void;
         setColumnOrder: (order: string[]) => void;
         addTableCalculation: (tableCalculation: TableCalculation) => void;
         updateTableCalculation: (
@@ -129,7 +129,7 @@ const defaultState: ExplorerReduceState = {
     tableName: undefined,
     dimensions: [],
     metrics: [],
-    filters: [],
+    filters: {},
     sorts: [],
     sorting: false,
     columnOrder: [],
@@ -150,6 +150,7 @@ const calcColumnOrder = (
     );
     return [...cleanColumnOrder, ...missingColumns];
 };
+
 function pristineReducer(
     state: ExplorerReduceState,
     action: Action,
@@ -481,7 +482,7 @@ export const ExplorerProvider: FC = ({ children }) => {
         });
     }, []);
 
-    const setFilters = useCallback((filters: FilterGroup[]) => {
+    const setFilters = useCallback((filters: MetricQuery['filters']) => {
         dispatch({
             type: ActionType.SET_FILTERS,
             payload: filters,

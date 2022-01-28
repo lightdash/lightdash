@@ -16,7 +16,7 @@ export async function seed(knex: Knex): Promise<void> {
                 'payments_total_revenue',
                 'payments_unique_payment_count',
             ],
-            filters: [],
+            filters: {},
             sorts: [
                 {
                     fieldId: 'payments_total_revenue',
@@ -45,7 +45,7 @@ export async function seed(knex: Knex): Promise<void> {
         metricQuery: {
             dimensions: ['customers_customer_id'],
             metrics: ['orders_avg_amount'],
-            filters: [],
+            filters: {},
             limit: 500,
             sorts: [{ fieldId: 'orders_avg_amount', descending: true }],
             tableCalculations: [],
@@ -68,7 +68,7 @@ export async function seed(knex: Knex): Promise<void> {
         metricQuery: {
             dimensions: ['orders_order_date'],
             metrics: ['orders_unique_order_count'],
-            filters: [],
+            filters: {},
             limit: 500,
             sorts: [
                 {

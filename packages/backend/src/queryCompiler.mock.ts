@@ -12,7 +12,7 @@ export const EXPLORE: Pick<Explore, 'targetDatabase'> = {
 export const METRIC_QUERY_NO_CALCS: MetricQuery = {
     dimensions: ['table1_dim_1', 'table_2_dim_2'],
     metrics: ['table_3_metric_1', 'table55_metric__23_1'],
-    filters: [],
+    filters: {},
     sorts: [],
     limit: 500,
     tableCalculations: [],

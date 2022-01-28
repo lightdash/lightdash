@@ -1,8 +1,10 @@
 import moment from 'moment';
+import { Filters } from './types/filter';
 import { OrganizationMemberProfile } from './types/organizationMemberProfile';
 import { LightdashUser } from './types/user';
 
 export * from './authorization/organizationMemberAbility';
+export * from './types/filter';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
 export * from './types/user';
@@ -334,7 +336,7 @@ export type CompiledTableCalculation = TableCalculation & {
 export type MetricQuery = {
     dimensions: FieldId[]; // Dimensions to group by in the explore
     metrics: FieldId[]; // Metrics to compute in the explore
-    filters: FilterGroup[]; // Filters applied to the table to query (logical AND)
+    filters: Filters;
     sorts: SortField[]; // Sorts for the data
     limit: number; // Max number of rows to return from query
     tableCalculations: TableCalculation[]; // calculations to append to results
@@ -354,82 +356,6 @@ export enum FilterGroupOperator {
     and = 'and',
     or = 'or',
 }
-
-// Filter groups combine multiple filters for a single dimension or metric
-// The filters in a filter group can be combined with AND/OR
-// Filters vary depending on the dimension type
-
-export interface IFilter {
-    tableName: string;
-    fieldName: string;
-    operator: FilterGroupOperator;
-}
-
-export interface StringFilterGroup extends IFilter {
-    type: 'string';
-    filters: StringFilter[];
-}
-
-export interface NumberFilterGroup extends IFilter {
-    type: 'number';
-    filters: NumberFilter[];
-}
-
-export interface DateFilterGroup extends IFilter {
-    type: 'date';
-    filters: DateAndTimestampFilter[];
-}
-
-export interface TimestampFilterGroup extends IFilter {
-    type: 'timestamp';
-    filters: DateAndTimestampFilter[];
-}
-
-export interface BooleanFilterGroup extends IFilter {
-    type: 'boolean';
-    filters: BooleanFilter[];
-}
-
-export type StringFilter =
-    | { operator: 'equals'; values: string[]; id?: string }
-    | { operator: 'notEquals'; values: string[]; id?: string }
-    | { operator: 'startsWith'; value: string; id?: string }
-    | { operator: 'doesNotInclude'; value: string; id?: string }
-    | { operator: 'isNull'; id?: string }
-    | { operator: 'notNull'; id?: string };
-
-export type NumberFilter =
-    | { operator: 'equals'; values: number[]; id?: string }
-    | { operator: 'notEquals'; values: number[]; id?: string }
-    | { operator: 'greaterThan'; value: number; id?: string }
-    | { operator: 'lessThan'; value: number; id?: string }
-    | { operator: 'isNull'; id?: string }
-    | { operator: 'notNull'; id?: string };
-
-export type BooleanFilter =
-    | { operator: 'equals'; value?: boolean; id?: string }
-    | { operator: 'isNull'; id?: string }
-    | { operator: 'notNull'; id?: string };
-
-export type DateAndTimestampFilter =
-    | { operator: 'equals'; value: Date; id?: string }
-    | { operator: 'notEquals'; value: Date; id?: string }
-    | { operator: 'greaterThan'; value: Date; id?: string }
-    | { operator: 'greaterThanOrEqual'; value: Date; id?: string }
-    | { operator: 'lessThan'; value: Date; id?: string }
-    | { operator: 'lessThanOrEqual'; value: Date; id?: string }
-    | { operator: 'isNull'; id?: string }
-    | { operator: 'notNull'; id?: string };
-
-export type FilterGroup =
-    | StringFilterGroup
-    | NumberFilterGroup
-    | TimestampFilterGroup
-    | DateFilterGroup
-    | BooleanFilterGroup;
-
-export const fieldIdFromFilterGroup = (fg: FilterGroup) =>
-    `${fg.tableName}_${fg.fieldName}`;
 
 export interface FilterableDimension extends Dimension {
     type:
@@ -480,6 +406,7 @@ export enum SupportedDbtAdapter {
     REDSHIFT = 'redshift',
     POSTGRES = 'postgres',
 }
+
 export type DbtNode = {
     unique_id: string;
     resource_type: string;
@@ -741,6 +668,7 @@ export enum LightdashMode {
     PR = 'pr',
     CLOUD_BETA = 'cloud_beta',
 }
+
 export const isLightdashMode = (x: string): x is LightdashMode =>
     Object.values<string>(LightdashMode).includes(x);
 
@@ -888,6 +816,7 @@ export interface DbtRawManifestMetadata {
 export interface DbtManifestMetadata extends DbtRawManifestMetadata {
     adapter_type: SupportedDbtAdapter;
 }
+
 const isDbtRawManifestMetadata = (x: any): x is DbtRawManifestMetadata =>
     typeof x === 'object' &&
     x !== null &&
@@ -904,6 +833,7 @@ export const isSupportedDbtAdapter = (
 export interface DbtRpcGetManifestResults {
     manifest: DbtManifest;
 }
+
 export const isDbtRpcManifestResults = (
     results: Record<string, any>,
 ): results is DbtRpcGetManifestResults =>
@@ -918,6 +848,7 @@ export const isDbtRpcManifestResults = (
 export interface DbtRpcCompileResults {
     results: { node: DbtNode }[];
 }
+
 export const isDbtRpcCompileResults = (
     results: Record<string, any>,
 ): results is DbtRpcCompileResults =>
@@ -939,6 +870,7 @@ export interface DbtRpcRunSqlResults {
         table: { column_names: string[]; rows: any[][] };
     }[];
 }
+
 export const isDbtRpcRunSqlResults = (
     results: Record<string, any>,
 ): results is DbtRpcRunSqlResults =>

@@ -12,6 +12,7 @@ import {
 } from '@blueprintjs/core';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import {
+    countTotalFilterRules,
     CreateSavedQueryVersion,
     DashboardTileTypes,
     DBChartTypes,
@@ -20,7 +21,6 @@ import EChartsReact from 'echarts-for-react';
 import React, { FC, useEffect, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
-import FiltersForm from '../filters';
 import { useChartConfig } from '../hooks/useChartConfig';
 import { useQueryResults } from '../hooks/useQueryResults';
 import {
@@ -35,6 +35,7 @@ import { ChartConfigPanel } from './ChartConfigPanel';
 import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
 import EditableHeader from './common/EditableHeader';
+import FiltersForm from './common/Filters';
 import { ExplorerResults } from './Explorer/ExplorerResults';
 import { RefreshButton } from './RefreshButton';
 import { RefreshServerButton } from './RefreshServerButton';
@@ -90,9 +91,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [vizIsOpen, setVizisOpen] = useState<boolean>(
         !!savedQueryUuid && !location.state?.fromExplorer,
     );
-    const totalActiveFilters = filters
-        .flatMap((filterGroup) => filterGroup.filters.length)
-        .reduce((p, t) => p + t, 0);
+    const totalActiveFilters: number = countTotalFilterRules(filters);
     const [activeVizTab, setActiveVizTab] = useState<DBChartTypes>(
         DBChartTypes.COLUMN,
     );
