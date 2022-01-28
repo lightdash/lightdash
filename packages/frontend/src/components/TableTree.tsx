@@ -24,7 +24,7 @@ import {
     Source,
 } from 'common';
 import Fuse from 'fuse.js';
-import React, { FC, useCallback, useMemo, useState } from 'react';
+import React, { FC, ReactNode, useCallback, useMemo, useState } from 'react';
 import { useFilters } from '../hooks/useFilters';
 
 type NodeDataProps = {
@@ -120,7 +120,8 @@ const TableButtons: FC<{
 const NodeItemButtons: FC<{
     node: Metric | Dimension;
     onOpenSourceDialog: (source: Source) => void;
-}> = ({ node, onOpenSourceDialog }) => {
+    isHovered: boolean;
+}> = ({ node, onOpenSourceDialog, isHovered }) => {
     const [isOpen, setIsOpen] = useState<boolean>();
     const { isFilteredField, addDefaultFilterForDimension } = useFilters();
     const isFiltered = isFilteredField(node);
@@ -128,44 +129,50 @@ const NodeItemButtons: FC<{
         node.fieldType === FieldType.DIMENSION
             ? () => addDefaultFilterForDimension(node)
             : () => {};
+
+    const menuItems: ReactNode[] = [];
+    if (node.source) {
+        menuItems.push(
+            <MenuItem
+                key="source"
+                icon={<Icon icon="console" />}
+                text="Source"
+                onClick={(e) => {
+                    if (node.source === undefined) {
+                        return;
+                    }
+                    e.stopPropagation();
+                    onOpenSourceDialog(node.source);
+                    setIsOpen(false);
+                }}
+            />,
+        );
+    }
+    if (node.fieldType === FieldType.DIMENSION) {
+        menuItems.push(
+            <MenuItem
+                key="filter"
+                icon="filter"
+                text="Add filter"
+                onClick={onFilter}
+            />,
+        );
+    }
     return (
-        <div style={{ display: 'inline-flex', gap: '10px' }}>
-            {node.fieldType === FieldType.DIMENSION && (
-                <Tooltip2 content="Add filter">
-                    <Button
-                        minimal
-                        icon={
-                            <Icon
-                                icon="filter"
-                                color={
-                                    isFiltered ? undefined : Colors.LIGHT_GRAY1
-                                }
-                                onClick={onFilter}
-                            />
-                        }
-                    />
-                </Tooltip2>
-            )}
-            {node.source && (
+        <div
+            style={{
+                display: 'inline-flex',
+                gap: '10px',
+                alignItems: 'center',
+                height: '30px',
+            }}
+        >
+            {isFiltered && <Icon icon="filter" />}
+            {menuItems && isHovered ? (
                 <Popover2
                     isOpen={isOpen === undefined ? false : isOpen}
                     onInteraction={setIsOpen}
-                    content={
-                        <Menu>
-                            <MenuItem
-                                icon={<Icon icon="console" />}
-                                text="Source"
-                                onClick={(e) => {
-                                    if (node.source === undefined) {
-                                        return;
-                                    }
-                                    e.stopPropagation();
-                                    onOpenSourceDialog(node.source);
-                                    setIsOpen(false);
-                                }}
-                            />
-                        </Menu>
-                    }
+                    content={<Menu>{menuItems}</Menu>}
                     position={PopoverPosition.BOTTOM_LEFT}
                     lazy
                 >
@@ -180,6 +187,8 @@ const NodeItemButtons: FC<{
                         />
                     </Tooltip2>
                 </Popover2>
+            ) : (
+                <div style={{ width: '30px' }} />
             )}
         </div>
     );
@@ -192,6 +201,7 @@ const renderDimensionTreeNode = (
     expandedNodes: Array<string | number>,
     selectedNodes: Set<string>,
     onOpenSourceDialog: (source: Source) => void,
+    hoveredFieldId: string,
 ): TreeNodeInfo<NodeDataProps> => {
     const baseNode = {
         id: dimension.name,
@@ -204,6 +214,7 @@ const renderDimensionTreeNode = (
             <NodeItemButtons
                 node={dimension}
                 onOpenSourceDialog={onOpenSourceDialog}
+                isHovered={hoveredFieldId === fieldId(dimension)}
             />
         ),
     };
@@ -223,6 +234,7 @@ const renderDimensionTreeNode = (
                     expandedNodes,
                     selectedNodes,
                     onOpenSourceDialog,
+                    hoveredFieldId,
                 ),
             ),
         };
@@ -245,6 +257,7 @@ const TableTree: FC<TableTreeProps> = ({
     onSelectedNodeChange,
     onOpenSourceDialog,
 }) => {
+    const [hoveredFieldId, setHoveredFieldId] = useState<string>('');
     const [expandedNodes, setExpandedNodes] = useState<Array<string | number>>([
         table.name,
     ]);
@@ -357,6 +370,7 @@ const TableTree: FC<TableTreeProps> = ({
                           <NodeItemButtons
                               node={metric}
                               onOpenSourceDialog={onOpenSourceDialog}
+                              isHovered={hoveredFieldId === fieldId(metric)}
                           />
                       ),
                   })),
@@ -386,6 +400,7 @@ const TableTree: FC<TableTreeProps> = ({
                     expandedNodes,
                     selectedNodes,
                     onOpenSourceDialog,
+                    hoveredFieldId,
                 ),
             ),
     };
@@ -418,6 +433,20 @@ const TableTree: FC<TableTreeProps> = ({
         [onSelectedNodeChange],
     );
 
+    const onNodeMouseEnter: TreeEventHandler<NodeDataProps> = useCallback(
+        (node, nodePath) => {
+            if (nodePath.length > 1 && node.nodeData) {
+                setHoveredFieldId(node.nodeData.fieldId);
+            }
+        },
+        [setHoveredFieldId],
+    );
+
+    const onNodeMouseLeave: TreeEventHandler<NodeDataProps> = useCallback(
+        () => setHoveredFieldId(''),
+        [setHoveredFieldId],
+    );
+
     return (
         <Tree
             contents={contents}
@@ -430,6 +459,8 @@ const TableTree: FC<TableTreeProps> = ({
                 setExpandedNodes((prevState) => [...prevState, node.id]);
             }}
             onNodeClick={handleNodeClick}
+            onNodeMouseEnter={onNodeMouseEnter}
+            onNodeMouseLeave={onNodeMouseLeave}
         />
     );
 };
