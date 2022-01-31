@@ -166,7 +166,11 @@ const NodeItemButtons: FC<{
                 width: '56px',
             }}
         >
-            {isFiltered && <Icon icon="filter" />}
+            {isFiltered ? (
+                <Icon icon="filter" />
+            ) : (
+                <div style={{ width: '16px' }} />
+            )}
             {menuItems && isHovered ? (
                 <Popover2
                     content={<Menu>{menuItems}</Menu>}
