@@ -10,7 +10,7 @@ import { useParams } from 'react-router-dom';
 import { useChartConfig } from '../../hooks/useChartConfig';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
-import LightdashVisualisation from '../LightdashVisualisation';
+import LightdashVisualization from '../LightdashVisualization';
 import TileBase from './TileBase';
 
 const ValidDashboardChartTile: FC<{ data: SavedQuery }> = ({ data }) => {
@@ -33,13 +33,11 @@ const ValidDashboardChartTile: FC<{ data: SavedQuery }> = ({ data }) => {
     }, [data]);
 
     return (
-        <LightdashVisualisation
+        <LightdashVisualization
             isLoading={queryResults.isLoading}
             tableName={data.tableName}
             chartRef={chartRef}
-            chartType={
-                activeVizTab as Exclude<DBChartTypes, DBChartTypes.TABLE>
-            }
+            chartType={activeVizTab}
             chartConfig={chartConfig}
         />
     );

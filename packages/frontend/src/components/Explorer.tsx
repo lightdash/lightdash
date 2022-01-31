@@ -36,7 +36,7 @@ import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
 import EditableHeader from './common/EditableHeader';
 import { ExplorerResults } from './Explorer/ExplorerResults';
-import LightdashVisualisation from './LightdashVisualisation';
+import LightdashVisualization from './LightdashVisualization';
 import { RefreshButton } from './RefreshButton';
 import { RefreshServerButton } from './RefreshServerButton';
 import { RenderedSql } from './RenderedSql';
@@ -406,7 +406,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                 </div>
                 <Collapse className="explorer-chart" isOpen={vizIsOpen}>
                     <div style={{ height: '300px' }} className="cohere-block">
-                        <LightdashVisualisation
+                        <LightdashVisualization
                             isLoading={queryResults.isLoading}
                             tableName={tableName}
                             chartRef={chartRef}

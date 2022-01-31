@@ -14,14 +14,14 @@ interface Props {
     chartConfig: ChartConfig;
 }
 
-const LightdashVisualisation: FC<Props> = ({
+const LightdashVisualization: FC<Props> = ({
     isLoading,
     tableName,
     chartRef,
     chartType,
     chartConfig,
 }) => {
-    if (isLoading) {
+    if (isLoading || !chartConfig.plotData) {
         return <LoadingState />;
     }
     return (
@@ -43,4 +43,4 @@ const LightdashVisualisation: FC<Props> = ({
     );
 };
 
-export default LightdashVisualisation;
+export default LightdashVisualization;
