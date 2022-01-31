@@ -366,7 +366,7 @@ export interface FilterableDimension extends Dimension {
         | DimensionType.BOOLEAN;
 }
 
-const isFilterableDimension = (
+export const isFilterableDimension = (
     dimension: Dimension,
 ): dimension is FilterableDimension =>
     [
