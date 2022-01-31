@@ -163,7 +163,7 @@ const NodeItemButtons: FC<{
                 gap: '10px',
                 alignItems: 'center',
                 height: '30px',
-                width: '56px',
+                width: '60px',
             }}
         >
             {isFiltered ? (
@@ -195,7 +195,7 @@ const NodeItemButtons: FC<{
                     )}
                 />
             ) : (
-                <div style={{ width: '30px' }} />
+                <div style={{ width: '34px' }} />
             )}
         </div>
     );
