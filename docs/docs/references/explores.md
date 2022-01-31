@@ -50,8 +50,9 @@ Here are all of the properties you can customize:
 | [joins](joins.md)       | string                |  Join logic to join other data models to the Explore. [Read more about joins in here.](joins.md)|
 
 
-### If you've added a new dbt model to your project, you need to do `dbt run` + `dbt refresh`
-before it before it will appear in Lightdash. Lightdash gets information about your data models from dbt.
+### If you've added a new dbt model to your project, you need to do `dbt run` + `dbt refresh` before it before it will appear in Lightdash. 
+
+Lightdash gets information about your data models from dbt.
 But it gets information about the data **_generated_** by those data models from your data warehouse.
 
 This means that if you add a new dbt model to your project or update a model so that you're making changes
