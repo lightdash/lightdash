@@ -152,7 +152,10 @@ const NodeItemButtons: FC<{
                 key="filter"
                 icon="filter"
                 text="Add filter"
-                onClick={onFilter}
+                onClick={(e) => {
+                    onFilter();
+                    e.stopPropagation();
+                }}
             />,
         );
     }
