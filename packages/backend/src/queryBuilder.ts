@@ -25,15 +25,15 @@ const renderStringFilterSql = (
         case FilterOperator.EQUALS:
             return filter.values?.length === 0
                 ? 'false'
-                : `(${dimensionSql}) IN (${
-                      filter.values || [].map((v) => `'${v}'`).join(',')
-                  })`;
+                : `(${dimensionSql}) IN (${(filter.values || [])
+                      .map((v) => `'${v}'`)
+                      .join(',')})`;
         case FilterOperator.NOT_EQUALS:
             return filter.values?.length === 0
                 ? 'true'
-                : `(${dimensionSql}) NOT IN (${
-                      filter.values || [].map((v) => `'${v}'`).join(',')
-                  })`;
+                : `(${dimensionSql}) NOT IN (${(filter.values || [])
+                      .map((v) => `'${v}'`)
+                      .join(',')})`;
         case FilterOperator.NOT_INCLUDE:
             return `(${dimensionSql}) NOT LIKE '%${filter.values?.[0]}%'`;
         case FilterOperator.NULL:
