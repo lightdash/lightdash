@@ -1,38 +1,27 @@
-import React from 'react';
-import { ArrowDownOutlined,ArrowUpOutlined } from '@ant-design/icons';
-import { Card,Col,Row,Statistic } from 'antd';
-const SimpleStatistic = () => 
-     (
-        <div className="site-statistic-demo-card">
-            <Row gutter={16}>
-                <Col span={12}>
-                    <Card>
-                        <Statistic
-                            title="Active"
-                            value={11.28}
-                            precision={2}
-                            valueStyle={{ color: '#3f8600' }}
-                            prefix={<ArrowUpOutlined />}
-                            suffix="%"
-                        />
-                    </Card>
-                </Col>
-                <Col span={12}>
+import React, { FC } from 'react';
+import {
+    BigNumber,
+    BigNumberContainer,
+    BigNumberLabel,
+    SimpleStatisticsWrapper,
+} from './SimpleStatistics';
 
-                    <Card>
-                        <Statistic
-                            title="Idle"
-                            value={9.3}
-                            precision={2}
-                            valueStyle={{ color: '#cf1322' }}
-                            prefix={<ArrowDownOutlined />}
-                            suffix="%"
-                        />
-                    </Card>
-                </Col>
-            </Row>
-        </div>
+interface Props {
+    data: any;
+}
+
+const SimpleStatistic: FC<Props> = ({ data }) => {
+    const getBigNumber = data;
+    console.log(getBigNumber);
+
+    return (
+        <SimpleStatisticsWrapper>
+            <BigNumberContainer>
+                <BigNumberLabel>Unique order count</BigNumberLabel>
+                <BigNumber>{6.18}</BigNumber>
+            </BigNumberContainer>
+        </SimpleStatisticsWrapper>
     );
-
+};
 
 export default SimpleStatistic;

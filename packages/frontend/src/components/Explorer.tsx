@@ -355,7 +355,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                     active={
                                         activeVizTab === DBChartTypes.BIG_NUMBER
                                     }
-                                    icon="scatter-plot"
+                                    icon="numerical"
                                     onClick={() =>
                                         setActiveVizTab(DBChartTypes.BIG_NUMBER)
                                     }

@@ -2,6 +2,7 @@ import { DBChartTypes } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject } from 'react';
 import { ChartConfig } from '../../hooks/useChartConfig';
+import { LoadingState } from '../ResultsTable/States';
 import SimpleChart from '../SimpleChart';
 import SimpleStatistic from '../SimpleStatistic';
 
@@ -19,20 +20,25 @@ const LightdashVisualisation: FC<Props> = ({
     chartRef,
     chartType,
     chartConfig,
-}) => (
-    <>
-        {chartType === 'big_number' ? (
-            <SimpleStatistic />
-        ) : (
-            <SimpleChart
-                isLoading={isLoading}
-                tableName={tableName}
-                chartRef={chartRef}
-                chartType={chartType}
-                chartConfig={chartConfig}
-            />
-        )}
-    </>
-);
+}) => {
+    if (isLoading) {
+        return <LoadingState />;
+    }
+    return (
+        <>
+            {chartType === 'big_number' ? (
+                <SimpleStatistic data={chartConfig.plotData} />
+            ) : (
+                <SimpleChart
+                    isLoading={isLoading}
+                    tableName={tableName}
+                    chartRef={chartRef}
+                    chartType={chartType}
+                    chartConfig={chartConfig}
+                />
+            )}
+        </>
+    );
+};
 
 export default LightdashVisualisation;
