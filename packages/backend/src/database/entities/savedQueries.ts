@@ -3,7 +3,6 @@ import {
     CreateSavedQueryVersion,
     DBChartTypes,
     DBFieldTypes,
-    example,
     SavedQuery,
     SortField,
     UpdateSavedQuery,
@@ -204,7 +203,7 @@ export const getSavedQueryByUuid = async (
         metricQuery: {
             dimensions,
             metrics,
-            filters: { dimensions: { id: 'root', and: [example] } },
+            filters: savedQuery.filters,
             sorts: sorts.map<SortField>((sort) => ({
                 fieldId: sort.field_name,
                 descending: sort.descending,

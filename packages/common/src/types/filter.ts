@@ -88,18 +88,3 @@ export const getTotalFilterRules = (filters: Filters): FilterRule[] => {
 
 export const countTotalFilterRules = (filters: Filters): number =>
     getTotalFilterRules(filters).length;
-
-export const example: FilterGroup = {
-    id: '1',
-    and: [
-        {
-            id: '2',
-            target: {
-                fieldId: 'customers_customer_id',
-            },
-            operator: FilterOperator.EQUALS,
-            settings: undefined,
-            values: ['some'],
-        },
-    ],
-};
