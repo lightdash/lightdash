@@ -13,13 +13,6 @@ import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { RefObject, useCallback, useState } from 'react';
 import { CSVLink } from 'react-csv';
-import {
-    useColumnOrder,
-    usePagination,
-    useTable as useReactTable,
-} from 'react-table';
-import { useColumns } from '../hooks/useColumns';
-import { useQueryResults } from '../hooks/useQueryResults';
 import { useExplorer } from '../providers/ExplorerProvider';
 
 const FILE_NAME = 'lightdash_chart';
@@ -36,6 +29,7 @@ type ChartDownloadMenuProps = {
     chartRef: RefObject<EChartsReact>;
     disabled: boolean;
     chartType: DBChartTypes;
+    chartData: Record<string, any>;
 };
 
 async function base64SvgToBase64Image(
@@ -114,35 +108,19 @@ function downloadPdf(base64: string, width: number, height: number) {
 type DownloadOptions = {
     chartRef: RefObject<EChartsReact>;
     chartType: DBChartTypes;
+    tableData: Record<string, any>;
 };
 export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     chartRef,
     chartType,
+    tableData,
 }) => {
     const [type, setType] = useState<DownloadType>(DownloadType.JPEG);
-    const dataColumns = useColumns();
-    const queryResults = useQueryResults();
-    const safeData = React.useMemo(
-        () => (queryResults.status === 'success' ? queryResults.data.rows : []),
-        [queryResults.status, queryResults.data],
-    );
+
     const {
-        state: { tableName: activeTableName, columnOrder: explorerColumnOrder },
+        state: { tableName: activeTableName },
     } = useExplorer();
 
-    const { rows } = useReactTable(
-        {
-            columns: dataColumns,
-            data: safeData,
-            initialState: {
-                pageIndex: 0,
-                pageSize: 25,
-                columnOrder: explorerColumnOrder,
-            },
-        },
-        usePagination,
-        useColumnOrder,
-    );
     const isTable = chartType === DBChartTypes.TABLE;
     const onDownload = useCallback(async () => {
         const echartsInstance = chartRef.current?.getEchartsInstance();
@@ -203,7 +181,7 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                         role="button"
                         tabIndex={0}
                         className="bp3-button"
-                        data={rows.map((row) => row.values)}
+                        data={tableData.map((row: {}) => row)}
                         filename={`lightdash-${
                             activeTableName || 'export'
                         }-${new Date().toISOString().slice(0, 10)}.csv`}
@@ -246,6 +224,7 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = ({
     chartRef,
     disabled,
     chartType,
+    chartData,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     return (
@@ -254,6 +233,7 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = ({
                 <ChartDownloadOptions
                     chartRef={chartRef}
                     chartType={chartType}
+                    tableData={chartData}
                 />
             }
             popoverClassName={Classes.POPOVER2_CONTENT_SIZING}

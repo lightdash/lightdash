@@ -340,11 +340,14 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                 disabled={isChartEmpty}
                             />
 
-                            <ChartDownloadMenu
-                                chartRef={chartRef}
-                                disabled={isChartEmpty}
-                                chartType={activeVizTab}
-                            />
+                            {chartConfig.plotData && (
+                                <ChartDownloadMenu
+                                    chartRef={chartRef}
+                                    disabled={isChartEmpty}
+                                    chartType={activeVizTab}
+                                    chartData={chartConfig.plotData}
+                                />
+                            )}
 
                             <ButtonGroup>
                                 <Button
