@@ -34,12 +34,14 @@ const DateFilterInputs: FC<FilterInputsProps> = (props) => {
                     formatDate={isTimestamp ? formatTimestamp : formatDate}
                     parseDate={isTimestamp ? parseTimestamp : parseDate}
                     defaultValue={new Date()}
-                    onChange={(value) =>
-                        onChange({
-                            ...filterRule,
-                            values: [value],
-                        })
-                    }
+                    onChange={(value: Date | null) => {
+                        if (value) {
+                            onChange({
+                                ...filterRule,
+                                values: [value],
+                            });
+                        }
+                    }}
                 />
             );
         default: {
