@@ -1,5 +1,3 @@
-/* Base types */
-
 export enum FilterOperator {
     NULL = 'isNull',
     NOT_NULL = 'notNull',
@@ -13,28 +11,7 @@ export enum FilterOperator {
     GREATER_THAN_OR_EQUAL = 'greaterThanOrEqual',
 }
 
-const filterOperatorLabel: Record<FilterOperator, string> = {
-    [FilterOperator.NULL]: 'is null',
-    [FilterOperator.NOT_NULL]: 'is not null',
-    [FilterOperator.EQUALS]: 'is equal to',
-    [FilterOperator.NOT_EQUALS]: 'is not equal to',
-    [FilterOperator.STARTS_WITH]: 'starts with',
-    [FilterOperator.NOT_INCLUDE]: 'does not include',
-    [FilterOperator.LESS_THAN]: 'is less than',
-    [FilterOperator.LESS_THAN_OR_EQUAL]: 'is less than or equal',
-    [FilterOperator.GREATER_THAN]: 'is greater than',
-    [FilterOperator.GREATER_THAN_OR_EQUAL]: 'is greater than or equal',
-};
-
-export const getFilterOptions = <T extends FilterOperator>(
-    operators: Array<T>,
-): Array<{ value: T; label: string }> =>
-    operators.map((operator) => ({
-        value: operator,
-        label: filterOperatorLabel[operator],
-    }));
-
-type FilterRuleBase<
+export type FilterRule<
     O = FilterOperator,
     V = any,
     S extends object | undefined = undefined,
@@ -47,71 +24,6 @@ type FilterRuleBase<
     settings?: S;
     values?: V[];
 };
-
-type FilterRuleWithValuesBase<
-    O = FilterOperator,
-    V = any,
-    S extends object | undefined = undefined,
-> = FilterRuleBase<O, S> & {
-    values?: V[];
-};
-
-/* Specific filter types */
-
-export const stringFilterOptions = getFilterOptions([
-    FilterOperator.NULL,
-    FilterOperator.NOT_NULL,
-    FilterOperator.EQUALS,
-    FilterOperator.NOT_EQUALS,
-    FilterOperator.STARTS_WITH,
-    FilterOperator.NOT_INCLUDE,
-]);
-
-export const numberFilterOptions = getFilterOptions([
-    FilterOperator.NULL,
-    FilterOperator.NOT_NULL,
-    FilterOperator.EQUALS,
-    FilterOperator.NOT_EQUALS,
-    FilterOperator.LESS_THAN,
-    FilterOperator.GREATER_THAN,
-]);
-
-export const booleanFilterOptions = getFilterOptions([
-    FilterOperator.NULL,
-    FilterOperator.NOT_NULL,
-    FilterOperator.EQUALS,
-]);
-
-type TimeFilterRule =
-    | FilterRuleBase<FilterOperator.NULL | FilterOperator.NOT_NULL>
-    | FilterRuleWithValuesBase<
-          | FilterOperator.EQUALS
-          | FilterOperator.NOT_EQUALS
-          | FilterOperator.LESS_THAN
-          | FilterOperator.LESS_THAN_OR_EQUAL
-          | FilterOperator.GREATER_THAN
-          | FilterOperator.GREATER_THAN_OR_EQUAL,
-          Date
-      >;
-export const timeFilterOptions: Array<{
-    value: TimeFilterRule['operator'];
-    label: string;
-}> = [
-    ...getFilterOptions([
-        FilterOperator.NULL,
-        FilterOperator.NOT_NULL,
-        FilterOperator.EQUALS,
-        FilterOperator.NOT_EQUALS,
-    ]),
-    { value: FilterOperator.LESS_THAN, label: 'is before' },
-    { value: FilterOperator.LESS_THAN_OR_EQUAL, label: 'is on or before' },
-    { value: FilterOperator.GREATER_THAN, label: 'is after' },
-    { value: FilterOperator.GREATER_THAN_OR_EQUAL, label: 'is on or after' },
-];
-
-/* Group types */
-
-export type FilterRule = FilterRuleBase;
 
 type OrFilterGroup = {
     id: string;

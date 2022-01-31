@@ -1,70 +1,73 @@
 import { Button, Tag } from '@blueprintjs/core';
 import {
     fieldId,
-    filterableDimensionsOnly,
+    FilterableDimension,
     FilterOperator,
     FilterRule,
-    getDimensions,
+    Filters,
     getTotalFilterRules,
     isFilterRule,
 } from 'common';
-import React, { FC } from 'react';
+import React, { FC, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useExplore } from '../../../hooks/useExplore';
-import { useExplorer } from '../../../providers/ExplorerProvider';
 import FilterRuleForm from './FilterRuleForm';
 
-const FiltersForm: FC = () => {
-    const {
-        state: { filters: activeFilters, tableName },
-        actions: { setFilters: setActiveFilters },
-    } = useExplorer();
-    const explore = useExplore(tableName);
-    if (explore.status !== 'success') return null;
-    const filterableDimensions = filterableDimensionsOnly(
-        getDimensions(explore.data) || [],
+type Props = {
+    fields: FilterableDimension[];
+    filters: Filters;
+    setFilters: (value: Filters) => void;
+};
+
+const FiltersForm: FC<Props> = ({ fields, filters, setFilters }) => {
+    const rules: Array<FilterRule> = getTotalFilterRules(filters);
+
+    const onDeleteFilterRule = useCallback(
+        (index: number) => {
+            setFilters({
+                dimensions: {
+                    id: uuidv4(),
+                    and: [...rules.slice(0, index), ...rules.slice(index + 1)],
+                },
+            });
+        },
+        [rules, setFilters],
     );
-    const rules: Array<FilterRule> = getTotalFilterRules(activeFilters);
 
-    const onDeleteFilterRule = (index: number) => {
-        setActiveFilters({
-            dimensions: {
-                id: uuidv4(),
-                and: [...rules.slice(0, index), ...rules.slice(index + 1)],
-            },
-        });
-    };
+    const onChangeFilterRule = useCallback(
+        (index: number, filterRule: FilterRule) => {
+            setFilters({
+                dimensions: {
+                    id: uuidv4(),
+                    and: [
+                        ...rules.slice(0, index),
+                        filterRule,
+                        ...rules.slice(index + 1),
+                    ],
+                },
+            });
+        },
+        [rules, setFilters],
+    );
 
-    const onChangeFilterRule = (index: number, filterRule: FilterRule) => {
-        setActiveFilters({
-            dimensions: {
-                id: uuidv4(),
-                and: [
-                    ...rules.slice(0, index),
-                    filterRule,
-                    ...rules.slice(index + 1),
-                ],
-            },
-        });
-    };
-
-    const onAddFilterRule = () => {
-        setActiveFilters({
-            dimensions: {
-                id: uuidv4(),
-                and: [
-                    ...rules,
-                    {
-                        id: uuidv4(),
-                        target: {
-                            fieldId: fieldId(filterableDimensions[0]),
+    const onAddFilterRule = useCallback(() => {
+        if (fields.length > 0) {
+            setFilters({
+                dimensions: {
+                    id: uuidv4(),
+                    and: [
+                        ...rules,
+                        {
+                            id: uuidv4(),
+                            target: {
+                                fieldId: fieldId(fields[0]),
+                            },
+                            operator: FilterOperator.NULL,
                         },
-                        operator: FilterOperator.NULL,
-                    },
-                ],
-            },
-        });
-    };
+                    ],
+                },
+            });
+        }
+    }, [fields, rules, setFilters]);
 
     return (
         <div
@@ -99,7 +102,7 @@ const FiltersForm: FC = () => {
                         <React.Fragment key={filterRule.id}>
                             <FilterRuleForm
                                 filterRule={filterRule}
-                                fields={filterableDimensions}
+                                fields={fields}
                                 onChange={(value) =>
                                     onChangeFilterRule(index, value)
                                 }
@@ -109,7 +112,7 @@ const FiltersForm: FC = () => {
                     ) : null,
                 )}
             </div>
-            {filterableDimensions.length > 0 && (
+            {fields.length > 0 && (
                 <div style={{ display: 'inline-flex', alignItems: 'center' }}>
                     <Button
                         minimal

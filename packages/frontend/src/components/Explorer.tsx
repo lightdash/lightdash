@@ -16,12 +16,15 @@ import {
     CreateSavedQueryVersion,
     DashboardTileTypes,
     DBChartTypes,
+    filterableDimensionsOnly,
+    getDimensions,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, useEffect, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import { useChartConfig } from '../hooks/useChartConfig';
+import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
 import {
     useAddVersionMutation,
@@ -74,8 +77,9 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             tableCalculations,
             selectedTableCalculations,
         },
-        actions: { setRowLimit: setResultsRowLimit },
+        actions: { setRowLimit: setResultsRowLimit, setFilters },
     } = useExplorer();
+    const explore = useExplore(tableName);
     const queryResults = useQueryResults();
     const { data } = useSavedQuery({ id: savedQueryUuid });
     const chartConfig = useChartConfig(
@@ -117,6 +121,10 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
               },
           }
         : undefined;
+
+    const filterableDimensions = explore.data
+        ? filterableDimensionsOnly(getDimensions(explore.data))
+        : [];
 
     const handleSavedQueryUpdate = () => {
         if (savedQueryUuid && queryData) {
@@ -214,7 +222,11 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     ) : null}
                 </div>
                 <Collapse isOpen={filterIsOpen}>
-                    <FiltersForm />
+                    <FiltersForm
+                        fields={filterableDimensions}
+                        filters={filters}
+                        setFilters={setFilters}
+                    />
                 </Collapse>
             </Card>
             <div style={{ paddingTop: '10px' }} />

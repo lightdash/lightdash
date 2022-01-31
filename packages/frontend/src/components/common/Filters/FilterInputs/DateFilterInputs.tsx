@@ -22,6 +22,7 @@ const DateFilterInputs: FC<FilterInputsProps> = (props) => {
         case FilterOperator.LESS_THAN_OR_EQUAL:
             return (
                 <DateInput
+                    fill
                     value={
                         filterRule.values?.[0]
                             ? new Date(filterRule.values?.[0])

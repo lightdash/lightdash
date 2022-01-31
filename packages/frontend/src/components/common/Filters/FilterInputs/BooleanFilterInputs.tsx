@@ -9,7 +9,7 @@ const BooleanFilterInputs: FC<FilterInputsProps> = (props) => {
         case FilterOperator.EQUALS: {
             return (
                 <HTMLSelect
-                    fill={false}
+                    fill
                     onChange={(e) =>
                         onChange({
                             ...filterRule,

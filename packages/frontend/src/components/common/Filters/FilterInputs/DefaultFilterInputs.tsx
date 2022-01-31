@@ -16,12 +16,12 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
     switch (filterRule.operator) {
         case FilterOperator.NULL:
         case FilterOperator.NOT_NULL:
-            return null;
+            return <span style={{ width: '100%' }} />;
         case FilterOperator.EQUALS:
         case FilterOperator.NOT_EQUALS:
             return (
                 <TagInput
-                    fill={false}
+                    fill
                     addOnBlur
                     tagProps={{ minimal: true }}
                     values={filterRule.values || []}
@@ -37,7 +37,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
         case FilterOperator.NOT_INCLUDE:
             return (
                 <InputGroup
-                    fill={false}
+                    fill
                     value={filterRule.values?.[0]}
                     onChange={(e) =>
                         onChange({
