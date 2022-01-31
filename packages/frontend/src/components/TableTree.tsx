@@ -163,6 +163,7 @@ const NodeItemButtons: FC<{
                 gap: '10px',
                 alignItems: 'center',
                 height: '30px',
+                width: '56px',
             }}
         >
             {isFiltered && <Icon icon="filter" />}
