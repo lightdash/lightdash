@@ -122,7 +122,6 @@ const NodeItemButtons: FC<{
     onOpenSourceDialog: (source: Source) => void;
     isHovered: boolean;
 }> = ({ node, onOpenSourceDialog, isHovered }) => {
-    const [isOpen, setIsOpen] = useState<boolean>();
     const { isFilteredField, addDefaultFilterForDimension } = useFilters();
     const isFiltered = isFilteredField(node);
     const onFilter =
@@ -143,7 +142,6 @@ const NodeItemButtons: FC<{
                     }
                     e.stopPropagation();
                     onOpenSourceDialog(node.source);
-                    setIsOpen(false);
                 }}
             />,
         );
@@ -170,23 +168,27 @@ const NodeItemButtons: FC<{
             {isFiltered && <Icon icon="filter" />}
             {menuItems && isHovered ? (
                 <Popover2
-                    isOpen={isOpen === undefined ? false : isOpen}
-                    onInteraction={setIsOpen}
                     content={<Menu>{menuItems}</Menu>}
+                    autoFocus={false}
                     position={PopoverPosition.BOTTOM_LEFT}
+                    minimal
                     lazy
-                >
-                    <Tooltip2 content="View options">
-                        <Button
-                            minimal
-                            icon="more"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setIsOpen(true);
-                            }}
-                        />
-                    </Tooltip2>
-                </Popover2>
+                    interactionKind="click"
+                    renderTarget={({ isOpen, ref, ...targetProps }) => (
+                        <Tooltip2 content="View options">
+                            <Button
+                                {...targetProps}
+                                elementRef={ref === null ? undefined : ref}
+                                icon="more"
+                                minimal
+                                onClick={(e) => {
+                                    (targetProps as any).onClick(e);
+                                    e.stopPropagation();
+                                }}
+                            />
+                        </Tooltip2>
+                    )}
+                />
             ) : (
                 <div style={{ width: '30px' }} />
             )}
