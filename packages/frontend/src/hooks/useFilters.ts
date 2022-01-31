@@ -15,7 +15,7 @@ export const useFilters = () => {
     } = useExplorer();
 
     const addFilterGroup = (filterGroup: FilterGroup) =>
-        setFilters([filterGroup, ...activeFilters]);
+        setFilters([...activeFilters, filterGroup]);
 
     const createFilterGroup = ({
         filters,
