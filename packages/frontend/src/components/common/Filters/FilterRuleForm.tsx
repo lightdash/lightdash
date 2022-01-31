@@ -51,7 +51,7 @@ const FilterRuleForm: FC<Props> = ({
                         target: {
                             fieldId,
                         },
-                        operator: FilterOperator.NULL,
+                        operator: FilterOperator.EQUALS,
                         settings: undefined,
                         values: undefined,
                     });

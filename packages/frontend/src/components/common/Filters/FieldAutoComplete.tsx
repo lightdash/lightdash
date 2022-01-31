@@ -38,6 +38,7 @@ const FieldAutoComplete: FC<Props> = ({ activeField, fields, onChange }) => (
         inputValueRenderer={(field: Field) =>
             `${field.tableLabel} ${field.label}`
         }
+        popoverProps={{ minimal: true }}
         itemRenderer={renderItem}
         selectedItem={activeField}
         noResults={<MenuItem disabled text="No results." />}

@@ -1,5 +1,5 @@
 import { InputGroup, NumericInput, TagInput } from '@blueprintjs/core';
-import { Field, FilterOperator, FilterRule } from 'common';
+import { DimensionType, Field, FilterOperator, FilterRule } from 'common';
 import React, { FC } from 'react';
 
 export type FilterInputsProps = {
@@ -9,6 +9,7 @@ export type FilterInputsProps = {
 };
 
 const DefaultFilterInputs: FC<FilterInputsProps> = ({
+    field,
     filterRule,
     onChange,
 }) => {
@@ -23,6 +24,12 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
                 <TagInput
                     fill
                     addOnBlur
+                    inputProps={{
+                        type:
+                            field.type === DimensionType.NUMBER
+                                ? 'number'
+                                : 'text',
+                    }}
                     tagProps={{ minimal: true }}
                     values={filterRule.values || []}
                     onChange={(values) =>

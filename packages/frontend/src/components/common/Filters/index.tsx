@@ -61,7 +61,7 @@ const FiltersForm: FC<Props> = ({ fields, filters, setFilters }) => {
                             target: {
                                 fieldId: fieldId(fields[0]),
                             },
-                            operator: FilterOperator.NULL,
+                            operator: FilterOperator.EQUALS,
                         },
                     ],
                 },

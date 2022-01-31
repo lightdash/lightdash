@@ -52,7 +52,6 @@ export type Filters = {
 };
 
 function migrateToNewFormat(data: OldFilterGroup[]): Filters {
-    console.log('migrateToNewFormat', data);
     return {
         dimensions: {
             id: uuidv4(),

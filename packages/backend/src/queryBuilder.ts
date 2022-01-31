@@ -23,15 +23,15 @@ const renderStringFilterSql = (
     const filterType = filter.operator;
     switch (filter.operator) {
         case FilterOperator.EQUALS:
-            return filter.values?.length === 0
+            return !filter.values || filter.values.length === 0
                 ? 'false'
-                : `(${dimensionSql}) IN (${(filter.values || [])
+                : `(${dimensionSql}) IN ${filter.values
                       .map((v) => `'${v}'`)
                       .join(',')})`;
         case FilterOperator.NOT_EQUALS:
-            return filter.values?.length === 0
+            return !filter.values || filter.values.length === 0
                 ? 'true'
-                : `(${dimensionSql}) NOT IN (${(filter.values || [])
+                : `(${dimensionSql}) NOT IN (${filter.values
                       .map((v) => `'${v}'`)
                       .join(',')})`;
         case FilterOperator.NOT_INCLUDE:
@@ -56,13 +56,13 @@ const renderNumberFilterSql = (
     const filterType = filter.operator;
     switch (filter.operator) {
         case FilterOperator.EQUALS:
-            return filter.values?.length === 0
+            return !filter.values || filter.values.length === 0
                 ? 'false'
-                : `(${dimensionSql}) IN (${filter.values?.join(',')})`;
+                : `(${dimensionSql}) IN (${filter.values.join(',')})`;
         case FilterOperator.NOT_EQUALS:
-            return filter.values?.length === 0
+            return !filter.values || filter.values.length === 0
                 ? 'true'
-                : `(${dimensionSql}) NOT IN (${filter.values?.join(',')})`;
+                : `(${dimensionSql}) NOT IN (${filter.values.join(',')})`;
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
         case FilterOperator.NOT_NULL:
