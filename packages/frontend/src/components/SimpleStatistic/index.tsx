@@ -5,7 +5,7 @@ import {
     BigNumberContainer,
     BigNumberLabel,
     SimpleStatisticsWrapper,
-} from './SimpleStatistics';
+} from './SimpleStatistics.styles.';
 
 interface Props {
     data: ChartConfig;
