@@ -1,34 +1,36 @@
-import { NonIdealState,Spinner } from '@blueprintjs/core';
+import { NonIdealState, Spinner } from '@blueprintjs/core';
 import {
-DBChartTypes,
-DimensionType,
-findFieldByIdInExplore,
-friendlyName,
-getFieldLabel
+    DBChartTypes,
+    DimensionType,
+    findFieldByIdInExplore,
+    friendlyName,
+    getFieldLabel,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
-import React,{ FC,RefObject,useEffect } from 'react';
+import React, { FC, RefObject, useEffect } from 'react';
 import { ChartConfig } from '../../hooks/useChartConfig';
 import { useExplore } from '../../hooks/useExplore';
 
 const flipXFromChartType = (
-    chartType: Exclude<DBChartTypes, DBChartTypes.TABLE>,
+    chartType: Omit<DBChartTypes, DBChartTypes.TABLE | DBChartTypes.BIG_NUMBER>,
 ) => {
     switch (chartType) {
         case DBChartTypes.COLUMN:
         case DBChartTypes.LINE:
         case DBChartTypes.SCATTER:
-        case DBChartTypes.BIG_NUMBER:
             return false;
         case DBChartTypes.BAR:
             return true;
-        default: {
-            const nope: never = chartType;
+
+        default:
+            !typeof chartType;
             return undefined;
-        }
     }
 };
-const echartType = (chartType: Exclude<DBChartTypes, DBChartTypes.TABLE>) => {
+
+const echartType = (
+    chartType: Omit<DBChartTypes, DBChartTypes.TABLE | DBChartTypes.BIG_NUMBER>,
+) => {
     switch (chartType) {
         case DBChartTypes.LINE:
             return 'line';
@@ -38,12 +40,9 @@ const echartType = (chartType: Exclude<DBChartTypes, DBChartTypes.TABLE>) => {
             return 'bar';
         case DBChartTypes.SCATTER:
             return 'scatter';
-        case DBChartTypes.BIG_NUMBER:
-            return 'big_number';
-        default: {
-            const nope: never = chartType;
+        default:
+            !typeof chartType;
             return undefined;
-        }
     }
 };
 
@@ -78,7 +77,7 @@ type SimpleChartProps = {
     isLoading: boolean;
     tableName: string | undefined;
     chartRef: RefObject<EChartsReact>;
-    chartType: Exclude<DBChartTypes, DBChartTypes.TABLE>;
+    chartType: Omit<DBChartTypes, DBChartTypes.TABLE | DBChartTypes.BIG_NUMBER>;
     chartConfig: ChartConfig;
 };
 const SimpleChart: FC<SimpleChartProps> = ({

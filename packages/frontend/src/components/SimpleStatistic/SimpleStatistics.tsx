@@ -10,6 +10,7 @@ export const SimpleStatisticsWrapper = styled.div`
 export const BigNumberContainer = styled.div`
     border: 1px solid ${Colors.GRAY4};
     border-radius: 8px;
+    box-shadow: -6px 8px 5px -4px rgba(0, 0, 0, 0.06);
     max-width: fit-content;
     padding: 30px 40px;
     position: absolute;

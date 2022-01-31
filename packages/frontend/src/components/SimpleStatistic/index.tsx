@@ -1,4 +1,5 @@
 import React, { FC } from 'react';
+import { ChartConfig } from '../../hooks/useChartConfig';
 import {
     BigNumber,
     BigNumberContainer,
@@ -7,18 +8,21 @@ import {
 } from './SimpleStatistics';
 
 interface Props {
-    data: any;
+    data: ChartConfig;
 }
 
 const SimpleStatistic: FC<Props> = ({ data }) => {
-    const getBigNumber = data;
-    console.log(getBigNumber);
+    if (!data.plotData) return null;
+    const metricKey = data.series[0];
+    const bigNumberLabel = data.metricOptions[0].label;
+
+    const bigNumber = Math.max(...data.plotData.map((o) => o[metricKey]));
 
     return (
         <SimpleStatisticsWrapper>
             <BigNumberContainer>
-                <BigNumberLabel>Unique order count</BigNumberLabel>
-                <BigNumber>{6.18}</BigNumber>
+                <BigNumberLabel>{bigNumberLabel}</BigNumberLabel>
+                <BigNumber>{bigNumber}</BigNumber>
             </BigNumberContainer>
         </SimpleStatisticsWrapper>
     );

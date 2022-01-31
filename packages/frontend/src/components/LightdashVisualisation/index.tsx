@@ -21,13 +21,13 @@ const LightdashVisualisation: FC<Props> = ({
     chartType,
     chartConfig,
 }) => {
-    if (isLoading) {
+    if (isLoading && !chartConfig) {
         return <LoadingState />;
     }
     return (
         <>
             {chartType === 'big_number' ? (
-                <SimpleStatistic data={chartConfig.plotData} />
+                <SimpleStatistic data={chartConfig} />
             ) : (
                 <SimpleChart
                     isLoading={isLoading}
