@@ -29,7 +29,7 @@ type ChartDownloadMenuProps = {
     chartRef: RefObject<EChartsReact>;
     disabled: boolean;
     chartType: DBChartTypes;
-    chartData: Record<string, any>;
+    chartData: Record<string, any>[];
 };
 
 async function base64SvgToBase64Image(
@@ -108,7 +108,7 @@ function downloadPdf(base64: string, width: number, height: number) {
 type DownloadOptions = {
     chartRef: RefObject<EChartsReact>;
     chartType: DBChartTypes;
-    tableData: Record<string, any>;
+    tableData: Record<string, any>[];
 };
 export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     chartRef,

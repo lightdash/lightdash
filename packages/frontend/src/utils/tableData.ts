@@ -6,7 +6,7 @@ export const modifiedItem = (item: string | boolean) => {
 };
 
 export const mapDataToTable = (plotData: Record<string, any>[]) => {
-    const headers: string[] = plotData.map((item: {}) => Object.keys(item))[0];
-    const rows: any[] = plotData.map((row: {}) => Object.values(row));
+    const headers: string[] = plotData.map((item) => Object.keys(item))[0];
+    const rows: any[] = plotData.map((row) => Object.values(row));
     return { headers, rows };
 };

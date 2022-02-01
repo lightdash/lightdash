@@ -9,7 +9,7 @@ import {
 } from './SimpleTable.styles';
 
 interface Props {
-    data: Record<string, any>;
+    data: Record<string, any>[];
 }
 const SimpleTable: FC<Props> = ({ data }) => {
     if (!data) return null;
