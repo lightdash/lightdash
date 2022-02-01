@@ -89,8 +89,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         data?.chartConfig.seriesLayout,
     );
 
-    const { bigNumber, bigNumberLabel } = useBigNumberConfig(queryResults.data);
-
     const update = useAddVersionMutation();
 
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false);
@@ -103,6 +101,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [activeVizTab, setActiveVizTab] = useState<DBChartTypes>(
         DBChartTypes.COLUMN,
     );
+    const { bigNumber } = useBigNumberConfig(queryResults.data);
     const queryData: CreateSavedQueryVersion | undefined = tableName
         ? {
               tableName,
@@ -366,12 +365,10 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                     name="Big Number"
                                 />
                             </Tooltip2>
-                            {!isBigNumber && (
-                                <ChartConfigPanel
-                                    chartConfig={chartConfig}
-                                    disabled={isChartEmpty}
-                                />
-                            )}
+                            <ChartConfigPanel
+                                chartConfig={chartConfig}
+                                disabled={isChartEmpty || isBigNumber}
+                            />
                             {!isBigNumber && (
                                 <ChartDownloadMenu
                                     chartRef={chartRef}
@@ -444,10 +441,9 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         <LightdashVisualization
                             isLoading={queryResults.isLoading}
                             tableName={tableName}
+                            savedData={data}
                             chartRef={chartRef}
                             chartType={activeVizTab}
-                            chartConfig={chartConfig}
-                            bigNumberData={{ bigNumber, bigNumberLabel }}
                         />
                     </div>
                 </Collapse>

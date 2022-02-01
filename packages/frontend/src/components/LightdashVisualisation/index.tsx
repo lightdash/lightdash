@@ -1,45 +1,36 @@
-import { DBChartTypes } from 'common';
+import { DBChartTypes, SavedQuery } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject } from 'react';
-import { ChartConfig } from '../../hooks/useChartConfig';
+import { useQueryResults } from '../../hooks/useQueryResults';
 import { LoadingState } from '../ResultsTable/States';
 import SimpleChart from '../SimpleChart';
 import SimpleStatistic from '../SimpleStatistic';
 
 interface Props {
-    isLoading: boolean;
-    tableName: string | undefined;
     chartRef: RefObject<EChartsReact>;
     chartType: DBChartTypes;
-    chartConfig: ChartConfig;
-    bigNumberData: { bigNumber: string | number; bigNumberLabel: string };
+    savedData: SavedQuery | undefined;
 }
 
 const LightdashVisualisation: FC<Props> = ({
-    isLoading,
-    tableName,
+    savedData,
     chartRef,
     chartType,
-    chartConfig,
-    bigNumberData,
 }) => {
-    if (isLoading && !chartConfig) {
+    const queryResults = useQueryResults();
+
+    if (queryResults && queryResults.isLoading) {
         return <LoadingState />;
     }
     return (
         <>
             {chartType === 'big_number' ? (
-                <SimpleStatistic
-                    bigNumber={bigNumberData.bigNumber}
-                    bigNumberLabel={bigNumberData.bigNumberLabel}
-                />
+                <SimpleStatistic data={queryResults.data} />
             ) : (
                 <SimpleChart
-                    isLoading={isLoading}
-                    tableName={tableName}
+                    savedData={savedData}
                     chartRef={chartRef}
                     chartType={chartType}
-                    chartConfig={chartConfig}
                 />
             )}
         </>

@@ -1,4 +1,6 @@
+import { ApiQueryResults } from 'common';
 import React, { FC } from 'react';
+import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import {
     BigNumber,
     BigNumberContainer,
@@ -7,17 +9,19 @@ import {
 } from './SimpleStatistics.styles';
 
 interface Props {
-    bigNumber: string | number;
-    bigNumberLabel: string;
+    data: ApiQueryResults | undefined;
 }
 
-const SimpleStatistic: FC<Props> = ({ bigNumber, bigNumberLabel }) => (
-    <SimpleStatisticsWrapper>
-        <BigNumberContainer>
-            <BigNumberLabel>{bigNumberLabel}</BigNumberLabel>
-            <BigNumber>{bigNumber}</BigNumber>
-        </BigNumberContainer>
-    </SimpleStatisticsWrapper>
-);
+const SimpleStatistic: FC<Props> = ({ data }) => {
+    const { bigNumber, bigNumberLabel } = useBigNumberConfig(data);
+    return (
+        <SimpleStatisticsWrapper>
+            <BigNumberContainer>
+                <BigNumberLabel>{bigNumberLabel}</BigNumberLabel>
+                <BigNumber>{bigNumber}</BigNumber>
+            </BigNumberContainer>
+        </SimpleStatisticsWrapper>
+    );
+};
 
 export default SimpleStatistic;

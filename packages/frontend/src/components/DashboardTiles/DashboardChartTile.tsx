@@ -7,23 +7,13 @@ import {
 import EChartsReact from 'echarts-for-react';
 import React, { FC, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import useBigNumberConfig from '../../hooks/useBigNumberConfig';
-import { useChartConfig } from '../../hooks/useChartConfig';
-import { useSavedChartResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import LightdashVisualization from '../LightdashVisualization';
 import TileBase from './TileBase';
 
 const ValidDashboardChartTile: FC<{ data: SavedQuery }> = ({ data }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
     const chartRef = useRef<EChartsReact>(null);
-    const queryResults = useSavedChartResults(projectUuid, data);
-    const chartConfig = useChartConfig(
-        data.tableName,
-        queryResults.data,
-        data?.chartConfig.seriesLayout,
-    );
-    const { bigNumber, bigNumberLabel } = useBigNumberConfig(queryResults.data);
+
     const [activeVizTab, setActiveVizTab] = useState<DBChartTypes>(
         DBChartTypes.COLUMN,
     );
@@ -40,8 +30,7 @@ const ValidDashboardChartTile: FC<{ data: SavedQuery }> = ({ data }) => {
             tableName={data.tableName}
             chartRef={chartRef}
             chartType={activeVizTab}
-            chartConfig={chartConfig}
-            bigNumberData={{ bigNumber, bigNumberLabel }}
+            savedData={data}
         />
     );
 };

@@ -5,11 +5,14 @@ import {
     findFieldByIdInExplore,
     friendlyName,
     getFieldLabel,
+    SavedQuery,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject, useEffect } from 'react';
-import { ChartConfig } from '../../hooks/useChartConfig';
+import { ChartConfig, useChartConfig } from '../../hooks/useChartConfig';
 import { useExplore } from '../../hooks/useExplore';
+import { useQueryResults } from '../../hooks/useQueryResults';
+import { useExplorer } from '../../providers/ExplorerProvider';
 
 const flipXFromChartType = (
     chartType: Omit<DBChartTypes, DBChartTypes.TABLE | DBChartTypes.BIG_NUMBER>,
@@ -74,19 +77,25 @@ const axisTypeFromDimensionType = (
 };
 
 type SimpleChartProps = {
-    isLoading: boolean;
-    tableName: string | undefined;
+    savedData: SavedQuery | undefined;
     chartRef: RefObject<EChartsReact>;
     chartType: Omit<DBChartTypes, DBChartTypes.TABLE | DBChartTypes.BIG_NUMBER>;
     chartConfig: ChartConfig;
 };
 const SimpleChart: FC<SimpleChartProps> = ({
-    isLoading,
-    tableName,
     chartRef,
     chartType,
-    chartConfig,
+    savedData,
 }) => {
+    const { data: chartData, isLoading } = useQueryResults();
+    const {
+        state: { tableName },
+    } = useExplorer();
+    const chartConfig = useChartConfig(
+        tableName,
+        chartData,
+        savedData?.chartConfig.seriesLayout,
+    );
     useEffect(() => {
         const listener = () => {
             const eCharts = chartRef.current?.getEchartsInstance();
