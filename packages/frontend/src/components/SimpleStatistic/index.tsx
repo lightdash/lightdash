@@ -29,8 +29,8 @@ const SimpleStatistic: FC<Props> = ({ data, label }) => {
                 <div style={{ padding: '50px 0' }}>
                     <NonIdealState
                         title="No data available"
-                        description="Query metrics with results."
-                        icon="numerical"
+                        description="Query metrics and dimensions with results."
+                        icon="chart"
                     />
                 </div>
             )}

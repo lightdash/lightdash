@@ -29,7 +29,7 @@ const LightdashVisualisation: FC<Props> = ({
         savedData?.chartConfig.seriesLayout,
     );
 
-    if (isLoading || !chartConfig) {
+    if (isLoading) {
         return <LoadingState />;
     }
     return (
