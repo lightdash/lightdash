@@ -347,11 +347,20 @@ export const buildQuery = ({
         };
     }
 
+    // TODO: doesn't work with metric field id's
+    const finalSqlWhere =
+        whereMetricFilters.length > 0
+            ? `AND ${whereMetricFilters
+                  .map((w) => `(\n  ${w}\n)`)
+                  .join(' AND ')}`
+            : '';
+
     const metricQuerySql = [
         sqlSelect,
         sqlFrom,
         sqlJoins,
         sqlWhere,
+        finalSqlWhere,
         sqlGroupBy,
         sqlOrderBy,
         sqlLimit,
