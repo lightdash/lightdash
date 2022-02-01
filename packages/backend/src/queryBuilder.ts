@@ -9,10 +9,12 @@ import {
     formatDate,
     formatTimestamp,
     getDimensions,
+    getFields,
     getFilterRulesFromGroup,
     getMetrics,
-    getTotalFilterRules,
     isAndFilterGroup,
+    isMetric,
+    MetricType,
     SupportedDbtAdapter,
 } from 'common';
 
@@ -142,41 +144,53 @@ const renderBooleanFilterSql = (
 const renderFilterGroupSql = (
     filterRule: FilterRule,
     explore: Explore,
+    quoteChar: string,
 ): string => {
-    const filterGroupFieldId = filterRule.target.fieldId;
-    const dimension = getDimensions(explore).find(
-        (d) => fieldId(d) === filterGroupFieldId,
+    const field = getFields(explore).find(
+        (d) => fieldId(d) === filterRule.target.fieldId,
     );
-    if (!dimension) {
+    if (!field) {
         throw new Error(
-            `Filter has a reference to an unknown field: ${filterGroupFieldId}`,
+            `Filter has a reference to an unknown field: ${filterRule.target.fieldId}`,
         );
     }
-    switch (dimension.type) {
-        case DimensionType.STRING: {
-            return renderStringFilterSql(dimension.compiledSql, filterRule);
+    const fieldType = field.type;
+    const fieldSql = isMetric(field)
+        ? `${quoteChar}${filterRule.target.fieldId}${quoteChar}`
+        : field.compiledSql;
+
+    switch (field.type) {
+        case DimensionType.STRING:
+        case MetricType.STRING: {
+            return renderStringFilterSql(fieldSql, filterRule);
         }
-        case DimensionType.NUMBER: {
-            return renderNumberFilterSql(dimension.compiledSql, filterRule);
+        case DimensionType.NUMBER:
+        case MetricType.NUMBER:
+        case MetricType.AVERAGE:
+        case MetricType.COUNT:
+        case MetricType.COUNT_DISTINCT:
+        case MetricType.SUM:
+        case MetricType.MIN:
+        case MetricType.MAX: {
+            return renderNumberFilterSql(fieldSql, filterRule);
         }
-        case DimensionType.DATE: {
-            return renderDateFilterSql(dimension.compiledSql, filterRule);
+        case DimensionType.DATE:
+        case MetricType.DATE: {
+            return renderDateFilterSql(fieldSql, filterRule);
         }
         case DimensionType.TIMESTAMP: {
-            return renderDateFilterSql(
-                dimension.compiledSql,
-                filterRule,
-                formatTimestamp,
-            );
+            return renderDateFilterSql(fieldSql, filterRule, formatTimestamp);
         }
-        case DimensionType.BOOLEAN: {
-            return renderBooleanFilterSql(dimension.compiledSql, filterRule);
+        case DimensionType.BOOLEAN:
+        case MetricType.BOOLEAN: {
+            return renderBooleanFilterSql(fieldSql, filterRule);
         }
-        default:
-            const nope: never = dimension.type;
+        default: {
+            const nope: never = field;
             throw Error(
-                `No function implemented to render sql for filter group type ${dimension.type}`,
+                `No function implemented to render sql for filter group type ${fieldType}`,
             );
+        }
     }
 };
 
@@ -246,9 +260,13 @@ export const buildQuery = ({
     const selectedTables = new Set([
         ...metrics.map((field) => getMetricFromId(field, explore).table),
         ...dimensions.map((field) => getDimensionFromId(field, explore).table),
-        ...getTotalFilterRules(filters).map(
+        ...getFilterRulesFromGroup(filters.dimensions).map(
             (filterRule) =>
                 getDimensionFromId(filterRule.target.fieldId, explore).table,
+        ),
+        ...getFilterRulesFromGroup(filters.metrics).map(
+            (filterRule) =>
+                getMetricFromId(filterRule.target.fieldId, explore).table,
         ),
     ]);
 
@@ -279,11 +297,15 @@ export const buildQuery = ({
         filters.dimensions && isAndFilterGroup(filters.dimensions)
             ? getFilterRulesFromGroup(filters.dimensions)
             : []
-    ).map((filter) => renderFilterGroupSql(filter, explore));
+    ).map((filter) => renderFilterGroupSql(filter, explore, q));
     const sqlWhere =
         whereFilters.length > 0
             ? `WHERE ${whereFilters.map((w) => `(\n  ${w}\n)`).join(' AND ')}`
             : '';
+
+    const whereMetricFilters = getFilterRulesFromGroup(filters.metrics).map(
+        (filter) => renderFilterGroupSql(filter, explore, q),
+    );
 
     const sqlLimit = `LIMIT ${limit}`;
 
@@ -308,19 +330,34 @@ export const buildQuery = ({
             ',\n  ',
         )}`;
         const finalFrom = `FROM ${cteName}`;
+        const finalSqlWhere =
+            whereMetricFilters.length > 0
+                ? `WHERE ${whereMetricFilters
+                      .map((w) => `(\n  ${w}\n)`)
+                      .join(' AND ')}`
+                : '';
+        const secondQuery = [finalSelect, finalFrom, finalSqlWhere].join('\n');
+
         return {
-            query: [cte, finalSelect, finalFrom, sqlOrderBy, sqlLimit].join(
-                '\n',
-            ),
+            query: [cte, secondQuery, sqlOrderBy, sqlLimit].join('\n'),
             hasExampleMetric,
         };
     }
+
+    // TODO: doesn't work with metric field id's
+    const finalSqlWhere =
+        whereMetricFilters.length > 0
+            ? `AND ${whereMetricFilters
+                  .map((w) => `(\n  ${w}\n)`)
+                  .join(' AND ')}`
+            : '';
 
     const metricQuerySql = [
         sqlSelect,
         sqlFrom,
         sqlJoins,
         sqlWhere,
+        finalSqlWhere,
         sqlGroupBy,
         sqlOrderBy,
         sqlLimit,

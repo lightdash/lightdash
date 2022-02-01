@@ -178,7 +178,7 @@ const NodeItemButtons: FC<{
             ) : (
                 <div style={{ width: '16px' }} />
             )}
-            {menuItems && isHovered ? (
+            {menuItems.length > 0 && isHovered ? (
                 <Popover2
                     content={<Menu>{menuItems}</Menu>}
                     autoFocus={false}
@@ -380,7 +380,7 @@ const TableTree: FC<TableTreeProps> = ({
                           isDimension: false,
                       } as NodeDataProps,
                       isSelected: selectedNodes.has(fieldId(metric)),
-                      secondaryLabel: metric.source && (
+                      secondaryLabel: (
                           <NodeItemButtons
                               node={metric}
                               onOpenSourceDialog={onOpenSourceDialog}

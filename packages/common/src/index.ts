@@ -191,7 +191,7 @@ export const getDimensions = (explore: Explore): CompiledDimension[] =>
 export const getMetrics = (explore: Explore): CompiledMetric[] =>
     Object.values(explore.tables).flatMap((t) => Object.values(t.metrics));
 
-export const getFields = (explore: Explore): Field[] => [
+export const getFields = (explore: Explore): CompiledField[] => [
     ...getDimensions(explore),
     ...getMetrics(explore),
 ];
@@ -234,6 +234,8 @@ export interface Dimension extends Field {
 export interface CompiledDimension extends Dimension {
     compiledSql: string; // sql string with resolved template variables
 }
+
+export type CompiledField = CompiledDimension | CompiledMetric;
 
 export const isDimension = (field: Field): field is Dimension =>
     field.fieldType === FieldType.DIMENSION;
@@ -376,6 +378,13 @@ export const isFilterableDimension = (
         DimensionType.TIMESTAMP,
         DimensionType.BOOLEAN,
     ].includes(dimension.type);
+
+export type FilterableField = FilterableDimension | Metric;
+
+export const isFilterableField = (
+    field: Dimension | Metric,
+): field is FilterableField =>
+    isDimension(field) ? isFilterableDimension(field) : true;
 
 export const filterableDimensionsOnly = (
     dimensions: Dimension[],

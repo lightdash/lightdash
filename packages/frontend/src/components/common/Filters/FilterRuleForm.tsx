@@ -1,17 +1,20 @@
 import { Button, Colors, HTMLSelect } from '@blueprintjs/core';
 import {
-    DimensionType,
     fieldId as getFieldId,
-    FilterableDimension,
+    FilterableField,
     FilterOperator,
     FilterRule,
 } from 'common';
 import React, { FC, useCallback, useMemo } from 'react';
-import { FilterTypeConfig } from './configs';
+import {
+    FilterType,
+    FilterTypeConfig,
+    getFilterTypeFromField,
+} from './configs';
 import FieldAutoComplete from './FieldAutoComplete';
 
 type Props = {
-    fields: FilterableDimension[];
+    fields: FilterableField[];
     filterRule: FilterRule;
     onChange: (value: FilterRule) => void;
     onDelete: () => void;
@@ -28,7 +31,12 @@ const FilterRuleForm: FC<Props> = ({
     );
 
     const filterConfig = useMemo(
-        () => FilterTypeConfig[activeField?.type || DimensionType.STRING],
+        () =>
+            FilterTypeConfig[
+                activeField
+                    ? getFilterTypeFromField(activeField)
+                    : FilterType.STRING
+            ],
         [activeField],
     );
 
