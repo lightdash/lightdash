@@ -23,7 +23,6 @@ import EChartsReact from 'echarts-for-react';
 import React, { FC, useEffect, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
-import useBigNumberConfig from '../hooks/useBigNumberConfig';
 import { useChartConfig } from '../hooks/useChartConfig';
 import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
@@ -35,6 +34,7 @@ import {
 import { useExplorer } from '../providers/ExplorerProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
+import bigNumberConfig from '../utils/bigNumberConfig';
 import { ChartConfigPanel } from './ChartConfigPanel';
 import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
@@ -101,7 +101,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [activeVizTab, setActiveVizTab] = useState<DBChartTypes>(
         DBChartTypes.COLUMN,
     );
-    const { bigNumber } = useBigNumberConfig(queryResults.data);
+    const bigNumber = bigNumberConfig(queryResults.data);
     const queryData: CreateSavedQueryVersion | undefined = tableName
         ? {
               tableName,

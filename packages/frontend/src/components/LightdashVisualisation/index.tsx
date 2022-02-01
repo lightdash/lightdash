@@ -1,7 +1,9 @@
 import { DBChartTypes, SavedQuery } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject } from 'react';
+import { useChartConfig } from '../../hooks/useChartConfig';
 import { useQueryResults } from '../../hooks/useQueryResults';
+import { useExplorer } from '../../providers/ExplorerProvider';
 import { LoadingState } from '../ResultsTable/States';
 import SimpleChart from '../SimpleChart';
 import SimpleStatistic from '../SimpleStatistic';
@@ -17,20 +19,32 @@ const LightdashVisualisation: FC<Props> = ({
     chartRef,
     chartType,
 }) => {
-    const queryResults = useQueryResults();
+    const { data, isLoading } = useQueryResults();
+    const {
+        state: { tableName },
+    } = useExplorer();
+    const chartConfig = useChartConfig(
+        tableName,
+        data,
+        savedData?.chartConfig.seriesLayout,
+    );
 
-    if (queryResults && queryResults.isLoading) {
+    if (isLoading) {
         return <LoadingState />;
     }
     return (
         <>
-            {chartType === 'big_number' ? (
-                <SimpleStatistic data={queryResults.data} />
+            {chartType === DBChartTypes.BIG_NUMBER ? (
+                <SimpleStatistic
+                    data={data}
+                    label={chartConfig.metricOptions[0].label}
+                />
             ) : (
                 <SimpleChart
-                    savedData={savedData}
+                    isLoading={isLoading}
                     chartRef={chartRef}
                     chartType={chartType}
+                    chartConfig={chartConfig}
                 />
             )}
         </>

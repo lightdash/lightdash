@@ -5,13 +5,11 @@ import {
     findFieldByIdInExplore,
     friendlyName,
     getFieldLabel,
-    SavedQuery,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject, useEffect } from 'react';
-import { ChartConfig, useChartConfig } from '../../hooks/useChartConfig';
+import { ChartConfig } from '../../hooks/useChartConfig';
 import { useExplore } from '../../hooks/useExplore';
-import { useQueryResults } from '../../hooks/useQueryResults';
 import { useExplorer } from '../../providers/ExplorerProvider';
 
 const flipXFromChartType = (
@@ -77,25 +75,21 @@ const axisTypeFromDimensionType = (
 };
 
 type SimpleChartProps = {
-    savedData: SavedQuery | undefined;
     chartRef: RefObject<EChartsReact>;
     chartType: Omit<DBChartTypes, DBChartTypes.TABLE | DBChartTypes.BIG_NUMBER>;
     chartConfig: ChartConfig;
+    isLoading: boolean;
 };
 const SimpleChart: FC<SimpleChartProps> = ({
     chartRef,
     chartType,
-    savedData,
+    chartConfig,
+    isLoading,
 }) => {
-    const { data: chartData, isLoading } = useQueryResults();
     const {
         state: { tableName },
     } = useExplorer();
-    const chartConfig = useChartConfig(
-        tableName,
-        chartData,
-        savedData?.chartConfig.seriesLayout,
-    );
+
     useEffect(() => {
         const listener = () => {
             const eCharts = chartRef.current?.getEchartsInstance();

@@ -1,6 +1,6 @@
 import { ApiQueryResults } from 'common';
 import React, { FC } from 'react';
-import useBigNumberConfig from '../../hooks/useBigNumberConfig';
+import bigNumberConfig from '../../utils/bigNumberConfig';
 import {
     BigNumber,
     BigNumberContainer,
@@ -10,14 +10,15 @@ import {
 
 interface Props {
     data: ApiQueryResults | undefined;
+    label: string;
 }
 
-const SimpleStatistic: FC<Props> = ({ data }) => {
-    const { bigNumber, bigNumberLabel } = useBigNumberConfig(data);
+const SimpleStatistic: FC<Props> = ({ data, label }) => {
+    const bigNumber = bigNumberConfig(data);
     return (
         <SimpleStatisticsWrapper>
             <BigNumberContainer>
-                <BigNumberLabel>{bigNumberLabel}</BigNumberLabel>
+                <BigNumberLabel>{label}</BigNumberLabel>
                 <BigNumber>{bigNumber}</BigNumber>
             </BigNumberContainer>
         </SimpleStatisticsWrapper>
