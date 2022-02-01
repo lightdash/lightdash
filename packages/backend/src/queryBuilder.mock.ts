@@ -3,7 +3,7 @@ import {
     DimensionType,
     Explore,
     FieldType,
-    FilterGroupOperator,
+    FilterOperator,
     MetricType,
     SupportedDbtAdapter,
 } from 'common';
@@ -114,7 +114,7 @@ export const EXPLORE: Explore = {
 export const METRIC_QUERY: CompiledMetricQuery = {
     dimensions: ['table1_dim1'],
     metrics: ['table1_metric1'],
-    filters: [],
+    filters: {},
     sorts: [{ fieldId: 'table1_metric1', descending: true }],
     limit: 10,
     tableCalculations: [
@@ -137,7 +137,7 @@ export const METRIC_QUERY: CompiledMetricQuery = {
 export const METRIC_QUERY_TWO_TABLES: CompiledMetricQuery = {
     dimensions: ['table1_dim1'],
     metrics: ['table2_metric2'],
-    filters: [],
+    filters: {},
     sorts: [{ fieldId: 'table2_metric2', descending: true }],
     limit: 10,
     tableCalculations: [
@@ -160,15 +160,21 @@ export const METRIC_QUERY_TWO_TABLES: CompiledMetricQuery = {
 export const METRIC_QUERY_WITH_FILTER: CompiledMetricQuery = {
     dimensions: ['table1_dim1'],
     metrics: [],
-    filters: [
-        {
-            type: 'number',
-            fieldName: 'dim2',
-            tableName: 'table2',
-            operator: FilterGroupOperator.and,
-            filters: [{ operator: 'equals', values: [0] }],
+    filters: {
+        dimensions: {
+            id: 'root',
+            and: [
+                {
+                    id: '1',
+                    target: {
+                        fieldId: 'table2_dim2',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: [0],
+                },
+            ],
         },
-    ],
+    },
     sorts: [{ fieldId: 'table1_dim1', descending: true }],
     limit: 10,
     tableCalculations: [],

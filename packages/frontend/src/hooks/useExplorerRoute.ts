@@ -1,3 +1,4 @@
+import { countTotalFilterRules } from 'common';
 import { useEffect } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
@@ -86,7 +87,7 @@ export const useExplorerRoute = () => {
             } else {
                 newParams.set('sort', JSON.stringify(pristineState.sorts));
             }
-            if (pristineState.filters.length === 0) {
+            if (countTotalFilterRules(pristineState.filters) === 0) {
                 newParams.delete('filters');
             } else {
                 newParams.set('filters', JSON.stringify(pristineState.filters));

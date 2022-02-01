@@ -122,7 +122,11 @@ const NodeItemButtons: FC<{
     onOpenSourceDialog: (source: Source) => void;
     isHovered: boolean;
 }> = ({ node, onOpenSourceDialog, isHovered }) => {
-    const { isFilteredField, addDefaultFilterForDimension } = useFilters();
+    const {
+        isFilteredField,
+        isFilterableDimension,
+        addDefaultFilterForDimension,
+    } = useFilters();
     const isFiltered = isFilteredField(node);
     const onFilter =
         node.fieldType === FieldType.DIMENSION
@@ -146,7 +150,7 @@ const NodeItemButtons: FC<{
             />,
         );
     }
-    if (node.fieldType === FieldType.DIMENSION) {
+    if (node.fieldType === FieldType.DIMENSION && isFilterableDimension(node)) {
         menuItems.push(
             <MenuItem
                 key="filter"

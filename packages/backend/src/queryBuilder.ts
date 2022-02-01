@@ -1,125 +1,133 @@
 import {
-    BooleanFilter,
     CompiledMetricQuery,
-    DateAndTimestampFilter,
+    DimensionType,
     Explore,
     fieldId,
     FieldId,
-    fieldIdFromFilterGroup,
-    FilterGroup,
-    FilterGroupOperator,
+    FilterOperator,
+    FilterRule,
     formatDate,
     formatTimestamp,
     getDimensions,
+    getFilterRulesFromGroup,
     getMetrics,
-    NumberFilter,
-    StringFilter,
+    getTotalFilterRules,
+    isAndFilterGroup,
     SupportedDbtAdapter,
 } from 'common';
 
 const renderStringFilterSql = (
     dimensionSql: string,
-    filter: StringFilter,
+    filter: FilterRule,
 ): string => {
     const filterType = filter.operator;
     switch (filter.operator) {
-        case 'equals':
-            return filter.values.length === 0
+        case FilterOperator.EQUALS:
+            return !filter.values || filter.values.length === 0
                 ? 'false'
-                : `(${dimensionSql}) IN (${filter.values
+                : `(${dimensionSql}) IN ${filter.values
                       .map((v) => `'${v}'`)
                       .join(',')})`;
-        case 'notEquals':
-            return filter.values.length === 0
+        case FilterOperator.NOT_EQUALS:
+            return !filter.values || filter.values.length === 0
                 ? 'true'
                 : `(${dimensionSql}) NOT IN (${filter.values
                       .map((v) => `'${v}'`)
                       .join(',')})`;
-        case 'doesNotInclude':
-            return `(${dimensionSql}) NOT LIKE '%${filter.value}%'`;
-        case 'isNull':
+        case FilterOperator.NOT_INCLUDE:
+            return `(${dimensionSql}) NOT LIKE '%${filter.values?.[0]}%'`;
+        case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
-        case 'notNull':
+        case FilterOperator.NOT_NULL:
             return `(${dimensionSql}) IS NOT NULL`;
-        case 'startsWith':
-            return `(${dimensionSql}) LIKE '${filter.value}%'`;
+        case FilterOperator.STARTS_WITH:
+            return `(${dimensionSql}) LIKE '${filter.values?.[0]}%'`;
         default:
-            const nope: never = filter;
             throw Error(
-                `No function implemented to render sql for filter type ${filterType} on dimension of number type`,
+                `No function implemented to render sql for filter type ${filterType} on dimension of string type`,
             );
     }
 };
 
 const renderNumberFilterSql = (
     dimensionSql: string,
-    filter: NumberFilter,
+    filter: FilterRule,
 ): string => {
     const filterType = filter.operator;
     switch (filter.operator) {
-        case 'equals':
-            return filter.values.length === 0
+        case FilterOperator.EQUALS:
+            return !filter.values || filter.values.length === 0
                 ? 'false'
                 : `(${dimensionSql}) IN (${filter.values.join(',')})`;
-        case 'notEquals':
-            return filter.values.length === 0
+        case FilterOperator.NOT_EQUALS:
+            return !filter.values || filter.values.length === 0
                 ? 'true'
                 : `(${dimensionSql}) NOT IN (${filter.values.join(',')})`;
-        case 'isNull':
+        case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
-        case 'notNull':
+        case FilterOperator.NOT_NULL:
             return `(${dimensionSql}) IS NOT NULL`;
-        case 'greaterThan':
-            return `(${dimensionSql}) > ${filter.value}`;
-        case 'lessThan':
-            return `(${dimensionSql}) < ${filter.value}`;
+        case FilterOperator.GREATER_THAN:
+            return `(${dimensionSql}) > ${filter.values?.[0]}`;
+        case FilterOperator.LESS_THAN:
+            return `(${dimensionSql}) < ${filter.values?.[0]}`;
         default:
-            const nope: never = filter;
             throw Error(
-                `No function implemented to render sql for filter type ${filterType} on dimension of string type`,
+                `No function implemented to render sql for filter type ${filterType} on dimension of number type`,
             );
     }
 };
 
 const renderDateFilterSql = (
     dimensionSql: string,
-    filter: DateAndTimestampFilter,
+    filter: FilterRule,
     dateFormatter = formatDate,
 ): string => {
     const filterType = filter.operator;
     switch (filter.operator) {
         case 'equals':
-            return `(${dimensionSql}) = ('${dateFormatter(filter.value)}')`;
+            return `(${dimensionSql}) = ('${dateFormatter(
+                filter.values?.[0],
+            )}')`;
         case 'notEquals':
-            return `(${dimensionSql}) != ('${dateFormatter(filter.value)}')`;
+            return `(${dimensionSql}) != ('${dateFormatter(
+                filter.values?.[0],
+            )}')`;
         case 'isNull':
             return `(${dimensionSql}) IS NULL`;
         case 'notNull':
             return `(${dimensionSql}) IS NOT NULL`;
         case 'greaterThan':
-            return `(${dimensionSql}) > ('${dateFormatter(filter.value)}')`;
+            return `(${dimensionSql}) > ('${dateFormatter(
+                filter.values?.[0],
+            )}')`;
         case 'greaterThanOrEqual':
-            return `(${dimensionSql}) >= ('${dateFormatter(filter.value)}')`;
+            return `(${dimensionSql}) >= ('${dateFormatter(
+                filter.values?.[0],
+            )}')`;
         case 'lessThan':
-            return `(${dimensionSql}) < ('${dateFormatter(filter.value)}')`;
+            return `(${dimensionSql}) < ('${dateFormatter(
+                filter.values?.[0],
+            )}')`;
         case 'lessThanOrEqual':
-            return `(${dimensionSql}) <= ('${dateFormatter(filter.value)}')`;
+            return `(${dimensionSql}) <= ('${dateFormatter(
+                filter.values?.[0],
+            )}')`;
         default:
-            const nope: never = filter;
             throw Error(
-                `No function implemented to render sql for filter type ${filterType} on dimension of string type`,
+                `No function implemented to render sql for filter type ${filterType} on dimension of date type`,
             );
     }
 };
 
 const renderBooleanFilterSql = (
     dimensionSql: string,
-    filter: BooleanFilter,
+    filter: FilterRule,
 ): string => {
     const { operator } = filter;
     switch (filter.operator) {
         case 'equals':
-            return `(${dimensionSql}) = ${filter.value}`;
+            return `(${dimensionSql}) = ${!!filter.values?.[0]}`;
         case 'isNull':
             return `(${dimensionSql}) IS NULL`;
         case 'notNull':
@@ -132,89 +140,42 @@ const renderBooleanFilterSql = (
 };
 
 const renderFilterGroupSql = (
-    filterGroup: FilterGroup,
+    filterRule: FilterRule,
     explore: Explore,
 ): string => {
-    const operator =
-        filterGroup.operator === FilterGroupOperator.or ? 'OR' : 'AND';
-    const groupType = filterGroup.type;
-    const filterGroupFieldId = fieldIdFromFilterGroup(filterGroup);
+    const filterGroupFieldId = filterRule.target.fieldId;
     const dimension = getDimensions(explore).find(
         (d) => fieldId(d) === filterGroupFieldId,
     );
-    switch (filterGroup.type) {
-        case 'string': {
-            if (dimension?.type === 'string')
-                return filterGroup.filters
-                    .map((filter) =>
-                        renderStringFilterSql(dimension.compiledSql, filter),
-                    )
-                    .join(`\n   ${operator} `);
-            throw new Error(
-                `StringFilterGroup has a reference to an unknown string field ${fieldIdFromFilterGroup(
-                    filterGroup,
-                )}`,
+    if (!dimension) {
+        throw new Error(
+            `Filter has a reference to an unknown field: ${filterGroupFieldId}`,
+        );
+    }
+    switch (dimension.type) {
+        case DimensionType.STRING: {
+            return renderStringFilterSql(dimension.compiledSql, filterRule);
+        }
+        case DimensionType.NUMBER: {
+            return renderNumberFilterSql(dimension.compiledSql, filterRule);
+        }
+        case DimensionType.DATE: {
+            return renderDateFilterSql(dimension.compiledSql, filterRule);
+        }
+        case DimensionType.TIMESTAMP: {
+            return renderDateFilterSql(
+                dimension.compiledSql,
+                filterRule,
+                formatTimestamp,
             );
         }
-        case 'number':
-            if (dimension?.type === 'number')
-                return filterGroup.filters
-                    .map((filter) =>
-                        renderNumberFilterSql(dimension.compiledSql, filter),
-                    )
-                    .join(`\n   ${operator} `);
-            throw new Error(
-                `NumberFilterGroup has a reference to an unknown number field ${fieldIdFromFilterGroup(
-                    filterGroup,
-                )}`,
-            );
-        case 'date':
-            if (dimension?.type === 'date') {
-                return filterGroup.filters
-                    .map((filter) =>
-                        renderDateFilterSql(dimension.compiledSql, filter),
-                    )
-                    .join(`\n   ${operator} `);
-            }
-            throw new Error(
-                `DateFilterGroup has a reference to an unknown date field ${fieldIdFromFilterGroup(
-                    filterGroup,
-                )}`,
-            );
-        case 'timestamp':
-            if (dimension?.type === 'timestamp') {
-                return filterGroup.filters
-                    .map((filter) =>
-                        renderDateFilterSql(
-                            dimension.compiledSql,
-                            filter,
-                            formatTimestamp,
-                        ),
-                    )
-                    .join(`\n   ${operator} `);
-            }
-            throw new Error(
-                `DateFilterGroup has a reference to an unknown date field ${fieldIdFromFilterGroup(
-                    filterGroup,
-                )}`,
-            );
-        case 'boolean':
-            if (dimension?.type === 'boolean') {
-                return filterGroup.filters
-                    .map((filter) =>
-                        renderBooleanFilterSql(dimension.compiledSql, filter),
-                    )
-                    .join(`\n   ${operator} `);
-            }
-            throw new Error(
-                `DateFilterGroup has a reference to an unknown date field ${fieldIdFromFilterGroup(
-                    filterGroup,
-                )}`,
-            );
+        case DimensionType.BOOLEAN: {
+            return renderBooleanFilterSql(dimension.compiledSql, filterRule);
+        }
         default:
-            const nope: never = filterGroup;
+            const nope: never = dimension.type;
             throw Error(
-                `No function implemented to render sql for filter group type ${groupType}`,
+                `No function implemented to render sql for filter group type ${dimension.type}`,
             );
     }
 };
@@ -285,10 +246,9 @@ export const buildQuery = ({
     const selectedTables = new Set([
         ...metrics.map((field) => getMetricFromId(field, explore).table),
         ...dimensions.map((field) => getDimensionFromId(field, explore).table),
-        ...filters.map(
-            (filterGroup) =>
-                getDimensionFromId(fieldIdFromFilterGroup(filterGroup), explore)
-                    .table,
+        ...getTotalFilterRules(filters).map(
+            (filterRule) =>
+                getDimensionFromId(filterRule.target.fieldId, explore).table,
         ),
     ]);
 
@@ -315,9 +275,11 @@ export const buildQuery = ({
     const sqlOrderBy =
         fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
 
-    const whereFilters = filters.map((filter) =>
-        renderFilterGroupSql(filter, explore),
-    );
+    const whereFilters = (
+        filters.dimensions && isAndFilterGroup(filters.dimensions)
+            ? getFilterRulesFromGroup(filters.dimensions)
+            : []
+    ).map((filter) => renderFilterGroupSql(filter, explore));
     const sqlWhere =
         whereFilters.length > 0
             ? `WHERE ${whereFilters.map((w) => `(\n  ${w}\n)`).join(' AND ')}`
