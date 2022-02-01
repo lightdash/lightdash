@@ -23,6 +23,7 @@ import EChartsReact from 'echarts-for-react';
 import React, { FC, useEffect, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
+import useBigNumberConfig from '../hooks/useBigNumberConfig';
 import { useChartConfig } from '../hooks/useChartConfig';
 import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
@@ -40,6 +41,7 @@ import { BigButton } from './common/BigButton';
 import EditableHeader from './common/EditableHeader';
 import FiltersForm from './common/Filters';
 import { ExplorerResults } from './Explorer/ExplorerResults';
+import LightdashVisualization from './LightdashVisualization';
 import { RefreshButton } from './RefreshButton';
 import { RefreshServerButton } from './RefreshServerButton';
 import { RenderedSql } from './RenderedSql';
@@ -86,6 +88,9 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         queryResults.data,
         data?.chartConfig.seriesLayout,
     );
+
+    const { bigNumber, bigNumberLabel } = useBigNumberConfig(queryResults.data);
+
     const update = useAddVersionMutation();
 
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false);
@@ -139,7 +144,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             setActiveVizTab(data.chartConfig.chartType);
         }
     }, [data]);
-
+    const isBigNumber = activeVizTab === DBChartTypes.BIG_NUMBER;
     const isChartEmpty: boolean = !chartConfig.plotData;
     return (
         <>
@@ -352,23 +357,22 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             >
                                 <Button
                                     minimal
-                                    active={
-                                        activeVizTab === DBChartTypes.BIG_NUMBER
-                                    }
+                                    active={isBigNumber}
                                     icon="numerical"
                                     onClick={() =>
                                         setActiveVizTab(DBChartTypes.BIG_NUMBER)
                                     }
-                                    disabled={isChartEmpty}
+                                    disabled={!bigNumber}
                                     name="Big Number"
                                 />
                             </Tooltip2>
-                            <ChartConfigPanel
-                                chartConfig={chartConfig}
-                                disabled={isChartEmpty}
-                            />
-
-                            {chartConfig.plotData && (
+                            {!isBigNumber && (
+                                <ChartConfigPanel
+                                    chartConfig={chartConfig}
+                                    disabled={isChartEmpty}
+                                />
+                            )}
+                            {!isBigNumber && (
                                 <ChartDownloadMenu
                                     chartRef={chartRef}
                                     disabled={isChartEmpty}
@@ -376,7 +380,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                     chartData={chartConfig.plotData}
                                 />
                             )}
-
                             <ButtonGroup>
                                 <Button
                                     intent="primary"
@@ -437,10 +440,16 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                 </div>
 
                 <Collapse className="explorer-chart" isOpen={vizIsOpen}>
-                    <div
-                        style={{ height: '300px' }}
-                        className="cohere-block"
-                    ></div>
+                    <div style={{ height: '300px' }} className="cohere-block">
+                        <LightdashVisualization
+                            isLoading={queryResults.isLoading}
+                            tableName={tableName}
+                            chartRef={chartRef}
+                            chartType={activeVizTab}
+                            chartConfig={chartConfig}
+                            bigNumberData={{ bigNumber, bigNumberLabel }}
+                        />
+                    </div>
                 </Collapse>
             </Card>
             <div style={{ paddingTop: '10px' }} />

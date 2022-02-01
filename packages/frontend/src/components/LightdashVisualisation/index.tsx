@@ -12,6 +12,7 @@ interface Props {
     chartRef: RefObject<EChartsReact>;
     chartType: DBChartTypes;
     chartConfig: ChartConfig;
+    bigNumberData: { bigNumber: string | number; bigNumberLabel: string };
 }
 
 const LightdashVisualisation: FC<Props> = ({
@@ -20,6 +21,7 @@ const LightdashVisualisation: FC<Props> = ({
     chartRef,
     chartType,
     chartConfig,
+    bigNumberData,
 }) => {
     if (isLoading && !chartConfig) {
         return <LoadingState />;
@@ -27,7 +29,10 @@ const LightdashVisualisation: FC<Props> = ({
     return (
         <>
             {chartType === 'big_number' ? (
-                <SimpleStatistic data={chartConfig} />
+                <SimpleStatistic
+                    bigNumber={bigNumberData.bigNumber}
+                    bigNumberLabel={bigNumberData.bigNumberLabel}
+                />
             ) : (
                 <SimpleChart
                     isLoading={isLoading}

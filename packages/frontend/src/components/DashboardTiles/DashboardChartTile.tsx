@@ -7,6 +7,7 @@ import {
 import EChartsReact from 'echarts-for-react';
 import React, { FC, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import { useChartConfig } from '../../hooks/useChartConfig';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
@@ -22,6 +23,7 @@ const ValidDashboardChartTile: FC<{ data: SavedQuery }> = ({ data }) => {
         queryResults.data,
         data?.chartConfig.seriesLayout,
     );
+    const { bigNumber, bigNumberLabel } = useBigNumberConfig(queryResults.data);
     const [activeVizTab, setActiveVizTab] = useState<DBChartTypes>(
         DBChartTypes.COLUMN,
     );
@@ -39,6 +41,7 @@ const ValidDashboardChartTile: FC<{ data: SavedQuery }> = ({ data }) => {
             chartRef={chartRef}
             chartType={activeVizTab}
             chartConfig={chartConfig}
+            bigNumberData={{ bigNumber, bigNumberLabel }}
         />
     );
 };
