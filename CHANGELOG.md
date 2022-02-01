@@ -4,6 +4,11 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.12.0] - 2022-02-01
+### Added
+- Filters can now be added from the sidebar (#1260)
+- Added auto complete to filters (#1263)
+
 ## [0.11.11] - 2022-01-28
 ### Added
 - Added ssl "no-verify" option for postgres and redshift connections (#1253)
