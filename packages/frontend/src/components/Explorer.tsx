@@ -361,7 +361,9 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                     onClick={() =>
                                         setActiveVizTab(DBChartTypes.BIG_NUMBER)
                                     }
-                                    disabled={!bigNumber}
+                                    disabled={
+                                        !bigNumber || !chartConfig.metricOptions
+                                    }
                                     name="Big Number"
                                 />
                             </Tooltip2>

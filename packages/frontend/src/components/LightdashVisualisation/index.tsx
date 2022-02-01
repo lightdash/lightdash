@@ -29,7 +29,7 @@ const LightdashVisualisation: FC<Props> = ({
         savedData?.chartConfig.seriesLayout,
     );
 
-    if (isLoading) {
+    if (isLoading || !chartConfig) {
         return <LoadingState />;
     }
     return (
@@ -37,7 +37,10 @@ const LightdashVisualisation: FC<Props> = ({
             {chartType === DBChartTypes.BIG_NUMBER ? (
                 <SimpleStatistic
                     data={data}
-                    label={chartConfig.metricOptions[0].label}
+                    label={
+                        chartConfig.metricOptions[0] &&
+                        chartConfig.metricOptions[0].label
+                    }
                 />
             ) : (
                 <SimpleChart
