@@ -30,7 +30,7 @@ const LightdashVisualization: FC<Props> = ({
         savedData?.chartConfig.seriesLayout,
     );
 
-    if (isLoading) {
+    if (isLoading || !chartConfig) {
         return <LoadingState />;
     }
     return (
@@ -45,9 +45,7 @@ const LightdashVisualization: FC<Props> = ({
                 />
             )}
             {chartType === DBChartTypes.TABLE ? (
-                <SimpleTable
-                    data={chartConfig.plotData ? chartConfig.plotData : []}
-                />
+                <SimpleTable data={chartConfig.plotData} />
             ) : (
                 <SimpleChart
                     isLoading={isLoading}
