@@ -152,7 +152,9 @@ const SimpleChart: FC<SimpleChartProps> = ({
         encode: {
             x: flipX ? seriesDimension : chartConfig.seriesLayout.xDimension,
             y: flipX ? chartConfig.seriesLayout.xDimension : seriesDimension,
-            tooltip: [seriesDimension],
+            tooltip: [DBChartTypes.COLUMN, DBChartTypes.BAR].includes(chartType)
+                ? [seriesDimension]
+                : [chartConfig.seriesLayout.xDimension, seriesDimension],
             seriesName: seriesDimension,
         },
     }));
