@@ -3,7 +3,6 @@ import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject } from 'react';
 import { useChartConfig } from '../../hooks/useChartConfig';
 import { useQueryResults } from '../../hooks/useQueryResults';
-import { useExplorer } from '../../providers/ExplorerProvider';
 import { LoadingState } from '../ResultsTable/States';
 import SimpleChart from '../SimpleChart';
 import SimpleStatistic from '../SimpleStatistic';
@@ -13,17 +12,16 @@ interface Props {
     chartRef: RefObject<EChartsReact>;
     chartType: DBChartTypes;
     savedData: SavedQuery | undefined;
+    tableName: string | undefined;
 }
 
 const LightdashVisualization: FC<Props> = ({
     savedData,
     chartRef,
     chartType,
+    tableName,
 }) => {
     const { data, isLoading } = useQueryResults();
-    const {
-        state: { tableName },
-    } = useExplorer();
     const chartConfig = useChartConfig(
         tableName,
         data,
@@ -52,6 +50,7 @@ const LightdashVisualization: FC<Props> = ({
                     chartRef={chartRef}
                     chartType={chartType}
                     chartConfig={chartConfig}
+                    tableName={tableName}
                 />
             )}
         </>

@@ -13,7 +13,6 @@ import TileBase from './TileBase';
 
 const ValidDashboardChartTile: FC<{ data: SavedQuery }> = ({ data }) => {
     const chartRef = useRef<EChartsReact>(null);
-
     const [activeVizTab, setActiveVizTab] = useState<DBChartTypes>(
         DBChartTypes.COLUMN,
     );
@@ -29,6 +28,7 @@ const ValidDashboardChartTile: FC<{ data: SavedQuery }> = ({ data }) => {
             chartRef={chartRef}
             chartType={activeVizTab}
             savedData={data}
+            tableName={data.tableName}
         />
     );
 };

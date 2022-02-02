@@ -442,6 +442,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             savedData={data}
                             chartRef={chartRef}
                             chartType={activeVizTab}
+                            tableName={tableName}
                         />
                     </div>
                 </Collapse>
