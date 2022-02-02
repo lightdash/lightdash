@@ -3,22 +3,13 @@ import { Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard } from 'common';
 import React, { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import styled from 'styled-components';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import EditableHeader from '../EditableHeader';
-
-const WrapperAddTileButton = styled.div`
-    display: flex;
-    width: 100%;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px;
-    height: 50px;
-`;
+import { TitleContainer, WrapperAddTileButton } from './DashboardHeader.styles';
 
 type DashboardHeaderProps = {
     isEditMode: boolean;
@@ -56,16 +47,10 @@ const DashboardHeader = ({
     };
     return (
         <WrapperAddTileButton>
-            <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    color:
-                        !isEditing && dashboardName === DEFAULT_DASHBOARD_NAME
-                            ? Colors.GRAY1
-                            : undefined,
-                    overflow: 'hidden',
-                }}
+            <TitleContainer
+                $isEditing={
+                    !isEditing && dashboardName === DEFAULT_DASHBOARD_NAME
+                }
             >
                 <EditableHeader
                     readonly={!isEditMode}
@@ -90,7 +75,7 @@ const DashboardHeader = ({
                         Last refreshed {timeAgo}
                     </p>
                 )}
-            </div>
+            </TitleContainer>
             <div
                 style={{
                     display: 'flex',
@@ -129,7 +114,7 @@ const DashboardHeader = ({
                 ) : (
                     <Button
                         icon="edit"
-                        text="Edit"
+                        text="Edit dashboard"
                         onClick={() => {
                             history.push(
                                 `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,

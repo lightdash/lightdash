@@ -157,7 +157,7 @@ const Dashboard = () => {
         return <Spinner />;
     }
     return (
-        <Page isContentFullWidth>
+        <>
             <DashboardHeader
                 dashboardName={dashboard.name}
                 isEditMode={isEditMode}
@@ -168,30 +168,32 @@ const Dashboard = () => {
                 onSaveTitle={(name) => mutate({ name })}
                 onCancel={onCancel}
             />
-            <ResponsiveGridLayout
-                useCSSTransforms={false}
-                draggableCancel=".non-draggable"
-                onDragStop={updateTiles}
-                onResizeStop={updateTiles}
-                breakpoints={{ lg: 1200, md: 996, sm: 768 }}
-                cols={{ lg: 12, md: 10, sm: 6 }}
-                layouts={layouts}
-            >
-                {dashboardTiles.map((tile) => (
-                    <div key={tile.uuid}>
-                        <GridTile
-                            isEditMode={isEditMode}
-                            tile={tile}
-                            onDelete={onDelete}
-                            onEdit={onEdit}
-                        />
-                    </div>
-                ))}
-            </ResponsiveGridLayout>
-            {dashboardTiles.length <= 0 && isEditMode && (
-                <EmptyStateNoTiles onAddTile={onAddTile} />
-            )}
-        </Page>
+            <Page isContentFullWidth>
+                <ResponsiveGridLayout
+                    useCSSTransforms={false}
+                    draggableCancel=".non-draggable"
+                    onDragStop={updateTiles}
+                    onResizeStop={updateTiles}
+                    breakpoints={{ lg: 1200, md: 996, sm: 768 }}
+                    cols={{ lg: 12, md: 10, sm: 6 }}
+                    layouts={layouts}
+                >
+                    {dashboardTiles.map((tile) => (
+                        <div key={tile.uuid}>
+                            <GridTile
+                                isEditMode={isEditMode}
+                                tile={tile}
+                                onDelete={onDelete}
+                                onEdit={onEdit}
+                            />
+                        </div>
+                    ))}
+                </ResponsiveGridLayout>
+                {dashboardTiles.length <= 0 && isEditMode && (
+                    <EmptyStateNoTiles onAddTile={onAddTile} />
+                )}
+            </Page>
+        </>
     );
 };
 export default Dashboard;
