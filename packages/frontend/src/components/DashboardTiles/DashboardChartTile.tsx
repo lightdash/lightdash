@@ -7,15 +7,20 @@ import {
 import EChartsReact from 'echarts-for-react';
 import React, { FC, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useSavedChartResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import LightdashVisualization from '../LightdashVisualization';
 import TileBase from './TileBase';
 
-const ValidDashboardChartTile: FC<{ data: SavedQuery }> = ({ data }) => {
+const ValidDashboardChartTile: FC<{ data: SavedQuery; project: string }> = ({
+    data,
+    project,
+}) => {
     const chartRef = useRef<EChartsReact>(null);
     const [activeVizTab, setActiveVizTab] = useState<DBChartTypes>(
         DBChartTypes.COLUMN,
     );
+    const { data: resultData, isLoading } = useSavedChartResults(project, data);
 
     useEffect(() => {
         if (data?.chartConfig.chartType) {
@@ -28,7 +33,9 @@ const ValidDashboardChartTile: FC<{ data: SavedQuery }> = ({ data }) => {
             chartRef={chartRef}
             chartType={activeVizTab}
             savedData={data}
+            data={resultData}
             tableName={data.tableName}
+            isLoading={isLoading}
         />
     );
 };
@@ -76,7 +83,10 @@ const DashboardChartTile: FC<Props> = (props) => {
         >
             <div style={{ flex: 1 }}>
                 {data ? (
-                    <ValidDashboardChartTile data={data} />
+                    <ValidDashboardChartTile
+                        data={data}
+                        project={projectUuid}
+                    />
                 ) : (
                     <InvalidDashboardChartTile />
                 )}

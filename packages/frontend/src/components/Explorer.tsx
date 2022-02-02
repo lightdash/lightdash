@@ -443,6 +443,8 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             chartRef={chartRef}
                             chartType={activeVizTab}
                             tableName={tableName}
+                            data={queryResults.data}
+                            isLoading={queryResults.isLoading}
                         />
                     </div>
                 </Collapse>
