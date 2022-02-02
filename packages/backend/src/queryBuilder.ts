@@ -25,7 +25,7 @@ const renderStringFilterSql = (
         case FilterOperator.EQUALS:
             return !filter.values || filter.values.length === 0
                 ? 'false'
-                : `(${dimensionSql}) IN ${filter.values
+                : `(${dimensionSql}) IN (${filter.values
                       .map((v) => `'${v}'`)
                       .join(',')})`;
         case FilterOperator.NOT_EQUALS:
