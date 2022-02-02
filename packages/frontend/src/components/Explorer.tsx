@@ -362,7 +362,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
 
                             <ButtonGroup>
                                 <Button
-                                    intent="primary"
                                     text="Save chart"
                                     disabled={!tableName}
                                     onClick={
@@ -409,7 +408,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                     >
                                         <Button
                                             icon="more"
-                                            intent="primary"
                                             disabled={!tableName}
                                         />
                                     </Popover2>
