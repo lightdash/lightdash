@@ -69,7 +69,7 @@ const DashboardHeader = ({
                 {!isEditMode && <Title>Last refreshed {timeAgo}</Title>}
             </TitleContainer>
             <EditContainer>
-                {isEditMode ? (
+                 {isEditMode ? (
                     <>
                         <AddTileButton onAddTile={onAddTile} />
                         <Tooltip2
