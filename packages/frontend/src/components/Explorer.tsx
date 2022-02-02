@@ -369,7 +369,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                 chartConfig={chartConfig}
                                 disabled={isChartEmpty || isBigNumber}
                             />
-                            {!isBigNumber && (
+                            {chartConfig.plotData && !isBigNumber && (
                                 <ChartDownloadMenu
                                     chartRef={chartRef}
                                     disabled={isChartEmpty}
@@ -439,8 +439,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                 <Collapse className="explorer-chart" isOpen={vizIsOpen}>
                     <div style={{ height: '300px' }} className="cohere-block">
                         <LightdashVisualization
-                            isLoading={queryResults.isLoading}
-                            tableName={tableName}
                             savedData={data}
                             chartRef={chartRef}
                             chartType={activeVizTab}

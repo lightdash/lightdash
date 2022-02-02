@@ -1,41 +1,58 @@
-import { DBChartTypes } from 'common';
+import { DBChartTypes, SavedQuery } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject } from 'react';
-import { ChartConfig } from '../../hooks/useChartConfig';
+import { useChartConfig } from '../../hooks/useChartConfig';
+import { useQueryResults } from '../../hooks/useQueryResults';
+import { useExplorer } from '../../providers/ExplorerProvider';
 import { LoadingState } from '../ResultsTable/States';
 import SimpleChart from '../SimpleChart';
+import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
 
 interface Props {
-    isLoading: boolean;
-    tableName: string | undefined;
     chartRef: RefObject<EChartsReact>;
     chartType: DBChartTypes;
-    chartConfig: ChartConfig;
+    savedData: SavedQuery | undefined;
 }
 
 const LightdashVisualization: FC<Props> = ({
-    isLoading,
-    tableName,
+    savedData,
     chartRef,
     chartType,
-    chartConfig,
 }) => {
-    if (isLoading || !chartConfig.plotData) {
+    const { data, isLoading } = useQueryResults();
+    const {
+        state: { tableName },
+    } = useExplorer();
+    const chartConfig = useChartConfig(
+        tableName,
+        data,
+        savedData?.chartConfig.seriesLayout,
+    );
+
+    if (isLoading) {
         return <LoadingState />;
     }
     return (
         <>
-            {chartType === 'table' ? (
-                <SimpleTable data={chartConfig.plotData} />
+            {chartType === DBChartTypes.BIG_NUMBER && (
+                <SimpleStatistic
+                    data={data}
+                    label={
+                        chartConfig.metricOptions[0] &&
+                        chartConfig.metricOptions[0].label
+                    }
+                />
+            )}
+            {chartType === DBChartTypes.TABLE ? (
+                <SimpleTable
+                    data={chartConfig.plotData ? chartConfig.plotData : []}
+                />
             ) : (
                 <SimpleChart
                     isLoading={isLoading}
-                    tableName={tableName}
                     chartRef={chartRef}
-                    chartType={
-                        chartType as Exclude<DBChartTypes, DBChartTypes.TABLE>
-                    }
+                    chartType={chartType}
                     chartConfig={chartConfig}
                 />
             )}

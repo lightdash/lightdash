@@ -170,7 +170,9 @@ const App = () => (
                                                                 PageName.DASHBOARD
                                                             }
                                                         >
-                                                            <Dashboard />
+                                                            <ExplorerProvider>
+                                                                <Dashboard />
+                                                            </ExplorerProvider>
                                                         </TrackPage>
                                                     </Route>
                                                     <Route path="/projects/:projectUuid/dashboards">

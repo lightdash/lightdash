@@ -26,8 +26,6 @@ const ValidDashboardChartTile: FC<{ data: SavedQuery }> = ({ data }) => {
 
     return (
         <LightdashVisualization
-            isLoading={queryResults.isLoading}
-            tableName={data.tableName}
             chartRef={chartRef}
             chartType={activeVizTab}
             savedData={data}

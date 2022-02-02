@@ -12,9 +12,7 @@ import { ChartConfig } from '../../hooks/useChartConfig';
 import { useExplore } from '../../hooks/useExplore';
 import { useExplorer } from '../../providers/ExplorerProvider';
 
-const flipXFromChartType = (
-    chartType: Omit<DBChartTypes, DBChartTypes.TABLE | DBChartTypes.BIG_NUMBER>,
-) => {
+const flipXFromChartType = (chartType: DBChartTypes) => {
     switch (chartType) {
         case DBChartTypes.COLUMN:
         case DBChartTypes.LINE:
@@ -22,16 +20,17 @@ const flipXFromChartType = (
             return false;
         case DBChartTypes.BAR:
             return true;
-
-        default:
-            !typeof chartType;
+        case DBChartTypes.TABLE:
+        case DBChartTypes.BIG_NUMBER:
             return undefined;
+        default: {
+            const nope: never = chartType;
+            return undefined;
+        }
     }
 };
 
-const echartType = (
-    chartType: Omit<DBChartTypes, DBChartTypes.TABLE | DBChartTypes.BIG_NUMBER>,
-) => {
+const echartType = (chartType: DBChartTypes) => {
     switch (chartType) {
         case DBChartTypes.LINE:
             return 'line';
@@ -41,9 +40,12 @@ const echartType = (
             return 'bar';
         case DBChartTypes.SCATTER:
             return 'scatter';
-        default:
-            !typeof chartType;
+        case DBChartTypes.TABLE:
+        case DBChartTypes.BIG_NUMBER:
             return undefined;
+        default: {
+            return undefined;
+        }
     }
 };
 
@@ -76,7 +78,7 @@ const axisTypeFromDimensionType = (
 
 type SimpleChartProps = {
     chartRef: RefObject<EChartsReact>;
-    chartType: Omit<DBChartTypes, DBChartTypes.TABLE | DBChartTypes.BIG_NUMBER>;
+    chartType: DBChartTypes;
     chartConfig: ChartConfig;
     isLoading: boolean;
 };
