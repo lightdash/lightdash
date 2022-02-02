@@ -152,7 +152,7 @@ const SimpleChart: FC<SimpleChartProps> = ({
         encode: {
             x: flipX ? seriesDimension : chartConfig.seriesLayout.xDimension,
             y: flipX ? chartConfig.seriesLayout.xDimension : seriesDimension,
-            tooltip: [chartConfig.seriesLayout.xDimension, seriesDimension],
+            tooltip: [seriesDimension],
             seriesName: seriesDimension,
         },
     }));
@@ -164,7 +164,7 @@ const SimpleChart: FC<SimpleChartProps> = ({
         ? {
               ...commonTooltip,
               trigger: 'axis',
-              axisPointer: { label: { show: true } },
+              axisPointer: { type: 'shadow', label: { show: true } },
           }
         : { ...commonTooltip, trigger: 'item' };
     const options = {
