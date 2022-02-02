@@ -122,12 +122,14 @@ const SimpleChart: FC<SimpleChartProps> = ({
     const yType = 'value';
 
     const flipX = flipXFromChartType(chartType);
+    const xAxisType = flipX ? yType : xType;
     const xAxis = {
-        type: flipX ? yType : xType,
+        type: xAxisType,
         name: flipX ? ylabel : xlabel,
         nameLocation: 'center',
         nameGap: 30,
         nameTextStyle: { fontWeight: 'bold' },
+        // axisLabel: xAxisType === 'category' ? { interval: 0, rotate: 35 } : {},
     };
     const yAxis = {
         type: flipX ? 'category' : yType,
@@ -150,10 +152,23 @@ const SimpleChart: FC<SimpleChartProps> = ({
         encode: {
             x: flipX ? seriesDimension : chartConfig.seriesLayout.xDimension,
             y: flipX ? chartConfig.seriesLayout.xDimension : seriesDimension,
-            tooltip: [chartConfig.seriesLayout.xDimension, seriesDimension],
+            tooltip: [DBChartTypes.COLUMN, DBChartTypes.BAR].includes(chartType)
+                ? [seriesDimension]
+                : [chartConfig.seriesLayout.xDimension, seriesDimension],
             seriesName: seriesDimension,
         },
     }));
+    const commonTooltip = {
+        show: true,
+        confine: true,
+    };
+    const tooltip = [DBChartTypes.COLUMN, DBChartTypes.BAR].includes(chartType)
+        ? {
+              ...commonTooltip,
+              trigger: 'axis',
+              axisPointer: { type: 'shadow', label: { show: true } },
+          }
+        : { ...commonTooltip, trigger: 'item' };
     const options = {
         xAxis,
         yAxis,
@@ -164,11 +179,7 @@ const SimpleChart: FC<SimpleChartProps> = ({
             source: chartConfig.plotData,
             dimensions: chartConfig.eChartDimensions,
         },
-        tooltip: {
-            show: true,
-            trigger: 'item',
-            confine: true,
-        },
+        tooltip,
     };
 
     return (
