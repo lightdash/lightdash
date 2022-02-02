@@ -4,13 +4,10 @@ import {
     FilterableField,
     FilterOperator,
     FilterRule,
+    FilterType,
 } from 'common';
 import React, { FC, useCallback, useMemo } from 'react';
-import {
-    FilterType,
-    FilterTypeConfig,
-    getFilterTypeFromField,
-} from './configs';
+import { FilterTypeConfig, getFilterTypeFromField } from './configs';
 import FieldAutoComplete from './FieldAutoComplete';
 
 type Props = {
@@ -30,14 +27,12 @@ const FilterRuleForm: FC<Props> = ({
         (field) => getFieldId(field) === filterRule.target.fieldId,
     );
 
+    const filterType = activeField
+        ? getFilterTypeFromField(activeField)
+        : FilterType.STRING;
     const filterConfig = useMemo(
-        () =>
-            FilterTypeConfig[
-                activeField
-                    ? getFilterTypeFromField(activeField)
-                    : FilterType.STRING
-            ],
-        [activeField],
+        () => FilterTypeConfig[filterType],
+        [filterType],
     );
 
     const onFieldChange = useCallback(
@@ -92,6 +87,7 @@ const FilterRuleForm: FC<Props> = ({
                         value={filterRule.operator}
                     />
                     <filterConfig.inputs
+                        filterType={filterType}
                         field={activeField}
                         filterRule={filterRule}
                         onChange={onChange}

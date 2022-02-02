@@ -1,3 +1,10 @@
+export enum FilterType {
+    STRING = 'string',
+    NUMBER = 'number',
+    DATE = 'date',
+    BOOLEAN = 'boolean',
+}
+
 export enum FilterOperator {
     NULL = 'isNull',
     NOT_NULL = 'notNull',

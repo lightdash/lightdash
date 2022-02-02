@@ -2,6 +2,7 @@ import {
     DimensionType,
     FilterableField,
     FilterOperator,
+    FilterType,
     MetricType,
 } from 'common';
 import { FC } from 'react';
@@ -47,13 +48,6 @@ const timeFilterOptions: Array<{
     { value: FilterOperator.GREATER_THAN, label: 'is after' },
     { value: FilterOperator.GREATER_THAN_OR_EQUAL, label: 'is on or after' },
 ];
-
-export enum FilterType {
-    STRING = 'string',
-    NUMBER = 'number',
-    DATE = 'date',
-    BOOLEAN = 'boolean',
-}
 
 export const getFilterTypeFromField = (field: FilterableField): FilterType => {
     const fieldType = field.type;

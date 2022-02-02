@@ -141,7 +141,7 @@ const renderBooleanFilterSql = (
     }
 };
 
-const renderFilterGroupSql = (
+const renderFilterRuleSql = (
     filterRule: FilterRule,
     explore: Explore,
     quoteChar: string,
@@ -297,19 +297,22 @@ export const buildQuery = ({
         filters.dimensions && isAndFilterGroup(filters.dimensions)
             ? getFilterRulesFromGroup(filters.dimensions)
             : []
-    ).map((filter) => renderFilterGroupSql(filter, explore, q));
+    ).map((filter) => renderFilterRuleSql(filter, explore, q));
     const sqlWhere =
         whereFilters.length > 0
             ? `WHERE ${whereFilters.map((w) => `(\n  ${w}\n)`).join(' AND ')}`
             : '';
 
     const whereMetricFilters = getFilterRulesFromGroup(filters.metrics).map(
-        (filter) => renderFilterGroupSql(filter, explore, q),
+        (filter) => renderFilterRuleSql(filter, explore, q),
     );
 
     const sqlLimit = `LIMIT ${limit}`;
 
-    if (compiledMetricQuery.compiledTableCalculations.length > 0) {
+    if (
+        compiledMetricQuery.compiledTableCalculations.length > 0 ||
+        whereMetricFilters.length > 0
+    ) {
         const cteSql = [
             sqlSelect,
             sqlFrom,
@@ -323,11 +326,11 @@ export const buildQuery = ({
             compiledMetricQuery.compiledTableCalculations.map(
                 (tableCalculation) => {
                     const alias = tableCalculation.name;
-                    return `${tableCalculation.compiledSql} AS ${q}${alias}${q}`;
+                    return `  ${tableCalculation.compiledSql} AS ${q}${alias}${q}`;
                 },
             );
-        const finalSelect = `SELECT\n  *,\n  ${tableCalculationSelects.join(
-            ',\n  ',
+        const finalSelect = `SELECT\n${['  *', ...tableCalculationSelects].join(
+            ',\n',
         )}`;
         const finalFrom = `FROM ${cteName}`;
         const finalSqlWhere =
@@ -344,20 +347,11 @@ export const buildQuery = ({
         };
     }
 
-    // TODO: doesn't work with metric field id's
-    const finalSqlWhere =
-        whereMetricFilters.length > 0
-            ? `AND ${whereMetricFilters
-                  .map((w) => `(\n  ${w}\n)`)
-                  .join(' AND ')}`
-            : '';
-
     const metricQuerySql = [
         sqlSelect,
         sqlFrom,
         sqlJoins,
         sqlWhere,
-        finalSqlWhere,
         sqlGroupBy,
         sqlOrderBy,
         sqlLimit,
