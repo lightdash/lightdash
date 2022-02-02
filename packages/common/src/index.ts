@@ -938,6 +938,7 @@ export enum DBChartTypes {
     BAR = 'bar',
     LINE = 'line',
     SCATTER = 'scatter',
+    TABLE = 'table',
 }
 
 export enum WarehouseTypes {

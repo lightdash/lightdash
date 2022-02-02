@@ -40,6 +40,7 @@ import { BigButton } from './common/BigButton';
 import EditableHeader from './common/EditableHeader';
 import FiltersForm from './common/Filters';
 import { ExplorerResults } from './Explorer/ExplorerResults';
+import LightdashVisualization from './LightdashVisualization';
 import { RefreshButton } from './RefreshButton';
 import { RefreshServerButton } from './RefreshServerButton';
 import { RenderedSql } from './RenderedSql';
@@ -48,7 +49,6 @@ import CreateSavedDashboardModal from './SavedDashboards/CreateSavedDashboardMod
 import DashboardForm from './SavedDashboards/DashboardForm';
 import CreateSavedQueryModal from './SavedQueries/CreateSavedQueryModal';
 import SavedQueryForm from './SavedQueries/SavedQueryForm';
-import SimpleChart from './SimpleChart';
 
 interface Props {
     savedQueryUuid?: string;
@@ -231,7 +231,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             </Card>
             <div style={{ paddingTop: '10px' }} />
 
-            <Card style={{ padding: 5 }} elevation={1}>
+            <Card style={{ padding: 5, overflowY: 'scroll' }} elevation={1}>
                 <div
                     style={{
                         display: 'flex',
@@ -330,14 +330,36 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                     name="Scatter"
                                 />
                             </Tooltip2>
+                            <Tooltip2
+                                content="Table"
+                                placement="top"
+                                interactionKind="hover"
+                            >
+                                <Button
+                                    minimal
+                                    active={activeVizTab === DBChartTypes.TABLE}
+                                    icon="panel-table"
+                                    onClick={() =>
+                                        setActiveVizTab(DBChartTypes.TABLE)
+                                    }
+                                    disabled={isChartEmpty}
+                                    name="Table"
+                                />
+                            </Tooltip2>
                             <ChartConfigPanel
                                 chartConfig={chartConfig}
                                 disabled={isChartEmpty}
                             />
-                            <ChartDownloadMenu
-                                chartRef={chartRef}
-                                disabled={isChartEmpty}
-                            />
+
+                            {chartConfig.plotData && (
+                                <ChartDownloadMenu
+                                    chartRef={chartRef}
+                                    disabled={isChartEmpty}
+                                    chartType={activeVizTab}
+                                    chartData={chartConfig.plotData}
+                                />
+                            )}
+
                             <ButtonGroup>
                                 <Button
                                     intent="primary"
@@ -398,7 +420,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                 </div>
                 <Collapse className="explorer-chart" isOpen={vizIsOpen}>
                     <div style={{ height: '300px' }} className="cohere-block">
-                        <SimpleChart
+                        <LightdashVisualization
                             isLoading={queryResults.isLoading}
                             tableName={tableName}
                             chartRef={chartRef}
