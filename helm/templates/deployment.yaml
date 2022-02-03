@@ -24,7 +24,6 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "helm.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -48,12 +47,12 @@ spec:
                 secretKeyRef:
                   key: {{ .Values.args.postgres.password.secretKey }}
                   name: {{ .Values.args.postgres.password.secretName }}
-          {{-end }}
+          {{- end }}
 
           {{- if .Values.args.postgres.username.rawValue }}
           - name: PGUSER
             value: {{ .Values.args.postgres.username.rawValue }}
-          {{-end }}
+          {{- end }}
 
           {{- if .Values.args.postgres.username.secretName }}
             - name: PGUSER
@@ -61,10 +60,10 @@ spec:
                 secretKeyRef:
                   key: {{ .Values.args.postgres.username.secretKey }}
                   name: {{ .Values.args.postgres.username.secretName }}
-          {{-end }}
+          {{- end }}
 
           - name: PGPORT
-            value: {{ .Values.args.postgres.port }}
+            value: {{ .Values.args.postgres.port | quote }}
           - name: PGDATABASE
             value: {{ .Values.args.postgres.database }}
           

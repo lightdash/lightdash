@@ -47,3 +47,4 @@ node_modules
 # docs
 /docs/build
 /docs/.docusaurus
+.values.yaml

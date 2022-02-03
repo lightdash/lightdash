@@ -1,6 +1,6 @@
 apiVersion: v2
-name: helm
-description: A Helm chart for Kubernetes
+name: lightdash
+description: A Helm chart to deploy lightsash on kubernetes
 
 # A chart can be either an 'application' or a 'library' chart.
 #
