@@ -64,6 +64,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
         case FilterOperator.GREATER_THAN_OR_EQUAL:
         case FilterOperator.LESS_THAN:
         case FilterOperator.LESS_THAN_OR_EQUAL:
+        case FilterOperator.IN_THE_PAST:
             return (
                 <NumericInput
                     fill
@@ -76,7 +77,6 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
                     }
                 />
             );
-
         default: {
             const never: never = filterRule.operator;
             throw Error(

@@ -1,3 +1,4 @@
+import { ControlGroup, HTMLSelect, NumericInput } from '@blueprintjs/core';
 import { DateInput, TimePrecision } from '@blueprintjs/datetime';
 import {
     DimensionType,
@@ -6,6 +7,7 @@ import {
     formatTimestamp,
     parseDate,
     parseTimestamp,
+    UnitOfTime,
 } from 'common';
 import React, { FC } from 'react';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
@@ -43,6 +45,34 @@ const DateFilterInputs: FC<FilterInputsProps> = (props) => {
                         }
                     }}
                 />
+            );
+        case FilterOperator.IN_THE_PAST:
+            return (
+                <ControlGroup>
+                    <NumericInput
+                        fill
+                        value={filterRule.values?.[0]}
+                        onValueChange={(value) =>
+                            onChange({
+                                ...filterRule,
+                                values: [value],
+                            })
+                        }
+                    />
+                    <HTMLSelect
+                        fill={false}
+                        onChange={(e) =>
+                            onChange({
+                                ...filterRule,
+                                settings: {
+                                    unitOfTime: e.currentTarget.value,
+                                } as any,
+                            })
+                        }
+                        options={Object.values(UnitOfTime)}
+                        value={(filterRule.settings as any).unitOfTime}
+                    />
+                </ControlGroup>
             );
         default: {
             return <DefaultFilterInputs {...props} />;
