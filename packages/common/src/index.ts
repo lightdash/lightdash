@@ -1,5 +1,6 @@
 import moment from 'moment';
-import { Filters } from './types/filter';
+import { v4 as uuidv4 } from 'uuid';
+import { FilterOperator, Filters, isAndFilterGroup } from './types/filter';
 import { OrganizationMemberProfile } from './types/organizationMemberProfile';
 import { LightdashUser } from './types/user';
 
@@ -389,6 +390,34 @@ export const isFilterableField = (
 export const filterableDimensionsOnly = (
     dimensions: Dimension[],
 ): FilterableDimension[] => dimensions.filter(isFilterableDimension);
+
+export const addFilterRule = (filters: Filters, field: Field): Filters => {
+    const groupKey = isDimension(field) ? 'dimensions' : 'metrics';
+    const group = filters[groupKey];
+    let items: any[];
+    if (group) {
+        items = isAndFilterGroup(group) ? group.and : group.or;
+    } else {
+        items = [];
+    }
+    return {
+        ...filters,
+        [groupKey]: {
+            id: uuidv4(),
+            ...group,
+            and: [
+                ...items,
+                {
+                    id: uuidv4(),
+                    target: {
+                        fieldId: fieldId(field),
+                    },
+                    operator: FilterOperator.EQUALS,
+                },
+            ],
+        },
+    };
+};
 
 const capitalize = (word: string): string =>
     word ? `${word.charAt(0).toUpperCase()}${word.slice(1)}` : '';

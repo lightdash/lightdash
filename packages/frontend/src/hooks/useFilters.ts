@@ -1,14 +1,5 @@
-import {
-    Dimension,
-    Field,
-    fieldId,
-    FilterOperator,
-    getTotalFilterRules,
-    isAndFilterGroup,
-    isFilterableDimension,
-} from 'common';
+import { addFilterRule, Field, fieldId, getTotalFilterRules } from 'common';
 import { useCallback, useMemo } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import { useExplorer } from '../providers/ExplorerProvider';
 
 export const useFilters = () => {
@@ -30,37 +21,13 @@ export const useFilters = () => {
         [allFilterRules],
     );
 
-    const addDefaultFilterForDimension = useCallback(
-        (dimension: Dimension): void => {
-            if (isFilterableDimension(dimension)) {
-                setFilters({
-                    ...filters,
-                    dimensions: {
-                        id: uuidv4(),
-                        ...filters.dimensions,
-                        and: [
-                            ...(filters.dimensions &&
-                            isAndFilterGroup(filters.dimensions)
-                                ? filters.dimensions.and
-                                : []),
-                            {
-                                id: uuidv4(),
-                                target: {
-                                    fieldId: fieldId(dimension),
-                                },
-                                operator: FilterOperator.EQUALS,
-                            },
-                        ],
-                    },
-                });
-            }
-        },
+    const addFilter = useCallback(
+        (field: Field) => setFilters(addFilterRule(filters, field)),
         [filters, setFilters],
     );
 
     return {
         isFilteredField,
-        isFilterableDimension,
-        addDefaultFilterForDimension,
+        addFilter,
     };
 };

@@ -1,17 +1,13 @@
 import { Button } from '@blueprintjs/core';
 import {
+    addFilterRule,
     Field,
-    fieldId,
     FilterableDimension,
-    FilterOperator,
     Filters,
-    isAndFilterGroup,
-    isDimension,
     Metric,
 } from 'common';
 import React, { FC, useCallback } from 'react';
 import { useToggle } from 'react-use';
-import { v4 as uuidv4 } from 'uuid';
 import FieldAutoComplete from './FieldAutoComplete';
 import FilterGroupForm from './FilterGroupForm';
 
@@ -32,31 +28,7 @@ const FiltersForm: FC<Props> = ({
 
     const addFieldRule = useCallback(
         (field: Field) => {
-            const groupKey = isDimension(field) ? 'dimensions' : 'metrics';
-            const group = filters[groupKey];
-            let items: any[];
-            if (group) {
-                items = isAndFilterGroup(group) ? group.and : group.or;
-            } else {
-                items = [];
-            }
-            setFilters({
-                ...filters,
-                [groupKey]: {
-                    id: uuidv4(),
-                    ...group,
-                    and: [
-                        ...items,
-                        {
-                            id: uuidv4(),
-                            target: {
-                                fieldId: fieldId(field),
-                            },
-                            operator: FilterOperator.EQUALS,
-                        },
-                    ],
-                },
-            });
+            setFilters(addFilterRule(filters, field));
             toggleFieldInput(false);
         },
         [filters, setFilters, toggleFieldInput],
