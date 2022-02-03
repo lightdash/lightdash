@@ -12,7 +12,7 @@ interface Props {
     chartType: DBChartTypes;
     savedData: SavedQuery | undefined;
     tableName: string | undefined;
-    data: ApiQueryResults | undefined;
+    resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
 }
 
@@ -21,12 +21,12 @@ const LightdashVisualization: FC<Props> = ({
     chartRef,
     chartType,
     tableName,
-    data,
+    resultsData,
     isLoading,
 }) => {
     const chartConfig = useChartConfig(
         tableName,
-        data,
+        resultsData,
         savedData?.chartConfig.seriesLayout,
     );
 
@@ -39,7 +39,7 @@ const LightdashVisualization: FC<Props> = ({
             case DBChartTypes.BIG_NUMBER:
                 return (
                     <SimpleStatistic
-                        data={data}
+                        data={resultsData}
                         label={
                             chartConfig.metricOptions[0] &&
                             chartConfig.metricOptions[0].label

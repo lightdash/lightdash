@@ -939,7 +939,7 @@ export enum DBChartTypes {
     LINE = 'line',
     SCATTER = 'scatter',
     TABLE = 'table',
-    BIG_NUMBER= 'big_number'
+    BIG_NUMBER = 'big_number',
 }
 
 export enum WarehouseTypes {

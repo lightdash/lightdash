@@ -33,7 +33,7 @@ const ValidDashboardChartTile: FC<{ data: SavedQuery; project: string }> = ({
             chartRef={chartRef}
             chartType={activeVizTab}
             savedData={data}
-            data={resultData}
+            resultsData={resultData}
             tableName={data.tableName}
             isLoading={isLoading}
         />
