@@ -11,9 +11,7 @@ import React, { FC, RefObject, useEffect } from 'react';
 import { ChartConfig } from '../../hooks/useChartConfig';
 import { useExplore } from '../../hooks/useExplore';
 
-const flipXFromChartType = (
-    chartType: Exclude<DBChartTypes, DBChartTypes.TABLE>,
-) => {
+const flipXFromChartType = (chartType: DBChartTypes) => {
     switch (chartType) {
         case DBChartTypes.COLUMN:
         case DBChartTypes.LINE:
@@ -21,13 +19,17 @@ const flipXFromChartType = (
             return false;
         case DBChartTypes.BAR:
             return true;
+        case DBChartTypes.TABLE:
+        case DBChartTypes.BIG_NUMBER:
+            return undefined;
         default: {
             const nope: never = chartType;
             return undefined;
         }
     }
 };
-const echartType = (chartType: Exclude<DBChartTypes, DBChartTypes.TABLE>) => {
+
+const echartType = (chartType: DBChartTypes) => {
     switch (chartType) {
         case DBChartTypes.LINE:
             return 'line';
@@ -37,8 +39,10 @@ const echartType = (chartType: Exclude<DBChartTypes, DBChartTypes.TABLE>) => {
             return 'bar';
         case DBChartTypes.SCATTER:
             return 'scatter';
+        case DBChartTypes.TABLE:
+        case DBChartTypes.BIG_NUMBER:
+            return undefined;
         default: {
-            const nope: never = chartType;
             return undefined;
         }
     }
@@ -72,18 +76,18 @@ const axisTypeFromDimensionType = (
 };
 
 type SimpleChartProps = {
+    chartRef: RefObject<EChartsReact>;
+    chartType: DBChartTypes;
+    chartConfig: ChartConfig;
     isLoading: boolean;
     tableName: string | undefined;
-    chartRef: RefObject<EChartsReact>;
-    chartType: Exclude<DBChartTypes, DBChartTypes.TABLE>;
-    chartConfig: ChartConfig;
 };
 const SimpleChart: FC<SimpleChartProps> = ({
-    isLoading,
-    tableName,
     chartRef,
     chartType,
     chartConfig,
+    isLoading,
+    tableName,
 }) => {
     useEffect(() => {
         const listener = () => {

@@ -1,46 +1,71 @@
-import { DBChartTypes } from 'common';
+import { ApiQueryResults, DBChartTypes, SavedQuery } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject } from 'react';
-import { ChartConfig } from '../../hooks/useChartConfig';
+import { useChartConfig } from '../../hooks/useChartConfig';
 import { LoadingState } from '../ResultsTable/States';
 import SimpleChart from '../SimpleChart';
+import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
 
 interface Props {
-    isLoading: boolean;
-    tableName: string | undefined;
     chartRef: RefObject<EChartsReact>;
     chartType: DBChartTypes;
-    chartConfig: ChartConfig;
+    savedData: SavedQuery | undefined;
+    tableName: string | undefined;
+    resultsData: ApiQueryResults | undefined;
+    isLoading: boolean;
 }
 
 const LightdashVisualization: FC<Props> = ({
-    isLoading,
-    tableName,
+    savedData,
     chartRef,
     chartType,
-    chartConfig,
+    tableName,
+    resultsData,
+    isLoading,
 }) => {
-    if (isLoading || !chartConfig.plotData) {
+    const chartConfig = useChartConfig(
+        tableName,
+        resultsData,
+        savedData?.chartConfig.seriesLayout,
+    );
+
+    if (isLoading || !chartConfig) {
         return <LoadingState />;
     }
-    return (
-        <>
-            {chartType === 'table' ? (
-                <SimpleTable data={chartConfig.plotData} />
-            ) : (
-                <SimpleChart
-                    isLoading={isLoading}
-                    tableName={tableName}
-                    chartRef={chartRef}
-                    chartType={
-                        chartType as Exclude<DBChartTypes, DBChartTypes.TABLE>
-                    }
-                    chartConfig={chartConfig}
-                />
-            )}
-        </>
-    );
+
+    const renderType = () => {
+        switch (chartType) {
+            case DBChartTypes.BIG_NUMBER:
+                return (
+                    <SimpleStatistic
+                        data={resultsData}
+                        label={
+                            chartConfig.metricOptions[0] &&
+                            chartConfig.metricOptions[0].label
+                        }
+                    />
+                );
+            case DBChartTypes.TABLE:
+                return <SimpleTable data={chartConfig.plotData} />;
+            case DBChartTypes.COLUMN:
+            case DBChartTypes.LINE:
+            case DBChartTypes.SCATTER:
+            case DBChartTypes.BAR:
+                return (
+                    <SimpleChart
+                        isLoading={isLoading}
+                        chartRef={chartRef}
+                        chartType={chartType}
+                        chartConfig={chartConfig}
+                        tableName={tableName}
+                    />
+                );
+            default:
+                return null;
+        }
+    };
+    return <>{renderType()}</>;
 };
 
 export default LightdashVisualization;

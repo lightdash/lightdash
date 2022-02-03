@@ -7,24 +7,20 @@ import {
 import EChartsReact from 'echarts-for-react';
 import React, { FC, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useChartConfig } from '../../hooks/useChartConfig';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import LightdashVisualization from '../LightdashVisualization';
 import TileBase from './TileBase';
 
-const ValidDashboardChartTile: FC<{ data: SavedQuery }> = ({ data }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+const ValidDashboardChartTile: FC<{ data: SavedQuery; project: string }> = ({
+    data,
+    project,
+}) => {
     const chartRef = useRef<EChartsReact>(null);
-    const queryResults = useSavedChartResults(projectUuid, data);
-    const chartConfig = useChartConfig(
-        data.tableName,
-        queryResults.data,
-        data?.chartConfig.seriesLayout,
-    );
     const [activeVizTab, setActiveVizTab] = useState<DBChartTypes>(
         DBChartTypes.COLUMN,
     );
+    const { data: resultData, isLoading } = useSavedChartResults(project, data);
 
     useEffect(() => {
         if (data?.chartConfig.chartType) {
@@ -34,11 +30,12 @@ const ValidDashboardChartTile: FC<{ data: SavedQuery }> = ({ data }) => {
 
     return (
         <LightdashVisualization
-            isLoading={queryResults.isLoading}
-            tableName={data.tableName}
             chartRef={chartRef}
             chartType={activeVizTab}
-            chartConfig={chartConfig}
+            savedData={data}
+            resultsData={resultData}
+            tableName={data.tableName}
+            isLoading={isLoading}
         />
     );
 };
@@ -86,7 +83,10 @@ const DashboardChartTile: FC<Props> = (props) => {
         >
             <div style={{ flex: 1 }}>
                 {data ? (
-                    <ValidDashboardChartTile data={data} />
+                    <ValidDashboardChartTile
+                        data={data}
+                        project={projectUuid}
+                    />
                 ) : (
                     <InvalidDashboardChartTile />
                 )}

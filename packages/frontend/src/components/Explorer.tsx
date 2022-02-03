@@ -34,6 +34,7 @@ import {
 import { useExplorer } from '../providers/ExplorerProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
+import bigNumberConfig from '../utils/bigNumberConfig';
 import { ChartConfigPanel } from './ChartConfigPanel';
 import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
@@ -87,6 +88,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         queryResults.data,
         data?.chartConfig.seriesLayout,
     );
+
     const update = useAddVersionMutation();
 
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false);
@@ -99,6 +101,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [activeVizTab, setActiveVizTab] = useState<DBChartTypes>(
         DBChartTypes.COLUMN,
     );
+    const bigNumber = bigNumberConfig(queryResults.data);
     const queryData: CreateSavedQueryVersion | undefined = tableName
         ? {
               tableName,
@@ -140,7 +143,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             setActiveVizTab(data.chartConfig.chartType);
         }
     }, [data]);
-
+    const isBigNumber = activeVizTab === DBChartTypes.BIG_NUMBER;
     const isChartEmpty: boolean = !chartConfig.plotData;
     return (
         <>
@@ -346,12 +349,27 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                     name="Table"
                                 />
                             </Tooltip2>
+                            <Tooltip2
+                                content="Big number"
+                                placement="top"
+                                interactionKind="hover"
+                            >
+                                <Button
+                                    minimal
+                                    active={isBigNumber}
+                                    icon="numerical"
+                                    onClick={() =>
+                                        setActiveVizTab(DBChartTypes.BIG_NUMBER)
+                                    }
+                                    disabled={!bigNumber}
+                                    name="Big Number"
+                                />
+                            </Tooltip2>
                             <ChartConfigPanel
                                 chartConfig={chartConfig}
-                                disabled={isChartEmpty}
+                                disabled={isChartEmpty || isBigNumber}
                             />
-
-                            {chartConfig.plotData && (
+                            {chartConfig.plotData && !isBigNumber && (
                                 <ChartDownloadMenu
                                     chartRef={chartRef}
                                     disabled={isChartEmpty}
@@ -359,7 +377,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                     chartData={chartConfig.plotData}
                                 />
                             )}
-
                             <ButtonGroup>
                                 <Button
                                     text="Save chart"
@@ -416,14 +433,16 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         </div>
                     )}
                 </div>
+
                 <Collapse className="explorer-chart" isOpen={vizIsOpen}>
                     <div style={{ height: '300px' }} className="cohere-block">
                         <LightdashVisualization
-                            isLoading={queryResults.isLoading}
-                            tableName={tableName}
+                            savedData={data}
                             chartRef={chartRef}
                             chartType={activeVizTab}
-                            chartConfig={chartConfig}
+                            tableName={tableName}
+                            resultsData={queryResults.data}
+                            isLoading={queryResults.isLoading}
                         />
                     </div>
                 </Collapse>
