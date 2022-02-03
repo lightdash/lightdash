@@ -170,7 +170,7 @@ const Dashboard = () => {
                 onCancel={onCancel}
             />
             <Page isContentFullWidth>
-                <DashboardFilter />
+                <DashboardFilter chartsData={dashboardTiles} />
                 <ResponsiveGridLayout
                     useCSSTransforms={false}
                     draggableCancel=".non-draggable"

@@ -1,13 +1,19 @@
-import { AnchorButton } from '@blueprintjs/core';
-import { Classes, Popover2 } from '@blueprintjs/popover2';
+import { Classes } from '@blueprintjs/popover2';
 import React, { FC, useState } from 'react';
+import { FilterTrigger, TriggerWrapper } from './DashboardFilter.styles';
+import FilterSearch from './FilterSearch';
 
-const DashboardFilter: FC = () => {
+interface Props {
+    chartsData: any;
+}
+
+const DashboardFilter: FC<Props> = ({ chartsData }) => {
     const [isOpen, setIsOpen] = useState(false);
+
     return (
         <>
-            <Popover2
-                content={<p>HOLAAA</p>}
+            <TriggerWrapper
+                content={<FilterSearch chartsData={chartsData} />}
                 interactionKind="click"
                 popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
                 isOpen={isOpen}
@@ -15,10 +21,10 @@ const DashboardFilter: FC = () => {
                 position="bottom"
                 lazy={false}
             >
-                <AnchorButton minimal icon="filter-list">
+                <FilterTrigger minimal icon="filter-list">
                     Add filter
-                </AnchorButton>
-            </Popover2>
+                </FilterTrigger>
+            </TriggerWrapper>
         </>
     );
 };
