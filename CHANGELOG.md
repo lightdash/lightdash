@@ -4,6 +4,18 @@ Recent and upcoming changes to lightdash
 
 ## Unreleased
 
+## [0.12.1] - 2022-02-02
+### Added
+- Added new 'table' chart type
+
+### Changed
+- Minor UI changes in the explore view
+- Categorical charts now include a new tooltip showing category names
+
+### Fixed
+- Fixed bug with generated SQL for string filters
+- 
+
 ## [0.12.0] - 2022-02-01
 ### Added
 - Filters can now be added from the sidebar (#1260)
