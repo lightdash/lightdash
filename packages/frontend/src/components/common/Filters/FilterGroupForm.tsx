@@ -1,8 +1,9 @@
-import { Button, Tag } from '@blueprintjs/core';
+import { Button, Colors, Divider, HTMLSelect, Tag } from '@blueprintjs/core';
 import {
     fieldId,
     FilterableField,
     FilterGroup,
+    FilterGroupOperator,
     FilterOperator,
     FilterRule,
     isAndFilterGroup,
@@ -13,6 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 import FilterRuleForm from './FilterRuleForm';
 
 type Props = {
+    hideButtons?: boolean;
     fields: FilterableField[];
     filterGroup: FilterGroup;
     onChange: (value: FilterGroup) => void;
@@ -20,6 +22,7 @@ type Props = {
 };
 
 const FilterGroupForm: FC<Props> = ({
+    hideButtons,
     fields,
     filterGroup,
     onChange,
@@ -88,38 +91,103 @@ const FilterGroupForm: FC<Props> = ({
             <div
                 style={{
                     width: '100%',
-                    paddingBottom: '20px',
+                    marginBottom: '20px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '5px',
+                    gap: '10px',
                 }}
             >
                 <div style={{ display: 'inline-flex', alignItems: 'center' }}>
-                    <p style={{ margin: 0, marginRight: 10 }}>
-                        Operator: <Tag minimal>AND</Tag>
+                    <HTMLSelect
+                        fill={false}
+                        disabled
+                        iconProps={{ icon: 'caret-down' }}
+                        options={[
+                            {
+                                value: FilterGroupOperator.and,
+                                label: 'All',
+                            },
+                            {
+                                value: FilterGroupOperator.or,
+                                label: 'Any',
+                            },
+                        ]}
+                        value={FilterGroupOperator.and}
+                    />
+                    <p
+                        style={{
+                            margin: 0,
+                            marginLeft: 10,
+                            color: Colors.GRAY2,
+                        }}
+                    >
+                        of the following conditions match:
                     </p>
                 </div>
-                {items.map((item, index) => (
-                    <React.Fragment key={item.id}>
-                        {isFilterRule(item) ? (
-                            <FilterRuleForm
-                                filterRule={item}
-                                fields={fields}
-                                onChange={(value) => onChangeItem(index, value)}
-                                onDelete={() => onDeleteItem(index)}
-                            />
-                        ) : (
-                            <FilterGroupForm
-                                filterGroup={item}
-                                fields={fields}
-                                onChange={(value) => onChangeItem(index, value)}
-                                onDelete={() => onDeleteItem(index)}
-                            />
-                        )}
-                    </React.Fragment>
-                ))}
+                <div style={{ position: 'relative' }}>
+                    <Divider
+                        style={{
+                            position: 'absolute',
+                            height: '100%',
+                            left: 25,
+                            top: -15,
+                        }}
+                    />
+                    <div
+                        style={{
+                            width: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '10px',
+                        }}
+                    >
+                        {items.map((item, index) => (
+                            <div
+                                key={item.id}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                }}
+                            >
+                                {index > 0 ? (
+                                    <Tag
+                                        minimal
+                                        round
+                                        style={{
+                                            margin: '0 12px',
+                                            background: Colors.LIGHT_GRAY3,
+                                        }}
+                                    >
+                                        and
+                                    </Tag>
+                                ) : (
+                                    <div style={{ width: 61 }} />
+                                )}
+                                {isFilterRule(item) ? (
+                                    <FilterRuleForm
+                                        filterRule={item}
+                                        fields={fields}
+                                        onChange={(value) =>
+                                            onChangeItem(index, value)
+                                        }
+                                        onDelete={() => onDeleteItem(index)}
+                                    />
+                                ) : (
+                                    <FilterGroupForm
+                                        filterGroup={item}
+                                        fields={fields}
+                                        onChange={(value) =>
+                                            onChangeItem(index, value)
+                                        }
+                                        onDelete={() => onDeleteItem(index)}
+                                    />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
-            {fields.length > 0 && (
+            {!hideButtons && fields.length > 0 && (
                 <div style={{ display: 'inline-flex', alignItems: 'center' }}>
                     <Button
                         minimal

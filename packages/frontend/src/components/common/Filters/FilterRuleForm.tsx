@@ -1,5 +1,6 @@
 import { Button, Colors, HTMLSelect } from '@blueprintjs/core';
 import {
+    Field,
     fieldId as getFieldId,
     FilterableField,
     FilterOperator,
@@ -65,13 +66,22 @@ const FilterRuleForm: FC<Props> = ({
     );
 
     return (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <div
+            style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 10,
+                flex: 1,
+            }}
+        >
             {activeField ? (
                 <>
                     <FieldAutoComplete
                         activeField={activeField}
                         fields={fields}
-                        onChange={onFieldChange}
+                        onChange={(field: Field) => {
+                            onFieldChange(getFieldId(field));
+                        }}
                     />
                     <HTMLSelect
                         fill={false}
