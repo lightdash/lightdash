@@ -71,8 +71,20 @@ spec:
             value: {{ .Values.args.secureCookies | quote }}
           - name: TRUST_PROXY
             value: {{ .Values.args.trustProxy | quote }}
+
+          {{- if .Values.args.lightdashSecret.rawValue }}
           - name: LIGHTDASH_SECRET
-            value: {{ .Values.args.lightdashSecret | quote }}
+            value: {{ .Values.args.lightdashSecret.rawValue }}
+          {{- end }}
+
+          {{- if .Values.args.lightdashSecret.secretName }}
+          - name: LIGHTDASH_SECRET
+            valueFrom:
+                secretKeyRef:
+                  key: {{ .Values.args.lightdashSecret.secretKey }}
+                  name: {{ .Values.args.lightdashSecret.secretName }}
+          {{- end }}
+
           - name: DBT_PROJECT_DIR
             value: {{ .Values.args.dbtProjectDir | quote }}
           ports:
