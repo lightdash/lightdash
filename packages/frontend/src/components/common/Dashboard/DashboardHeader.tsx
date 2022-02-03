@@ -1,4 +1,4 @@
-import { Button, Colors, Intent } from '@blueprintjs/core';
+import { Button, Intent } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard } from 'common';
 import React, { useState } from 'react';
@@ -9,7 +9,13 @@ import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import EditableHeader from '../EditableHeader';
-import { TitleContainer, WrapperAddTileButton } from './DashboardHeader.styles';
+import {
+    ActionButton,
+    EditContainer,
+    Title,
+    TitleContainer,
+    WrapperAddTileButton,
+} from './DashboardHeader.styles';
 
 type DashboardHeaderProps = {
     isEditMode: boolean;
@@ -60,31 +66,9 @@ const DashboardHeader = ({
                     placeholder="Type the dashboard name"
                     onIsEditingChange={setIsEditing}
                 />
-                {!isEditMode && (
-                    <p
-                        style={{
-                            color: Colors.GRAY1,
-                            margin: 0,
-                            alignSelf: 'flex-end',
-                            lineHeight: '20px',
-                            marginLeft: 5,
-                            marginRight: 10,
-                            whiteSpace: 'nowrap',
-                        }}
-                    >
-                        Last refreshed {timeAgo}
-                    </p>
-                )}
+                {!isEditMode && <Title>Last refreshed {timeAgo}</Title>}
             </TitleContainer>
-            <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    alignContent: 'center',
-                    justifyItems: 'center',
-                    justifyContent: 'center',
-                }}
-            >
+            <EditContainer>
                 {isEditMode ? (
                     <>
                         <AddTileButton onAddTile={onAddTile} />
@@ -96,16 +80,14 @@ const DashboardHeader = ({
                                     : undefined
                             }
                         >
-                            <Button
-                                style={{ height: '20px', marginLeft: 10 }}
+                            <ActionButton
                                 text="Save"
                                 disabled={!hasTilesChanged || isSaving}
                                 intent={Intent.PRIMARY}
                                 onClick={onSaveDashboard}
                             />
                         </Tooltip2>
-                        <Button
-                            style={{ height: '20px', marginLeft: 10 }}
+                        <ActionButton
                             text="Cancel"
                             disabled={isSaving}
                             onClick={onCancel}
@@ -122,7 +104,7 @@ const DashboardHeader = ({
                         }}
                     />
                 )}
-            </div>
+            </EditContainer>
         </WrapperAddTileButton>
     );
 };

@@ -1,4 +1,4 @@
-import { Colors } from '@blueprintjs/core';
+import { Button, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const WrapperAddTileButton = styled.div`
@@ -17,4 +17,27 @@ export const TitleContainer = styled.div<{ $isEditing: boolean }>`
     align-items: center;
     color: ${($isEditing) => ($isEditing ? Colors.GRAY1 : undefined)};
     overflow: hidden;
+`;
+
+export const Title = styled.p`
+    color: ${Colors.GRAY1};
+    margin: 0;
+    align-self: 'flex-end';
+    line-height: '20px';
+    margin-left: 5;
+    margin-right: 10;
+    white-space: 'nowrap';
+`;
+
+export const EditContainer = styled.div`
+    display: flex;
+    align-items: center;
+    align-content: center;
+    justify-items: center;
+    justify-content: center;
+`;
+
+export const ActionButton = styled(Button)`
+    height: 20px;
+    margin-left: 10px;
 `;

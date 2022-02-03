@@ -16,6 +16,7 @@ import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useHistory, useParams } from 'react-router-dom';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import Page from '../components/common/Page/Page';
+import DashboardFilter from '../components/DashboardFilter';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
@@ -169,6 +170,7 @@ const Dashboard = () => {
                 onCancel={onCancel}
             />
             <Page isContentFullWidth>
+                <DashboardFilter />
                 <ResponsiveGridLayout
                     useCSSTransforms={false}
                     draggableCancel=".non-draggable"
