@@ -22,9 +22,7 @@ The user roles that we have at Lightdash are:
 ❌ Can't edit project settings  
 ❌ Can't edit user settings  
 
-<div align="center">
-<img src="./assets/screenshot-viewer-settings.png" width="400" />
-</div>
+![screenshot-viewer-settings](./assets/screenshot-viewer-settings.png)
 
 ### Editor
 ✅ All Viewer permissions  
@@ -35,9 +33,7 @@ The user roles that we have at Lightdash are:
 ❌ Can't edit user settings  
 ❌ Can't edit organization settings  
 
-<div align="center">
-<img src="./assets/screenshot-editor-settings.png" width="400" />
-</div>
+![screenshot-editor-settings](./assets/screenshot-editor-settings.png)
 
 
 ### Admin
@@ -45,9 +41,7 @@ The user roles that we have at Lightdash are:
 ✅ Can edit user settings  
 ✅ Can edit organization settings
 
-<div align="center">
-<img src="./assets/screenshot-admin-settings.png" width="400" />
-</div>
+![screenshot-admin-settings](./assets/screenshot-admin-settings.png)
 
 ## Updating a user's role and permissions
 
@@ -59,6 +53,4 @@ Head over to the `settings` for your project. Then click on `user management`.
 
 Within `user management` you can update each user's roles and permissions.
 
-<div align="center">
-<img src="./assets/screenshot-user-management.png" width="400" />
-</div>
+![screenshot-user-management](./assets/screenshot-user-management.png)
