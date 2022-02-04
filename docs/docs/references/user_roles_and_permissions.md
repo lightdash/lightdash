@@ -13,34 +13,41 @@ Users in your Lightdash project can be given different roles and permissions tha
 The user roles that we have at Lightdash are:
 
 ### Viewer
-✅ Can explore tables
-✅ Can see saved charts
-✅ Can see dashboards
+✅ Can explore tables  
+✅ Can see saved charts  
+✅ Can see dashboards  
 
-❌ Can't create saved content
-❌ Can't edit saved content
-❌ Can't edit project settings
-❌ Can't edit user settings
+❌ Can't create saved content  
+❌ Can't edit saved content  
+❌ Can't edit project settings  
+❌ Can't edit user settings  
 
-<img src="./assets/screenshot-viewer-settings.png" width="400">
+<div align="center">
+<img src="./assets/screenshot-viewer-settings.png" width="400" />
+</div>
 
 ### Editor
-✅ All Viewer permissions
-✅ Can create saved content
-✅ Can edit saved content
-✅ Can edit project settings
+✅ All Viewer permissions  
+✅ Can create saved content  
+✅ Can edit saved content  
+✅ Can edit project settings  
 
-❌ Can't edit user settings
-❌ Can't edit organization settings
+❌ Can't edit user settings  
+❌ Can't edit organization settings  
 
-<img src="./assets/screenshot-editor-settings.png" width="400">
+<div align="center">
+<img src="./assets/screenshot-editor-settings.png" width="400" />
+</div>
+
 
 ### Admin
-✅ All Editor permissions
-✅ Can edit user settings
+✅ All Editor permissions  
+✅ Can edit user settings  
 ✅ Can edit organization settings
 
-<img src="./assets/screenshot-admin-settings.png" width="400">
+<div align="center">
+<img src="./assets/screenshot-admin-settings.png" width="400" />
+</div>
 
 ## Updating a user's role and permissions
 
@@ -52,4 +59,6 @@ Head over to the `settings` for your project. Then click on `user management`.
 
 Within `user management` you can update each user's roles and permissions.
 
-<img src="./assets/user-management.png" width="400">
+<div align="center">
+<img src="./assets/screenshot-user-management.png" width="400" />
+</div>
