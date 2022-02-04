@@ -16,16 +16,14 @@ export * from './types/organizationMemberProfile';
 export * from './types/user';
 
 const DATE_FORMAT = 'YYYY-MM-DD';
-export const formatDate = (date: Date, format: string = DATE_FORMAT): string =>
-    moment(date).format(format);
+export const formatDate = (date: Date): string =>
+    moment(date).format(DATE_FORMAT);
 export const parseDate = (str: string): Date =>
     moment(str, DATE_FORMAT).toDate();
 
 const TIMESTAMP_FORMAT = 'YYYY-MM-DD HH:mm:ss';
-export const formatTimestamp = (
-    date: Date,
-    format: string = TIMESTAMP_FORMAT,
-): string => moment(date).format(format);
+export const formatTimestamp = (date: Date): string =>
+    moment(date).format(TIMESTAMP_FORMAT);
 export const parseTimestamp = (str: string): Date =>
     moment(str, TIMESTAMP_FORMAT).toDate();
 
