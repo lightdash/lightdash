@@ -1,6 +1,10 @@
-import { Colors } from '@blueprintjs/core';
 import { FilterableField, FilterRule } from 'common';
 import React, { FC, useCallback } from 'react';
+import {
+    FilterGroupHeader,
+    FilterGroupItemsWrapper,
+    FilterGroupWrapper,
+} from './FilterGroupForm.styles';
 import FilterRuleForm from './FilterRuleForm';
 
 type Props = {
@@ -36,73 +40,22 @@ const SimplifiedFilterGroupForm: FC<Props> = ({
     );
 
     return (
-        <div
-            style={{
-                margin: '10px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-start',
-                alignItems: 'start',
-            }}
-        >
-            <div
-                style={{
-                    width: '100%',
-                    marginBottom: '20px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                }}
-            >
-                <div
-                    style={{
-                        height: 30,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                    }}
-                >
-                    <p
-                        style={{
-                            margin: 0,
-                            marginLeft: 10,
-                            color: Colors.GRAY2,
-                        }}
-                    >
-                        All of the following conditions match:
-                    </p>
-                </div>
-                <div style={{ position: 'relative' }}>
-                    <div
-                        style={{
-                            width: '100%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '10px',
-                        }}
-                    >
-                        {filterRules.map((item, index) => (
-                            <div
-                                key={item.id}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                }}
-                            >
-                                <div style={{ width: 60 }} />
-                                <FilterRuleForm
-                                    filterRule={item}
-                                    fields={fields}
-                                    onChange={(value) =>
-                                        onChangeItem(index, value)
-                                    }
-                                    onDelete={() => onDeleteItem(index)}
-                                />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        </div>
+        <FilterGroupWrapper>
+            <FilterGroupHeader>
+                <p>All of the following conditions match:</p>
+            </FilterGroupHeader>
+            <FilterGroupItemsWrapper>
+                {filterRules.map((item, index) => (
+                    <FilterRuleForm
+                        key={item.id}
+                        filterRule={item}
+                        fields={fields}
+                        onChange={(value) => onChangeItem(index, value)}
+                        onDelete={() => onDeleteItem(index)}
+                    />
+                ))}
+            </FilterGroupItemsWrapper>
+        </FilterGroupWrapper>
     );
 };
 
