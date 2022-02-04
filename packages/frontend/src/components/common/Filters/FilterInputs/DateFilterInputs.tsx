@@ -59,6 +59,7 @@ const DateFilterInputs: FC<FilterInputsProps> = (props) => {
                             })
                         }
                     />
+                    <HTMLSelect fill={false} options={['', 'completed']} />
                     <HTMLSelect
                         fill={false}
                         onChange={(e) =>
@@ -70,7 +71,10 @@ const DateFilterInputs: FC<FilterInputsProps> = (props) => {
                             })
                         }
                         options={Object.values(UnitOfTime)}
-                        value={(filterRule.settings as any).unitOfTime}
+                        value={
+                            (filterRule.settings as any)?.unitOfTime ||
+                            UnitOfTime.days
+                        }
                     />
                 </ControlGroup>
             );

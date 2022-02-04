@@ -125,12 +125,13 @@ const renderDateFilterSql = (
                     moment(new Date())
                         .subtract(
                             filter.values?.[0],
-                            (filter.settings as any).unitOfTime,
+                            (filter.settings as any)?.unitOfTime,
                         )
                         .format(
                             unitOfTimeFormat[
-                                (filter.settings as any)
-                                    .unitOfTime as UnitOfTime
+                                ((filter.settings as any)
+                                    ?.unitOfTime as UnitOfTime) ||
+                                    UnitOfTime.days
                             ],
                         ),
                 ).toDate(),
