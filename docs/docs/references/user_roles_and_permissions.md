@@ -14,9 +14,11 @@ The user roles that we have at Lightdash are:
 
 ### Viewer
 ✅ Can explore tables
-✅ Can see + edit saved charts
-✅ Can see + edit dashboards
+✅ Can see saved charts
+✅ Can see dashboards
 
+❌ Can't create saved content
+❌ Can't edit saved content
 ❌ Can't edit project settings
 ❌ Can't edit user settings
 
@@ -24,6 +26,8 @@ The user roles that we have at Lightdash are:
 
 ### Editor
 ✅ All Viewer permissions
+✅ Can create saved content
+✅ Can edit saved content
 ✅ Can edit project settings
 
 ❌ Can't edit user settings
