@@ -382,11 +382,13 @@ export const filterableDimensionsOnly = (
 ): FilterableDimension[] => dimensions.filter(isFilterableDimension);
 
 const capitalize = (word: string): string =>
-    word ? `${word.charAt(0).toUpperCase()}${word.slice(1)}` : '';
+    word ? `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}` : '';
 
 export const friendlyName = (text: string): string => {
     const [first, ...rest] = text.match(/[0-9]*[A-Za-z][a-z]*/g) || [];
-    return [capitalize(first), ...rest].join(' ');
+    return [capitalize(first), ...rest.map((word) => word.toLowerCase())].join(
+        ' ',
+    );
 };
 
 export const snakeCaseName = (text: string): string =>
