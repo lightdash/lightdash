@@ -23,6 +23,8 @@ To invite your teammates, just click on `Settings` --> `Invite` --> `Create invi
 
 ![invite user action](./assets/invite_user_action.png)
 
+Users that you've invited will be added as `Editors` to your project. You can read more about [user roles and permissions in Lightdash here](../../references/user_roles_and_persmissions.md).
+
 ## Now that you've added some teammates, you can start sharing your work!
 
 Here are the three ways to do this:

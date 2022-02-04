@@ -1,0 +1,48 @@
+---
+sidebar_position: 3
+---
+
+# User Roles and Permissions
+
+Users in your Lightdash project can be given different roles and permissions that limit which actions they can take in your project. We currently don't support limiting users' access to content in your Lightdash project (e.g. whether or not they can access a certain Explore or saved chart).
+
+---
+
+## User roles
+
+The user roles that we have at Lightdash are:
+
+### Viewer
+✅ Can explore tables
+✅ Can see + edit saved charts
+✅ Can see + edit dashboards
+
+❌ Can't edit project settings
+❌ Can't edit user settings
+
+![screenshot-viewer-settings](./assets/screenshot-viewer-settings.png)
+
+### Editor
+✅ All Viewer permissions
+✅ Can edit project settings
+
+❌ Can't edit user settings
+
+![screenshot-editor-settings](./assets/screenshot-editor-settings.png)
+
+### Admin
+✅ All Editor permissions
+✅ Can edit user settings
+
+![screenshot-admin-settings](./assets/screenshot-admin-settings.png)
+
+## Updating a user's role and permissions
+::: info
+Only users with an `Admin` role can update users' roles and permissions in your Lightdash project.
+:::
+
+Head over to the `settings` for your project. Then click on `user management`.
+
+Within `user management` you can update each user's roles and permissions.
+
+![screenshot-user-management](./assets/screenshot-user-management.png)
