@@ -27,12 +27,14 @@ The user roles that we have at Lightdash are:
 ✅ Can edit project settings
 
 ❌ Can't edit user settings
+❌ Can't edit organization settings
 
 ![screenshot-editor-settings](./assets/screenshot-editor-settings.png)
 
 ### Admin
 ✅ All Editor permissions
 ✅ Can edit user settings
+✅ Can edit organization settings
 
 ![screenshot-admin-settings](./assets/screenshot-admin-settings.png)
 
