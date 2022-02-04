@@ -1,20 +1,27 @@
-import { Button, Colors, HTMLSelect } from '@blueprintjs/core';
+import { AnchorButton, Button, Colors, HTMLSelect } from '@blueprintjs/core';
 import styled from 'styled-components';
+
+export const FilterModalContainer = styled.div``;
 
 export const Title = styled.p`
     font-weight: bold;
 `;
 
-export const InputWrapper = styled.div`
+export const SearchWrapper = styled.div`
     width: 20.5em;
     margin: 0.643em 0 0;
     & input {
-        border-radius: 3px 3px 0 0;
+        border-radius: 0.214em 0.214em 0 0;
     }
+`;
+
+export const InputWrapper = styled.div`
+    width: 20.5em;
 `;
 
 export const SelectField = styled(HTMLSelect)`
     width: 100%;
+    margin-bottom: 1.714em; ;
 `;
 
 export const FilterFooter = styled.p`
@@ -27,15 +34,11 @@ export const FilterFooter = styled.p`
 export const DimensionsContainer = styled.ul`
     padding: 0;
     margin: 0 0 2.5em;
-    max-height: 138px;
+    max-height: 9.857em;
     overflow-y: scroll;
-    border-bottom: 1px solid #cccecf;
-    border-left: 1px solid #cccecf;
-    border-right: 1px solid #cccecf;
-`;
-
-export const DimensionItem = styled.li`
-    list-style: none;
+    border-bottom: 0.071em solid #cccecf;
+    border-left: 0.071em solid #cccecf;
+    border-right: 0.071em solid #cccecf;
 `;
 
 export const DimensionLabel = styled(Button)`
@@ -48,14 +51,50 @@ export const DimensionLabel = styled(Button)`
         text-align: left;
     }
 
-    :hover {
-        background: ${Colors.GRAY4};
-    }
-
     :active,
     :focus {
-        background: ${Colors.BLUE3};
-        color: ${Colors.WHITE};
         outline: none;
     }
+`;
+
+export const DimensionItem = styled.li`
+    list-style: none;
+
+    :hover {
+        ${DimensionLabel} {
+            background: ${Colors.BLUE3};
+            color: ${Colors.WHITE};
+        }
+    }
+`;
+
+export const BackButton = styled(AnchorButton)`
+    color: ${Colors.BLUE3} !important;
+    padding: 0;
+    margin-bottom: 1.5em;
+    justify-content: flex-start;
+    font-weight: 600;
+    :hover {
+        background: transparent !important;
+        span {
+            text-decoration: underline;
+        }
+    }
+    :focus {
+        outline: none;
+        span {
+            text-decoration: underline;
+        }
+    }
+`;
+
+export const ApplyFilterButton = styled(Button)`
+    margin: 1.714em 0 0 auto;
+    justify-self: flex-end;
+`;
+
+export const ConfigureFilterWrapper = styled.div`
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 `;

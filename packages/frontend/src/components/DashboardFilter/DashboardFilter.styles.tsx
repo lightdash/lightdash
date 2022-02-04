@@ -4,17 +4,29 @@ import styled from 'styled-components';
 
 export const TriggerWrapper = styled(Popover2)`
     width: fit-content;
+    margin-bottom: 0.5em;
 `;
 
 export const FilterTrigger = styled(AnchorButton)`
-    color: ${Colors.BLUE4} !important;
+    color: ${Colors.BLUE3} !important;
     & span[icon='filter-list'] {
         & svg path {
-            fill: ${Colors.BLUE4} !important;
+            fill: ${Colors.BLUE3} !important;
         }
     }
 
     :hover {
         background: transparent !important;
+
+        & span {
+            text-decoration: underline;
+        }
+    }
+    :focus,
+    :active {
+        outline: none;
+        & span {
+            text-decoration: underline;
+        }
     }
 `;

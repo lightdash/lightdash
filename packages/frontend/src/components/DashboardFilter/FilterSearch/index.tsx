@@ -1,17 +1,22 @@
-import { AnchorButton, Button, InputGroup } from '@blueprintjs/core';
+import { Button, InputGroup, Intent, TagInput } from '@blueprintjs/core';
 import { FilterOperator } from 'common';
 import Fuse from 'fuse.js';
-import React, { FC, useMemo, useState } from 'react';
+import React, { FC, ReactNode, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useChartConfig } from '../../../hooks/useChartConfig';
 import { useSavedChartResults } from '../../../hooks/useQueryResults';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import {
+    ApplyFilterButton,
+    BackButton,
+    ConfigureFilterWrapper,
     DimensionItem,
     DimensionLabel,
     DimensionsContainer,
     FilterFooter,
+    FilterModalContainer,
     InputWrapper,
+    SearchWrapper,
     SelectField,
     Title,
 } from './FilterSearch.styles';
@@ -25,6 +30,9 @@ const FilterSearch: FC<Props> = ({ chartsData }) => {
     const [search, setSearch] = useState<string>('');
     const [dimensionToFilter, setDimensionToFilter] = useState('');
     const [filterType, setFilterType] = useState('');
+    const [valuesToFilter, setValuesToFilter] = useState<
+        string[] | ReactNode[]
+    >(['']);
     const dimensionsUuid: any[] = chartsData.reduce(
         (prevVal: any, currVal: any) => [
             ...prevVal,
@@ -60,11 +68,11 @@ const FilterSearch: FC<Props> = ({ chartsData }) => {
     }, [chartConfig.dimensionOptions, search]);
 
     return (
-        <>
+        <FilterModalContainer>
             {!dimensionToFilter ? (
                 <>
                     <Title>Select a dimension to filter</Title>
-                    <InputWrapper>
+                    <SearchWrapper>
                         <InputGroup
                             rightElement={
                                 <Button
@@ -77,7 +85,7 @@ const FilterSearch: FC<Props> = ({ chartsData }) => {
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
-                    </InputWrapper>
+                    </SearchWrapper>
                     <DimensionsContainer>
                         {filteredDimensions.map((dimension) => (
                             <DimensionItem id={dimension.name}>
@@ -96,13 +104,13 @@ const FilterSearch: FC<Props> = ({ chartsData }) => {
                     </FilterFooter>
                 </>
             ) : (
-                <>
-                    <AnchorButton
+                <ConfigureFilterWrapper>
+                    <BackButton
                         minimal
                         onClick={() => setDimensionToFilter('')}
                     >
                         Back
-                    </AnchorButton>
+                    </BackButton>
                     <Title>{dimensionToFilter}</Title>
                     <InputWrapper>
                         <SelectField
@@ -124,22 +132,21 @@ const FilterSearch: FC<Props> = ({ chartsData }) => {
                         />
                     </InputWrapper>
                     <InputWrapper>
-                        <InputGroup
-                            rightElement={
-                                <Button
-                                    minimal
-                                    icon="cross"
-                                    onClick={() => setSearch('')}
-                                />
-                            }
-                            placeholder="Start typing to filter field names"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                        <TagInput
+                            addOnBlur
+                            tagProps={{ minimal: true }}
+                            values={valuesToFilter || []}
+                            onChange={(values) => setValuesToFilter(values)}
                         />
                     </InputWrapper>
-                </>
+                    <ApplyFilterButton
+                        type="submit"
+                        intent={Intent.PRIMARY}
+                        text="Apply"
+                    />
+                </ConfigureFilterWrapper>
             )}
-        </>
+        </FilterModalContainer>
     );
 };
 

@@ -21,11 +21,9 @@ export const TitleContainer = styled.div<{ $isEditing: boolean }>`
 
 export const Title = styled.p`
     color: ${Colors.GRAY1};
-    margin: 0;
-    align-self: 'flex-end';
-    line-height: '20px';
-    margin-left: 5;
-    margin-right: 10;
+    align-self: flex-end;
+    line-height: 1.429em;
+    margin: 0 0.714em;
     white-space: 'nowrap';
 `;
 
@@ -38,6 +36,6 @@ export const EditContainer = styled.div`
 `;
 
 export const ActionButton = styled(Button)`
-    height: 20px;
-    margin-left: 10px;
+    height: 1.429em;
+    margin-left: 0.714em;
 `;
