@@ -218,7 +218,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         onClick={() => setFilterIsOpen((f) => !f)}
                     />
                     <H5 style={{ margin: 0, padding: 0 }}>Filters</H5>
-                    {totalActiveFilters > 0 ? (
+                    {totalActiveFilters > 0 && !filterIsOpen ? (
                         <Tag style={{ marginLeft: '10px' }}>
                             {totalActiveFilters} active filters
                         </Tag>

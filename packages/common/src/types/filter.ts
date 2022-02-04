@@ -37,7 +37,7 @@ type OrFilterGroup = {
     or: Array<FilterGroup | FilterRule>;
 };
 
-type AndFilterGroup = {
+export type AndFilterGroup = {
     id: string;
     and: Array<FilterGroup | FilterRule>;
 };

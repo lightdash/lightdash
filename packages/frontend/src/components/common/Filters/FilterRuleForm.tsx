@@ -109,7 +109,7 @@ const FilterRuleForm: FC<Props> = ({
                     {filterRule.target.fieldId}
                 </span>
             )}
-            <Button minimal icon="cross" intent="danger" onClick={onDelete} />
+            <Button minimal icon="cross" onClick={onDelete} />
         </div>
     );
 };

@@ -3,13 +3,18 @@ import {
     addFilterRule,
     Field,
     FilterableDimension,
+    FilterRule,
     Filters,
+    getFilterRulesByFieldType,
+    getTotalFilterRules,
     Metric,
 } from 'common';
-import React, { FC, useCallback } from 'react';
+import React, { FC, useCallback, useMemo } from 'react';
 import { useToggle } from 'react-use';
+import { v4 as uuidv4 } from 'uuid';
 import FieldAutoComplete from './FieldAutoComplete';
 import FilterGroupForm from './FilterGroupForm';
+import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
 
 type Props = {
     dimensions: FilterableDimension[];
@@ -25,6 +30,12 @@ const FiltersForm: FC<Props> = ({
     setFilters,
 }) => {
     const [isOpen, toggleFieldInput] = useToggle(false);
+    const fields = useMemo(
+        () => [...metrics, ...dimensions],
+        [dimensions, metrics],
+    );
+    // Note: Show simplified view until we support AND and OR operator
+    const showSimplifiedForm = true;
 
     const addFieldRule = useCallback(
         (field: Field) => {
@@ -34,48 +45,86 @@ const FiltersForm: FC<Props> = ({
         [filters, setFilters, toggleFieldInput],
     );
 
-    const fields = [...metrics, ...dimensions];
+    const updateFieldRules = useCallback(
+        (filterRules: FilterRule[]) => {
+            const result = getFilterRulesByFieldType(fields, filterRules);
+
+            setFilters({
+                ...filters,
+                dimensions:
+                    result.dimensions.length > 0
+                        ? {
+                              id: uuidv4(),
+                              ...filters.dimensions,
+                              and: result.dimensions,
+                          }
+                        : undefined,
+                metrics:
+                    result.metrics.length > 0
+                        ? {
+                              id: uuidv4(),
+                              ...filters.metrics,
+                              and: result.metrics,
+                          }
+                        : undefined,
+            });
+        },
+        [fields, filters, setFilters],
+    );
 
     return (
         <>
-            {filters.dimensions && (
-                <FilterGroupForm
-                    hideButtons
-                    filterGroup={filters.dimensions}
-                    fields={dimensions}
-                    onChange={(value) =>
-                        setFilters({
-                            ...filters,
-                            dimensions: value,
-                        })
-                    }
-                    onDelete={() =>
-                        setFilters({
-                            ...filters,
-                            dimensions: undefined,
-                        })
-                    }
+            {showSimplifiedForm ? (
+                <SimplifiedFilterGroupForm
+                    fields={fields}
+                    filterRules={getTotalFilterRules(filters)}
+                    onChange={updateFieldRules}
                 />
+            ) : (
+                <div style={{ position: 'relative' }}>
+                    {filters.dimensions && (
+                        <FilterGroupForm
+                            hideButtons
+                            conditionLabel="dimension"
+                            filterGroup={filters.dimensions}
+                            fields={dimensions}
+                            onChange={(value) =>
+                                setFilters({
+                                    ...filters,
+                                    dimensions: value,
+                                })
+                            }
+                            onDelete={() =>
+                                setFilters({
+                                    ...filters,
+                                    dimensions: undefined,
+                                })
+                            }
+                        />
+                    )}
+                    {filters.metrics && (
+                        <FilterGroupForm
+                            hideButtons
+                            conditionLabel="metric"
+                            filterGroup={filters.metrics}
+                            fields={metrics}
+                            onChange={(value) =>
+                                setFilters({
+                                    ...filters,
+                                    metrics: value,
+                                })
+                            }
+                            onDelete={() =>
+                                setFilters({
+                                    ...filters,
+                                    metrics: undefined,
+                                })
+                            }
+                        />
+                    )}
+                </div>
             )}
-            {filters.metrics && (
-                <FilterGroupForm
-                    hideButtons
-                    filterGroup={filters.metrics}
-                    fields={metrics}
-                    onChange={(value) =>
-                        setFilters({
-                            ...filters,
-                            metrics: value,
-                        })
-                    }
-                    onDelete={() =>
-                        setFilters({
-                            ...filters,
-                            metrics: undefined,
-                        })
-                    }
-                />
-            )}
+
             <div
                 style={{
                     margin: '10px',
