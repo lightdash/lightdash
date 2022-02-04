@@ -11,6 +11,7 @@ import {
 } from 'common';
 import React, { FC, useCallback, useMemo } from 'react';
 import { useToggle } from 'react-use';
+import { v4 as uuidv4 } from 'uuid';
 import FieldAutoComplete from './FieldAutoComplete';
 import FilterGroupForm from './FilterGroupForm';
 import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
