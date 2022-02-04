@@ -1,10 +1,6 @@
 ---
 sidebar_position: 3
 ---
-import AdminSettings from './assets/screenshot-admin-settings.png';
-import ViewerSettings from './assets/screenshot-viewer-settings.png';
-import EditorSettings from './assets/screenshot-editor-settings.png';
-import UserManagement from './assets/screenshot-user-management.png';
 
 # User Roles and Permissions
 
@@ -26,9 +22,7 @@ The user roles that we have at Lightdash are:
 ❌ Can't edit project settings
 ❌ Can't edit user settings
 
-<div style={{textAlign: 'center'}}>
-  <ViewerSettings width="70%"/>
-</div>
+<img src="./assets/screenshot-viewer-settings.png" width="400">
 
 ### Editor
 ✅ All Viewer permissions
@@ -39,18 +33,14 @@ The user roles that we have at Lightdash are:
 ❌ Can't edit user settings
 ❌ Can't edit organization settings
 
-<div style={{textAlign: 'center'}}>
-  <EditorSettings width="70%"/>
-</div>
+<img src="./assets/screenshot-editor-settings.png" width="400">
 
 ### Admin
 ✅ All Editor permissions
 ✅ Can edit user settings
 ✅ Can edit organization settings
 
-<div style={{textAlign: 'center'}}>
-  <AdminSettings width="70%"/>
-</div>
+<img src="./assets/screenshot-admin-settings.png" width="400">
 
 ## Updating a user's role and permissions
 
@@ -62,6 +52,4 @@ Head over to the `settings` for your project. Then click on `user management`.
 
 Within `user management` you can update each user's roles and permissions.
 
-<div style={{textAlign: 'center'}}>
-  <UserManagement width="70%"/>
-</div>
+<img src="./assets/user-management.png" width="400">
