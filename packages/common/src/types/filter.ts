@@ -43,11 +43,7 @@ export const unitOfTimeFormat: Record<UnitOfTime, string> = {
     years: 'YYYY',
 };
 
-export type FilterRule<
-    O = FilterOperator,
-    V = any,
-    S extends object | undefined = undefined,
-> = {
+export type FilterRule<O = FilterOperator, V = any, S = any> = {
     id: string;
     target: {
         fieldId: string;
@@ -56,6 +52,14 @@ export type FilterRule<
     settings?: S;
     values?: V[];
 };
+
+export type DateFilterRule = FilterRule<
+    FilterOperator,
+    any,
+    {
+        unitOfTime: UnitOfTime;
+    }
+>;
 
 type OrFilterGroup = {
     id: string;

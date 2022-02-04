@@ -7,10 +7,10 @@ import {
 } from 'common';
 import React, { FC } from 'react';
 
-export type FilterInputsProps = {
+export type FilterInputsProps<T extends FilterRule = FilterRule> = {
     filterType: FilterType;
     field: FilterableField;
-    filterRule: FilterRule;
+    filterRule: T;
     onChange: (value: FilterRule) => void;
 };
 

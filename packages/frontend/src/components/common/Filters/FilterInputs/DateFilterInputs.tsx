@@ -1,6 +1,7 @@
-import { ControlGroup, HTMLSelect, NumericInput } from '@blueprintjs/core';
+import { HTMLSelect, NumericInput } from '@blueprintjs/core';
 import { DateInput, TimePrecision } from '@blueprintjs/datetime';
 import {
+    DateFilterRule,
     DimensionType,
     FilterOperator,
     formatDate,
@@ -12,7 +13,7 @@ import {
 import React, { FC } from 'react';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 
-const DateFilterInputs: FC<FilterInputsProps> = (props) => {
+const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
     const { field, filterRule, onChange } = props;
     const isTimestamp = field.type === DimensionType.TIMESTAMP;
     switch (filterRule.operator) {
@@ -48,7 +49,7 @@ const DateFilterInputs: FC<FilterInputsProps> = (props) => {
             );
         case FilterOperator.IN_THE_PAST:
             return (
-                <ControlGroup>
+                <>
                     <NumericInput
                         fill
                         value={filterRule.values?.[0]}
@@ -59,24 +60,22 @@ const DateFilterInputs: FC<FilterInputsProps> = (props) => {
                             })
                         }
                     />
-                    <HTMLSelect fill={false} options={['', 'completed']} />
                     <HTMLSelect
-                        fill={false}
+                        fill
                         onChange={(e) =>
                             onChange({
                                 ...filterRule,
                                 settings: {
                                     unitOfTime: e.currentTarget.value,
-                                } as any,
+                                },
                             })
                         }
                         options={Object.values(UnitOfTime)}
                         value={
-                            (filterRule.settings as any)?.unitOfTime ||
-                            UnitOfTime.days
+                            filterRule.settings?.unitOfTime || UnitOfTime.days
                         }
                     />
-                </ControlGroup>
+                </>
             );
         default: {
             return <DefaultFilterInputs {...props} />;

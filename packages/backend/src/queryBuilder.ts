@@ -1,5 +1,6 @@
 import {
     CompiledMetricQuery,
+    DateFilterRule,
     DimensionType,
     Explore,
     fieldId,
@@ -85,7 +86,7 @@ const renderNumberFilterSql = (
 
 const renderDateFilterSql = (
     dimensionSql: string,
-    filter: FilterRule,
+    filter: DateFilterRule,
     dateFormatter = formatDate,
 ): string => {
     const filterType = filter.operator;
@@ -119,21 +120,12 @@ const renderDateFilterSql = (
                 filter.values?.[0],
             )}')`;
         case FilterOperator.IN_THE_PAST:
-            console.log('IN_THE_PAST', filter);
+            const unitOfTime = filter.settings?.unitOfTime || UnitOfTime.days;
             return `(${dimensionSql}) >= ('${dateFormatter(
                 moment(
                     moment(new Date())
-                        .subtract(
-                            filter.values?.[0],
-                            (filter.settings as any)?.unitOfTime,
-                        )
-                        .format(
-                            unitOfTimeFormat[
-                                ((filter.settings as any)
-                                    ?.unitOfTime as UnitOfTime) ||
-                                    UnitOfTime.days
-                            ],
-                        ),
+                        .subtract(filter.values?.[0], unitOfTime)
+                        .format(unitOfTimeFormat[unitOfTime]),
                 ).toDate(),
             )}')`;
         default:
