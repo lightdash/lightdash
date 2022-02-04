@@ -2,7 +2,7 @@
 sidebar_position: 3
 ---
 
-# User Roles and Permissions
+# User roles and permissions
 
 Users in your Lightdash project can be given different roles and permissions that limit which actions they can take in your project.
 
@@ -53,6 +53,4 @@ Head over to the `settings` for your project. Then click on `user management`.
 
 Within `user management` you can update each user's roles and permissions.
 
-<div align="center">
-<img src="./assets/screenshot-user-management.png" width="400" />
-</div>
+![user-management](./assets/screenshot-user-management.png)
