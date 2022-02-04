@@ -1,9 +1,5 @@
 import { Spinner } from '@blueprintjs/core';
-import {
-    Dashboard as IDashboard,
-    DashboardTileTypes,
-    FilterRule,
-} from 'common';
+import { Dashboard as IDashboard, DashboardTileTypes } from 'common';
 import React, {
     FC,
     memo,
@@ -69,7 +65,6 @@ const Dashboard = () => {
         reset,
         isLoading: isSaving,
     } = useUpdateDashboard(dashboardUuid);
-    const [dashboardFilters, setDashboardFilters] = useState<FilterRule[]>([]);
     const [dashboardTiles, setTiles] = useState<IDashboard['tiles']>([]);
     const layouts = useMemo(
         () => ({

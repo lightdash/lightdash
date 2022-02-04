@@ -30,3 +30,8 @@ export const FilterTrigger = styled(AnchorButton)`
         }
     }
 `;
+
+export const DashboardFilterWrapper = styled.div`
+    display: flex;
+    align-items: baseline;
+`;

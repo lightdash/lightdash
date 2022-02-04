@@ -1,23 +1,19 @@
-import { Button, InputGroup, Intent, TagInput } from '@blueprintjs/core';
-import { FilterOperator } from 'common';
+import { Button, InputGroup } from '@blueprintjs/core';
 import Fuse from 'fuse.js';
 import React, { FC, ReactNode, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useChartConfig } from '../../../hooks/useChartConfig';
 import { useSavedChartResults } from '../../../hooks/useQueryResults';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
+import { useDashboardContext } from '../../../providers/DashboardProvider';
+import FilterConfiguration from '../FilterConfiguration';
 import {
-    ApplyFilterButton,
-    BackButton,
-    ConfigureFilterWrapper,
     DimensionItem,
     DimensionLabel,
     DimensionsContainer,
     FilterFooter,
     FilterModalContainer,
-    InputWrapper,
     SearchWrapper,
-    SelectField,
     Title,
 } from './FilterSearch.styles';
 
@@ -27,6 +23,8 @@ interface Props {
 
 const FilterSearch: FC<Props> = ({ chartsData }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { dashboardFilters } = useDashboardContext();
+
     const [search, setSearch] = useState<string>('');
     const [dimensionToFilter, setDimensionToFilter] = useState('');
     const [filterType, setFilterType] = useState('');
@@ -44,6 +42,7 @@ const FilterSearch: FC<Props> = ({ chartsData }) => {
     const { data } = useSavedQuery({
         id: dimensionsUuid[0] || undefined,
     });
+
     // @ts-ignore
     const queryResults = useSavedChartResults(projectUuid, data);
     const chartConfig = useChartConfig(
@@ -104,47 +103,7 @@ const FilterSearch: FC<Props> = ({ chartsData }) => {
                     </FilterFooter>
                 </>
             ) : (
-                <ConfigureFilterWrapper>
-                    <BackButton
-                        minimal
-                        onClick={() => setDimensionToFilter('')}
-                    >
-                        Back
-                    </BackButton>
-                    <Title>{dimensionToFilter}</Title>
-                    <InputWrapper>
-                        <SelectField
-                            id="filter-type"
-                            value={filterType}
-                            onChange={(e) =>
-                                setFilterType(
-                                    e.currentTarget.value as FilterOperator,
-                                )
-                            }
-                            options={Object.values(FilterOperator).map(
-                                (filterOperator) => ({
-                                    value: filterOperator,
-                                    label: filterOperator
-                                        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-                                        .toLowerCase(),
-                                }),
-                            )}
-                        />
-                    </InputWrapper>
-                    <InputWrapper>
-                        <TagInput
-                            addOnBlur
-                            tagProps={{ minimal: true }}
-                            values={valuesToFilter || []}
-                            onChange={(values) => setValuesToFilter(values)}
-                        />
-                    </InputWrapper>
-                    <ApplyFilterButton
-                        type="submit"
-                        intent={Intent.PRIMARY}
-                        text="Apply"
-                    />
-                </ConfigureFilterWrapper>
+                <FilterConfiguration />
             )}
         </FilterModalContainer>
     );

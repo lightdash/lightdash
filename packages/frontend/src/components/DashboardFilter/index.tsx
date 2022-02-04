@@ -1,6 +1,12 @@
 import { Classes } from '@blueprintjs/popover2';
 import React, { FC, useState } from 'react';
-import { FilterTrigger, TriggerWrapper } from './DashboardFilter.styles';
+import { useDashboardContext } from '../../providers/DashboardProvider';
+import ActiveFilters from './ActiveFilters';
+import {
+    DashboardFilterWrapper,
+    FilterTrigger,
+    TriggerWrapper,
+} from './DashboardFilter.styles';
 import FilterSearch from './FilterSearch';
 
 interface Props {
@@ -9,9 +15,10 @@ interface Props {
 
 const DashboardFilter: FC<Props> = ({ chartsData }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const { dashboardFilters } = useDashboardContext();
 
     return (
-        <>
+        <DashboardFilterWrapper>
             <TriggerWrapper
                 content={<FilterSearch chartsData={chartsData} />}
                 interactionKind="click"
@@ -25,7 +32,9 @@ const DashboardFilter: FC<Props> = ({ chartsData }) => {
                     Add filter
                 </FilterTrigger>
             </TriggerWrapper>
-        </>
+            {/* @ts-ignore */}
+            {dashboardFilters && <ActiveFilters />}
+        </DashboardFilterWrapper>
     );
 };
 
