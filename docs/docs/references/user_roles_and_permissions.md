@@ -37,6 +37,7 @@ The user roles that we have at Lightdash are:
 ![screenshot-admin-settings](./assets/screenshot-admin-settings.png)
 
 ## Updating a user's role and permissions
+
 ::: info
 Only users with an `Admin` role can update users' roles and permissions in your Lightdash project.
 :::
