@@ -1,5 +1,7 @@
 import { Classes, Popover2 } from '@blueprintjs/popover2';
 import React, { FC, useState } from 'react';
+import { useDashboardContext } from '../../../providers/DashboardProvider';
+import FilterConfiguration from '../FilterConfiguration';
 import {
     FilterValues,
     TagContainer,
@@ -7,32 +9,16 @@ import {
 } from './ActiveFilters.styles';
 
 const ActiveFilters: FC = () => {
-    const filterData = [
-        {
-            id: 'test',
-            target: {
-                fieldId: 'order_status',
-            },
-            operator: 'null',
-            values: ['pending'],
-        },
-        {
-            id: 'test2',
-            target: {
-                fieldId: 'order_status_per',
-            },
-            operator: 'null',
-            values: ['full'],
-        },
-    ];
-
     const [isOpen, setIsOpen] = useState(false);
-    if (!filterData) return null;
+    const { dashboardFilters } = useDashboardContext();
+
+    const clearFilter = () => {};
     return (
         <TagsWrapper>
-            {filterData.map((item) => (
+            {dashboardFilters.dimensionFilters.map((item) => (
                 <Popover2
-                    content={<p>test</p>}
+                    key={item.id}
+                    content={<FilterConfiguration />}
                     interactionKind="click"
                     popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
                     isOpen={isOpen}
@@ -40,9 +26,9 @@ const ActiveFilters: FC = () => {
                     position="bottom"
                     lazy={false}
                 >
-                    <TagContainer key={item.id}>
+                    <TagContainer key={item.id} interactive onRemove={() => ''}>
                         {`${item.target.fieldId}: `}
-                        <FilterValues>{item.values}</FilterValues>
+                        <FilterValues>{item.values?.join(', ')}</FilterValues>
                     </TagContainer>
                 </Popover2>
             ))}

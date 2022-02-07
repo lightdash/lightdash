@@ -14,13 +14,30 @@ import {
 
 const FilterConfiguration: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { dashboardFilters } = useDashboardContext();
+    const {
+        addDimensionDashboardFilter,
+        dashboardFilters,
+        dimensionToFilter,
+        setDimensionToFilter,
+    } = useDashboardContext();
 
-    const [dimensionToFilter, setDimensionToFilter] = useState('');
     const [filterType, setFilterType] = useState('');
     const [valuesToFilter, setValuesToFilter] = useState<
         string[] | ReactNode[]
-    >(['']);
+    >([]);
+
+    const addFilters = () => {
+        const filterData = {
+            id: projectUuid,
+            target: {
+                fieldId: dimensionToFilter,
+            },
+            operator: filterType,
+            values: valuesToFilter,
+        };
+        // @ts-ignore
+        addDimensionDashboardFilter(filterData);
+    };
 
     return (
         <ConfigureFilterWrapper>
@@ -57,6 +74,7 @@ const FilterConfiguration: FC = () => {
                 type="submit"
                 intent={Intent.PRIMARY}
                 text="Apply"
+                onClick={() => addFilters()}
             />
         </ConfigureFilterWrapper>
     );

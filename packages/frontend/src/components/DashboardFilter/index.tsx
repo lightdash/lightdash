@@ -25,7 +25,7 @@ const DashboardFilter: FC<Props> = ({ chartsData }) => {
                 popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
                 isOpen={isOpen}
                 onInteraction={setIsOpen}
-                position="bottom"
+                position="bottom-right"
                 lazy={false}
             >
                 <FilterTrigger minimal icon="filter-list">

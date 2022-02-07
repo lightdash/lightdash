@@ -1,6 +1,6 @@
 import { Button, InputGroup } from '@blueprintjs/core';
 import Fuse from 'fuse.js';
-import React, { FC, ReactNode, useMemo, useState } from 'react';
+import React, { FC, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useChartConfig } from '../../../hooks/useChartConfig';
 import { useSavedChartResults } from '../../../hooks/useQueryResults';
@@ -23,14 +23,9 @@ interface Props {
 
 const FilterSearch: FC<Props> = ({ chartsData }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { dashboardFilters } = useDashboardContext();
+    const { dimensionToFilter, setDimensionToFilter } = useDashboardContext();
 
     const [search, setSearch] = useState<string>('');
-    const [dimensionToFilter, setDimensionToFilter] = useState('');
-    const [filterType, setFilterType] = useState('');
-    const [valuesToFilter, setValuesToFilter] = useState<
-        string[] | ReactNode[]
-    >(['']);
     const dimensionsUuid: any[] = chartsData.reduce(
         (prevVal: any, currVal: any) => [
             ...prevVal,
