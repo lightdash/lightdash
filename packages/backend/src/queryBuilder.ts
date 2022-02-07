@@ -120,14 +120,26 @@ const renderDateFilterSql = (
                 filter.values?.[0],
             )}')`;
         case FilterOperator.IN_THE_PAST:
-            const unitOfTime = filter.settings?.unitOfTime || UnitOfTime.days;
-            return `(${dimensionSql}) >= ('${dateFormatter(
+            const unitOfTime: UnitOfTime =
+                filter.settings?.unitOfTime || UnitOfTime.days;
+            const completed: boolean = !!filter.settings?.completed;
+            const sinceDateSql = `(${dimensionSql}) >= ('${dateFormatter(
                 moment(
                     moment(new Date())
                         .subtract(filter.values?.[0], unitOfTime)
                         .format(unitOfTimeFormat[unitOfTime]),
                 ).toDate(),
             )}')`;
+            const untilDateSql = `(${dimensionSql}) < ('${dateFormatter(
+                moment(
+                    moment()
+                        .startOf(unitOfTime)
+                        .format(unitOfTimeFormat[unitOfTime]),
+                ).toDate(),
+            )}')`;
+            return completed
+                ? `(${sinceDateSql} AND ${untilDateSql})`
+                : sinceDateSql;
         default:
             throw Error(
                 `No function implemented to render sql for filter type ${filterType} on dimension of date type`,

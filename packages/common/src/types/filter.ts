@@ -57,7 +57,8 @@ export type DateFilterRule = FilterRule<
     FilterOperator,
     any,
     {
-        unitOfTime: UnitOfTime;
+        unitOfTime?: UnitOfTime;
+        completed?: boolean;
     }
 >;
 
