@@ -1,3 +1,4 @@
+import { friendlyName } from 'common';
 import { CompileError } from './errors';
 import { compileExplore } from './exploreCompiler';
 import {
@@ -70,4 +71,17 @@ test('Should compile with a reference to a metric in a non-aggregate metric', ()
     expect(compileExplore(exploreWithMetricNumber)).toStrictEqual(
         exploreWithMetricNumberCompiled,
     );
+});
+
+describe('Default field labels render for', () => {
+    test('uppercase field names', () => {
+        expect(friendlyName('MYFIELDID')).toEqual('Myfieldid');
+        expect(friendlyName('MY_FIELD_ID')).toEqual('My field id');
+    });
+    test('camel case names', () => {
+        expect(friendlyName('myFieldId')).toEqual('My field id');
+    });
+    test('snake case names', () => {
+        expect(friendlyName('my_field_id')).toEqual('My field id');
+    });
 });
