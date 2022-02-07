@@ -67,7 +67,7 @@ const InvitePanel: FC = () => {
                 )}
             </FormGroup>
             <Callout intent="warning" style={{ marginTop: 20 }}>
-                <p>This action will revoke all existing invites.</p>
+                <p>This action will revoke all pending invitations.</p>
                 <Button
                     intent="danger"
                     text="Revoke all invites"
