@@ -17,9 +17,10 @@ const ActiveFilters: FC = () => {
         const updatedArr = dashboardFilters.dimensionFilters.filter(
             (item) => item !== filterToRemove,
         );
-        // @ts-ignore
-        setDashboardFilters({ dimensionFilters: updatedArr });
-        console.log(updatedArr);
+        setDashboardFilters({
+            dimensionFilters: updatedArr,
+            metricFilters: [],
+        });
     };
     return (
         <TagsWrapper>
