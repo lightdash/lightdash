@@ -14,10 +14,10 @@ interface Props {
 const SimpleTable: FC<Props> = ({ data }) => {
     const tableItems = data ? data.slice(0, 25) : [];
     const { headers, rows } = mapDataToTable(tableItems);
-
+    const validData = rows && headers;
     return (
         <>
-            {data ? (
+            {validData ? (
                 <TableWrapper className="cohere-block">
                     <TableInnerWrapper>
                         <HTMLTable style={{ width: '100%' }} bordered condensed>
