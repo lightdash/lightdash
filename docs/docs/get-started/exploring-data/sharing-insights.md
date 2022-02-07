@@ -13,7 +13,9 @@ In Lightdash there are three primary ways to share insights with your team:
 * Share a link to a saved chart
 * Download results as a .csv or a .png of the chart
 
-Before you do *any* sharing though, you need someone to share it with.
+Watch this quick 2 minute tutorial where we walk you through the three key ways to share insights with your team:
+
+[![tutorial sharing insights](./assets/tutorial_sharing_insights.png)](https://youtu.be/8ZmwHY2R8Gw)
 
 ## Inviting your teammates to your Lightdash project
 
