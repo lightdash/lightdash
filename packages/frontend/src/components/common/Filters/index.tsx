@@ -1,4 +1,5 @@
-import { Button } from '@blueprintjs/core';
+import { Button, Colors, Divider, Tag } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     addFilterRule,
     Field,
@@ -34,8 +35,18 @@ const FiltersForm: FC<Props> = ({
         () => [...metrics, ...dimensions],
         [dimensions, metrics],
     );
-    // Note: Show simplified view until we support AND and OR operator
-    const showSimplifiedForm = false;
+
+    const totalFilterRules = getTotalFilterRules(filters);
+    const filterRulesPerFieldType = getFilterRulesByFieldType(
+        fields,
+        totalFilterRules,
+    );
+    const showSimplifiedForm: boolean =
+        filterRulesPerFieldType.dimensions.length <= 1 &&
+        filterRulesPerFieldType.metrics.length <= 1;
+    const showMandatoryAndOperator: boolean =
+        filterRulesPerFieldType.dimensions.length >= 1 &&
+        filterRulesPerFieldType.metrics.length >= 1;
 
     const addFieldRule = useCallback(
         (field: Field) => {
@@ -74,57 +85,87 @@ const FiltersForm: FC<Props> = ({
 
     return (
         <>
-            {showSimplifiedForm ? (
-                <SimplifiedFilterGroupForm
-                    fields={fields}
-                    filterRules={getTotalFilterRules(filters)}
-                    onChange={updateFieldRules}
-                />
-            ) : (
-                <div style={{ position: 'relative' }}>
-                    {filters.dimensions && (
-                        <FilterGroupForm
-                            hideButtons
-                            conditionLabel="dimension"
-                            filterGroup={filters.dimensions}
-                            fields={dimensions}
-                            onChange={(value) =>
-                                setFilters({
-                                    ...filters,
-                                    dimensions: value,
-                                })
-                            }
-                            onDelete={() =>
-                                setFilters({
-                                    ...filters,
-                                    dimensions: undefined,
-                                })
-                            }
+            {totalFilterRules.length >= 1 && (
+                <>
+                    {showSimplifiedForm ? (
+                        <SimplifiedFilterGroupForm
+                            fields={fields}
+                            filterRules={getTotalFilterRules(filters)}
+                            onChange={updateFieldRules}
                         />
+                    ) : (
+                        <>
+                            <div style={{ position: 'relative' }}>
+                                {showMandatoryAndOperator && (
+                                    <Divider
+                                        style={{
+                                            position: 'absolute',
+                                            height: '100%',
+                                            top: 15,
+                                            left: 35,
+                                        }}
+                                    />
+                                )}
+                                {filters.dimensions && (
+                                    <FilterGroupForm
+                                        hideButtons
+                                        conditionLabel="dimension"
+                                        filterGroup={filters.dimensions}
+                                        fields={dimensions}
+                                        onChange={(value) =>
+                                            setFilters({
+                                                ...filters,
+                                                dimensions: value,
+                                            })
+                                        }
+                                        onDelete={() =>
+                                            setFilters({
+                                                ...filters,
+                                                dimensions: undefined,
+                                            })
+                                        }
+                                    />
+                                )}
+                                {showMandatoryAndOperator && (
+                                    <Tooltip2 content="You cannot combine metrics & dimensions">
+                                        <Tag
+                                            minimal
+                                            round
+                                            style={{
+                                                background: Colors.LIGHT_GRAY2,
+                                                marginLeft: 20,
+                                                marginBottom: 10,
+                                            }}
+                                        >
+                                            and
+                                        </Tag>
+                                    </Tooltip2>
+                                )}
+                            </div>
+                            {filters.metrics && (
+                                <FilterGroupForm
+                                    hideButtons
+                                    conditionLabel="metric"
+                                    filterGroup={filters.metrics}
+                                    fields={metrics}
+                                    onChange={(value) =>
+                                        setFilters({
+                                            ...filters,
+                                            metrics: value,
+                                        })
+                                    }
+                                    onDelete={() =>
+                                        setFilters({
+                                            ...filters,
+                                            metrics: undefined,
+                                        })
+                                    }
+                                />
+                            )}
+                        </>
                     )}
-                    {filters.metrics && (
-                        <FilterGroupForm
-                            hideButtons
-                            conditionLabel="metric"
-                            filterGroup={filters.metrics}
-                            fields={metrics}
-                            onChange={(value) =>
-                                setFilters({
-                                    ...filters,
-                                    metrics: value,
-                                })
-                            }
-                            onDelete={() =>
-                                setFilters({
-                                    ...filters,
-                                    metrics: undefined,
-                                })
-                            }
-                        />
-                    )}
-                </div>
+                </>
             )}
-
             <div
                 style={{
                     margin: '10px',

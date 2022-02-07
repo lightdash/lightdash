@@ -90,7 +90,6 @@ const FilterGroupForm: FC<Props> = ({
 
     const onChangeOperator = useCallback(
         (value: FilterGroupOperator) => {
-            console.log('value', value);
             onChange({
                 id: filterGroup.id,
                 [value]: items,
@@ -126,7 +125,9 @@ const FilterGroupForm: FC<Props> = ({
                         )
                     }
                 />
-                <p>of the following ${conditionLabel} conditions match:</p>
+                <p style={{ marginLeft: 10 }}>
+                    of the following {conditionLabel} conditions match:
+                </p>
             </FilterGroupHeader>
             <FilterGroupItemsWrapper>
                 {items.map((item, index) => (
