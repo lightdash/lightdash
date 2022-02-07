@@ -154,6 +154,12 @@ Just star this repo! We plant a tree for every star we get on Github. ⭐️ ➡
 
 We plant trees with TIST, you can read all about them here: https://program.tist.org/.
 
+## Developing locally & Contributing
+
+We love contributions big or small, check out [our guide](https://github.com/lightdash/lightdash/blob/main/.github/CONTRIBUTING.md#contributing-to-lightdash) on how to get started.
+
+See our [instructions](https://github.com/lightdash/lightdash/blob/main/.github/CONTRIBUTING.md#setup-development-environment) on developing Lightdash locally.
+
 ## Contributors ✨
 
 Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
