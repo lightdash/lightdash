@@ -16,9 +16,10 @@ interface Props {
 
 const SimpleStatistic: FC<Props> = ({ data, label }) => {
     const bigNumber = bigNumberConfig(data);
+
     return (
         <>
-            {data && label ? (
+            {bigNumber && label ? (
                 <SimpleStatisticsWrapper>
                     <BigNumberContainer>
                         {label && <BigNumberLabel>{label}</BigNumberLabel>}
