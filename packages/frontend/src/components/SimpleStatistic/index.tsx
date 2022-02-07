@@ -16,7 +16,7 @@ interface Props {
 
 const SimpleStatistic: FC<Props> = ({ data, label }) => {
     const bigNumber = bigNumberConfig(data);
-    const validData = bigNumber && data?.rows && label;
+    const validData = bigNumber && data?.rows.length && label;
     return (
         <>
             {validData ? (
