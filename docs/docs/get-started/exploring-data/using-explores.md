@@ -5,8 +5,12 @@ sidebar_label: Using Explores
 
 # Using Explores in Lightdash
 
-An **Explore** is the main starting point for exploring data in Lightdash. An Explore contains a group of related 
+An **Explore** is the main starting point for exploring data in Lightdash. An Explore contains a group of related
 dbt models, dimensions, and metrics.
+
+Watch this quick 2 minute tutorial where we talk through the key components of the Explore view:
+
+[![tutorial exploring the explore view](./assets/tutorial_exploring_the_explore_view.png)](https://youtu.be/q6CAP4nhn4E)
 
 There are 5 areas to the Explore view:
 
@@ -15,8 +19,13 @@ There are 5 areas to the Explore view:
 3. The chart panel to visualise the results of queries
 4. The results panel to explore the results of queries as a table
 5. The SQL panel, which shows the raw SQL that produced the results
-    
+
 ![explore screenshot](./assets/explore_screenshot.png)
+
+### Learn how to create your first saved chart from the Explore view
+Not a fan of videos? You can [follow along with the steps below.](#running-your-first-query)
+
+[![tutorial creating saved chart explore](./assets/tutorial_creating_saved_chart_explore.png)](https://youtu.be/NGlsiCOV7gA)
 
 ## Running your first query
 
@@ -26,12 +35,12 @@ To run a query:
 2. Select one or more dimensions to split the metric into groups
 3. Hit "Run Query" in the top right
 
-For example, if I wanted to know the "total number of orders split by order status", I'd select the `Unique order 
+For example, if I wanted to know the "total number of orders split by order status", I'd select the `Unique order
 count` metric to calculate the number of orders and the `Status` dimension to split that by status.
 
 ## Visualising query results as a chart
 
-Once the query executes, the results will show in the results table. You can then open the charts section and choose 
+Once the query executes, the results will show in the results table. You can then open the charts section and choose
 a chart type to visualise the metric.
 
 ![results screenshot](./assets/results_screenshot.png)
@@ -44,7 +53,7 @@ When you open a saved charts, it will always update to display the latest data i
 
 ![save chart button](./assets/save_chart_action.png)
 
-To save a chart: 
+To save a chart:
 1. In chart panel of the Explore you will find the button to save your chart.
 2. Enter a memorable name for the chart, a good idea is to use a question as the name "How many orders are there at each stage?"
 3. Click on `Saved charts` to see your finished work of art 😚👌
@@ -53,6 +62,5 @@ To save a chart:
 
 ## Next steps
 
-Creating a chart is cool, creating three charts is 3x cooler. Creating a dashboard with your three charts is 300x 
+Creating a chart is cool, creating three charts is 3x cooler. Creating a dashboard with your three charts is 300x
 cooler 😎. Learn [how to create and share dashboards](./dashboards.md)
-
