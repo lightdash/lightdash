@@ -44,7 +44,7 @@ const SimplifiedFilterGroupForm: FC<Props> = ({
         <FilterGroupWrapper>
             <FilterGroupHeader>
                 <Tooltip2
-                    content="You cannot combine metrics & dimensions"
+                    content="You can only use the 'and' operator when combining metrics & dimensions"
                     disabled={filterRules.length > 1}
                 >
                     <p>All of the following conditions match:</p>

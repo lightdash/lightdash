@@ -127,7 +127,7 @@ const FiltersForm: FC<Props> = ({
                                     />
                                 )}
                                 {showMandatoryAndOperator && (
-                                    <Tooltip2 content="You cannot combine metrics & dimensions">
+                                    <Tooltip2 content="You can only use the 'and' operator when combining metrics & dimensions">
                                         <Tag
                                             minimal
                                             round
