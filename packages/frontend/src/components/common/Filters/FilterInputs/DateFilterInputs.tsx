@@ -1,16 +1,19 @@
+import { HTMLSelect, NumericInput } from '@blueprintjs/core';
 import { DateInput, TimePrecision } from '@blueprintjs/datetime';
 import {
+    DateFilterRule,
     DimensionType,
     FilterOperator,
     formatDate,
     formatTimestamp,
     parseDate,
     parseTimestamp,
+    UnitOfTime,
 } from 'common';
 import React, { FC } from 'react';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 
-const DateFilterInputs: FC<FilterInputsProps> = (props) => {
+const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
     const { field, filterRule, onChange } = props;
     const isTimestamp = field.type === DimensionType.TIMESTAMP;
     switch (filterRule.operator) {
@@ -43,6 +46,36 @@ const DateFilterInputs: FC<FilterInputsProps> = (props) => {
                         }
                     }}
                 />
+            );
+        case FilterOperator.IN_THE_PAST:
+            return (
+                <>
+                    <NumericInput
+                        fill
+                        value={filterRule.values?.[0]}
+                        onValueChange={(value) =>
+                            onChange({
+                                ...filterRule,
+                                values: [value],
+                            })
+                        }
+                    />
+                    <HTMLSelect
+                        fill
+                        onChange={(e) =>
+                            onChange({
+                                ...filterRule,
+                                settings: {
+                                    unitOfTime: e.currentTarget.value,
+                                },
+                            })
+                        }
+                        options={Object.values(UnitOfTime)}
+                        value={
+                            filterRule.settings?.unitOfTime || UnitOfTime.days
+                        }
+                    />
+                </>
             );
         default: {
             return <DefaultFilterInputs {...props} />;

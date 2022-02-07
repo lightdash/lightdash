@@ -1,5 +1,6 @@
 import {
     CompiledMetricQuery,
+    DateFilterRule,
     DimensionType,
     Explore,
     fieldId,
@@ -16,7 +17,10 @@ import {
     isMetric,
     MetricType,
     SupportedDbtAdapter,
+    UnitOfTime,
+    unitOfTimeFormat,
 } from 'common';
+import moment from 'moment';
 
 const renderStringFilterSql = (
     dimensionSql: string,
@@ -82,7 +86,7 @@ const renderNumberFilterSql = (
 
 const renderDateFilterSql = (
     dimensionSql: string,
-    filter: FilterRule,
+    filter: DateFilterRule,
     dateFormatter = formatDate,
 ): string => {
     const filterType = filter.operator;
@@ -114,6 +118,15 @@ const renderDateFilterSql = (
         case 'lessThanOrEqual':
             return `(${dimensionSql}) <= ('${dateFormatter(
                 filter.values?.[0],
+            )}')`;
+        case FilterOperator.IN_THE_PAST:
+            const unitOfTime = filter.settings?.unitOfTime || UnitOfTime.days;
+            return `(${dimensionSql}) >= ('${dateFormatter(
+                moment(
+                    moment(new Date())
+                        .subtract(filter.values?.[0], unitOfTime)
+                        .format(unitOfTimeFormat[unitOfTime]),
+                ).toDate(),
             )}')`;
         default:
             throw Error(

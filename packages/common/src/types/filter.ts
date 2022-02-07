@@ -16,13 +16,34 @@ export enum FilterOperator {
     LESS_THAN_OR_EQUAL = 'lessThanOrEqual',
     GREATER_THAN = 'greaterThan',
     GREATER_THAN_OR_EQUAL = 'greaterThanOrEqual',
+    IN_THE_PAST = 'inThePast',
 }
 
-export type FilterRule<
-    O = FilterOperator,
-    V = any,
-    S extends object | undefined = undefined,
-> = {
+export enum UnitOfTime {
+    milliseconds = 'milliseconds',
+    seconds = 'seconds',
+    minutes = 'minutes',
+    hours = 'hours',
+    days = 'days',
+    weeks = 'weeks',
+    months = 'months',
+    quarters = 'quarters',
+    years = 'years',
+}
+
+export const unitOfTimeFormat: Record<UnitOfTime, string> = {
+    milliseconds: 'YYYY-MM-DD HH:mm:ss',
+    seconds: 'YYYY-MM-DD HH:mm:ss',
+    minutes: 'YYYY-MM-DD HH:mm',
+    hours: 'YYYY-MM-DD HH',
+    days: 'YYYY-MM-DD',
+    weeks: 'YYYY-MM-DD',
+    months: 'YYYY-MM',
+    quarters: 'YYYY-MM',
+    years: 'YYYY',
+};
+
+export type FilterRule<O = FilterOperator, V = any, S = any> = {
     id: string;
     target: {
         fieldId: string;
@@ -31,6 +52,14 @@ export type FilterRule<
     settings?: S;
     values?: V[];
 };
+
+export type DateFilterRule = FilterRule<
+    FilterOperator,
+    any,
+    {
+        unitOfTime: UnitOfTime;
+    }
+>;
 
 type OrFilterGroup = {
     id: string;

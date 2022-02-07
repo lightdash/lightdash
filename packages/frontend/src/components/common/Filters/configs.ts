@@ -23,6 +23,7 @@ const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.LESS_THAN_OR_EQUAL]: 'is less than or equal',
     [FilterOperator.GREATER_THAN]: 'is greater than',
     [FilterOperator.GREATER_THAN_OR_EQUAL]: 'is greater than or equal',
+    [FilterOperator.IN_THE_PAST]: 'is in the past',
 };
 
 const getFilterOptions = <T extends FilterOperator>(
@@ -42,6 +43,7 @@ const timeFilterOptions: Array<{
         FilterOperator.NOT_NULL,
         FilterOperator.EQUALS,
         FilterOperator.NOT_EQUALS,
+        FilterOperator.IN_THE_PAST,
     ]),
     { value: FilterOperator.LESS_THAN, label: 'is before' },
     { value: FilterOperator.LESS_THAN_OR_EQUAL, label: 'is on or before' },
