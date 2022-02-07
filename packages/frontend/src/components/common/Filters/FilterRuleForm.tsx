@@ -1,17 +1,18 @@
 import { Button, Colors, HTMLSelect } from '@blueprintjs/core';
 import {
-    DimensionType,
+    Field,
     fieldId as getFieldId,
-    FilterableDimension,
+    FilterableField,
     FilterOperator,
     FilterRule,
+    FilterType,
 } from 'common';
 import React, { FC, useCallback, useMemo } from 'react';
-import { FilterTypeConfig } from './configs';
+import { FilterTypeConfig, getFilterTypeFromField } from './configs';
 import FieldAutoComplete from './FieldAutoComplete';
 
 type Props = {
-    fields: FilterableDimension[];
+    fields: FilterableField[];
     filterRule: FilterRule;
     onChange: (value: FilterRule) => void;
     onDelete: () => void;
@@ -27,9 +28,12 @@ const FilterRuleForm: FC<Props> = ({
         (field) => getFieldId(field) === filterRule.target.fieldId,
     );
 
+    const filterType = activeField
+        ? getFilterTypeFromField(activeField)
+        : FilterType.STRING;
     const filterConfig = useMemo(
-        () => FilterTypeConfig[activeField?.type || DimensionType.STRING],
-        [activeField],
+        () => FilterTypeConfig[filterType],
+        [filterType],
     );
 
     const onFieldChange = useCallback(
@@ -62,13 +66,22 @@ const FilterRuleForm: FC<Props> = ({
     );
 
     return (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <div
+            style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 10,
+                flex: 1,
+            }}
+        >
             {activeField ? (
                 <>
                     <FieldAutoComplete
                         activeField={activeField}
                         fields={fields}
-                        onChange={onFieldChange}
+                        onChange={(field: Field) => {
+                            onFieldChange(getFieldId(field));
+                        }}
                     />
                     <HTMLSelect
                         fill={false}
@@ -84,6 +97,7 @@ const FilterRuleForm: FC<Props> = ({
                         value={filterRule.operator}
                     />
                     <filterConfig.inputs
+                        filterType={filterType}
                         field={activeField}
                         filterRule={filterRule}
                         onChange={onChange}
@@ -95,7 +109,7 @@ const FilterRuleForm: FC<Props> = ({
                     {filterRule.target.fieldId}
                 </span>
             )}
-            <Button minimal icon="cross" intent="danger" onClick={onDelete} />
+            <Button minimal icon="cross" onClick={onDelete} />
         </div>
     );
 };

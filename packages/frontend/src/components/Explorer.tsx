@@ -18,6 +18,7 @@ import {
     DBChartTypes,
     filterableDimensionsOnly,
     getDimensions,
+    getMetrics,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, useEffect, useRef, useState } from 'react';
@@ -129,6 +130,8 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         ? filterableDimensionsOnly(getDimensions(explore.data))
         : [];
 
+    const filterableMetrics = explore.data ? getMetrics(explore.data) : [];
+
     const handleSavedQueryUpdate = () => {
         if (savedQueryUuid && queryData) {
             update.mutate({
@@ -218,7 +221,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         onClick={() => setFilterIsOpen((f) => !f)}
                     />
                     <H5 style={{ margin: 0, padding: 0 }}>Filters</H5>
-                    {totalActiveFilters > 0 ? (
+                    {totalActiveFilters > 0 && !filterIsOpen ? (
                         <Tag style={{ marginLeft: '10px' }}>
                             {totalActiveFilters} active filters
                         </Tag>
@@ -226,7 +229,8 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                 </div>
                 <Collapse isOpen={filterIsOpen}>
                     <FiltersForm
-                        fields={filterableDimensions}
+                        dimensions={filterableDimensions}
+                        metrics={filterableMetrics}
                         filters={filters}
                         setFilters={setFilters}
                     />

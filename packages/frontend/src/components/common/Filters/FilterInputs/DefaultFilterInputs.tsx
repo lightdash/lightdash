@@ -1,19 +1,25 @@
 import { InputGroup, NumericInput, TagInput } from '@blueprintjs/core';
-import { DimensionType, Field, FilterOperator, FilterRule } from 'common';
+import {
+    FilterableField,
+    FilterOperator,
+    FilterRule,
+    FilterType,
+} from 'common';
 import React, { FC } from 'react';
 
 export type FilterInputsProps = {
-    field: Field;
+    filterType: FilterType;
+    field: FilterableField;
     filterRule: FilterRule;
     onChange: (value: FilterRule) => void;
 };
 
 const DefaultFilterInputs: FC<FilterInputsProps> = ({
-    field,
+    filterType,
     filterRule,
     onChange,
 }) => {
-    const filterType = filterRule.operator;
+    const filterOperator = filterRule.operator;
     switch (filterRule.operator) {
         case FilterOperator.NULL:
         case FilterOperator.NOT_NULL:
@@ -26,7 +32,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
                     addOnBlur
                     inputProps={{
                         type:
-                            field.type === DimensionType.NUMBER
+                            filterType === FilterType.NUMBER
                                 ? 'number'
                                 : 'text',
                     }}
@@ -74,7 +80,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
         default: {
             const never: never = filterRule.operator;
             throw Error(
-                `No form implemented for String filter operator ${filterType}`,
+                `No form implemented for String filter operator ${filterOperator}`,
             );
         }
     }

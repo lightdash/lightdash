@@ -1,3 +1,10 @@
+export enum FilterType {
+    STRING = 'string',
+    NUMBER = 'number',
+    DATE = 'date',
+    BOOLEAN = 'boolean',
+}
+
 export enum FilterOperator {
     NULL = 'isNull',
     NOT_NULL = 'notNull',
@@ -30,7 +37,7 @@ type OrFilterGroup = {
     or: Array<FilterGroup | FilterRule>;
 };
 
-type AndFilterGroup = {
+export type AndFilterGroup = {
     id: string;
     and: Array<FilterGroup | FilterRule>;
 };
@@ -62,29 +69,27 @@ export const isFilterRule = (
 ): value is FilterRule => 'target' in value && 'operator' in value;
 
 export const getFilterRulesFromGroup = (
-    filterGroup: FilterGroup,
+    filterGroup: FilterGroup | undefined,
 ): FilterRule[] => {
-    const items = isAndFilterGroup(filterGroup)
-        ? filterGroup.and
-        : filterGroup.or;
-    return items.reduce<FilterRule[]>(
-        (sum, item) =>
-            isFilterGroup(item)
-                ? [...sum, ...getFilterRulesFromGroup(item)]
-                : [...sum, item],
-        [],
-    );
+    if (filterGroup) {
+        const items = isAndFilterGroup(filterGroup)
+            ? filterGroup.and
+            : filterGroup.or;
+        return items.reduce<FilterRule[]>(
+            (sum, item) =>
+                isFilterGroup(item)
+                    ? [...sum, ...getFilterRulesFromGroup(item)]
+                    : [...sum, item],
+            [],
+        );
+    }
+    return [];
 };
 
-export const getTotalFilterRules = (filters: Filters): FilterRule[] => {
-    const dimensionRules = filters.dimensions
-        ? getFilterRulesFromGroup(filters.dimensions)
-        : [];
-    const metricsRules = filters.metrics
-        ? getFilterRulesFromGroup(filters.metrics)
-        : [];
-    return [...dimensionRules, ...metricsRules];
-};
+export const getTotalFilterRules = (filters: Filters): FilterRule[] => [
+    ...getFilterRulesFromGroup(filters.dimensions),
+    ...getFilterRulesFromGroup(filters.metrics),
+];
 
 export const countTotalFilterRules = (filters: Filters): number =>
     getTotalFilterRules(filters).length;

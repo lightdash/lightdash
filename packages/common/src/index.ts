@@ -1,5 +1,11 @@
 import moment from 'moment';
-import { Filters } from './types/filter';
+import { v4 as uuidv4 } from 'uuid';
+import {
+    FilterOperator,
+    FilterRule,
+    Filters,
+    isAndFilterGroup,
+} from './types/filter';
 import { OrganizationMemberProfile } from './types/organizationMemberProfile';
 import { LightdashUser } from './types/user';
 
@@ -191,7 +197,7 @@ export const getDimensions = (explore: Explore): CompiledDimension[] =>
 export const getMetrics = (explore: Explore): CompiledMetric[] =>
     Object.values(explore.tables).flatMap((t) => Object.values(t.metrics));
 
-export const getFields = (explore: Explore): Field[] => [
+export const getFields = (explore: Explore): CompiledField[] => [
     ...getDimensions(explore),
     ...getMetrics(explore),
 ];
@@ -234,6 +240,8 @@ export interface Dimension extends Field {
 export interface CompiledDimension extends Dimension {
     compiledSql: string; // sql string with resolved template variables
 }
+
+export type CompiledField = CompiledDimension | CompiledMetric;
 
 export const isDimension = (field: Field): field is Dimension =>
     field.fieldType === FieldType.DIMENSION;
@@ -377,9 +385,80 @@ export const isFilterableDimension = (
         DimensionType.BOOLEAN,
     ].includes(dimension.type);
 
+export type FilterableField = FilterableDimension | Metric;
+
+export const isFilterableField = (
+    field: Dimension | Metric,
+): field is FilterableField =>
+    isDimension(field) ? isFilterableDimension(field) : true;
+
 export const filterableDimensionsOnly = (
     dimensions: Dimension[],
 ): FilterableDimension[] => dimensions.filter(isFilterableDimension);
+
+export const addFilterRule = (filters: Filters, field: Field): Filters => {
+    const groupKey = isDimension(field) ? 'dimensions' : 'metrics';
+    const group = filters[groupKey];
+    let items: any[];
+    if (group) {
+        items = isAndFilterGroup(group) ? group.and : group.or;
+    } else {
+        items = [];
+    }
+    return {
+        ...filters,
+        [groupKey]: {
+            id: uuidv4(),
+            ...group,
+            and: [
+                ...items,
+                {
+                    id: uuidv4(),
+                    target: {
+                        fieldId: fieldId(field),
+                    },
+                    operator: FilterOperator.EQUALS,
+                },
+            ],
+        },
+    };
+};
+
+export const getFilterRulesByFieldType = (
+    fields: Field[],
+    filterRules: FilterRule[],
+): {
+    dimensions: FilterRule[];
+    metrics: FilterRule[];
+} =>
+    filterRules.reduce<{
+        dimensions: FilterRule[];
+        metrics: FilterRule[];
+    }>(
+        (sum, filterRule) => {
+            const fieldInRule = fields.find(
+                (field) => fieldId(field) === filterRule.target.fieldId,
+            );
+            if (fieldInRule) {
+                if (isDimension(fieldInRule)) {
+                    return {
+                        ...sum,
+                        dimensions: [...sum.dimensions, filterRule],
+                    };
+                }
+                return {
+                    ...sum,
+                    metrics: [...sum.metrics, filterRule],
+                };
+            }
+
+            return sum;
+        },
+        {
+            dimensions: [],
+            metrics: [],
+        },
+    );
 
 const capitalize = (word: string): string =>
     word ? `${word.charAt(0).toUpperCase()}${word.slice(1)}` : '';

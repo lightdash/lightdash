@@ -19,7 +19,7 @@ import {
     Dimension,
     fieldId,
     FieldId,
-    FieldType,
+    isFilterableField,
     Metric,
     Source,
 } from 'common';
@@ -122,16 +122,8 @@ const NodeItemButtons: FC<{
     onOpenSourceDialog: (source: Source) => void;
     isHovered: boolean;
 }> = ({ node, onOpenSourceDialog, isHovered }) => {
-    const {
-        isFilteredField,
-        isFilterableDimension,
-        addDefaultFilterForDimension,
-    } = useFilters();
+    const { isFilteredField, addFilter } = useFilters();
     const isFiltered = isFilteredField(node);
-    const onFilter =
-        node.fieldType === FieldType.DIMENSION
-            ? () => addDefaultFilterForDimension(node)
-            : () => {};
 
     const menuItems: ReactNode[] = [];
     if (node.source) {
@@ -150,15 +142,15 @@ const NodeItemButtons: FC<{
             />,
         );
     }
-    if (node.fieldType === FieldType.DIMENSION && isFilterableDimension(node)) {
+    if (isFilterableField(node)) {
         menuItems.push(
             <MenuItem
                 key="filter"
                 icon="filter"
                 text="Add filter"
                 onClick={(e) => {
-                    onFilter();
                     e.stopPropagation();
+                    addFilter(node);
                 }}
             />,
         );
@@ -178,7 +170,7 @@ const NodeItemButtons: FC<{
             ) : (
                 <div style={{ width: '16px' }} />
             )}
-            {menuItems && isHovered ? (
+            {menuItems.length > 0 && isHovered ? (
                 <Popover2
                     content={<Menu>{menuItems}</Menu>}
                     autoFocus={false}
@@ -380,7 +372,7 @@ const TableTree: FC<TableTreeProps> = ({
                           isDimension: false,
                       } as NodeDataProps,
                       isSelected: selectedNodes.has(fieldId(metric)),
-                      secondaryLabel: metric.source && (
+                      secondaryLabel: (
                           <NodeItemButtons
                               node={metric}
                               onOpenSourceDialog={onOpenSourceDialog}

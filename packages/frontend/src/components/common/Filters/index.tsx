@@ -1,130 +1,164 @@
-import { Button, Tag } from '@blueprintjs/core';
+import { Button } from '@blueprintjs/core';
 import {
-    fieldId,
+    addFilterRule,
+    Field,
     FilterableDimension,
-    FilterOperator,
     FilterRule,
     Filters,
+    getFilterRulesByFieldType,
     getTotalFilterRules,
-    isFilterRule,
+    Metric,
 } from 'common';
-import React, { FC, useCallback } from 'react';
+import React, { FC, useCallback, useMemo } from 'react';
+import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
-import FilterRuleForm from './FilterRuleForm';
+import FieldAutoComplete from './FieldAutoComplete';
+import FilterGroupForm from './FilterGroupForm';
+import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
 
 type Props = {
-    fields: FilterableDimension[];
+    dimensions: FilterableDimension[];
+    metrics: Metric[];
     filters: Filters;
     setFilters: (value: Filters) => void;
 };
 
-const FiltersForm: FC<Props> = ({ fields, filters, setFilters }) => {
-    const rules: Array<FilterRule> = getTotalFilterRules(filters);
+const FiltersForm: FC<Props> = ({
+    dimensions,
+    metrics,
+    filters,
+    setFilters,
+}) => {
+    const [isOpen, toggleFieldInput] = useToggle(false);
+    const fields = useMemo(
+        () => [...metrics, ...dimensions],
+        [dimensions, metrics],
+    );
+    // Note: Show simplified view until we support AND and OR operator
+    const showSimplifiedForm = true;
 
-    const onDeleteFilterRule = useCallback(
-        (index: number) => {
-            setFilters({
-                dimensions: {
-                    id: uuidv4(),
-                    and: [...rules.slice(0, index), ...rules.slice(index + 1)],
-                },
-            });
+    const addFieldRule = useCallback(
+        (field: Field) => {
+            setFilters(addFilterRule(filters, field));
+            toggleFieldInput(false);
         },
-        [rules, setFilters],
+        [filters, setFilters, toggleFieldInput],
     );
 
-    const onChangeFilterRule = useCallback(
-        (index: number, filterRule: FilterRule) => {
+    const updateFieldRules = useCallback(
+        (filterRules: FilterRule[]) => {
+            const result = getFilterRulesByFieldType(fields, filterRules);
+
             setFilters({
-                dimensions: {
-                    id: uuidv4(),
-                    and: [
-                        ...rules.slice(0, index),
-                        filterRule,
-                        ...rules.slice(index + 1),
-                    ],
-                },
+                ...filters,
+                dimensions:
+                    result.dimensions.length > 0
+                        ? {
+                              id: uuidv4(),
+                              ...filters.dimensions,
+                              and: result.dimensions,
+                          }
+                        : undefined,
+                metrics:
+                    result.metrics.length > 0
+                        ? {
+                              id: uuidv4(),
+                              ...filters.metrics,
+                              and: result.metrics,
+                          }
+                        : undefined,
             });
         },
-        [rules, setFilters],
+        [fields, filters, setFilters],
     );
-
-    const onAddFilterRule = useCallback(() => {
-        if (fields.length > 0) {
-            setFilters({
-                dimensions: {
-                    id: uuidv4(),
-                    and: [
-                        ...rules,
-                        {
-                            id: uuidv4(),
-                            target: {
-                                fieldId: fieldId(fields[0]),
-                            },
-                            operator: FilterOperator.EQUALS,
-                        },
-                    ],
-                },
-            });
-        }
-    }, [fields, rules, setFilters]);
 
     return (
-        <div
-            style={{
-                margin: '10px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-start',
-                alignItems: 'start',
-            }}
-        >
+        <>
+            {showSimplifiedForm ? (
+                <SimplifiedFilterGroupForm
+                    fields={fields}
+                    filterRules={getTotalFilterRules(filters)}
+                    onChange={updateFieldRules}
+                />
+            ) : (
+                <div style={{ position: 'relative' }}>
+                    {filters.dimensions && (
+                        <FilterGroupForm
+                            hideButtons
+                            conditionLabel="dimension"
+                            filterGroup={filters.dimensions}
+                            fields={dimensions}
+                            onChange={(value) =>
+                                setFilters({
+                                    ...filters,
+                                    dimensions: value,
+                                })
+                            }
+                            onDelete={() =>
+                                setFilters({
+                                    ...filters,
+                                    dimensions: undefined,
+                                })
+                            }
+                        />
+                    )}
+                    {filters.metrics && (
+                        <FilterGroupForm
+                            hideButtons
+                            conditionLabel="metric"
+                            filterGroup={filters.metrics}
+                            fields={metrics}
+                            onChange={(value) =>
+                                setFilters({
+                                    ...filters,
+                                    metrics: value,
+                                })
+                            }
+                            onDelete={() =>
+                                setFilters({
+                                    ...filters,
+                                    metrics: undefined,
+                                })
+                            }
+                        />
+                    )}
+                </div>
+            )}
+
             <div
                 style={{
-                    width: '100%',
-                    paddingBottom: '20px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '5px',
+                    margin: '10px',
                 }}
             >
-                {rules.length > 0 && (
-                    <div
-                        style={{ display: 'inline-flex', alignItems: 'center' }}
-                    >
-                        <p style={{ margin: 0, marginRight: 10 }}>
-                            Operator: <Tag minimal>AND</Tag>
-                        </p>
-                    </div>
+                {isOpen && (
+                    <>
+                        <FieldAutoComplete
+                            autoFocus
+                            fields={fields}
+                            onChange={addFieldRule}
+                            onClosed={toggleFieldInput}
+                        />
+                        <Button
+                            style={{ marginLeft: 10 }}
+                            minimal
+                            icon="cross"
+                            onClick={toggleFieldInput}
+                        />
+                    </>
                 )}
-                {rules.map((filterRule, index) =>
-                    isFilterRule(filterRule) ? (
-                        <React.Fragment key={filterRule.id}>
-                            <FilterRuleForm
-                                filterRule={filterRule}
-                                fields={fields}
-                                onChange={(value) =>
-                                    onChangeFilterRule(index, value)
-                                }
-                                onDelete={() => onDeleteFilterRule(index)}
-                            />
-                        </React.Fragment>
-                    ) : null,
-                )}
-            </div>
-            {fields.length > 0 && (
-                <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                {!isOpen && (
                     <Button
                         minimal
                         icon="plus"
                         intent="primary"
-                        onClick={onAddFilterRule}
+                        onClick={toggleFieldInput}
+                        disabled={fields.length <= 0}
                     >
                         Add filter
                     </Button>
-                </div>
-            )}
-        </div>
+                )}
+            </div>
+        </>
     );
 };
 
