@@ -35,7 +35,7 @@ const FiltersForm: FC<Props> = ({
         [dimensions, metrics],
     );
     // Note: Show simplified view until we support AND and OR operator
-    const showSimplifiedForm = true;
+    const showSimplifiedForm = false;
 
     const addFieldRule = useCallback(
         (field: Field) => {

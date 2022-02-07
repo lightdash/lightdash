@@ -4,7 +4,8 @@ import {
     FilterOperator,
     FilterRule,
     Filters,
-    isAndFilterGroup,
+    getFilterGroupItemsPropertyName,
+    getItemsFromFilterGroup,
 } from './types/filter';
 import { OrganizationMemberProfile } from './types/organizationMemberProfile';
 import { LightdashUser } from './types/user';
@@ -399,19 +400,13 @@ export const filterableDimensionsOnly = (
 export const addFilterRule = (filters: Filters, field: Field): Filters => {
     const groupKey = isDimension(field) ? 'dimensions' : 'metrics';
     const group = filters[groupKey];
-    let items: any[];
-    if (group) {
-        items = isAndFilterGroup(group) ? group.and : group.or;
-    } else {
-        items = [];
-    }
     return {
         ...filters,
         [groupKey]: {
             id: uuidv4(),
             ...group,
-            and: [
-                ...items,
+            [getFilterGroupItemsPropertyName(group)]: [
+                ...getItemsFromFilterGroup(group),
                 {
                     id: uuidv4(),
                     target: {

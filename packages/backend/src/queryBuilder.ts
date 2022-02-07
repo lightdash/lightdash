@@ -5,6 +5,7 @@ import {
     Explore,
     fieldId,
     FieldId,
+    FilterGroup,
     FilterOperator,
     FilterRule,
     formatDate,
@@ -241,6 +242,13 @@ export const getQuoteChar = (targetDatabase: SupportedDbtAdapter): string => {
     }
 };
 
+const getOperatorSql = (filterGroup: FilterGroup | undefined) => {
+    if (filterGroup) {
+        return isAndFilterGroup(filterGroup) ? ' AND ' : ' OR ';
+    }
+    return ' AND ';
+};
+
 export type BuildQueryProps = {
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
@@ -306,14 +314,14 @@ export const buildQuery = ({
     const sqlOrderBy =
         fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
 
-    const whereFilters = (
-        filters.dimensions && isAndFilterGroup(filters.dimensions)
-            ? getFilterRulesFromGroup(filters.dimensions)
-            : []
-    ).map((filter) => renderFilterRuleSql(filter, explore, q));
+    const whereFilters = getFilterRulesFromGroup(filters.dimensions).map(
+        (filter) => renderFilterRuleSql(filter, explore, q),
+    );
     const sqlWhere =
         whereFilters.length > 0
-            ? `WHERE ${whereFilters.map((w) => `(\n  ${w}\n)`).join(' AND ')}`
+            ? `WHERE ${whereFilters
+                  .map((w) => `(\n  ${w}\n)`)
+                  .join(getOperatorSql(filters.dimensions))}`
             : '';
 
     const whereMetricFilters = getFilterRulesFromGroup(filters.metrics).map(
@@ -350,7 +358,7 @@ export const buildQuery = ({
             whereMetricFilters.length > 0
                 ? `WHERE ${whereMetricFilters
                       .map((w) => `(\n  ${w}\n)`)
-                      .join(' AND ')}`
+                      .join(getOperatorSql(filters.metrics))}`
                 : '';
         const secondQuery = [finalSelect, finalFrom, finalSqlWhere].join('\n');
 
