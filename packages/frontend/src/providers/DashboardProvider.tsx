@@ -10,11 +10,12 @@ import React, {
 
 type DashboardFilters = {
     dimensionFilters: FilterRule[];
-    metricFilters: FilterRule[];
+    metricFilters: FilterRule[] | [];
 };
 
 type DashboardContext = {
     dashboardFilters: DashboardFilters;
+    setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     addDimensionDashboardFilter: (filter: FilterRule) => void;
     addMetricDashboardFilter: (filter: FilterRule) => void;
     dimensionToFilter: string;
@@ -23,6 +24,7 @@ type DashboardContext = {
 
 const Context = createContext<DashboardContext>({
     dashboardFilters: { dimensionFilters: [], metricFilters: [] },
+    setDashboardFilters: () => {},
     addDimensionDashboardFilter: () => {},
     addMetricDashboardFilter: () => {},
     dimensionToFilter: '',
@@ -60,6 +62,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         addMetricDashboardFilter,
         setDimensionToFilter,
         dimensionToFilter,
+        setDashboardFilters,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

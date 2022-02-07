@@ -1,4 +1,5 @@
 import { Classes, Popover2 } from '@blueprintjs/popover2';
+import { FilterRule } from 'common';
 import React, { FC, useState } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import FilterConfiguration from '../FilterConfiguration';
@@ -10,9 +11,16 @@ import {
 
 const ActiveFilters: FC = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const { dashboardFilters } = useDashboardContext();
+    const { dashboardFilters, setDashboardFilters } = useDashboardContext();
 
-    const clearFilter = () => {};
+    const clearFilter = (filterToRemove: FilterRule | undefined) => {
+        const updatedArr = dashboardFilters.dimensionFilters.filter(
+            (item) => item !== filterToRemove,
+        );
+        // @ts-ignore
+        setDashboardFilters({ dimensionFilters: updatedArr });
+        console.log(updatedArr);
+    };
     return (
         <TagsWrapper>
             {dashboardFilters.dimensionFilters.map((item) => (
@@ -26,7 +34,11 @@ const ActiveFilters: FC = () => {
                     position="bottom"
                     lazy={false}
                 >
-                    <TagContainer key={item.id} interactive onRemove={() => ''}>
+                    <TagContainer
+                        key={item.id}
+                        interactive
+                        onRemove={() => clearFilter(item)}
+                    >
                         {`${item.target.fieldId}: `}
                         <FilterValues>{item.values?.join(', ')}</FilterValues>
                     </TagContainer>

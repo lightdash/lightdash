@@ -16,7 +16,6 @@ const FilterConfiguration: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const {
         addDimensionDashboardFilter,
-        dashboardFilters,
         dimensionToFilter,
         setDimensionToFilter,
     } = useDashboardContext();
