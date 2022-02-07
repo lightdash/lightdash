@@ -6,6 +6,8 @@ import {
     METRIC_QUERY_TWO_TABLES,
     METRIC_QUERY_TWO_TABLES_SQL,
     METRIC_QUERY_WITH_FILTER,
+    METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
+    METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL,
     METRIC_QUERY_WITH_FILTER_SQL,
     METRIC_QUERY_WITH_METRIC_FILTER,
     METRIC_QUERY_WITH_METRIC_FILTER_SQL,
@@ -36,6 +38,15 @@ test('Should join table from filter dimension', () => {
             compiledMetricQuery: METRIC_QUERY_WITH_FILTER,
         }).query,
     ).toStrictEqual(METRIC_QUERY_WITH_FILTER_SQL);
+});
+
+test('Should build query with filter OR operator', () => {
+    expect(
+        buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
+        }).query,
+    ).toStrictEqual(METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL);
 });
 
 test('Should build second query with metric filter', () => {
