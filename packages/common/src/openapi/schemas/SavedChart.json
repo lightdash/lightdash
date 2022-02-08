@@ -1,0 +1,35 @@
+{
+    "properties": {
+        "uuid": {
+            "type": "string"
+        },
+        "name": {
+            "type": "string"
+        },
+        "tableName": {
+            "type": "string"
+        },
+        "metricQuery": {
+            "type": "object"
+        },
+        "chartConfig": {
+            "$ref": "./ChartConfig.json"
+        },
+        "tableConfig": {
+            "type": "object",
+            "properties": {
+                "columnOrder": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": ["columnOrder"]
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+        }
+    }
+}

@@ -66,6 +66,9 @@
         },
         "/saved/{savedChartUuid}/availableFilters": {
             "$ref": "./paths/savedChartFilters.json"
+        },
+        "/saved/{savedChartUuid}": {
+            "$ref": "./paths/savedChart.json"
         }
     },
     "security": [

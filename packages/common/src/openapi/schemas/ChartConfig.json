@@ -1,0 +1,27 @@
+{
+    "type": "object",
+    "properties": {
+        "chartType": {
+            "type": "string",
+            "enum": ["column", "bar", "line", "scatter"]
+        },
+        "seriesLayout": {
+            "type": "object",
+            "properties": {
+                "xDimension": {
+                    "type": "string"
+                },
+                "yMetrics": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "groupDimension": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "required": ["seriesLayout", "chartType"]
+}

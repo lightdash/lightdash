@@ -824,6 +824,104 @@
                     }
                 }
             }
+        },
+        "/saved/{savedChartUuid}/availableFilters": {
+            "parameters": [
+                {
+                    "schema": {
+                        "type": "string"
+                    },
+                    "name": "savedChartUuid",
+                    "in": "path",
+                    "required": true
+                }
+            ],
+            "get": {
+                "summary": "Get available filters for a saved chart",
+                "tags": ["saved-chart"],
+                "operationId": "getAvailableChartFilters",
+                "responses": {
+                    "200": {
+                        "description": "Available filters for a saved chart",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/Fields"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
+        "/saved/{savedChartUuid}": {
+            "parameters": [
+                {
+                    "schema": {
+                        "type": "string"
+                    },
+                    "name": "savedChartUuid",
+                    "in": "path",
+                    "required": true
+                }
+            ],
+            "get": {
+                "summary": "Get a saved chart",
+                "tags": ["saved"],
+                "operationId": "getSavedChart",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "savedChartUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Details for a saved chart",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/SavedChart"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
         }
     },
     "security": [
@@ -1235,6 +1333,109 @@
                         "required": ["name", "tiles"]
                     }
                 ]
+            },
+            "Fields": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "fieldType": {
+                            "type": "string"
+                        },
+                        "type": {
+                            "type": "string"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "label": {
+                            "type": "string"
+                        },
+                        "table": {
+                            "type": "string"
+                        },
+                        "tableLabel": {
+                            "type": "string"
+                        },
+                        "sql": {
+                            "type": "string"
+                        },
+                        "description": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "fieldType",
+                        "type",
+                        "name",
+                        "label",
+                        "table",
+                        "tableLabel",
+                        "sql"
+                    ]
+                }
+            },
+            "ChartConfig": {
+                "type": "object",
+                "properties": {
+                    "chartType": {
+                        "type": "string",
+                        "enum": ["column", "bar", "line", "scatter"]
+                    },
+                    "seriesLayout": {
+                        "type": "object",
+                        "properties": {
+                            "xDimension": {
+                                "type": "string"
+                            },
+                            "yMetrics": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "groupDimension": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "required": ["seriesLayout", "chartType"]
+            },
+            "SavedChart": {
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "metricQuery": {
+                        "type": "object"
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
+                    "tableConfig": {
+                        "type": "object",
+                        "properties": {
+                            "columnOrder": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "required": ["columnOrder"]
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
             }
         },
         "responses": {
