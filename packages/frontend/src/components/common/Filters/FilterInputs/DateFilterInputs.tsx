@@ -6,11 +6,14 @@ import {
     FilterOperator,
     formatDate,
     formatTimestamp,
+    isDimension,
     parseDate,
     parseTimestamp,
+    TimeInterval,
     UnitOfTime,
 } from 'common';
 import React, { FC } from 'react';
+import WeekPicker from '../../WeekPicker';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 import UnitOfTimeAutoComplete from './UnitOfTimeAutoComplete';
 
@@ -24,6 +27,27 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
         case FilterOperator.GREATER_THAN_OR_EQUAL:
         case FilterOperator.LESS_THAN:
         case FilterOperator.LESS_THAN_OR_EQUAL:
+            if (
+                isDimension(field) &&
+                field.timeInterval &&
+                field.timeInterval.toUpperCase() === TimeInterval.WEEK
+            ) {
+                return (
+                    <WeekPicker
+                        value={
+                            filterRule.values?.[0]
+                                ? new Date(filterRule.values?.[0])
+                                : new Date()
+                        }
+                        onChange={(value: Date) => {
+                            onChange({
+                                ...filterRule,
+                                values: [value],
+                            });
+                        }}
+                    />
+                );
+            }
             return (
                 <DateInput
                     fill
