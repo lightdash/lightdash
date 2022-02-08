@@ -37,6 +37,44 @@ module.exports = {
       }
     ],
     [
+      '@google/semantic-release-replace-plugin',
+      {
+        'replacements': [
+          {
+            'files': [
+              'packages/backend/package.json',
+              'packages/e2e/package.json',
+              'packages/frontend/package.json',
+
+            ],
+            'from': '"common": "\\\^(0|[1-9]\\\d*)\\\.(0|[1-9]\\\d*)\\\.(0|[1-9]\\\d*)(?:-((?:0|[1-9]\\\d*|\\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\\.(?:0|[1-9]\\\d*|\\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\\+([0-9a-zA-Z-]+(?:\\\.[0-9a-zA-Z-]+)*))?"',
+            'to': '"common": "^${nextRelease.version}"',
+            'results': [
+              {
+                'file': 'packages/backend/package.json',
+                'hasChanged': true,
+                'numMatches': 1,
+                'numReplacements': 1
+              },
+              {
+                'file': 'packages/e2e/package.json',
+                'hasChanged': true,
+                'numMatches': 1,
+                'numReplacements': 1
+              },
+              {
+                'file': 'packages/frontend/package.json',
+                'hasChanged': true,
+                'numMatches': 1,
+                'numReplacements': 1
+              },
+            ],
+            'countMatches': true
+          }
+        ]
+      }
+    ],
+    [
       '@semantic-release/git',
       {
         'assets': [

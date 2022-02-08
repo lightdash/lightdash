@@ -31,6 +31,7 @@ jobs:
             @semantic-release/git@10
             @semantic-release/github@8
             @amanda-mitchell/semantic-release-npm-multiple@2.17.0
+            @google/semantic-release-replace-plugin@1
       - name: Reset alpha branch upon release
         if: |
           steps.semantic.outputs.new_release_published == 'true' &&
