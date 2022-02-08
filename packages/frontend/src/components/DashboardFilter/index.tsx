@@ -32,8 +32,7 @@ const DashboardFilter: FC<Props> = ({ chartsData }) => {
                     Add filter
                 </FilterTrigger>
             </TriggerWrapper>
-            {/* @ts-ignore */}
-            {dashboardFilters && <ActiveFilters />}
+            {dashboardFilters.dimensionFilters && <ActiveFilters />}
         </DashboardFilterWrapper>
     );
 };

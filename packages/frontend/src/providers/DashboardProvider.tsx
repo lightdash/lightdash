@@ -37,11 +37,24 @@ export const DashboardProvider: React.FC = ({ children }) => {
         metricFilters: [],
     });
 
+    const updateDimensionFilter = (prev: any[], filter: any) => {
+        const needsUpdateIndex = prev.findIndex(
+            (item) => item.target.fieldId === filter.target.fieldId,
+        );
+        if (needsUpdateIndex !== -1) {
+            return [...prev];
+        }
+        return [...prev, filter];
+    };
+
     const [dimensionToFilter, setDimensionToFilter] = useState<string>('');
     const addDimensionDashboardFilter = useCallback(
         (filter) => {
             setDashboardFilters((previousFilters) => ({
-                dimensionFilters: [...previousFilters.dimensionFilters, filter],
+                dimensionFilters: updateDimensionFilter(
+                    previousFilters.dimensionFilters,
+                    filter,
+                ),
                 metricFilters: previousFilters.metricFilters,
             }));
         },

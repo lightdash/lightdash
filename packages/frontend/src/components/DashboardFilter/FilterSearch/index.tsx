@@ -82,7 +82,7 @@ const FilterSearch: FC<Props> = ({ chartsData }) => {
                     </SearchWrapper>
                     <DimensionsContainer>
                         {filteredDimensions.map((dimension) => (
-                            <DimensionItem id={dimension.name}>
+                            <DimensionItem key={dimension.name}>
                                 <DimensionLabel
                                     minimal
                                     text={dimension.label}

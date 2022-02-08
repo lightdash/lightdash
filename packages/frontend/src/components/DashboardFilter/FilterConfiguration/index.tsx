@@ -12,7 +12,17 @@ import {
     Title,
 } from './FilterConfiguration.styled';
 
-const FilterConfiguration: FC = () => {
+interface Props {
+    label?: string;
+    operator?: string;
+    filteredValues?: string[] | undefined;
+}
+
+const FilterConfiguration: FC<Props> = ({
+    label,
+    operator,
+    filteredValues,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const {
         addDimensionDashboardFilter,
@@ -23,7 +33,7 @@ const FilterConfiguration: FC = () => {
     const [filterType, setFilterType] = useState('');
     const [valuesToFilter, setValuesToFilter] = useState<
         string[] | ReactNode[]
-    >([]);
+    >([filteredValues]);
 
     const addFilters = () => {
         const filterData = {
@@ -43,11 +53,11 @@ const FilterConfiguration: FC = () => {
             <BackButton minimal onClick={() => setDimensionToFilter('')}>
                 Back
             </BackButton>
-            <Title>{dimensionToFilter}</Title>
+            <Title>{label || dimensionToFilter}</Title>
             <InputWrapper>
                 <SelectField
                     id="filter-type"
-                    value={filterType}
+                    value={operator || filterType}
                     onChange={(e) =>
                         setFilterType(e.currentTarget.value as FilterOperator)
                     }
@@ -65,7 +75,7 @@ const FilterConfiguration: FC = () => {
                 <TagInput
                     addOnBlur
                     tagProps={{ minimal: true }}
-                    values={valuesToFilter || []}
+                    values={valuesToFilter}
                     onChange={(values) => setValuesToFilter(values)}
                 />
             </InputWrapper>
