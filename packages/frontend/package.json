@@ -1,6 +1,6 @@
 {
     "name": "frontend",
-    "version": "0.12.1",
+    "version": "0.13.0",
     "private": true,
     "dependencies": {
         "@blueprintjs/core": "^3.41.0",

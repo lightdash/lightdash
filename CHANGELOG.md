@@ -1,3 +1,16 @@
+# [0.13.0](https://github.com/lightdash/lightdash/compare/0.12.1...0.13.0) (2022-02-08)
+
+
+### Bug Fixes
+
+* fatal error when results are empty ([#1302](https://github.com/lightdash/lightdash/issues/1302)) ([10568b2](https://github.com/lightdash/lightdash/commit/10568b27cc723c93419dc9f49eb4b18d3af33054))
+
+
+### Features
+
+* **#186:** add metric filters ([#1271](https://github.com/lightdash/lightdash/issues/1271)) ([df3e5dc](https://github.com/lightdash/lightdash/commit/df3e5dc5794351ca4f86195a85d6006b06c0134e)), closes [#186](https://github.com/lightdash/lightdash/issues/186)
+* **#205:** add in the past filter ([#1290](https://github.com/lightdash/lightdash/issues/1290)) ([08c97dc](https://github.com/lightdash/lightdash/commit/08c97dca56e7249c19beed16edf4e4a1d75d7490)), closes [#205](https://github.com/lightdash/lightdash/issues/205)
+
 # Changelog
 
 Recent and upcoming changes to lightdash
