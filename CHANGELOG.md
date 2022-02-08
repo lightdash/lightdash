@@ -1,3 +1,10 @@
+## [0.13.1-alpha.1](https://github.com/lightdash/lightdash/compare/0.13.0...0.13.1-alpha.1) (2022-02-08)
+
+
+### Bug Fixes
+
+* empty commit to trigger release ([ab54c1f](https://github.com/lightdash/lightdash/commit/ab54c1fb6b0dfd0a42942ca464279e019dce4818))
+
 # [0.13.0](https://github.com/lightdash/lightdash/compare/0.12.1...0.13.0) (2022-02-08)
 
 
