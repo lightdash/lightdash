@@ -33,19 +33,24 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                 field.timeInterval.toUpperCase() === TimeInterval.WEEK
             ) {
                 return (
-                    <WeekPicker
-                        value={
-                            filterRule.values?.[0]
-                                ? new Date(filterRule.values?.[0])
-                                : new Date()
-                        }
-                        onChange={(value: Date) => {
-                            onChange({
-                                ...filterRule,
-                                values: [value],
-                            });
-                        }}
-                    />
+                    <>
+                        <span style={{ whiteSpace: 'nowrap' }}>
+                            week commencing
+                        </span>
+                        <WeekPicker
+                            value={
+                                filterRule.values?.[0]
+                                    ? new Date(filterRule.values?.[0])
+                                    : new Date()
+                            }
+                            onChange={(value: Date) => {
+                                onChange({
+                                    ...filterRule,
+                                    values: [value],
+                                });
+                            }}
+                        />
+                    </>
                 );
             }
             return (
