@@ -43,12 +43,18 @@ jest.mock('../../models/models', () => ({
     },
     onboardingModel: {},
 }));
+jest.mock('../../models/savedQueries', () => ({
+    SavedQueriesModel: {
+        getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
+    },
+}));
 
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = new ProjectService({
         projectModel,
         onboardingModel,
+        savedChartModel: SavedQueriesModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
