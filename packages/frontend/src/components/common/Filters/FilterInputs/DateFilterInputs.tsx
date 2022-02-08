@@ -53,7 +53,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                 <>
                     <NumericInput
                         fill
-                        value={filterRule.values?.[0]}
+                        value={filterRule.values?.[0] || 1}
                         onValueChange={(value) =>
                             onChange({
                                 ...filterRule,
