@@ -1,0 +1,40 @@
+name: Release on Merge
+on:
+  push:
+    branches:
+      - main
+      - alpha
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-18.04
+    concurrency: ${{ github.ref }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+      - name: Semantic Release
+        id: semantic
+        uses: cycjimmy/semantic-release-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          semantic_version: 19
+          extra_plugins: |
+            @semantic-release/changelog@6
+            @semantic-release/git@10
+            @semantic-release/github@8
+            @amanda-mitchell/semantic-release-npm-multiple@2.17.0
+      - name: Reset alpha branch upon release
+        if: |
+          steps.semantic.outputs.new_release_published == 'true' &&
+          steps.semantic.outputs.new_release_channel == 'undefined'
+        run: "git push --force https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:refs/heads/alpha"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
