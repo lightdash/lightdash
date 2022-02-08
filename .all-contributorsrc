@@ -422,6 +422,15 @@
         "code",
         "infra"
       ]
+    },
+    {
+      "login": "jim80net",
+      "name": "Jim Park",
+      "avatar_url": "https://avatars.githubusercontent.com/u/176915?v=4",
+      "profile": "https://github.com/jim80net",
+      "contributions": [
+        "infra"
+      ]
     }
   ],
   "contributorsPerLine": 7,
