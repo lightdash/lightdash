@@ -1,5 +1,5 @@
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import { FilterRule } from 'common';
+import { FilterRule, friendlyName } from 'common';
 import React, { FC, useState } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import FilterConfiguration from '../FilterConfiguration';
@@ -40,7 +40,7 @@ const ActiveFilters: FC = () => {
                         interactive
                         onRemove={() => clearFilter(item)}
                     >
-                        {`${item.target.fieldId}: `}
+                        {`${friendlyName(item.target.fieldId)}: `}
                         <FilterValues>{item.values?.join(', ')}</FilterValues>
                     </TagContainer>
                 </Popover2>

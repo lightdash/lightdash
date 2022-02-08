@@ -1,5 +1,5 @@
 import { Intent, TagInput } from '@blueprintjs/core';
-import { FilterOperator } from 'common';
+import { FilterOperator, friendlyName } from 'common';
 import React, { FC, ReactNode, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
@@ -48,12 +48,14 @@ const FilterConfiguration: FC<Props> = ({
         addDimensionDashboardFilter(filterData);
     };
 
+    const title = label ? friendlyName(label) : friendlyName(dimensionToFilter);
+
     return (
         <ConfigureFilterWrapper>
             <BackButton minimal onClick={() => setDimensionToFilter('')}>
                 Back
             </BackButton>
-            <Title>{label || dimensionToFilter}</Title>
+            <Title>{title}</Title>
             <InputWrapper>
                 <SelectField
                     id="filter-type"
