@@ -218,6 +218,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   </tr>
   <tr>
     <td align="center"><a href="http://blog.d2x.com.br"><img src="https://avatars.githubusercontent.com/u/10980654?v=4?s=100" width="100px;" alt=""/><br /><sub><b>André Claudino</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=andreclaudino" title="Code">💻</a> <a href="#infra-andreclaudino" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a></td>
+    <td align="center"><a href="https://github.com/jim80net"><img src="https://avatars.githubusercontent.com/u/176915?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Jim Park</b></sub></a><br /><a href="#infra-jim80net" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a></td>
   </tr>
 </table>
 
