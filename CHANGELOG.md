@@ -1,3 +1,10 @@
+# [0.14.0](https://github.com/lightdash/lightdash/compare/0.13.0...0.14.0) (2022-02-08)
+
+
+### Features
+
+* add filter operator OR ([#1299](https://github.com/lightdash/lightdash/issues/1299)) ([ac37fe3](https://github.com/lightdash/lightdash/commit/ac37fe32b957b39404d1af13c38b119dd208f308))
+
 # [0.13.0](https://github.com/lightdash/lightdash/compare/0.12.1...0.13.0) (2022-02-08)
 
 
