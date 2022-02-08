@@ -6,6 +6,8 @@ import {
     FilterGroupOperator,
     FilterOperator,
     FilterRule,
+    getFilterGroupItemsPropertyName,
+    getItemsFromFilterGroup,
     isAndFilterGroup,
     isFilterRule,
 } from 'common';
@@ -35,9 +37,7 @@ const FilterGroupForm: FC<Props> = ({
     onChange,
     onDelete,
 }) => {
-    const items = isAndFilterGroup(filterGroup)
-        ? filterGroup.and
-        : filterGroup.or;
+    const items = getItemsFromFilterGroup(filterGroup);
 
     const onDeleteItem = useCallback(
         (index: number) => {
@@ -46,7 +46,10 @@ const FilterGroupForm: FC<Props> = ({
             } else {
                 onChange({
                     ...filterGroup,
-                    and: [...items.slice(0, index), ...items.slice(index + 1)],
+                    [getFilterGroupItemsPropertyName(filterGroup)]: [
+                        ...items.slice(0, index),
+                        ...items.slice(index + 1),
+                    ],
                 });
             }
         },
@@ -57,7 +60,7 @@ const FilterGroupForm: FC<Props> = ({
         (index: number, item: FilterRule | FilterGroup) => {
             onChange({
                 ...filterGroup,
-                and: [
+                [getFilterGroupItemsPropertyName(filterGroup)]: [
                     ...items.slice(0, index),
                     item,
                     ...items.slice(index + 1),
@@ -71,7 +74,7 @@ const FilterGroupForm: FC<Props> = ({
         if (fields.length > 0) {
             onChange({
                 ...filterGroup,
-                and: [
+                [getFilterGroupItemsPropertyName(filterGroup)]: [
                     ...items,
                     {
                         id: uuidv4(),
@@ -85,12 +88,21 @@ const FilterGroupForm: FC<Props> = ({
         }
     }, [fields, filterGroup, items, onChange]);
 
+    const onChangeOperator = useCallback(
+        (value: FilterGroupOperator) => {
+            onChange({
+                id: filterGroup.id,
+                [value]: items,
+            } as FilterGroup);
+        },
+        [filterGroup, items, onChange],
+    );
+
     return (
         <FilterGroupWrapper>
             <FilterGroupHeader>
                 <HTMLSelect
                     fill={false}
-                    disabled
                     iconProps={{ icon: 'caret-down' }}
                     options={[
                         {
@@ -102,9 +114,20 @@ const FilterGroupForm: FC<Props> = ({
                             label: 'Any',
                         },
                     ]}
-                    value={FilterGroupOperator.and}
+                    value={
+                        isAndFilterGroup(filterGroup)
+                            ? FilterGroupOperator.and
+                            : FilterGroupOperator.or
+                    }
+                    onChange={(e) =>
+                        onChangeOperator(
+                            e.currentTarget.value as FilterGroupOperator,
+                        )
+                    }
                 />
-                <p>of the following ${conditionLabel} conditions match:</p>
+                <p style={{ marginLeft: 10 }}>
+                    of the following {conditionLabel} conditions match:
+                </p>
             </FilterGroupHeader>
             <FilterGroupItemsWrapper>
                 {items.map((item, index) => (

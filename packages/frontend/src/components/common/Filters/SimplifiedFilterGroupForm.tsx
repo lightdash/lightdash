@@ -1,3 +1,4 @@
+import { Tooltip2 } from '@blueprintjs/popover2';
 import { FilterableField, FilterRule } from 'common';
 import React, { FC, useCallback } from 'react';
 import {
@@ -42,7 +43,12 @@ const SimplifiedFilterGroupForm: FC<Props> = ({
     return (
         <FilterGroupWrapper>
             <FilterGroupHeader>
-                <p>All of the following conditions match:</p>
+                <Tooltip2
+                    content="You can only use the 'and' operator when combining metrics & dimensions"
+                    disabled={filterRules.length > 1}
+                >
+                    <p>All of the following conditions match:</p>
+                </Tooltip2>
             </FilterGroupHeader>
             <FilterGroupItemsWrapper>
                 {filterRules.map((item, index) => (

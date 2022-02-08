@@ -61,14 +61,16 @@ export type DateFilterRule = FilterRule<
     }
 >;
 
+type FilterGroupItem = FilterGroup | FilterRule;
+
 type OrFilterGroup = {
     id: string;
-    or: Array<FilterGroup | FilterRule>;
+    or: Array<FilterGroupItem>;
 };
 
 export type AndFilterGroup = {
     id: string;
-    and: Array<FilterGroup | FilterRule>;
+    and: Array<FilterGroupItem>;
 };
 
 export type FilterGroup = OrFilterGroup | AndFilterGroup;
@@ -82,20 +84,18 @@ export type Filters = {
 /* Utils */
 
 export const isOrFilterGroup = (
-    value: FilterGroup | FilterRule,
+    value: FilterGroupItem,
 ): value is OrFilterGroup => 'or' in value;
 
 export const isAndFilterGroup = (
-    value: FilterGroup | FilterRule,
+    value: FilterGroupItem,
 ): value is AndFilterGroup => 'and' in value;
 
-export const isFilterGroup = (
-    value: FilterGroup | FilterRule,
-): value is FilterGroup => isOrFilterGroup(value) || isAndFilterGroup(value);
+export const isFilterGroup = (value: FilterGroupItem): value is FilterGroup =>
+    isOrFilterGroup(value) || isAndFilterGroup(value);
 
-export const isFilterRule = (
-    value: FilterGroup | FilterRule,
-): value is FilterRule => 'target' in value && 'operator' in value;
+export const isFilterRule = (value: FilterGroupItem): value is FilterRule =>
+    'target' in value && 'operator' in value;
 
 export const getFilterRulesFromGroup = (
     filterGroup: FilterGroup | undefined,
@@ -122,3 +122,21 @@ export const getTotalFilterRules = (filters: Filters): FilterRule[] => [
 
 export const countTotalFilterRules = (filters: Filters): number =>
     getTotalFilterRules(filters).length;
+
+export const getItemsFromFilterGroup = (
+    filterGroup: FilterGroup | undefined,
+): FilterGroupItem[] => {
+    if (filterGroup) {
+        return isAndFilterGroup(filterGroup) ? filterGroup.and : filterGroup.or;
+    }
+    return [];
+};
+
+export const getFilterGroupItemsPropertyName = (
+    filterGroup: FilterGroup | undefined,
+): 'and' | 'or' => {
+    if (filterGroup) {
+        return isAndFilterGroup(filterGroup) ? 'and' : 'or';
+    }
+    return 'and';
+};

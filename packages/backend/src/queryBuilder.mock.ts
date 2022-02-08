@@ -205,6 +205,37 @@ export const METRIC_QUERY_WITH_METRIC_FILTER: CompiledMetricQuery = {
     compiledTableCalculations: [],
 };
 
+export const METRIC_QUERY_WITH_FILTER_OR_OPERATOR: CompiledMetricQuery = {
+    dimensions: ['table1_dim1'],
+    metrics: [],
+    filters: {
+        dimensions: {
+            id: 'root',
+            or: [
+                {
+                    id: '1',
+                    target: {
+                        fieldId: 'table2_dim2',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: [0],
+                },
+                {
+                    id: '2',
+                    target: {
+                        fieldId: 'table2_dim2',
+                    },
+                    operator: FilterOperator.NOT_NULL,
+                },
+            ],
+        },
+    },
+    sorts: [{ fieldId: 'table1_dim1', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+};
+
 export const METRIC_QUERY_SQL = `WITH metrics AS (
 SELECT
   table1.dim1 AS "table1_dim1",
@@ -247,6 +278,20 @@ LEFT JOIN "db"."schema"."table2" AS table2
   ON (table1.shared) = (table2.shared)
 WHERE (
   (table1.dim2) IN (0)
+)
+GROUP BY 1
+ORDER BY "table1_dim1" DESC
+LIMIT 10`;
+
+export const METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL = `SELECT
+  table1.dim1 AS "table1_dim1"
+FROM "db"."schema"."table1" AS table1
+LEFT JOIN "db"."schema"."table2" AS table2
+  ON (table1.shared) = (table2.shared)
+WHERE (
+  (table1.dim2) IN (0)
+) OR (
+  (table1.dim2) IS NOT NULL
 )
 GROUP BY 1
 ORDER BY "table1_dim1" DESC
