@@ -13,6 +13,7 @@ import {
     sessionModel,
     userModel,
 } from '../models/models';
+import { SavedQueriesModel } from '../models/savedQueries';
 import { DashboardService } from './DashboardService/DashboardService';
 import { HealthService } from './HealthService/HealthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
@@ -44,6 +45,7 @@ export const organizationService = new OrganizationService({
 export const projectService = new ProjectService({
     projectModel,
     onboardingModel,
+    savedChartModel: SavedQueriesModel,
 });
 
 export const healthService = new HealthService({

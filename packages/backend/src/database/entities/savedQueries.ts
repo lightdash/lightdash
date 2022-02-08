@@ -16,6 +16,7 @@ export const SavedQueriesTableName = 'saved_queries';
 export const SavedQueriesVersionsTableName = 'saved_queries_versions';
 
 type DbSavedQueryDetails = {
+    project_uuid: string;
     saved_query_id: number;
     saved_query_uuid: string;
     name: string;
@@ -130,12 +131,15 @@ export const getSavedQueryByUuid = async (
     savedQueryUuid: string,
 ): Promise<SavedQuery> => {
     const results = await db<DbSavedQueryDetails>('saved_queries')
+        .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
+        .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
         .leftJoin(
             'saved_queries_versions',
             'saved_queries.saved_query_id',
             'saved_queries_versions.saved_query_id',
         )
         .select<DbSavedQueryDetails[]>([
+            'projects.project_uuid',
             'saved_queries.saved_query_id',
             'saved_queries.saved_query_uuid',
             'saved_queries.name',
@@ -197,6 +201,7 @@ export const getSavedQueryByUuid = async (
 
     return {
         uuid: savedQuery.saved_query_uuid,
+        projectUuid: savedQuery.project_uuid,
         name: savedQuery.name,
         tableName: savedQuery.explore_name,
         updatedAt: savedQuery.created_at,

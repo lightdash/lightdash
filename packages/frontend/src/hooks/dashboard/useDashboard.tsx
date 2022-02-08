@@ -1,5 +1,13 @@
-import { ApiError, CreateDashboard, Dashboard, UpdateDashboard } from 'common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import {
+    ApiError,
+    CreateDashboard,
+    Dashboard,
+    DashboardTileTypes,
+    Field,
+    UpdateDashboard,
+} from 'common';
+import { useMutation, useQueries, useQuery, useQueryClient } from 'react-query';
+import { UseQueryResult } from 'react-query/types/react/types';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
 import { useApp } from '../../providers/AppProvider';
@@ -32,6 +40,44 @@ const deleteDashboard = async (id: string) =>
         method: 'DELETE',
         body: undefined,
     });
+
+export const getChartAvailableFilters = async (savedChartUuid: string) =>
+    lightdashApi<Field[]>({
+        url: `/saved/${savedChartUuid}/availableFilters`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useAvailableDashboardFilterTargets = (
+    dashboard: Dashboard | undefined,
+): { isLoading: boolean; data: Field[] } => {
+    const savedChartUuids = (dashboard?.tiles || [])
+        .map((tile) =>
+            tile.type === DashboardTileTypes.SAVED_CHART
+                ? tile.properties.savedChartUuid
+                : null,
+        )
+        .filter((id) => id !== null) as string[];
+    const queries = useQueries(
+        savedChartUuids.map((savedChartUuid) => ({
+            queryKey: ['available_filters', savedChartUuid],
+            queryFn: () => getChartAvailableFilters(savedChartUuid),
+        })),
+    ) as UseQueryResult<Field[], ApiError>[]; // useQueries doesn't allow us to specify TError
+    const availableFilters = queries
+        .flatMap((q) => q.data || [])
+        .filter(
+            (field, index, allFields) =>
+                index ===
+                allFields.findIndex(
+                    (f) => f.table === field.table && f.name === field.name,
+                ),
+        );
+    return {
+        isLoading: queries.some((q) => q.isLoading),
+        data: availableFilters,
+    };
+};
 
 export const useDashboardQuery = (id?: string) => {
     const setErrorResponse = useQueryError();
