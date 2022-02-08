@@ -4,18 +4,15 @@
 ### Bug Fixes
 
 * fatal error when results are empty ([#1302](https://github.com/lightdash/lightdash/issues/1302)) ([10568b2](https://github.com/lightdash/lightdash/commit/10568b27cc723c93419dc9f49eb4b18d3af33054))
+* lower case field names ([#1298](https://github.com/lightdash/lightdash/issues/1298)) ([cb4130c](https://github.com/lightdash/lightdash/commit/cb4130c539671dca8e1804f219bbd7fd3d4f944f)), closes [#1278](https://github.com/lightdash/lightdash/issues/1278)
 
 
 ### Features
 
 * **#186:** add metric filters ([#1271](https://github.com/lightdash/lightdash/issues/1271)) ([df3e5dc](https://github.com/lightdash/lightdash/commit/df3e5dc5794351ca4f86195a85d6006b06c0134e)), closes [#186](https://github.com/lightdash/lightdash/issues/186)
 * **#205:** add in the past filter ([#1290](https://github.com/lightdash/lightdash/issues/1290)) ([08c97dc](https://github.com/lightdash/lightdash/commit/08c97dca56e7249c19beed16edf4e4a1d75d7490)), closes [#205](https://github.com/lightdash/lightdash/issues/205)
+* **#940:** add big number visualisation ([#1264](https://github.com/lightdash/lightdash/pull/1264)) ([29765bb](https://github.com/lightdash/lightdash/commit/29765bbbc67d9bc7b72975168d6575e4ce43e05a)), closes [#940](https://github.com/lightdash/lightdash/issues/940)
 
-# Changelog
-
-Recent and upcoming changes to lightdash
-
-## Unreleased
 
 ## [0.12.1] - 2022-02-02
 ### Added

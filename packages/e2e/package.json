@@ -21,6 +21,6 @@
         "@testing-library/cypress": "^7.0.6",
         "@types/node": "^16.0.1",
         "cypress": "^9.1.0",
-        "common": "^0.12.1"
+        "common": "^0.13.0"
     }
 }
