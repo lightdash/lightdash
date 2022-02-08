@@ -20,7 +20,7 @@ const DashboardFilter: FC<Props> = ({ chartsData }) => {
     return (
         <DashboardFilterWrapper>
             <TriggerWrapper
-                content={<FilterSearch chartsData={chartsData} />}
+                content={<FilterSearch fields={chartsData} />}
                 interactionKind="click"
                 popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
                 isOpen={isOpen}

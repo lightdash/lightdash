@@ -1,6 +1,7 @@
-import { Button, InputGroup } from '@blueprintjs/core';
-import Fuse from 'fuse.js';
-import React, { FC, useMemo, useState } from 'react';
+import { MenuItem } from '@blueprintjs/core';
+import { ItemRenderer, Suggest } from '@blueprintjs/select';
+import { Field, fieldId as getFieldId } from 'common';
+import React, { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useChartConfig } from '../../../hooks/useChartConfig';
 import { useSavedChartResults } from '../../../hooks/useQueryResults';
@@ -10,23 +11,36 @@ import FilterConfiguration from '../FilterConfiguration';
 import {
     DimensionItem,
     DimensionLabel,
-    DimensionsContainer,
     FilterFooter,
     FilterModalContainer,
-    SearchWrapper,
     Title,
 } from './FilterSearch.styles';
 
-interface Props {
-    chartsData: any;
-}
+const FieldSuggest = Suggest.ofType<Field>();
 
-const FilterSearch: FC<Props> = ({ chartsData }) => {
+const renderItem: ItemRenderer<Field> = (field, { modifiers, handleClick }) => {
+    if (!modifiers.matchesPredicate) {
+        return null;
+    }
+    return (
+        <DimensionLabel
+            active={modifiers.active}
+            key={getFieldId(field)}
+            text={<DimensionItem>{field.label}</DimensionItem>}
+            onClick={handleClick}
+            shouldDismissPopover={false}
+        />
+    );
+};
+
+type Props = {
+    fields: any;
+};
+
+const FilterSearch: FC<Props> = ({ fields }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { dimensionToFilter, setDimensionToFilter } = useDashboardContext();
-
-    const [search, setSearch] = useState<string>('');
-    const dimensionsUuid: any[] = chartsData.reduce(
+    const dimensionsUuid: any[] = fields.reduce(
         (prevVal: any, currVal: any) => [
             ...prevVal,
             currVal.properties.savedChartUuid,
@@ -46,53 +60,41 @@ const FilterSearch: FC<Props> = ({ chartsData }) => {
         data?.chartConfig.seriesLayout,
     );
 
-    const filteredDimensions = useMemo(() => {
-        const validSearch = search ? search.toLowerCase() : '';
-        if (chartConfig.dimensionOptions) {
-            if (validSearch !== '') {
-                return new Fuse(Object.values(chartConfig.dimensionOptions), {
-                    keys: ['name'],
-                })
-                    .search(validSearch)
-                    .map((res) => res.item);
-            }
-            return Object.values(chartConfig.dimensionOptions);
-        }
-        return [];
-    }, [chartConfig.dimensionOptions, search]);
-
     return (
         <FilterModalContainer>
             {!dimensionToFilter ? (
                 <>
                     <Title>Select a dimension to filter</Title>
-                    <SearchWrapper>
-                        <InputGroup
-                            rightElement={
-                                <Button
-                                    minimal
-                                    icon="cross"
-                                    onClick={() => setSearch('')}
-                                />
+                    <FieldSuggest
+                        inputProps={{ style: { width: '20.5em' } }}
+                        items={chartConfig.dimensionOptions}
+                        itemsEqual={(value, other) =>
+                            getFieldId(value) === getFieldId(other)
+                        }
+                        inputValueRenderer={(field) => `${field.name}`}
+                        popoverProps={{ minimal: true, defaultIsOpen: true }}
+                        itemRenderer={renderItem}
+                        noResults={<MenuItem disabled text="No results." />}
+                        onItemSelect={(field) =>
+                            setDimensionToFilter(field.name)
+                        }
+                        itemPredicate={(
+                            query: string,
+                            field: Field,
+                            index?: undefined | number,
+                            exactMatch?: undefined | false | true,
+                        ) => {
+                            if (exactMatch) {
+                                return (
+                                    query.toLowerCase() ===
+                                    `${field.name}`.toLowerCase()
+                                );
                             }
-                            placeholder="Start typing to filter field names"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-                    </SearchWrapper>
-                    <DimensionsContainer>
-                        {filteredDimensions.map((dimension) => (
-                            <DimensionItem key={dimension.name}>
-                                <DimensionLabel
-                                    minimal
-                                    text={dimension.label}
-                                    onClick={() =>
-                                        setDimensionToFilter(dimension.label)
-                                    }
-                                />
-                            </DimensionItem>
-                        ))}
-                    </DimensionsContainer>
+                            return `${field.name}`
+                                .toLowerCase()
+                                .includes(query.toLowerCase());
+                        }}
+                    />
                     <FilterFooter>
                         Filters set on individual charts will be overridden.
                     </FilterFooter>
