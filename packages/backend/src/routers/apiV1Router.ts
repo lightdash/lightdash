@@ -21,6 +21,12 @@ import { userRouter } from './userRouter';
 
 export const apiV1Router = express.Router();
 
+apiV1Router.get('/livez', async (req, res, next) => {
+    res.json({
+        status: 'ok',
+    });
+});
+
 apiV1Router.get('/health', async (req, res, next) => {
     healthService
         .getHealthState(!!req.user?.userUuid)
