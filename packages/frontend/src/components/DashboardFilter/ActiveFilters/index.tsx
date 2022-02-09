@@ -12,8 +12,12 @@ import {
 
 const ActiveFilters: FC = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const { dashboard, dashboardFilters, removeDimensionDashboardFilter } =
-        useDashboardContext();
+    const {
+        dashboard,
+        dashboardFilters,
+        updateDimensionDashboardFilter,
+        removeDimensionDashboardFilter,
+    } = useDashboardContext();
     const { isLoading, data: filterableFields } =
         useAvailableDashboardFilterTargets(dashboard);
 
@@ -30,7 +34,10 @@ const ActiveFilters: FC = () => {
                                         fieldId(field) === item.target.fieldId,
                                 )!
                             }
-                            clearField={() => undefined}
+                            onSave={() =>
+                                updateDimensionDashboardFilter(item, index)
+                            }
+                            onBack={() => setIsOpen(false)}
                         />
                     }
                     interactionKind="click"

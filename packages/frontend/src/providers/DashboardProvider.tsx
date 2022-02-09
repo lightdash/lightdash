@@ -13,6 +13,10 @@ type DashboardContext = {
     dashboardFilters: DashboardFilters;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     addDimensionDashboardFilter: (filter: DashboardFilterRule) => void;
+    updateDimensionDashboardFilter: (
+        filter: DashboardFilterRule,
+        index: number,
+    ) => void;
     removeDimensionDashboardFilter: (index: number) => void;
     addMetricDashboardFilter: (filter: DashboardFilterRule) => void;
 };
@@ -28,9 +32,22 @@ export const DashboardProvider: React.FC<Props> = ({ dashboard, children }) => {
     });
 
     const addDimensionDashboardFilter = useCallback(
-        (filter) => {
+        (filter: DashboardFilterRule) => {
             setDashboardFilters((previousFilters) => ({
                 dimensions: [...previousFilters.dimensions, filter],
+                metrics: previousFilters.metrics,
+            }));
+        },
+        [setDashboardFilters],
+    );
+    const updateDimensionDashboardFilter = useCallback(
+        (item: DashboardFilterRule, index: number) => {
+            setDashboardFilters((previousFilters) => ({
+                dimensions: [
+                    ...previousFilters.dimensions.slice(0, index),
+                    item,
+                    ...previousFilters.dimensions.slice(index + 1),
+                ],
                 metrics: previousFilters.metrics,
             }));
         },
@@ -60,6 +77,7 @@ export const DashboardProvider: React.FC<Props> = ({ dashboard, children }) => {
         dashboard,
         dashboardFilters,
         addDimensionDashboardFilter,
+        updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
         addMetricDashboardFilter,
         setDashboardFilters,

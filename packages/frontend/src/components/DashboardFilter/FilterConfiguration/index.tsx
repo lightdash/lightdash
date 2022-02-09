@@ -1,8 +1,7 @@
 import { Intent, TagInput } from '@blueprintjs/core';
-import { Field, fieldId, FilterOperator } from 'common';
+import { DashboardFilterRule, Field, fieldId, FilterOperator } from 'common';
 import React, { FC, ReactNode, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useDashboardContext } from '../../../providers/DashboardProvider';
 import {
     ApplyFilterButton,
     BackButton,
@@ -14,27 +13,26 @@ import {
 
 interface Props {
     field: Field;
-    operator?: string;
-    filteredValues?: string[] | undefined;
-    clearField: () => void;
+    filterRule?: DashboardFilterRule;
+    onSave: (value: DashboardFilterRule) => void;
+    onBack: () => void;
 }
 
 const FilterConfiguration: FC<Props> = ({
     field,
-    operator,
-    filteredValues,
-    clearField,
+    filterRule,
+    onSave,
+    onBack,
 }) => {
-    const { addDimensionDashboardFilter } = useDashboardContext();
-    const [filterType, setFilterType] = useState();
-
+    const [filterType, setFilterType] = useState(filterRule?.operator);
     const [valuesToFilter, setValuesToFilter] = useState<
         string[] | ReactNode[]
-    >([filteredValues]);
+    >(filterRule?.values || []);
 
     const addFilter = () => {
-        addDimensionDashboardFilter({
+        onSave({
             id: uuidv4(),
+            ...filterRule,
             target: {
                 fieldId: fieldId(field),
                 tableName: field.table,
@@ -42,21 +40,20 @@ const FilterConfiguration: FC<Props> = ({
             operator: FilterOperator.EQUALS,
             values: [],
         });
-        clearField();
     };
 
     const title = field.label;
 
     return (
         <ConfigureFilterWrapper>
-            <BackButton minimal onClick={clearField}>
+            <BackButton minimal onClick={onBack}>
                 Back
             </BackButton>
             <Title>{title}</Title>
             <InputWrapper>
                 <SelectField
                     id="filter-type"
-                    value={operator || filterType}
+                    value={filterType}
                     onChange={(e) =>
                         console.log('operator', e.currentTarget.value)
                     }

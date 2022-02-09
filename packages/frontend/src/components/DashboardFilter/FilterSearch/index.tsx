@@ -1,5 +1,6 @@
 import { Field } from 'common';
 import React, { FC, useState } from 'react';
+import { useDashboardContext } from '../../../providers/DashboardProvider';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import FilterConfiguration from '../FilterConfiguration';
 import {
@@ -14,6 +15,7 @@ type Props = {
 
 const FilterSearch: FC<Props> = ({ fields }) => {
     const [selectedField, setSelectedField] = useState<Field>();
+    const { addDimensionDashboardFilter } = useDashboardContext();
 
     return (
         <FilterModalContainer>
@@ -32,7 +34,11 @@ const FilterSearch: FC<Props> = ({ fields }) => {
             ) : (
                 <FilterConfiguration
                     field={selectedField}
-                    clearField={() => setSelectedField(undefined)}
+                    onSave={(value) => {
+                        addDimensionDashboardFilter(value);
+                        setSelectedField(undefined);
+                    }}
+                    onBack={() => setSelectedField(undefined)}
                 />
             )}
         </FilterModalContainer>
