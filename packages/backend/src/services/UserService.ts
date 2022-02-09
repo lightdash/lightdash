@@ -25,6 +25,7 @@ import { analytics, identifyUser } from '../analytics/client';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { updatePassword } from '../database/entities/passwordLogins';
+import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
@@ -44,6 +45,7 @@ type UserServiceDependencies = {
     emailClient: EmailClient;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     organizationModel: OrganizationModel;
+    personalAccessTokenModel: PersonalAccessTokenModel;
 };
 
 export class UserService {
@@ -65,6 +67,8 @@ export class UserService {
 
     private readonly organizationModel: OrganizationModel;
 
+    private readonly personalAccessTokenModel: PersonalAccessTokenModel;
+
     constructor({
         inviteLinkModel,
         userModel,
@@ -75,6 +79,7 @@ export class UserService {
         passwordResetLinkModel,
         organizationModel,
         organizationMemberProfileModel,
+        personalAccessTokenModel,
     }: UserServiceDependencies) {
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
@@ -85,6 +90,7 @@ export class UserService {
         this.emailClient = emailClient;
         this.organizationModel = organizationModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
+        this.personalAccessTokenModel = personalAccessTokenModel;
     }
 
     async activateUserFromInvite(
@@ -591,5 +597,23 @@ export class UserService {
                 event: 'password_reset_link.used',
             });
         }
+    }
+
+    async loginWithPersonalAccessToken(token: string): Promise<LightdashUser> {
+        const results = await this.userModel.findUserByPersonalAccessToken(
+            token,
+        );
+        if (results === undefined) {
+            throw new AuthorizationError();
+        }
+        const { user, personalAccessToken } = results;
+        const now = new Date();
+        if (
+            personalAccessToken.expiresAt !== undefined &&
+            personalAccessToken.expiresAt <= now
+        ) {
+            throw new AuthorizationError();
+        }
+        return user;
     }
 }

@@ -1350,6 +1350,88 @@
                     }
                 }
             }
+        },
+        "/user/me/personal-access-tokens": {
+            "get": {
+                "summary": "Get all personal access tokens",
+                "description": "List all personal access tokens for user",
+                "tags": ["user"],
+                "operationId": "getPersonalAccessTokens",
+                "responses": {
+                    "200": {
+                        "description": "List all personal access tokens for user",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/PersonalAccessToken"
+                                                    }
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            },
+            "post": {
+                "summary": "Create a personal access token",
+                "tags": ["user"],
+                "operationId": "createPersonalAccessToken",
+                "requestBody": {
+                    "description": "Personal access token",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreatePersonalAccessToken"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Details of personal access token including the token in plain text.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/PersonalAccessTokenWithSecret"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
         }
     },
     "security": [
@@ -2235,6 +2317,59 @@
                     "jobStatus",
                     "jobType",
                     "steps"
+                ]
+            },
+            "PersonalAccessToken": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "token": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "required": ["createdAt", "description"]
+            },
+            "CreatePersonalAccessToken": {
+                "type": "object",
+                "properties": {
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "required": ["description"]
+            },
+            "PersonalAccessTokenWithSecret": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/PersonalAccessToken"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "token": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["token"]
+                    }
                 ]
             }
         },

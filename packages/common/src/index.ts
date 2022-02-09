@@ -38,6 +38,10 @@ import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
 } from './types/organizationMemberProfile';
+import {
+    CreatePersonalAccessToken,
+    PersonalAccessToken,
+} from './types/personalAccessToken';
 import { SavedChart, Series } from './types/savedCharts';
 import { TableBase } from './types/table';
 import { LightdashUser } from './types/user';
@@ -57,6 +61,7 @@ export * from './types/job';
 export * from './types/metricQuery';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
+export * from './types/personalAccessToken';
 export * from './types/savedCharts';
 export * from './types/table';
 export * from './types/user';
@@ -434,6 +439,11 @@ export type ApiJobStartedResults = {
     jobUuid: string;
 };
 
+export type ApiCreateUserTokenResults = {
+    token: string;
+    expiresAt: Date;
+};
+
 export type ActivateUser = {
     firstName: string;
     lastName: string;
@@ -584,7 +594,10 @@ type ApiResults =
     | FilterableField[]
     | ProjectSavedChartStatus
     | undefined
-    | ApiJobStartedResults;
+    | ApiJobStartedResults
+    | ApiCreateUserTokenResults
+    | CreatePersonalAccessToken
+    | PersonalAccessToken;
 
 export type ApiResponse = {
     status: 'ok';

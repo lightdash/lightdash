@@ -87,6 +87,9 @@
         },
         "/jobs/{jobUuid}": {
             "$ref": "./paths/job.json"
+        },
+        "/user/me/personal-access-tokens": {
+            "$ref": "./paths/personalAccessTokens.json"
         }
     },
     "security": [

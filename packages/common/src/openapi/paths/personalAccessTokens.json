@@ -1,0 +1,82 @@
+{
+    "get": {
+        "summary": "Get all personal access tokens",
+        "description": "List all personal access tokens for user",
+        "tags": ["user"],
+        "operationId": "getPersonalAccessTokens",
+        "responses": {
+            "200": {
+                "description": "List all personal access tokens for user",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "../schemas/Success.json"
+                                },
+                                {
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "../schemas/personalAccessToken/PersonalAccessToken.json"
+                                            }
+                                        }
+                                    },
+                                    "required": ["results"]
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "default": {
+                "$ref": "../responses/ErrorResponse.json"
+            }
+        }
+    },
+    "post": {
+        "summary": "Create a personal access token",
+        "tags": ["user"],
+        "operationId": "createPersonalAccessToken",
+        "requestBody": {
+            "description": "Personal access token",
+            "required": true,
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "$ref": "../schemas/personalAccessToken/CreatePersonalAccessToken.json"
+                    }
+                }
+            }
+        },
+        "responses": {
+            "200": {
+                "description": "Details of personal access token including the token in plain text.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "../schemas/Success.json"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "../schemas/personalAccessToken/PersonalAccessTokenWithSecret.json"
+                                        }
+                                    },
+                                    "required": ["results"]
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "default": {
+                "$ref": "../responses/ErrorResponse.json"
+            }
+        }
+    }
+}
