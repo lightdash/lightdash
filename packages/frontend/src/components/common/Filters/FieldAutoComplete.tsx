@@ -56,10 +56,10 @@ const FieldAutoComplete: FC<Props> = ({
     <>
         <AutocompleteMaxHeight />
         <FieldSuggest
+            fill
             inputProps={{
                 autoFocus,
                 placeholder: 'Search field...',
-                style: { width: 250 },
                 leftIcon: activeField && (
                     <Icon
                         icon={isDimension(activeField) ? 'tag' : 'numerical'}
