@@ -15,7 +15,7 @@ const LoomTile: FC<Props> = (props) => {
         },
     } = props;
     return (
-        <TileBase title={title} {...props}>
+        <TileBase title={title} chartType={null} {...props}>
             <iframe
                 title={title}
                 className="non-draggable"

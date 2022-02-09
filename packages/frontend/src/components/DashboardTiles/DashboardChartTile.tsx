@@ -66,6 +66,7 @@ const DashboardChartTile: FC<Props> = (props) => {
 
     return (
         <TileBase
+            chartType={data?.chartConfig.chartType}
             title={data?.name || ''}
             isLoading={isLoading}
             extraMenuItems={
