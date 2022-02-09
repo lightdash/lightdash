@@ -12,8 +12,11 @@ import {
     TimeInterval,
     UnitOfTime,
 } from 'common';
+import moment from 'moment';
 import React, { FC } from 'react';
+import MonthAndYearInput from '../../MonthAndYearInput';
 import WeekPicker from '../../WeekPicker';
+import YearInput from '../../YearInput';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 import UnitOfTimeAutoComplete from './UnitOfTimeAutoComplete';
 
@@ -27,31 +30,58 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
         case FilterOperator.GREATER_THAN_OR_EQUAL:
         case FilterOperator.LESS_THAN:
         case FilterOperator.LESS_THAN_OR_EQUAL:
-            if (
-                isDimension(field) &&
-                field.timeInterval &&
-                field.timeInterval.toUpperCase() === TimeInterval.WEEK
-            ) {
-                return (
-                    <>
-                        <span style={{ whiteSpace: 'nowrap' }}>
-                            week commencing
-                        </span>
-                        <WeekPicker
-                            value={
-                                filterRule.values?.[0]
-                                    ? new Date(filterRule.values?.[0])
-                                    : new Date()
-                            }
-                            onChange={(value: Date) => {
-                                onChange({
-                                    ...filterRule,
-                                    values: [value],
-                                });
-                            }}
-                        />
-                    </>
-                );
+            if (isDimension(field) && field.timeInterval) {
+                switch (field.timeInterval.toUpperCase()) {
+                    case TimeInterval.WEEK:
+                        return (
+                            <>
+                                <span style={{ whiteSpace: 'nowrap' }}>
+                                    week commencing
+                                </span>
+                                <WeekPicker
+                                    value={
+                                        filterRule.values?.[0]
+                                            ? new Date(filterRule.values?.[0])
+                                            : new Date()
+                                    }
+                                    onChange={(value: Date) => {
+                                        onChange({
+                                            ...filterRule,
+                                            values: [value],
+                                        });
+                                    }}
+                                />
+                            </>
+                        );
+                    case TimeInterval.MONTH:
+                        return (
+                            <MonthAndYearInput
+                                value={filterRule.values?.[0] || new Date()}
+                                onChange={(value: Date) => {
+                                    onChange({
+                                        ...filterRule,
+                                        values: [
+                                            moment(value).startOf('month'),
+                                        ],
+                                    });
+                                }}
+                            />
+                        );
+                    case TimeInterval.YEAR:
+                        return (
+                            <YearInput
+                                value={filterRule.values?.[0] || new Date()}
+                                onChange={(value: Date) => {
+                                    onChange({
+                                        ...filterRule,
+                                        values: [moment(value).startOf('year')],
+                                    });
+                                }}
+                            />
+                        );
+                    default:
+                        break;
+                }
             }
             return (
                 <DateInput
@@ -82,7 +112,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                 <>
                     <NumericInput
                         fill
-                        value={filterRule.values?.[0] || 1}
+                        value={parseInt(filterRule.values?.[0], 10) || 1}
                         onValueChange={(value) =>
                             onChange({
                                 ...filterRule,
