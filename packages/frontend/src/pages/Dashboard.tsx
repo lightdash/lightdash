@@ -22,6 +22,7 @@ import {
     useDashboardQuery,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
+import { DashboardProvider } from '../providers/DashboardProvider';
 import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -154,7 +155,7 @@ const Dashboard = () => {
         return <Spinner />;
     }
     return (
-        <>
+        <DashboardProvider dashboard={dashboard}>
             <DashboardHeader
                 dashboardName={dashboard.name}
                 isEditMode={isEditMode}
@@ -166,7 +167,7 @@ const Dashboard = () => {
                 onCancel={onCancel}
             />
             <Page isContentFullWidth>
-                <DashboardFilter chartsData={dashboardTiles} />
+                <DashboardFilter />
                 <ResponsiveGridLayout
                     useCSSTransforms={false}
                     draggableCancel=".non-draggable"
@@ -191,7 +192,7 @@ const Dashboard = () => {
                     <EmptyStateNoTiles onAddTile={onAddTile} />
                 )}
             </Page>
-        </>
+        </DashboardProvider>
     );
 };
 export default Dashboard;

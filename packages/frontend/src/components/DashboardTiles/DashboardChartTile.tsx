@@ -77,7 +77,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                 ...(savedQuery.metricQuery.filters.dimensions
                     ? [savedQuery.metricQuery.filters.dimensions]
                     : []),
-                ...dashboardFilters.dimensionFilters,
+                ...dashboardFilters.dimensions,
             ],
         };
         const metricFilters: FilterGroup = {
@@ -86,7 +86,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                 ...(savedQuery.metricQuery.filters.metrics
                     ? [savedQuery.metricQuery.filters.metrics]
                     : []),
-                ...dashboardFilters.metricFilters,
+                ...dashboardFilters.metrics,
             ],
         };
         savedQueryWithDashboardFilters = {

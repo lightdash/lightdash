@@ -1,4 +1,4 @@
-import { Field, FieldType, FilterRule } from 'common';
+import { Dashboard, DashboardFilterRule, DashboardFilters } from 'common';
 import React, {
     createContext,
     Dispatch,
@@ -8,67 +8,30 @@ import React, {
     useState,
 } from 'react';
 
-type DashboardFilters = {
-    dimensionFilters: FilterRule[];
-    metricFilters: FilterRule[] | [];
-};
-
 type DashboardContext = {
+    dashboard: Dashboard;
     dashboardFilters: DashboardFilters;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
-    addDimensionDashboardFilter: (filter: FilterRule) => void;
-    addMetricDashboardFilter: (filter: FilterRule) => void;
-    dimensionToFilter: Field;
-    setDimensionToFilter: Dispatch<SetStateAction<Field>>;
+    addDimensionDashboardFilter: (filter: DashboardFilterRule) => void;
+    removeDimensionDashboardFilter: (index: number) => void;
+    addMetricDashboardFilter: (filter: DashboardFilterRule) => void;
 };
 
-const dimension = {
-    fieldType: FieldType.DIMENSION,
-    type: '',
-    name: '',
-    label: '',
-    table: '',
-    tableLabel: '',
-    sql: '',
-    description: '',
-    source: undefined,
-};
+const Context = createContext<DashboardContext | undefined>(undefined);
 
-const Context = createContext<DashboardContext>({
-    dashboardFilters: { dimensionFilters: [], metricFilters: [] },
-    setDashboardFilters: () => {},
-    addDimensionDashboardFilter: () => {},
-    addMetricDashboardFilter: () => {},
-    dimensionToFilter: dimension,
-    setDimensionToFilter: () => {},
-});
+type Props = { dashboard: Dashboard };
 
-export const DashboardProvider: React.FC = ({ children }) => {
+export const DashboardProvider: React.FC<Props> = ({ dashboard, children }) => {
     const [dashboardFilters, setDashboardFilters] = useState<DashboardFilters>({
-        dimensionFilters: [],
-        metricFilters: [],
+        dimensions: [],
+        metrics: [],
     });
 
-    const updateDimensionFilter = (prev: any[], filter: any) => {
-        const needsUpdateIndex = prev.findIndex(
-            (item) => item.target.fieldId === filter.target.fieldId,
-        );
-        if (needsUpdateIndex !== -1) {
-            return [...prev];
-        }
-        return [...prev, filter];
-    };
-
-    const [dimensionToFilter, setDimensionToFilter] =
-        useState<Field>(dimension);
     const addDimensionDashboardFilter = useCallback(
         (filter) => {
             setDashboardFilters((previousFilters) => ({
-                dimensionFilters: updateDimensionFilter(
-                    previousFilters.dimensionFilters,
-                    filter,
-                ),
-                metricFilters: previousFilters.metricFilters,
+                dimensions: [...previousFilters.dimensions, filter],
+                metrics: previousFilters.metrics,
             }));
         },
         [setDashboardFilters],
@@ -76,18 +39,29 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const addMetricDashboardFilter = useCallback(
         (filter) => {
             setDashboardFilters((previousFilters) => ({
-                dimensionFilters: previousFilters.dimensionFilters,
-                metricFilters: [...previousFilters.metricFilters, filter],
+                dimensions: previousFilters.dimensions,
+                metrics: [...previousFilters.metrics, filter],
             }));
         },
         [setDashboardFilters],
     );
+
+    const removeDimensionDashboardFilter = useCallback((index: number) => {
+        setDashboardFilters((previousFilters) => ({
+            dimensions: [
+                ...previousFilters.dimensions.slice(0, index),
+                ...previousFilters.dimensions.slice(index + 1),
+            ],
+            metrics: previousFilters.metrics,
+        }));
+    }, []);
+
     const value = {
+        dashboard,
         dashboardFilters,
         addDimensionDashboardFilter,
+        removeDimensionDashboardFilter,
         addMetricDashboardFilter,
-        setDimensionToFilter,
-        dimensionToFilter,
         setDashboardFilters,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;

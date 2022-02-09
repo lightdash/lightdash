@@ -1,7 +1,7 @@
 import { Intent, TagInput } from '@blueprintjs/core';
-import { FilterOperator } from 'common';
+import { Field, fieldId, FilterOperator } from 'common';
 import React, { FC, ReactNode, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import {
     ApplyFilterButton,
@@ -13,46 +13,43 @@ import {
 } from './FilterConfiguration.styled';
 
 interface Props {
-    label?: string;
+    field: Field;
     operator?: string;
     filteredValues?: string[] | undefined;
+    clearField: () => void;
 }
 
 const FilterConfiguration: FC<Props> = ({
-    label,
+    field,
     operator,
     filteredValues,
+    clearField,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const {
-        addDimensionDashboardFilter,
-        dimensionToFilter,
-        setDimensionToFilter,
-    } = useDashboardContext();
+    const { addDimensionDashboardFilter } = useDashboardContext();
     const [filterType, setFilterType] = useState();
 
     const [valuesToFilter, setValuesToFilter] = useState<
         string[] | ReactNode[]
     >([filteredValues]);
 
-    const addFilters = () => {
-        const filterData = {
-            id: projectUuid,
+    const addFilter = () => {
+        addDimensionDashboardFilter({
+            id: uuidv4(),
             target: {
-                fieldId: dimensionToFilter.name,
+                fieldId: fieldId(field),
+                tableName: field.table,
             },
-            operator: filterType,
-            values: valuesToFilter,
-        };
-        // @ts-ignore
-        addDimensionDashboardFilter(filterData);
+            operator: FilterOperator.EQUALS,
+            values: [],
+        });
+        clearField();
     };
 
-    const title = dimensionToFilter.label;
+    const title = field.label;
 
     return (
         <ConfigureFilterWrapper>
-            <BackButton minimal onClick={() => setDimensionToFilter({})}>
+            <BackButton minimal onClick={clearField}>
                 Back
             </BackButton>
             <Title>{title}</Title>
@@ -61,7 +58,7 @@ const FilterConfiguration: FC<Props> = ({
                     id="filter-type"
                     value={operator || filterType}
                     onChange={(e) =>
-                        setFilterType(e.currentTarget.value as FilterOperator)
+                        console.log('operator', e.currentTarget.value)
                     }
                     options={Object.values(FilterOperator).map(
                         (filterOperator) => ({
@@ -85,13 +82,10 @@ const FilterConfiguration: FC<Props> = ({
                 type="submit"
                 intent={Intent.PRIMARY}
                 text="Apply"
-                onClick={() => addFilters()}
+                onClick={addFilter}
             />
         </ConfigureFilterWrapper>
     );
 };
 
 export default FilterConfiguration;
-function getFieldId(field: any) {
-    throw new Error('Function not implemented.');
-}

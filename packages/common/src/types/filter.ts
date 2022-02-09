@@ -43,18 +43,38 @@ export const unitOfTimeFormat: Record<UnitOfTime, string> = {
     years: 'YYYY',
 };
 
-export type FilterRule<O = FilterOperator, V = any, S = any> = {
+export type FieldTarget = {
+    fieldId: string;
+};
+
+export type FilterRule<
+    O = FilterOperator,
+    T = FieldTarget,
+    V = any,
+    S = any,
+> = {
     id: string;
-    target: {
-        fieldId: string;
-    };
+    target: T;
     operator: O;
     settings?: S;
     values?: V[];
 };
 
+export type DashboardFieldTarget = {
+    fieldId: string;
+    tableName: string;
+};
+
+export type DashboardFilterRule<
+    O = FilterOperator,
+    T = DashboardFieldTarget,
+    V = any,
+    S = any,
+> = FilterRule<O, T, V, S>;
+
 export type DateFilterRule = FilterRule<
     FilterOperator,
+    FieldTarget,
     any,
     {
         unitOfTime?: UnitOfTime;
@@ -80,6 +100,11 @@ export type Filters = {
     // Note: dimensions need to be in a separate filter group from metrics & table calculations
     dimensions?: FilterGroup;
     metrics?: FilterGroup;
+};
+
+export type DashboardFilters = {
+    dimensions: DashboardFilterRule[];
+    metrics: DashboardFilterRule[];
 };
 
 /* Utils */

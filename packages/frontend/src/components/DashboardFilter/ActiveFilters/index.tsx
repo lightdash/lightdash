@@ -1,6 +1,7 @@
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import { FilterRule, friendlyName } from 'common';
+import { fieldId, friendlyName } from 'common';
 import React, { FC, useState } from 'react';
+import { useAvailableDashboardFilterTargets } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import FilterConfiguration from '../FilterConfiguration';
 import {
@@ -11,34 +12,39 @@ import {
 
 const ActiveFilters: FC = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const { dashboardFilters, setDashboardFilters } = useDashboardContext();
+    const { dashboard, dashboardFilters, removeDimensionDashboardFilter } =
+        useDashboardContext();
+    const { isLoading, data: filterableFields } =
+        useAvailableDashboardFilterTargets(dashboard);
 
-    const clearFilter = (filterToRemove: FilterRule | undefined) => {
-        const updatedArr = dashboardFilters.dimensionFilters.filter(
-            (item) => item !== filterToRemove,
-        );
-        setDashboardFilters({
-            dimensionFilters: updatedArr,
-            metricFilters: [],
-        });
-    };
     return (
         <TagsWrapper>
-            {dashboardFilters.dimensionFilters.map((item) => (
+            {dashboardFilters.dimensions.map((item, index) => (
                 <Popover2
                     key={item.id}
-                    content={<FilterConfiguration />}
+                    content={
+                        <FilterConfiguration
+                            field={
+                                filterableFields.find(
+                                    (field) =>
+                                        fieldId(field) === item.target.fieldId,
+                                )!
+                            }
+                            clearField={() => undefined}
+                        />
+                    }
                     interactionKind="click"
                     popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
                     isOpen={isOpen}
                     onInteraction={setIsOpen}
                     position="bottom"
                     lazy={false}
+                    disabled={isLoading}
                 >
                     <TagContainer
                         key={item.id}
                         interactive
-                        onRemove={() => clearFilter(item)}
+                        onRemove={() => removeDimensionDashboardFilter(index)}
                     >
                         {`${friendlyName(item.target.fieldId)}: `}
                         <FilterValues>{item.values?.join(', ')}</FilterValues>
