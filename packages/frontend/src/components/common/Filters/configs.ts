@@ -23,7 +23,7 @@ const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.LESS_THAN_OR_EQUAL]: 'is less than or equal',
     [FilterOperator.GREATER_THAN]: 'is greater than',
     [FilterOperator.GREATER_THAN_OR_EQUAL]: 'is greater than or equal',
-    [FilterOperator.IN_THE_PAST]: 'is in the past',
+    [FilterOperator.IN_THE_PAST]: 'in the last',
 };
 
 const getFilterOptions = <T extends FilterOperator>(

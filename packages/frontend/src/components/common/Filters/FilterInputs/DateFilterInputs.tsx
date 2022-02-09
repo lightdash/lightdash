@@ -1,4 +1,4 @@
-import { HTMLSelect, NumericInput } from '@blueprintjs/core';
+import { NumericInput } from '@blueprintjs/core';
 import { DateInput, TimePrecision } from '@blueprintjs/datetime';
 import {
     DateFilterRule,
@@ -12,6 +12,7 @@ import {
 } from 'common';
 import React, { FC } from 'react';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
+import UnitOfTimeAutoComplete from './UnitOfTimeAutoComplete';
 
 const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
     const { field, filterRule, onChange } = props;
@@ -52,7 +53,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                 <>
                     <NumericInput
                         fill
-                        value={filterRule.values?.[0]}
+                        value={filterRule.values?.[0] || 1}
                         onValueChange={(value) =>
                             onChange({
                                 ...filterRule,
@@ -60,19 +61,19 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                             })
                         }
                     />
-                    <HTMLSelect
-                        fill
-                        onChange={(e) =>
+                    <UnitOfTimeAutoComplete
+                        unitOfTime={
+                            filterRule.settings?.unitOfTime || UnitOfTime.days
+                        }
+                        completed={filterRule.settings?.completed || false}
+                        onChange={(value) =>
                             onChange({
                                 ...filterRule,
                                 settings: {
-                                    unitOfTime: e.currentTarget.value,
+                                    unitOfTime: value.unitOfTime,
+                                    completed: value.completed,
                                 },
                             })
-                        }
-                        options={Object.values(UnitOfTime)}
-                        value={
-                            filterRule.settings?.unitOfTime || UnitOfTime.days
                         }
                     />
                 </>
