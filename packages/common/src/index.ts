@@ -725,7 +725,7 @@ type ApiResults =
     | DeleteOpenIdentity
     | ApiFlashResults
     | OpenIdIdentitySummary[]
-    | Field[];
+    | FilterableField[];
 
 export type ApiResponse = {
     status: 'ok';

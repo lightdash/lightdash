@@ -1,8 +1,8 @@
 import { Intent } from '@blueprintjs/core';
 import {
     DashboardFilterRule,
-    Field,
     fieldId,
+    FilterableField,
     FilterOperator,
     FilterRule,
     FilterType,
@@ -22,7 +22,7 @@ import {
 } from './FilterConfiguration.styled';
 
 interface Props {
-    field: Field;
+    field: FilterableField;
     filterRule?: DashboardFilterRule;
     onSave: (value: DashboardFilterRule) => void;
     onBack: () => void;
@@ -48,16 +48,12 @@ const FilterConfiguration: FC<Props> = ({
         );
 
     const filterType = field
-        ? getFilterTypeFromField(field as any)
+        ? getFilterTypeFromField(field)
         : FilterType.STRING;
     const filterConfig = useMemo(
         () => FilterTypeConfig[filterType],
         [filterType],
     );
-
-    const addFilter = () => {
-        onSave(internalFilterRule);
-    };
 
     return (
         <ConfigureFilterWrapper>
@@ -80,7 +76,7 @@ const FilterConfiguration: FC<Props> = ({
             />
             <filterConfig.inputs
                 filterType={filterType}
-                field={field as any}
+                field={field}
                 filterRule={internalFilterRule}
                 onChange={setInternalFilterRule as any}
             />
@@ -88,7 +84,9 @@ const FilterConfiguration: FC<Props> = ({
                 type="submit"
                 intent={Intent.PRIMARY}
                 text="Apply"
-                onClick={addFilter}
+                onClick={() => {
+                    onSave(internalFilterRule);
+                }}
             />
         </ConfigureFilterWrapper>
     );

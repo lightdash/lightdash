@@ -44,9 +44,12 @@ const ActiveFilters: FC = () => {
                             <FilterConfiguration
                                 field={activeField}
                                 filterRule={item}
-                                onSave={() => {
+                                onSave={(value) => {
                                     setOpenedFilter(undefined);
-                                    updateDimensionDashboardFilter(item, index);
+                                    updateDimensionDashboardFilter(
+                                        value,
+                                        index,
+                                    );
                                 }}
                                 onBack={() => setOpenedFilter(undefined)}
                             />
