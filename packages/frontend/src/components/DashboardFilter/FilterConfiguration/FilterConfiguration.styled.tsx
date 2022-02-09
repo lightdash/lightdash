@@ -1,6 +1,13 @@
 import { AnchorButton, Button, Colors, HTMLSelect } from '@blueprintjs/core';
 import styled from 'styled-components';
 
+export const ConfigureFilterWrapper = styled.div`
+    width: 20.5em;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+`;
+
 export const Title = styled.p`
     font-weight: bold;
 `;
@@ -11,7 +18,10 @@ export const InputWrapper = styled.div`
 
 export const SelectField = styled(HTMLSelect)`
     width: 100%;
-    margin-bottom: 1.714em; ;
+    margin-bottom: 1.714em;
+    select {
+        width: 100%;
+    }
 `;
 
 export const BackButton = styled(AnchorButton)`
@@ -37,10 +47,4 @@ export const BackButton = styled(AnchorButton)`
 export const ApplyFilterButton = styled(Button)`
     margin: 1.714em 0 0 auto;
     justify-self: flex-end;
-`;
-
-export const ConfigureFilterWrapper = styled.div`
-    height: 100%;
-    display: flex;
-    flex-direction: column;
 `;

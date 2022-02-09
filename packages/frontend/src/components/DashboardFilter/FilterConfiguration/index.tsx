@@ -1,4 +1,4 @@
-import { HTMLSelect, Intent } from '@blueprintjs/core';
+import { Intent } from '@blueprintjs/core';
 import {
     DashboardFilterRule,
     Field,
@@ -17,6 +17,7 @@ import {
     ApplyFilterButton,
     BackButton,
     ConfigureFilterWrapper,
+    SelectField,
     Title,
 } from './FilterConfiguration.styled';
 
@@ -64,7 +65,7 @@ const FilterConfiguration: FC<Props> = ({
                 Back
             </BackButton>
             <Title>{field.label}</Title>
-            <HTMLSelect
+            <SelectField
                 fill={false}
                 style={{ width: 150 }}
                 onChange={(e) =>
