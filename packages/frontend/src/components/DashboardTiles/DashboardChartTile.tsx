@@ -122,7 +122,9 @@ const DashboardChartTile: FC<Props> = (props) => {
             <div style={{ flex: 1 }}>
                 {savedQueryWithDashboardFilters ? (
                     <ValidDashboardChartTile
-                        data={savedQueryWithDashboardFilters} project={''} />
+                        data={savedQueryWithDashboardFilters}
+                        project={projectUuid}
+                    />
                 ) : (
                     <InvalidDashboardChartTile />
                 )}
