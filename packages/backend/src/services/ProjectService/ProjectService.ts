@@ -3,11 +3,15 @@ import {
     ApiSqlQueryResults,
     countTotalFilterRules,
     CreateProject,
+    defineAbilityForOrganizationMember,
     Explore,
     ExploreError,
+    Field,
+    getDimensions,
     getMetrics,
     hasIntersection,
     isExploreError,
+    isFilterableDimension,
     MetricQuery,
     Project,
     ProjectCatalog,
@@ -19,6 +23,7 @@ import {
 } from 'common';
 import { analytics } from '../../analytics/client';
 import {
+    AuthorizationError,
     errorHandler,
     ForbiddenError,
     MissingWarehouseCredentialsError,
@@ -35,6 +40,7 @@ import { ProjectAdapter } from '../../types';
 type ProjectServiceDependencies = {
     projectModel: ProjectModel;
     onboardingModel: OnboardingModel;
+    savedChartModel: typeof SavedQueriesModel;
 };
 
 export class ProjectService {
@@ -48,12 +54,19 @@ export class ProjectService {
 
     projectAdapters: Record<string, ProjectAdapter>;
 
-    constructor({ projectModel, onboardingModel }: ProjectServiceDependencies) {
+    savedChartModel: typeof SavedQueriesModel;
+
+    constructor({
+        projectModel,
+        onboardingModel,
+        savedChartModel,
+    }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
         this.projectAdapters = {};
         this.projectLoading = {};
         this.cachedExplores = {};
+        this.savedChartModel = savedChartModel;
     }
 
     async getProjectStatus(
@@ -482,5 +495,25 @@ export class ProjectService {
             },
         });
         return this.projectModel.getTablesConfiguration(projectUuid);
+    }
+
+    async getAvailableFiltersForSavedQuery(
+        user: SessionUser,
+        savedChartUuid: string,
+    ): Promise<Field[]> {
+        const ability = defineAbilityForOrganizationMember(user);
+        if (ability.cannot('view', 'Project')) {
+            throw new AuthorizationError();
+        }
+        const savedChart = await this.savedChartModel.getById(savedChartUuid);
+        const explore = await this.getExplore(
+            user,
+            savedChart.projectUuid,
+            savedChart.tableName,
+        );
+        const fields = getDimensions(explore).filter((field) =>
+            isFilterableDimension(field),
+        );
+        return fields;
     }
 }

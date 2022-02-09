@@ -724,7 +724,8 @@ type ApiResults =
     | Dashboard[]
     | DeleteOpenIdentity
     | ApiFlashResults
-    | OpenIdIdentitySummary[];
+    | OpenIdIdentitySummary[]
+    | Field[];
 
 export type ApiResponse = {
     status: 'ok';
@@ -978,6 +979,7 @@ type SeriesLayout = Partial<ValidSeriesLayout>;
 
 export type SavedQuery = {
     uuid: string;
+    projectUuid: string;
     name: string;
     tableName: string;
     metricQuery: MetricQuery;
@@ -1003,7 +1005,7 @@ export type CreateSavedQuery = Omit<SavedQuery, 'uuid' | 'updatedAt'>;
 
 export type CreateSavedQueryVersion = Omit<
     SavedQuery,
-    'uuid' | 'name' | 'updatedAt'
+    'uuid' | 'name' | 'updatedAt' | 'projectUuid'
 >;
 
 export type UpdateSavedQuery = Pick<SavedQuery, 'name'>;

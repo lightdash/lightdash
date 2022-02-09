@@ -63,9 +63,19 @@
         },
         "/dashboards/{dashboardUuid}": {
             "$ref": "./paths/dashboards.json"
+        },
+        "/saved/{savedChartUuid}/availableFilters": {
+            "$ref": "./paths/savedChartFilters.json"
+        },
+        "/saved/{savedChartUuid}": {
+            "$ref": "./paths/savedChart.json"
         }
     },
-    "security": [{ "cookieAuth": [] }],
+    "security": [
+        {
+            "cookieAuth": []
+        }
+    ],
     "components": {
         "securitySchemes": {
             "cookieAuth": {

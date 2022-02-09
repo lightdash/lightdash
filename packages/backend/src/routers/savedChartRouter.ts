@@ -4,6 +4,7 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import { SavedQueriesModel } from '../models/savedQueries';
+import { projectService } from '../services/services';
 
 export const savedChartRouter = express.Router();
 
@@ -20,6 +21,24 @@ savedChartRouter.get(
             })
             .catch(next);
     },
+);
+
+savedChartRouter.get(
+    '/:savedQueryUuid/availableFilters',
+    isAuthenticated,
+    async (req, res, next) =>
+        projectService
+            .getAvailableFiltersForSavedQuery(
+                req.user!,
+                req.params.savedQueryUuid,
+            )
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next),
 );
 
 savedChartRouter.delete(
