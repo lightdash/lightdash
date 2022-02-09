@@ -10,7 +10,7 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
-import { Dashboard, DBChartTypes } from 'common';
+import { Dashboard } from 'common';
 import React, { ReactNode, useState } from 'react';
 import { TileModal } from './TileForms/TileModal';
 
@@ -19,7 +19,6 @@ type Props<T> = {
     title: string;
     tile: T;
     isLoading?: boolean;
-    chartType: DBChartTypes | undefined | null;
     extraMenuItems?: React.ReactNode;
     onDelete: (tile: T) => void;
     onEdit: (tile: T) => void;
@@ -35,15 +34,13 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     onDelete,
     onEdit,
     children,
-    chartType,
 }: Props<T>) => {
     const [isEditing, setIsEditing] = useState(false);
-    const tileHeight =
-        chartType && chartType === DBChartTypes.BIG_NUMBER ? '50%' : '100%';
+
     return (
         <Card
             style={{
-                height: tileHeight,
+                height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
             }}

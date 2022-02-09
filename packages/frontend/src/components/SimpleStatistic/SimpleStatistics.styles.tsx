@@ -8,8 +8,6 @@ export const SimpleStatisticsWrapper = styled.div`
 `;
 
 export const BigNumberContainer = styled.div`
-    max-width: fit-content;
-    padding: 1.875em 2.5em;
     position: absolute;
     top: 50%;
     left: 50%;
