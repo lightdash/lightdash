@@ -16,7 +16,7 @@ export const BigNumberContainer = styled.div`
 `;
 
 export const BigNumber = styled.div`
-    font-size: 3.714em;
+    font-size: 4em;
     line-height: 1.196em;
     font-weight: 500;
     color: ${Colors.DARK_GRAY4};
