@@ -19,7 +19,12 @@ const DashboardFilter: FC = () => {
     return (
         <DashboardFilterWrapper>
             <TriggerWrapper
-                content={<FilterSearch fields={filterableFields} />}
+                content={
+                    <FilterSearch
+                        fields={filterableFields}
+                        onClose={() => setIsOpen(false)}
+                    />
+                }
                 interactionKind="click"
                 popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
                 isOpen={isOpen}

@@ -11,7 +11,7 @@ import {
 } from './ActiveFilters.styles';
 
 const ActiveFilters: FC = () => {
-    const [isOpen, setIsOpen] = useState(false);
+    const [openedFilter, setOpenedFilter] = useState<string>();
     const {
         dashboard,
         dashboardFilters,
@@ -34,16 +34,17 @@ const ActiveFilters: FC = () => {
                                         fieldId(field) === item.target.fieldId,
                                 )!
                             }
-                            onSave={() =>
-                                updateDimensionDashboardFilter(item, index)
-                            }
-                            onBack={() => setIsOpen(false)}
+                            filterRule={item}
+                            onSave={() => {
+                                setOpenedFilter(undefined);
+                                updateDimensionDashboardFilter(item, index);
+                            }}
+                            onBack={() => setOpenedFilter(undefined)}
                         />
                     }
                     interactionKind="click"
                     popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-                    isOpen={isOpen}
-                    onInteraction={setIsOpen}
+                    isOpen={openedFilter === item.id}
                     position="bottom"
                     lazy={false}
                     disabled={isLoading}
@@ -52,6 +53,7 @@ const ActiveFilters: FC = () => {
                         key={item.id}
                         interactive
                         onRemove={() => removeDimensionDashboardFilter(index)}
+                        onClick={() => setOpenedFilter(item.id)}
                     >
                         {`${friendlyName(item.target.fieldId)}: `}
                         <FilterValues>{item.values?.join(', ')}</FilterValues>

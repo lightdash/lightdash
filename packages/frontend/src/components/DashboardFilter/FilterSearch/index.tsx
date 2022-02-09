@@ -11,9 +11,10 @@ import {
 
 type Props = {
     fields: Field[];
+    onClose: () => void;
 };
 
-const FilterSearch: FC<Props> = ({ fields }) => {
+const FilterSearch: FC<Props> = ({ fields, onClose }) => {
     const [selectedField, setSelectedField] = useState<Field>();
     const { addDimensionDashboardFilter } = useDashboardContext();
 
@@ -35,8 +36,9 @@ const FilterSearch: FC<Props> = ({ fields }) => {
                 <FilterConfiguration
                     field={selectedField}
                     onSave={(value) => {
-                        addDimensionDashboardFilter(value);
                         setSelectedField(undefined);
+                        addDimensionDashboardFilter(value);
+                        onClose();
                     }}
                     onBack={() => setSelectedField(undefined)}
                 />
