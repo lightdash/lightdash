@@ -8,6 +8,7 @@ import {
 import EChartsReact from 'echarts-for-react';
 import React, { FC, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useExplore } from '../../hooks/useExplore';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import { useDashboardContext } from '../../providers/DashboardProvider';
@@ -65,19 +66,22 @@ const DashboardChartTile: FC<Props> = (props) => {
     const { data: savedQuery, isLoading } = useSavedQuery({
         id: savedChartUuid || undefined,
     });
+    const { data: explore } = useExplore(savedQuery?.tableName);
     const { dashboardFilters } = useDashboardContext();
-
     // START DASHBOARD FILTER LOGIC
     // TODO: move this logic out of component
     let savedQueryWithDashboardFilters: SavedQuery | undefined;
     if (savedQuery) {
+        const tables = explore ? Object.keys(explore.tables) : [];
         const dimensionFilters: FilterGroup = {
             id: 'yes',
             and: [
                 ...(savedQuery.metricQuery.filters.dimensions
                     ? [savedQuery.metricQuery.filters.dimensions]
                     : []),
-                ...dashboardFilters.dimensions,
+                ...dashboardFilters.dimensions.filter((filter) =>
+                    tables.includes(filter.target.tableName),
+                ),
             ],
         };
         const metricFilters: FilterGroup = {
@@ -86,7 +90,9 @@ const DashboardChartTile: FC<Props> = (props) => {
                 ...(savedQuery.metricQuery.filters.metrics
                     ? [savedQuery.metricQuery.filters.metrics]
                     : []),
-                ...dashboardFilters.metrics,
+                ...dashboardFilters.metrics.filter((filter) =>
+                    tables.includes(filter.target.tableName),
+                ),
             ],
         };
         savedQueryWithDashboardFilters = {
