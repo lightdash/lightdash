@@ -46,7 +46,7 @@ const FilterSearch: FC<Props> = ({ fields }) => {
                     <Title>Select a dimension to filter</Title>
                     <FieldAutoComplete
                         fields={chartConfig.dimensionOptions}
-                        onChange={(field) => setDimensionToFilter(field.name)}
+                        onChange={(field) => setDimensionToFilter(field)}
                     />
                     <FilterFooter>
                         Filters set on individual charts will be overridden.

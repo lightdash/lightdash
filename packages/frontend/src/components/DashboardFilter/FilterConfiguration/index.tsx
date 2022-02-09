@@ -1,5 +1,5 @@
 import { Intent, TagInput } from '@blueprintjs/core';
-import { FilterOperator, friendlyName } from 'common';
+import { FilterOperator } from 'common';
 import React, { FC, ReactNode, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
@@ -29,8 +29,8 @@ const FilterConfiguration: FC<Props> = ({
         dimensionToFilter,
         setDimensionToFilter,
     } = useDashboardContext();
+    const [filterType, setFilterType] = useState();
 
-    const [filterType, setFilterType] = useState('');
     const [valuesToFilter, setValuesToFilter] = useState<
         string[] | ReactNode[]
     >([filteredValues]);
@@ -39,7 +39,7 @@ const FilterConfiguration: FC<Props> = ({
         const filterData = {
             id: projectUuid,
             target: {
-                fieldId: dimensionToFilter,
+                fieldId: dimensionToFilter.name,
             },
             operator: filterType,
             values: valuesToFilter,
@@ -48,11 +48,11 @@ const FilterConfiguration: FC<Props> = ({
         addDimensionDashboardFilter(filterData);
     };
 
-    const title = label ? friendlyName(label) : friendlyName(dimensionToFilter);
+    const title = dimensionToFilter.label;
 
     return (
         <ConfigureFilterWrapper>
-            <BackButton minimal onClick={() => setDimensionToFilter('')}>
+            <BackButton minimal onClick={() => setDimensionToFilter({})}>
                 Back
             </BackButton>
             <Title>{title}</Title>
@@ -92,3 +92,6 @@ const FilterConfiguration: FC<Props> = ({
 };
 
 export default FilterConfiguration;
+function getFieldId(field: any) {
+    throw new Error('Function not implemented.');
+}

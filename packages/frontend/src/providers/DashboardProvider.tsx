@@ -1,4 +1,4 @@
-import { FilterRule } from 'common';
+import { Field, FieldType, FilterRule } from 'common';
 import React, {
     createContext,
     Dispatch,
@@ -18,8 +18,20 @@ type DashboardContext = {
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     addDimensionDashboardFilter: (filter: FilterRule) => void;
     addMetricDashboardFilter: (filter: FilterRule) => void;
-    dimensionToFilter: string;
-    setDimensionToFilter: Dispatch<SetStateAction<string>>;
+    dimensionToFilter: Field;
+    setDimensionToFilter: Dispatch<SetStateAction<Field>>;
+};
+
+const dimension = {
+    fieldType: FieldType.DIMENSION,
+    type: '',
+    name: '',
+    label: '',
+    table: '',
+    tableLabel: '',
+    sql: '',
+    description: '',
+    source: undefined,
 };
 
 const Context = createContext<DashboardContext>({
@@ -27,8 +39,8 @@ const Context = createContext<DashboardContext>({
     setDashboardFilters: () => {},
     addDimensionDashboardFilter: () => {},
     addMetricDashboardFilter: () => {},
-    dimensionToFilter: '',
-    setDimensionToFilter: () => '',
+    dimensionToFilter: dimension,
+    setDimensionToFilter: () => {},
 });
 
 export const DashboardProvider: React.FC = ({ children }) => {
@@ -47,7 +59,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
         return [...prev, filter];
     };
 
-    const [dimensionToFilter, setDimensionToFilter] = useState<string>('');
+    const [dimensionToFilter, setDimensionToFilter] =
+        useState<Field>(dimension);
     const addDimensionDashboardFilter = useCallback(
         (filter) => {
             setDashboardFilters((previousFilters) => ({
