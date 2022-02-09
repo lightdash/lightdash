@@ -81,7 +81,6 @@ const Dashboard = () => {
         }),
         [dashboardTiles, isEditMode],
     );
-    console.log(dashboardTiles);
 
     useEffect(() => {
         if (dashboard?.tiles) {
