@@ -1,13 +1,22 @@
-import { Intent, TagInput } from '@blueprintjs/core';
-import { DashboardFilterRule, Field, fieldId, FilterOperator } from 'common';
-import React, { FC, ReactNode, useState } from 'react';
+import { HTMLSelect, Intent } from '@blueprintjs/core';
+import {
+    DashboardFilterRule,
+    Field,
+    fieldId,
+    FilterOperator,
+    FilterRule,
+    FilterType,
+} from 'common';
+import React, { FC, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import {
+    FilterTypeConfig,
+    getFilterTypeFromField,
+} from '../../common/Filters/configs';
 import {
     ApplyFilterButton,
     BackButton,
     ConfigureFilterWrapper,
-    InputWrapper,
-    SelectField,
     Title,
 } from './FilterConfiguration.styled';
 
@@ -24,57 +33,56 @@ const FilterConfiguration: FC<Props> = ({
     onSave,
     onBack,
 }) => {
-    const [filterType, setFilterType] = useState(filterRule?.operator);
-    const [valuesToFilter, setValuesToFilter] = useState<
-        string[] | ReactNode[]
-    >(filterRule?.values || []);
+    const [internalFilterRule, setInternalFilterRule] =
+        useState<DashboardFilterRule>(
+            filterRule || {
+                id: uuidv4(),
+                target: {
+                    fieldId: fieldId(field),
+                    tableName: field.table,
+                },
+                operator: FilterOperator.EQUALS,
+                values: [],
+            },
+        );
+
+    const filterType = field
+        ? getFilterTypeFromField(field as any)
+        : FilterType.STRING;
+    const filterConfig = useMemo(
+        () => FilterTypeConfig[filterType],
+        [filterType],
+    );
 
     const addFilter = () => {
-        onSave({
-            id: uuidv4(),
-            ...filterRule,
-            target: {
-                fieldId: fieldId(field),
-                tableName: field.table,
-            },
-            operator: FilterOperator.EQUALS,
-            values: [],
-        });
+        onSave(internalFilterRule);
     };
-
-    const title = field.label;
 
     return (
         <ConfigureFilterWrapper>
             <BackButton minimal onClick={onBack}>
                 Back
             </BackButton>
-            <Title>{title}</Title>
-            <InputWrapper>
-                <SelectField
-                    id="filter-type"
-                    value={filterType}
-                    onChange={(e) =>
-                        console.log('operator', e.currentTarget.value)
-                    }
-                    options={Object.values(FilterOperator).map(
-                        (filterOperator) => ({
-                            value: filterOperator,
-                            label: filterOperator
-                                .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-                                .toLowerCase(),
-                        }),
-                    )}
-                />
-            </InputWrapper>
-            <InputWrapper>
-                <TagInput
-                    addOnBlur
-                    tagProps={{ minimal: true }}
-                    values={valuesToFilter}
-                    onChange={(values) => setValuesToFilter(values)}
-                />
-            </InputWrapper>
+            <Title>{field.label}</Title>
+            <HTMLSelect
+                fill={false}
+                style={{ width: 150 }}
+                onChange={(e) =>
+                    setInternalFilterRule((prevState) => ({
+                        ...prevState,
+                        operator: e.currentTarget
+                            .value as FilterRule['operator'],
+                    }))
+                }
+                options={filterConfig.operatorOptions}
+                value={internalFilterRule.operator}
+            />
+            <filterConfig.inputs
+                filterType={filterType}
+                field={field as any}
+                filterRule={internalFilterRule}
+                onChange={setInternalFilterRule as any}
+            />
             <ApplyFilterButton
                 type="submit"
                 intent={Intent.PRIMARY}
