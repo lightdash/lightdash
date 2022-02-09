@@ -1,3 +1,12 @@
+# [0.15.0](https://github.com/lightdash/lightdash/compare/0.14.0...0.15.0) (2022-02-09)
+
+
+### Features
+
+* add endpoint to fetch available filters [skip ci] ([#1313](https://github.com/lightdash/lightdash/issues/1313)) ([bf100d7](https://github.com/lightdash/lightdash/commit/bf100d7aeb43c23e047fe443285eb31e8b16042f))
+* add liveness check to api ([#1319](https://github.com/lightdash/lightdash/issues/1319)) ([b5caaae](https://github.com/lightdash/lightdash/commit/b5caaae5dacdc2f5a3eb3f0c6122ccbaad6618dc))
+* completed unit of time in filter ([#1304](https://github.com/lightdash/lightdash/issues/1304)) ([0480459](https://github.com/lightdash/lightdash/commit/048045933b6015097304477f425264f7cf73da34))
+
 # [0.14.0](https://github.com/lightdash/lightdash/compare/0.13.0...0.14.0) (2022-02-08)
 
 
