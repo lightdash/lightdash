@@ -5,7 +5,10 @@ sidebar_label: Creating dashboards
 
 # Creating Dashboards
 
-Dashboards allow you to arrange multiple charts in a single view. To add a chart to a dashbard:
+Dashboards allow you to arrange multiple charts that are related to each other into a single view.
+
+Checkout this tutorial on how to create your first dashboard:
+[![tutorial building first dashboard](./assets/tutorial_building_first_dashboard.png)](https://www.youtube.com/watch?v=6A4eoioe6So)
 
 ## 1. Open the dashboard page
 
@@ -22,10 +25,10 @@ you can change this later.
 
 ## 3. Choose a chart to add to your dashboard
 
-Charts can only be added to a dashboard if they've been saved. See [instructions for saving charts](./using-explores.md) for more 
+Charts can only be added to a dashboard if they've been saved. See [instructions for saving charts](./using-explores.md) for more
 information.
 
-Click "add chart" to see a list of charts that have been saved. Clicking any chart will add it at the top of your 
+Click "add chart" to see a list of charts that have been saved. Clicking any chart will add it at the top of your
 dashboard.
 
 ![add chart screenshot](./assets/add_chart_screenshot.png)
