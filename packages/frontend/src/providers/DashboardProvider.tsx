@@ -5,8 +5,11 @@ import React, {
     SetStateAction,
     useCallback,
     useContext,
+    useEffect,
     useState,
 } from 'react';
+import { useHistory, useLocation } from 'react-router-dom';
+import { useMount } from 'react-use';
 
 type DashboardContext = {
     dashboard: Dashboard;
@@ -72,6 +75,33 @@ export const DashboardProvider: React.FC<Props> = ({ dashboard, children }) => {
             metrics: previousFilters.metrics,
         }));
     }, []);
+
+    const { search, pathname } = useLocation();
+    const history = useHistory();
+
+    useMount(() => {
+        const searchParams = new URLSearchParams(search);
+        const filterSearchParam = searchParams.get('filters');
+        if (filterSearchParam) {
+            setDashboardFilters(JSON.parse(filterSearchParam));
+        }
+    });
+
+    useEffect(() => {
+        const newParams = new URLSearchParams();
+        if (
+            dashboardFilters.dimensions.length === 0 &&
+            dashboardFilters.metrics.length === 0
+        ) {
+            newParams.delete('filters');
+        } else {
+            newParams.set('filters', JSON.stringify(dashboardFilters));
+        }
+        history.replace({
+            pathname,
+            search: newParams.toString(),
+        });
+    }, [dashboardFilters, history, pathname]);
 
     const value = {
         dashboard,
