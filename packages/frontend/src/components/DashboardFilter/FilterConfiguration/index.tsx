@@ -1,4 +1,4 @@
-import { Intent } from '@blueprintjs/core';
+import { HTMLSelect, Intent } from '@blueprintjs/core';
 import {
     DashboardFilterRule,
     fieldId,
@@ -17,7 +17,7 @@ import {
     ApplyFilterButton,
     BackButton,
     ConfigureFilterWrapper,
-    SelectField,
+    InputsWrapper,
     Title,
 } from './FilterConfiguration.styled';
 
@@ -61,24 +61,26 @@ const FilterConfiguration: FC<Props> = ({
                 Back
             </BackButton>
             <Title>{field.label}</Title>
-            <SelectField
-                fill
-                onChange={(e) =>
-                    setInternalFilterRule((prevState) => ({
-                        ...prevState,
-                        operator: e.currentTarget
-                            .value as FilterRule['operator'],
-                    }))
-                }
-                options={filterConfig.operatorOptions}
-                value={internalFilterRule.operator}
-            />
-            <filterConfig.inputs
-                filterType={filterType}
-                field={field}
-                filterRule={internalFilterRule}
-                onChange={setInternalFilterRule as any}
-            />
+            <InputsWrapper>
+                <HTMLSelect
+                    fill
+                    onChange={(e) =>
+                        setInternalFilterRule((prevState) => ({
+                            ...prevState,
+                            operator: e.currentTarget
+                                .value as FilterRule['operator'],
+                        }))
+                    }
+                    options={filterConfig.operatorOptions}
+                    value={internalFilterRule.operator}
+                />
+                <filterConfig.inputs
+                    filterType={filterType}
+                    field={field}
+                    filterRule={internalFilterRule}
+                    onChange={setInternalFilterRule as any}
+                />
+            </InputsWrapper>
             <ApplyFilterButton
                 type="submit"
                 intent={Intent.PRIMARY}

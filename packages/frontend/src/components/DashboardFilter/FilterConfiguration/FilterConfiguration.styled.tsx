@@ -1,4 +1,4 @@
-import { AnchorButton, Button, Colors, HTMLSelect } from '@blueprintjs/core';
+import { AnchorButton, Button, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const ConfigureFilterWrapper = styled.div`
@@ -12,12 +12,15 @@ export const Title = styled.p`
     font-weight: bold;
 `;
 
-export const InputWrapper = styled.div`
+export const InputsWrapper = styled.div`
+    display: flex;
+    gap: 15px;
     width: 20.5em;
-`;
+    flex-direction: column;
 
-export const SelectField = styled(HTMLSelect)`
-    margin-bottom: 1.714em;
+    select {
+        width: 100% !important;
+    }
 `;
 
 export const BackButton = styled(AnchorButton)`
