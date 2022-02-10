@@ -1,24 +1,21 @@
-import { Button, Colors, Intent } from '@blueprintjs/core';
+import { Button, Intent } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard } from 'common';
 import React, { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import styled from 'styled-components';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import EditableHeader from '../EditableHeader';
-
-const WrapperAddTileButton = styled.div`
-    display: flex;
-    width: 100%;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px;
-    height: 50px;
-`;
+import {
+    ActionButton,
+    EditContainer,
+    Title,
+    TitleContainer,
+    WrapperAddTileButton,
+} from './DashboardHeader.styles';
 
 type DashboardHeaderProps = {
     isEditMode: boolean;
@@ -56,16 +53,10 @@ const DashboardHeader = ({
     };
     return (
         <WrapperAddTileButton>
-            <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    color:
-                        !isEditing && dashboardName === DEFAULT_DASHBOARD_NAME
-                            ? Colors.GRAY1
-                            : undefined,
-                    overflow: 'hidden',
-                }}
+            <TitleContainer
+                $isEditing={
+                    !isEditing && dashboardName === DEFAULT_DASHBOARD_NAME
+                }
             >
                 <EditableHeader
                     readonly={!isEditMode}
@@ -75,31 +66,9 @@ const DashboardHeader = ({
                     placeholder="Type the dashboard name"
                     onIsEditingChange={setIsEditing}
                 />
-                {!isEditMode && (
-                    <p
-                        style={{
-                            color: Colors.GRAY1,
-                            margin: 0,
-                            alignSelf: 'flex-end',
-                            lineHeight: '20px',
-                            marginLeft: 5,
-                            marginRight: 10,
-                            whiteSpace: 'nowrap',
-                        }}
-                    >
-                        Last refreshed {timeAgo}
-                    </p>
-                )}
-            </div>
-            <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    alignContent: 'center',
-                    justifyItems: 'center',
-                    justifyContent: 'center',
-                }}
-            >
+                {!isEditMode && <Title>Last refreshed {timeAgo}</Title>}
+            </TitleContainer>
+            <EditContainer>
                 {isEditMode ? (
                     <>
                         <AddTileButton onAddTile={onAddTile} />
@@ -111,16 +80,14 @@ const DashboardHeader = ({
                                     : undefined
                             }
                         >
-                            <Button
-                                style={{ height: '20px', marginLeft: 10 }}
+                            <ActionButton
                                 text="Save"
                                 disabled={!hasTilesChanged || isSaving}
                                 intent={Intent.PRIMARY}
                                 onClick={onSaveDashboard}
                             />
                         </Tooltip2>
-                        <Button
-                            style={{ height: '20px', marginLeft: 10 }}
+                        <ActionButton
                             text="Cancel"
                             disabled={isSaving}
                             onClick={onCancel}
@@ -129,7 +96,7 @@ const DashboardHeader = ({
                 ) : (
                     <Button
                         icon="edit"
-                        text="Edit"
+                        text="Edit dashboard"
                         onClick={() => {
                             history.push(
                                 `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
@@ -137,7 +104,7 @@ const DashboardHeader = ({
                         }}
                     />
                 )}
-            </div>
+            </EditContainer>
         </WrapperAddTileButton>
     );
 };

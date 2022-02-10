@@ -12,6 +12,7 @@ import {
 } from 'common';
 import React, { FC } from 'react';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
+import { MultipleInputsWrapper } from './FilterInputs.styles';
 import UnitOfTimeAutoComplete from './UnitOfTimeAutoComplete';
 
 const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
@@ -50,7 +51,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
             );
         case FilterOperator.IN_THE_PAST:
             return (
-                <>
+                <MultipleInputsWrapper>
                     <NumericInput
                         fill
                         value={filterRule.values?.[0] || 1}
@@ -76,7 +77,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                             })
                         }
                     />
-                </>
+                </MultipleInputsWrapper>
             );
         default: {
             return <DefaultFilterInputs {...props} />;

@@ -12,6 +12,7 @@ import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useHistory, useParams } from 'react-router-dom';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import Page from '../components/common/Page/Page';
+import DashboardFilter from '../components/DashboardFilter';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
@@ -21,6 +22,7 @@ import {
     useDashboardQuery,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
+import { DashboardProvider } from '../providers/DashboardProvider';
 import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -152,7 +154,7 @@ const Dashboard = () => {
         return <Spinner />;
     }
     return (
-        <Page isContentFullWidth>
+        <DashboardProvider dashboard={dashboard}>
             <DashboardHeader
                 dashboardName={dashboard.name}
                 isEditMode={isEditMode}
@@ -163,30 +165,33 @@ const Dashboard = () => {
                 onSaveTitle={(name) => mutate({ name })}
                 onCancel={onCancel}
             />
-            <ResponsiveGridLayout
-                useCSSTransforms={false}
-                draggableCancel=".non-draggable"
-                onDragStop={updateTiles}
-                onResizeStop={updateTiles}
-                breakpoints={{ lg: 1200, md: 996, sm: 768 }}
-                cols={{ lg: 12, md: 10, sm: 6 }}
-                layouts={layouts}
-            >
-                {dashboardTiles.map((tile) => (
-                    <div key={tile.uuid}>
-                        <GridTile
-                            isEditMode={isEditMode}
-                            tile={tile}
-                            onDelete={onDelete}
-                            onEdit={onEdit}
-                        />
-                    </div>
-                ))}
-            </ResponsiveGridLayout>
-            {dashboardTiles.length <= 0 && isEditMode && (
-                <EmptyStateNoTiles onAddTile={onAddTile} />
-            )}
-        </Page>
+            <Page isContentFullWidth>
+                <DashboardFilter />
+                <ResponsiveGridLayout
+                    useCSSTransforms={false}
+                    draggableCancel=".non-draggable"
+                    onDragStop={updateTiles}
+                    onResizeStop={updateTiles}
+                    breakpoints={{ lg: 1200, md: 996, sm: 768 }}
+                    cols={{ lg: 12, md: 10, sm: 6 }}
+                    layouts={layouts}
+                >
+                    {dashboardTiles.map((tile) => (
+                        <div key={tile.uuid}>
+                            <GridTile
+                                isEditMode={isEditMode}
+                                tile={tile}
+                                onDelete={onDelete}
+                                onEdit={onEdit}
+                            />
+                        </div>
+                    ))}
+                </ResponsiveGridLayout>
+                {dashboardTiles.length <= 0 && isEditMode && (
+                    <EmptyStateNoTiles onAddTile={onAddTile} />
+                )}
+            </Page>
+        </DashboardProvider>
     );
 };
 export default Dashboard;

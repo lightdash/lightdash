@@ -3,7 +3,7 @@ import {
     CreateDashboard,
     Dashboard,
     DashboardTileTypes,
-    Field,
+    FilterableField,
     UpdateDashboard,
 } from 'common';
 import { useMutation, useQueries, useQuery, useQueryClient } from 'react-query';
@@ -42,7 +42,7 @@ const deleteDashboard = async (id: string) =>
     });
 
 export const getChartAvailableFilters = async (savedChartUuid: string) =>
-    lightdashApi<Field[]>({
+    lightdashApi<FilterableField[]>({
         url: `/saved/${savedChartUuid}/availableFilters`,
         method: 'GET',
         body: undefined,
@@ -50,7 +50,7 @@ export const getChartAvailableFilters = async (savedChartUuid: string) =>
 
 export const useAvailableDashboardFilterTargets = (
     dashboard: Dashboard | undefined,
-): { isLoading: boolean; data: Field[] } => {
+): { isLoading: boolean; data: FilterableField[] } => {
     const savedChartUuids = (dashboard?.tiles || [])
         .map((tile) =>
             tile.type === DashboardTileTypes.SAVED_CHART
@@ -63,7 +63,7 @@ export const useAvailableDashboardFilterTargets = (
             queryKey: ['available_filters', savedChartUuid],
             queryFn: () => getChartAvailableFilters(savedChartUuid),
         })),
-    ) as UseQueryResult<Field[], ApiError>[]; // useQueries doesn't allow us to specify TError
+    ) as UseQueryResult<FilterableField[], ApiError>[]; // useQueries doesn't allow us to specify TError
     const availableFilters = queries
         .flatMap((q) => q.data || [])
         .filter(

@@ -2,13 +2,16 @@ import { MenuItem, NonIdealState } from '@blueprintjs/core';
 import {
     DashboardChartTile as IDashboardChartTile,
     DBChartTypes,
+    FilterGroup,
     SavedQuery,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useExplore } from '../../hooks/useExplore';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
+import { useDashboardContext } from '../../providers/DashboardProvider';
 import LightdashVisualization from '../LightdashVisualization';
 import TileBase from './TileBase';
 
@@ -60,13 +63,54 @@ const DashboardChartTile: FC<Props> = (props) => {
         },
     } = props;
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data, isLoading } = useSavedQuery({
+    const { data: savedQuery, isLoading } = useSavedQuery({
         id: savedChartUuid || undefined,
     });
+    const { data: explore } = useExplore(savedQuery?.tableName);
+    const { dashboardFilters } = useDashboardContext();
+    // START DASHBOARD FILTER LOGIC
+    // TODO: move this logic out of component
+    let savedQueryWithDashboardFilters: SavedQuery | undefined;
+    if (savedQuery) {
+        const tables = explore ? Object.keys(explore.tables) : [];
+        const dimensionFilters: FilterGroup = {
+            id: 'yes',
+            and: [
+                ...(savedQuery.metricQuery.filters.dimensions
+                    ? [savedQuery.metricQuery.filters.dimensions]
+                    : []),
+                ...dashboardFilters.dimensions.filter((filter) =>
+                    tables.includes(filter.target.tableName),
+                ),
+            ],
+        };
+        const metricFilters: FilterGroup = {
+            id: 'no',
+            and: [
+                ...(savedQuery.metricQuery.filters.metrics
+                    ? [savedQuery.metricQuery.filters.metrics]
+                    : []),
+                ...dashboardFilters.metrics.filter((filter) =>
+                    tables.includes(filter.target.tableName),
+                ),
+            ],
+        };
+        savedQueryWithDashboardFilters = {
+            ...savedQuery,
+            metricQuery: {
+                ...savedQuery.metricQuery,
+                filters: {
+                    dimensions: dimensionFilters,
+                    metrics: metricFilters,
+                },
+            },
+        };
+    }
+    // END DASHBOARD FILTER LOGIC
 
     return (
         <TileBase
-            title={data?.name || ''}
+            title={savedQueryWithDashboardFilters?.name || ''}
             isLoading={isLoading}
             extraMenuItems={
                 savedChartUuid !== null && (
@@ -82,9 +126,9 @@ const DashboardChartTile: FC<Props> = (props) => {
             {...props}
         >
             <div style={{ flex: 1 }}>
-                {data ? (
+                {savedQueryWithDashboardFilters ? (
                     <ValidDashboardChartTile
-                        data={data}
+                        data={savedQueryWithDashboardFilters}
                         project={projectUuid}
                     />
                 ) : (

@@ -12,7 +12,7 @@ import DefaultFilterInputs, {
     FilterInputsProps,
 } from './FilterInputs/DefaultFilterInputs';
 
-const filterOperatorLabel: Record<FilterOperator, string> = {
+export const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.NULL]: 'is null',
     [FilterOperator.NOT_NULL]: 'is not null',
     [FilterOperator.EQUALS]: 'is equal to',

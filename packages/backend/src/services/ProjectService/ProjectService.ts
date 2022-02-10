@@ -6,7 +6,7 @@ import {
     defineAbilityForOrganizationMember,
     Explore,
     ExploreError,
-    Field,
+    FilterableField,
     getDimensions,
     getMetrics,
     hasIntersection,
@@ -500,7 +500,7 @@ export class ProjectService {
     async getAvailableFiltersForSavedQuery(
         user: SessionUser,
         savedChartUuid: string,
-    ): Promise<Field[]> {
+    ): Promise<FilterableField[]> {
         const ability = defineAbilityForOrganizationMember(user);
         if (ability.cannot('view', 'Project')) {
             throw new AuthorizationError();
@@ -511,9 +511,8 @@ export class ProjectService {
             savedChart.projectUuid,
             savedChart.tableName,
         );
-        const fields = getDimensions(explore).filter((field) =>
+        return getDimensions(explore).filter((field) =>
             isFilterableDimension(field),
         );
-        return fields;
     }
 }

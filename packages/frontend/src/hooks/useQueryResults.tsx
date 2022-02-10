@@ -57,7 +57,11 @@ export const useSavedChartResults = (
     projectUuid: string,
     savedChart: SavedQuery,
 ) => {
-    const queryKey = ['savedChartResults', savedChart.uuid];
+    const queryKey = [
+        'savedChartResults',
+        savedChart.uuid,
+        JSON.stringify(savedChart),
+    ];
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,
         queryFn: () =>
