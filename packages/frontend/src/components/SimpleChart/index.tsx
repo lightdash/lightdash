@@ -2,14 +2,19 @@ import { NonIdealState, Spinner } from '@blueprintjs/core';
 import {
     DBChartTypes,
     DimensionType,
+    fieldId,
+    FilterOperator,
     findFieldByIdInExplore,
     friendlyName,
+    getDimensions,
     getFieldLabel,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { ChartConfig } from '../../hooks/useChartConfig';
 import { useExplore } from '../../hooks/useExplore';
+import { useDashboardContext } from '../../providers/DashboardProvider';
 
 const flipXFromChartType = (chartType: DBChartTypes) => {
     switch (chartType) {
@@ -28,6 +33,19 @@ const flipXFromChartType = (chartType: DBChartTypes) => {
         }
     }
 };
+
+type EchartBaseClickEvent = {
+    componentType: string;
+};
+
+type EchartSeriesClickEvent = {
+    componentType: 'series';
+    data: Record<string, any>;
+    seriesIndex: number;
+    dimensionNames: string[];
+};
+
+type EchartClickEvent = EchartSeriesClickEvent | EchartBaseClickEvent;
 
 const echartType = (chartType: DBChartTypes) => {
     switch (chartType) {
@@ -89,6 +107,7 @@ const SimpleChart: FC<SimpleChartProps> = ({
     isLoading,
     tableName,
 }) => {
+    const { addDimensionDashboardFilter } = useDashboardContext();
     useEffect(() => {
         const listener = () => {
             const eCharts = chartRef.current?.getEchartsInstance();
@@ -135,7 +154,6 @@ const SimpleChart: FC<SimpleChartProps> = ({
         nameLocation: 'center',
         nameGap: 30,
         nameTextStyle: { fontWeight: 'bold' },
-        // axisLabel: xAxisType === 'category' ? { interval: 0, rotate: 35 } : {},
     };
     const yAxis = {
         type: flipX ? 'category' : yType,
@@ -188,6 +206,29 @@ const SimpleChart: FC<SimpleChartProps> = ({
         tooltip,
     };
 
+    const isSeriesClickEvent = (
+        e: EchartClickEvent,
+    ): e is EchartSeriesClickEvent => e.componentType === 'series';
+
+    const onChartClick = (e: EchartClickEvent) => {
+        if (isSeriesClickEvent(e)) {
+            const dimensions = getDimensions(activeExplore.data).filter((dim) =>
+                e.dimensionNames.includes(fieldId(dim)),
+            );
+            dimensions.forEach((dimension) => {
+                addDimensionDashboardFilter({
+                    id: uuidv4(),
+                    target: {
+                        fieldId: fieldId(dimension),
+                        tableName: dimension.table,
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: [e.data[fieldId(dimension)]],
+                });
+            });
+        }
+    };
+
     return (
         <div style={{ padding: 10, height: '100%' }}>
             <EChartsReact
@@ -199,6 +240,9 @@ const SimpleChart: FC<SimpleChartProps> = ({
                 option={options}
                 notMerge
                 opts={{ renderer: 'svg' }}
+                onEvents={{
+                    click: onChartClick,
+                }}
             />
         </div>
     );
