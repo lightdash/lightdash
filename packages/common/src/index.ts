@@ -231,11 +231,18 @@ export enum DimensionType {
     BOOLEAN = 'boolean',
 }
 
+export enum TimeInterval {
+    DAY = 'DAY',
+    WEEK = 'WEEK',
+    MONTH = 'MONTH',
+    YEAR = 'YEAR',
+}
+
 export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
     group?: string;
-    timeInterval?: string;
+    timeInterval?: TimeInterval | string;
 }
 
 export interface CompiledDimension extends Dimension {
