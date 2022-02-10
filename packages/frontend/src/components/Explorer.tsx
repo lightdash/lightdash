@@ -441,7 +441,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                 <Collapse className="explorer-chart" isOpen={vizIsOpen}>
                     <div style={{ height: '300px' }} className="cohere-block">
                         <LightdashVisualization
-                            savedData={data}
+                            chartConfig={chartConfig}
                             chartRef={chartRef}
                             chartType={activeVizTab}
                             tableName={tableName}

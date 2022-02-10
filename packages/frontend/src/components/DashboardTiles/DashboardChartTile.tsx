@@ -8,6 +8,7 @@ import {
 import EChartsReact from 'echarts-for-react';
 import React, { FC, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useChartConfig } from '../../hooks/useChartConfig';
 import { useExplore } from '../../hooks/useExplore';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
@@ -24,6 +25,11 @@ const ValidDashboardChartTile: FC<{ data: SavedQuery; project: string }> = ({
         DBChartTypes.COLUMN,
     );
     const { data: resultData, isLoading } = useSavedChartResults(project, data);
+    const chartConfig = useChartConfig(
+        data.tableName,
+        resultData,
+        data?.chartConfig.seriesLayout,
+    );
 
     useEffect(() => {
         if (data?.chartConfig.chartType) {
@@ -35,7 +41,7 @@ const ValidDashboardChartTile: FC<{ data: SavedQuery; project: string }> = ({
         <LightdashVisualization
             chartRef={chartRef}
             chartType={activeVizTab}
-            savedData={data}
+            chartConfig={chartConfig}
             resultsData={resultData}
             tableName={data.tableName}
             isLoading={isLoading}

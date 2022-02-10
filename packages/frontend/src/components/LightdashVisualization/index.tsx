@@ -1,7 +1,7 @@
-import { ApiQueryResults, DBChartTypes, SavedQuery } from 'common';
+import { ApiQueryResults, DBChartTypes } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject } from 'react';
-import { useChartConfig } from '../../hooks/useChartConfig';
+import { ChartConfig } from '../../hooks/useChartConfig';
 import { LoadingState } from '../ResultsTable/States';
 import SimpleChart from '../SimpleChart';
 import SimpleStatistic from '../SimpleStatistic';
@@ -10,26 +10,20 @@ import SimpleTable from '../SimpleTable';
 interface Props {
     chartRef: RefObject<EChartsReact>;
     chartType: DBChartTypes;
-    savedData: SavedQuery | undefined;
+    chartConfig: ChartConfig;
     tableName: string | undefined;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
 }
 
 const LightdashVisualization: FC<Props> = ({
-    savedData,
+    chartConfig,
     chartRef,
     chartType,
     tableName,
     resultsData,
     isLoading,
 }) => {
-    const chartConfig = useChartConfig(
-        tableName,
-        resultsData,
-        savedData?.chartConfig.seriesLayout,
-    );
-
     if (isLoading || !chartConfig) {
         return <LoadingState />;
     }
