@@ -3,7 +3,6 @@ import styled from 'styled-components';
 
 export const TagContainer = styled(Tag)`
     width: fit-content;
-    margin-right: 0.714em;
     padding: 0 0.5em;
     background: #5c7080 !important;
     border-radius: 0.214em;
@@ -17,7 +16,7 @@ export const TagsWrapper = styled.div`
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
-    margin-right: 0.714em;
+    gap: 0.5em;
 `;
 
 export const FilterValues = styled.span`

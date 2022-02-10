@@ -4,7 +4,7 @@ import styled from 'styled-components';
 
 export const TriggerWrapper = styled(Popover2)`
     width: fit-content;
-    margin-bottom: 0.5em;
+    align-self: center;
 `;
 
 export const FilterTrigger = styled(AnchorButton)`
@@ -32,6 +32,8 @@ export const FilterTrigger = styled(AnchorButton)`
 `;
 
 export const DashboardFilterWrapper = styled.div`
-    display: flex;
-    align-items: baseline;
+    display: grid;
+    align-items: center;
+    grid-template-columns: 7.3em auto;
+    margin-bottom: 0.5em;
 `;
