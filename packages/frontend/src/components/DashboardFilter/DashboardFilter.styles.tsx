@@ -4,7 +4,7 @@ import styled from 'styled-components';
 
 export const TriggerWrapper = styled(Popover2)`
     width: fit-content;
-    align-self: center;
+    align-self: baseline;
 `;
 
 export const FilterTrigger = styled(AnchorButton)`

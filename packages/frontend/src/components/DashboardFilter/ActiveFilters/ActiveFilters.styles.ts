@@ -17,6 +17,7 @@ export const TagsWrapper = styled.div`
     flex-direction: row;
     flex-wrap: wrap;
     gap: 0.5em;
+    padding-top: 0.2em;
 `;
 
 export const FilterValues = styled.span`
