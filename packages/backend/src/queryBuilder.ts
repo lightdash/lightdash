@@ -85,7 +85,7 @@ const renderNumberFilterSql = (
     }
 };
 
-const renderDateFilterSql = (
+export const renderDateFilterSql = (
     dimensionSql: string,
     filter: DateFilterRule,
     dateFormatter = formatDate,
@@ -124,23 +124,23 @@ const renderDateFilterSql = (
             const unitOfTime: UnitOfTime =
                 filter.settings?.unitOfTime || UnitOfTime.days;
             const completed: boolean = !!filter.settings?.completed;
-            const sinceDateSql = `(${dimensionSql}) >= ('${dateFormatter(
-                moment(
-                    moment(new Date())
-                        .subtract(filter.values?.[0], unitOfTime)
-                        .format(unitOfTimeFormat[unitOfTime]),
-                ).toDate(),
-            )}')`;
-            const untilDateSql = `(${dimensionSql}) < ('${dateFormatter(
-                moment(
+            if (completed) {
+                const completedDate = moment(
                     moment()
                         .startOf(unitOfTime)
                         .format(unitOfTimeFormat[unitOfTime]),
-                ).toDate(),
+                ).toDate();
+                return `((${dimensionSql}) >= ('${dateFormatter(
+                    moment(completedDate)
+                        .subtract(filter.values?.[0], unitOfTime)
+                        .toDate(),
+                )}') AND (${dimensionSql}) < ('${dateFormatter(
+                    completedDate,
+                )}'))`;
+            }
+            return `(${dimensionSql}) >= ('${dateFormatter(
+                moment().subtract(filter.values?.[0], unitOfTime).toDate(),
             )}')`;
-            return completed
-                ? `(${sinceDateSql} AND ${untilDateSql})`
-                : sinceDateSql;
         default:
             throw Error(
                 `No function implemented to render sql for filter type ${filterType} on dimension of date type`,
