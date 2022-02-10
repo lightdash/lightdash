@@ -5,7 +5,7 @@ const stream: StreamOptions = {
     write: (message) => Logger.http(message),
 };
 
-const SkipPaths = ['/api/v1/health', '/api/v1/status'];
+const SkipPaths = ['/api/v1/status'];
 
 // Build the morgan middleware
 const morganMiddleware = morgan(':method :url :status - :response-time ms', {
@@ -14,7 +14,7 @@ const morganMiddleware = morgan(':method :url :status - :response-time ms', {
         const env = process.env.NODE_ENV || 'development';
         const shouldSkipPath: boolean =
             !!req.url && SkipPaths.includes(req.url);
-        return env !== 'development' || shouldSkipPath;
+        return env === 'development' ? false : shouldSkipPath;
     },
 });
 
