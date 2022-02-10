@@ -1,15 +1,7 @@
----
-sidebar_position: 5
----
+# How to update Lightdash
 
-# Update to latest docker image
+:::note Article deprecated
 
-Docker images are cached by default. This behaviour provides many benefits but prevents you 
-from getting the new features and bug fixes we regularly release.
+This article has been moved here: [Update Lightdash](../references/update-lightdash)
 
-You can get the latest release by pulling the latest docker image:
-```shell
-docker pull lightdash/lightdash
-```
-
-Once this is complete you can [run Lightdash](../get-started/setup-lightdash/install-lightdash.mdx) as usual. 
+:::
