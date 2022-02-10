@@ -1,3 +1,15 @@
+# [0.17.0](https://github.com/lightdash/lightdash/compare/0.16.0...0.17.0) (2022-02-10)
+
+
+### Bug Fixes
+
+* show http logs in production envs ([#1329](https://github.com/lightdash/lightdash/issues/1329)) ([0b73daf](https://github.com/lightdash/lightdash/commit/0b73dafc57b5ec35a900048b6751987be5530f48))
+
+
+### Features
+
+* **filters:** add week, month and year pickers [skip ci] ([#1309](https://github.com/lightdash/lightdash/issues/1309)) ([66a3675](https://github.com/lightdash/lightdash/commit/66a36756b846c9faec9fe3b16cc1ab4525d1b60e)), closes [#1318](https://github.com/lightdash/lightdash/issues/1318)
+
 # [0.16.0](https://github.com/lightdash/lightdash/compare/0.15.0...0.16.0) (2022-02-10)
 
 
