@@ -36,9 +36,14 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     children,
 }: Props<T>) => {
     const [isEditing, setIsEditing] = useState(false);
+
     return (
         <Card
-            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+            style={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+            }}
             className={isLoading ? Classes.SKELETON : undefined}
         >
             <div
