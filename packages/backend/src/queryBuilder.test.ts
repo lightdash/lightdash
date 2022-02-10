@@ -73,7 +73,11 @@ describe('Query builder', () => {
 
 describe('Filter SQL', () => {
     beforeAll(() => {
+        jest.useFakeTimers('modern');
         jest.setSystemTime(new Date('04 Apr 2020 00:12:00 GMT').getTime());
+    });
+    afterAll(() => {
+        jest.useFakeTimers();
     });
     test('should return in the last date filter sql', () => {
         expect(
