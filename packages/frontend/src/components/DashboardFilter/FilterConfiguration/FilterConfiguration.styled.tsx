@@ -14,7 +14,7 @@ export const Title = styled.p`
 
 export const InputsWrapper = styled.div`
     display: flex;
-    gap: 15px;
+    gap: 1.071em;
     width: 20.5em;
     flex-direction: column;
 
