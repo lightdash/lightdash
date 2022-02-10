@@ -17,11 +17,7 @@ export const InputWrapper = styled.div`
 `;
 
 export const SelectField = styled(HTMLSelect)`
-    width: 100% !important;
     margin-bottom: 1.714em;
-    select {
-        width: 100% !important;
-    }
 `;
 
 export const BackButton = styled(AnchorButton)`

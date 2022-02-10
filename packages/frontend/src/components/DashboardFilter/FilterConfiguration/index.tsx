@@ -62,8 +62,7 @@ const FilterConfiguration: FC<Props> = ({
             </BackButton>
             <Title>{field.label}</Title>
             <SelectField
-                fill={false}
-                style={{ width: 150 }}
+                fill
                 onChange={(e) =>
                     setInternalFilterRule((prevState) => ({
                         ...prevState,
