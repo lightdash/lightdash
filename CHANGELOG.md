@@ -1,3 +1,10 @@
+# [0.16.0](https://github.com/lightdash/lightdash/compare/0.15.0...0.16.0) (2022-02-10)
+
+
+### Features
+
+* **dashboards:** add dashboard filters ([#1291](https://github.com/lightdash/lightdash/issues/1291)) ([f41a761](https://github.com/lightdash/lightdash/commit/f41a761e36eaaafa0508acd901ad0e065b411845)), closes [#1273](https://github.com/lightdash/lightdash/issues/1273)
+
 # [0.15.0](https://github.com/lightdash/lightdash/compare/0.14.0...0.15.0) (2022-02-09)
 
 
