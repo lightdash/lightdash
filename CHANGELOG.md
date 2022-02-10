@@ -1,3 +1,10 @@
+# [0.18.0](https://github.com/lightdash/lightdash/compare/0.17.1...0.18.0) (2022-02-10)
+
+
+### Features
+
+* **dashboards:** store filters in dashboard url ([#1338](https://github.com/lightdash/lightdash/issues/1338)) ([5aef21e](https://github.com/lightdash/lightdash/commit/5aef21ef9c43bbd8d4ae1c47f09253a3926677f2))
+
 ## [0.17.1](https://github.com/lightdash/lightdash/compare/0.17.0...0.17.1) (2022-02-10)
 
 
