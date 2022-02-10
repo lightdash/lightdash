@@ -1,3 +1,10 @@
+## [0.17.1](https://github.com/lightdash/lightdash/compare/0.17.0...0.17.1) (2022-02-10)
+
+
+### Bug Fixes
+
+* **charts:** amend chart configuration ([#1337](https://github.com/lightdash/lightdash/issues/1337)) ([ae984e5](https://github.com/lightdash/lightdash/commit/ae984e528b7e36788035593684075cbdeb289ea9))
+
 # [0.17.0](https://github.com/lightdash/lightdash/compare/0.16.0...0.17.0) (2022-02-10)
 
 
