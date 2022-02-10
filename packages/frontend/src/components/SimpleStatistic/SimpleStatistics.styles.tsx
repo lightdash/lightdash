@@ -24,7 +24,7 @@ export const BigNumber = styled.div`
 
 export const BigNumberLabel = styled.h2`
     text-align: center;
-    color: #979797;
+    color: ${Colors.GRAY3};
     font-weight: 500;
     line-height: 1.389em;
     font-size: 1.286em;
