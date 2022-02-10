@@ -10,15 +10,12 @@ import {
 } from './DashboardFilter.styles';
 import FilterSearch from './FilterSearch';
 
-interface Props {
-    hasCharts: boolean;
-}
-
-const DashboardFilter: FC<Props> = ({ hasCharts }) => {
+const DashboardFilter: FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     const { dashboard, dashboardFilters } = useDashboardContext();
     const { isLoading, data: filterableFields } =
         useAvailableDashboardFilterTargets(dashboard);
+    const hasTiles = dashboard.tiles.length >= 1;
 
     return (
         <DashboardFilterWrapper>
@@ -35,12 +32,12 @@ const DashboardFilter: FC<Props> = ({ hasCharts }) => {
                 onInteraction={setIsOpen}
                 position="bottom-right"
                 lazy={false}
-                disabled={isLoading || !hasCharts}
+                disabled={!hasTiles || isLoading}
             >
                 <FilterTrigger
                     minimal
                     icon="filter-list"
-                    disabled={isLoading || !hasCharts}
+                    disabled={!hasTiles || isLoading}
                 >
                     Add filter
                 </FilterTrigger>
