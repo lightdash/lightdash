@@ -11,6 +11,9 @@
         "@hookform/error-message": "^2.0.0",
         "@sentry/react": "^6.17.6",
         "@sentry/tracing": "^6.17.6",
+        "@testing-library/jest-dom": "^5.16.2",
+        "@testing-library/react": "^12.1.2",
+        "@testing-library/user-event": "^13.5.0",
         "@uiw/react-md-editor": "^3.9.4",
         "ace-builds": "^1.4.14",
         "cohere-js": "^1.0.19",
@@ -68,9 +71,6 @@
         ]
     },
     "devDependencies": {
-        "@testing-library/jest-dom": "^5.16.2",
-        "@testing-library/react": "^12.1.2",
-        "@testing-library/user-event": "^13.5.0",
         "@types/dagre": "^0.7.47",
         "@types/jest": "^27.4.0",
         "@types/react": "^17.0.39",

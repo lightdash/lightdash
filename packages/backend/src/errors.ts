@@ -164,7 +164,7 @@ export class ParseError extends LightdashError {
 export class CompileError extends LightdashError {
     constructor(
         message = 'Error compiling sql from Lightdash configuration',
-        data: Record<string, any>,
+        data: Record<string, any> = {},
     ) {
         super({
             message,
@@ -178,7 +178,7 @@ export class CompileError extends LightdashError {
 export class NetworkError extends LightdashError {
     constructor(
         message = 'Error connecting to external service',
-        data: { [key: string]: any },
+        data: { [key: string]: any } = {},
     ) {
         super({
             message,
@@ -190,7 +190,10 @@ export class NetworkError extends LightdashError {
 }
 
 export class DbtError extends LightdashError {
-    constructor(message = 'Dbt raised an error', data: { [key: string]: any }) {
+    constructor(
+        message = 'Dbt raised an error',
+        data: { [key: string]: any } = {},
+    ) {
         super({
             message,
             name: 'DbtError',
