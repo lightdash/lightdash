@@ -15,7 +15,7 @@ const MarkdownTile: FC<Props> = (props) => {
         },
     } = props;
     return (
-        <TileBase title={title} hasFilters={false} isChart={false} {...props}>
+        <TileBase title={title} {...props}>
             <div
                 style={{ flex: 1, overflow: 'auto' }}
                 className="non-draggable"

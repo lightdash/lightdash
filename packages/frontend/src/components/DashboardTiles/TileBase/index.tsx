@@ -24,8 +24,8 @@ type Props<T> = {
     onDelete: (tile: T) => void;
     onEdit: (tile: T) => void;
     children: ReactNode;
-    isChart: boolean;
-    hasFilters: boolean;
+    isChart?: boolean;
+    hasFilters?: boolean;
 };
 
 const TileBase = <T extends Dashboard['tiles'][number]>({
@@ -125,6 +125,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 TileBase.defaultProps = {
     isLoading: false,
     extraMenuItems: null,
+    isChart: false,
+    hasFilters: false,
 };
 
 export default TileBase;
