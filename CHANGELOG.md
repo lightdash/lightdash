@@ -1,3 +1,10 @@
+## [0.18.1](https://github.com/lightdash/lightdash/compare/0.18.0...0.18.1) (2022-02-11)
+
+
+### Bug Fixes
+
+* **dashboards:** filter button is disabled when there are no tiles in the dashboard ([#1343](https://github.com/lightdash/lightdash/issues/1343)) ([f49909a](https://github.com/lightdash/lightdash/commit/f49909a1552f914f54e6aabba4a39c6f9c82e7c9))
+
 # [0.18.0](https://github.com/lightdash/lightdash/compare/0.17.1...0.18.0) (2022-02-10)
 
 
