@@ -8,7 +8,7 @@ import { UserModel } from '../../models/UserModel';
 import { VERSION } from '../../version';
 
 const filterByName = (result: { name: string }): boolean =>
-    new RegExp('[0-9.]+$').test(result.name);
+    /[0-9.]+$/.test(result.name);
 
 const sorterByDate = (
     a: { last_updated: string },
