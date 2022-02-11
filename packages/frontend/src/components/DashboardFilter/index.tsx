@@ -15,6 +15,7 @@ const DashboardFilter: FC = () => {
     const { dashboard, dashboardFilters } = useDashboardContext();
     const { isLoading, data: filterableFields } =
         useAvailableDashboardFilterTargets(dashboard);
+    const hasTiles = dashboard.tiles.length >= 1;
 
     return (
         <DashboardFilterWrapper>
@@ -31,9 +32,13 @@ const DashboardFilter: FC = () => {
                 onInteraction={setIsOpen}
                 position="bottom-right"
                 lazy={false}
-                disabled={isLoading}
+                disabled={!hasTiles || isLoading}
             >
-                <FilterTrigger minimal icon="filter-list" disabled={isLoading}>
+                <FilterTrigger
+                    minimal
+                    icon="filter-list"
+                    disabled={!hasTiles || isLoading}
+                >
                     Add filter
                 </FilterTrigger>
             </TriggerWrapper>
