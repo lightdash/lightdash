@@ -1,4 +1,4 @@
-import { Dashboard, DashboardTileTypes } from 'common';
+import { Dashboard, DashboardTileTypes, getDefaultChartTileSize } from 'common';
 import React, { FC, useState } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import ActionModal, { ActionTypeModal } from '../../common/modal/ActionModal';
@@ -88,10 +88,7 @@ export const AddTileModal: FC<AddProps> = ({ onClose, onAddTile, type }) => {
             uuid: uuid4(),
             properties: properties as any,
             type,
-            h: 3,
-            w: 5,
-            x: 0,
-            y: 0,
+            ...getDefaultChartTileSize(undefined), // requires a fetch to know chart type
         });
     };
 

@@ -1,4 +1,8 @@
-import { DashboardTileTypes } from 'common';
+import {
+    DashboardTileTypes,
+    getDefaultChartTileSize,
+    SavedQuery,
+} from 'common';
 import React, { FC, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
@@ -50,11 +54,11 @@ const useUpdateMutation = (id?: string) => {
 };
 
 interface Props {
-    savedChartUuid: string;
+    savedChart: SavedQuery;
     onClose?: () => void;
 }
 
-const AddTilesToDashboardModal: FC<Props> = ({ savedChartUuid, onClose }) => {
+const AddTilesToDashboardModal: FC<Props> = ({ savedChart, onClose }) => {
     const [selectedDashboardUuid, setSelectedDashboardUuid] =
         useState<string>();
     const { data } = useDashboardQuery(selectedDashboardUuid);
@@ -82,17 +86,16 @@ const AddTilesToDashboardModal: FC<Props> = ({ savedChartUuid, onClose }) => {
                         uuid: uuid4(),
                         type: DashboardTileTypes.SAVED_CHART,
                         properties: {
-                            savedChartUuid,
+                            savedChartUuid: savedChart.uuid,
                         },
-                        h: 3,
-                        w: 5,
-                        x: 0,
-                        y: 0,
+                        ...getDefaultChartTileSize(
+                            savedChart.chartConfig.chartType,
+                        ),
                     },
                 ],
             });
         }
-    }, [data, mutate, isIdle, savedChartUuid]);
+    }, [data, mutate, isIdle, savedChart]);
 
     useEffect(() => {
         if (isSuccess) {
