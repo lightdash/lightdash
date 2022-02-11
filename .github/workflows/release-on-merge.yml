@@ -35,7 +35,7 @@ jobs:
       - name: Reset alpha branch upon release
         if: |
           steps.semantic.outputs.new_release_published == 'true' &&
-          steps.semantic.outputs.new_release_channel == 'undefined'
+          steps.semantic.outputs.new_release_channel == null
         run: "git push --force https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:refs/heads/alpha"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
