@@ -72,7 +72,7 @@ const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
     const handleSubmit = (data?: any) => {
         try {
             onSubmitForm(data);
-        } catch (e) {
+        } catch (e: any) {
             showToastError({
                 title: 'Error saving',
                 subtitle: e.message,

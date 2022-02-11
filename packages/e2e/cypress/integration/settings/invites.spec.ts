@@ -34,7 +34,10 @@ describe('Dashboard List', () => {
             .parents('.bp3-card')
             .find('[icon="delete"]')
             .click();
-        cy.findByRole('button', { name: 'Delete' }).click();
+        cy.findByText('Are you sure you want to delete this user ?')
+            .parents('.bp3-dialog')
+            .findByRole('button', { name: 'Delete' })
+            .click();
         cy.findByText('Success! User was deleted.').should('be.visible');
         cy.get('[aria-labelledby="bp3-tab-title_user-settings_userManagement"]')
             .contains('Mary Green')
