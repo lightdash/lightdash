@@ -80,6 +80,7 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                                 sortFields,
                                 toggleSortField,
                             ),
+                            field,
                         },
                     ];
                 }

@@ -1,5 +1,13 @@
-import { Button, Colors, HTMLTable, Icon, Tag } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import {
+    Button,
+    Colors,
+    HTMLTable,
+    Icon,
+    Menu,
+    MenuItem,
+    Tag,
+} from '@blueprintjs/core';
+import { ContextMenu2, Tooltip2 } from '@blueprintjs/popover2';
 import { DimensionType, hexToRGB } from 'common';
 import React, { FC, ReactNode, useEffect } from 'react';
 import {
@@ -18,6 +26,7 @@ import {
     usePagination,
     useTable as useReactTable,
 } from 'react-table';
+import { useFilters } from '../../hooks/useFilters';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import TableCalculationHeaderButton from '../TableCalculationHeaderButton';
@@ -169,6 +178,7 @@ export const ResultsTable: FC<Props> = ({
     emptyState,
     tableAction,
 }) => {
+    const { addFilter } = useFilters();
     const currentColOrder = React.useRef<Array<string>>([]);
     const {
         getTableProps,
@@ -378,7 +388,27 @@ export const ResultsTable: FC<Props> = ({
                                                             ),
                                                         ])}
                                                     >
-                                                        {cell.render('Cell')}
+                                                        <ContextMenu2
+                                                            content={
+                                                                <Menu>
+                                                                    <MenuItem
+                                                                        label={`Filter on "${cell.value}"`}
+                                                                        onClick={() => {
+                                                                            addFilter(
+                                                                                cell
+                                                                                    .column
+                                                                                    .field,
+                                                                                cell.value,
+                                                                            );
+                                                                        }}
+                                                                    />
+                                                                </Menu>
+                                                            }
+                                                        >
+                                                            {cell.render(
+                                                                'Cell',
+                                                            )}
+                                                        </ContextMenu2>
                                                     </td>
                                                 ))}
                                             </tr>

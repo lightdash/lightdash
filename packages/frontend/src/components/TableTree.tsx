@@ -150,7 +150,7 @@ const NodeItemButtons: FC<{
                 text="Add filter"
                 onClick={(e) => {
                     e.stopPropagation();
-                    addFilter(node);
+                    addFilter(node, undefined);
                 }}
             />,
         );

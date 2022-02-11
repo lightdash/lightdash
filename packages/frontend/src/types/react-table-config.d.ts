@@ -108,6 +108,7 @@ declare module 'react-table' {
             UseGroupByColumnProps<D>,
             UseResizeColumnsColumnProps<D> {
         // UseSortByColumnProps<D> {
+        field: Field;
         type: 'dimension' | 'metric' | 'table_calculation';
         dimensionType: DimensionType;
         description: string;
