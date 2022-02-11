@@ -1,7 +1,7 @@
 import MDEditor from '@uiw/react-md-editor';
 import { DashboardMarkdownTile } from 'common';
 import React, { FC } from 'react';
-import TileBase from './TileBase';
+import TileBase from './TileBase/index';
 
 type Props = Pick<
     React.ComponentProps<typeof TileBase>,
@@ -15,7 +15,7 @@ const MarkdownTile: FC<Props> = (props) => {
         },
     } = props;
     return (
-        <TileBase title={title} {...props}>
+        <TileBase title={title} hasFilters={false} isChart={false} {...props}>
             <div
                 style={{ flex: 1, overflow: 'auto' }}
                 className="non-draggable"

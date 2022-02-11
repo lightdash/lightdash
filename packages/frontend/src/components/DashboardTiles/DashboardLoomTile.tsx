@@ -1,6 +1,6 @@
 import { DashboardLoomTile } from 'common';
 import React, { FC } from 'react';
-import TileBase from './TileBase';
+import TileBase from './TileBase/index';
 import { getLoomId } from './TileForms/LoomTileForm';
 
 type Props = Pick<
@@ -15,7 +15,7 @@ const LoomTile: FC<Props> = (props) => {
         },
     } = props;
     return (
-        <TileBase title={title} {...props}>
+        <TileBase title={title} hasFilters={false} isChart={false} {...props}>
             <iframe
                 title={title}
                 className="non-draggable"

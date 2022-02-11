@@ -17,7 +17,7 @@ import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
-import TileBase from '../components/DashboardTiles/TileBase';
+import TileBase from '../components/DashboardTiles/TileBase/index';
 import {
     useDashboardQuery,
     useUpdateDashboard,
