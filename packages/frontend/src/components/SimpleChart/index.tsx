@@ -1,4 +1,11 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
+import {
+    Menu,
+    MenuItem,
+    NonIdealState,
+    Portal,
+    Spinner,
+} from '@blueprintjs/core';
+import { Popover2, Popover2TargetProps } from '@blueprintjs/popover2';
 import {
     DBChartTypes,
     DimensionType,
@@ -10,7 +17,7 @@ import {
     getFieldLabel,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
-import React, { FC, RefObject, useEffect } from 'react';
+import React, { FC, RefObject, useCallback, useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ChartConfig } from '../../hooks/useChartConfig';
 import { useExplore } from '../../hooks/useExplore';
@@ -35,10 +42,33 @@ const flipXFromChartType = (chartType: DBChartTypes) => {
 };
 
 type EchartBaseClickEvent = {
+    // The component name clicked,
+    // component type, could be 'series'、'markLine'、'markPoint'、'timeLine', etc..
     componentType: string;
+    // series type, could be 'line'、'bar'、'pie', etc.. Works when componentType is 'series'.
+    seriesType: string;
+    // the index in option.series. Works when componentType is 'series'.
+    seriesIndex: number;
+    // series name, works when componentType is 'series'.
+    seriesName: string;
+    // name of data (categories).
+    name: string;
+    // the index in 'data' array.
+    dataIndex: number;
+    // incoming raw data item
+    data: Object;
+    // charts like 'sankey' and 'graph' included nodeData and edgeData as the same time.
+    // dataType can be 'node' or 'edge', indicates whether the current click is on node or edge.
+    // most of charts have one kind of data, the dataType is meaningless
+    dataType: string;
+    // incoming data value
+    value: number | Array<any>;
+    // color of the shape, works when componentType is 'series'.
+    color: string;
+    event: MouseEvent;
 };
 
-type EchartSeriesClickEvent = {
+type EchartSeriesClickEvent = EchartBaseClickEvent & {
     componentType: 'series';
     data: Record<string, any>;
     seriesIndex: number;
@@ -107,6 +137,27 @@ const SimpleChart: FC<SimpleChartProps> = ({
     isLoading,
     tableName,
 }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [targetOffset, setTargetOffset] = useState<{
+        left: number;
+        top: number;
+    }>();
+    // Popover2 should attach its ref to the virtual target we render inside a Portal, not the "inline" child target
+    const renderTarget = useCallback(
+        ({ ref }: Popover2TargetProps) => (
+            <Portal>
+                <div
+                    style={{ position: 'absolute', ...targetOffset }}
+                    ref={ref}
+                />
+            </Portal>
+        ),
+        [targetOffset],
+    );
+    const cancelContextMenu = React.useCallback(
+        (e: React.SyntheticEvent<HTMLDivElement>) => e.preventDefault(),
+        [],
+    );
     const { addDimensionDashboardFilter } = useDashboardContext();
     useEffect(() => {
         const listener = () => {
@@ -211,6 +262,7 @@ const SimpleChart: FC<SimpleChartProps> = ({
     ): e is EchartSeriesClickEvent => e.componentType === 'series';
 
     const onChartClick = (e: EchartClickEvent) => {
+        console.log(e);
         if (isSeriesClickEvent(e)) {
             const dimensions = getDimensions(activeExplore.data).filter((dim) =>
                 e.dimensionNames.includes(fieldId(dim)),
@@ -228,9 +280,33 @@ const SimpleChart: FC<SimpleChartProps> = ({
             });
         }
     };
+    console.log('render', isOpen, targetOffset);
 
     return (
         <div style={{ padding: 10, height: '100%' }}>
+            <Popover2
+                content={
+                    // this prevents right-clicking inside our context menu
+                    <div onContextMenu={cancelContextMenu}>
+                        <Menu>
+                            <MenuItem
+                                text="Add filter ..."
+                                onClick={() => setIsOpen(false)}
+                            />
+                        </Menu>
+                    </div>
+                }
+                enforceFocus={false}
+                hasBackdrop={true}
+                isOpen={isOpen}
+                minimal={true}
+                onClose={() => setIsOpen(false)}
+                placement="right-start"
+                positioningStrategy="fixed"
+                rootBoundary="viewport"
+                renderTarget={renderTarget}
+                transitionDuration={100}
+            />
             <EChartsReact
                 style={{
                     height: '100%',
@@ -242,6 +318,18 @@ const SimpleChart: FC<SimpleChartProps> = ({
                 opts={{ renderer: 'svg' }}
                 onEvents={{
                     click: onChartClick,
+                    contextmenu: (e: any) => {
+                        console.log('context', e);
+                        if (e.event.event.defaultPrevented) {
+                            return;
+                        }
+                        e.event.event.preventDefault();
+                        setIsOpen(true);
+                        setTargetOffset({
+                            left: e.event.event.pageX,
+                            top: e.event.event.pageY,
+                        });
+                    },
                 }}
             />
         </div>
