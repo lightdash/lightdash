@@ -62,7 +62,7 @@ export const useExplorerRoute = () => {
                     tableCalculations,
                     selectedTableCalculations,
                 });
-            } catch (e) {
+            } catch (e: any) {
                 showToastError({ title: 'Error parsing url', subtitle: e });
             }
         }

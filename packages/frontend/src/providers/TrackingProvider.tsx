@@ -133,13 +133,14 @@ export const TrackingProvider: FC<TrackingData> = ({
         rudder: { writeKey, dataPlaneUrl },
     } = health.data || { rudder: {} };
 
-    const appContext = useMemo(
-        () => ({
-            namespace: 'lightdash',
-            name: LIGHTDASH_APP_NAME,
-            version,
-            build: version,
-        }),
+    const appContext = useMemo<rudderSDK.apiObject>(
+        () =>
+            ({
+                namespace: 'lightdash',
+                name: LIGHTDASH_APP_NAME,
+                version,
+                build: version,
+            } as any as rudderSDK.apiObject),
         [version],
     );
 
@@ -158,10 +159,12 @@ export const TrackingProvider: FC<TrackingData> = ({
         [],
     );
 
-    const lightdashContext = useMemo(
+    const lightdashContext = useMemo<rudderSDK.apiOptions>(
         () => ({
-            app: appContext,
-            page: getLightdashPageProperties(pageContext),
+            app: appContext as any as rudderSDK.apiObject,
+            page: getLightdashPageProperties(
+                pageContext,
+            ) as any as rudderSDK.apiObject,
         }),
         [appContext, pageContext, getLightdashPageProperties],
     );
@@ -183,11 +186,11 @@ export const TrackingProvider: FC<TrackingData> = ({
             rudderAnalytics?.page(
                 rudderPageEvent.category,
                 rudderPageEvent.name,
-                newPageContext,
+                newPageContext as any as rudderSDK.apiObject,
                 {
                     ...lightdashContext,
                     page: newPageContext,
-                },
+                } as any as rudderSDK.apiOptions,
             );
         },
         [rudderAnalytics, lightdashContext, getLightdashPageProperties],
@@ -201,7 +204,7 @@ export const TrackingProvider: FC<TrackingData> = ({
                 {
                     ...lightdashContext,
                     section: sectionContext,
-                },
+                } as rudderSDK.apiOptions,
             );
         },
         [rudderAnalytics, sectionContext, lightdashContext],

@@ -56,7 +56,7 @@ async function base64SvgToBase64Image(
                 try {
                     const data = canvas.toDataURL(`image/${type}`);
                     resolve(data);
-                } catch (e) {
+                } catch (e: any) {
                     reject();
                 }
             } else {
