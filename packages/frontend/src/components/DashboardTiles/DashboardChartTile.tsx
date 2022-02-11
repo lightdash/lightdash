@@ -119,8 +119,6 @@ const DashboardChartTile: FC<Props> = (props) => {
     // @ts-ignore
     const hasFilters = filterObj && filterObj.and.length > 0;
 
-    console.log(hasFilters);
-
     return (
         <TileBase
             isChart
