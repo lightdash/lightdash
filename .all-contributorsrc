@@ -431,6 +431,15 @@
       "contributions": [
         "infra"
       ]
+    },
+    {
+      "login": "gc-p",
+      "name": "gc-p",
+      "avatar_url": "https://avatars.githubusercontent.com/u/75038807?v=4",
+      "profile": "https://github.com/gc-p",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
