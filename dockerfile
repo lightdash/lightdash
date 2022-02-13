@@ -83,7 +83,7 @@ RUN yarn install --pure-lockfile --non-interactive --production
 # Stage 3: execution environment for backend
 # -----------------------------
 
-FROM node:14-bullseye as prod
+FROM node:14-slim as prod
 WORKDIR /usr/app
 
 ENV NODE_ENV production
