@@ -16,15 +16,16 @@ import { Popover2 } from '@blueprintjs/popover2';
 import React, { useState } from 'react';
 import { useMutation } from 'react-query';
 import { useParams } from 'react-router-dom';
-import { lightdashApi } from '../api';
-import { useDefaultProject } from '../hooks/useProjects';
-import { useApp } from '../providers/AppProvider';
-import { ReactComponent as Logo } from '../svgs/logo.svg';
-import { UserAvatar } from './Avatar';
-import { ErrorLogsDrawer } from './ErrorLogsDrawer';
-import NavLink from './NavLink';
-import { ShowErrorsButton } from './ShowErrorsButton';
-import UserSettingsModal from './UserSettingsModal';
+import { lightdashApi } from '../../api';
+import { useDefaultProject } from '../../hooks/useProjects';
+import { useApp } from '../../providers/AppProvider';
+import { ReactComponent as Logo } from '../../svgs/logo.svg';
+import { UserAvatar } from '../Avatar';
+import { ErrorLogsDrawer } from '../ErrorLogsDrawer';
+import NavLink from '../NavLink';
+import { ShowErrorsButton } from '../ShowErrorsButton';
+import UserSettingsModal from '../UserSettingsModal';
+import HelpMenu from './HelpMenu';
 
 const logoutQuery = async () =>
     lightdashApi({
@@ -33,7 +34,7 @@ const logoutQuery = async () =>
         body: undefined,
     });
 
-const AppBar = () => {
+const NavBar = () => {
     const {
         user,
         errorLogs: { errorLogs, setErrorLogsVisible },
@@ -162,6 +163,8 @@ const AppBar = () => {
                     />
                 </NavbarGroup>
                 <NavbarGroup align={Alignment.RIGHT}>
+                    <HelpMenu projectId={projectUuid} />
+                    <NavbarDivider />
                     <ShowErrorsButton
                         errorLogs={errorLogs}
                         setErrorLogsVisible={setErrorLogsVisible}
@@ -169,7 +172,7 @@ const AppBar = () => {
                     <NavbarHeading style={{ margin: 0, fontSize: 14 }}>
                         {user.data?.organizationName}
                     </NavbarHeading>
-                    <NavbarDivider />
+
                     <Popover2
                         interactionKind={PopoverInteractionKind.CLICK}
                         content={
@@ -196,4 +199,4 @@ const AppBar = () => {
     );
 };
 
-export default AppBar;
+export default NavBar;
