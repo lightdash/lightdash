@@ -331,8 +331,8 @@ echo -e "\n✅ Detected OS: ${os}"
 echo ""
 
 echo -e "👉 ${RED}Please enter how you want to setup Lightdash\n"
-echo -e "${RED}1) fast [default]\n"
-echo -e "${RED}2) with local dbt project\n"
+echo -e "${RED}1) Fast install [default]\n"
+echo -e "${RED}2) Custom install\n"
 read -p "⚙️  Enter your preference (1/2):" choice_setup
 
 while [[ $choice_setup != "1"   &&  $choice_setup != "2" && $choice_setup != "" ]]

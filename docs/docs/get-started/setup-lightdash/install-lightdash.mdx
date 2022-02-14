@@ -1,17 +1,18 @@
 ---
-sidebar_position: 1
+sidebar_position: 2
 sidebar_label: Install Lightdash
 ---
 
 # Install Lightdash
 
-There are three ways you can install Lightdash:
+_Don't want to worry about self-hosting? [Sign up for Lightdash Cloud](#getting-setup-on-lightdash-cloud) for a 
+fully-managed Lightdash instance._
 
-1. If you want to use Lightdash but don't want to worry about self hosting, then you can check [how to set up Lightdash Cloud](#getting-set-up-on-lightdash-cloud)
-2. If you want to deploy a production Lightdash instance on a cloud platform that supports docker images, then you can use [how to deploy Lightdash manually](#deploy-manually).
-3. If you want to run Lightdash in your local machine (that means, you won't be able to share the things you build in
-Lightdash with anyone else), then you can [get started with our installation script](#deploy-locally-with-our-installation-script).
+Choose your preferred environment to self-host Lightdash:
 
+1. [Run **Lightdash on your local machine**](#deploy-locally-with-our-installation-script) to try out Lightdash for yourself without any collaborators.
+2. [Deploy **Lightdash to Heroku** with 1-click](#deploy-to-heroku) to get a cloud deployment for your whole team with minimum effort.
+3. [Manually install **Lightdash in production**](#deploy-manually) to setup Lightdash in your preferred production environment.
 
 ----
 
@@ -30,8 +31,9 @@ then [Lightdash Cloud](https://hamzah905194.typeform.com/to/HFlicx4i) might be a
 
 ## Deploy locally with our installation script
 
-If you only want to run Lightdash in your local machine (that means, you won't be able to share the things you build in
- Lightdash with anyone else), then this is how we'd recommend you install it.
+Our installation script is the simplest way to install Lightdash if you only want to run Lightdash on your local 
+machine (that means, you won't be able to share the things you build in
+ Lightdash with anyone else):
 
 :::caution Production deployments
 
@@ -41,7 +43,7 @@ For production deployments check the [Deploy manually](#deploy-manually) instruc
 
 :::info
 
-This script is going to install docker and docker compose. If you want do use a docker alternative, see [Deploy manually](#deploy-manually) instructions.
+This script is going to install docker and docker compose. If you want to use a docker alternative, see [Deploy manually](#deploy-manually) instructions.
 
 :::
 
@@ -58,11 +60,12 @@ cd lightdash
 
 #### 2. Install & Launch Lightdash
 
-:::info
+When running the install script you have two choices:
 
-When using the install script, when you're asked **How do you want to setup Lightdash ?**, select the option **with local dbt** and then provide the absolute path to your dbt project.
-When installing manually, set the env var **DBT_PROJECT_DIR** with the absolute path to your dbt project.
-:::
+1. **Fast install (recommended)**: will automatically configure Lightdash with sensible defaults. You must host your 
+dbt project on github/gitlab to use this method.
+3. **Custom install**: gives more customisation including connecting Lightdash to a dbt project on your local machine.
+
 
 ```bash
 ./install.sh

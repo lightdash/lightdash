@@ -1,16 +1,16 @@
 ---
-sidebar_position: 2
+sidebar_position: 3
 sidebar_label: Connect a project
 ---
 
 # Connect a project
 
-How you connect your dbt project depends on where it is hosted.
+Once you've [installed Lightdash](./install-lightdash), you can connect to your existing dbt project:
 
-1. If you want to connect a dbt project that's version controlled, take a look at:
-   - [how to connect with GitHub](#github)
-   - [how to connect with GitLab](#gitlab)
-2. If you want to connect to your local dbt project, then you can check [how to connect to local dbt](#local-dbt-project)
+* [connect to a project on GitHub](#github)
+* [connect to a project on Gitlab](#gitlab)
+* [connect to a project on your local machine](#local-dbt-project) _(only available for local Lightdash installations)_
+
 
 Once you've set up the connection to your dbt project, you'll need to continue on to [set up the connection to your warehouse](#warehouse-connection) (it's a short step, we promise 🤞).
 
@@ -85,9 +85,19 @@ you'll need to include the path to the sub-folder where your dbt project is (e.g
 
 :::caution Prerequisite
 
-When you're using a local dbt project, during the [install process](./install-lightdash.mdx) you should provide the absolute path to your dbt project.
+Unsuitable for production and only available for Lightdash instances installed on your local machine
 
 :::
+
+To start Lightdash with the option to connect to a local dbt project, you must specify the directory of the dbt project when 
+you start docker compose:
+
+```shell
+# Specify the absolute path to your dbt project
+# e.g. export DBT_PROJECT_DIR=/Users/elonmusk/mydbtproject
+export DBT_PROJECT_DIR= # Enter your path here!
+docker compose start
+```
 
 ----
 
