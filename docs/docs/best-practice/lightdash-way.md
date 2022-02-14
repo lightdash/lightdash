@@ -1,3 +1,7 @@
+sidebar_position: 1
+sidebar_label: The Lightdash Way for data access
+---
+
 # The Lightdash Way: Data Access
 
 Our mission at Lightdash is:
