@@ -1,3 +1,10 @@
+## [0.18.3](https://github.com/lightdash/lightdash/compare/0.18.2...0.18.3) (2022-02-14)
+
+
+### Bug Fixes
+
+* **dashboards:** update chart tile header styling and add filter label ([#1354](https://github.com/lightdash/lightdash/issues/1354)) ([f8ce131](https://github.com/lightdash/lightdash/commit/f8ce131b8c93e7dacc5592492284ff0a00a19936))
+
 ## [0.18.2](https://github.com/lightdash/lightdash/compare/0.18.1...0.18.2) (2022-02-14)
 
 
