@@ -1,3 +1,10 @@
+## [0.19.1](https://github.com/lightdash/lightdash/compare/0.19.0...0.19.1) (2022-02-14)
+
+
+### Bug Fixes
+
+* **dashboards:** amend filter label ([#1363](https://github.com/lightdash/lightdash/issues/1363)) ([7a40608](https://github.com/lightdash/lightdash/commit/7a406088a48aae448ae33f2588482ec8090caa7e))
+
 # [0.19.0](https://github.com/lightdash/lightdash/compare/0.18.3...0.19.0) (2022-02-14)
 
 
