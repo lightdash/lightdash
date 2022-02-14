@@ -104,12 +104,34 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
                 '--progress': null,
             };
 
-            Logger.debug(`Git clone to ${this.localRepositoryDir}`);
-            await this.git.clone(
-                this.remoteRepositoryUrl,
-                this.localRepositoryDir,
-                defaultCloneOptions,
-            );
+            if (this.projectDirectorySubPath !== '/') {
+                Logger.debug(`Git clone sparse to ${this.localRepositoryDir}`);
+                await this.git.clone(
+                    this.remoteRepositoryUrl,
+                    this.localRepositoryDir,
+                    {
+                        ...defaultCloneOptions,
+                        '--sparse': null,
+                    },
+                );
+                Logger.debug(
+                    `Git sparse-checkout ${this.projectDirectorySubPath}`,
+                );
+                await this.git
+                    .cwd(this.localRepositoryDir)
+                    .raw(
+                        `sparse-checkout`,
+                        `set`,
+                        `${this.projectDirectorySubPath}`,
+                    );
+            } else {
+                Logger.debug(`Git clone to ${this.localRepositoryDir}`);
+                await this.git.clone(
+                    this.remoteRepositoryUrl,
+                    this.localRepositoryDir,
+                    defaultCloneOptions,
+                );
+            }
         } catch (e) {
             if (e.message.includes('Authentication failed')) {
                 throw new AuthorizationError(

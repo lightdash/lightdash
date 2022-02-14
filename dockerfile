@@ -1,25 +1,45 @@
-# -----------------------------
-# Stage 0: install dependencies
-# -----------------------------
-FROM node:14-bullseye AS base
+FROM nikolaik/python-nodejs:python3.8-nodejs14@sha256:f7d84950cac6a56e99e99747aad93ad77f949475ac1a5e9782669b8f5bedd2b6 AS base
+
 WORKDIR /usr/app
 
+
+# -----------------------------
+# Stage 1: install dependencies
+# -----------------------------
+FROM base AS dependencies-builder
+
+# odbc - databricks
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    g++ \
-    libsasl2-modules-gssapi-mit \
-    nodejs \
-    python3 \
-    python3-psycopg2 \
-    python3-venv \
-    software-properties-common \
-    unixodbc-dev \
-    unzip \
     wget \
-    && apt-get clean
+    libsasl2-modules-gssapi-mit
+RUN wget \
+    --quiet \
+    https://databricks-bi-artifacts.s3.us-east-2.amazonaws.com/simbaspark-drivers/odbc/2.6.18/SimbaSparkODBC-2.6.18.1030-Debian-64bit.zip \
+    -O /tmp/databricks_odbc.zip \
+    && unzip /tmp/databricks_odbc.zip -d /tmp \
+    && dpkg -i /tmp/simbaspark_*.deb
+
+
+# -------------------------------
+# Stage 2: base with dependencies
+# -------------------------------
+FROM base as base-dependencies
+
+# odbc
+COPY --from=dependencies-builder /opt/simba /opt/simba
+# TODO: prefer in stage 1 - needed for yarn install and pip install
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    g++ \
+    unixodbc-dev \
+    software-properties-common
+
+# Install latest git
+RUN add-apt-repository "deb http://deb.debian.org/debian buster-backports main"
+RUN apt-get update && apt-get -y -t buster-backports install git
 
 # dbt
-RUN python3 -m venv /usr/local/venv
+# TODO: prefer in stage 1
+RUN python -m venv /usr/local/venv
 RUN /usr/local/venv/bin/pip install \
     "dbt-core==1.0.0" \
     "dbt-postgres==1.0.0" \
@@ -27,29 +47,23 @@ RUN /usr/local/venv/bin/pip install \
     "dbt-snowflake==1.0.0" \
     "dbt-bigquery==1.0.0" \
     "dbt-databricks==1.0.0"
-
-RUN wget \
-    --quiet \
-    https://databricks-bi-artifacts.s3.us-east-2.amazonaws.com/simbaspark-drivers/odbc/2.6.19/SimbaSparkODBC-2.6.19.1033-Debian-64bit.zip \
-    -O /tmp/databricks_odbc.zip \
-    && unzip /tmp/databricks_odbc.zip -d /tmp \
-    && dpkg -i /tmp/simbaspark_*.deb \
-    && rm -rf /tmp/*
+ENV PATH $PATH:/usr/local/venv/bin
 
 
-# -----------------------------
-# Stage 1: stop here for dev environment
-# -----------------------------
-FROM base AS dev
+# -------------------------
+# Stage 3a: dev environment
+# -------------------------
+FROM base-dependencies as dev
 
 EXPOSE 3000
 EXPOSE 8080
 
-# -----------------------------
-# Stage 2: continue build for production environment
-# -----------------------------
 
-FROM base AS prod-builder
+# ---------------------------------------------------------------
+# Stage 3b: build the common, backend, and frontend distributions
+# ---------------------------------------------------------------
+FROM base-dependencies AS prod-builder
+
 # Install development dependencies for all
 COPY package.json .
 COPY yarn.lock .
@@ -72,30 +86,30 @@ RUN yarn --cwd ./packages/backend/ build
 COPY packages/frontend ./packages/frontend
 RUN yarn --cwd ./packages/frontend/ build
 
-# Cleanup development dependencies
-RUN rm -rf packages/*/node_modules
+
+# ------------------------------------------
+# Stage 4: execution environment for backend
+# ------------------------------------------
+FROM base-dependencies as prod
+
+ENV NODE_ENV production
+
+# Copy distributions into environment
+COPY --from=prod-builder /usr/app/packages/common/package.json /usr/app/packages/common/package.json
+COPY --from=prod-builder /usr/app/packages/common/dist /usr/app/packages/common/dist
+
+
+COPY --from=prod-builder /usr/app/packages/backend/package.json /usr/app/packages/backend/package.json
+COPY --from=prod-builder /usr/app/packages/backend/dist /usr/app/packages/backend/dist
+
+
+COPY --from=prod-builder /usr/app/packages/frontend/package.json /usr/app/packages/frontend/package.json
+COPY --from=prod-builder /usr/app/packages/frontend/build /usr/app/packages/frontend/build
 
 # Install production dependencies
-ENV NODE_ENV production
+COPY package.json .
+COPY yarn.lock .
 RUN yarn install --pure-lockfile --non-interactive --production
-
-# -----------------------------
-# Stage 3: execution environment for backend
-# -----------------------------
-
-FROM node:14-slim as prod
-WORKDIR /usr/app
-
-ENV NODE_ENV production
-ENV PATH $PATH:/usr/local/venv/bin
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    unixodbc-dev \
-    && apt-get clean
-
-COPY --from=prod-builder /usr/local/venv /usr/local/venv
-COPY --from=prod-builder /opt/simba /opt/simba
-COPY --from=prod-builder /usr/app /usr/app
 
 # Production config
 COPY lightdash.yml /usr/app/lightdash.yml
@@ -103,7 +117,6 @@ ENV LIGHTDASH_CONFIG_FILE /usr/app/lightdash.yml
 
 # Run backend
 COPY ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
-
 EXPOSE 8080
 ENTRYPOINT ["/usr/bin/prod-entrypoint.sh"]
 CMD ["yarn", "workspace", "backend", "start"]
