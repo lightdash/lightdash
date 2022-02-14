@@ -7,6 +7,7 @@ import {
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { FC } from 'react';
+import { SpinnerWrapper } from '../NavBar.styles';
 import {
     ButtonWrapper,
     HelpItem,
@@ -32,14 +33,9 @@ const HelpMenu: FC<Props> = ({ projectId }) => {
                 interactionKind={PopoverInteractionKind.CLICK}
                 content={
                     !projectId ? (
-                        <div
-                            style={{
-                                padding: 10,
-                                minWidth: 90,
-                            }}
-                        >
+                        <SpinnerWrapper>
                             <Spinner size={20} />
-                        </div>
+                        </SpinnerWrapper>
                     ) : (
                         <MenuWrapper>
                             <ButtonWrapper onClick={() => openChatWindow()}>

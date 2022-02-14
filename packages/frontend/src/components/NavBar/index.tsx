@@ -4,13 +4,9 @@ import {
     Classes,
     Menu,
     MenuItem,
-    Navbar,
-    NavbarDivider,
     NavbarGroup,
-    NavbarHeading,
     PopoverInteractionKind,
     Position,
-    Spinner,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { useState } from 'react';
@@ -19,13 +15,20 @@ import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
 import { useDefaultProject } from '../../hooks/useProjects';
 import { useApp } from '../../providers/AppProvider';
-import { ReactComponent as Logo } from '../../svgs/logo.svg';
 import { UserAvatar } from '../Avatar';
 import { ErrorLogsDrawer } from '../ErrorLogsDrawer';
 import NavLink from '../NavLink';
 import { ShowErrorsButton } from '../ShowErrorsButton';
 import UserSettingsModal from '../UserSettingsModal';
+import BrowseMenu from './BrowseMenu';
+import ExploreMenu from './ExploreMenu';
 import HelpMenu from './HelpMenu';
+import {
+    Divider,
+    LogoContainer,
+    NavBarWrapper,
+    NavHeading,
+} from './NavBar.styles';
 
 const logoutQuery = async () =>
     lightdashApi({
@@ -52,106 +55,18 @@ const NavBar = () => {
 
     return (
         <>
-            <Navbar
-                style={{ position: 'sticky', top: 0 }}
-                className={Classes.DARK}
-            >
+            <NavBarWrapper className={Classes.DARK}>
                 <NavbarGroup align={Alignment.LEFT}>
                     <NavLink
                         to="/home"
                         style={{ marginRight: 24, display: 'flex' }}
                     >
-                        <Logo
-                            title="Home"
-                            style={{ marginTop: 2, height: 30, width: 90 }}
-                        />
+                        <LogoContainer title="Home" />
                     </NavLink>
                     {!!projectUuid && (
                         <>
-                            <Popover2
-                                interactionKind={PopoverInteractionKind.CLICK}
-                                content={
-                                    !projectUuid ? (
-                                        <div
-                                            style={{
-                                                padding: 10,
-                                                minWidth: 90,
-                                            }}
-                                        >
-                                            <Spinner size={20} />
-                                        </div>
-                                    ) : (
-                                        <Menu>
-                                            <NavLink
-                                                to={`/projects/${projectUuid}/tables`}
-                                            >
-                                                <MenuItem
-                                                    role="button"
-                                                    icon="th"
-                                                    text="Tables"
-                                                    style={{ marginBottom: 5 }}
-                                                />
-                                            </NavLink>
-                                            <NavLink
-                                                to={`/projects/${projectUuid}/sqlRunner`}
-                                            >
-                                                <MenuItem
-                                                    role="button"
-                                                    icon="console"
-                                                    text="SQL Runner"
-                                                />
-                                            </NavLink>
-                                        </Menu>
-                                    )
-                                }
-                                position={Position.BOTTOM_LEFT}
-                            >
-                                <Button
-                                    minimal
-                                    icon="series-search"
-                                    text="Explore"
-                                />
-                            </Popover2>
-                            <Popover2
-                                interactionKind={PopoverInteractionKind.CLICK}
-                                content={
-                                    !projectUuid ? (
-                                        <div
-                                            style={{
-                                                padding: 10,
-                                                minWidth: 90,
-                                            }}
-                                        >
-                                            <Spinner size={20} />
-                                        </div>
-                                    ) : (
-                                        <Menu>
-                                            <NavLink
-                                                to={`/projects/${projectUuid}/dashboards`}
-                                            >
-                                                <MenuItem
-                                                    role="button"
-                                                    text="Dashboards"
-                                                    icon="control"
-                                                    style={{ marginBottom: 5 }}
-                                                />
-                                            </NavLink>
-                                            <NavLink
-                                                to={`/projects/${projectUuid}/saved`}
-                                                style={{ marginBottom: 5 }}
-                                            >
-                                                <MenuItem
-                                                    icon="chart"
-                                                    text="Saved charts"
-                                                />
-                                            </NavLink>
-                                        </Menu>
-                                    )
-                                }
-                                position={Position.BOTTOM_LEFT}
-                            >
-                                <Button minimal icon="search" text="Browse" />
-                            </Popover2>
+                            <ExploreMenu projectId={projectUuid} />
+                            <BrowseMenu projectId={projectUuid} />
                         </>
                     )}
                     <Button
@@ -164,14 +79,12 @@ const NavBar = () => {
                 </NavbarGroup>
                 <NavbarGroup align={Alignment.RIGHT}>
                     <HelpMenu projectId={projectUuid} />
-                    <NavbarDivider />
+                    <Divider />
                     <ShowErrorsButton
                         errorLogs={errorLogs}
                         setErrorLogsVisible={setErrorLogsVisible}
                     />
-                    <NavbarHeading style={{ margin: 0, fontSize: 14 }}>
-                        {user.data?.organizationName}
-                    </NavbarHeading>
+                    <NavHeading>{user.data?.organizationName}</NavHeading>
 
                     <Popover2
                         interactionKind={PopoverInteractionKind.CLICK}
@@ -189,7 +102,7 @@ const NavBar = () => {
                         <UserAvatar />
                     </Popover2>
                 </NavbarGroup>
-            </Navbar>
+            </NavBarWrapper>
             <UserSettingsModal
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
