@@ -114,10 +114,8 @@ const DashboardChartTile: FC<Props> = (props) => {
     }
     // END DASHBOARD FILTER LOGIC
 
-    const filterObj =
-        savedQueryWithDashboardFilters?.metricQuery.filters.dimensions;
-    // @ts-ignore
-    const hasFilters = filterObj && filterObj.and.length > 0;
+    const hasFilters =
+        dashboardFilters.dimensions && dashboardFilters.dimensions.length > 0;
 
     return (
         <TileBase
