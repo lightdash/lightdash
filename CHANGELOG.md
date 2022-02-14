@@ -1,3 +1,10 @@
+## [0.18.2](https://github.com/lightdash/lightdash/compare/0.18.1...0.18.2) (2022-02-14)
+
+
+### Bug Fixes
+
+* **filters:** dont format in the last date by default ([#1341](https://github.com/lightdash/lightdash/issues/1341)) ([090e460](https://github.com/lightdash/lightdash/commit/090e46098111949033f3ad6fca84f17dc184f803))
+
 ## [0.18.1](https://github.com/lightdash/lightdash/compare/0.18.0...0.18.1) (2022-02-11)
 
 
