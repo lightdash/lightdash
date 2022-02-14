@@ -158,7 +158,10 @@ app.get('*', (req, res) => {
 app.use(Sentry.Handlers.errorHandler());
 app.use((error: Error, req: Request, res: Response, _: NextFunction) => {
     const errorResponse = errorHandler(error);
-    Logger.error(`Handled error on [${req.method}] ${req.path}`, errorResponse);
+    Logger.error(
+        `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,
+        errorResponse,
+    );
     analytics.track({
         event: 'api.error',
         organizationId: req.user?.organizationUuid,

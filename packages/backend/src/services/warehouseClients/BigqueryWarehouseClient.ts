@@ -9,6 +9,7 @@ import {
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import { CreateBigqueryCredentials, DimensionType } from 'common';
 import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
+import Logger from '../../logger';
 import {
     WarehouseCatalog,
     WarehouseClient,
@@ -121,7 +122,9 @@ export default class BigqueryWarehouseClient implements WarehouseClient {
                 credentials: credentials.keyfileContents,
             });
         } catch (e) {
-            throw new WarehouseConnectionError(e.message);
+            throw new WarehouseConnectionError(
+                `Failed connection to ${credentials.project} in ${credentials.location}. ${e.message}`,
+            );
         }
     }
 
@@ -168,10 +171,12 @@ export default class BigqueryWarehouseClient implements WarehouseClient {
         }[],
     ) {
         const databaseClients: { [client: string]: BigQuery } = {};
-
         const tablesMetadataPromises: Promise<
             [string, string, string, TableSchema] | undefined
         >[] = requests.map(({ database, schema, table }) => {
+            Logger.debug(
+                `Fetch, in parallel, table metadata for '${database}.${schema}.${table}'`,
+            );
             databaseClients[database] =
                 databaseClients[database] ||
                 new BigQuery({
@@ -189,7 +194,9 @@ export default class BigqueryWarehouseClient implements WarehouseClient {
                     // Ignore error and let UI show invalid table
                     return undefined;
                 }
-                throw e;
+                throw new WarehouseConnectionError(
+                    `Failed to fetch table metadata for '${database}.${schema}.${table}'. ${e.message}`,
+                );
             });
         });
 
