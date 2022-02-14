@@ -1,9 +1,7 @@
 import {
     Button,
-    Card,
     Classes,
     Divider,
-    H5,
     Menu,
     MenuDivider,
     MenuItem,
@@ -12,7 +10,15 @@ import {
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard } from 'common';
 import React, { ReactNode, useState } from 'react';
-import { TileModal } from './TileForms/TileModal';
+import { TileModal } from '../TileForms/TileModal';
+import {
+    ChartContainer,
+    FilterLabel,
+    HeaderContainer,
+    HeaderWrapper,
+    TileBaseWrapper,
+    Title,
+} from './TileBase.styles';
 
 type Props<T> = {
     isEditMode: boolean;
@@ -23,6 +29,8 @@ type Props<T> = {
     onDelete: (tile: T) => void;
     onEdit: (tile: T) => void;
     children: ReactNode;
+    isChart?: boolean;
+    hasFilters?: boolean;
 };
 
 const TileBase = <T extends Dashboard['tiles'][number]>({
@@ -34,31 +42,20 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     onDelete,
     onEdit,
     children,
+    isChart,
+    hasFilters,
 }: Props<T>) => {
     const [isEditing, setIsEditing] = useState(false);
 
     return (
-        <Card
-            style={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-            }}
-            className={isLoading ? Classes.SKELETON : undefined}
-        >
-            <div
-                style={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: 20,
-                    height: 30,
-                }}
-            >
-                <H5 style={{ margin: 0 }} className="non-draggable">
-                    {title}
-                </H5>
+        <TileBaseWrapper className={isLoading ? Classes.SKELETON : undefined}>
+            <HeaderContainer>
+                <HeaderWrapper>
+                    <Title className="non-draggable">{title}</Title>
+                    {hasFilters && (
+                        <FilterLabel>Dashboard filter applied</FilterLabel>
+                    )}
+                </HeaderWrapper>
                 {(isEditMode || (!isEditMode && extraMenuItems)) && (
                     <Popover2
                         className="non-draggable"
@@ -94,14 +91,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         </Tooltip2>
                     </Popover2>
                 )}
-            </div>
-            <Divider />
-            <div
-                style={{ flex: 1, overflow: 'auto', display: 'flex' }}
-                className="non-draggable"
-            >
+            </HeaderContainer>
+            {!isChart && <Divider />}
+            <ChartContainer className="non-draggable">
                 {children}
-            </div>
+            </ChartContainer>
             {isEditing && (
                 <TileModal
                     onClose={() => setIsEditing(false)}
@@ -109,13 +103,15 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     onSubmit={onEdit}
                 />
             )}
-        </Card>
+        </TileBaseWrapper>
     );
 };
 
 TileBase.defaultProps = {
     isLoading: false,
     extraMenuItems: null,
+    isChart: false,
+    hasFilters: false,
 };
 
 export default TileBase;

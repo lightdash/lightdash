@@ -1,6 +1,6 @@
 import { DashboardLoomTile } from 'common';
 import React, { FC } from 'react';
-import TileBase from './TileBase';
+import TileBase from './TileBase/index';
 import { getLoomId } from './TileForms/LoomTileForm';
 
 type Props = Pick<

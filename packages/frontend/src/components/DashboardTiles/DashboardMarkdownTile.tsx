@@ -1,7 +1,7 @@
 import MDEditor from '@uiw/react-md-editor';
 import { DashboardMarkdownTile } from 'common';
 import React, { FC } from 'react';
-import TileBase from './TileBase';
+import TileBase from './TileBase/index';
 
 type Props = Pick<
     React.ComponentProps<typeof TileBase>,

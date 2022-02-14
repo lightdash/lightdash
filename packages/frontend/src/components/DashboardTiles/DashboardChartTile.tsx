@@ -14,7 +14,7 @@ import { useSavedChartResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import LightdashVisualization from '../LightdashVisualization';
-import TileBase from './TileBase';
+import TileBase from './TileBase/index';
 
 const ValidDashboardChartTile: FC<{ data: SavedQuery; project: string }> = ({
     data,
@@ -114,8 +114,13 @@ const DashboardChartTile: FC<Props> = (props) => {
     }
     // END DASHBOARD FILTER LOGIC
 
+    const hasFilters =
+        dashboardFilters.dimensions && dashboardFilters.dimensions.length > 0;
+
     return (
         <TileBase
+            isChart
+            hasFilters={!!hasFilters}
             title={savedQueryWithDashboardFilters?.name || ''}
             isLoading={isLoading}
             extraMenuItems={
