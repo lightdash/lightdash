@@ -27,7 +27,7 @@
         "eslint-plugin-import": "^2.25.4",
         "eslint-config-prettier": "^8.3.0",
         "eslint-plugin-json": "^3.0.0",
-        "jest": "^27.0.5",
+        "jest": "^27.4.7",
         "jest-fetch-mock": "^3.0.3",
         "knex-mock-client": "^1.6.0",
         "nodemon": "^2.0.7",

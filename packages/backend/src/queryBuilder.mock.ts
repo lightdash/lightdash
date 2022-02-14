@@ -6,6 +6,7 @@ import {
     FilterOperator,
     MetricType,
     SupportedDbtAdapter,
+    UnitOfTime,
 } from 'common';
 
 export const EXPLORE: Explore = {
@@ -314,3 +315,60 @@ WHERE (
 )
 ORDER BY "table1_metric1" DESC
 LIMIT 10`;
+
+export const DimensionSqlMock = 'customers.created';
+
+export const InTheLast1DayFilter = {
+    id: 'id',
+    target: {
+        fieldId: 'fieldId',
+    },
+    operator: FilterOperator.IN_THE_PAST,
+    values: [1],
+    settings: {
+        unitOfTime: UnitOfTime.days,
+        completed: false,
+    },
+};
+
+export const InTheLast1DayFilterSQL = `(customers.created) >= ('2020-04-03')`;
+
+export const InTheLast1WeekFilter = {
+    ...InTheLast1DayFilter,
+    settings: {
+        unitOfTime: UnitOfTime.weeks,
+        completed: false,
+    },
+};
+
+export const InTheLast1WeekFilterSQL = `(customers.created) >= ('2020-03-28')`;
+
+export const InTheLast1MonthFilter = {
+    ...InTheLast1WeekFilter,
+    settings: {
+        unitOfTime: UnitOfTime.months,
+        completed: false,
+    },
+};
+
+export const InTheLast1MonthFilterSQL = `(customers.created) >= ('2020-03-04')`;
+
+export const InTheLast1YearFilter = {
+    ...InTheLast1WeekFilter,
+    settings: {
+        unitOfTime: UnitOfTime.years,
+        completed: false,
+    },
+};
+
+export const InTheLast1YearFilterSQL = `(customers.created) >= ('2019-04-04')`;
+
+export const InTheLast1CompletedYearFilter = {
+    ...InTheLast1WeekFilter,
+    settings: {
+        unitOfTime: UnitOfTime.years,
+        completed: true,
+    },
+};
+
+export const InTheLast1CompletedYearFilterSQL = `((customers.created) >= ('2019-01-01') AND (customers.created) < ('2020-01-01'))`;
