@@ -1,10 +1,10 @@
 import { Colors, Icon, MenuItem } from '@blueprintjs/core';
 import { ItemRenderer, Suggest } from '@blueprintjs/select';
-import { Field, fieldId as getFieldId, isDimension } from 'common';
+import { fieldId as getFieldId, FilterableField, isDimension } from 'common';
 import React, { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
 
-const FieldSuggest = Suggest.ofType<Field>();
+const FieldSuggest = Suggest.ofType<FilterableField>();
 
 const AutocompleteMaxHeight = createGlobalStyle`
     .autocomplete-max-height {
@@ -13,7 +13,10 @@ const AutocompleteMaxHeight = createGlobalStyle`
     }
 `;
 
-const renderItem: ItemRenderer<Field> = (field, { modifiers, handleClick }) => {
+const renderItem: ItemRenderer<FilterableField> = (
+    field,
+    { modifiers, handleClick },
+) => {
     if (!modifiers.matchesPredicate) {
         return null;
     }
@@ -40,9 +43,9 @@ const renderItem: ItemRenderer<Field> = (field, { modifiers, handleClick }) => {
 
 type Props = {
     autoFocus?: boolean;
-    activeField?: Field;
-    fields: Field[];
-    onChange: (value: Field) => void;
+    activeField?: FilterableField;
+    fields: FilterableField[];
+    onChange: (value: FilterableField) => void;
     onClosed?: () => void;
 };
 
@@ -75,7 +78,7 @@ const FieldAutoComplete: FC<Props> = ({
             itemsEqual={(value, other) =>
                 getFieldId(value) === getFieldId(other)
             }
-            inputValueRenderer={(field: Field) =>
+            inputValueRenderer={(field: FilterableField) =>
                 `${field.tableLabel} ${field.label}`
             }
             popoverProps={{
@@ -89,7 +92,7 @@ const FieldAutoComplete: FC<Props> = ({
             onItemSelect={onChange}
             itemPredicate={(
                 query: string,
-                field: Field,
+                field: FilterableField,
                 index?: undefined | number,
                 exactMatch?: undefined | false | true,
             ) => {

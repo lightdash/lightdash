@@ -1,18 +1,15 @@
 import { HTMLSelect, Intent } from '@blueprintjs/core';
 import {
+    createDashboardFilterRuleFromField,
     DashboardFilterRule,
-    fieldId,
     FilterableField,
-    FilterOperator,
     FilterRule,
     FilterType,
+    getFilterRuleWithDefaultValue,
+    getFilterTypeFromField,
 } from 'common';
 import React, { FC, useMemo, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import {
-    FilterTypeConfig,
-    getFilterTypeFromField,
-} from '../../common/Filters/configs';
+import { FilterTypeConfig } from '../../common/Filters/configs';
 import {
     ApplyFilterButton,
     BackButton,
@@ -36,15 +33,7 @@ const FilterConfiguration: FC<Props> = ({
 }) => {
     const [internalFilterRule, setInternalFilterRule] =
         useState<DashboardFilterRule>(
-            filterRule || {
-                id: uuidv4(),
-                target: {
-                    fieldId: fieldId(field),
-                    tableName: field.table,
-                },
-                operator: FilterOperator.EQUALS,
-                values: [],
-            },
+            filterRule || createDashboardFilterRuleFromField(field),
         );
 
     const filterType = field
@@ -65,11 +54,13 @@ const FilterConfiguration: FC<Props> = ({
                 <HTMLSelect
                     fill
                     onChange={(e) =>
-                        setInternalFilterRule((prevState) => ({
-                            ...prevState,
-                            operator: e.currentTarget
-                                .value as FilterRule['operator'],
-                        }))
+                        setInternalFilterRule((prevState) =>
+                            getFilterRuleWithDefaultValue(field, {
+                                ...prevState,
+                                operator: e.currentTarget
+                                    .value as FilterRule['operator'],
+                            }),
+                        )
                     }
                     options={filterConfig.operatorOptions}
                     value={internalFilterRule.operator}

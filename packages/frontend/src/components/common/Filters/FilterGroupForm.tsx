@@ -1,10 +1,9 @@
 import { Button, HTMLSelect } from '@blueprintjs/core';
 import {
-    fieldId,
+    createFilterRuleFromField,
     FilterableField,
     FilterGroup,
     FilterGroupOperator,
-    FilterOperator,
     FilterRule,
     getFilterGroupItemsPropertyName,
     getItemsFromFilterGroup,
@@ -12,7 +11,6 @@ import {
     isFilterRule,
 } from 'common';
 import React, { FC, useCallback } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import {
     FilterGroupHeader,
     FilterGroupItemsWrapper,
@@ -76,13 +74,7 @@ const FilterGroupForm: FC<Props> = ({
                 ...filterGroup,
                 [getFilterGroupItemsPropertyName(filterGroup)]: [
                     ...items,
-                    {
-                        id: uuidv4(),
-                        target: {
-                            fieldId: fieldId(fields[0]),
-                        },
-                        operator: FilterOperator.EQUALS,
-                    },
+                    createFilterRuleFromField(fields[0]),
                 ],
             });
         }
