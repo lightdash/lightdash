@@ -1,3 +1,10 @@
+## [0.19.2](https://github.com/lightdash/lightdash/compare/0.19.1...0.19.2) (2022-02-14)
+
+
+### Bug Fixes
+
+* update error message ([#1371](https://github.com/lightdash/lightdash/issues/1371)) ([2440742](https://github.com/lightdash/lightdash/commit/24407425d5be9aef2f471f8e198af7ac552791a7))
+
 ## [0.19.1](https://github.com/lightdash/lightdash/compare/0.19.0...0.19.1) (2022-02-14)
 
 
