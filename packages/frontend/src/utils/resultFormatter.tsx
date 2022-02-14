@@ -3,7 +3,7 @@ import { Dimension, DimensionType } from 'common';
 import moment from 'moment';
 import React from 'react';
 
-function formatDate(
+export function formatDate(
     timeInterval: string | undefined = 'DAY',
 ): (date: string | Date) => string {
     return (date: string | Date): string => {
@@ -23,15 +23,15 @@ function formatDate(
     };
 }
 
-function formatTimestamp(
+export function formatTimestamp(
     timeInterval: string | undefined,
     returnReactNode: true,
 ): (date: string | Date) => React.ReactNode;
-function formatTimestamp(
+export function formatTimestamp(
     timeInterval: string | undefined,
     returnReactNode?: false,
 ): (date: string | Date) => string;
-function formatTimestamp(
+export function formatTimestamp(
     timeInterval: string | undefined = 'MILLISECOND',
     returnReactNode: boolean = false,
 ) {
@@ -68,7 +68,7 @@ function formatTimestamp(
 
 const formatNumber = (v: number) => `${v}`;
 const formatString = (v: string) => `${v}`;
-const formatBoolean = (v: boolean | string) =>
+export const formatBoolean = (v: boolean | string) =>
     ['True', 'true', 'yes', 'Yes', '1', 'T'].includes(`${v}`) ? 'Yes' : 'No';
 
 function formatWrapper<T>(formatter: (value: any) => T) {
