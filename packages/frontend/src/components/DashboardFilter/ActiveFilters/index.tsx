@@ -1,16 +1,12 @@
 import { Colors } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import { fieldId, getFieldLabel } from 'common';
+import { fieldId } from 'common';
 import React, { FC, useState } from 'react';
 import { useAvailableDashboardFilterTargets } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
-import { filterOperatorLabel } from '../../common/Filters/configs';
 import FilterConfiguration from '../FilterConfiguration';
-import {
-    FilterValues,
-    TagContainer,
-    TagsWrapper,
-} from './ActiveFilters.styles';
+import ActiveFilter from './ActiveFilter';
+import { TagsWrapper } from './ActiveFilters.styles';
 
 const ActiveFilters: FC = () => {
     const [openedFilter, setOpenedFilter] = useState<string>();
@@ -61,21 +57,15 @@ const ActiveFilters: FC = () => {
                         lazy={false}
                         disabled={isLoading}
                     >
-                        <TagContainer
+                        <ActiveFilter
                             key={item.id}
-                            interactive
+                            field={activeField}
+                            filterRule={item}
                             onRemove={() =>
                                 removeDimensionDashboardFilter(index)
                             }
                             onClick={() => setOpenedFilter(item.id)}
-                        >
-                            {`${getFieldLabel(activeField)} ${
-                                filterOperatorLabel[item.operator]
-                            } `}
-                            <FilterValues>
-                                {item.values?.join(', ')}
-                            </FilterValues>
-                        </TagContainer>
+                        />
                     </Popover2>
                 );
             })}
