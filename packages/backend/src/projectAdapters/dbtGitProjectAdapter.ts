@@ -105,7 +105,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
             };
 
             if (this.projectDirectorySubPath !== '/') {
-                Logger.debug(`Git clone sparse to ${this.localRepositoryDir}`);
+                Logger.debug(`Git sparse clone to ${this.localRepositoryDir}`);
                 await this.git.clone(
                     this.remoteRepositoryUrl,
                     this.localRepositoryDir,
