@@ -1,3 +1,10 @@
+# [0.19.0](https://github.com/lightdash/lightdash/compare/0.18.3...0.19.0) (2022-02-14)
+
+
+### Features
+
+* remove sparse checkout ([#1364](https://github.com/lightdash/lightdash/issues/1364)) ([2e04a06](https://github.com/lightdash/lightdash/commit/2e04a063fdd9196d775821debcef281753e6d967))
+
 ## [0.18.3](https://github.com/lightdash/lightdash/compare/0.18.2...0.18.3) (2022-02-14)
 
 
