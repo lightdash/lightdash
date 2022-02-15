@@ -17,6 +17,8 @@ import {
     DashboardTilesTableName,
     DashboardVersionsTableName,
     DashboardVersionTable,
+    DashboardViewsTableName,
+    DashboardViewTable,
 } from '../../database/entities/dashboards';
 import { ProjectTableName } from '../../database/entities/projects';
 import {
@@ -31,7 +33,9 @@ export type GetDashboardQuery = Pick<
     DashboardTable['base'],
     'dashboard_id' | 'dashboard_uuid' | 'name' | 'description'
 > &
-    Pick<DashboardVersionTable['base'], 'dashboard_version_id' | 'created_at'>;
+    Pick<DashboardVersionTable['base'], 'dashboard_version_id' | 'created_at'> &
+    Pick<DashboardViewTable['base'], 'filters'>;
+
 export type GetDashboardDetailsQuery = Pick<
     DashboardTable['base'],
     'dashboard_uuid' | 'name' | 'description'
@@ -65,6 +69,11 @@ export class DashboardModel {
             },
             ['dashboard_version_id'],
         );
+        await trx(DashboardViewsTableName).insert({
+            dashboard_version_id: versionId.dashboard_version_id,
+            name: 'Default',
+            filters: version.filters,
+        });
 
         const promises: Promise<any>[] = [];
         version.tiles.forEach((tile) => {
@@ -195,6 +204,11 @@ export class DashboardModel {
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardVersionsTableName}.dashboard_id`,
             )
+            .leftJoin(
+                DashboardViewsTableName,
+                `${DashboardVersionsTableName}.dashboard_version_id`,
+                `${DashboardViewsTableName}.dashboard_version_id`,
+            )
             .select<GetDashboardQuery[]>([
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardsTableName}.dashboard_uuid`,
@@ -202,9 +216,19 @@ export class DashboardModel {
                 `${DashboardsTableName}.description`,
                 `${DashboardVersionsTableName}.dashboard_version_id`,
                 `${DashboardVersionsTableName}.created_at`,
+                `${DashboardViewsTableName}.filters`,
             ])
             .where('dashboard_uuid', dashboardUuid)
-            .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
+            .orderBy([
+                {
+                    column: `${DashboardVersionsTableName}.created_at`,
+                    order: 'desc',
+                },
+                {
+                    column: `${DashboardViewsTableName}.created_at`,
+                    order: 'desc',
+                },
+            ])
             .limit(1);
         if (!dashboard) {
             throw new NotFoundError('Dashboard not found');
@@ -350,11 +374,7 @@ export class DashboardModel {
                     }
                 },
             ),
-            filters: {
-                // TODO: get from DB
-                dimensions: [],
-                metrics: [],
-            },
+            filters: dashboard.filters,
         };
     }
 

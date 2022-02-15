@@ -1,4 +1,4 @@
-import { Dashboard, DashboardBasicDetails } from 'common';
+import { CreateDashboard, Dashboard, DashboardBasicDetails } from 'common';
 import React, { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../hooks/dashboard/useDashboard';
@@ -28,7 +28,12 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = (
     return (
         <CreateActionModal
             useCreate={useCreate}
-            savedData={{ tiles: tiles || [] }}
+            savedData={
+                {
+                    tiles: tiles || [],
+                    filters: { dimensions: [], metrics: [] },
+                } as Partial<CreateDashboard>
+            }
             {...props}
         />
     );

@@ -86,7 +86,10 @@ export type DashboardUnversionedFields = Pick<
     CreateDashboard,
     'name' | 'description'
 >;
-export type DashboardVersionedFields = Pick<CreateDashboard, 'tiles'>;
+export type DashboardVersionedFields = Pick<
+    CreateDashboard,
+    'tiles' | 'filters'
+>;
 
 export type UpdateDashboard =
     | DashboardUnversionedFields

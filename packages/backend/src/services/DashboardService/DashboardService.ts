@@ -88,6 +88,7 @@ export class DashboardService {
         if (isDashboardVersionedFields(dashboard)) {
             await this.dashboardModel.addVersion(dashboardUuid, {
                 tiles: dashboard.tiles,
+                filters: dashboard.filters,
             });
             analytics.track({
                 event: 'dashboard_version.created',

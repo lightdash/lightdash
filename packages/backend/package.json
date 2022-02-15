@@ -98,6 +98,7 @@
         "migrate-production": "knex migrate:latest --knexfile dist/database/knexfile.js",
         "seed": "knex seed:run --knexfile src/database/knexfile.ts",
         "seed-production": "knex seed:run --knexfile dist/database/knexfile.js",
+        "rollback-last": "knex migrate:rollback --knexfile src/database/knexfile.ts",
         "rollback-all": "knex migrate:rollback --all --knexfile src/database/knexfile.ts",
         "rollback-all-production": "knex migrate:rollback --all --knexfile dist/database/knexfile.js"
     }

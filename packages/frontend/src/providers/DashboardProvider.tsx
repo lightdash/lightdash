@@ -39,9 +39,10 @@ export const DashboardProvider: React.FC<Props> = ({
     isEditMode,
     children,
 }) => {
-    const [dashboardFilters, setDashboardFilters] =
-        useState<DashboardFilters>(emptyFilters);
-    const canUseFilters = !isEditMode;
+    const [dashboardFilters, setDashboardFilters] = useState<DashboardFilters>(
+        dashboard.filters,
+    );
+    const canUseFilters = true; //!isEditMode;
 
     const addDimensionDashboardFilter = useCallback(
         (filter: DashboardFilterRule) => {

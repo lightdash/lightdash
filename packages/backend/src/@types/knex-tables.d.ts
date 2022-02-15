@@ -12,6 +12,8 @@ import {
     DashboardTileTypesTableName,
     DashboardVersionsTableName,
     DashboardVersionTable,
+    DashboardViewsTableName,
+    DashboardViewTable,
 } from '../database/entities/dashboards';
 import { EmailTable, EmailTableName } from '../database/entities/emails';
 import {
@@ -71,6 +73,7 @@ declare module 'knex/types/tables' {
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
         [DashboardVersionsTableName]: DashboardVersionTable;
+        [DashboardViewsTableName]: DashboardViewTable;
         [DashboardTilesTableName]: DashboardTileTable;
         [DashboardTileTypesTableName]: DashboardTileTypesTable;
         [DashboardTileChartTableName]: DashboardTileChartTable;

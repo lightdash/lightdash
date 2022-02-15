@@ -1,5 +1,9 @@
 import { Spinner } from '@blueprintjs/core';
-import { Dashboard as IDashboard, DashboardTileTypes } from 'common';
+import {
+    Dashboard as IDashboard,
+    DashboardTileTypes,
+    FilterOperator,
+} from 'common';
 import React, {
     FC,
     memo,
@@ -161,7 +165,26 @@ const Dashboard = () => {
                 isSaving={isSaving}
                 hasTilesChanged={hasTilesChanged}
                 onAddTile={onAddTile}
-                onSaveDashboard={() => mutate({ tiles: dashboardTiles })}
+                onSaveDashboard={() =>
+                    mutate({
+                        tiles: dashboardTiles,
+                        filters: {
+                            // TODO: hardcoded example
+                            dimensions: [
+                                {
+                                    id: 'cd9a6fa3-c3cc-4165-a744-d459ac478da8',
+                                    target: {
+                                        fieldId: 'orders_is_completed',
+                                        tableName: 'orders',
+                                    },
+                                    operator: FilterOperator.EQUALS,
+                                    values: [false],
+                                },
+                            ],
+                            metrics: [],
+                        },
+                    })
+                }
                 onSaveTitle={(name) => mutate({ name })}
                 onCancel={onCancel}
             />

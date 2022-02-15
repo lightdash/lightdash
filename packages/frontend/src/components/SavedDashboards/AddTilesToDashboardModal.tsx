@@ -93,6 +93,7 @@ const AddTilesToDashboardModal: FC<Props> = ({ savedChart, onClose }) => {
                         ),
                     },
                 ],
+                filters: data.filters,
             });
         }
     }, [data, mutate, isIdle, savedChart]);
