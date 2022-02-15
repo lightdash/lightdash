@@ -20,7 +20,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
     maxWidth,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
-    // const { health: healthState } = useApp();
+    const { health: healthState } = useApp();
     const hasUpdate =
         healthState.data?.latest.version &&
         healthState.data.version !== healthState.data.latest.version;
