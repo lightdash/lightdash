@@ -507,7 +507,7 @@ export const createDashboardFilterRuleFromField = (
 
 type AddFilterRuleArgs = {
     filters: Filters;
-    field: Pick<Field, 'table' | 'name' | 'fieldType'>;
+    field: FilterableField;
     value?: any;
 };
 export const addFilterRule = ({
@@ -524,7 +524,7 @@ export const addFilterRule = ({
             ...group,
             [getFilterGroupItemsPropertyName(group)]: [
                 ...getItemsFromFilterGroup(group),
-                createFilterRuleFromField(field),
+                //  createFilterRuleFromField(field),
                 {
                     id: uuidv4(),
                     target: {
