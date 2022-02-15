@@ -1,3 +1,11 @@
+## [0.19.4](https://github.com/lightdash/lightdash/compare/0.19.3...0.19.4) (2022-02-15)
+
+
+### Bug Fixes
+
+* **dashboards:** disable dashboard filters when in edit mode ([#1382](https://github.com/lightdash/lightdash/issues/1382)) ([42ff26e](https://github.com/lightdash/lightdash/commit/42ff26e975a1c30a76edd98098f37cc1546e34de))
+* **settings:** amend allowed email domains input [skip ci] ([#1383](https://github.com/lightdash/lightdash/issues/1383)) ([c3a6289](https://github.com/lightdash/lightdash/commit/c3a62898b341ee7df9807e6cb4c2c4d979f7d0e6))
+
 ## [0.19.3](https://github.com/lightdash/lightdash/compare/0.19.2...0.19.3) (2022-02-15)
 
 
