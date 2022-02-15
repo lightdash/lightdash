@@ -1,27 +1,15 @@
-import {
-    Menu,
-    MenuItem,
-    NonIdealState,
-    Portal,
-    Spinner,
-} from '@blueprintjs/core';
-import { Popover2, Popover2TargetProps } from '@blueprintjs/popover2';
+import { NonIdealState, Spinner } from '@blueprintjs/core';
 import {
     DBChartTypes,
     DimensionType,
-    fieldId,
-    FilterOperator,
     findFieldByIdInExplore,
     friendlyName,
-    getDimensions,
     getFieldLabel,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
-import React, { FC, RefObject, useCallback, useEffect, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import React, { FC, RefObject, useEffect } from 'react';
 import { ChartConfig } from '../../hooks/useChartConfig';
 import { useExplore } from '../../hooks/useExplore';
-import { useDashboardContext } from '../../providers/DashboardProvider';
 
 const flipXFromChartType = (chartType: DBChartTypes) => {
     switch (chartType) {
@@ -65,10 +53,10 @@ type EchartBaseClickEvent = {
     value: number | Array<any>;
     // color of the shape, works when componentType is 'series'.
     color: string;
-    event: MouseEvent;
+    event: { event: MouseEvent };
 };
 
-type EchartSeriesClickEvent = EchartBaseClickEvent & {
+export type EchartSeriesClickEvent = EchartBaseClickEvent & {
     componentType: 'series';
     data: Record<string, any>;
     seriesIndex: number;
@@ -129,6 +117,7 @@ type SimpleChartProps = {
     chartConfig: ChartConfig;
     isLoading: boolean;
     tableName: string | undefined;
+    onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
 };
 const SimpleChart: FC<SimpleChartProps> = ({
     chartRef,
@@ -136,29 +125,8 @@ const SimpleChart: FC<SimpleChartProps> = ({
     chartConfig,
     isLoading,
     tableName,
+    onSeriesContextMenu = () => {},
 }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [targetOffset, setTargetOffset] = useState<{
-        left: number;
-        top: number;
-    }>();
-    // Popover2 should attach its ref to the virtual target we render inside a Portal, not the "inline" child target
-    const renderTarget = useCallback(
-        ({ ref }: Popover2TargetProps) => (
-            <Portal>
-                <div
-                    style={{ position: 'absolute', ...targetOffset }}
-                    ref={ref}
-                />
-            </Portal>
-        ),
-        [targetOffset],
-    );
-    const cancelContextMenu = React.useCallback(
-        (e: React.SyntheticEvent<HTMLDivElement>) => e.preventDefault(),
-        [],
-    );
-    const { addDimensionDashboardFilter } = useDashboardContext();
     useEffect(() => {
         const listener = () => {
             const eCharts = chartRef.current?.getEchartsInstance();
@@ -261,52 +229,18 @@ const SimpleChart: FC<SimpleChartProps> = ({
         e: EchartClickEvent,
     ): e is EchartSeriesClickEvent => e.componentType === 'series';
 
-    const onChartClick = (e: EchartClickEvent) => {
-        console.log(e);
+    const onChartContextMenu = (e: EchartClickEvent) => {
+        if (e.event.event.defaultPrevented) {
+            return;
+        }
+        e.event.event.preventDefault();
         if (isSeriesClickEvent(e)) {
-            const dimensions = getDimensions(activeExplore.data).filter((dim) =>
-                e.dimensionNames.includes(fieldId(dim)),
-            );
-            dimensions.forEach((dimension) => {
-                addDimensionDashboardFilter({
-                    id: uuidv4(),
-                    target: {
-                        fieldId: fieldId(dimension),
-                        tableName: dimension.table,
-                    },
-                    operator: FilterOperator.EQUALS,
-                    values: [e.data[fieldId(dimension)]],
-                });
-            });
+            onSeriesContextMenu(e);
         }
     };
-    console.log('render', isOpen, targetOffset);
 
     return (
         <div style={{ padding: 10, height: '100%' }}>
-            <Popover2
-                content={
-                    // this prevents right-clicking inside our context menu
-                    <div onContextMenu={cancelContextMenu}>
-                        <Menu>
-                            <MenuItem
-                                text="Add filter ..."
-                                onClick={() => setIsOpen(false)}
-                            />
-                        </Menu>
-                    </div>
-                }
-                enforceFocus={false}
-                hasBackdrop={true}
-                isOpen={isOpen}
-                minimal={true}
-                onClose={() => setIsOpen(false)}
-                placement="right-start"
-                positioningStrategy="fixed"
-                rootBoundary="viewport"
-                renderTarget={renderTarget}
-                transitionDuration={100}
-            />
             <EChartsReact
                 style={{
                     height: '100%',
@@ -317,19 +251,7 @@ const SimpleChart: FC<SimpleChartProps> = ({
                 notMerge
                 opts={{ renderer: 'svg' }}
                 onEvents={{
-                    click: onChartClick,
-                    contextmenu: (e: any) => {
-                        console.log('context', e);
-                        if (e.event.event.defaultPrevented) {
-                            return;
-                        }
-                        e.event.event.preventDefault();
-                        setIsOpen(true);
-                        setTargetOffset({
-                            left: e.event.event.pageX,
-                            top: e.event.event.pageY,
-                        });
-                    },
+                    contextmenu: onChartContextMenu,
                 }}
             />
         </div>
