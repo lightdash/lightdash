@@ -1,3 +1,10 @@
+## [0.19.3](https://github.com/lightdash/lightdash/compare/0.19.2...0.19.3) (2022-02-15)
+
+
+### Bug Fixes
+
+* **filters:** set default filter values ([#1367](https://github.com/lightdash/lightdash/issues/1367)) ([561e591](https://github.com/lightdash/lightdash/commit/561e5911c9c144243b218e8485e48e8b5361580c))
+
 ## [0.19.2](https://github.com/lightdash/lightdash/compare/0.19.1...0.19.2) (2022-02-14)
 
 
