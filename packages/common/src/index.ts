@@ -1,11 +1,15 @@
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import {
+    DashboardFilterRule,
+    DateFilterRule,
     FilterOperator,
     FilterRule,
     Filters,
+    FilterType,
     getFilterGroupItemsPropertyName,
     getItemsFromFilterGroup,
+    UnitOfTime,
 } from './types/filter';
 import { OrganizationMemberProfile } from './types/organizationMemberProfile';
 import { LightdashUser } from './types/user';
@@ -404,7 +408,101 @@ export const filterableDimensionsOnly = (
     dimensions: Dimension[],
 ): FilterableDimension[] => dimensions.filter(isFilterableDimension);
 
-export const addFilterRule = (filters: Filters, field: Field): Filters => {
+export const getFilterTypeFromField = (field: FilterableField): FilterType => {
+    const fieldType = field.type;
+    switch (field.type) {
+        case DimensionType.STRING:
+        case MetricType.STRING:
+            return FilterType.STRING;
+        case DimensionType.NUMBER:
+        case MetricType.NUMBER:
+        case MetricType.AVERAGE:
+        case MetricType.COUNT:
+        case MetricType.COUNT_DISTINCT:
+        case MetricType.SUM:
+        case MetricType.MIN:
+        case MetricType.MAX:
+            return FilterType.NUMBER;
+        case DimensionType.TIMESTAMP:
+        case DimensionType.DATE:
+        case MetricType.DATE:
+            return FilterType.DATE;
+        case DimensionType.BOOLEAN:
+        case MetricType.BOOLEAN:
+            return FilterType.BOOLEAN;
+        default: {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const never: never = field;
+            throw Error(`No filter type found for field type: ${fieldType}`);
+        }
+    }
+};
+
+export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
+    field: FilterableField,
+    filterRule: T,
+): T => {
+    const filterType = getFilterTypeFromField(field);
+    const filterRuleDefaults: Partial<FilterRule> = {};
+    if (
+        ![FilterOperator.NULL, FilterOperator.NOT_NULL].includes(
+            filterRule.operator,
+        )
+    ) {
+        switch (filterType) {
+            case FilterType.DATE: {
+                if (filterRule.operator === FilterOperator.IN_THE_PAST) {
+                    filterRuleDefaults.values = [1];
+                    filterRuleDefaults.settings = {
+                        unitOfTime: UnitOfTime.days,
+                        completed: false,
+                    } as DateFilterRule['settings'];
+                } else {
+                    filterRuleDefaults.values = [new Date()];
+                }
+                break;
+            }
+            case FilterType.BOOLEAN: {
+                filterRuleDefaults.values = [false];
+                break;
+            }
+            default:
+                break;
+        }
+    }
+    return {
+        ...filterRule,
+        values: [],
+        settings: undefined,
+        ...filterRuleDefaults,
+    };
+};
+
+export const createFilterRuleFromField = (field: FilterableField): FilterRule =>
+    getFilterRuleWithDefaultValue(field, {
+        id: uuidv4(),
+        target: {
+            fieldId: fieldId(field),
+        },
+        operator: FilterOperator.EQUALS,
+    });
+
+export const createDashboardFilterRuleFromField = (
+    field: FilterableField,
+): DashboardFilterRule =>
+    getFilterRuleWithDefaultValue(field, {
+        id: uuidv4(),
+        target: {
+            fieldId: fieldId(field),
+            tableName: field.table,
+        },
+        operator: FilterOperator.EQUALS,
+    });
+
+export const addFilterRule = (
+    filters: Filters,
+    field: FilterableField,
+): Filters => {
     const groupKey = isDimension(field) ? 'dimensions' : 'metrics';
     const group = filters[groupKey];
     return {
@@ -414,13 +512,7 @@ export const addFilterRule = (filters: Filters, field: Field): Filters => {
             ...group,
             [getFilterGroupItemsPropertyName(group)]: [
                 ...getItemsFromFilterGroup(group),
-                {
-                    id: uuidv4(),
-                    target: {
-                        fieldId: fieldId(field),
-                    },
-                    operator: FilterOperator.EQUALS,
-                },
+                createFilterRuleFromField(field),
             ],
         },
     };

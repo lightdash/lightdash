@@ -1,14 +1,16 @@
 import { Button, Colors, HTMLSelect } from '@blueprintjs/core';
 import {
+    createFilterRuleFromField,
     Field,
     fieldId as getFieldId,
     FilterableField,
-    FilterOperator,
     FilterRule,
     FilterType,
+    getFilterRuleWithDefaultValue,
+    getFilterTypeFromField,
 } from 'common';
 import React, { FC, useCallback, useMemo } from 'react';
-import { FilterTypeConfig, getFilterTypeFromField } from './configs';
+import { FilterTypeConfig } from './configs';
 import FieldAutoComplete from './FieldAutoComplete';
 
 type Props = {
@@ -50,15 +52,7 @@ const FilterRuleForm: FC<Props> = ({
                         },
                     });
                 } else {
-                    onChange({
-                        ...filterRule,
-                        target: {
-                            fieldId,
-                        },
-                        operator: FilterOperator.EQUALS,
-                        settings: undefined,
-                        values: undefined,
-                    });
+                    onChange(createFilterRuleFromField(selectedField));
                 }
             }
         },
@@ -87,11 +81,13 @@ const FilterRuleForm: FC<Props> = ({
                         fill={false}
                         style={{ width: 150 }}
                         onChange={(e) =>
-                            onChange({
-                                ...filterRule,
-                                operator: e.currentTarget
-                                    .value as FilterRule['operator'],
-                            })
+                            onChange(
+                                getFilterRuleWithDefaultValue(activeField, {
+                                    ...filterRule,
+                                    operator: e.currentTarget
+                                        .value as FilterRule['operator'],
+                                }),
+                            )
                         }
                         options={filterConfig.operatorOptions}
                         value={filterRule.operator}

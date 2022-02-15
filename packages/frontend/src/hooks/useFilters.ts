@@ -1,4 +1,10 @@
-import { addFilterRule, Field, fieldId, getTotalFilterRules } from 'common';
+import {
+    addFilterRule,
+    Field,
+    fieldId,
+    FilterableField,
+    getTotalFilterRules,
+} from 'common';
 import { useCallback, useMemo } from 'react';
 import { useExplorer } from '../providers/ExplorerProvider';
 
@@ -22,7 +28,7 @@ export const useFilters = () => {
     );
 
     const addFilter = useCallback(
-        (field: Field) => setFilters(addFilterRule(filters, field)),
+        (field: FilterableField) => setFilters(addFilterRule(filters, field)),
         [filters, setFilters],
     );
 

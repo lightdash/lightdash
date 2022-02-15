@@ -1,10 +1,4 @@
-import {
-    DimensionType,
-    FilterableField,
-    FilterOperator,
-    FilterType,
-    MetricType,
-} from 'common';
+import { FilterOperator, FilterType } from 'common';
 import { FC } from 'react';
 import BooleanFilterInputs from './FilterInputs/BooleanFilterInputs';
 import DateFilterInputs from './FilterInputs/DateFilterInputs';
@@ -50,35 +44,6 @@ const timeFilterOptions: Array<{
     { value: FilterOperator.GREATER_THAN, label: 'is after' },
     { value: FilterOperator.GREATER_THAN_OR_EQUAL, label: 'is on or after' },
 ];
-
-export const getFilterTypeFromField = (field: FilterableField): FilterType => {
-    const fieldType = field.type;
-    switch (field.type) {
-        case DimensionType.STRING:
-        case MetricType.STRING:
-            return FilterType.STRING;
-        case DimensionType.NUMBER:
-        case MetricType.NUMBER:
-        case MetricType.AVERAGE:
-        case MetricType.COUNT:
-        case MetricType.COUNT_DISTINCT:
-        case MetricType.SUM:
-        case MetricType.MIN:
-        case MetricType.MAX:
-            return FilterType.NUMBER;
-        case DimensionType.TIMESTAMP:
-        case DimensionType.DATE:
-        case MetricType.DATE:
-            return FilterType.DATE;
-        case DimensionType.BOOLEAN:
-        case MetricType.BOOLEAN:
-            return FilterType.BOOLEAN;
-        default: {
-            const never: never = field;
-            throw Error(`No filter type found for field type: ${fieldType}`);
-        }
-    }
-};
 
 export const FilterTypeConfig: Record<
     FilterType,

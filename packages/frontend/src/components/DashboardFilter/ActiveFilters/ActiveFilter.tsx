@@ -5,6 +5,7 @@ import {
     FilterRule,
     FilterType,
     getFieldLabel,
+    getFilterTypeFromField,
 } from 'common';
 import React, { FC, useMemo } from 'react';
 import {
@@ -15,7 +16,6 @@ import {
 import {
     filterOperatorLabel,
     FilterTypeConfig,
-    getFilterTypeFromField,
 } from '../../common/Filters/configs';
 import { FilterValues, TagContainer } from './ActiveFilters.styles';
 
