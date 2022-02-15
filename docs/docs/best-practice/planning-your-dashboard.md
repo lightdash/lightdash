@@ -1,6 +1,6 @@
 ---
 sidebar_position: 2
-sidebar_label: Planning your dashboard: the Who, What and How of dashboard building.
+sidebar_label: Planning your dashboard -  the Who, What and How of dashboard building.
 ---
 
 # Planning your dashboard: the Who, What and How of building great dashboards.
