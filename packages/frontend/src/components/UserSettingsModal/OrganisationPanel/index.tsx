@@ -44,8 +44,8 @@ const OrganisationPanel: FC = () => {
                     }}
                 />
                 <TagInput
-                    label="Enter value"
-                    name="filterValue"
+                    label="Allowed email domains"
+                    name="allowedEmailDomains"
                     disabled={isLoading}
                     defaultValue={[]}
                 />
