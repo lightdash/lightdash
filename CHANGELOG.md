@@ -1,3 +1,10 @@
+# [0.20.0](https://github.com/lightdash/lightdash/compare/0.19.4...0.20.0) (2022-02-15)
+
+
+### Features
+
+* add help button in nav bar ([#1369](https://github.com/lightdash/lightdash/issues/1369)) ([f1ac196](https://github.com/lightdash/lightdash/commit/f1ac196229649745a788878125cee477d5b46448))
+
 ## [0.19.4](https://github.com/lightdash/lightdash/compare/0.19.3...0.19.4) (2022-02-15)
 
 
