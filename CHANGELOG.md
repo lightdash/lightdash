@@ -1,3 +1,10 @@
+## [0.20.2](https://github.com/lightdash/lightdash/compare/0.20.1...0.20.2) (2022-02-15)
+
+
+### Bug Fixes
+
+* update URL link in app to update Lightdash version ([#1389](https://github.com/lightdash/lightdash/issues/1389)) ([0072239](https://github.com/lightdash/lightdash/commit/00722395775f175d5ba426f0ac9fe234cd66cc4f))
+
 ## [0.20.1](https://github.com/lightdash/lightdash/compare/0.20.0...0.20.1) (2022-02-15)
 
 
