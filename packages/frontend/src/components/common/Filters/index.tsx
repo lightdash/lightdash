@@ -21,7 +21,7 @@ type Props = {
     dimensions: FilterableDimension[];
     metrics: Metric[];
     filters: Filters;
-    setFilters: (value: Filters) => void;
+    setFilters: (value: Filters, syncState: boolean) => void;
 };
 
 const FiltersForm: FC<Props> = ({
@@ -50,7 +50,7 @@ const FiltersForm: FC<Props> = ({
 
     const addFieldRule = useCallback(
         (field: FilterableField) => {
-            setFilters(addFilterRule({ filters, field }));
+            setFilters(addFilterRule({ filters, field }), true);
             toggleFieldInput(false);
         },
         [filters, setFilters, toggleFieldInput],
@@ -60,25 +60,28 @@ const FiltersForm: FC<Props> = ({
         (filterRules: FilterRule[]) => {
             const result = getFilterRulesByFieldType(fields, filterRules);
 
-            setFilters({
-                ...filters,
-                dimensions:
-                    result.dimensions.length > 0
-                        ? {
-                              id: uuidv4(),
-                              ...filters.dimensions,
-                              and: result.dimensions,
-                          }
-                        : undefined,
-                metrics:
-                    result.metrics.length > 0
-                        ? {
-                              id: uuidv4(),
-                              ...filters.metrics,
-                              and: result.metrics,
-                          }
-                        : undefined,
-            });
+            setFilters(
+                {
+                    ...filters,
+                    dimensions:
+                        result.dimensions.length > 0
+                            ? {
+                                  id: uuidv4(),
+                                  ...filters.dimensions,
+                                  and: result.dimensions,
+                              }
+                            : undefined,
+                    metrics:
+                        result.metrics.length > 0
+                            ? {
+                                  id: uuidv4(),
+                                  ...filters.metrics,
+                                  and: result.metrics,
+                              }
+                            : undefined,
+                },
+                true,
+            );
         },
         [fields, filters, setFilters],
     );
@@ -113,16 +116,22 @@ const FiltersForm: FC<Props> = ({
                                         filterGroup={filters.dimensions}
                                         fields={dimensions}
                                         onChange={(value) =>
-                                            setFilters({
-                                                ...filters,
-                                                dimensions: value,
-                                            })
+                                            setFilters(
+                                                {
+                                                    ...filters,
+                                                    dimensions: value,
+                                                },
+                                                false,
+                                            )
                                         }
                                         onDelete={() =>
-                                            setFilters({
-                                                ...filters,
-                                                dimensions: undefined,
-                                            })
+                                            setFilters(
+                                                {
+                                                    ...filters,
+                                                    dimensions: undefined,
+                                                },
+                                                true,
+                                            )
                                         }
                                     />
                                 )}
@@ -149,16 +158,22 @@ const FiltersForm: FC<Props> = ({
                                     filterGroup={filters.metrics}
                                     fields={metrics}
                                     onChange={(value) =>
-                                        setFilters({
-                                            ...filters,
-                                            metrics: value,
-                                        })
+                                        setFilters(
+                                            {
+                                                ...filters,
+                                                metrics: value,
+                                            },
+                                            false,
+                                        )
                                     }
                                     onDelete={() =>
-                                        setFilters({
-                                            ...filters,
-                                            metrics: undefined,
-                                        })
+                                        setFilters(
+                                            {
+                                                ...filters,
+                                                metrics: undefined,
+                                            },
+                                            true,
+                                        )
                                     }
                                 />
                             )}

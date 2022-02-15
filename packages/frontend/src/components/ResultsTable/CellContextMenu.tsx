@@ -19,7 +19,7 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
                     <MenuItem
                         label={`Filter on "${cell.value}"`}
                         onClick={() => {
-                            addFilter(cell.column.field, cell.value);
+                            addFilter(cell.column.field, cell.value, true);
                         }}
                     />
                 </Menu>

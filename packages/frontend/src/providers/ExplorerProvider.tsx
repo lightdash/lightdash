@@ -100,7 +100,10 @@ interface ExplorerContext {
         toggleSortField: (fieldId: FieldId) => void;
         setSortFields: (sortFields: SortField[]) => void;
         setRowLimit: (limit: number) => void;
-        setFilters: (filters: MetricQuery['filters']) => void;
+        setFilters: (
+            filters: MetricQuery['filters'],
+            syncPristineState: boolean,
+        ) => void;
         setColumnOrder: (order: string[]) => void;
         addTableCalculation: (tableCalculation: TableCalculation) => void;
         updateTableCalculation: (
@@ -482,12 +485,24 @@ export const ExplorerProvider: FC = ({ children }) => {
         });
     }, []);
 
-    const setFilters = useCallback((filters: MetricQuery['filters']) => {
-        dispatch({
-            type: ActionType.SET_FILTERS,
-            payload: filters,
-        });
-    }, []);
+    const setFilters = useCallback(
+        (filters: MetricQuery['filters'], syncPristineState: boolean) => {
+            dispatch({
+                type: ActionType.SET_FILTERS,
+                payload: filters,
+            });
+            if (syncPristineState) {
+                pristineDispatch({
+                    type: ActionType.SET_STATE,
+                    payload: {
+                        ...reducerState,
+                        filters,
+                    },
+                });
+            }
+        },
+        [reducerState],
+    );
 
     const setColumnOrder = useCallback((order: string[]) => {
         dispatch({

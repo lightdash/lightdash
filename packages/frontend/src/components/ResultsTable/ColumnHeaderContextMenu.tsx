@@ -15,8 +15,9 @@ export const ColumnHeaderContextMenu: React.FC<ColumnHeaderContextMenuProps> =
                 <Menu>
                     <MenuItem
                         label={`Filter ${column.field.name}`}
-                        onClick={() => {
-                            addFilter(column.field, undefined);
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            addFilter(column.field, undefined, false);
                         }}
                     />
                 </Menu>
