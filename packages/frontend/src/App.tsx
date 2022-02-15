@@ -11,9 +11,9 @@ import {
     Switch,
 } from 'react-router-dom';
 import './App.css';
-import AppBar from './components/AppBar';
 import AppRoute from './components/AppRoute';
 import MobileView from './components/Mobile';
+import NavBar from './components/NavBar';
 import PrivateRoute from './components/PrivateRoute';
 import UserCompletionModal from './components/UserCompletionModal';
 import CreateProject from './pages/CreateProject';
@@ -110,7 +110,7 @@ const App = () => (
                                         <UserCompletionModal />
                                         <Switch>
                                             <Route path="/createProject">
-                                                <AppBar />
+                                                <NavBar />
                                                 <TrackPage
                                                     name={
                                                         PageName.CREATE_PROJECT
@@ -120,7 +120,7 @@ const App = () => (
                                                 </TrackPage>
                                             </Route>
                                             <Route path="/createProjectSettings/:projectUuid">
-                                                <AppBar />
+                                                <NavBar />
                                                 <TrackPage
                                                     name={
                                                         PageName.CREATE_PROJECT_SETTINGS
@@ -132,7 +132,7 @@ const App = () => (
                                             <AppRoute path="/">
                                                 <Switch>
                                                     <Route path="/projects/:projectUuid/settings/:tab?">
-                                                        <AppBar />
+                                                        <NavBar />
                                                         <TrackPage
                                                             name={
                                                                 PageName.PROJECT_SETTINGS
@@ -142,7 +142,7 @@ const App = () => (
                                                         </TrackPage>
                                                     </Route>
                                                     <Route path="/projects/:projectUuid/saved/:savedQueryUuid">
-                                                        <AppBar />
+                                                        <NavBar />
                                                         <TrackPage
                                                             name={
                                                                 PageName.SAVED_QUERY_EXPLORER
@@ -154,7 +154,7 @@ const App = () => (
                                                         </TrackPage>
                                                     </Route>
                                                     <Route path="/projects/:projectUuid/saved">
-                                                        <AppBar />
+                                                        <NavBar />
                                                         <TrackPage
                                                             name={
                                                                 PageName.SAVED_QUERIES
@@ -164,7 +164,7 @@ const App = () => (
                                                         </TrackPage>
                                                     </Route>
                                                     <Route path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?">
-                                                        <AppBar />
+                                                        <NavBar />
                                                         <TrackPage
                                                             name={
                                                                 PageName.DASHBOARD
@@ -174,7 +174,7 @@ const App = () => (
                                                         </TrackPage>
                                                     </Route>
                                                     <Route path="/projects/:projectUuid/dashboards">
-                                                        <AppBar />
+                                                        <NavBar />
                                                         <TrackPage
                                                             name={
                                                                 PageName.SAVED_DASHBOARDS
@@ -184,7 +184,7 @@ const App = () => (
                                                         </TrackPage>
                                                     </Route>
                                                     <Route path="/projects/:projectUuid/sqlRunner">
-                                                        <AppBar />
+                                                        <NavBar />
                                                         <TrackPage
                                                             name={
                                                                 PageName.SQL_RUNNER
@@ -194,7 +194,7 @@ const App = () => (
                                                         </TrackPage>
                                                     </Route>
                                                     <Route path="/projects/:projectUuid/tables/:tableId">
-                                                        <AppBar />
+                                                        <NavBar />
                                                         <TrackPage
                                                             name={
                                                                 PageName.EXPLORER
@@ -206,7 +206,7 @@ const App = () => (
                                                         </TrackPage>
                                                     </Route>
                                                     <Route path="/projects/:projectUuid/tables">
-                                                        <AppBar />
+                                                        <NavBar />
                                                         <TrackPage
                                                             name={
                                                                 PageName.EXPLORE_TABLES
@@ -224,7 +224,7 @@ const App = () => (
                                                         <Projects />
                                                     </Route>
                                                     <Route path="/home" exact>
-                                                        <AppBar />
+                                                        <NavBar />
                                                         <TrackPage
                                                             name={PageName.HOME}
                                                         >
