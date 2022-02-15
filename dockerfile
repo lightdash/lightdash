@@ -92,6 +92,9 @@ ENV PATH $PATH:/usr/local/venv/bin
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     unixodbc-dev \
+    python3 \
+    python3-psycopg2 \
+    python3-venv \
     && apt-get clean
 
 COPY --from=prod-builder /usr/local/venv /usr/local/venv
