@@ -1,3 +1,4 @@
+---
 sidebar_position: 1
 sidebar_label: The Lightdash Way for data access
 ---
