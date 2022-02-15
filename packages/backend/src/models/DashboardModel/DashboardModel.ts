@@ -350,6 +350,11 @@ export class DashboardModel {
                     }
                 },
             ),
+            filters: {
+                // TODO: get from DB
+                dimensions: [],
+                metrics: [],
+            },
         };
     }
 

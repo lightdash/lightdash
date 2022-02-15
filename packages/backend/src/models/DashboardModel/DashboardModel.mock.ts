@@ -39,6 +39,10 @@ export const createDashboard: CreateDashboard = {
     name: 'my new dashboard',
     description: 'description',
     tiles: [tileWithoutId],
+    filters: {
+        dimensions: [],
+        metrics: [],
+    },
 };
 
 export const createDashboardWithTileIds: CreateDashboard = {
@@ -208,6 +212,10 @@ export const expectedDashboard: Dashboard = {
             w: dashboardTileEntry.width,
         } as DashboardMarkdownTile,
     ],
+    filters: {
+        dimensions: [],
+        metrics: [],
+    },
 };
 
 export const expectedAllDashboards: DashboardBasicDetails[] = [

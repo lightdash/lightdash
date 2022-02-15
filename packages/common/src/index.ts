@@ -1,6 +1,6 @@
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
-import { DashboardTileTypes } from './types/dashboard';
+import { Dashboard, DashboardBasicDetails } from './types/dashboard';
 import {
     DashboardFilterRule,
     DateFilterRule,
@@ -1340,95 +1340,3 @@ export type CreateProject = Omit<Project, 'projectUuid'> & {
 export type UpdateProject = Omit<Project, 'projectUuid'> & {
     warehouseConnection: CreateWarehouseCredentials;
 };
-
-type CreateDashboardTileBase = {
-    uuid?: string;
-    type: DashboardTileTypes;
-    x: number;
-    y: number;
-    h: number;
-    w: number;
-};
-
-type DashboardTileBase = Required<CreateDashboardTileBase>;
-
-export type DashboardMarkdownTileProperties = {
-    type: DashboardTileTypes.MARKDOWN;
-    properties: {
-        title: string;
-        content: string;
-    };
-};
-
-export type DashboardLoomTileProperties = {
-    type: DashboardTileTypes.LOOM;
-    properties: {
-        title: string;
-        url: string;
-    };
-};
-
-type DashboardChartTileProperties = {
-    type: DashboardTileTypes.SAVED_CHART;
-    properties: {
-        savedChartUuid: string | null;
-    };
-};
-
-export type CreateDashboardMarkdownTile = CreateDashboardTileBase &
-    DashboardMarkdownTileProperties;
-export type DashboardMarkdownTile = DashboardTileBase &
-    DashboardMarkdownTileProperties;
-
-export type CreateDashboardLoomTile = CreateDashboardTileBase &
-    DashboardLoomTileProperties;
-export type DashboardLoomTile = DashboardTileBase & DashboardLoomTileProperties;
-
-export type CreateDashboardChartTile = CreateDashboardTileBase &
-    DashboardChartTileProperties;
-export type DashboardChartTile = DashboardTileBase &
-    DashboardChartTileProperties;
-
-export type CreateDashboard = {
-    name: string;
-    description?: string;
-    tiles: Array<
-        | CreateDashboardChartTile
-        | CreateDashboardMarkdownTile
-        | CreateDashboardLoomTile
-    >;
-};
-
-export type Dashboard = {
-    name: string;
-    description?: string;
-    uuid: string;
-    updatedAt: Date;
-    tiles: Array<
-        DashboardChartTile | DashboardMarkdownTile | DashboardLoomTile
-    >;
-};
-
-export type DashboardBasicDetails = Pick<
-    Dashboard,
-    'uuid' | 'name' | 'description' | 'updatedAt'
->;
-
-export type DashboardUnversionedFields = Pick<
-    CreateDashboard,
-    'name' | 'description'
->;
-export type DashboardVersionedFields = Pick<CreateDashboard, 'tiles'>;
-
-export type UpdateDashboard =
-    | DashboardUnversionedFields
-    | DashboardVersionedFields
-    | (DashboardUnversionedFields & DashboardVersionedFields);
-
-export const isDashboardUnversionedFields = (
-    data: UpdateDashboard,
-): data is DashboardUnversionedFields => 'name' in data && !!data.name;
-
-export const isDashboardVersionedFields = (
-    data: UpdateDashboard,
-): data is DashboardVersionedFields => 'tiles' in data && !!data.tiles;
