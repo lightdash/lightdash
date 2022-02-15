@@ -41,3 +41,8 @@ services:
       POSTGRES_PASSWORD: ${PGPASSWORD}
       POSTGRES_USER: ${PGUSER:-postgres}
       POSTGRES_DB: ${PGDATABASE:-postgres}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+volumes:
+  db-data:
