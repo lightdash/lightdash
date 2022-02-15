@@ -154,7 +154,7 @@ const Dashboard = () => {
         return <Spinner />;
     }
     return (
-        <DashboardProvider dashboard={dashboard}>
+        <DashboardProvider dashboard={dashboard} isEditMode={isEditMode}>
             <DashboardHeader
                 dashboardName={dashboard.name}
                 isEditMode={isEditMode}
@@ -166,7 +166,7 @@ const Dashboard = () => {
                 onCancel={onCancel}
             />
             <Page isContentFullWidth>
-                <DashboardFilter />
+                {!isEditMode && <DashboardFilter />}
                 <ResponsiveGridLayout
                     useCSSTransforms={false}
                     draggableCancel=".non-draggable"
