@@ -17,6 +17,7 @@ import {
     DashboardTileTypes,
     DBChartTypes,
     filterableDimensionsOnly,
+    getDefaultChartTileSize,
     getDimensions,
     getMetrics,
 } from 'common';
@@ -530,7 +531,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     ModalContent={SavedQueryForm}
                 />
             )}
-            {savedQueryUuid && (
+            {data && (
                 <CreateSavedDashboardModal
                     isOpen={isAddToNewDashboardModalOpen}
                     tiles={[
@@ -538,12 +539,11 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             uuid: uuid4(),
                             type: DashboardTileTypes.SAVED_CHART,
                             properties: {
-                                savedChartUuid: savedQueryUuid,
+                                savedChartUuid: data.uuid,
                             },
-                            h: 3,
-                            w: 5,
-                            x: 0,
-                            y: 0,
+                            ...getDefaultChartTileSize(
+                                data.chartConfig.chartType,
+                            ),
                         },
                     ]}
                     showRedirectButton
@@ -551,9 +551,9 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     ModalContent={DashboardForm}
                 />
             )}
-            {savedQueryUuid && isAddToDashboardModalOpen && (
+            {data && isAddToDashboardModalOpen && (
                 <AddTilesToDashboardModal
-                    savedChartUuid={savedQueryUuid}
+                    savedChart={data}
                     onClose={() => setIsAddToDashboardModalOpen(false)}
                 />
             )}

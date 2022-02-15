@@ -1,5 +1,6 @@
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
+import { DashboardTileTypes } from './types/dashboard';
 import {
     DashboardFilterRule,
     DateFilterRule,
@@ -12,12 +13,15 @@ import {
     UnitOfTime,
 } from './types/filter';
 import { OrganizationMemberProfile } from './types/organizationMemberProfile';
+import { DBChartTypes } from './types/savedCharts';
 import { LightdashUser } from './types/user';
 
 export * from './authorization/organizationMemberAbility';
+export * from './types/dashboard';
 export * from './types/filter';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
+export * from './types/savedCharts';
 export * from './types/user';
 
 const DATE_FORMAT = 'YYYY-MM-DD';
@@ -1114,15 +1118,6 @@ export enum DBFieldTypes {
     METRIC = 'metric',
 }
 
-export enum DBChartTypes {
-    COLUMN = 'column',
-    BAR = 'bar',
-    LINE = 'line',
-    SCATTER = 'scatter',
-    TABLE = 'table',
-    BIG_NUMBER = 'big_number',
-}
-
 export enum WarehouseTypes {
     BIGQUERY = 'bigquery',
     POSTGRES = 'postgres',
@@ -1330,12 +1325,6 @@ export type CreateProject = Omit<Project, 'projectUuid'> & {
 export type UpdateProject = Omit<Project, 'projectUuid'> & {
     warehouseConnection: CreateWarehouseCredentials;
 };
-
-export enum DashboardTileTypes {
-    SAVED_CHART = 'saved_chart',
-    MARKDOWN = 'markdown',
-    LOOM = 'loom',
-}
 
 type CreateDashboardTileBase = {
     uuid?: string;

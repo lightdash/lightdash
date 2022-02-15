@@ -1,0 +1,30 @@
+import { DBChartTypes } from './savedCharts';
+
+export enum DashboardTileTypes {
+    SAVED_CHART = 'saved_chart',
+    MARKDOWN = 'markdown',
+    LOOM = 'loom',
+}
+
+export const defaultTileSize = {
+    h: 3,
+    w: 5,
+    x: 0,
+    y: 0,
+};
+
+export const getDefaultChartTileSize = (
+    chartType: DBChartTypes | undefined,
+) => {
+    switch (chartType) {
+        case DBChartTypes.BIG_NUMBER:
+            return {
+                h: 2,
+                w: 3,
+                x: 0,
+                y: 0,
+            };
+        default:
+            return defaultTileSize;
+    }
+};
