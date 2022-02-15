@@ -105,7 +105,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                     available. Please follow the instructions in
                                     the{' '}
                                     <a
-                                        href="https://docs.lightdash.com/guides/how-to-update-docker-image"
+                                        href="https://docs.lightdash.com/references/update-lightdash/"
                                         target="_blank"
                                         rel="noreferrer"
                                     >
