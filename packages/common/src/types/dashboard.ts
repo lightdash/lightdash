@@ -6,6 +6,13 @@ export enum DashboardTileTypes {
     LOOM = 'loom',
 }
 
+export const defaultTileSize = {
+    h: 3,
+    w: 5,
+    x: 0,
+    y: 0,
+};
+
 export const getDefaultChartTileSize = (
     chartType: DBChartTypes | undefined,
 ) => {
@@ -18,11 +25,6 @@ export const getDefaultChartTileSize = (
                 y: 0,
             };
         default:
-            return {
-                h: 3,
-                w: 5,
-                x: 0,
-                y: 0,
-            };
+            return defaultTileSize;
     }
 };
