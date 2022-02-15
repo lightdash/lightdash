@@ -78,7 +78,7 @@ const NavBar = () => {
                     />
                 </NavbarGroup>
                 <NavbarGroup align={Alignment.RIGHT}>
-                    <HelpMenu projectId={projectUuid} />
+                    <HelpMenu />
                     <Divider />
                     <ShowErrorsButton
                         errorLogs={errorLogs}
