@@ -1,4 +1,5 @@
-import React from 'react';
+import { useHotkeys } from '@blueprintjs/core';
+import React, { useCallback, useMemo } from 'react';
 import useDefaultSortField from '../hooks/useDefaultSortField';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useServerStatus } from '../hooks/useServerStatus';
@@ -16,17 +17,38 @@ export const RefreshButton = () => {
     const { isFetching, remove } = useQueryResults();
     const { track } = useTracking();
     const defaultSort = useDefaultSortField();
+    const onClick = useCallback(async () => {
+        remove();
+        syncState(sorts.length === 0 ? defaultSort : undefined);
+        track({
+            name: EventName.RUN_QUERY_BUTTON_CLICKED,
+        });
+    }, [defaultSort, remove, sorts, syncState, track]);
+    const hotkeys = useMemo(() => {
+        const runQueryHotkey = {
+            combo: 'ctrl+enter',
+            group: 'Explorer',
+            label: 'Run query',
+            allowInInput: true,
+            onKeyDown: onClick,
+            global: true,
+            preventDefault: true,
+            stopPropagation: true,
+        };
+        return [
+            runQueryHotkey,
+            {
+                ...runQueryHotkey,
+                combo: 'cmd+enter',
+            },
+        ];
+    }, [onClick]);
+    useHotkeys(hotkeys);
     return (
         <BigButton
             intent="primary"
             style={{ width: 150, marginRight: '10px' }}
-            onClick={async () => {
-                remove();
-                syncState(sorts.length === 0 ? defaultSort : undefined);
-                track({
-                    name: EventName.RUN_QUERY_BUTTON_CLICKED,
-                });
-            }}
+            onClick={onClick}
             disabled={!isValidQuery}
             loading={isFetching || status.data === 'loading'}
         >
