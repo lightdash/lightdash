@@ -81,6 +81,39 @@ you'll need to include the path to the sub-folder where your dbt project is (e.g
 
 ----
 
+### Azure DevOps
+
+#### Personal access token
+
+This is your secret token used to access Azure Devops. See the [instructions to create a personal access token](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=Windows)
+You must specify at least the Repo:Read scope.
+
+#### Organization
+
+This is the name of the organization that owns your repository
+
+#### Project
+
+This is the name of the project that owns your repository
+
+#### Repository
+
+This is the name of the repository. For many projects, this is the same as your project name above.
+
+#### Branch
+This is the branch in your repository that Lightdash should sync to. e.g. `main`, `master` or `dev`
+
+By default, we've set this to `main` but you can change it to whatever you'd like.
+
+#### Project directory path
+This is the folder where your `dbt_project.yml` file is found in the repository you entered above.
+
+If your `dbt_project.yml` file is in the main folder of your repo (e.g. `lightdash/lightdash-analytics/dbt_project.yml`),
+then you don't need to change anything in here. You can just leave the default value we've put in.
+
+If your dbt project is in a sub-folder in your repo (e.g. `lightdash/lightdash-analytics/dbt/dbt_project.yml`), then
+you'll need to include the path to the sub-folder where your dbt project is (e.g. `/dbt`).
+
 ### Local dbt project
 
 :::caution Prerequisite

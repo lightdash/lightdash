@@ -105,11 +105,13 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
             };
 
             Logger.debug(`Git clone to ${this.localRepositoryDir}`);
-            await this.git.clone(
-                this.remoteRepositoryUrl,
-                this.localRepositoryDir,
-                defaultCloneOptions,
-            );
+            await this.git
+                .env('GIT_TERMINAL_PROMPT', '0')
+                .clone(
+                    this.remoteRepositoryUrl,
+                    this.localRepositoryDir,
+                    defaultCloneOptions,
+                );
         } catch (e) {
             if (e.message.includes('Authentication failed')) {
                 throw new AuthorizationError(
@@ -128,6 +130,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
             Logger.debug(`Git pull to ${this.localRepositoryDir}`);
             await fspromises.access(this.localRepositoryDir);
             await this.git
+                .env('GIT_TERMINAL_PROMPT', '0')
                 .cwd(this.localRepositoryDir)
                 .pull(this.remoteRepositoryUrl, this.branch, {
                     '--ff-only': null,
