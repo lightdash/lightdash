@@ -1,3 +1,4 @@
+import { Spinner } from '@blueprintjs/core';
 import { Dashboard, DashboardFilterRule, DashboardFilters } from 'common';
 import React, {
     createContext,
@@ -8,13 +9,17 @@ import React, {
     useEffect,
     useState,
 } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
-
+import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
+const emptyFilters: DashboardFilters = {
+    dimensions: [],
+    metrics: [],
+};
 type DashboardContext = {
-    dashboard: Dashboard;
+    dashboard: Dashboard | undefined;
     canUseFilters: boolean;
-    dashboardFilters: DashboardFilters;
+    dashboardFilters: DashboardFilters | typeof emptyFilters;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     addDimensionDashboardFilter: (filter: DashboardFilterRule) => void;
     updateDimensionDashboardFilter: (
@@ -27,22 +32,22 @@ type DashboardContext = {
 
 const Context = createContext<DashboardContext | undefined>(undefined);
 
-const emptyFilters: DashboardFilters = {
-    dimensions: [],
-    metrics: [],
-};
+export const DashboardProvider: React.FC = ({ children }) => {
+    const { dashboardUuid } = useParams<{
+        dashboardUuid: string;
+    }>();
 
-type Props = { dashboard: Dashboard; isEditMode: boolean };
-
-export const DashboardProvider: React.FC<Props> = ({
-    dashboard,
-    isEditMode,
-    children,
-}) => {
-    const [dashboardFilters, setDashboardFilters] = useState<DashboardFilters>(
-        dashboard.filters,
-    );
+    const { data: dashboard } = useDashboardQuery(dashboardUuid);
+    const [dashboardFilters, setDashboardFilters] = useState<
+        DashboardFilters | typeof emptyFilters
+    >(emptyFilters);
     const canUseFilters = true; //!isEditMode;
+
+    useEffect(() => {
+        if (dashboard) {
+            setDashboardFilters(dashboard.filters);
+        }
+    }, [dashboard]);
 
     const addDimensionDashboardFilter = useCallback(
         (filter: DashboardFilterRule) => {
@@ -136,6 +141,9 @@ export const DashboardProvider: React.FC<Props> = ({
         addMetricDashboardFilter,
         setDashboardFilters,
     };
+    if (dashboard === undefined) {
+        return <Spinner />;
+    }
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
 

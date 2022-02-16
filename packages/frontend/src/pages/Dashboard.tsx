@@ -1,9 +1,5 @@
 import { Spinner } from '@blueprintjs/core';
-import {
-    Dashboard as IDashboard,
-    DashboardTileTypes,
-    FilterOperator,
-} from 'common';
+import { Dashboard as IDashboard, DashboardTileTypes } from 'common';
 import React, {
     FC,
     memo,
@@ -26,7 +22,7 @@ import {
     useDashboardQuery,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
-import { DashboardProvider } from '../providers/DashboardProvider';
+import { useDashboardContext } from '../providers/DashboardProvider';
 import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -61,6 +57,7 @@ const Dashboard = () => {
         dashboardUuid: string;
         mode?: string;
     }>();
+    const { dashboardFilters } = useDashboardContext();
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
     const [hasTilesChanged, setHasTilesChanged] = useState(false);
@@ -158,7 +155,8 @@ const Dashboard = () => {
         return <Spinner />;
     }
     return (
-        <DashboardProvider dashboard={dashboard} isEditMode={isEditMode}>
+        //<DashboardProvider dashboard={dashboard} isEditMode={isEditMode}>
+        <>
             <DashboardHeader
                 dashboardName={dashboard.name}
                 isEditMode={isEditMode}
@@ -170,18 +168,8 @@ const Dashboard = () => {
                         tiles: dashboardTiles,
                         filters: {
                             // TODO: hardcoded example
-                            dimensions: [
-                                {
-                                    id: 'cd9a6fa3-c3cc-4165-a744-d459ac478da8',
-                                    target: {
-                                        fieldId: 'orders_is_completed',
-                                        tableName: 'orders',
-                                    },
-                                    operator: FilterOperator.EQUALS,
-                                    values: [false],
-                                },
-                            ],
-                            metrics: [],
+                            dimensions: dashboardFilters.dimensions,
+                            metrics: dashboardFilters.metrics,
                         },
                     })
                 }
@@ -189,7 +177,7 @@ const Dashboard = () => {
                 onCancel={onCancel}
             />
             <Page isContentFullWidth>
-                {!isEditMode && <DashboardFilter />}
+                <DashboardFilter />
                 <ResponsiveGridLayout
                     useCSSTransforms={false}
                     draggableCancel=".non-draggable"
@@ -214,7 +202,8 @@ const Dashboard = () => {
                     <EmptyStateNoTiles onAddTile={onAddTile} />
                 )}
             </Page>
-        </DashboardProvider>
+        </>
+        // </DashboardProvider>
     );
 };
 export default Dashboard;
