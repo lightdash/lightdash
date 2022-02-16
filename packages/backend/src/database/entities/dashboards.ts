@@ -26,9 +26,8 @@ type DbDashboardVersion = {
 };
 
 type DbDashboardView = {
-    dashboard_view_id: number;
-    dashboard_version_id: number;
     dashboard_view_uuid: string;
+    dashboard_version_id: number;
     created_at: Date;
     name: string;
     filters: DashboardFilters;
