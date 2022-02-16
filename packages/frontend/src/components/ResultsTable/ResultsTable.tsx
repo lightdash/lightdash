@@ -36,7 +36,7 @@ import {
     TableOuterContainer,
 } from './ResultsTable.styles';
 import { CellContextMenu } from './CellContextMenu';
-import { ColumnHeaderContextMenu } from './ColumnHeaderContextMenu';
+import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
 import { EmptyState, IdleState, LoadingState } from './States';
 
 const getSortIndicator = (
