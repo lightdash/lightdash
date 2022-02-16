@@ -71,6 +71,7 @@ export enum ProjectType {
     GITHUB = 'github',
     GITLAB = 'gitlab',
     BITBUCKET = 'bitbucket',
+    AZURE_DEVOPS = 'azure_devops',
 }
 
 // Seeds
@@ -1251,6 +1252,7 @@ export const ProjectTypeLabels: Record<ProjectType, string> = {
     [ProjectType.GITHUB]: 'Github',
     [ProjectType.GITLAB]: 'GitLab',
     [ProjectType.BITBUCKET]: 'BitBucket',
+    [ProjectType.AZURE_DEVOPS]: 'Azure DevOps',
 };
 
 export interface DbtProjectConfigBase {
@@ -1300,12 +1302,23 @@ export interface DbtBitBucketProjectConfig extends DbtProjectConfigBase {
     host_domain?: string;
 }
 
+export interface DbtAzureDevOpsProjectConfig extends DbtProjectConfigBase {
+    type: ProjectType.AZURE_DEVOPS;
+    personal_access_token: string;
+    organization: string;
+    project: string;
+    repository: string;
+    branch: string;
+    project_sub_path: string;
+}
+
 export type DbtProjectConfig =
     | DbtLocalProjectConfig
     | DbtCloudIDEProjectConfig
     | DbtGithubProjectConfig
     | DbtBitBucketProjectConfig
-    | DbtGitlabProjectConfig;
+    | DbtGitlabProjectConfig
+    | DbtAzureDevOpsProjectConfig;
 
 export type OrganizationProject = {
     projectUuid: string;

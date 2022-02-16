@@ -1,6 +1,7 @@
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import {
+    DbtAzureDevOpsProjectConfig,
     DbtBitBucketProjectConfig,
     DbtCloudIDEProjectConfig,
     DbtGithubProjectConfig,
@@ -157,6 +158,17 @@ const dbtBitBucketProjectConfigKeys: ConfigKeys<DbtBitBucketProjectConfig> = {
     project_sub_path: true,
     host_domain: true,
 };
+const dbtAzureDevOpsProjectConfigKeys: ConfigKeys<DbtAzureDevOpsProjectConfig> =
+    {
+        type: true,
+        name: true,
+        organization: true,
+        project: true,
+        repository: true,
+        branch: true,
+        project_sub_path: true,
+        personal_access_token: true,
+    };
 
 const mergeProjectWithEnvironment = <T extends DbtProjectConfig>(
     projectIndex: number,
@@ -211,6 +223,12 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                     idx,
                     project,
                     dbtBitBucketProjectConfigKeys,
+                );
+            case ProjectType.AZURE_DEVOPS:
+                return mergeProjectWithEnvironment(
+                    idx,
+                    project,
+                    dbtAzureDevOpsProjectConfigKeys,
                 );
             default: {
                 const never: never = project;

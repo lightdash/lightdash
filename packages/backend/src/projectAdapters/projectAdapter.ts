@@ -6,6 +6,7 @@ import {
 import Logger from '../logger';
 import { warehouseClientFromCredentials } from '../services/warehouseClients/warehouseClientFromCredentials';
 import { ProjectAdapter } from '../types';
+import { DbtAzureDevOpsProjectAdapter } from './dbtAzureDevOpsProjectAdapter';
 import { DbtBitBucketProjectAdapter } from './dbtBitBucketProjectAdapter';
 import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
@@ -63,6 +64,17 @@ export const projectAdapterFromConfig = async (
                 branch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,
                 hostDomain: config.host_domain,
+                warehouseCredentials,
+            });
+        case ProjectType.AZURE_DEVOPS:
+            return new DbtAzureDevOpsProjectAdapter({
+                warehouseClient,
+                personalAccessToken: config.personal_access_token,
+                organization: config.organization,
+                project: config.project,
+                repository: config.repository,
+                branch: config.branch,
+                projectDirectorySubPath: config.project_sub_path,
                 warehouseCredentials,
             });
         default:
