@@ -27,7 +27,7 @@ import TileBase from './TileBase/index';
 const ValidDashboardChartTile: FC<{
     data: SavedQuery;
     project: string;
-    onSeriesContextMenu: (e: EchartSeriesClickEvent) => void;
+    onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
 }> = ({ data, project, onSeriesContextMenu }) => {
     const chartRef = useRef<EChartsReact>(null);
     const [activeVizTab, setActiveVizTab] = useState<DBChartTypes>(
@@ -107,30 +107,33 @@ const DashboardChartTile: FC<Props> = (props) => {
         DashboardFilterRule[]
     >([]);
 
-    const onSeriesContextMenu = (e: EchartSeriesClickEvent) => {
-        if (explore === undefined) {
-            return;
-        }
-        const dimensions = getDimensions(explore).filter((dimension) =>
-            e.dimensionNames.includes(fieldId(dimension)),
-        );
-        setDashboardFilterOptions(
-            dimensions.map((dimension) => ({
-                id: uuidv4(),
-                target: {
-                    fieldId: fieldId(dimension),
-                    tableName: dimension.table,
-                },
-                operator: FilterOperator.EQUALS,
-                values: [e.data[fieldId(dimension)]],
-            })),
-        );
-        setContextMenuIsOpen(true);
-        setContextMenuTargetOffset({
-            left: e.event.event.pageX,
-            top: e.event.event.pageY,
-        });
-    };
+    const onSeriesContextMenu = useCallback(
+        (e: EchartSeriesClickEvent) => {
+            if (explore === undefined) {
+                return;
+            }
+            const dimensions = getDimensions(explore).filter((dimension) =>
+                e.dimensionNames.includes(fieldId(dimension)),
+            );
+            setDashboardFilterOptions(
+                dimensions.map((dimension) => ({
+                    id: uuidv4(),
+                    target: {
+                        fieldId: fieldId(dimension),
+                        tableName: dimension.table,
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: [e.data[fieldId(dimension)]],
+                })),
+            );
+            setContextMenuIsOpen(true);
+            setContextMenuTargetOffset({
+                left: e.event.event.pageX,
+                top: e.event.event.pageY,
+            });
+        },
+        [explore],
+    );
 
     // START DASHBOARD FILTER LOGIC
     // TODO: move this logic out of component

@@ -24,7 +24,7 @@ const LightdashVisualization: FC<Props> = ({
     tableName,
     resultsData,
     isLoading,
-    onSeriesContextMenu = () => {},
+    onSeriesContextMenu,
 }) => {
     if (isLoading || !chartConfig) {
         return <LoadingState />;

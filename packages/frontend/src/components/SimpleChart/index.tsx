@@ -7,7 +7,7 @@ import {
     getFieldLabel,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
-import React, { FC, RefObject, useEffect } from 'react';
+import React, { FC, RefObject, useCallback, useEffect } from 'react';
 import { ChartConfig } from '../../hooks/useChartConfig';
 import { useExplore } from '../../hooks/useExplore';
 
@@ -119,13 +119,16 @@ type SimpleChartProps = {
     tableName: string | undefined;
     onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
 };
+const isSeriesClickEvent = (e: EchartClickEvent): e is EchartSeriesClickEvent =>
+    e.componentType === 'series';
+
 const SimpleChart: FC<SimpleChartProps> = ({
     chartRef,
     chartType,
     chartConfig,
     isLoading,
     tableName,
-    onSeriesContextMenu = () => {},
+    onSeriesContextMenu,
 }) => {
     useEffect(() => {
         const listener = () => {
@@ -139,6 +142,20 @@ const SimpleChart: FC<SimpleChartProps> = ({
     });
 
     const activeExplore = useExplore(tableName);
+    const onChartContextMenu = useCallback(
+        (e: EchartClickEvent) => {
+            if (onSeriesContextMenu) {
+                if (e.event.event.defaultPrevented) {
+                    return;
+                }
+                e.event.event.preventDefault();
+                if (isSeriesClickEvent(e)) {
+                    onSeriesContextMenu(e);
+                }
+            }
+        },
+        [onSeriesContextMenu],
+    );
     if (isLoading || !activeExplore.data) return <LoadingChart />;
     if (chartConfig.plotData === undefined) return <EmptyChart />;
     const xDimensionField = findFieldByIdInExplore(
@@ -223,20 +240,6 @@ const SimpleChart: FC<SimpleChartProps> = ({
             dimensions: chartConfig.eChartDimensions,
         },
         tooltip,
-    };
-
-    const isSeriesClickEvent = (
-        e: EchartClickEvent,
-    ): e is EchartSeriesClickEvent => e.componentType === 'series';
-
-    const onChartContextMenu = (e: EchartClickEvent) => {
-        if (e.event.event.defaultPrevented) {
-            return;
-        }
-        e.event.event.preventDefault();
-        if (isSeriesClickEvent(e)) {
-            onSeriesContextMenu(e);
-        }
     };
 
     return (
