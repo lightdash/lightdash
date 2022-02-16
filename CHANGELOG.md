@@ -1,3 +1,11 @@
+# [0.23.0](https://github.com/lightdash/lightdash/compare/0.22.0...0.23.0) (2022-02-16)
+
+
+### Features
+
+* add azure devops option for dbt projects ([#1404](https://github.com/lightdash/lightdash/issues/1404)) ([3646154](https://github.com/lightdash/lightdash/commit/3646154ef7b55955f528fbc5943772a08ba7cfc5))
+* add host domain for github enterprise connections ([#1402](https://github.com/lightdash/lightdash/issues/1402)) ([9258f7a](https://github.com/lightdash/lightdash/commit/9258f7ae5f4422889c879c847bb9bc56dfed01c9))
+
 # [0.22.0](https://github.com/lightdash/lightdash/compare/0.21.0...0.22.0) (2022-02-16)
 
 
