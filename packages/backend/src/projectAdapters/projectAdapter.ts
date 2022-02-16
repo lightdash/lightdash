@@ -42,6 +42,7 @@ export const projectAdapterFromConfig = async (
                 githubRepository: config.repository,
                 githubBranch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,
+                hostDomain: config.host_domain,
                 warehouseCredentials,
             });
         case ProjectType.GITLAB:

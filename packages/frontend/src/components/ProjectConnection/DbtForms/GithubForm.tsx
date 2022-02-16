@@ -65,6 +65,13 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             disabled={disabled}
             defaultValue="/"
         />
+        <Input
+            name="dbt.host_domain"
+            label="Host domain (for Github Enterprise)"
+            documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#host-domain"
+            disabled={disabled}
+            defaultValue="github.com"
+        />
     </>
 );
 

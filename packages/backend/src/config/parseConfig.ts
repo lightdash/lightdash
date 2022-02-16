@@ -137,6 +137,7 @@ const dbtGithubProjectConfigKeys: ConfigKeys<DbtGithubProjectConfig> = {
     repository: true,
     branch: true,
     project_sub_path: true,
+    host_domain: true,
 };
 const dbtGitlabProjectConfigKeys: ConfigKeys<DbtGitlabProjectConfig> = {
     type: true,
