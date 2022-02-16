@@ -1,3 +1,10 @@
+# [0.21.0](https://github.com/lightdash/lightdash/compare/0.20.2...0.21.0) (2022-02-16)
+
+
+### Features
+
+* add cmd+enter hotkey to RefreshButton ([#1395](https://github.com/lightdash/lightdash/issues/1395)) ([cbd5c95](https://github.com/lightdash/lightdash/commit/cbd5c9513069a4f333c1620e62c539c38df48f22))
+
 ## [0.20.2](https://github.com/lightdash/lightdash/compare/0.20.1...0.20.2) (2022-02-15)
 
 
