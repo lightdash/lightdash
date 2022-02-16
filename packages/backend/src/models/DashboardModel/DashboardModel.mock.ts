@@ -14,6 +14,7 @@ import {
     DashboardTable,
     DashboardTileTable,
     DashboardVersionTable,
+    DashboardViewTable,
 } from '../../database/entities/dashboards';
 import { SavedQueryTable } from '../../database/entities/savedQueries';
 import { SpaceTable } from '../../database/entities/spaces';
@@ -52,9 +53,14 @@ export const createDashboardWithTileIds: CreateDashboard = {
 
 export const addDashboardVersion: DashboardVersionedFields = {
     tiles: [tileWithoutId],
+    filters: {
+        dimensions: [],
+        metrics: [],
+    },
 };
 
 export const addDashboardVersionWithAllTiles: DashboardVersionedFields = {
+    ...addDashboardVersion,
     tiles: [
         tileWithoutId,
         {
@@ -74,10 +80,12 @@ export const addDashboardVersionWithAllTiles: DashboardVersionedFields = {
 };
 
 export const addDashboardVersionWithTileIds: DashboardVersionedFields = {
+    ...addDashboardVersion,
     tiles: [tileWithId],
 };
 
 export const addDashboardVersionWithoutChart: DashboardVersionedFields = {
+    ...addDashboardVersion,
     tiles: [
         {
             ...tileWithoutId,
@@ -125,6 +133,18 @@ export const dashboardVersionEntry: DashboardVersionTable['base'] = {
     created_at: new Date(),
 };
 
+export const dashboardViewEntry: DashboardViewTable['base'] = {
+    dashboard_view_id: 0,
+    dashboard_view_uuid: 'dashboard_view_uuid',
+    dashboard_version_id: 0,
+    created_at: new Date(),
+    name: 'Default',
+    filters: {
+        dimensions: [],
+        metrics: [],
+    },
+};
+
 export const dashboardWithVersionEntry: GetDashboardQuery = {
     dashboard_id: dashboardEntry.dashboard_id,
     dashboard_uuid: dashboardEntry.dashboard_uuid,
@@ -132,6 +152,10 @@ export const dashboardWithVersionEntry: GetDashboardQuery = {
     description: dashboardEntry.description,
     dashboard_version_id: dashboardVersionEntry.dashboard_version_id,
     created_at: dashboardVersionEntry.created_at,
+    filters: {
+        dimensions: [],
+        metrics: [],
+    },
 };
 
 export const dashboardTileEntry: DashboardTileTable['base'] = {

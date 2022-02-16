@@ -107,9 +107,14 @@ export const updateDashboard: UpdateDashboard = {
 
 export const updateDashboardTiles: UpdateDashboard = {
     tiles: [createTile],
+    filters: {
+        dimensions: [],
+        metrics: [],
+    },
 };
 
 export const updateDashboardTilesWithIds: UpdateDashboard = {
+    ...updateDashboardTiles,
     tiles: [createTileWithId],
 };
 
