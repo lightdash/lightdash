@@ -2,6 +2,7 @@ import { Button } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
+import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
@@ -116,6 +117,13 @@ const RedshiftForm: FC<{
                         'verify-full',
                     ].map((x) => ({ value: x, label: x }))}
                     defaultValue="prefer"
+                    disabled={disabled}
+                />
+                <BooleanSwitch
+                    name="warehouse.ra3Node"
+                    label="Use RA3 node"
+                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#ra3-node"
+                    defaultValue="true"
                     disabled={disabled}
                 />
             </FormSection>

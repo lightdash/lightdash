@@ -1204,6 +1204,7 @@ export type CreateRedshiftCredentials = {
     threads: number;
     keepalivesIdle?: number;
     sslmode?: string;
+    ra3Node?: boolean;
 };
 
 export type RedshiftCredentials = Omit<
