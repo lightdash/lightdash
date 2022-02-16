@@ -72,7 +72,10 @@ export class DashboardModel {
         await trx(DashboardViewsTableName).insert({
             dashboard_version_id: versionId.dashboard_version_id,
             name: 'Default',
-            filters: version.filters,
+            filters: version.filters || {
+                dimensions: [],
+                metrics: [],
+            },
         });
 
         const promises: Promise<any>[] = [];

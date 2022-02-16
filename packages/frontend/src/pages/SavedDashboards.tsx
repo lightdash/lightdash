@@ -61,10 +61,6 @@ const SavedDashboards = () => {
                             createDashboard({
                                 name: DEFAULT_DASHBOARD_NAME,
                                 tiles: [],
-                                filters: {
-                                    dimensions: [],
-                                    metrics: [],
-                                },
                             })
                         }
                         intent="primary"

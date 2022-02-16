@@ -123,10 +123,6 @@ const LatestDashboards: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             createDashboard.mutate({
                                 name: DEFAULT_DASHBOARD_NAME,
                                 tiles: [],
-                                filters: {
-                                    dimensions: [],
-                                    metrics: [],
-                                },
                             })
                         }
                     >

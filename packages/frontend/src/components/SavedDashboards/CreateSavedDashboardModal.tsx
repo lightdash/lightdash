@@ -28,12 +28,7 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = (
     return (
         <CreateActionModal
             useCreate={useCreate}
-            savedData={
-                {
-                    tiles: tiles || [],
-                    filters: { dimensions: [], metrics: [] },
-                } as Partial<CreateDashboard>
-            }
+            savedData={{ tiles: tiles || [] } as Partial<CreateDashboard>}
             {...props}
         />
     );

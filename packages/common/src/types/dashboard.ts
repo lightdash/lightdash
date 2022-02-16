@@ -63,7 +63,7 @@ export type CreateDashboard = {
         | CreateDashboardMarkdownTile
         | CreateDashboardLoomTile
     >;
-    filters: DashboardFilters;
+    filters?: DashboardFilters;
 };
 
 export type Dashboard = {
