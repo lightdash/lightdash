@@ -1,3 +1,10 @@
+# [0.22.0](https://github.com/lightdash/lightdash/compare/0.21.0...0.22.0) (2022-02-16)
+
+
+### Features
+
+* add ra3 node option to redshift dbt profiles ([#1401](https://github.com/lightdash/lightdash/issues/1401)) ([03170b5](https://github.com/lightdash/lightdash/commit/03170b53f5fc933e806bc3814a6e25e5acadd69e))
+
 # [0.21.0](https://github.com/lightdash/lightdash/compare/0.20.2...0.21.0) (2022-02-16)
 
 
