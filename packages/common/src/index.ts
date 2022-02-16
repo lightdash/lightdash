@@ -447,6 +447,7 @@ export const getFilterTypeFromField = (field: FilterableField): FilterType => {
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     field: FilterableField,
     filterRule: T,
+    value?: any,
 ): T => {
     const filterType = getFilterTypeFromField(field);
     const filterRuleDefaults: Partial<FilterRule> = {};
@@ -458,7 +459,8 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
         switch (filterType) {
             case FilterType.DATE: {
                 if (filterRule.operator === FilterOperator.IN_THE_PAST) {
-                    filterRuleDefaults.values = [1];
+                    filterRuleDefaults.values =
+                        value !== undefined ? [value] : [1];
                     filterRuleDefaults.settings = {
                         unitOfTime: UnitOfTime.days,
                         completed: false,
@@ -469,7 +471,8 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                 break;
             }
             case FilterType.BOOLEAN: {
-                filterRuleDefaults.values = [false];
+                filterRuleDefaults.values =
+                    value !== undefined ? [value] : [false];
                 break;
             }
             default:
@@ -478,20 +481,27 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     }
     return {
         ...filterRule,
-        values: [],
+        values: value !== undefined ? [value] : [],
         settings: undefined,
         ...filterRuleDefaults,
     };
 };
 
-export const createFilterRuleFromField = (field: FilterableField): FilterRule =>
-    getFilterRuleWithDefaultValue(field, {
-        id: uuidv4(),
-        target: {
-            fieldId: fieldId(field),
+export const createFilterRuleFromField = (
+    field: FilterableField,
+    value?: any,
+): FilterRule =>
+    getFilterRuleWithDefaultValue(
+        field,
+        {
+            id: uuidv4(),
+            target: {
+                fieldId: fieldId(field),
+            },
+            operator: FilterOperator.EQUALS,
         },
-        operator: FilterOperator.EQUALS,
-    });
+        value,
+    );
 
 export const createDashboardFilterRuleFromField = (
     field: FilterableField,
@@ -524,15 +534,7 @@ export const addFilterRule = ({
             ...group,
             [getFilterGroupItemsPropertyName(group)]: [
                 ...getItemsFromFilterGroup(group),
-                //  createFilterRuleFromField(field),
-                {
-                    id: uuidv4(),
-                    target: {
-                        fieldId: fieldId(field),
-                    },
-                    operator: FilterOperator.EQUALS,
-                    ...(value !== undefined ? { values: [value] } : {}),
-                },
+                createFilterRuleFromField(field, value),
             ],
         },
     };
