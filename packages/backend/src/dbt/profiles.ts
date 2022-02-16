@@ -53,6 +53,7 @@ const credentialsTarget = (
                         __dirname,
                         '../services/warehouseClients/amazon-trust-ca-bundle.crt',
                     ),
+                    ra3_node: credentials.ra3Node || true,
                 },
                 environment: {
                     [envVar('user')]: credentials.user,
