@@ -28,20 +28,6 @@ export async function up(knex: Knex): Promise<void> {
             table.jsonb('filters').notNullable();
         });
     }
-    if (await knex.schema.hasTable(DashboardVersionsTableName)) {
-        const dashboardVersions = await knex.table(DashboardVersionsTableName);
-        const promises = dashboardVersions.map(({ dashboard_version_id }) =>
-            knex(DashboardViewsTableName).insert({
-                dashboard_version_id,
-                name: 'Default',
-                filters: {
-                    dimensions: [],
-                    metrics: [],
-                },
-            }),
-        );
-        await Promise.all(promises);
-    }
 }
 
 export async function down(knex: Knex): Promise<void> {

@@ -18,7 +18,6 @@ import {
     DashboardVersionsTableName,
     DashboardVersionTable,
     DashboardViewsTableName,
-    DashboardViewTable,
 } from '../../database/entities/dashboards';
 import { ProjectTableName } from '../../database/entities/projects';
 import {
@@ -33,8 +32,7 @@ export type GetDashboardQuery = Pick<
     DashboardTable['base'],
     'dashboard_id' | 'dashboard_uuid' | 'name' | 'description'
 > &
-    Pick<DashboardVersionTable['base'], 'dashboard_version_id' | 'created_at'> &
-    Pick<DashboardViewTable['base'], 'filters'>;
+    Pick<DashboardVersionTable['base'], 'dashboard_version_id' | 'created_at'>;
 
 export type GetDashboardDetailsQuery = Pick<
     DashboardTable['base'],
@@ -207,11 +205,6 @@ export class DashboardModel {
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardVersionsTableName}.dashboard_id`,
             )
-            .leftJoin(
-                DashboardViewsTableName,
-                `${DashboardVersionsTableName}.dashboard_version_id`,
-                `${DashboardViewsTableName}.dashboard_version_id`,
-            )
             .select<GetDashboardQuery[]>([
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardsTableName}.dashboard_uuid`,
@@ -219,23 +212,18 @@ export class DashboardModel {
                 `${DashboardsTableName}.description`,
                 `${DashboardVersionsTableName}.dashboard_version_id`,
                 `${DashboardVersionsTableName}.created_at`,
-                `${DashboardViewsTableName}.filters`,
             ])
             .where('dashboard_uuid', dashboardUuid)
-            .orderBy([
-                {
-                    column: `${DashboardVersionsTableName}.created_at`,
-                    order: 'desc',
-                },
-                {
-                    column: `${DashboardViewsTableName}.created_at`,
-                    order: 'desc',
-                },
-            ])
+            .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
             .limit(1);
         if (!dashboard) {
             throw new NotFoundError('Dashboard not found');
         }
+
+        const [view] = await this.database(DashboardViewsTableName)
+            .select('*')
+            .orderBy(`${DashboardViewsTableName}.created_at`, 'desc')
+            .where(`dashboard_version_id`, dashboard.dashboard_version_id);
 
         const tiles = await this.database(DashboardTilesTableName)
             .select<
@@ -377,7 +365,10 @@ export class DashboardModel {
                     }
                 },
             ),
-            filters: dashboard.filters,
+            filters: view.filters || {
+                dimensions: [],
+                metrics: [],
+            },
         };
     }
 
