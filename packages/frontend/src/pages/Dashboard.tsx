@@ -105,7 +105,7 @@ const Dashboard = () => {
         if (isEditMode && haveFiltersChanged !== dashboardFilters) {
             setHasTilesChanged(true);
         }
-    }, [dashboardFilters]);
+    }, [dashboardFilters, haveFiltersChanged, isEditMode]);
 
     const updateTiles = useCallback((layout: Layout[]) => {
         setTiles((currentDashboardTiles) =>
@@ -174,7 +174,6 @@ const Dashboard = () => {
                     mutate({
                         tiles: dashboardTiles,
                         filters: {
-                            // TODO: hardcoded example
                             dimensions: dashboardFilters.dimensions,
                             metrics: dashboardFilters.metrics,
                         },
