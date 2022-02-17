@@ -37,3 +37,8 @@ export const DashboardFilterWrapper = styled.div`
     grid-template-columns: 7.3em auto;
     margin-bottom: 0.5em;
 `;
+
+export const Tooltip = styled.p`
+    padding: 0;
+    margin: 0;
+`;
