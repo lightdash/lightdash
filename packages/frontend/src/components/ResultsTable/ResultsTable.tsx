@@ -18,7 +18,6 @@ import {
     usePagination,
     useTable as useReactTable,
 } from 'react-table';
-import { useFilters } from '../../hooks/useFilters';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import TableCalculationHeaderButton from '../TableCalculationHeaderButton';
@@ -174,7 +173,6 @@ export const ResultsTable: FC<Props> = ({
     emptyState,
     tableAction,
 }) => {
-    const { addFilter } = useFilters();
     const currentColOrder = React.useRef<Array<string>>([]);
     const {
         getTableProps,

@@ -13,20 +13,19 @@ const ColumnHeaderContextMenu: React.FC<ColumnHeaderContextMenuProps> = ({
     column,
 }) => {
     const { addFilter } = useFilters();
-    const menuContent =
-        column === undefined ? undefined : (
-            <Menu>
-                <MenuItem
-                    label={`Filter ${column.field.name}`}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        addFilter(column.field, undefined, false);
-                    }}
-                />
-            </Menu>
-        );
+    const menuContent = column && (
+        <Menu>
+            <MenuItem
+                label={`Filter ${column.field.name}`}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    addFilter(column.field, undefined, false);
+                }}
+            />
+        </Menu>
+    );
     return (
-        <ContextMenu2 disabled={column === undefined} content={menuContent}>
+        <ContextMenu2 disabled={!column} content={menuContent}>
             {children}
         </ContextMenu2>
     );
