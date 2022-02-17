@@ -9,6 +9,7 @@ import {
     getFilterTypeFromField,
 } from 'common';
 import React, { FC, useMemo, useState } from 'react';
+import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { FilterTypeConfig } from '../../common/Filters/configs';
 import {
     ApplyFilterButton,
@@ -31,6 +32,7 @@ const FilterConfiguration: FC<Props> = ({
     onSave,
     onBack,
 }) => {
+    const { setHaveFiltersChanged } = useDashboardContext();
     const [internalFilterRule, setInternalFilterRule] =
         useState<DashboardFilterRule>(
             filterRule || createDashboardFilterRuleFromField(field),
@@ -53,15 +55,16 @@ const FilterConfiguration: FC<Props> = ({
             <InputsWrapper>
                 <HTMLSelect
                     fill
-                    onChange={(e) =>
+                    onChange={(e) => {
                         setInternalFilterRule((prevState) =>
                             getFilterRuleWithDefaultValue(field, {
                                 ...prevState,
                                 operator: e.currentTarget
                                     .value as FilterRule['operator'],
                             }),
-                        )
-                    }
+                        );
+                        setHaveFiltersChanged(true);
+                    }}
                     options={filterConfig.operatorOptions}
                     value={internalFilterRule.operator}
                 />
@@ -78,6 +81,7 @@ const FilterConfiguration: FC<Props> = ({
                 text="Apply"
                 onClick={() => {
                     onSave(internalFilterRule);
+                    setHaveFiltersChanged(true);
                 }}
             />
         </ConfigureFilterWrapper>

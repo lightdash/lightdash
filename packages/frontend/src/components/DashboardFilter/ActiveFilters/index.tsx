@@ -15,6 +15,7 @@ const ActiveFilters: FC = () => {
         dashboardFilters,
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
+        setHaveFiltersChanged,
     } = useDashboardContext();
     const { isLoading, data: filterableFields } =
         useAvailableDashboardFilterTargets(dashboard);
@@ -61,9 +62,10 @@ const ActiveFilters: FC = () => {
                             key={item.id}
                             field={activeField}
                             filterRule={item}
-                            onRemove={() =>
-                                removeDimensionDashboardFilter(index)
-                            }
+                            onRemove={() => {
+                                removeDimensionDashboardFilter(index);
+                                setHaveFiltersChanged(true);
+                            }}
                             onClick={() => setOpenedFilter(item.id)}
                         />
                     </Popover2>
