@@ -79,6 +79,13 @@ describe('DashboardModel', () => {
             .response([dashboardWithVersionEntry]);
         tracker.on
             .select(
+                queryMatcher(DashboardViewsTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([dashboardViewEntry]);
+        tracker.on
+            .select(
                 queryMatcher(DashboardTilesTableName, [
                     dashboardWithVersionEntry.dashboard_version_id,
                 ]),
@@ -92,7 +99,7 @@ describe('DashboardModel', () => {
         const dashboard = await model.getById(expectedDashboard.uuid);
 
         expect(dashboard).toEqual(expectedDashboard);
-        expect(tracker.history.select).toHaveLength(2);
+        expect(tracker.history.select).toHaveLength(3);
     });
     test("should error if dashboard isn't found", async () => {
         tracker.on
