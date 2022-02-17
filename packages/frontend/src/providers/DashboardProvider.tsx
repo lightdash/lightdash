@@ -1,4 +1,3 @@
-import { Spinner } from '@blueprintjs/core';
 import { Dashboard, DashboardFilterRule, DashboardFilters } from 'common';
 import React, {
     createContext,
@@ -141,9 +140,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
         addMetricDashboardFilter,
         setDashboardFilters,
     };
-    if (dashboard === undefined) {
-        return <Spinner />;
-    }
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
 
