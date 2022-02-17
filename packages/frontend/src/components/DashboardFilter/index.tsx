@@ -15,7 +15,7 @@ const DashboardFilter: FC = () => {
     const { dashboard, dashboardFilters } = useDashboardContext();
     const { isLoading, data: filterableFields } =
         useAvailableDashboardFilterTargets(dashboard);
-    const hasTiles = dashboard.tiles.length >= 1;
+    const hasTiles = dashboard && dashboard.tiles.length >= 1;
 
     return (
         <DashboardFilterWrapper>

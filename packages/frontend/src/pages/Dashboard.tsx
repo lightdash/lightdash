@@ -58,6 +58,8 @@ const Dashboard = () => {
         mode?: string;
     }>();
     const { dashboardFilters } = useDashboardContext();
+    const [haveFiltersChanged, setHaveFiltersChanged] =
+        useState(dashboardFilters);
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
     const [hasTilesChanged, setHasTilesChanged] = useState(false);
@@ -98,6 +100,12 @@ const Dashboard = () => {
             );
         }
     }, [dashboardUuid, history, isSuccess, projectUuid, reset]);
+
+    useEffect(() => {
+        if (isEditMode && haveFiltersChanged !== dashboardFilters) {
+            setHasTilesChanged(true);
+        }
+    }, [dashboardFilters]);
 
     const updateTiles = useCallback((layout: Layout[]) => {
         setTiles((currentDashboardTiles) =>
@@ -155,7 +163,6 @@ const Dashboard = () => {
         return <Spinner />;
     }
     return (
-        //<DashboardProvider dashboard={dashboard} isEditMode={isEditMode}>
         <>
             <DashboardHeader
                 dashboardName={dashboard.name}
@@ -203,7 +210,6 @@ const Dashboard = () => {
                 )}
             </Page>
         </>
-        // </DashboardProvider>
     );
 };
 export default Dashboard;
