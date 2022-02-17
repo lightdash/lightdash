@@ -1,3 +1,10 @@
+# [0.24.0](https://github.com/lightdash/lightdash/compare/0.23.0...0.24.0) (2022-02-17)
+
+
+### Features
+
+* add dashboard filter from chart ([#1345](https://github.com/lightdash/lightdash/issues/1345)) ([8055190](https://github.com/lightdash/lightdash/commit/80551906d6dff8937f5b1b556377fd19f23b492a))
+
 # [0.23.0](https://github.com/lightdash/lightdash/compare/0.22.0...0.23.0) (2022-02-16)
 
 
