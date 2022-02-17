@@ -3,7 +3,7 @@ import EChartsReact from 'echarts-for-react';
 import React, { FC, RefObject } from 'react';
 import { ChartConfig } from '../../hooks/useChartConfig';
 import { LoadingState } from '../ResultsTable/States';
-import SimpleChart from '../SimpleChart';
+import SimpleChart, { EchartSeriesClickEvent } from '../SimpleChart';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
 
@@ -14,6 +14,7 @@ interface Props {
     tableName: string | undefined;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
+    onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
 }
 
 const LightdashVisualization: FC<Props> = ({
@@ -23,6 +24,7 @@ const LightdashVisualization: FC<Props> = ({
     tableName,
     resultsData,
     isLoading,
+    onSeriesContextMenu,
 }) => {
     if (isLoading || !chartConfig) {
         return <LoadingState />;
@@ -53,6 +55,7 @@ const LightdashVisualization: FC<Props> = ({
                         chartType={chartType}
                         chartConfig={chartConfig}
                         tableName={tableName}
+                        onSeriesContextMenu={onSeriesContextMenu}
                     />
                 );
             default:
