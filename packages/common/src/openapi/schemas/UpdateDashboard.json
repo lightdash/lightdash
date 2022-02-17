@@ -8,7 +8,8 @@
                     "type": "string"
                 },
                 "description": {
-                    "type": "string"
+                    "type": "string",
+                    "nullable": true
                 }
             },
             "required": ["name"]
@@ -22,9 +23,12 @@
                     "items": {
                         "$ref": "./CreateDashboardTile.json"
                     }
+                },
+                "filters": {
+                    "$ref": "./DashboardFilters.json"
                 }
             },
-            "required": ["tiles"]
+            "required": ["tiles", "filters"]
         },
         {
             "title": "All fields",
@@ -34,16 +38,20 @@
                     "type": "string"
                 },
                 "description": {
-                    "type": "string"
+                    "type": "string",
+                    "nullable": true
                 },
                 "tiles": {
                     "type": "array",
                     "items": {
                         "$ref": "./CreateDashboardTile.json"
                     }
+                },
+                "filters": {
+                    "$ref": "./DashboardFilters.json"
                 }
             },
-            "required": ["name", "tiles"]
+            "required": ["name", "tiles", "filters"]
         }
     ]
 }

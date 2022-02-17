@@ -415,7 +415,7 @@
                     }
                 },
                 "responses": {
-                    "201": {
+                    "200": {
                         "description": "Successfully ran sql query",
                         "content": {
                             "application/json": {
@@ -465,7 +465,7 @@
                     }
                 ],
                 "responses": {
-                    "201": {
+                    "200": {
                         "description": "Successfully get project catalog",
                         "content": {
                             "application/json": {
@@ -1012,6 +1012,12 @@
                     "isTrackingAnonymized": {
                         "type": "boolean"
                     },
+                    "isMarketingOptedIn": {
+                        "type": "boolean"
+                    },
+                    "isSetupComplete": {
+                        "type": "boolean"
+                    },
                     "role": {
                         "type": "string"
                     }
@@ -1020,7 +1026,12 @@
                     "userUuid",
                     "firstName",
                     "lastName",
-                    "isTrackingAnonymized"
+                    "organizationUuid",
+                    "organizationName",
+                    "isTrackingAnonymized",
+                    "isMarketingOptedIn",
+                    "isSetupComplete",
+                    "role"
                 ]
             },
             "CreateUser": {
@@ -1129,7 +1140,7 @@
             "DashboardListItem": {
                 "type": "object",
                 "properties": {
-                    "dashboardUuid": {
+                    "uuid": {
                         "type": "string",
                         "format": "uuid"
                     },
@@ -1137,19 +1148,15 @@
                         "type": "string"
                     },
                     "description": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
                     }
                 },
-                "required": [
-                    "dashboardUuid",
-                    "name",
-                    "description",
-                    "updatedAt"
-                ]
+                "required": ["uuid", "name", "updatedAt"]
             },
             "TilePropertiesChart": {
                 "type": "object",
@@ -1162,6 +1169,30 @@
                 },
                 "required": ["savedChartUuid"]
             },
+            "LoomTileProperties": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    }
+                },
+                "required": ["title", "url"]
+            },
+            "MarkdownTileProperties": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string"
+                    },
+                    "content": {
+                        "type": "string"
+                    }
+                },
+                "required": ["title", "content"]
+            },
             "CreateDashboardTile": {
                 "type": "object",
                 "properties": {
@@ -1171,12 +1202,18 @@
                     },
                     "type": {
                         "type": "string",
-                        "enum": ["saved_chart"]
+                        "enum": ["saved_chart", "markdown", "loom"]
                     },
                     "properties": {
                         "oneOf": [
                             {
                                 "$ref": "#/components/schemas/TilePropertiesChart"
+                            },
+                            {
+                                "$ref": "#/components/schemas/LoomTileProperties"
+                            },
+                            {
+                                "$ref": "#/components/schemas/MarkdownTileProperties"
                             }
                         ]
                     },
@@ -1195,6 +1232,56 @@
                 },
                 "required": ["properties", "type", "x", "y", "h", "w"]
             },
+            "DashboardFilterRule": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "target": {
+                        "type": "object",
+                        "properties": {
+                            "fieldId": {
+                                "type": "string"
+                            },
+                            "tableName": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "operator": {
+                        "type": "string"
+                    },
+                    "values": {
+                        "type": "array"
+                    },
+                    "settings": {
+                        "type": "object"
+                    }
+                },
+                "required": ["id", "target", "operator"]
+            },
+            "DashboardFilters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "dimensions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardFilterRule"
+                        }
+                    },
+                    "metrics": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardFilterRule"
+                        }
+                    }
+                },
+                "required": ["dimensions", "metrics"]
+            },
             "CreateDashboard": {
                 "type": "object",
                 "properties": {
@@ -1202,16 +1289,20 @@
                         "type": "string"
                     },
                     "description": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "tiles": {
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/CreateDashboardTile"
                         }
+                    },
+                    "filters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
                     }
                 },
-                "required": ["tiles", "name", "description"]
+                "required": ["tiles", "name"]
             },
             "DashboardTile": {
                 "allOf": [
@@ -1232,8 +1323,9 @@
             },
             "Dashboard": {
                 "type": "object",
+                "additionalProperties": false,
                 "properties": {
-                    "dashboardUuid": {
+                    "uuid": {
                         "type": "string",
                         "format": "uuid"
                     },
@@ -1241,7 +1333,8 @@
                         "type": "string"
                     },
                     "description": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "updatedAt": {
                         "type": "string",
@@ -1252,15 +1345,12 @@
                         "items": {
                             "$ref": "#/components/schemas/DashboardTile"
                         }
+                    },
+                    "filters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
                     }
                 },
-                "required": [
-                    "dashboardUuid",
-                    "tiles",
-                    "name",
-                    "description",
-                    "updatedAt"
-                ]
+                "required": ["uuid", "tiles", "name", "updatedAt", "filters"]
             },
             "ProjectTablesConfiguration": {
                 "type": "object",
@@ -1295,7 +1385,8 @@
                                 "type": "string"
                             },
                             "description": {
-                                "type": "string"
+                                "type": "string",
+                                "nullable": true
                             }
                         },
                         "required": ["name"]
@@ -1309,9 +1400,12 @@
                                 "items": {
                                     "$ref": "#/components/schemas/CreateDashboardTile"
                                 }
+                            },
+                            "filters": {
+                                "$ref": "#/components/schemas/DashboardFilters"
                             }
                         },
-                        "required": ["tiles"]
+                        "required": ["tiles", "filters"]
                     },
                     {
                         "title": "All fields",
@@ -1321,16 +1415,20 @@
                                 "type": "string"
                             },
                             "description": {
-                                "type": "string"
+                                "type": "string",
+                                "nullable": true
                             },
                             "tiles": {
                                 "type": "array",
                                 "items": {
                                     "$ref": "#/components/schemas/CreateDashboardTile"
                                 }
+                            },
+                            "filters": {
+                                "$ref": "#/components/schemas/DashboardFilters"
                             }
                         },
-                        "required": ["name", "tiles"]
+                        "required": ["name", "tiles", "filters"]
                     }
                 ]
             },
@@ -1380,13 +1478,22 @@
             },
             "ChartConfig": {
                 "type": "object",
+                "additionalProperties": false,
                 "properties": {
                     "chartType": {
                         "type": "string",
-                        "enum": ["column", "bar", "line", "scatter"]
+                        "enum": [
+                            "column",
+                            "bar",
+                            "line",
+                            "scatter",
+                            "table",
+                            "big_number"
+                        ]
                     },
                     "seriesLayout": {
                         "type": "object",
+                        "additionalProperties": false,
                         "properties": {
                             "xDimension": {
                                 "type": "string"
@@ -1398,7 +1505,8 @@
                                 }
                             },
                             "groupDimension": {
-                                "type": "string"
+                                "type": "string",
+                                "nullable": true
                             }
                         }
                     }
@@ -1406,8 +1514,13 @@
                 "required": ["seriesLayout", "chartType"]
             },
             "SavedChart": {
+                "type": "object",
+                "additionalProperties": false,
                 "properties": {
                     "uuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
                         "type": "string"
                     },
                     "name": {
@@ -1424,6 +1537,7 @@
                     },
                     "tableConfig": {
                         "type": "object",
+                        "additionalProperties": false,
                         "properties": {
                             "columnOrder": {
                                 "type": "array",
@@ -1438,7 +1552,17 @@
                         "type": "string",
                         "format": "date-time"
                     }
-                }
+                },
+                "required": [
+                    "uuid",
+                    "projectUuid",
+                    "name",
+                    "tableName",
+                    "metricQuery",
+                    "chartConfig",
+                    "tableConfig",
+                    "updatedAt"
+                ]
             }
         },
         "responses": {

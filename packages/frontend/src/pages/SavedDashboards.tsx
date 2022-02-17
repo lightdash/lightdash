@@ -7,7 +7,7 @@ import DashboardForm from '../components/SavedDashboards/DashboardForm';
 import {
     useCreateMutation,
     useDeleteMutation,
-    useUpdateDashboard,
+    useUpdateDashboardName,
 } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 
@@ -45,7 +45,7 @@ const SavedDashboards = () => {
         <Page>
             <ActionCardList
                 title="Dashboards"
-                useUpdate={useUpdateDashboard}
+                useUpdate={useUpdateDashboardName}
                 useDelete={useDelete}
                 dataList={dashboards}
                 getURL={(savedDashboard) => {

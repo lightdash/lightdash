@@ -226,7 +226,7 @@ projectRouter.post(
         dashboardService
             .create(req.user!, req.params.projectUuid, req.body)
             .then((results) => {
-                res.json({
+                res.status(201).json({
                     status: 'ok',
                     results,
                 });

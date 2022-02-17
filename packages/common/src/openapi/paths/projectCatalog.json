@@ -16,7 +16,7 @@
             }
         ],
         "responses": {
-            "201": {
+            "200": {
                 "description": "Successfully get project catalog",
                 "content": {
                     "application/json": {
