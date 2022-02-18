@@ -33,7 +33,7 @@
             }
         },
         "responses": {
-            "201": {
+            "200": {
                 "description": "Successfully ran sql query",
                 "content": {
                     "application/json": {

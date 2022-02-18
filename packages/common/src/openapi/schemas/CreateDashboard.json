@@ -5,14 +5,18 @@
             "type": "string"
         },
         "description": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
         },
         "tiles": {
             "type": "array",
             "items": {
                 "$ref": "./CreateDashboardTile.json"
             }
+        },
+        "filters": {
+            "$ref": "./DashboardFilters.json"
         }
     },
-    "required": ["tiles", "name", "description"]
+    "required": ["tiles", "name"]
 }

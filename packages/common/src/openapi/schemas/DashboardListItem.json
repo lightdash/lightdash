@@ -1,7 +1,7 @@
 {
     "type": "object",
     "properties": {
-        "dashboardUuid": {
+        "uuid": {
             "type": "string",
             "format": "uuid"
         },
@@ -9,12 +9,13 @@
             "type": "string"
         },
         "description": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
         },
         "updatedAt": {
             "type": "string",
             "format": "date-time"
         }
     },
-    "required": ["dashboardUuid", "name", "description", "updatedAt"]
+    "required": ["uuid", "name", "updatedAt"]
 }

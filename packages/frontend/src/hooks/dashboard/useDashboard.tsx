@@ -2,6 +2,7 @@ import {
     ApiError,
     CreateDashboard,
     Dashboard,
+    DashboardBasicDetails,
     DashboardTileTypes,
     FilterableField,
     UpdateDashboard,
@@ -135,6 +136,18 @@ export const useUpdateDashboard = (
             },
         },
     );
+};
+
+export const useUpdateDashboardName = (
+    id: string,
+    showRedirectButton: boolean = false,
+) => {
+    const hook = useUpdateDashboard(id, showRedirectButton);
+    return {
+        ...hook,
+        mutate: ({ name, description }: DashboardBasicDetails) =>
+            hook.mutate({ name, description }),
+    };
 };
 
 export const useCreateMutation = (

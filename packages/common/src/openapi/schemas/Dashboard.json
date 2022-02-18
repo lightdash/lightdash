@@ -1,7 +1,8 @@
 {
     "type": "object",
+    "additionalProperties": false,
     "properties": {
-        "dashboardUuid": {
+        "uuid": {
             "type": "string",
             "format": "uuid"
         },
@@ -9,7 +10,8 @@
             "type": "string"
         },
         "description": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
         },
         "updatedAt": {
             "type": "string",
@@ -20,7 +22,10 @@
             "items": {
                 "$ref": "./DashboardTile.json"
             }
+        },
+        "filters": {
+            "$ref": "./DashboardFilters.json"
         }
     },
-    "required": ["dashboardUuid", "tiles", "name", "description", "updatedAt"]
+    "required": ["uuid", "tiles", "name", "updatedAt", "filters"]
 }

@@ -1,12 +1,14 @@
 {
     "type": "object",
+    "additionalProperties": false,
     "properties": {
         "chartType": {
             "type": "string",
-            "enum": ["column", "bar", "line", "scatter"]
+            "enum": ["column", "bar", "line", "scatter", "table", "big_number"]
         },
         "seriesLayout": {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "xDimension": {
                     "type": "string"
@@ -18,7 +20,8 @@
                     }
                 },
                 "groupDimension": {
-                    "type": "string"
+                    "type": "string",
+                    "nullable": true
                 }
             }
         }
