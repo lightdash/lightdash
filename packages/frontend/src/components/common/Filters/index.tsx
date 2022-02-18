@@ -8,6 +8,8 @@ import {
     Filters,
     getFilterRulesByFieldType,
     getTotalFilterRules,
+    isDimension,
+    isMetric,
     Metric,
 } from 'common';
 import React, { FC, useCallback, useMemo } from 'react';
@@ -15,26 +17,27 @@ import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
 import FieldAutoComplete from './FieldAutoComplete';
 import FilterGroupForm from './FilterGroupForm';
+import { FieldWithSuggestions, useFiltersContext } from './FiltersProvider';
 import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
 
 type Props = {
-    dimensions: FilterableDimension[];
-    metrics: Metric[];
     filters: Filters;
     setFilters: (value: Filters, syncState: boolean) => void;
 };
 
-const FiltersForm: FC<Props> = ({
-    dimensions,
-    metrics,
-    filters,
-    setFilters,
-}) => {
+const FiltersForm: FC<Props> = ({ filters, setFilters }) => {
+    const { fieldsMap } = useFiltersContext();
     const [isOpen, toggleFieldInput] = useToggle(false);
-    const fields = useMemo(
-        () => [...metrics, ...dimensions],
-        [dimensions, metrics],
-    );
+    const [fields, dimensions, metrics] = useMemo<
+        [FieldWithSuggestions[], FilterableDimension[], Metric[]]
+    >(() => {
+        const allFields = Object.values(fieldsMap);
+        return [
+            allFields,
+            allFields.filter(isDimension),
+            allFields.filter(isMetric),
+        ];
+    }, [fieldsMap]);
 
     const totalFilterRules = getTotalFilterRules(filters);
     const filterRulesPerFieldType = getFilterRulesByFieldType(

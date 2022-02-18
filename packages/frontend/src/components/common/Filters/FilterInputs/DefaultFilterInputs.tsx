@@ -6,6 +6,8 @@ import {
     FilterType,
 } from 'common';
 import React, { FC } from 'react';
+import { useFiltersContext } from '../FiltersProvider';
+import StringMultiSelect from './StringAutoComplete';
 
 export type FilterInputsProps<T extends FilterRule = FilterRule> = {
     filterType: FilterType;
@@ -19,13 +21,33 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
     filterRule,
     onChange,
 }) => {
+    const { getField } = useFiltersContext();
+    const suggestions = getField(filterRule)?.suggestions;
     const filterOperator = filterRule.operator;
     switch (filterRule.operator) {
         case FilterOperator.NULL:
         case FilterOperator.NOT_NULL:
             return <span style={{ width: '100%' }} />;
         case FilterOperator.EQUALS:
-        case FilterOperator.NOT_EQUALS:
+        case FilterOperator.NOT_EQUALS: {
+            if (
+                filterType === FilterType.STRING &&
+                suggestions &&
+                suggestions.length > 0
+            ) {
+                return (
+                    <StringMultiSelect
+                        values={filterRule.values || []}
+                        suggestions={suggestions}
+                        onChange={(values) =>
+                            onChange({
+                                ...filterRule,
+                                values,
+                            })
+                        }
+                    />
+                );
+            }
             return (
                 <TagInput
                     fill
@@ -46,6 +68,8 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
                     }
                 />
             );
+        }
+
         case FilterOperator.STARTS_WITH:
         case FilterOperator.NOT_INCLUDE:
             return (

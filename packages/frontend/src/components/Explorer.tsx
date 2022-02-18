@@ -16,10 +16,11 @@ import {
     CreateSavedQueryVersion,
     DashboardTileTypes,
     DBChartTypes,
-    filterableDimensionsOnly,
+    DimensionType,
+    fieldId,
     getDefaultChartTileSize,
-    getDimensions,
-    getMetrics,
+    getFields,
+    isFilterableField,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, useEffect, useRef, useState } from 'react';
@@ -42,6 +43,10 @@ import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
 import EditableHeader from './common/EditableHeader';
 import FiltersForm from './common/Filters';
+import {
+    FieldsWithSuggestions,
+    FiltersProvider,
+} from './common/Filters/FiltersProvider';
 import { ExplorerResults } from './Explorer/ExplorerResults';
 import LightdashVisualization from './LightdashVisualization';
 import { RefreshButton } from './RefreshButton';
@@ -127,11 +132,48 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
           }
         : undefined;
 
-    const filterableDimensions = explore.data
-        ? filterableDimensionsOnly(getDimensions(explore.data))
-        : [];
-
-    const filterableMetrics = explore.data ? getMetrics(explore.data) : [];
+    const [fieldsWithSuggestions, setFieldsWithSuggestions] =
+        useState<FieldsWithSuggestions>({});
+    useEffect(() => {
+        if (explore.data) {
+            setFieldsWithSuggestions((prev) => {
+                return getFields(explore.data).reduce((sum, field) => {
+                    if (isFilterableField(field)) {
+                        let suggestions: string[] = [];
+                        if (field.type === DimensionType.STRING) {
+                            const currentSuggestions =
+                                prev[fieldId(field)]?.suggestions || [];
+                            const newSuggestions: string[] =
+                                queryResults.data?.rows.reduce<string[]>(
+                                    (acc, row) => {
+                                        const value = row[fieldId(field)];
+                                        if (typeof value === 'string') {
+                                            return [...acc, value];
+                                        }
+                                        return acc;
+                                    },
+                                    [],
+                                ) || [];
+                            suggestions = Array.from(
+                                new Set([
+                                    ...currentSuggestions,
+                                    ...newSuggestions,
+                                ]),
+                            ).sort((a, b) => a.localeCompare(b));
+                        }
+                        return {
+                            ...sum,
+                            [fieldId(field)]: {
+                                ...field,
+                                suggestions,
+                            },
+                        };
+                    }
+                    return sum;
+                }, {});
+            });
+        }
+    }, [explore.data, queryResults.data]);
 
     const handleSavedQueryUpdate = () => {
         if (savedQueryUuid && queryData) {
@@ -229,12 +271,12 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     ) : null}
                 </div>
                 <Collapse isOpen={filterIsOpen}>
-                    <FiltersForm
-                        dimensions={filterableDimensions}
-                        metrics={filterableMetrics}
-                        filters={filters}
-                        setFilters={setFilters}
-                    />
+                    <FiltersProvider fieldsMap={fieldsWithSuggestions}>
+                        <FiltersForm
+                            filters={filters}
+                            setFilters={setFilters}
+                        />
+                    </FiltersProvider>
                 </Collapse>
             </Card>
             <div style={{ paddingTop: '10px' }} />
