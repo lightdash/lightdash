@@ -13,19 +13,21 @@ const ColumnHeaderContextMenu: React.FC<ColumnHeaderContextMenuProps> = ({
     column,
 }) => {
     const { addFilter } = useFilters();
+    const cantFilter = !column || column.type === 'table_calculation';
+
     const menuContent = column && (
         <Menu>
             <MenuItem
                 label={`Filter ${column.field?.name}`}
                 onClick={(e) => {
                     e.stopPropagation();
-                    addFilter(column.field, undefined, false);
+                    addFilter(column?.field, undefined, false);
                 }}
             />
         </Menu>
     );
     return (
-        <ContextMenu2 disabled={!column} content={menuContent}>
+        <ContextMenu2 disabled={cantFilter} content={menuContent}>
             {children}
         </ContextMenu2>
     );
