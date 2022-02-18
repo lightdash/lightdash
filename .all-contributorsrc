@@ -471,6 +471,15 @@
       "contributions": [
         "ideas"
       ]
+    },
+    {
+      "login": "captnswing",
+      "name": "Frank Hoffsümmer",
+      "avatar_url": "https://avatars.githubusercontent.com/u/325377?v=4",
+      "profile": "https://github.com/captnswing",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
