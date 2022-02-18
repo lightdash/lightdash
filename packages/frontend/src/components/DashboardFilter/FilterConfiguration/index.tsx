@@ -53,15 +53,15 @@ const FilterConfiguration: FC<Props> = ({
             <InputsWrapper>
                 <HTMLSelect
                     fill
-                    onChange={(e) => {
+                    onChange={(e) =>
                         setInternalFilterRule((prevState) =>
                             getFilterRuleWithDefaultValue(field, {
                                 ...prevState,
                                 operator: e.currentTarget
                                     .value as FilterRule['operator'],
                             }),
-                        );
-                    }}
+                        )
+                    }
                     options={filterConfig.operatorOptions}
                     value={internalFilterRule.operator}
                 />

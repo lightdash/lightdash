@@ -61,9 +61,9 @@ const ActiveFilters: FC = () => {
                             key={item.id}
                             field={activeField}
                             filterRule={item}
-                            onRemove={() => {
-                                removeDimensionDashboardFilter(index);
-                            }}
+                            onRemove={() =>
+                                removeDimensionDashboardFilter(index)
+                            }
                             onClick={() => setOpenedFilter(item.id)}
                         />
                     </Popover2>
