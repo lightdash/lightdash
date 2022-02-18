@@ -229,6 +229,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/mlazowik"><img src="https://avatars.githubusercontent.com/u/1978721?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Michał Łazowik</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=mlazowik" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/CCDoubleU"><img src="https://avatars.githubusercontent.com/u/33049059?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Chun Wei</b></sub></a><br /><a href="#ideas-CCDoubleU" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="https://github.com/snyh-paulhenderson"><img src="https://avatars.githubusercontent.com/u/91830919?v=4?s=100" width="100px;" alt=""/><br /><sub><b>snyh-paulhenderson</b></sub></a><br /><a href="#ideas-snyh-paulhenderson" title="Ideas, Planning, & Feedback">🤔</a></td>
+    <td align="center"><a href="https://github.com/captnswing"><img src="https://avatars.githubusercontent.com/u/325377?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Frank Hoffsümmer</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Acaptnswing" title="Bug reports">🐛</a></td>
   </tr>
 </table>
 
