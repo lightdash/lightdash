@@ -1,3 +1,10 @@
+# [0.25.0](https://github.com/lightdash/lightdash/compare/0.24.1...0.25.0) (2022-02-18)
+
+
+### Features
+
+* **dashboards:** save dashboard filters ([#1391](https://github.com/lightdash/lightdash/issues/1391)) ([6195126](https://github.com/lightdash/lightdash/commit/619512600a7f3a6eb881784f1a0978894f6b7e58)), closes [#1405](https://github.com/lightdash/lightdash/issues/1405) [#1412](https://github.com/lightdash/lightdash/issues/1412)
+
 ## [0.24.1](https://github.com/lightdash/lightdash/compare/0.24.0...0.24.1) (2022-02-18)
 
 
