@@ -1,3 +1,10 @@
+## [0.24.1](https://github.com/lightdash/lightdash/compare/0.24.0...0.24.1) (2022-02-18)
+
+
+### Bug Fixes
+
+* **dashboards:** correctly mark chart tiles when filters are applied ([#1413](https://github.com/lightdash/lightdash/issues/1413)) ([0564a5f](https://github.com/lightdash/lightdash/commit/0564a5fcbf6634e32e5f6efa3e7c54471b8e8947))
+
 # [0.24.0](https://github.com/lightdash/lightdash/compare/0.23.0...0.24.0) (2022-02-17)
 
 
