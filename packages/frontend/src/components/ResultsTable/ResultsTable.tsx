@@ -328,8 +328,7 @@ export const ResultsTable: FC<Props> = ({
                                                                                 column.id
                                                                             }
                                                                             index={
-                                                                                index +
-                                                                                1
+                                                                                index
                                                                             }
                                                                         >
                                                                             {(
@@ -338,8 +337,7 @@ export const ResultsTable: FC<Props> = ({
                                                                             ) => (
                                                                                 <Item
                                                                                     index={
-                                                                                        index +
-                                                                                        1
+                                                                                        index
                                                                                     }
                                                                                     column={
                                                                                         column
@@ -370,13 +368,13 @@ export const ResultsTable: FC<Props> = ({
                                         return (
                                             <tr {...row.getRowProps()}>
                                                 <RowNumber>
-                                                    {parseInt(row.id) + 1}
+                                                    {row.index + 1}
                                                 </RowNumber>
                                                 {row.cells.map((cell) => (
                                                     <td
                                                         {...cell.getCellProps([
                                                             getRowStyle(
-                                                                row.index + 1,
+                                                                row.index,
                                                             ),
                                                         ])}
                                                     >
