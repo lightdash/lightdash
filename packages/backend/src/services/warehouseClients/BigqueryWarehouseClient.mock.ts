@@ -64,9 +64,7 @@ const rows: Record<string, any>[] = [
         myStringColumn: 'string value',
         myNumberColumn: 100,
         myDateColumn: new BigQueryDate('2021-03-10'),
-        myTimestampColumn: new BigQueryTimestamp(
-            '1990-03-02 08:30:00.010000000000',
-        ),
+        myTimestampColumn: new BigQueryTimestamp('1990-03-02T08:30:00.010Z'),
         myBooleanColumn: false,
         myArrayColumn: ['1', '2', '3'],
         myObjectColumn: { test: '1' },

@@ -13,12 +13,6 @@ import {
 } from './WarehouseClient.mock';
 
 describe('BigqueryWarehouseClient', () => {
-    beforeAll(() => {
-        jest.useFakeTimers('modern');
-    });
-    afterAll(() => {
-        jest.useFakeTimers();
-    });
     it('expect query rows with mapped values', async () => {
         BigQuery.prototype.createQueryJob = jest.fn();
         const warehouse = new BigqueryWarehouseClient(credentials);
