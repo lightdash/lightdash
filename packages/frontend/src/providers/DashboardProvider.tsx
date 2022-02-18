@@ -8,12 +8,17 @@ import React, {
     useEffect,
     useState,
 } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
+import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
+
+const emptyFilters: DashboardFilters = {
+    dimensions: [],
+    metrics: [],
+};
 
 type DashboardContext = {
-    dashboard: Dashboard;
-    canUseFilters: boolean;
+    dashboard: Dashboard | undefined;
     dashboardFilters: DashboardFilters;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     addDimensionDashboardFilter: (filter: DashboardFilterRule) => void;
@@ -23,78 +28,72 @@ type DashboardContext = {
     ) => void;
     removeDimensionDashboardFilter: (index: number) => void;
     addMetricDashboardFilter: (filter: DashboardFilterRule) => void;
+    haveFiltersChanged: boolean;
+    setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
 
-const emptyFilters: DashboardFilters = {
-    dimensions: [],
-    metrics: [],
-};
+export const DashboardProvider: React.FC = ({ children }) => {
+    const { dashboardUuid } = useParams<{
+        dashboardUuid: string;
+    }>();
 
-type Props = { dashboard: Dashboard; isEditMode: boolean };
-
-export const DashboardProvider: React.FC<Props> = ({
-    dashboard,
-    isEditMode,
-    children,
-}) => {
+    const { data: dashboard } = useDashboardQuery(dashboardUuid);
     const [dashboardFilters, setDashboardFilters] =
         useState<DashboardFilters>(emptyFilters);
-    const canUseFilters = !isEditMode;
+    const [haveFiltersChanged, setHaveFiltersChanged] =
+        useState<boolean>(false);
+
+    useEffect(() => {
+        if (dashboard) {
+            setDashboardFilters(dashboard.filters);
+            setHaveFiltersChanged(false);
+        }
+    }, [dashboard]);
 
     const addDimensionDashboardFilter = useCallback(
         (filter: DashboardFilterRule) => {
-            if (canUseFilters) {
-                setDashboardFilters((previousFilters) => ({
-                    dimensions: [...previousFilters.dimensions, filter],
-                    metrics: previousFilters.metrics,
-                }));
-            }
+            setDashboardFilters((previousFilters) => ({
+                dimensions: [...previousFilters.dimensions, filter],
+                metrics: previousFilters.metrics,
+            }));
+            setHaveFiltersChanged(true);
         },
-        [setDashboardFilters, canUseFilters],
+        [setDashboardFilters],
     );
     const updateDimensionDashboardFilter = useCallback(
         (item: DashboardFilterRule, index: number) => {
-            if (canUseFilters) {
-                setDashboardFilters((previousFilters) => ({
-                    dimensions: [
-                        ...previousFilters.dimensions.slice(0, index),
-                        item,
-                        ...previousFilters.dimensions.slice(index + 1),
-                    ],
-                    metrics: previousFilters.metrics,
-                }));
-            }
+            setDashboardFilters((previousFilters) => ({
+                dimensions: [
+                    ...previousFilters.dimensions.slice(0, index),
+                    item,
+                    ...previousFilters.dimensions.slice(index + 1),
+                ],
+                metrics: previousFilters.metrics,
+            }));
+            setHaveFiltersChanged(true);
         },
-        [canUseFilters],
+        [],
     );
-    const addMetricDashboardFilter = useCallback(
-        (filter) => {
-            if (canUseFilters) {
-                setDashboardFilters((previousFilters) => ({
-                    dimensions: previousFilters.dimensions,
-                    metrics: [...previousFilters.metrics, filter],
-                }));
-            }
-        },
-        [canUseFilters],
-    );
+    const addMetricDashboardFilter = useCallback((filter) => {
+        setDashboardFilters((previousFilters) => ({
+            dimensions: previousFilters.dimensions,
+            metrics: [...previousFilters.metrics, filter],
+        }));
+        setHaveFiltersChanged(true);
+    }, []);
 
-    const removeDimensionDashboardFilter = useCallback(
-        (index: number) => {
-            if (canUseFilters) {
-                setDashboardFilters((previousFilters) => ({
-                    dimensions: [
-                        ...previousFilters.dimensions.slice(0, index),
-                        ...previousFilters.dimensions.slice(index + 1),
-                    ],
-                    metrics: previousFilters.metrics,
-                }));
-            }
-        },
-        [canUseFilters],
-    );
+    const removeDimensionDashboardFilter = useCallback((index: number) => {
+        setDashboardFilters((previousFilters) => ({
+            dimensions: [
+                ...previousFilters.dimensions.slice(0, index),
+                ...previousFilters.dimensions.slice(index + 1),
+            ],
+            metrics: previousFilters.metrics,
+        }));
+        setHaveFiltersChanged(true);
+    }, []);
 
     const { search, pathname } = useLocation();
     const history = useHistory();
@@ -102,38 +101,37 @@ export const DashboardProvider: React.FC<Props> = ({
     useMount(() => {
         const searchParams = new URLSearchParams(search);
         const filterSearchParam = searchParams.get('filters');
-        if (filterSearchParam && canUseFilters) {
+        if (filterSearchParam) {
             setDashboardFilters(JSON.parse(filterSearchParam));
         }
     });
 
     useEffect(() => {
-        if (canUseFilters) {
-            const newParams = new URLSearchParams();
-            if (
-                dashboardFilters.dimensions.length === 0 &&
-                dashboardFilters.metrics.length === 0
-            ) {
-                newParams.delete('filters');
-            } else {
-                newParams.set('filters', JSON.stringify(dashboardFilters));
-            }
-            history.replace({
-                pathname,
-                search: newParams.toString(),
-            });
+        const newParams = new URLSearchParams();
+        if (
+            dashboardFilters.dimensions.length === 0 &&
+            dashboardFilters.metrics.length === 0
+        ) {
+            newParams.delete('filters');
+        } else {
+            newParams.set('filters', JSON.stringify(dashboardFilters));
         }
-    }, [canUseFilters, dashboardFilters, history, pathname]);
+        history.replace({
+            pathname,
+            search: newParams.toString(),
+        });
+    }, [dashboardFilters, history, pathname]);
 
     const value = {
         dashboard,
-        canUseFilters,
-        dashboardFilters: canUseFilters ? dashboardFilters : emptyFilters,
+        dashboardFilters: dashboardFilters,
         addDimensionDashboardFilter,
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
         addMetricDashboardFilter,
         setDashboardFilters,
+        haveFiltersChanged,
+        setHaveFiltersChanged,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

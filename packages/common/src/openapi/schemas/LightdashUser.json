@@ -23,9 +23,25 @@
         "isTrackingAnonymized": {
             "type": "boolean"
         },
+        "isMarketingOptedIn": {
+            "type": "boolean"
+        },
+        "isSetupComplete": {
+            "type": "boolean"
+        },
         "role": {
             "type": "string"
         }
     },
-    "required": ["userUuid", "firstName", "lastName", "isTrackingAnonymized"]
+    "required": [
+        "userUuid",
+        "firstName",
+        "lastName",
+        "organizationUuid",
+        "organizationName",
+        "isTrackingAnonymized",
+        "isMarketingOptedIn",
+        "isSetupComplete",
+        "role"
+    ]
 }

@@ -58,7 +58,7 @@
         "dependency-graph": "^0.11.0",
         "execa": "^5.0.0",
         "express": "^4.17.1",
-        "express-openapi-validator": "^4.12.15",
+        "express-openapi-validator": "^4.13.5",
         "express-session": "^1.17.2",
         "fs-extra": "^10.0.0",
         "fuse.js": "^6.4.6",
@@ -98,6 +98,7 @@
         "migrate-production": "knex migrate:latest --knexfile dist/database/knexfile.js",
         "seed": "knex seed:run --knexfile src/database/knexfile.ts",
         "seed-production": "knex seed:run --knexfile dist/database/knexfile.js",
+        "rollback-last": "knex migrate:rollback --knexfile src/database/knexfile.ts",
         "rollback-all": "knex migrate:rollback --all --knexfile src/database/knexfile.ts",
         "rollback-all-production": "knex migrate:rollback --all --knexfile dist/database/knexfile.js"
     }

@@ -1,6 +1,11 @@
 {
+    "type": "object",
+    "additionalProperties": false,
     "properties": {
         "uuid": {
+            "type": "string"
+        },
+        "projectUuid": {
             "type": "string"
         },
         "name": {
@@ -17,6 +22,7 @@
         },
         "tableConfig": {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "columnOrder": {
                     "type": "array",
@@ -31,5 +37,15 @@
             "type": "string",
             "format": "date-time"
         }
-    }
+    },
+    "required": [
+        "uuid",
+        "projectUuid",
+        "name",
+        "tableName",
+        "metricQuery",
+        "chartConfig",
+        "tableConfig",
+        "updatedAt"
+    ]
 }

@@ -21,7 +21,7 @@ type DashboardHeaderProps = {
     isEditMode: boolean;
     onAddTile: (tile: Dashboard['tiles'][number]) => void;
     onSaveDashboard: () => void;
-    hasTilesChanged: boolean;
+    hasDashboardChanged: boolean;
     isSaving: boolean;
     dashboardName: string;
     onSaveTitle: (title: string) => void;
@@ -32,7 +32,7 @@ const DashboardHeader = ({
     isEditMode,
     onAddTile,
     onSaveDashboard,
-    hasTilesChanged,
+    hasDashboardChanged,
     isSaving,
     dashboardName,
     onSaveTitle,
@@ -75,14 +75,14 @@ const DashboardHeader = ({
                         <Tooltip2
                             position="top"
                             content={
-                                !hasTilesChanged
+                                !hasDashboardChanged
                                     ? 'No changes to save'
                                     : undefined
                             }
                         >
                             <ActionButton
                                 text="Save"
-                                disabled={!hasTilesChanged || isSaving}
+                                disabled={!hasDashboardChanged || isSaving}
                                 intent={Intent.PRIMARY}
                                 onClick={onSaveDashboard}
                             />

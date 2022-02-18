@@ -14,6 +14,7 @@ import {
     DashboardTileMarkdownsTableName,
     DashboardTilesTableName,
     DashboardVersionsTableName,
+    DashboardViewsTableName,
 } from '../../database/entities/dashboards';
 import { SavedQueriesTableName } from '../../database/entities/savedQueries';
 import { SpaceTableName } from '../../database/entities/spaces';
@@ -29,6 +30,7 @@ import {
     dashboardTileEntry,
     dashboardTileWithSavedChartEntry,
     dashboardVersionEntry,
+    dashboardViewEntry,
     dashboardWithVersionEntry,
     expectedAllDashboards,
     expectedDashboard,
@@ -77,6 +79,13 @@ describe('DashboardModel', () => {
             .response([dashboardWithVersionEntry]);
         tracker.on
             .select(
+                queryMatcher(DashboardViewsTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([dashboardViewEntry]);
+        tracker.on
+            .select(
                 queryMatcher(DashboardTilesTableName, [
                     dashboardWithVersionEntry.dashboard_version_id,
                 ]),
@@ -90,7 +99,7 @@ describe('DashboardModel', () => {
         const dashboard = await model.getById(expectedDashboard.uuid);
 
         expect(dashboard).toEqual(expectedDashboard);
-        expect(tracker.history.select).toHaveLength(2);
+        expect(tracker.history.select).toHaveLength(3);
     });
     test("should error if dashboard isn't found", async () => {
         tracker.on
@@ -137,6 +146,15 @@ describe('DashboardModel', () => {
             .response([dashboardVersionEntry]);
         tracker.on
             .insert(
+                queryMatcher(DashboardViewsTableName, [
+                    dashboardVersionEntry.dashboard_version_id,
+                    createDashboard.filters,
+                    'Default',
+                ]),
+            )
+            .response([dashboardViewEntry]);
+        tracker.on
+            .insert(
                 queryMatcher(DashboardTilesTableName, [
                     dashboardVersionEntry.dashboard_version_id,
                     addDashboardVersion.tiles[0].h,
@@ -170,7 +188,7 @@ describe('DashboardModel', () => {
 
         expect(newDashboardUuid).toBe(dashboardEntry.dashboard_uuid);
         expect(tracker.history.select).toHaveLength(2);
-        expect(tracker.history.insert).toHaveLength(4);
+        expect(tracker.history.insert).toHaveLength(5);
     });
     test('should update dashboard', async () => {
         const dashboardUuid = 'dashboard uuid';
@@ -220,7 +238,15 @@ describe('DashboardModel', () => {
                 ]),
             )
             .response([dashboardVersionEntry]);
-
+        tracker.on
+            .insert(
+                queryMatcher(DashboardViewsTableName, [
+                    dashboardVersionEntry.dashboard_version_id,
+                    addDashboardVersionWithAllTiles.filters,
+                    'Default',
+                ]),
+            )
+            .response([dashboardViewEntry]);
         // Create saved chart tile
         tracker.on
             .insert(
@@ -321,7 +347,7 @@ describe('DashboardModel', () => {
         );
 
         expect(tracker.history.select).toHaveLength(2);
-        expect(tracker.history.insert).toHaveLength(7);
+        expect(tracker.history.insert).toHaveLength(8);
     });
     test('should create dashboard version with ids', async () => {
         tracker.on
@@ -336,6 +362,15 @@ describe('DashboardModel', () => {
                 ]),
             )
             .response([dashboardVersionEntry]);
+        tracker.on
+            .insert(
+                queryMatcher(DashboardViewsTableName, [
+                    dashboardVersionEntry.dashboard_version_id,
+                    addDashboardVersionWithTileIds.filters,
+                    'Default',
+                ]),
+            )
+            .response([dashboardViewEntry]);
         tracker.on
             .insert(
                 queryMatcher(DashboardTilesTableName, [
@@ -374,7 +409,7 @@ describe('DashboardModel', () => {
         );
 
         expect(tracker.history.select).toHaveLength(2);
-        expect(tracker.history.insert).toHaveLength(3);
+        expect(tracker.history.insert).toHaveLength(4);
     });
     test('should create dashboard version without a chart', async () => {
         tracker.on
@@ -389,6 +424,15 @@ describe('DashboardModel', () => {
                 ]),
             )
             .response([dashboardVersionEntry]);
+        tracker.on
+            .insert(
+                queryMatcher(DashboardViewsTableName, [
+                    dashboardVersionEntry.dashboard_version_id,
+                    addDashboardVersionWithoutChart.filters,
+                    'Default',
+                ]),
+            )
+            .response([dashboardViewEntry]);
         tracker.on
             .insert(
                 queryMatcher(DashboardTilesTableName, [
@@ -408,7 +452,7 @@ describe('DashboardModel', () => {
         );
 
         expect(tracker.history.select).toHaveLength(1);
-        expect(tracker.history.insert).toHaveLength(2);
+        expect(tracker.history.insert).toHaveLength(3);
     });
     test("should error on create dashboard version if saved chart isn't found", async () => {
         tracker.on
@@ -423,6 +467,15 @@ describe('DashboardModel', () => {
                 ]),
             )
             .response([dashboardVersionEntry]);
+        tracker.on
+            .insert(
+                queryMatcher(DashboardViewsTableName, [
+                    dashboardVersionEntry.dashboard_version_id,
+                    addDashboardVersion.filters,
+                    'Default',
+                ]),
+            )
+            .response([dashboardViewEntry]);
         tracker.on
             .insert(
                 queryMatcher(DashboardTilesTableName, [

@@ -99,13 +99,22 @@ if (process.env.NODE_ENV === 'development') {
             ),
             // apiSpec,
             validateRequests: true,
+            ignoreUndocumented: true,
             validateResponses: {
                 removeAdditional: 'failing',
+                onError: (error, body, req) => {
+                    Logger.warn(
+                        `[${req.method}] ${
+                            req.originalUrl
+                        } Response body fails validation:\n${
+                            error.message
+                        }\n${JSON.stringify(body, null, 4)}`,
+                    );
+                },
             },
             validateSecurity: false,
             validateApiSpec: true,
             operationHandlers: false,
-            ignorePaths: (p: string) => !p.endsWith('invite-links'),
         }),
     );
 }

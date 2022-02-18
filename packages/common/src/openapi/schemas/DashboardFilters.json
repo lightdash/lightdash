@@ -1,0 +1,19 @@
+{
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "dimensions": {
+            "type": "array",
+            "items": {
+                "$ref": "./DashboardFilterRule.json"
+            }
+        },
+        "metrics": {
+            "type": "array",
+            "items": {
+                "$ref": "./DashboardFilterRule.json"
+            }
+        }
+    },
+    "required": ["dimensions", "metrics"]
+}

@@ -17,6 +17,7 @@ import {
     DashboardTilesTableName,
     DashboardVersionsTableName,
     DashboardVersionTable,
+    DashboardViewsTableName,
 } from '../../database/entities/dashboards';
 import { ProjectTableName } from '../../database/entities/projects';
 import {
@@ -32,6 +33,7 @@ export type GetDashboardQuery = Pick<
     'dashboard_id' | 'dashboard_uuid' | 'name' | 'description'
 > &
     Pick<DashboardVersionTable['base'], 'dashboard_version_id' | 'created_at'>;
+
 export type GetDashboardDetailsQuery = Pick<
     DashboardTable['base'],
     'dashboard_uuid' | 'name' | 'description'
@@ -65,6 +67,14 @@ export class DashboardModel {
             },
             ['dashboard_version_id'],
         );
+        await trx(DashboardViewsTableName).insert({
+            dashboard_version_id: versionId.dashboard_version_id,
+            name: 'Default',
+            filters: version.filters || {
+                dimensions: [],
+                metrics: [],
+            },
+        });
 
         const promises: Promise<any>[] = [];
         version.tiles.forEach((tile) => {
@@ -210,6 +220,11 @@ export class DashboardModel {
             throw new NotFoundError('Dashboard not found');
         }
 
+        const [view] = await this.database(DashboardViewsTableName)
+            .select('*')
+            .orderBy(`${DashboardViewsTableName}.created_at`, 'desc')
+            .where(`dashboard_version_id`, dashboard.dashboard_version_id);
+
         const tiles = await this.database(DashboardTilesTableName)
             .select<
                 {
@@ -350,6 +365,10 @@ export class DashboardModel {
                     }
                 },
             ),
+            filters: view?.filters || {
+                dimensions: [],
+                metrics: [],
+            },
         };
     }
 

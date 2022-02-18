@@ -1,8 +1,9 @@
-import { DashboardTileTypes } from 'common';
+import { DashboardFilters, DashboardTileTypes } from 'common';
 import { Knex } from 'knex';
 
 export const DashboardsTableName = 'dashboards';
 export const DashboardVersionsTableName = 'dashboard_versions';
+export const DashboardViewsTableName = 'dashboard_views';
 export const DashboardTilesTableName = 'dashboard_tiles';
 export const DashboardTileTypesTableName = 'dashboard_tile_types';
 export const DashboardTileChartTableName = 'dashboard_tile_charts';
@@ -22,6 +23,14 @@ type DbDashboardVersion = {
     dashboard_version_id: number;
     dashboard_id: number;
     created_at: Date;
+};
+
+type DbDashboardView = {
+    dashboard_view_uuid: string;
+    dashboard_version_id: number;
+    created_at: Date;
+    name: string;
+    filters: DashboardFilters;
 };
 
 type DbCreateDashboardTile = {
@@ -52,6 +61,12 @@ export type DashboardVersionTable = Knex.CompositeTableType<
     DbDashboardVersion,
     Pick<DbDashboardVersion, 'dashboard_id'>
 >;
+
+export type DashboardViewTable = Knex.CompositeTableType<
+    DbDashboardView,
+    Pick<DbDashboardView, 'dashboard_version_id' | 'name' | 'filters'>
+>;
+
 export type DashboardTileTable = Knex.CompositeTableType<
     DbDashboardTile,
     DbCreateDashboardTile

@@ -14,6 +14,7 @@ import {
     DashboardTable,
     DashboardTileTable,
     DashboardVersionTable,
+    DashboardViewTable,
 } from '../../database/entities/dashboards';
 import { SavedQueryTable } from '../../database/entities/savedQueries';
 import { SpaceTable } from '../../database/entities/spaces';
@@ -39,6 +40,10 @@ export const createDashboard: CreateDashboard = {
     name: 'my new dashboard',
     description: 'description',
     tiles: [tileWithoutId],
+    filters: {
+        dimensions: [],
+        metrics: [],
+    },
 };
 
 export const createDashboardWithTileIds: CreateDashboard = {
@@ -48,9 +53,14 @@ export const createDashboardWithTileIds: CreateDashboard = {
 
 export const addDashboardVersion: DashboardVersionedFields = {
     tiles: [tileWithoutId],
+    filters: {
+        dimensions: [],
+        metrics: [],
+    },
 };
 
 export const addDashboardVersionWithAllTiles: DashboardVersionedFields = {
+    ...addDashboardVersion,
     tiles: [
         tileWithoutId,
         {
@@ -70,10 +80,12 @@ export const addDashboardVersionWithAllTiles: DashboardVersionedFields = {
 };
 
 export const addDashboardVersionWithTileIds: DashboardVersionedFields = {
+    ...addDashboardVersion,
     tiles: [tileWithId],
 };
 
 export const addDashboardVersionWithoutChart: DashboardVersionedFields = {
+    ...addDashboardVersion,
     tiles: [
         {
             ...tileWithoutId,
@@ -119,6 +131,17 @@ export const dashboardVersionEntry: DashboardVersionTable['base'] = {
     dashboard_version_id: 0,
     dashboard_id: 0,
     created_at: new Date(),
+};
+
+export const dashboardViewEntry: DashboardViewTable['base'] = {
+    dashboard_view_uuid: 'dashboard_view_uuid',
+    dashboard_version_id: 0,
+    created_at: new Date(),
+    name: 'Default',
+    filters: {
+        dimensions: [],
+        metrics: [],
+    },
 };
 
 export const dashboardWithVersionEntry: GetDashboardQuery = {
@@ -208,6 +231,10 @@ export const expectedDashboard: Dashboard = {
             w: dashboardTileEntry.width,
         } as DashboardMarkdownTile,
     ],
+    filters: {
+        dimensions: [],
+        metrics: [],
+    },
 };
 
 export const expectedAllDashboards: DashboardBasicDetails[] = [

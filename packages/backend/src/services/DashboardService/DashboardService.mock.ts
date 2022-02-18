@@ -54,6 +54,10 @@ export const dashboard: Dashboard = {
             w: 1,
         },
     ],
+    filters: {
+        dimensions: [],
+        metrics: [],
+    },
 };
 
 export const dashboardsDetails: DashboardBasicDetails[] = [
@@ -85,11 +89,14 @@ export const createDashboard: CreateDashboard = {
     name: 'my new dashboard',
     description: 'description',
     tiles: [createTile],
+    filters: {
+        dimensions: [],
+        metrics: [],
+    },
 };
 
 export const createDashboardWithTileIds: CreateDashboard = {
-    name: 'my new dashboard',
-    description: 'description',
+    ...createDashboard,
     tiles: [createTileWithId],
 };
 
@@ -100,9 +107,14 @@ export const updateDashboard: UpdateDashboard = {
 
 export const updateDashboardTiles: UpdateDashboard = {
     tiles: [createTile],
+    filters: {
+        dimensions: [],
+        metrics: [],
+    },
 };
 
 export const updateDashboardTilesWithIds: UpdateDashboard = {
+    ...updateDashboardTiles,
     tiles: [createTileWithId],
 };
 

@@ -72,5 +72,9 @@ export async function seed(knex: Knex): Promise<void> {
     await dashboardModel.create(spaceUuid, {
         name: 'Jaffle dashboard',
         tiles: [loomTile, markdownTile, ...chartTiles],
+        filters: {
+            dimensions: [],
+            metrics: [],
+        },
     });
 }

@@ -22,7 +22,7 @@ import {
     useDashboardQuery,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
-import { DashboardProvider } from '../providers/DashboardProvider';
+import { useDashboardContext } from '../providers/DashboardProvider';
 import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -57,6 +57,9 @@ const Dashboard = () => {
         dashboardUuid: string;
         mode?: string;
     }>();
+    const { dashboardFilters, haveFiltersChanged, setHaveFiltersChanged } =
+        useDashboardContext();
+
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
     const [hasTilesChanged, setHasTilesChanged] = useState(false);
@@ -91,12 +94,20 @@ const Dashboard = () => {
     useEffect(() => {
         if (isSuccess) {
             setHasTilesChanged(false);
+            setHaveFiltersChanged(false);
             reset();
             history.push(
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
             );
         }
-    }, [dashboardUuid, history, isSuccess, projectUuid, reset]);
+    }, [
+        dashboardUuid,
+        history,
+        isSuccess,
+        projectUuid,
+        reset,
+        setHaveFiltersChanged,
+    ]);
 
     const updateTiles = useCallback((layout: Layout[]) => {
         setTiles((currentDashboardTiles) =>
@@ -154,19 +165,24 @@ const Dashboard = () => {
         return <Spinner />;
     }
     return (
-        <DashboardProvider dashboard={dashboard} isEditMode={isEditMode}>
+        <>
             <DashboardHeader
                 dashboardName={dashboard.name}
                 isEditMode={isEditMode}
                 isSaving={isSaving}
-                hasTilesChanged={hasTilesChanged}
+                hasDashboardChanged={hasTilesChanged || haveFiltersChanged}
                 onAddTile={onAddTile}
-                onSaveDashboard={() => mutate({ tiles: dashboardTiles })}
+                onSaveDashboard={() =>
+                    mutate({
+                        tiles: dashboardTiles,
+                        filters: dashboardFilters,
+                    })
+                }
                 onSaveTitle={(name) => mutate({ name })}
                 onCancel={onCancel}
             />
             <Page isContentFullWidth>
-                {!isEditMode && <DashboardFilter />}
+                <DashboardFilter isEditMode={isEditMode} />
                 <ResponsiveGridLayout
                     useCSSTransforms={false}
                     draggableCancel=".non-draggable"
@@ -191,7 +207,7 @@ const Dashboard = () => {
                     <EmptyStateNoTiles onAddTile={onAddTile} />
                 )}
             </Page>
-        </DashboardProvider>
+        </>
     );
 };
 export default Dashboard;
