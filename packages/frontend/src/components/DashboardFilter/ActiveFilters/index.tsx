@@ -15,7 +15,6 @@ const ActiveFilters: FC = () => {
         dashboardFilters,
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
-        setHaveFiltersChanged,
     } = useDashboardContext();
     const { isLoading, data: filterableFields } =
         useAvailableDashboardFilterTargets(dashboard);
@@ -64,7 +63,6 @@ const ActiveFilters: FC = () => {
                             filterRule={item}
                             onRemove={() => {
                                 removeDimensionDashboardFilter(index);
-                                setHaveFiltersChanged(true);
                             }}
                             onClick={() => setOpenedFilter(item.id)}
                         />

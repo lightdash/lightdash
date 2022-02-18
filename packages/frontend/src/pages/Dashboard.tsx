@@ -57,7 +57,8 @@ const Dashboard = () => {
         dashboardUuid: string;
         mode?: string;
     }>();
-    const { dashboardFilters, haveFiltersChanged } = useDashboardContext();
+    const { dashboardFilters, haveFiltersChanged, setHaveFiltersChanged } =
+        useDashboardContext();
 
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
@@ -93,18 +94,20 @@ const Dashboard = () => {
     useEffect(() => {
         if (isSuccess) {
             setHasTilesChanged(false);
+            setHaveFiltersChanged(false);
             reset();
             history.push(
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
             );
         }
-    }, [dashboardUuid, history, isSuccess, projectUuid, reset]);
-
-    useEffect(() => {
-        if (haveFiltersChanged && isEditMode) {
-            setHasTilesChanged(true);
-        }
-    }, [haveFiltersChanged, isEditMode]);
+    }, [
+        dashboardUuid,
+        history,
+        isSuccess,
+        projectUuid,
+        reset,
+        setHaveFiltersChanged,
+    ]);
 
     const updateTiles = useCallback((layout: Layout[]) => {
         setTiles((currentDashboardTiles) =>
@@ -167,7 +170,7 @@ const Dashboard = () => {
                 dashboardName={dashboard.name}
                 isEditMode={isEditMode}
                 isSaving={isSaving}
-                hasTilesChanged={hasTilesChanged}
+                hasDashboardChanged={hasTilesChanged || haveFiltersChanged}
                 onAddTile={onAddTile}
                 onSaveDashboard={() =>
                     mutate({

@@ -48,6 +48,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
     useEffect(() => {
         if (dashboard) {
             setDashboardFilters(dashboard.filters);
+            setHaveFiltersChanged(false);
         }
     }, [dashboard]);
 
@@ -57,6 +58,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
                 dimensions: [...previousFilters.dimensions, filter],
                 metrics: previousFilters.metrics,
             }));
+            setHaveFiltersChanged(true);
         },
         [setDashboardFilters],
     );
@@ -70,6 +72,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
                 ],
                 metrics: previousFilters.metrics,
             }));
+            setHaveFiltersChanged(true);
         },
         [],
     );
@@ -78,6 +81,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
             dimensions: previousFilters.dimensions,
             metrics: [...previousFilters.metrics, filter],
         }));
+        setHaveFiltersChanged(true);
     }, []);
 
     const removeDimensionDashboardFilter = useCallback((index: number) => {
@@ -88,6 +92,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
             ],
             metrics: previousFilters.metrics,
         }));
+        setHaveFiltersChanged(true);
     }, []);
 
     const { search, pathname } = useLocation();
