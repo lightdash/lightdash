@@ -16,7 +16,7 @@ const ColumnHeaderContextMenu: React.FC<ColumnHeaderContextMenuProps> = ({
     const menuContent = column && (
         <Menu>
             <MenuItem
-                label={`Filter ${column.field.name}`}
+                label={`Filter ${column.field?.name}`}
                 onClick={(e) => {
                     e.stopPropagation();
                     addFilter(column.field, undefined, false);
