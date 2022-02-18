@@ -3,6 +3,7 @@ import { Popover2, Popover2TargetProps } from '@blueprintjs/popover2';
 import {
     DashboardChartTile as IDashboardChartTile,
     DashboardFilterRule,
+    DashboardFilters,
     DBChartTypes,
     fieldId,
     FilterGroup,
@@ -12,7 +13,14 @@ import {
     SavedQuery,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
-import React, { FC, useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+    FC,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useChartConfig } from '../../hooks/useChartConfig';
@@ -138,17 +146,27 @@ const DashboardChartTile: FC<Props> = (props) => {
     // START DASHBOARD FILTER LOGIC
     // TODO: move this logic out of component
     let savedQueryWithDashboardFilters: SavedQuery | undefined;
-    if (savedQuery) {
+
+    const dashboardFiltersThatApplyToChart: DashboardFilters = useMemo(() => {
         const tables = explore ? Object.keys(explore.tables) : [];
+        return {
+            dimensions: dashboardFilters.dimensions.filter((filter) =>
+                tables.includes(filter.target.tableName),
+            ),
+            metrics: dashboardFilters.metrics.filter((filter) =>
+                tables.includes(filter.target.tableName),
+            ),
+        };
+    }, [explore, dashboardFilters]);
+
+    if (savedQuery) {
         const dimensionFilters: FilterGroup = {
             id: 'yes',
             and: [
                 ...(savedQuery.metricQuery.filters.dimensions
                     ? [savedQuery.metricQuery.filters.dimensions]
                     : []),
-                ...dashboardFilters.dimensions.filter((filter) =>
-                    tables.includes(filter.target.tableName),
-                ),
+                ...dashboardFiltersThatApplyToChart.dimensions,
             ],
         };
         const metricFilters: FilterGroup = {
@@ -157,9 +175,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                 ...(savedQuery.metricQuery.filters.metrics
                     ? [savedQuery.metricQuery.filters.metrics]
                     : []),
-                ...dashboardFilters.metrics.filter((filter) =>
-                    tables.includes(filter.target.tableName),
-                ),
+                ...dashboardFiltersThatApplyToChart.metrics,
             ],
         };
         savedQueryWithDashboardFilters = {
@@ -175,13 +191,14 @@ const DashboardChartTile: FC<Props> = (props) => {
     }
     // END DASHBOARD FILTER LOGIC
 
-    const hasFilters =
-        dashboardFilters.dimensions && dashboardFilters.dimensions.length > 0;
-
     return (
         <TileBase
             isChart
-            hasFilters={!!hasFilters}
+            hasFilters={
+                dashboardFiltersThatApplyToChart.dimensions.length +
+                    dashboardFiltersThatApplyToChart.metrics.length >
+                0
+            }
             title={savedQueryWithDashboardFilters?.name || ''}
             isLoading={isLoading}
             extraMenuItems={
