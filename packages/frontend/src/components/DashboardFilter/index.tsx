@@ -2,6 +2,7 @@ import { Classes, Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, useState } from 'react';
 import { useAvailableDashboardFilterTargets } from '../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../providers/DashboardProvider';
+import { FiltersProvider } from '../common/Filters/FiltersProvider';
 import ActiveFilters from './ActiveFilters';
 import {
     DashboardFilterWrapper,
@@ -17,51 +18,54 @@ interface Props {
 
 const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const { dashboard, dashboardFilters } = useDashboardContext();
+    const { dashboard, fieldsWithSuggestions, dashboardFilters } =
+        useDashboardContext();
     const { isLoading, data: filterableFields } =
         useAvailableDashboardFilterTargets(dashboard);
     const hasTiles = dashboard && dashboard.tiles.length >= 1;
 
     return (
-        <DashboardFilterWrapper>
-            <TriggerWrapper
-                content={
-                    <FilterSearch
-                        fields={filterableFields}
-                        onClose={() => setIsOpen(false)}
-                    />
-                }
-                interactionKind="click"
-                popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-                isOpen={isOpen}
-                onInteraction={setIsOpen}
-                position="bottom-right"
-                lazy={false}
-                disabled={!hasTiles || isLoading}
-            >
-                <Tooltip2
+        <FiltersProvider fieldsMap={fieldsWithSuggestions}>
+            <DashboardFilterWrapper>
+                <TriggerWrapper
                     content={
-                        <Tooltip>
-                            Only filters added in <b>'edit'</b> mode will be
-                            saved
-                        </Tooltip>
+                        <FilterSearch
+                            fields={filterableFields}
+                            onClose={() => setIsOpen(false)}
+                        />
                     }
-                    placement="bottom"
-                    interactionKind="hover"
-                    disabled={isOpen || isEditMode || isLoading}
+                    interactionKind="click"
+                    popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
+                    isOpen={isOpen}
+                    onInteraction={setIsOpen}
+                    position="bottom-right"
+                    lazy={false}
+                    disabled={!hasTiles || isLoading}
                 >
-                    <FilterTrigger
-                        minimal
-                        icon="filter-list"
-                        loading={isLoading}
-                        disabled={!hasTiles || isLoading}
+                    <Tooltip2
+                        content={
+                            <Tooltip>
+                                Only filters added in <b>'edit'</b> mode will be
+                                saved
+                            </Tooltip>
+                        }
+                        placement="bottom"
+                        interactionKind="hover"
+                        disabled={isOpen || isEditMode}
                     >
-                        Add filter
-                    </FilterTrigger>
-                </Tooltip2>
-            </TriggerWrapper>
-            {dashboardFilters && <ActiveFilters />}
-        </DashboardFilterWrapper>
+                        <FilterTrigger
+                            minimal
+                            icon="filter-list"
+                            loading={isLoading}
+                            disabled={!hasTiles || isLoading}
+                        >
+                            Add filter
+                        </FilterTrigger>
+                    </Tooltip2>
+                </TriggerWrapper>
+                {dashboardFilters && <ActiveFilters />}
+            </DashboardFilterWrapper>
+        </FiltersProvider>
     );
 };
 

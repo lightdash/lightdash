@@ -7,9 +7,11 @@ import {
     FilterableField,
     UpdateDashboard,
 } from 'common';
+import { useMemo, useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from 'react-query';
 import { UseQueryResult } from 'react-query/types/react/types';
 import { useHistory, useParams } from 'react-router-dom';
+import { useDeepCompareEffect } from 'react-use';
 import { lightdashApi } from '../../api';
 import { useApp } from '../../providers/AppProvider';
 import useQueryError from '../useQueryError';
@@ -52,30 +54,48 @@ export const getChartAvailableFilters = async (savedChartUuid: string) =>
 export const useAvailableDashboardFilterTargets = (
     dashboard: Dashboard | undefined,
 ): { isLoading: boolean; data: FilterableField[] } => {
-    const savedChartUuids = (dashboard?.tiles || [])
-        .map((tile) =>
-            tile.type === DashboardTileTypes.SAVED_CHART
-                ? tile.properties.savedChartUuid
-                : null,
-        )
-        .filter((id) => id !== null) as string[];
-    const queries = useQueries(
-        savedChartUuids.map((savedChartUuid) => ({
+    const queries = useMemo(() => {
+        const savedChartUuids = (dashboard?.tiles || [])
+            .map((tile) =>
+                tile.type === DashboardTileTypes.SAVED_CHART
+                    ? tile.properties.savedChartUuid
+                    : null,
+            )
+            .filter((id) => id !== null) as string[];
+        return savedChartUuids.map((savedChartUuid) => ({
             queryKey: ['available_filters', savedChartUuid],
             queryFn: () => getChartAvailableFilters(savedChartUuid),
-        })),
-    ) as UseQueryResult<FilterableField[], ApiError>[]; // useQueries doesn't allow us to specify TError
-    const availableFilters = queries
-        .flatMap((q) => q.data || [])
-        .filter(
-            (field, index, allFields) =>
-                index ===
-                allFields.findIndex(
-                    (f) => f.table === field.table && f.name === field.name,
+        }));
+    }, [dashboard]);
+    const results = useQueries(queries) as UseQueryResult<
+        FilterableField[],
+        ApiError
+    >[]; // useQueries doesn't allow us to specify TError
+
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [availableFilters, setAvailableFilters] = useState<FilterableField[]>(
+        [],
+    );
+
+    useDeepCompareEffect(() => {
+        setIsLoading(results.some((q) => q.isLoading));
+        setAvailableFilters(
+            results
+                .flatMap((q) => q.data || [])
+                .filter(
+                    (field, index, allFields) =>
+                        index ===
+                        allFields.findIndex(
+                            (f) =>
+                                f.table === field.table &&
+                                f.name === field.name,
+                        ),
                 ),
         );
+    }, [results]);
+
     return {
-        isLoading: queries.some((q) => q.isLoading),
+        isLoading,
         data: availableFilters,
     };
 };

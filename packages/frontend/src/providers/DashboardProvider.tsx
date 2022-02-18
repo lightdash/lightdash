@@ -1,4 +1,9 @@
-import { Dashboard, DashboardFilterRule, DashboardFilters } from 'common';
+import {
+    Dashboard,
+    DashboardFilterRule,
+    DashboardFilters,
+    fieldId,
+} from 'common';
 import React, {
     createContext,
     Dispatch,
@@ -10,7 +15,11 @@ import React, {
 } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
-import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
+import { FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
+import {
+    useAvailableDashboardFilterTargets,
+    useDashboardQuery,
+} from '../hooks/dashboard/useDashboard';
 
 const emptyFilters: DashboardFilters = {
     dimensions: [],
@@ -19,6 +28,7 @@ const emptyFilters: DashboardFilters = {
 
 type DashboardContext = {
     dashboard: Dashboard | undefined;
+    fieldsWithSuggestions: FieldsWithSuggestions;
     dashboardFilters: DashboardFilters;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     addDimensionDashboardFilter: (filter: DashboardFilterRule) => void;
@@ -30,6 +40,7 @@ type DashboardContext = {
     addMetricDashboardFilter: (filter: DashboardFilterRule) => void;
     haveFiltersChanged: boolean;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
+    addSuggestions: (newSuggestionsMap: Record<string, string[]>) => void;
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
@@ -40,6 +51,10 @@ export const DashboardProvider: React.FC = ({ children }) => {
     }>();
 
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
+    const { data: filterableFields } =
+        useAvailableDashboardFilterTargets(dashboard);
+    const [fieldsWithSuggestions, setFieldsWithSuggestions] =
+        useState<FieldsWithSuggestions>({});
     const [dashboardFilters, setDashboardFilters] =
         useState<DashboardFilters>(emptyFilters);
     const [haveFiltersChanged, setHaveFiltersChanged] =
@@ -95,6 +110,43 @@ export const DashboardProvider: React.FC = ({ children }) => {
         setHaveFiltersChanged(true);
     }, []);
 
+    useEffect(() => {
+        if (filterableFields.length > 0) {
+            setFieldsWithSuggestions((prev) =>
+                filterableFields.reduce<FieldsWithSuggestions>(
+                    (sum, field) => ({
+                        ...sum,
+                        [fieldId(field)]: {
+                            ...field,
+                            suggestions:
+                                prev[fieldId(field)]?.suggestions || [],
+                        },
+                    }),
+                    {},
+                ),
+            );
+        }
+    }, [filterableFields]);
+
+    const addSuggestions = useCallback(
+        (newSuggestionsMap: Record<string, string[]>) => {
+            setFieldsWithSuggestions((prev) => {
+                return Object.entries(prev).reduce<FieldsWithSuggestions>(
+                    (sum, [key, field]) => {
+                        const currentSuggestions = field?.suggestions || [];
+                        const newSuggestions = newSuggestionsMap[key] || [];
+                        const suggestions = Array.from(
+                            new Set([...currentSuggestions, ...newSuggestions]),
+                        ).sort((a, b) => a.localeCompare(b));
+                        return { ...sum, [key]: { ...field, suggestions } };
+                    },
+                    {},
+                );
+            });
+        },
+        [],
+    );
+
     const { search, pathname } = useLocation();
     const history = useHistory();
 
@@ -124,7 +176,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
 
     const value = {
         dashboard,
-        dashboardFilters: dashboardFilters,
+        fieldsWithSuggestions,
+        dashboardFilters,
         addDimensionDashboardFilter,
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
@@ -132,6 +185,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         setDashboardFilters,
         haveFiltersChanged,
         setHaveFiltersChanged,
+        addSuggestions,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
