@@ -34,6 +34,7 @@ import Signup from './pages/Signup';
 import SqlRunner from './pages/SqlRunner';
 import Welcome from './pages/Welcome';
 import { AppProvider } from './providers/AppProvider';
+import { DashboardProvider } from './providers/DashboardProvider';
 import { ExplorerProvider } from './providers/ExplorerProvider';
 import { TrackingProvider, TrackPage } from './providers/TrackingProvider';
 import { PageName } from './types/Events';
@@ -170,7 +171,9 @@ const App = () => (
                                                                 PageName.DASHBOARD
                                                             }
                                                         >
-                                                            <Dashboard />
+                                                            <DashboardProvider>
+                                                                <Dashboard />
+                                                            </DashboardProvider>
                                                         </TrackPage>
                                                     </Route>
                                                     <Route path="/projects/:projectUuid/dashboards">

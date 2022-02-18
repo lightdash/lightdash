@@ -365,7 +365,7 @@ export class DashboardModel {
                     }
                 },
             ),
-            filters: view.filters || {
+            filters: view?.filters || {
                 dimensions: [],
                 metrics: [],
             },

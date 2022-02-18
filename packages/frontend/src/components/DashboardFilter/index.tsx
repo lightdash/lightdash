@@ -1,4 +1,4 @@
-import { Classes } from '@blueprintjs/popover2';
+import { Classes, Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, useState } from 'react';
 import { useAvailableDashboardFilterTargets } from '../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../providers/DashboardProvider';
@@ -6,16 +6,21 @@ import ActiveFilters from './ActiveFilters';
 import {
     DashboardFilterWrapper,
     FilterTrigger,
+    Tooltip,
     TriggerWrapper,
 } from './DashboardFilter.styles';
 import FilterSearch from './FilterSearch';
 
-const DashboardFilter: FC = () => {
+interface Props {
+    isEditMode: boolean;
+}
+
+const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const [isOpen, setIsOpen] = useState(false);
     const { dashboard, dashboardFilters } = useDashboardContext();
     const { isLoading, data: filterableFields } =
         useAvailableDashboardFilterTargets(dashboard);
-    const hasTiles = dashboard.tiles.length >= 1;
+    const hasTiles = dashboard && dashboard.tiles.length >= 1;
 
     return (
         <DashboardFilterWrapper>
@@ -34,13 +39,25 @@ const DashboardFilter: FC = () => {
                 lazy={false}
                 disabled={!hasTiles || isLoading}
             >
-                <FilterTrigger
-                    minimal
-                    icon="filter-list"
-                    disabled={!hasTiles || isLoading}
+                <Tooltip2
+                    content={
+                        <Tooltip>
+                            Only filters added in <b>'edit'</b> mode will be
+                            saved
+                        </Tooltip>
+                    }
+                    placement="bottom"
+                    interactionKind="hover"
+                    disabled={isOpen || isEditMode}
                 >
-                    Add filter
-                </FilterTrigger>
+                    <FilterTrigger
+                        minimal
+                        icon="filter-list"
+                        disabled={!hasTiles || isLoading}
+                    >
+                        Add filter
+                    </FilterTrigger>
+                </Tooltip2>
             </TriggerWrapper>
             {dashboardFilters && <ActiveFilters />}
         </DashboardFilterWrapper>
