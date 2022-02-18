@@ -21,6 +21,19 @@ import {
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import TableCalculationHeaderButton from '../TableCalculationHeaderButton';
+import {
+    Container,
+    PageCount,
+    PaginationWrapper,
+    RowNumber,
+    RowNumberColumn,
+    RowNumberHeader,
+    TableActionContainer,
+    TableContainer,
+    TableFooter,
+    TableInnerContainer,
+    TableOuterContainer,
+} from './ResultsTable.styles';
 import { EmptyState, IdleState, LoadingState } from './States';
 
 const getSortIndicator = (
@@ -63,6 +76,7 @@ const getSortIndicator = (
 };
 
 const ColumnColors = {
+    rowNumber: Colors.WHITE,
     dimension: hexToRGB(Colors.BLUE1, 0.2),
     metric: hexToRGB(Colors.ORANGE1, 0.2),
     table_calculation: hexToRGB(Colors.GREEN1, 0.2),
@@ -191,31 +205,10 @@ export const ResultsTable: FC<Props> = ({
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
-            <div
-                className="cohere-block"
-                style={{
-                    height: '100%',
-                    padding: '10px',
-                    minHeight: 300,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                }}
-            >
-                <div
-                    style={{
-                        display: 'block',
-                        maxWidth: '100%',
-                    }}
-                >
-                    <div
-                        style={{
-                            display: 'flex',
-                            maxWidth: '100%',
-                            flexDirection: 'row',
-                        }}
-                    >
-                        <div style={{ flex: 1, overflowX: 'auto' }}>
+            <Container className="cohere-block">
+                <TableOuterContainer>
+                    <TableInnerContainer>
+                        <TableContainer>
                             <HTMLTable
                                 style={{ width: '100%' }}
                                 bordered
@@ -226,12 +219,17 @@ export const ResultsTable: FC<Props> = ({
                                     <colgroup
                                         key={`headerGroup_${headerGroup.id}`}
                                     >
+                                        <RowNumberColumn />
                                         {headerGroup.headers.map((column) => (
-                                            <col
-                                                {...column.getHeaderProps([
-                                                    getColumnStyle(column.type),
-                                                ])}
-                                            />
+                                            <>
+                                                <col
+                                                    {...column.getHeaderProps([
+                                                        getColumnStyle(
+                                                            column.type,
+                                                        ),
+                                                    ])}
+                                                />
+                                            </>
                                         ))}
                                     </colgroup>
                                 ))}
@@ -303,6 +301,9 @@ export const ResultsTable: FC<Props> = ({
                                                         {...headerGroup.getHeaderGroupProps()}
                                                         {...droppableProvided.droppableProps}
                                                     >
+                                                        <RowNumberHeader>
+                                                            #
+                                                        </RowNumberHeader>
                                                         {headerGroup.headers.map(
                                                             (column, index) => (
                                                                 <th
@@ -327,7 +328,8 @@ export const ResultsTable: FC<Props> = ({
                                                                                 column.id
                                                                             }
                                                                             index={
-                                                                                index
+                                                                                index +
+                                                                                1
                                                                             }
                                                                         >
                                                                             {(
@@ -336,7 +338,8 @@ export const ResultsTable: FC<Props> = ({
                                                                             ) => (
                                                                                 <Item
                                                                                     index={
-                                                                                        index
+                                                                                        index +
+                                                                                        1
                                                                                     }
                                                                                     column={
                                                                                         column
@@ -366,11 +369,14 @@ export const ResultsTable: FC<Props> = ({
                                         prepareRow(row);
                                         return (
                                             <tr {...row.getRowProps()}>
+                                                <RowNumber>
+                                                    {parseInt(row.id) + 1}
+                                                </RowNumber>
                                                 {row.cells.map((cell) => (
                                                     <td
                                                         {...cell.getCellProps([
                                                             getRowStyle(
-                                                                row.index,
+                                                                row.index + 1,
                                                             ),
                                                         ])}
                                                     >
@@ -382,36 +388,18 @@ export const ResultsTable: FC<Props> = ({
                                     })}
                                 </tbody>
                             </HTMLTable>
-                        </div>
+                        </TableContainer>
                         {tableAction && (
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    backgroundColor: hexToRGB(
-                                        Colors.GRAY4,
-                                        0.2,
-                                    ),
-                                    boxShadow:
-                                        'inset 1px 0 0 0 rgb(16 22 26 / 15%)',
-                                }}
-                            >
+                            <TableActionContainer>
                                 {tableAction}
-                            </div>
+                            </TableActionContainer>
                         )}
-                    </div>
+                    </TableInnerContainer>
                     {loading && loadingState}
                     {idle && idleState}
                     {!loading && !idle && rows.length === 0 && emptyState}
-                </div>
-                <div
-                    style={{
-                        display: 'flex',
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        paddingTop: '10px',
-                    }}
-                >
+                </TableOuterContainer>
+                <TableFooter>
                     <div>
                         {rows.length > 0 ? (
                             <CSVLink
@@ -430,35 +418,23 @@ export const ResultsTable: FC<Props> = ({
                         ) : null}
                     </div>
                     {pageCount > 1 && (
-                        <div
-                            style={{
-                                display: 'flex',
-                                flexDirection: 'row',
-                                justifyContent: 'flex-end',
-                                alignItems: 'center',
-                            }}
-                        >
+                        <PaginationWrapper>
                             {canPreviousPage && (
                                 <Button
                                     icon="arrow-left"
                                     onClick={previousPage}
                                 />
                             )}
-                            <span
-                                style={{
-                                    paddingRight: '5px',
-                                    paddingLeft: '5px',
-                                }}
-                            >
+                            <PageCount>
                                 Page {pageIndex + 1} of {pageCount}
-                            </span>
+                            </PageCount>
                             {canNextPage && (
                                 <Button icon="arrow-right" onClick={nextPage} />
                             )}
-                        </div>
+                        </PaginationWrapper>
                     )}
-                </div>
-            </div>
+                </TableFooter>
+            </Container>
         </TrackSection>
     );
 };
