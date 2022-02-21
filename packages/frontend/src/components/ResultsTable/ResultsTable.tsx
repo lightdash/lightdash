@@ -34,6 +34,8 @@ import {
     TableInnerContainer,
     TableOuterContainer,
 } from './ResultsTable.styles';
+import { CellContextMenu } from './CellContextMenu';
+import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
 import { EmptyState, IdleState, LoadingState } from './States';
 
 const getSortIndicator = (
@@ -125,7 +127,9 @@ const Item: FC<ItemProps> = ({
             ...getItemStyle(snapshot, draggableProps.style),
         }}
     >
-        {column?.render('Header')}
+        <ColumnHeaderContextMenu column={column}>
+            {column?.render('Header')}
+        </ColumnHeaderContextMenu>
         {column?.isSorted &&
             getSortIndicator(
                 column.type,
@@ -378,7 +382,13 @@ export const ResultsTable: FC<Props> = ({
                                                             ),
                                                         ])}
                                                     >
-                                                        {cell.render('Cell')}
+                                                        <CellContextMenu
+                                                            cell={cell}
+                                                        >
+                                                            {cell.render(
+                                                                'Cell',
+                                                            )}
+                                                        </CellContextMenu>
                                                     </td>
                                                 ))}
                                             </tr>

@@ -272,3 +272,5 @@ export const DeleteTableCalculationModal: FC<
         </Dialog>
     );
 };
+
+export default TableCalculationModal;

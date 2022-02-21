@@ -260,12 +260,13 @@ export interface CompiledDimension extends Dimension {
 
 export type CompiledField = CompiledDimension | CompiledMetric;
 
-export const isDimension = (field: Field): field is Dimension =>
-    field.fieldType === FieldType.DIMENSION;
+export const isDimension = (
+    field: Pick<Field, 'fieldType'>,
+): field is Dimension => field.fieldType === FieldType.DIMENSION;
 
 // Field ids are unique across the project
 export type FieldId = string;
-export const fieldId = (field: Field): FieldId =>
+export const fieldId = (field: Pick<Field, 'table' | 'name'>): FieldId =>
     `${field.table}_${field.name}`;
 
 export const findFieldByIdInExplore = (
@@ -446,6 +447,7 @@ export const getFilterTypeFromField = (field: FilterableField): FilterType => {
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     field: FilterableField,
     filterRule: T,
+    value?: any,
 ): T => {
     const filterType = getFilterTypeFromField(field);
     const filterRuleDefaults: Partial<FilterRule> = {};
@@ -457,7 +459,8 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
         switch (filterType) {
             case FilterType.DATE: {
                 if (filterRule.operator === FilterOperator.IN_THE_PAST) {
-                    filterRuleDefaults.values = [1];
+                    filterRuleDefaults.values =
+                        value !== undefined ? [value] : [1];
                     filterRuleDefaults.settings = {
                         unitOfTime: UnitOfTime.days,
                         completed: false,
@@ -468,7 +471,8 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                 break;
             }
             case FilterType.BOOLEAN: {
-                filterRuleDefaults.values = [false];
+                filterRuleDefaults.values =
+                    value !== undefined ? [value] : [false];
                 break;
             }
             default:
@@ -477,20 +481,27 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     }
     return {
         ...filterRule,
-        values: [],
+        values: value !== undefined ? [value] : [],
         settings: undefined,
         ...filterRuleDefaults,
     };
 };
 
-export const createFilterRuleFromField = (field: FilterableField): FilterRule =>
-    getFilterRuleWithDefaultValue(field, {
-        id: uuidv4(),
-        target: {
-            fieldId: fieldId(field),
+export const createFilterRuleFromField = (
+    field: FilterableField,
+    value?: any,
+): FilterRule =>
+    getFilterRuleWithDefaultValue(
+        field,
+        {
+            id: uuidv4(),
+            target: {
+                fieldId: fieldId(field),
+            },
+            operator: FilterOperator.EQUALS,
         },
-        operator: FilterOperator.EQUALS,
-    });
+        value,
+    );
 
 export const createDashboardFilterRuleFromField = (
     field: FilterableField,
@@ -504,10 +515,16 @@ export const createDashboardFilterRuleFromField = (
         operator: FilterOperator.EQUALS,
     });
 
-export const addFilterRule = (
-    filters: Filters,
-    field: FilterableField,
-): Filters => {
+type AddFilterRuleArgs = {
+    filters: Filters;
+    field: FilterableField;
+    value?: any;
+};
+export const addFilterRule = ({
+    filters,
+    field,
+    value,
+}: AddFilterRuleArgs): Filters => {
     const groupKey = isDimension(field) ? 'dimensions' : 'metrics';
     const group = filters[groupKey];
     return {
@@ -517,7 +534,7 @@ export const addFilterRule = (
             ...group,
             [getFilterGroupItemsPropertyName(group)]: [
                 ...getItemsFromFilterGroup(group),
-                createFilterRuleFromField(field),
+                createFilterRuleFromField(field, value),
             ],
         },
     };
