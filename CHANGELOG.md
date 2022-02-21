@@ -1,3 +1,16 @@
+# [0.26.0](https://github.com/lightdash/lightdash/compare/0.25.0...0.26.0) (2022-02-21)
+
+
+### Bug Fixes
+
+* bump dbt version ([#1430](https://github.com/lightdash/lightdash/issues/1430)) ([1698cdf](https://github.com/lightdash/lightdash/commit/1698cdfe175fd26e9426f00cdd31a9316e7a7820))
+* dashboard filter error causing blank page [skip ci] ([#1432](https://github.com/lightdash/lightdash/issues/1432)) ([c569fc4](https://github.com/lightdash/lightdash/commit/c569fc437f51802edb6bd7697f3d9e4dd8fca4dc))
+
+
+### Features
+
+* add column displaying the row number [skip ci] ([#1423](https://github.com/lightdash/lightdash/issues/1423)) ([a817e93](https://github.com/lightdash/lightdash/commit/a817e9385086c37a4fccf1cf8996868fd8d69812))
+
 # [0.25.0](https://github.com/lightdash/lightdash/compare/0.24.1...0.25.0) (2022-02-18)
 
 
