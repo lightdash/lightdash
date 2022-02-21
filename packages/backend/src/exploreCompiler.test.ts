@@ -84,4 +84,10 @@ describe('Default field labels render for', () => {
     test('snake case names', () => {
         expect(friendlyName('my_field_id')).toEqual('My field id');
     });
+    test('names with numbers at the start', () => {
+        expect(friendlyName('1_field_id')).toEqual('1 field id');
+    });
+    test('names with numbers in the middle', () => {
+        expect(friendlyName('my_1field_id')).toEqual('My 1field id');
+    });
 });
