@@ -1,4 +1,4 @@
-import { DimensionType, TableCalculation } from 'common';
+import { DimensionType, Field, TableCalculation } from 'common';
 import {
     UseColumnOrderInstanceProps,
     UseColumnOrderState,

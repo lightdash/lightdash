@@ -1,5 +1,6 @@
 import { Menu, MenuItem } from '@blueprintjs/core';
 import { ContextMenu2 } from '@blueprintjs/popover2';
+import { isFilterableField } from 'common';
 import React from 'react';
 import { Cell } from 'react-table';
 import { useFilters } from '../../hooks/useFilters';
@@ -12,20 +13,24 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
     cell,
 }) => {
     const { addFilter } = useFilters();
-    return (
-        <ContextMenu2
-            content={
-                <Menu>
-                    <MenuItem
-                        label={`Filter on "${cell.value}"`}
-                        onClick={() => {
-                            addFilter(cell.column.field, cell.value, true);
-                        }}
-                    />
-                </Menu>
-            }
-        >
-            {children}
-        </ContextMenu2>
-    );
+    const field = cell.column?.field;
+    if (field && isFilterableField(field)) {
+        return (
+            <ContextMenu2
+                content={
+                    <Menu>
+                        <MenuItem
+                            text={`Filter by "${cell.value}"`}
+                            onClick={() => {
+                                addFilter(field, cell.value, true);
+                            }}
+                        />
+                    </Menu>
+                }
+            >
+                {children}
+            </ContextMenu2>
+        );
+    }
+    return <>{children}</>;
 };
