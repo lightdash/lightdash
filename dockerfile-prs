@@ -23,10 +23,10 @@ RUN python3 -m venv /usr/local/venv
 RUN /usr/local/venv/bin/pip install \
     "dbt-core==1.0.2" \
     "dbt-postgres==1.0.2" \
-    "dbt-redshift==1.0.2" \
-    "dbt-snowflake==1.0.2" \
-    "dbt-bigquery==1.0.2" \
-    "dbt-databricks==1.0.2"
+    "dbt-redshift==1.0.0" \
+    "dbt-snowflake==1.0.0" \
+    "dbt-bigquery==1.0.0" \
+    "dbt-databricks==1.0.1"
 
 RUN wget \
     --quiet \
