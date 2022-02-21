@@ -3,6 +3,7 @@ import {
     createDashboardFilterRuleFromField,
     DashboardFilterRule,
     FilterableField,
+    FilterOperator,
     FilterRule,
     FilterType,
     getFilterRuleWithDefaultValue,
@@ -76,6 +77,13 @@ const FilterConfiguration: FC<Props> = ({
                 type="submit"
                 intent={Intent.PRIMARY}
                 text="Apply"
+                disabled={
+                    ![FilterOperator.NULL, FilterOperator.NOT_NULL].includes(
+                        internalFilterRule.operator,
+                    ) &&
+                    (!internalFilterRule.values ||
+                        internalFilterRule.values.length <= 0)
+                }
                 onClick={() => {
                     onSave(internalFilterRule);
                 }}
