@@ -1,5 +1,18 @@
-import { FilterOperator, FilterType } from 'common';
+import {
+    DimensionType,
+    FilterableField,
+    FilterOperator,
+    FilterRule,
+    FilterType,
+    getFilterTypeFromField,
+    isDimension,
+} from 'common';
 import { FC } from 'react';
+import {
+    formatBoolean,
+    formatDate,
+    formatTimestamp,
+} from '../../../utils/resultFormatter';
 import BooleanFilterInputs from './FilterInputs/BooleanFilterInputs';
 import DateFilterInputs from './FilterInputs/DateFilterInputs';
 import DefaultFilterInputs, {
@@ -86,4 +99,69 @@ export const FilterTypeConfig: Record<
         ]),
         inputs: BooleanFilterInputs,
     },
+};
+
+type FilterRuleLabels = {
+    field: string;
+    operator: string;
+    value?: string;
+};
+
+export const getFilterRuleLabel = (
+    filterRule: FilterRule,
+    field: FilterableField,
+): FilterRuleLabels => {
+    const filterType = field
+        ? getFilterTypeFromField(field)
+        : FilterType.STRING;
+    const filterConfig = FilterTypeConfig[filterType];
+    const operationLabel =
+        filterConfig.operatorOptions.find(
+            (option) => option.value === filterRule.operator,
+        )?.label || filterOperatorLabel[filterRule.operator];
+    let valuesText: string | undefined;
+    switch (filterType) {
+        case FilterType.STRING:
+        case FilterType.NUMBER:
+            valuesText = filterRule.values?.join(', ');
+            break;
+        case FilterType.BOOLEAN:
+            valuesText = filterRule.values?.map(formatBoolean).join(', ');
+            break;
+        case FilterType.DATE: {
+            if (filterRule.operator === FilterOperator.IN_THE_PAST) {
+                valuesText = `${filterRule.values?.[0]} ${
+                    filterRule.settings.completed ? 'completed ' : ''
+                }${filterRule.settings.unitOfTime}`;
+            } else {
+                valuesText = filterRule.values
+                    ?.map((value) => {
+                        if (
+                            isDimension(field) &&
+                            field.type === DimensionType.TIMESTAMP
+                        ) {
+                            return formatTimestamp(field.timeInterval)(value);
+                        } else if (
+                            isDimension(field) &&
+                            field.type === DimensionType.DATE
+                        ) {
+                            return formatDate(field.timeInterval)(value);
+                        } else {
+                            return value;
+                        }
+                    })
+                    .join(', ');
+            }
+            break;
+        }
+        default: {
+            const never: never = filterType;
+            throw new Error(`Unexpected filter type: ${filterType}`);
+        }
+    }
+    return {
+        field: field.label,
+        operator: operationLabel,
+        value: valuesText,
+    };
 };

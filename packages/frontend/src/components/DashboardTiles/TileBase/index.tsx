@@ -13,7 +13,6 @@ import React, { ReactNode, useState } from 'react';
 import { TileModal } from '../TileForms/TileModal';
 import {
     ChartContainer,
-    FilterLabel,
     HeaderContainer,
     HeaderWrapper,
     TileBaseWrapper,
@@ -30,7 +29,7 @@ type Props<T> = {
     onEdit: (tile: T) => void;
     children: ReactNode;
     isChart?: boolean;
-    hasFilters?: boolean;
+    extraHeaderElement?: React.ReactNode;
 };
 
 const TileBase = <T extends Dashboard['tiles'][number]>({
@@ -43,7 +42,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     onEdit,
     children,
     isChart,
-    hasFilters,
+    extraHeaderElement,
 }: Props<T>) => {
     const [isEditing, setIsEditing] = useState(false);
 
@@ -52,9 +51,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             <HeaderContainer>
                 <HeaderWrapper>
                     <Title className="non-draggable">{title}</Title>
-                    {hasFilters && (
-                        <FilterLabel>Dashboard filter applied</FilterLabel>
-                    )}
+                    {extraHeaderElement}
                 </HeaderWrapper>
                 {(isEditMode || (!isEditMode && extraMenuItems)) && (
                     <Popover2

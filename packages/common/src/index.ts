@@ -405,7 +405,7 @@ export const isFilterableDimension = (
 export type FilterableField = FilterableDimension | Metric;
 
 export const isFilterableField = (
-    field: Dimension | Metric,
+    field: Field | Dimension | Metric,
 ): field is FilterableField =>
     isDimension(field) ? isFilterableDimension(field) : true;
 
