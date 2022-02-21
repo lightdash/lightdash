@@ -1,10 +1,10 @@
+import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     DimensionType,
     FilterableField,
     FilterOperator,
     FilterRule,
     FilterType,
-    getFieldLabel,
     getFilterTypeFromField,
 } from 'common';
 import React, { FC, useMemo } from 'react';
@@ -77,7 +77,14 @@ const ActiveFilter: FC<Props> = ({ field, filterRule, onClick, onRemove }) => {
 
     return (
         <TagContainer interactive onRemove={onRemove} onClick={onClick}>
-            {`${getFieldLabel(field)} ${operationLabel} `}
+            <Tooltip2
+                content={`Table: ${field.tableLabel}`}
+                interactionKind="hover"
+                placement={'bottom-start'}
+            >
+                {`${field.label}:`}
+            </Tooltip2>
+            {` ${operationLabel} `}
             <FilterValues>{valuesText}</FilterValues>
         </TagContainer>
     );
