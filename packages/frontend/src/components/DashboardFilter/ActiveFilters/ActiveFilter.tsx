@@ -22,7 +22,7 @@ import { FilterValues, TagContainer } from './ActiveFilters.styles';
 type Props = {
     field: FilterableField;
     filterRule: FilterRule;
-    onClick: () => void;
+    onClick?: () => void;
     onRemove: () => void;
 };
 

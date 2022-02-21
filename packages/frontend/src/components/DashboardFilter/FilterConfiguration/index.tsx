@@ -1,4 +1,5 @@
 import { HTMLSelect, Intent } from '@blueprintjs/core';
+import { Classes } from '@blueprintjs/popover2';
 import {
     createDashboardFilterRuleFromField,
     DashboardFilterRule,
@@ -23,7 +24,7 @@ interface Props {
     field: FilterableField;
     filterRule?: DashboardFilterRule;
     onSave: (value: DashboardFilterRule) => void;
-    onBack: () => void;
+    onBack?: () => void;
 }
 
 const FilterConfiguration: FC<Props> = ({
@@ -47,9 +48,11 @@ const FilterConfiguration: FC<Props> = ({
 
     return (
         <ConfigureFilterWrapper>
-            <BackButton minimal onClick={onBack}>
-                Back
-            </BackButton>
+            {onBack && (
+                <BackButton minimal onClick={onBack}>
+                    Back
+                </BackButton>
+            )}
             <Title>{field.label}</Title>
             <InputsWrapper>
                 <HTMLSelect
@@ -75,6 +78,7 @@ const FilterConfiguration: FC<Props> = ({
             </InputsWrapper>
             <ApplyFilterButton
                 type="submit"
+                className={Classes.POPOVER2_DISMISS}
                 intent={Intent.PRIMARY}
                 text="Apply"
                 disabled={

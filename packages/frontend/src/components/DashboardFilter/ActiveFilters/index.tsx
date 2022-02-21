@@ -1,7 +1,7 @@
 import { Colors } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { fieldId } from 'common';
-import React, { FC, useState } from 'react';
+import React, { FC } from 'react';
 import { useAvailableDashboardFilterTargets } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import FilterConfiguration from '../FilterConfiguration';
@@ -9,7 +9,6 @@ import ActiveFilter from './ActiveFilter';
 import { TagsWrapper } from './ActiveFilters.styles';
 
 const ActiveFilters: FC = () => {
-    const [openedFilter, setOpenedFilter] = useState<string>();
     const {
         dashboard,
         dashboardFilters,
@@ -41,18 +40,14 @@ const ActiveFilters: FC = () => {
                                 field={activeField}
                                 filterRule={item}
                                 onSave={(value) => {
-                                    setOpenedFilter(undefined);
                                     updateDimensionDashboardFilter(
                                         value,
                                         index,
                                     );
                                 }}
-                                onBack={() => setOpenedFilter(undefined)}
                             />
                         }
-                        interactionKind="click"
                         popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-                        isOpen={openedFilter === item.id}
                         position="bottom"
                         lazy={false}
                         disabled={isLoading}
@@ -64,7 +59,6 @@ const ActiveFilters: FC = () => {
                             onRemove={() =>
                                 removeDimensionDashboardFilter(index)
                             }
-                            onClick={() => setOpenedFilter(item.id)}
                         />
                     </Popover2>
                 );
