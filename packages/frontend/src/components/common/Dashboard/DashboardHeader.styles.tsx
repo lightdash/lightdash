@@ -14,17 +14,17 @@ export const WrapperAddTileButton = styled.div`
 
 export const TitleContainer = styled.div<{ $isEditing: boolean }>`
     display: flex;
-    align-items: center;
+    align-items: baseline;
     color: ${($isEditing) => ($isEditing ? Colors.GRAY1 : undefined)};
     overflow: hidden;
 `;
 
 export const Title = styled.p`
     color: ${Colors.GRAY1};
-    align-self: flex-end;
-    line-height: 1.429em;
+    font-size: 12px;
+    font-weight: 500;
     margin: 0 0.714em;
-    white-space: 'nowrap';
+    white-space: nowrap;
 `;
 
 export const EditContainer = styled.div`
