@@ -61,7 +61,7 @@ const FilterConfiguration: FC<Props> = ({
                         setInternalFilterRule((prevState) =>
                             getFilterRuleWithDefaultValue(field, {
                                 ...prevState,
-                                operator: e.currentTarget
+                                operator: e.target
                                     .value as FilterRule['operator'],
                             }),
                         )
