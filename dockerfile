@@ -41,12 +41,12 @@ RUN apt-get update && apt-get -y -t buster-backports install git
 # TODO: prefer in stage 1
 RUN python -m venv /usr/local/venv
 RUN /usr/local/venv/bin/pip install \
-    "dbt-core==1.0.0" \
-    "dbt-postgres==1.0.0" \
+    "dbt-core==1.0.2" \
+    "dbt-postgres==1.0.2" \
     "dbt-redshift==1.0.0" \
     "dbt-snowflake==1.0.0" \
     "dbt-bigquery==1.0.0" \
-    "dbt-databricks==1.0.0"
+    "dbt-databricks==1.0.1"
 ENV PATH $PATH:/usr/local/venv/bin
 
 
