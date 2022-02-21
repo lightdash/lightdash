@@ -9,9 +9,17 @@ export const TriggerWrapper = styled(Popover2)`
 
 export const FilterTrigger = styled(AnchorButton)`
     color: ${Colors.BLUE3} !important;
+    font-weight: 500;
+    white-space: nowrap;
     & span[icon='filter-list'] {
-        & svg path {
-            fill: ${Colors.BLUE3} !important;
+        width: 12px;
+        height: 12px;
+        & svg {
+            width: 12px;
+            height: 12px;
+            & path {
+                fill: ${Colors.BLUE3} !important;
+            }
         }
     }
 

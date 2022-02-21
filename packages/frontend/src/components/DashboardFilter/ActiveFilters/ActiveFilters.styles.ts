@@ -4,7 +4,6 @@ import styled from 'styled-components';
 export const TagContainer = styled(Tag)`
     width: fit-content;
     padding: 0 0.5em;
-    background: #5c7080 !important;
     border-radius: 0.214em;
 
     & span {

@@ -1,15 +1,18 @@
 import { Menu, MenuItem, NonIdealState, Portal } from '@blueprintjs/core';
-import { Popover2, Popover2TargetProps } from '@blueprintjs/popover2';
+import { Popover2, Popover2TargetProps, Tooltip2 } from '@blueprintjs/popover2';
 import {
     DashboardChartTile as IDashboardChartTile,
     DashboardFilterRule,
     DashboardFilters,
     DBChartTypes,
+    Field,
     fieldId,
     FilterGroup,
     FilterOperator,
     friendlyName,
     getDimensions,
+    getFields,
+    isFilterableField,
     SavedQuery,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
@@ -28,9 +31,13 @@ import { useExplore } from '../../hooks/useExplore';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import { useDashboardContext } from '../../providers/DashboardProvider';
+import { getFilterRuleLabel } from '../common/Filters/configs';
+import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
+import { Tooltip } from '../DashboardFilter/DashboardFilter.styles';
 import LightdashVisualization from '../LightdashVisualization';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 import TileBase from './TileBase/index';
+import { FilterLabel } from './TileBase/TileBase.styles';
 
 const ValidDashboardChartTile: FC<{
     data: SavedQuery;
@@ -191,13 +198,52 @@ const DashboardChartTile: FC<Props> = (props) => {
     }
     // END DASHBOARD FILTER LOGIC
 
+    const appliedFilterRules = [
+        ...dashboardFiltersThatApplyToChart.dimensions,
+        ...dashboardFiltersThatApplyToChart.metrics,
+    ];
+
+    const renderFilterRule = useCallback(
+        (filterRule: DashboardFilterRule) => {
+            const fields: Field[] = explore ? getFields(explore) : [];
+            const field = fields.find(
+                (f) => fieldId(f) === filterRule.target.fieldId,
+            );
+            if (field && isFilterableField(field)) {
+                const filterRuleLabels = getFilterRuleLabel(filterRule, field);
+                return (
+                    <Tooltip>
+                        {filterRuleLabels.field}: {filterRuleLabels.operator}{' '}
+                        <FilterValues>{filterRuleLabels.value}</FilterValues>
+                    </Tooltip>
+                );
+            }
+            return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
+        },
+        [explore],
+    );
+
     return (
         <TileBase
             isChart
-            hasFilters={
-                dashboardFiltersThatApplyToChart.dimensions.length +
-                    dashboardFiltersThatApplyToChart.metrics.length >
-                0
+            extraHeaderElement={
+                appliedFilterRules.length > 0 && (
+                    <div>
+                        <Tooltip2
+                            content={
+                                <>{appliedFilterRules.map(renderFilterRule)}</>
+                            }
+                            interactionKind="hover"
+                            placement={'bottom-start'}
+                        >
+                            <FilterLabel>
+                                Dashboard filter
+                                {appliedFilterRules.length > 1 ? 's' : ''}{' '}
+                                applied
+                            </FilterLabel>
+                        </Tooltip2>
+                    </div>
+                )
             }
             title={savedQueryWithDashboardFilters?.name || ''}
             isLoading={isLoading}

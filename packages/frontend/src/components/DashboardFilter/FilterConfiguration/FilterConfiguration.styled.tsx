@@ -28,6 +28,7 @@ export const BackButton = styled(AnchorButton)`
     padding: 0;
     margin-bottom: 1.5em;
     justify-content: flex-start;
+    font-size: 12px;
     font-weight: 600;
     :hover {
         background: transparent !important;

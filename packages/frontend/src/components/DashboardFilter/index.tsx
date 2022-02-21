@@ -48,11 +48,12 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                     }
                     placement="bottom"
                     interactionKind="hover"
-                    disabled={isOpen || isEditMode}
+                    disabled={isOpen || isEditMode || isLoading}
                 >
                     <FilterTrigger
                         minimal
                         icon="filter-list"
+                        loading={isLoading}
                         disabled={!hasTiles || isLoading}
                     >
                         Add filter
