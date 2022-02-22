@@ -54,12 +54,31 @@ const ValidDashboardChartTile: FC<{
         resultData,
         data?.chartConfig.seriesLayout,
     );
+    const { addSuggestions } = useDashboardContext();
 
     useEffect(() => {
         if (data?.chartConfig.chartType) {
             setActiveVizTab(data.chartConfig.chartType);
         }
     }, [data]);
+
+    useEffect(() => {
+        if (resultData) {
+            addSuggestions(
+                resultData.metricQuery.dimensions.reduce((sum, dimensionId) => {
+                    const newSuggestions: string[] =
+                        resultData.rows.reduce<string[]>((acc, row) => {
+                            const value = row[dimensionId];
+                            if (typeof value === 'string') {
+                                return [...acc, value];
+                            }
+                            return acc;
+                        }, []) || [];
+                    return { ...sum, [dimensionId]: newSuggestions };
+                }, {}),
+            );
+        }
+    }, [addSuggestions, resultData]);
 
     return (
         <LightdashVisualization
