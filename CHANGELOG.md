@@ -1,3 +1,10 @@
+## [0.27.1](https://github.com/lightdash/lightdash/compare/0.27.0...0.27.1) (2022-02-22)
+
+
+### Bug Fixes
+
+* numbers are no longer removed from column name [#1346](https://github.com/lightdash/lightdash/issues/1346) ([#1433](https://github.com/lightdash/lightdash/issues/1433)) ([a5b3637](https://github.com/lightdash/lightdash/commit/a5b3637caadded60da0c1ec1aa5196ddeefc0837))
+
 # [0.27.0](https://github.com/lightdash/lightdash/compare/0.26.0...0.27.0) (2022-02-22)
 
 
