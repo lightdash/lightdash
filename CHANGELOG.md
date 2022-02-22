@@ -1,3 +1,11 @@
+# [0.27.0](https://github.com/lightdash/lightdash/compare/0.26.0...0.27.0) (2022-02-22)
+
+
+### Features
+
+* add filter from table cells and headers [skip ci] ([#1350](https://github.com/lightdash/lightdash/issues/1350)) ([398bbd2](https://github.com/lightdash/lightdash/commit/398bbd28502da87a90cc45fc0a112227ba000599))
+* **filters:** add suggestions for string filters ([#1419](https://github.com/lightdash/lightdash/issues/1419)) ([a443a64](https://github.com/lightdash/lightdash/commit/a443a64c9fcf4deab23ebb264516daabe1d6aa1d))
+
 # [0.26.0](https://github.com/lightdash/lightdash/compare/0.25.0...0.26.0) (2022-02-21)
 
 
