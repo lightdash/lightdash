@@ -583,7 +583,7 @@ export const friendlyName = (text: string): string => {
     const normalisedText =
         text === text.toUpperCase() ? text.toLowerCase() : text; // force all uppercase to all lowercase
     const [first, ...rest] =
-        normalisedText.match(/[0-9]*[A-Za-z][a-z]*/g) || [];
+        normalisedText.match(/[0-9]*[A-Za-z][a-z]*|[0-9]+/g) || [];
     return [
         capitalize(first.toLowerCase()),
         ...rest.map((word) => word.toLowerCase()),
