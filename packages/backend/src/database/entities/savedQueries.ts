@@ -260,7 +260,9 @@ export const getSavedQueryByUuid = async (
                         const never: never = series.type;
                 }
                 xDimension = series.xField;
-                yMetrics = [series.yField];
+                yMetrics = chartConfig.series.map(
+                    (seriesItem) => seriesItem.yField,
+                );
             }
             break;
         default:
