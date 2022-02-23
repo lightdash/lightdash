@@ -1,5 +1,5 @@
 import { Colors, HTMLTable, NonIdealState } from '@blueprintjs/core';
-import { friendlyName } from 'common';
+import { ApiQueryResults, friendlyName } from 'common';
 import React, { FC } from 'react';
 import { mapDataToTable, modifiedItem } from '../../utils/tableData';
 import {
@@ -9,10 +9,10 @@ import {
 } from './SimpleTable.styles';
 
 interface Props {
-    data: Record<string, any>[] | undefined;
+    data: ApiQueryResults | undefined;
 }
 const SimpleTable: FC<Props> = ({ data }) => {
-    const tableItems = data ? data.slice(0, 25) : [];
+    const tableItems = data ? data.rows.slice(0, 25) : [];
     const { headers, rows } = mapDataToTable(tableItems);
     const validData = rows && headers;
     return (
