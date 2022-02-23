@@ -75,5 +75,22 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-    throw new Error('Not implemented');
+    // Deletes all saved queries
+    await knex('saved_queries').delete();
+
+    // Update chart types
+    await knex('chart_types').where('chart_type', 'cartesian').delete();
+    await knex('chart_types').insert(
+        ['bar', 'line', 'column', 'scatter'].map((chart_type) => ({
+            chart_type,
+        })),
+    );
+
+    // Update saved_queries_versions
+    await knex.schema.alterTable('saved_queries_versions', (tableBuilder) => {
+        tableBuilder.text('group_dimension').nullable();
+        tableBuilder.text('x_dimension').nullable();
+        tableBuilder.dropColumn('pivot_dimensions');
+        tableBuilder.dropColumn('chart_config');
+    });
 }
