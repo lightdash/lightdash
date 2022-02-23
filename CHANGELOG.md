@@ -1,3 +1,10 @@
+## [0.27.3](https://github.com/lightdash/lightdash/compare/0.27.2...0.27.3) (2022-02-23)
+
+
+### Bug Fixes
+
+* disable chart configuration for table visualization ([#1440](https://github.com/lightdash/lightdash/issues/1440)) ([b335541](https://github.com/lightdash/lightdash/commit/b3355414ba1511dbb7505f63bf2f15953a31daaf))
+
 ## [0.27.2](https://github.com/lightdash/lightdash/compare/0.27.1...0.27.2) (2022-02-23)
 
 
