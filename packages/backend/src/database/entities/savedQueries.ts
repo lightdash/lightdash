@@ -15,6 +15,35 @@ import { getSpace } from './spaces';
 export const SavedQueriesTableName = 'saved_queries';
 export const SavedQueriesVersionsTableName = 'saved_queries_versions';
 
+type BigNumberConfig = {
+    type: 'big_number';
+    config: {};
+};
+
+type TableChartConfig = {
+    type: 'table';
+    config: {};
+};
+
+type Series = {
+    xField: string;
+    yField: string;
+    type: 'line' | 'bar' | 'scatter';
+    flipAxes?: boolean | undefined;
+};
+
+type CartesianChartConfig = {
+    type: 'cartesian';
+    config: {
+        series: Series[];
+    };
+};
+
+export type ChartConfig =
+    | BigNumberConfig
+    | TableChartConfig
+    | CartesianChartConfig;
+
 type DbSavedQueryDetails = {
     project_uuid: string;
     saved_query_id: number;
@@ -24,9 +53,9 @@ type DbSavedQueryDetails = {
     explore_name: string;
     filters: any;
     row_limit: number;
-    x_dimension: string | undefined;
-    group_dimension: string | undefined;
-    chart_type: DBChartTypes;
+    chart_type: ChartConfig['type'];
+    chart_config: ChartConfig['config'] | undefined;
+    pivot_dimensions: string[] | undefined;
     created_at: Date;
 };
 
@@ -47,14 +76,14 @@ export type SavedQueryTable = Knex.CompositeTableType<
 type DbSavedQueryVersion = {
     saved_queries_version_id: number;
     saved_queries_version_uuid: string;
-    explore_name: string;
-    row_limit: number;
-    filters: any;
-    chart_type: DBChartTypes;
-    x_dimension: string | undefined;
-    group_dimension: string | undefined;
     created_at: Date;
+    explore_name: string;
+    filters: any;
+    row_limit: number;
+    chart_type: 'big_number' | 'table' | 'cartesian';
     saved_query_id: number;
+    chart_config: ChartConfig['config'];
+    pivot_dimensions: string[];
 };
 
 type CreateDbSavedQueryVersion = Pick<
@@ -63,9 +92,9 @@ type CreateDbSavedQueryVersion = Pick<
     | 'explore_name'
     | 'filters'
     | 'row_limit'
-    | 'group_dimension'
-    | 'x_dimension'
     | 'chart_type'
+    | 'pivot_dimensions'
+    | 'chart_config'
 >;
 
 type DbSavedQueryVersionYMetric = {
@@ -130,7 +159,7 @@ export const getSavedQueryByUuid = async (
     db: Knex,
     savedQueryUuid: string,
 ): Promise<SavedQuery> => {
-    const results = await db<DbSavedQueryDetails>('saved_queries')
+    const [savedQuery] = await db<DbSavedQueryDetails>('saved_queries')
         .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
         .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
         .leftJoin(
@@ -147,24 +176,17 @@ export const getSavedQueryByUuid = async (
             'saved_queries_versions.explore_name',
             'saved_queries_versions.filters',
             'saved_queries_versions.row_limit',
-            'saved_queries_versions.x_dimension',
-            'saved_queries_versions.group_dimension',
             'saved_queries_versions.chart_type',
             'saved_queries_versions.created_at',
+            'saved_queries_versions.chart_config',
+            'saved_queries_versions.pivot_dimensions',
         ])
         .where('saved_query_uuid', savedQueryUuid)
         .orderBy('saved_queries_versions.created_at', 'desc')
         .limit(1);
-    if (results.length <= 0) {
+    if (savedQuery === undefined) {
         throw new NotFoundError('Saved query not found');
     }
-    const savedQuery = results[0];
-    const yMetrics = await db<DbSavedQueryVersionYMetric>(
-        'saved_queries_version_y_metrics',
-    )
-        .select<DbSavedQueryVersionYMetric[]>(['field_name'])
-        .where('saved_queries_version_id', savedQuery.saved_queries_version_id)
-        .orderBy('order', 'asc');
     const fields = await db<DbSavedQueryVersionField>(
         'saved_queries_version_fields',
     )
@@ -199,6 +221,52 @@ export const getSavedQueryByUuid = async (
         .sort((a, b) => a.order - b.order)
         .map((x) => x.name);
 
+    // Get group dimension from pivot config
+    const groupDimension = savedQuery.pivot_dimensions
+        ? savedQuery.pivot_dimensions[0]
+        : undefined;
+
+    // Get chartType, xDimension and yMetrics from chart type
+    let xDimension: string | undefined;
+    let yMetrics: string[] = [];
+    let chartType: DBChartTypes = DBChartTypes.LINE;
+    switch (savedQuery.chart_type) {
+        case 'big_number':
+            chartType = DBChartTypes.BIG_NUMBER;
+            break;
+        case 'table':
+            chartType = DBChartTypes.TABLE;
+            break;
+        case 'cartesian':
+            const chartConfig =
+                savedQuery.chart_config as CartesianChartConfig['config'];
+            const [series] = chartConfig.series;
+            if (series === undefined) {
+                chartType = DBChartTypes.LINE;
+            } else {
+                switch (series.type) {
+                    case 'bar':
+                        chartType = series.flipAxes
+                            ? DBChartTypes.BAR
+                            : DBChartTypes.COLUMN;
+                        break;
+                    case 'line':
+                        chartType = DBChartTypes.LINE;
+                        break;
+                    case 'scatter':
+                        chartType = DBChartTypes.SCATTER;
+                        break;
+                    default:
+                        const never: never = series.type;
+                }
+                xDimension = series.xField;
+                yMetrics = [series.yField];
+            }
+            break;
+        default:
+            const never: never = savedQuery.chart_type;
+    }
+
     return {
         uuid: savedQuery.saved_query_uuid,
         projectUuid: savedQuery.project_uuid,
@@ -221,11 +289,11 @@ export const getSavedQueryByUuid = async (
             })),
         },
         chartConfig: {
-            chartType: savedQuery.chart_type,
+            chartType,
             seriesLayout: {
-                xDimension: savedQuery.x_dimension,
-                groupDimension: savedQuery.group_dimension,
-                yMetrics: yMetrics.map((yMetric) => yMetric.field_name),
+                xDimension,
+                groupDimension,
+                yMetrics,
             },
         },
         tableConfig: {
@@ -317,35 +385,71 @@ export const createSavedQueryVersion = async (
     }: CreateSavedQueryVersion,
 ): Promise<void> => {
     await db.transaction(async (trx) => {
+        const pivotDimensions = chartConfig.seriesLayout.groupDimension
+            ? [chartConfig.seriesLayout.groupDimension]
+            : undefined;
+        let convertedChartType: DbSavedQueryVersion['chart_type'] = 'cartesian';
+        let convertedChartConfig:
+            | DbSavedQueryVersion['chart_config']
+            | undefined;
+        switch (chartConfig.chartType) {
+            case DBChartTypes.BIG_NUMBER:
+                convertedChartType = 'big_number';
+                convertedChartConfig = {};
+                break;
+            case DBChartTypes.TABLE:
+                convertedChartType = 'table';
+                convertedChartConfig = '';
+                break;
+            case DBChartTypes.COLUMN:
+            case DBChartTypes.LINE:
+            case DBChartTypes.SCATTER:
+            case DBChartTypes.BAR:
+                convertedChartType = 'cartesian';
+                if (
+                    chartConfig.seriesLayout.xDimension &&
+                    chartConfig.seriesLayout.yMetrics
+                ) {
+                    convertedChartConfig = {
+                        series: chartConfig.seriesLayout.yMetrics.map(
+                            (yField) => ({
+                                xFieldId: chartConfig.seriesLayout.xDimension,
+                                yFieldId: yField,
+                                type: ['bar', 'column'].includes(
+                                    chartConfig.chartType,
+                                )
+                                    ? 'bar'
+                                    : chartConfig.chartType,
+                                flipAxes:
+                                    chartConfig.chartType === DBChartTypes.BAR,
+                            }),
+                        ),
+                    };
+                } else {
+                    convertedChartConfig = { series: [] };
+                }
+                break;
+            default:
+                const never: never = chartConfig.chartType;
+        }
         try {
             const results = await trx<DbSavedQueryVersion>(
                 'saved_queries_versions',
             )
+                // TODO
                 .insert<CreateDbSavedQueryVersion>({
                     row_limit: limit,
                     filters: JSON.stringify(filters),
                     explore_name: tableName,
                     saved_query_id: savedQueryId,
-                    x_dimension: chartConfig.seriesLayout.xDimension,
-                    group_dimension: chartConfig.seriesLayout.groupDimension,
-                    chart_type: chartConfig.chartType,
+                    pivot_dimensions: pivotDimensions,
+                    chart_type: convertedChartType,
+                    chart_config: convertedChartConfig,
                 })
                 .returning('*');
             const version = results[0];
 
             const promises: Promise<any>[] = [];
-            (chartConfig.seriesLayout.yMetrics || []).forEach(
-                (yMetric, index) => {
-                    promises.push(
-                        createSavedQueryVersionYMetric(trx, {
-                            field_name: yMetric,
-                            saved_queries_version_id:
-                                version.saved_queries_version_id,
-                            order: index,
-                        }),
-                    );
-                },
-            );
             dimensions.forEach((dimension) => {
                 promises.push(
                     createSavedQueryVersionField(trx, {
