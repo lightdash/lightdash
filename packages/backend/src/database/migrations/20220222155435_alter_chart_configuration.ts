@@ -19,7 +19,7 @@ export async function up(knex: Knex): Promise<void> {
     // Migrate pivot_config, chart_type and chart_config for bar, line, scatter, column
     await knex.raw(`WITH updates AS (
         SELECT 
-            saved_queries_version.id, 
+            sqv.saved_queries_version_id, 
             json_build_object(
                 'series', (
                     CASE
@@ -42,7 +42,7 @@ export async function up(knex: Knex): Promise<void> {
                 )
             ) as chart_config
         FROM saved_queries_versions sqv
-        WHERE chart_type not in ('big_number', 'table');
+        WHERE chart_type not in ('big_number', 'table')
     ) 
     
     UPDATE saved_queries_versions sqv
@@ -55,8 +55,8 @@ export async function up(knex: Knex): Promise<void> {
         ),
         chart_config = updates.chart_config
     FROM updates
-        ON sqv.saved_queries_version_id = updates.saved_queries_version_id
-    WHERE chart_type not in ('big_number', 'table');
+    WHERE sqv.saved_queries_version_id = updates.saved_queries_version_id
+        AND chart_type not in ('big_number', 'table')
     `);
 
     // Delete unused y_metrics table
