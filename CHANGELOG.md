@@ -1,3 +1,10 @@
+## [0.27.2](https://github.com/lightdash/lightdash/compare/0.27.1...0.27.2) (2022-02-23)
+
+
+### Bug Fixes
+
+* **redshift:** amend ra3 node default value ([#1438](https://github.com/lightdash/lightdash/issues/1438)) ([1234859](https://github.com/lightdash/lightdash/commit/123485935e9283ad5f33bdf43964c3e86127f975))
+
 ## [0.27.1](https://github.com/lightdash/lightdash/compare/0.27.0...0.27.1) (2022-02-22)
 
 
