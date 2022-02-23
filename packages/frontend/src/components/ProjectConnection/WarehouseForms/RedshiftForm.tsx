@@ -123,7 +123,7 @@ const RedshiftForm: FC<{
                     name="warehouse.ra3Node"
                     label="Use RA3 node"
                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#ra3-node"
-                    defaultValue="true"
+                    defaultValue
                     disabled={disabled}
                 />
             </FormSection>
