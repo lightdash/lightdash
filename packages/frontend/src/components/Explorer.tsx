@@ -414,16 +414,18 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             </Tooltip2>
                             <ChartConfigPanel
                                 chartConfig={chartConfig}
-                                disabled={isChartEmpty || isBigNumber}
+                                disabled={
+                                    isChartEmpty ||
+                                    isBigNumber ||
+                                    activeVizTab === DBChartTypes.TABLE
+                                }
                             />
-                            {chartConfig.plotData && !isBigNumber && (
-                                <ChartDownloadMenu
-                                    chartRef={chartRef}
-                                    disabled={isChartEmpty}
-                                    chartType={activeVizTab}
-                                    chartData={chartConfig.plotData}
-                                />
-                            )}
+                            <ChartDownloadMenu
+                                chartRef={chartRef}
+                                disabled={isChartEmpty || isBigNumber}
+                                chartType={activeVizTab}
+                                chartData={chartConfig.plotData || []}
+                            />
                             <ButtonGroup>
                                 <Button
                                     text="Save chart"

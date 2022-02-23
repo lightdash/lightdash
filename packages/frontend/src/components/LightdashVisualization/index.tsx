@@ -43,7 +43,7 @@ const LightdashVisualization: FC<Props> = ({
                     />
                 );
             case DBChartTypes.TABLE:
-                return <SimpleTable data={chartConfig.plotData} />;
+                return <SimpleTable data={resultsData} />;
             case DBChartTypes.COLUMN:
             case DBChartTypes.LINE:
             case DBChartTypes.SCATTER:
