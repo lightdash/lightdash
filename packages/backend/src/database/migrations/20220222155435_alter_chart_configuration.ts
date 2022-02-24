@@ -10,12 +10,6 @@ export async function up(knex: Knex): Promise<void> {
         tableBuilder.specificType('pivot_dimensions', 'TEXT[]').nullable();
     });
 
-    // Migrate configs for big_number and table
-    await knex.raw(`
-    UPDATE saved_queries_versions
-    SET chart_config = '{}'::jsonb
-    WHERE chart_type in ('big_number', 'table')`);
-
     // Migrate pivot_config, chart_type and chart_config for bar, line, scatter, column
     await knex.raw(`WITH updates AS (
         SELECT 

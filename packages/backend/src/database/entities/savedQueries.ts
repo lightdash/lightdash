@@ -17,12 +17,12 @@ export const SavedQueriesVersionsTableName = 'saved_queries_versions';
 
 type BigNumberConfig = {
     type: 'big_number';
-    config: {};
+    config: undefined;
 };
 
 type TableChartConfig = {
     type: 'table';
-    config: {};
+    config: undefined;
 };
 
 type Series = {
@@ -32,11 +32,12 @@ type Series = {
     flipAxes?: boolean | undefined;
 };
 
+type CartesianChart = {
+    series: Series[];
+};
 type CartesianChartConfig = {
     type: 'cartesian';
-    config: {
-        series: Series[];
-    };
+    config: CartesianChart;
 };
 
 export type ChartConfig =
@@ -397,31 +398,40 @@ export const createSavedQueryVersion = async (
         switch (chartConfig.chartType) {
             case DBChartTypes.BIG_NUMBER:
                 convertedChartType = 'big_number';
-                convertedChartConfig = {};
+                convertedChartConfig = undefined;
                 break;
             case DBChartTypes.TABLE:
                 convertedChartType = 'table';
-                convertedChartConfig = {};
+                convertedChartConfig = undefined;
                 break;
             case DBChartTypes.COLUMN:
             case DBChartTypes.LINE:
             case DBChartTypes.SCATTER:
             case DBChartTypes.BAR:
                 convertedChartType = 'cartesian';
-                if (
-                    chartConfig.seriesLayout.xDimension &&
-                    chartConfig.seriesLayout.yMetrics
-                ) {
+                const { xDimension } = chartConfig.seriesLayout;
+                let cartesianType: Series['type'];
+                switch (chartConfig.chartType) {
+                    case DBChartTypes.BAR:
+                    case DBChartTypes.COLUMN:
+                        cartesianType = 'bar';
+                        break;
+                    case DBChartTypes.LINE:
+                        cartesianType = 'line';
+                        break;
+                    case DBChartTypes.SCATTER:
+                        cartesianType = 'scatter';
+                        break;
+                    default:
+                        const never: never = chartConfig.chartType;
+                }
+                if (xDimension && chartConfig.seriesLayout.yMetrics) {
                     convertedChartConfig = {
-                        series: chartConfig.seriesLayout.yMetrics.map(
+                        series: chartConfig.seriesLayout.yMetrics.map<Series>(
                             (yField) => ({
-                                xField: chartConfig.seriesLayout.xDimension,
+                                xField: xDimension,
                                 yField,
-                                type: ['bar', 'column'].includes(
-                                    chartConfig.chartType,
-                                )
-                                    ? 'bar'
-                                    : chartConfig.chartType,
+                                type: cartesianType,
                                 flipAxes:
                                     chartConfig.chartType === DBChartTypes.BAR,
                             }),
