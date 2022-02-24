@@ -93,4 +93,23 @@ export async function down(knex: Knex): Promise<void> {
         tableBuilder.dropColumn('pivot_dimensions');
         tableBuilder.dropColumn('chart_config');
     });
+
+    // Add y metrics table
+    await knex.schema.createTable(
+        'saved_queries_version_y_metrics',
+        (table) => {
+            table.specificType(
+                'saved_queries_version_y_metric_id',
+                'integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY',
+            );
+            table.text('field_name').notNullable();
+            table.integer('order').notNullable();
+            table
+                .integer('saved_queries_version_id')
+                .notNullable()
+                .references('saved_queries_version_id')
+                .inTable('saved_queries_versions')
+                .onDelete('CASCADE');
+        },
+    );
 }

@@ -401,7 +401,7 @@ export const createSavedQueryVersion = async (
                 break;
             case DBChartTypes.TABLE:
                 convertedChartType = 'table';
-                convertedChartConfig = '';
+                convertedChartConfig = {};
                 break;
             case DBChartTypes.COLUMN:
             case DBChartTypes.LINE:
