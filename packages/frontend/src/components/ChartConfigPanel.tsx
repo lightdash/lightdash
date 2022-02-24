@@ -8,9 +8,10 @@ import {
     Switch,
 } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import { fieldId as getFieldId } from 'common';
+import { DBChartTypes, fieldId as getFieldId } from 'common';
 import React, { useState } from 'react';
 import { ChartConfig } from '../hooks/useChartConfig';
+import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 type ContentProps = {
     chartConfig: ChartConfig;
@@ -141,18 +142,19 @@ export const ChartConfigOptions: React.FC<ContentProps> = ({ chartConfig }) => (
     </div>
 );
 
-type ChartConfigPanelProps = {
-    chartConfig: ChartConfig;
-    disabled: boolean;
-};
-export const ChartConfigPanel: React.FC<ChartConfigPanelProps> = ({
-    chartConfig,
-    disabled,
-}) => {
+export const ChartConfigPanel: React.FC = () => {
+    const { chartType, chartConfig } = useVisualizationContext();
+    const disabled =
+        !chartConfig?.plotData ||
+        chartType === DBChartTypes.BIG_NUMBER ||
+        chartType === DBChartTypes.TABLE;
+
     const [isOpen, setIsOpen] = useState(false);
     return (
         <Popover2
-            content={<ChartConfigOptions chartConfig={chartConfig} />}
+            content={
+                chartConfig && <ChartConfigOptions chartConfig={chartConfig} />
+            }
             interactionKind="click"
             popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
             isOpen={isOpen}

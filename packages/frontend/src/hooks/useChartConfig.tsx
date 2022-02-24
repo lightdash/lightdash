@@ -2,6 +2,7 @@ import {
     ApiQueryResults,
     CompiledDimension,
     DimensionType,
+    Explore,
     Field,
     fieldId as getFieldId,
     findFieldByIdInExplore,
@@ -10,9 +11,8 @@ import {
     getFieldLabel,
     TableCalculation,
 } from 'common';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getDimensionFormatter } from '../utils/resultFormatter';
-import { useExplore } from './useExplore';
 
 const getDimensionFormatterByKey = (
     dimensions: CompiledDimension[],
@@ -124,48 +124,45 @@ const isValidSeriesLayout = (
     seriesLayout.yMetrics.length > 0;
 
 export const useChartConfig = (
-    tableName: string | undefined,
+    explore: Explore | undefined,
     results: ApiQueryResults | undefined,
     defaultSeriesLayout: SeriesLayout | undefined,
 ): ChartConfig => {
     const [seriesLayout, setSeriesLayout] = useState<SeriesLayout>(
         defaultLayout(results),
     );
-    const activeExplore = useExplore(tableName);
-    const dimensions = activeExplore.data
-        ? getDimensions(activeExplore.data)
-        : [];
+
+    const dimensions = useMemo(
+        () => (explore ? getDimensions(explore) : []),
+        [explore],
+    );
     const [dimensionOptions, metricOptions] = useMemo<
         [Field[], Field[]]
     >(() => {
         let dimensionsFields: Field[] = [];
         let metricsFields: Field[] = [];
-        if (activeExplore.data && results) {
+        if (explore && results) {
             dimensionsFields = results.metricQuery.dimensions.reduce<Field[]>(
                 (acc, reference) => {
-                    const field = findFieldByIdInExplore(
-                        activeExplore.data,
-                        reference,
-                    );
+                    const field = findFieldByIdInExplore(explore, reference);
                     return field ? [...acc, field] : acc;
                 },
                 [],
             );
             metricsFields = results.metricQuery.metrics.reduce<Field[]>(
                 (acc, reference) => {
-                    const field = findFieldByIdInExplore(
-                        activeExplore.data,
-                        reference,
-                    );
+                    const field = findFieldByIdInExplore(explore, reference);
                     return field ? [...acc, field] : acc;
                 },
                 [],
             );
         }
         return [dimensionsFields, metricsFields];
-    }, [activeExplore, results]);
-    const tableCalculationOptions =
-        results?.metricQuery.tableCalculations || [];
+    }, [explore, results]);
+    const tableCalculationOptions = useMemo(
+        () => results?.metricQuery.tableCalculations || [],
+        [results?.metricQuery.tableCalculations],
+    );
 
     useEffect(() => {
         if (defaultSeriesLayout) {
@@ -224,210 +221,231 @@ export const useChartConfig = (
         }
     }, [results]);
 
-    const setXDimension = (xDimension: string) => {
-        if (results)
-            setSeriesLayout((layout) => {
-                const fallbackDimension = dimensionOptions.find(
-                    (d) => getFieldId(d) !== xDimension,
-                );
-                let groupDimension: string | undefined;
-                if (xDimension === layout.groupDimension) {
-                    groupDimension = fallbackDimension
-                        ? getFieldId(fallbackDimension)
-                        : undefined;
-                } else {
-                    groupDimension = layout.groupDimension;
-                }
-                return { ...layout, xDimension, groupDimension };
-            });
-    };
+    const setXDimension = useCallback(
+        (xDimension: string) => {
+            if (results)
+                setSeriesLayout((layout) => {
+                    const fallbackDimension = dimensionOptions.find(
+                        (d) => getFieldId(d) !== xDimension,
+                    );
+                    let groupDimension: string | undefined;
+                    if (xDimension === layout.groupDimension) {
+                        groupDimension = fallbackDimension
+                            ? getFieldId(fallbackDimension)
+                            : undefined;
+                    } else {
+                        groupDimension = layout.groupDimension;
+                    }
+                    return { ...layout, xDimension, groupDimension };
+                });
+        },
+        [dimensionOptions, results],
+    );
 
-    const setGroupDimension = (groupDimension: string | undefined) => {
-        if (results)
-            setSeriesLayout((layout) => {
-                const fallbackDimension = dimensionOptions.find(
-                    (d) => getFieldId(d) !== groupDimension,
-                );
-                let xDimension: string | undefined;
-                if (groupDimension === layout.xDimension) {
-                    xDimension = fallbackDimension
-                        ? getFieldId(fallbackDimension)
-                        : undefined;
-                } else {
-                    xDimension = layout.xDimension;
-                }
-                return {
-                    groupDimension,
-                    yMetrics: layout.yMetrics,
-                    xDimension,
-                };
-            });
-    };
+    const setGroupDimension = useCallback(
+        (groupDimension: string | undefined) => {
+            if (results)
+                setSeriesLayout((layout) => {
+                    const fallbackDimension = dimensionOptions.find(
+                        (d) => getFieldId(d) !== groupDimension,
+                    );
+                    let xDimension: string | undefined;
+                    if (groupDimension === layout.xDimension) {
+                        xDimension = fallbackDimension
+                            ? getFieldId(fallbackDimension)
+                            : undefined;
+                    } else {
+                        xDimension = layout.xDimension;
+                    }
+                    return {
+                        groupDimension,
+                        yMetrics: layout.yMetrics,
+                        xDimension,
+                    };
+                });
+        },
+        [dimensionOptions, results],
+    );
 
-    const toggleYMetric = (yMetric: string) => {
-        if (results)
-            setSeriesLayout((layout) => {
-                if (!layout.yMetrics) return { ...layout, yMetrics: [yMetric] };
-                const idx = layout.yMetrics.findIndex((m) => m === yMetric);
-                if (idx === -1)
+    const toggleYMetric = useCallback(
+        (yMetric: string) => {
+            if (results)
+                setSeriesLayout((layout) => {
+                    if (!layout.yMetrics)
+                        return { ...layout, yMetrics: [yMetric] };
+                    const idx = layout.yMetrics.findIndex((m) => m === yMetric);
+                    if (idx === -1)
+                        return {
+                            ...layout,
+                            yMetrics: [...layout.yMetrics, yMetric],
+                        };
+                    if (layout.yMetrics.length === 1) return layout;
                     return {
                         ...layout,
-                        yMetrics: [...layout.yMetrics, yMetric],
+                        yMetrics: [
+                            ...layout.yMetrics.slice(0, idx),
+                            ...layout.yMetrics.slice(idx + 1),
+                        ],
                     };
-                if (layout.yMetrics.length === 1) return layout;
-                return {
-                    ...layout,
-                    yMetrics: [
-                        ...layout.yMetrics.slice(0, idx),
-                        ...layout.yMetrics.slice(idx + 1),
-                    ],
-                };
-            });
-    };
+                });
+        },
+        [results],
+    );
 
-    if (activeExplore.data && results && isValidSeriesLayout(seriesLayout)) {
-        const { groupDimension } = seriesLayout;
-        let plotData: any[];
-        let series: string[];
-        const field = findFieldByIdInExplore(
-            activeExplore.data,
-            seriesLayout.xDimension,
-        );
-        const eChartDimensions: ChartConfig['eChartDimensions'] = [
-            {
-                name: seriesLayout.xDimension,
-                displayName: field
-                    ? getFieldLabel(field)
-                    : friendlyName(seriesLayout.xDimension),
-            },
-        ];
-
-        if (groupDimension && seriesLayout.yMetrics.length > 1) {
-            let groupChartDimensions: ChartConfig['eChartDimensions'];
-            const dimensionFormatter = getDimensionFormatterByKey(
-                dimensions,
-                groupDimension,
+    return useMemo(() => {
+        if (explore && results && isValidSeriesLayout(seriesLayout)) {
+            const { groupDimension } = seriesLayout;
+            let plotData: any[];
+            let series: string[];
+            const field = findFieldByIdInExplore(
+                explore,
+                seriesLayout.xDimension,
             );
-
-            [series, groupChartDimensions] = results.rows.reduce<
-                [string[], ChartConfig['eChartDimensions']]
-            >(
-                ([prevSeries, prevGroupChartDimensions], r) => {
-                    seriesLayout.yMetrics.forEach((metricKey) => {
-                        const key = r[groupDimension];
-                        const combinedKey = `${key} ${metricKey}`;
-                        prevSeries.push(combinedKey);
-                        const metricField = findFieldByIdInExplore(
-                            activeExplore.data,
-                            metricKey,
-                        );
-                        const metricLabel = metricField
-                            ? getFieldLabel(metricField)
-                            : friendlyName(metricKey);
-                        prevGroupChartDimensions.push({
-                            name: combinedKey,
-                            displayName: dimensionFormatter
-                                ? `[${dimensionFormatter({
-                                      value: key,
-                                  })}] ${metricLabel}`
-                                : friendlyName(combinedKey),
-                        });
-                    });
-                    return [[...prevSeries], [...prevGroupChartDimensions]];
+            const eChartDimensions: ChartConfig['eChartDimensions'] = [
+                {
+                    name: seriesLayout.xDimension,
+                    displayName: field
+                        ? getFieldLabel(field)
+                        : friendlyName(seriesLayout.xDimension),
                 },
-                [[], []],
-            );
+            ];
 
-            eChartDimensions.push(...groupChartDimensions);
-            plotData = pivot(
-                results.rows,
-                dimensions,
-                seriesLayout.xDimension,
-                groupDimension,
-                seriesLayout.yMetrics,
-            );
-        } else if (groupDimension) {
-            series = Array.from(
-                new Set(results.rows.map((r) => `${r[groupDimension]}`)),
-            );
-            const dimensionFormatter = getDimensionFormatterByKey(
-                dimensions,
-                groupDimension,
-            );
-            const groupChartDimensions: ChartConfig['eChartDimensions'] =
-                series.map((s) => ({
-                    name: s,
-                    displayName:
-                        dimensionFormatter?.({
-                            value: s,
-                        }) ?? friendlyName(s),
-                }));
-            eChartDimensions.push(...groupChartDimensions);
-            plotData = pivot(
-                results.rows,
-                dimensions,
-                seriesLayout.xDimension,
-                groupDimension,
-                seriesLayout.yMetrics,
-            );
-        } else {
-            series = seriesLayout.yMetrics;
-            const yMetricChartDimensions = series.map((s) => {
-                const seriesField = findFieldByIdInExplore(
-                    activeExplore.data,
-                    s,
+            if (groupDimension && seriesLayout.yMetrics.length > 1) {
+                let groupChartDimensions: ChartConfig['eChartDimensions'];
+                const dimensionFormatter = getDimensionFormatterByKey(
+                    dimensions,
+                    groupDimension,
                 );
-                return {
-                    name: s,
-                    displayName: seriesField
-                        ? getFieldLabel(seriesField)
-                        : friendlyName(s),
-                };
-            });
-            eChartDimensions.push(...yMetricChartDimensions);
-            const dimensionFormatter = getDimensionFormatterByKey(
-                dimensions,
-                seriesLayout.xDimension,
-            );
-            plotData = results.rows.map((row) =>
-                dimensionFormatter
-                    ? {
-                          ...row,
-                          [seriesLayout.xDimension]: dimensionFormatter({
-                              value: row[seriesLayout.xDimension],
-                          }),
-                      }
-                    : row,
-            );
+
+                [series, groupChartDimensions] = results.rows.reduce<
+                    [string[], ChartConfig['eChartDimensions']]
+                >(
+                    ([prevSeries, prevGroupChartDimensions], r) => {
+                        seriesLayout.yMetrics.forEach((metricKey) => {
+                            const key = r[groupDimension];
+                            const combinedKey = `${key} ${metricKey}`;
+                            prevSeries.push(combinedKey);
+                            const metricField = findFieldByIdInExplore(
+                                explore,
+                                metricKey,
+                            );
+                            const metricLabel = metricField
+                                ? getFieldLabel(metricField)
+                                : friendlyName(metricKey);
+                            prevGroupChartDimensions.push({
+                                name: combinedKey,
+                                displayName: dimensionFormatter
+                                    ? `[${dimensionFormatter({
+                                          value: key,
+                                      })}] ${metricLabel}`
+                                    : friendlyName(combinedKey),
+                            });
+                        });
+                        return [[...prevSeries], [...prevGroupChartDimensions]];
+                    },
+                    [[], []],
+                );
+
+                eChartDimensions.push(...groupChartDimensions);
+                plotData = pivot(
+                    results.rows,
+                    dimensions,
+                    seriesLayout.xDimension,
+                    groupDimension,
+                    seriesLayout.yMetrics,
+                );
+            } else if (groupDimension) {
+                series = Array.from(
+                    new Set(results.rows.map((r) => `${r[groupDimension]}`)),
+                );
+                const dimensionFormatter = getDimensionFormatterByKey(
+                    dimensions,
+                    groupDimension,
+                );
+                const groupChartDimensions: ChartConfig['eChartDimensions'] =
+                    series.map((s) => ({
+                        name: s,
+                        displayName:
+                            dimensionFormatter?.({
+                                value: s,
+                            }) ?? friendlyName(s),
+                    }));
+                eChartDimensions.push(...groupChartDimensions);
+                plotData = pivot(
+                    results.rows,
+                    dimensions,
+                    seriesLayout.xDimension,
+                    groupDimension,
+                    seriesLayout.yMetrics,
+                );
+            } else {
+                series = seriesLayout.yMetrics;
+                const yMetricChartDimensions = series.map((s) => {
+                    const seriesField = findFieldByIdInExplore(explore, s);
+                    return {
+                        name: s,
+                        displayName: seriesField
+                            ? getFieldLabel(seriesField)
+                            : friendlyName(s),
+                    };
+                });
+                eChartDimensions.push(...yMetricChartDimensions);
+                const dimensionFormatter = getDimensionFormatterByKey(
+                    dimensions,
+                    seriesLayout.xDimension,
+                );
+                plotData = results.rows.map((row) =>
+                    dimensionFormatter
+                        ? {
+                              ...row,
+                              [seriesLayout.xDimension]: dimensionFormatter({
+                                  value: row[seriesLayout.xDimension],
+                              }),
+                          }
+                        : row,
+                );
+            }
+            const xDimensionType = dimensions.find(
+                (dimension) =>
+                    getFieldId(dimension) === seriesLayout.xDimension,
+            )?.type;
+            return {
+                setXDimension,
+                setGroupDimension,
+                toggleYMetric,
+                seriesLayout,
+                plotData,
+                eChartDimensions,
+                metricOptions,
+                tableCalculationOptions,
+                dimensionOptions,
+                series,
+                xDimensionType,
+            };
         }
-        const xDimensionType = dimensions.find(
-            (dimension) => getFieldId(dimension) === seriesLayout.xDimension,
-        )?.type;
         return {
             setXDimension,
             setGroupDimension,
             toggleYMetric,
             seriesLayout,
-            plotData,
-            eChartDimensions,
+            plotData: undefined,
+            eChartDimensions: [],
             metricOptions,
             tableCalculationOptions,
             dimensionOptions,
-            series,
-            xDimensionType,
+            series: [],
+            xDimensionType: undefined,
         };
-    }
-    return {
-        setXDimension,
-        setGroupDimension,
-        toggleYMetric,
-        seriesLayout,
-        plotData: undefined,
-        eChartDimensions: [],
-        metricOptions,
-        tableCalculationOptions,
+    }, [
         dimensionOptions,
-        series: [],
-        xDimensionType: undefined,
-    };
+        dimensions,
+        explore,
+        metricOptions,
+        results,
+        seriesLayout,
+        setGroupDimension,
+        setXDimension,
+        tableCalculationOptions,
+        toggleYMetric,
+    ]);
 };

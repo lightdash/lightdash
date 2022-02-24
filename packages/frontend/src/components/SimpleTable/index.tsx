@@ -1,18 +1,17 @@
 import { Colors, HTMLTable, NonIdealState } from '@blueprintjs/core';
-import { ApiQueryResults, friendlyName } from 'common';
+import { friendlyName } from 'common';
 import React, { FC } from 'react';
 import { mapDataToTable, modifiedItem } from '../../utils/tableData';
+import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
     TableHeader,
     TableInnerWrapper,
     TableWrapper,
 } from './SimpleTable.styles';
 
-interface Props {
-    data: ApiQueryResults | undefined;
-}
-const SimpleTable: FC<Props> = ({ data }) => {
-    const tableItems = data ? data.rows.slice(0, 25) : [];
+const SimpleTable: FC = () => {
+    const { resultsData } = useVisualizationContext();
+    const tableItems = resultsData ? resultsData.rows.slice(0, 25) : [];
     const { headers, rows } = mapDataToTable(tableItems);
     const validData = rows && headers;
     return (

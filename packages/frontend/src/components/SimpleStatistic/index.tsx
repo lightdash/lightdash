@@ -1,7 +1,7 @@
 import { NonIdealState } from '@blueprintjs/core';
-import { ApiQueryResults } from 'common';
 import React, { FC } from 'react';
 import bigNumberConfig from '../../utils/bigNumberConfig';
+import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
     BigNumber,
     BigNumberContainer,
@@ -9,14 +9,12 @@ import {
     SimpleStatisticsWrapper,
 } from './SimpleStatistics.styles';
 
-interface Props {
-    data: ApiQueryResults | undefined;
-    label?: string;
-}
-
-const SimpleStatistic: FC<Props> = ({ data, label }) => {
-    const bigNumber = bigNumberConfig(data);
-    const validData = bigNumber && data?.rows.length && label;
+const SimpleStatistic: FC = () => {
+    const { resultsData, chartConfig } = useVisualizationContext();
+    const label =
+        chartConfig?.metricOptions[0] && chartConfig?.metricOptions[0].label;
+    const bigNumber = bigNumberConfig(resultsData);
+    const validData = bigNumber && resultsData?.rows.length && label;
     return (
         <>
             {validData ? (
