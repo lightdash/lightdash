@@ -415,8 +415,8 @@ export const createSavedQueryVersion = async (
                     convertedChartConfig = {
                         series: chartConfig.seriesLayout.yMetrics.map(
                             (yField) => ({
-                                xFieldId: chartConfig.seriesLayout.xDimension,
-                                yFieldId: yField,
+                                xField: chartConfig.seriesLayout.xDimension,
+                                yField,
                                 type: ['bar', 'column'].includes(
                                     chartConfig.chartType,
                                 )
