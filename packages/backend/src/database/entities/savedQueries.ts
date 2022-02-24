@@ -438,7 +438,6 @@ export const createSavedQueryVersion = async (
             const results = await trx<DbSavedQueryVersion>(
                 'saved_queries_versions',
             )
-                // TODO
                 .insert<CreateDbSavedQueryVersion>({
                     row_limit: limit,
                     filters: JSON.stringify(filters),
