@@ -14,6 +14,7 @@ import JsPDF from 'jspdf';
 import React, { RefObject, useCallback, useState } from 'react';
 import { CSVLink } from 'react-csv';
 import { useExplorer } from '../providers/ExplorerProvider';
+import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 const FILE_NAME = 'lightdash_chart';
 
@@ -24,13 +25,6 @@ enum DownloadType {
     PDF = 'PDF',
     JSON = 'JSON',
 }
-
-type ChartDownloadMenuProps = {
-    chartRef: RefObject<EChartsReact>;
-    disabled: boolean;
-    chartType: DBChartTypes;
-    chartData: Record<string, any>[];
-};
 
 async function base64SvgToBase64Image(
     originalBase64: string,
@@ -220,20 +214,18 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     );
 };
 
-export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = ({
-    chartRef,
-    disabled,
-    chartType,
-    chartData,
-}) => {
+export const ChartDownloadMenu: React.FC = () => {
+    const { chartRef, chartType, chartConfig } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
+    const disabled =
+        !chartConfig?.plotData || chartType === DBChartTypes.BIG_NUMBER;
     return (
         <Popover2
             content={
                 <ChartDownloadOptions
                     chartRef={chartRef}
                     chartType={chartType}
-                    tableData={chartData}
+                    tableData={chartConfig?.plotData || []}
                 />
             }
             popoverClassName={Classes.POPOVER2_CONTENT_SIZING}

@@ -7,9 +7,9 @@ import {
     getFieldLabel,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
-import React, { FC, RefObject, useCallback, useEffect } from 'react';
-import { ChartConfig } from '../../hooks/useChartConfig';
-import { useExplore } from '../../hooks/useExplore';
+import React, { FC, useCallback, useEffect } from 'react';
+import { useChartConfig } from '../../hooks/useChartConfig';
+import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
 const flipXFromChartType = (chartType: DBChartTypes) => {
     switch (chartType) {
@@ -111,25 +111,25 @@ const axisTypeFromDimensionType = (
     }
 };
 
-type SimpleChartProps = {
-    chartRef: RefObject<EChartsReact>;
-    chartType: DBChartTypes;
-    chartConfig: ChartConfig;
-    isLoading: boolean;
-    tableName: string | undefined;
-    onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
-};
 const isSeriesClickEvent = (e: EchartClickEvent): e is EchartSeriesClickEvent =>
     e.componentType === 'series';
 
-const SimpleChart: FC<SimpleChartProps> = ({
-    chartRef,
-    chartType,
-    chartConfig,
-    isLoading,
-    tableName,
-    onSeriesContextMenu,
-}) => {
+const SimpleChart: FC = () => {
+    const {
+        seriesLayout,
+        chartRef,
+        chartType,
+        explore,
+        isLoading,
+        onSeriesContextMenu,
+        resultsData,
+        setChartConfig,
+    } = useVisualizationContext();
+
+    const chartConfig = useChartConfig(explore, resultsData, seriesLayout);
+
+    useEffect(() => setChartConfig(chartConfig), [chartConfig, setChartConfig]);
+
     useEffect(() => {
         const listener = () => {
             const eCharts = chartRef.current?.getEchartsInstance();
@@ -141,7 +141,6 @@ const SimpleChart: FC<SimpleChartProps> = ({
         return () => window.removeEventListener('resize', listener);
     });
 
-    const activeExplore = useExplore(tableName);
     const onChartContextMenu = useCallback(
         (e: EchartClickEvent) => {
             if (onSeriesContextMenu) {
@@ -156,10 +155,10 @@ const SimpleChart: FC<SimpleChartProps> = ({
         },
         [onSeriesContextMenu],
     );
-    if (isLoading || !activeExplore.data) return <LoadingChart />;
-    if (chartConfig.plotData === undefined) return <EmptyChart />;
+    if (isLoading || !explore) return <LoadingChart />;
+    if (chartConfig?.plotData === undefined) return <EmptyChart />;
     const xDimensionField = findFieldByIdInExplore(
-        activeExplore.data,
+        explore,
         chartConfig.seriesLayout.xDimension,
     );
     const xlabel = xDimensionField
@@ -171,7 +170,7 @@ const SimpleChart: FC<SimpleChartProps> = ({
         chartConfig.seriesLayout.yMetrics.length === 1
     ) {
         const yDimensionField = findFieldByIdInExplore(
-            activeExplore.data,
+            explore,
             chartConfig.seriesLayout.yMetrics[0],
         );
         ylabel = yDimensionField

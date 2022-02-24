@@ -4,7 +4,6 @@ import {
     DashboardChartTile as IDashboardChartTile,
     DashboardFilterRule,
     DashboardFilters,
-    DBChartTypes,
     Field,
     fieldId,
     FilterGroup,
@@ -15,18 +14,9 @@ import {
     isFilterableField,
     SavedQuery,
 } from 'common';
-import EChartsReact from 'echarts-for-react';
-import React, {
-    FC,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
+import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
-import { useChartConfig } from '../../hooks/useChartConfig';
 import { useExplore } from '../../hooks/useExplore';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
@@ -35,6 +25,7 @@ import { getFilterRuleLabel } from '../common/Filters/configs';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
 import { Tooltip } from '../DashboardFilter/DashboardFilter.styles';
 import LightdashVisualization from '../LightdashVisualization';
+import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 import TileBase from './TileBase/index';
 import { FilterLabel } from './TileBase/TileBase.styles';
@@ -44,23 +35,8 @@ const ValidDashboardChartTile: FC<{
     project: string;
     onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
 }> = ({ data, project, onSeriesContextMenu }) => {
-    const chartRef = useRef<EChartsReact>(null);
-    const [activeVizTab, setActiveVizTab] = useState<DBChartTypes>(
-        DBChartTypes.COLUMN,
-    );
     const { data: resultData, isLoading } = useSavedChartResults(project, data);
-    const chartConfig = useChartConfig(
-        data.tableName,
-        resultData,
-        data?.chartConfig.seriesLayout,
-    );
     const { addSuggestions } = useDashboardContext();
-
-    useEffect(() => {
-        if (data?.chartConfig.chartType) {
-            setActiveVizTab(data.chartConfig.chartType);
-        }
-    }, [data]);
 
     useEffect(() => {
         if (resultData) {
@@ -81,15 +57,16 @@ const ValidDashboardChartTile: FC<{
     }, [addSuggestions, resultData]);
 
     return (
-        <LightdashVisualization
-            chartRef={chartRef}
-            chartType={activeVizTab}
-            chartConfig={chartConfig}
+        <VisualizationProvider
+            chartType={data.chartConfig.chartType}
+            seriesLayout={data.chartConfig.seriesLayout}
             resultsData={resultData}
             tableName={data.tableName}
             isLoading={isLoading}
             onSeriesContextMenu={onSeriesContextMenu}
-        />
+        >
+            <LightdashVisualization />
+        </VisualizationProvider>
     );
 };
 
