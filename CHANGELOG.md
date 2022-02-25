@@ -1,3 +1,10 @@
+# [0.28.0](https://github.com/lightdash/lightdash/compare/0.27.3...0.28.0) (2022-02-25)
+
+
+### Features
+
+* **results:** scroll all results + ux improvements ([#1453](https://github.com/lightdash/lightdash/issues/1453)) ([50b75da](https://github.com/lightdash/lightdash/commit/50b75da5d13575ce45fc527efd1ad5531ee52eed))
+
 ## [0.27.3](https://github.com/lightdash/lightdash/compare/0.27.2...0.27.3) (2022-02-23)
 
 
