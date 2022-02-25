@@ -481,7 +481,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     }
     return {
         ...filterRule,
-        values: value !== undefined ? [value] : [],
+        values: value !== undefined && value !== null ? [value] : [],
         settings: undefined,
         ...filterRuleDefaults,
     };
@@ -498,7 +498,8 @@ export const createFilterRuleFromField = (
             target: {
                 fieldId: fieldId(field),
             },
-            operator: FilterOperator.EQUALS,
+            operator:
+                value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
         },
         value,
     );
