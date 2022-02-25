@@ -1,3 +1,10 @@
+## [0.28.1](https://github.com/lightdash/lightdash/compare/0.28.0...0.28.1) (2022-02-25)
+
+
+### Bug Fixes
+
+* **sql_runner:** amend missing provider ([#1454](https://github.com/lightdash/lightdash/issues/1454)) ([11636c9](https://github.com/lightdash/lightdash/commit/11636c9bbbad1cc89a5322d7b48994f2189a8105))
+
 # [0.28.0](https://github.com/lightdash/lightdash/compare/0.27.3...0.28.0) (2022-02-25)
 
 
