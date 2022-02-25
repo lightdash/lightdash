@@ -4,7 +4,6 @@ import { useColumns } from '../../hooks/useColumns';
 import { useExplore } from '../../hooks/useExplore';
 import { useQueryResults } from '../../hooks/useQueryResults';
 import { useExplorer } from '../../providers/ExplorerProvider';
-import AddColumnButton from '../AddColumnButton';
 import { ResultsTable as Table } from '../ResultsTable/ResultsTable';
 import {
     EmptyStateExploreLoading,
@@ -73,10 +72,8 @@ export const ExplorerResults = () => {
             loading={queryResults.isLoading}
             idle={queryResults.isIdle}
             dataColumnOrder={explorerColumnOrder}
-            name={activeTableName}
             onColumnOrderChange={setExplorerColumnOrder}
             idleState={IdleState}
-            tableAction={<AddColumnButton />}
         />
     );
 };

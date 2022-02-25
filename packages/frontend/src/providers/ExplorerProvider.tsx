@@ -478,12 +478,22 @@ export const ExplorerProvider: FC = ({ children }) => {
         });
     }, []);
 
-    const setRowLimit = useCallback((limit: number) => {
-        dispatch({
-            type: ActionType.SET_ROW_LIMIT,
-            payload: limit,
-        });
-    }, []);
+    const setRowLimit = useCallback(
+        (limit: number) => {
+            dispatch({
+                type: ActionType.SET_ROW_LIMIT,
+                payload: limit,
+            });
+            pristineDispatch({
+                type: ActionType.SET_STATE,
+                payload: {
+                    ...reducerState,
+                    limit,
+                },
+            });
+        },
+        [reducerState],
+    );
 
     const setFilters = useCallback(
         (filters: MetricQuery['filters'], syncPristineState: boolean) => {

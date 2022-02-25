@@ -1,4 +1,11 @@
-import { Button, Colors, HTMLTable, Icon, Tag } from '@blueprintjs/core';
+import {
+    Button,
+    ButtonGroup,
+    Colors,
+    HTMLTable,
+    Icon,
+    Tag,
+} from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { DimensionType, hexToRGB } from 'common';
 import React, { FC, ReactNode, useEffect } from 'react';
@@ -10,7 +17,6 @@ import {
     DraggableStateSnapshot,
     Droppable,
 } from 'react-beautiful-dnd';
-import { CSVLink } from 'react-csv';
 import {
     ColumnInstance,
     HeaderGroup,
@@ -158,10 +164,11 @@ const Item: FC<ItemProps> = ({
     </div>
 );
 
+const DEFAULT_PAGE_SIZE = 25;
+
 type Props = {
     loading: boolean;
     idle: boolean;
-    name?: string;
     data: any;
     dataColumns: any;
     dataColumnOrder: string[];
@@ -179,7 +186,6 @@ export const ResultsTable: FC<Props> = ({
     dataColumnOrder,
     data,
     onColumnOrderChange,
-    name,
     idleState,
     loadingState,
     emptyState,
@@ -200,14 +206,15 @@ export const ResultsTable: FC<Props> = ({
         canNextPage,
         previousPage,
         canPreviousPage,
-        state: { pageIndex },
+        setPageSize,
+        state: { pageSize },
     } = useReactTable(
         {
             columns: dataColumns,
             data,
             initialState: {
                 pageIndex: 0,
-                pageSize: 25,
+                pageSize: DEFAULT_PAGE_SIZE,
                 columnOrder: dataColumnOrder,
             },
         },
@@ -421,38 +428,50 @@ export const ResultsTable: FC<Props> = ({
                     {!loading && !idle && rows.length === 0 && emptyState}
                 </TableOuterContainer>
                 <TableFooter>
-                    <div>
-                        {rows.length > 0 ? (
-                            <CSVLink
-                                role="button"
-                                tabIndex={0}
-                                className="bp3-button"
-                                data={rows.map((row) => row.values)}
-                                filename={`lightdash-${
-                                    name || 'export'
-                                }-${new Date().toISOString().slice(0, 10)}.csv`}
-                                target="_blank"
-                            >
-                                <Icon icon="export" />
-                                <span>Export CSV</span>
-                            </CSVLink>
-                        ) : null}
-                    </div>
-                    {pageCount > 1 && (
-                        <PaginationWrapper>
-                            {canPreviousPage && (
+                    <ButtonGroup>
+                        {rows.length > DEFAULT_PAGE_SIZE && (
+                            <>
                                 <Button
-                                    icon="arrow-left"
-                                    onClick={previousPage}
+                                    active={pageSize !== DEFAULT_PAGE_SIZE}
+                                    text="Scroll"
+                                    onClick={() => setPageSize(rows.length)}
                                 />
-                            )}
+                                <Button
+                                    active={pageSize === DEFAULT_PAGE_SIZE}
+                                    text="Pages"
+                                    onClick={() =>
+                                        setPageSize(DEFAULT_PAGE_SIZE)
+                                    }
+                                />
+                            </>
+                        )}
+                    </ButtonGroup>
+                    {pageCount > 1 ? (
+                        <PaginationWrapper>
                             <PageCount>
-                                Page {pageIndex + 1} of {pageCount}
+                                <b>{parseInt(page[0].id, 10) + 1}</b> -{' '}
+                                <b>
+                                    {parseInt(page[page.length - 1].id, 10) + 1}
+                                </b>{' '}
+                                of <b>{rows.length} results</b>
                             </PageCount>
-                            {canNextPage && (
-                                <Button icon="arrow-right" onClick={nextPage} />
-                            )}
+                            <Button
+                                style={{ marginLeft: 20 }}
+                                icon="arrow-left"
+                                onClick={previousPage}
+                                disabled={!canPreviousPage}
+                            />
+                            <Button
+                                style={{ marginLeft: 10 }}
+                                icon="arrow-right"
+                                onClick={nextPage}
+                                disabled={!canNextPage}
+                            />
                         </PaginationWrapper>
+                    ) : (
+                        <PageCount>
+                            <b>{rows.length} results</b>
+                        </PageCount>
                     )}
                 </TableFooter>
             </Container>
