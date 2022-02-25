@@ -44,12 +44,6 @@ export const RowNumber = styled.td`
     border-left: 0.071em solid rgb(16 22 26 / 15%);
 `;
 
-export const TableActionContainer = styled.div`
-    display: flex;
-    background-color: hexToRGB(Colors.GRAY4, 0.2);
-    box-shadow: inset 0.071em 0 0 0 rgb(16 22 26 / 15%);
-`;
-
 export const TableFooter = styled.div`
     display: flex;
     flex-direction: row;

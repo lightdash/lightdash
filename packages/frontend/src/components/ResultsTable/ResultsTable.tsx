@@ -27,8 +27,6 @@ import {
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import TableCalculationHeaderButton from '../TableCalculationHeaderButton';
-import { CellContextMenu } from './CellContextMenu';
-import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
 import {
     Container,
     PageCount,
@@ -36,7 +34,6 @@ import {
     RowNumber,
     RowNumberColumn,
     RowNumberHeader,
-    TableActionContainer,
     TableContainer,
     TableFooter,
     TableInnerContainer,
@@ -138,29 +135,27 @@ const Item: FC<ItemProps> = ({
             ...getItemStyle(snapshot, draggableProps.style),
         }}
     >
-        <ColumnHeaderContextMenu column={column}>
-            <div
-                style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                }}
-            >
-                {column?.render('Header')}
-                {column?.isSorted &&
-                    getSortIndicator(
-                        column.type,
-                        column.dimensionType,
-                        column.isSortedDesc || false,
-                        column.sortedIndex,
-                        column.isMultiSort,
-                    )}
-                {column?.tableCalculation && (
-                    <TableCalculationHeaderButton
-                        tableCalculation={{ ...column.tableCalculation, index }}
-                    />
+        <div
+            style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+            }}
+        >
+            {column?.render('Header')}
+            {column?.isSorted &&
+                getSortIndicator(
+                    column.type,
+                    column.dimensionType,
+                    column.isSortedDesc || false,
+                    column.sortedIndex,
+                    column.isMultiSort,
                 )}
-            </div>
-        </ColumnHeaderContextMenu>
+            {column?.tableCalculation && (
+                <TableCalculationHeaderButton
+                    tableCalculation={{ ...column.tableCalculation, index }}
+                />
+            )}
+        </div>
     </div>
 );
 
@@ -177,6 +172,8 @@ type Props = {
     loadingState?: ReactNode;
     emptyState?: ReactNode;
     tableAction?: ReactNode;
+    headerContextMenu?: FC<{ column: any }>;
+    cellContextMenu?: FC<{ cell: any }>;
 };
 
 export const ResultsTable: FC<Props> = ({
@@ -189,8 +186,11 @@ export const ResultsTable: FC<Props> = ({
     idleState,
     loadingState,
     emptyState,
-    tableAction,
+    headerContextMenu,
+    cellContextMenu,
 }) => {
+    const HeaderContextMenu = headerContextMenu || React.Fragment;
+    const CellContextMenu = cellContextMenu || React.Fragment;
     const currentColOrder = React.useRef<Array<string>>([]);
     const {
         getTableProps,
@@ -359,20 +359,26 @@ export const ResultsTable: FC<Props> = ({
                                                                                 provided,
                                                                                 snapshot,
                                                                             ) => (
-                                                                                <Item
-                                                                                    index={
-                                                                                        index
-                                                                                    }
+                                                                                <HeaderContextMenu
                                                                                     column={
                                                                                         column
                                                                                     }
-                                                                                    provided={
-                                                                                        provided
-                                                                                    }
-                                                                                    snapshot={
-                                                                                        snapshot
-                                                                                    }
-                                                                                />
+                                                                                >
+                                                                                    <Item
+                                                                                        index={
+                                                                                            index
+                                                                                        }
+                                                                                        column={
+                                                                                            column
+                                                                                        }
+                                                                                        provided={
+                                                                                            provided
+                                                                                        }
+                                                                                        snapshot={
+                                                                                            snapshot
+                                                                                        }
+                                                                                    />
+                                                                                </HeaderContextMenu>
                                                                             )}
                                                                         </Draggable>
                                                                     </Tooltip2>
@@ -417,11 +423,6 @@ export const ResultsTable: FC<Props> = ({
                                 </tbody>
                             </HTMLTable>
                         </TableContainer>
-                        {tableAction && (
-                            <TableActionContainer>
-                                {tableAction}
-                            </TableActionContainer>
-                        )}
                     </TableInnerContainer>
                     {loading && loadingState}
                     {idle && idleState}
