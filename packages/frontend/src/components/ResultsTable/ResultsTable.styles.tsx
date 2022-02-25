@@ -24,6 +24,7 @@ export const TableInnerContainer = styled.div`
 export const TableContainer = styled.div`
     flex: 1;
     overflow-x: auto;
+    border-bottom: 0.071em solid rgb(16 22 26 / 15%);
 `;
 
 export const RowNumberColumn = styled.col`

@@ -21,6 +21,8 @@ import {
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import TableCalculationHeaderButton from '../TableCalculationHeaderButton';
+import { CellContextMenu } from './CellContextMenu';
+import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
 import {
     Container,
     PageCount,
@@ -34,8 +36,6 @@ import {
     TableInnerContainer,
     TableOuterContainer,
 } from './ResultsTable.styles';
-import { CellContextMenu } from './CellContextMenu';
-import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
 import { EmptyState, IdleState, LoadingState } from './States';
 
 const getSortIndicator = (
@@ -45,35 +45,40 @@ const getSortIndicator = (
     sortIndex: number,
     isMultiSort: boolean,
 ) => {
-    const style = { paddingLeft: '5px' };
-    if (type === 'dimension' && dimensionType === 'string')
-        return (
-            <>
-                {isMultiSort && (
-                    <Tag minimal style={style}>
-                        {sortIndex + 1}
-                    </Tag>
-                )}
-                {desc ? (
-                    <Icon style={style} icon="sort-alphabetical-desc" />
-                ) : (
-                    <Icon style={style} icon="sort-alphabetical" />
-                )}
-            </>
-        );
+    const style = { marginLeft: '5px' };
+
     return (
-        <>
+        <div
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+            }}
+        >
             {isMultiSort && (
                 <Tag minimal style={style}>
                     {sortIndex + 1}
                 </Tag>
             )}
             {desc ? (
-                <Icon style={style} icon="sort-numerical-desc" />
+                <Icon
+                    style={style}
+                    icon={
+                        type === 'dimension' && dimensionType === 'string'
+                            ? 'sort-alphabetical-desc'
+                            : 'sort-numerical-desc'
+                    }
+                />
             ) : (
-                <Icon style={style} icon="sort-numerical" />
+                <Icon
+                    style={style}
+                    icon={
+                        type === 'dimension' && dimensionType === 'string'
+                            ? 'sort-alphabetical'
+                            : 'sort-numerical'
+                    }
+                />
             )}
-        </>
+        </div>
     );
 };
 
@@ -128,21 +133,28 @@ const Item: FC<ItemProps> = ({
         }}
     >
         <ColumnHeaderContextMenu column={column}>
-            {column?.render('Header')}
+            <div
+                style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                }}
+            >
+                {column?.render('Header')}
+                {column?.isSorted &&
+                    getSortIndicator(
+                        column.type,
+                        column.dimensionType,
+                        column.isSortedDesc || false,
+                        column.sortedIndex,
+                        column.isMultiSort,
+                    )}
+                {column?.tableCalculation && (
+                    <TableCalculationHeaderButton
+                        tableCalculation={{ ...column.tableCalculation, index }}
+                    />
+                )}
+            </div>
         </ColumnHeaderContextMenu>
-        {column?.isSorted &&
-            getSortIndicator(
-                column.type,
-                column.dimensionType,
-                column.isSortedDesc || false,
-                column.sortedIndex,
-                column.isMultiSort,
-            )}
-        {column?.tableCalculation && (
-            <TableCalculationHeaderButton
-                tableCalculation={{ ...column.tableCalculation, index }}
-            />
-        )}
     </div>
 );
 
@@ -320,6 +332,7 @@ export const ResultsTable: FC<Props> = ({
                                                                     )}
                                                                 >
                                                                     <Tooltip2
+                                                                        fill
                                                                         content={
                                                                             column.description
                                                                         }
