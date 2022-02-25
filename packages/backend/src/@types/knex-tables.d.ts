@@ -46,7 +46,13 @@ import {
 } from '../database/entities/passwordResetLinks';
 import { ProjectTable, ProjectTableName } from '../database/entities/projects';
 import {
+    SavedChartVersionFieldsTable,
+    SavedChartVersionFieldsTableName,
+    SavedChartVersionSortsTable,
+    SavedChartVersionSortsTableName,
+    SavedChartVersionsTable,
     SavedQueriesTableName,
+    SavedQueriesVersionsTableName,
     SavedQueryTable,
     SavedQueryTableCalculationTable,
     SavedQueryTableCalculationTableName,
@@ -69,6 +75,9 @@ declare module 'knex/types/tables' {
         [WarehouseCredentialTableName]: WarehouseCredentialTable;
         [ProjectTableName]: ProjectTable;
         [SavedQueriesTableName]: SavedQueryTable;
+        [SavedQueriesVersionsTableName]: SavedChartVersionsTable;
+        [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
+        [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;
         [SavedQueryTableCalculationTableName]: SavedQueryTableCalculationTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;

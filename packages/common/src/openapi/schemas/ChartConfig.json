@@ -1,30 +1,13 @@
 {
-    "type": "object",
-    "additionalProperties": false,
-    "properties": {
-        "chartType": {
-            "type": "string",
-            "enum": ["column", "bar", "line", "scatter", "table", "big_number"]
+    "oneOf": [
+        {
+            "$ref": "ChartConfig/ChartConfigBigNumber.json"
         },
-        "seriesLayout": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-                "xDimension": {
-                    "type": "string"
-                },
-                "yMetrics": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "groupDimension": {
-                    "type": "string",
-                    "nullable": true
-                }
-            }
+        {
+            "$ref": "ChartConfig/ChartConfigCartesian.json"
+        },
+        {
+            "$ref": "ChartConfig/ChartConfigTable.json"
         }
-    },
-    "required": ["seriesLayout", "chartType"]
+    ]
 }

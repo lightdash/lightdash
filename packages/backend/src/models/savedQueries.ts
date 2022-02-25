@@ -1,19 +1,19 @@
 import {
-    CreateSavedQuery,
-    CreateSavedQueryVersion,
-    SavedQuery,
+    CreateSavedChart,
+    CreateSavedChartVersion,
+    SavedChart,
     SessionUser,
     Space,
-    UpdateSavedQuery,
+    UpdateSavedChart,
 } from 'common';
 import { analytics } from '../analytics/client';
 import database from '../database/database';
 import {
-    addSavedQueryVersion,
-    createSavedQuery,
-    deleteSavedQuery,
-    getSavedQueryByUuid,
-    updateSavedQuery,
+    addSavedChartVersion,
+    createSavedChart,
+    deleteSavedChart,
+    getSavedChartByUuid,
+    updateSavedChart,
 } from '../database/entities/savedQueries';
 import { getSpaceWithQueries } from '../database/entities/spaces';
 import { ForbiddenError } from '../errors';
@@ -26,26 +26,26 @@ export const SavedQueriesModel = {
     create: async (
         user: SessionUser,
         projectUuid: string,
-        savedQuery: CreateSavedQuery,
-    ): Promise<SavedQuery> => {
+        savedQuery: CreateSavedChart,
+    ): Promise<SavedChart> => {
         if (user.ability.cannot('create', 'SavedChart')) {
             throw new ForbiddenError();
         }
-        const newSavedQuery = await createSavedQuery(projectUuid, savedQuery);
+        const newSavedChart = await createSavedChart(projectUuid, savedQuery);
         analytics.track({
             event: 'saved_chart.created',
             projectId: projectUuid,
             organizationId: user.organizationUuid,
             userId: user.userUuid,
             properties: {
-                savedQueryId: newSavedQuery.uuid,
+                savedQueryId: newSavedChart.uuid,
             },
         });
-        return newSavedQuery;
+        return newSavedChart;
     },
 
-    getById: async (savedQueryUuid: string): Promise<SavedQuery> =>
-        getSavedQueryByUuid(database, savedQueryUuid),
+    getById: async (savedQueryUuid: string): Promise<SavedChart> =>
+        getSavedChartByUuid(database, savedQueryUuid),
 
     delete: async (
         user: SessionUser,
@@ -54,7 +54,7 @@ export const SavedQueriesModel = {
         if (user.ability.cannot('delete', 'SavedChart')) {
             throw new ForbiddenError();
         }
-        await deleteSavedQuery(database, savedQueryUuid);
+        await deleteSavedChart(database, savedQueryUuid);
         analytics.track({
             event: 'saved_chart.deleted',
             userId: user.userUuid,
@@ -67,12 +67,12 @@ export const SavedQueriesModel = {
     update: async (
         user: SessionUser,
         savedQueryUuid: string,
-        data: UpdateSavedQuery,
-    ): Promise<SavedQuery> => {
+        data: UpdateSavedChart,
+    ): Promise<SavedChart> => {
         if (user.ability.cannot('update', 'SavedChart')) {
             throw new ForbiddenError();
         }
-        const savedQuery = await updateSavedQuery(savedQueryUuid, data);
+        const savedQuery = await updateSavedChart(savedQueryUuid, data);
         analytics.track({
             event: 'saved_chart.updated',
             userId: user.userUuid,
@@ -86,12 +86,12 @@ export const SavedQueriesModel = {
     addVersion: async (
         user: SessionUser,
         savedQueryUuid: string,
-        data: CreateSavedQueryVersion,
-    ): Promise<SavedQuery> => {
+        data: CreateSavedChartVersion,
+    ): Promise<SavedChart> => {
         if (user.ability.cannot('update', 'SavedChart')) {
             throw new ForbiddenError();
         }
-        const savedQuery = await addSavedQueryVersion(savedQueryUuid, data);
+        const savedQuery = await addSavedChartVersion(savedQueryUuid, data);
         analytics.track({
             event: 'saved_chart_version.created',
             userId: user.userUuid,

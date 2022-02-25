@@ -36,6 +36,18 @@
         "updatedAt": {
             "type": "string",
             "format": "date-time"
+        },
+        "pivotConfig": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": ["columns"]
         }
     },
     "required": [
