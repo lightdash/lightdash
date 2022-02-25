@@ -31,6 +31,7 @@ export const RowNumberColumn = styled.col`
 `;
 
 export const RowNumberHeader = styled.th`
+    width: 35px;
     font-weight: bold;
     border-top: 0.071em solid rgb(16 22 26 / 15%);
     border-left: 0.071em solid rgb(16 22 26 / 15%);
