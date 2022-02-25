@@ -46,6 +46,7 @@ const NavBar = () => {
     const params = useParams<{ projectUuid: string | undefined }>();
     const projectUuid = params.projectUuid || defaultProject.data?.projectUuid;
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<string | undefined>();
     const { mutate } = useMutation(logoutQuery, {
         mutationKey: ['logout'],
         onSuccess: () => {
@@ -90,6 +91,19 @@ const NavBar = () => {
                         interactionKind={PopoverInteractionKind.CLICK}
                         content={
                             <Menu>
+                                {user.data?.ability?.can(
+                                    'manage',
+                                    'InviteLink',
+                                ) ? (
+                                    <MenuItem
+                                        icon="new-person"
+                                        text="Invite user"
+                                        onClick={() => {
+                                            setActiveTab('invites');
+                                            setIsSettingsOpen(true);
+                                        }}
+                                    />
+                                ) : null}
                                 <MenuItem
                                     icon="log-out"
                                     text="Logout"
@@ -106,6 +120,8 @@ const NavBar = () => {
             <UserSettingsModal
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
+                activeTab={activeTab}
+                onChangeTab={setActiveTab}
             />
             <ErrorLogsDrawer />
         </>
