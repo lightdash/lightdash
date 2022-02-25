@@ -42,6 +42,7 @@ const renderItem: ItemRenderer<FilterableField> = (
 };
 
 type Props = {
+    disabled?: boolean;
     autoFocus?: boolean;
     activeField?: FilterableField;
     fields: FilterableField[];
@@ -50,64 +51,71 @@ type Props = {
 };
 
 const FieldAutoComplete: FC<Props> = ({
+    disabled,
     autoFocus,
     activeField,
     fields,
     onChange,
     onClosed,
-}) => (
-    <>
-        <AutocompleteMaxHeight />
-        <FieldSuggest
-            fill
-            inputProps={{
-                autoFocus,
-                placeholder: 'Search field...',
-                leftIcon: activeField && (
-                    <Icon
-                        icon={isDimension(activeField) ? 'tag' : 'numerical'}
-                        color={
-                            isDimension(activeField)
-                                ? Colors.BLUE1
-                                : Colors.ORANGE1
-                        }
-                    />
-                ),
-            }}
-            items={fields}
-            itemsEqual={(value, other) =>
-                getFieldId(value) === getFieldId(other)
-            }
-            inputValueRenderer={(field: FilterableField) =>
-                `${field.tableLabel} ${field.label}`
-            }
-            popoverProps={{
-                minimal: true,
-                onClosed,
-                popoverClassName: 'autocomplete-max-height',
-            }}
-            itemRenderer={renderItem}
-            selectedItem={activeField}
-            noResults={<MenuItem disabled text="No results." />}
-            onItemSelect={onChange}
-            itemPredicate={(
-                query: string,
-                field: FilterableField,
-                index?: undefined | number,
-                exactMatch?: undefined | false | true,
-            ) => {
-                if (exactMatch) {
-                    return (
-                        query.toLowerCase() ===
-                        `${field.tableLabel} ${field.label}`.toLowerCase()
-                    );
+}) => {
+    return (
+        <>
+            <AutocompleteMaxHeight />
+            <FieldSuggest
+                fill
+                disabled={disabled}
+                inputProps={{
+                    autoFocus,
+                    placeholder: 'Search field...',
+                    leftIcon: activeField && (
+                        <Icon
+                            icon={
+                                isDimension(activeField) ? 'tag' : 'numerical'
+                            }
+                            color={
+                                isDimension(activeField)
+                                    ? Colors.BLUE1
+                                    : Colors.ORANGE1
+                            }
+                        />
+                    ),
+                }}
+                items={fields}
+                itemsEqual={(value, other) =>
+                    getFieldId(value) === getFieldId(other)
                 }
-                return `${field.tableLabel} ${field.label}`
-                    .toLowerCase()
-                    .includes(query.toLowerCase());
-            }}
-        />
-    </>
-);
+                inputValueRenderer={(field: FilterableField) => {
+                    console.log(field);
+                    return `${field.tableLabel} ${field.label}`;
+                }}
+                popoverProps={{
+                    minimal: true,
+                    onClosed,
+                    popoverClassName: 'autocomplete-max-height',
+                }}
+                itemRenderer={renderItem}
+                selectedItem={activeField}
+                noResults={<MenuItem disabled text="No results." />}
+                onItemSelect={onChange}
+                itemPredicate={(
+                    query: string,
+                    field: FilterableField,
+                    index?: undefined | number,
+                    exactMatch?: undefined | false | true,
+                ) => {
+                    if (exactMatch) {
+                        return (
+                            query.toLowerCase() ===
+                            `${field.tableLabel} ${field.label}`.toLowerCase()
+                        );
+                    }
+                    return `${field.tableLabel} ${field.label}`
+                        .toLowerCase()
+                        .includes(query.toLowerCase());
+                }}
+            />
+        </>
+    );
+};
 
 export default FieldAutoComplete;

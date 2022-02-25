@@ -4,13 +4,25 @@ import {
     ButtonGroup,
     Colors,
     Divider,
+    FormGroup,
     Icon,
     Switch,
+    Tab,
+    Tabs,
 } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import { DBChartTypes, fieldId as getFieldId } from 'common';
-import React, { useState } from 'react';
+import {
+    DBChartTypes,
+    fieldId,
+    fieldId as getFieldId,
+    getDimensions,
+    getMetrics,
+} from 'common';
+import React, { FC, useState } from 'react';
+import { useToggle } from 'react-use';
+import styled from 'styled-components';
 import { ChartConfig } from '../hooks/useChartConfig';
+import FieldAutoComplete from './common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 type ContentProps = {
@@ -142,6 +154,152 @@ export const ChartConfigOptions: React.FC<ContentProps> = ({ chartConfig }) => (
     </div>
 );
 
+const InputWrapper = styled(FormGroup)`
+    & label.bp3-label {
+        font-weight: 500;
+        display: inline-flex;
+        gap: 3px;
+    }
+`;
+
+const FieldRow = styled(`div`)`
+    display: flex;
+`;
+
+const ChartConfigOptions2: FC = () => {
+    const { explore, resultsData, chartConfig } = useVisualizationContext();
+    const [tab, setTab] = useState<string | number>('x-axis');
+    const [isOpen, toggle] = useToggle(false);
+
+    const dimensionsInMetricQuery = explore
+        ? getDimensions(explore).filter((field) =>
+              resultsData?.metricQuery.dimensions.includes(fieldId(field)),
+          )
+        : [];
+
+    const activeDimension = dimensionsInMetricQuery.find(
+        (field) => fieldId(field) === chartConfig?.seriesLayout.xDimension,
+    );
+
+    const metrics = explore
+        ? getMetrics(explore).filter((field) =>
+              resultsData?.metricQuery.metrics.includes(fieldId(field)),
+          )
+        : [];
+
+    const groupDimensionsInMetricQuery = explore
+        ? getDimensions(explore).filter(
+              (field) =>
+                  resultsData?.metricQuery.dimensions.includes(
+                      fieldId(field),
+                  ) && fieldId(field) !== chartConfig?.seriesLayout.xDimension,
+          )
+        : [];
+
+    const activeGroupDimension = groupDimensionsInMetricQuery.find(
+        (field) => fieldId(field) === chartConfig?.seriesLayout.groupDimension,
+    );
+
+    return (
+        <Tabs onChange={setTab} selectedTabId={tab}>
+            <Tab
+                id="x-axis"
+                title="X-axis"
+                panel={
+                    <InputWrapper label="Field">
+                        <FieldAutoComplete
+                            activeField={activeDimension}
+                            fields={dimensionsInMetricQuery}
+                            onChange={(field) =>
+                                chartConfig?.setXDimension(fieldId(field))
+                            }
+                        />
+                    </InputWrapper>
+                }
+            />
+            <Tab
+                id="y-axis"
+                title="Y-axis"
+                panel={
+                    <InputWrapper label="Field(s)">
+                        {chartConfig?.seriesLayout.yMetrics?.map((yFieldId) => {
+                            const activeMetric = metrics.find(
+                                (field) => fieldId(field) === yFieldId,
+                            );
+                            if (!activeMetric) {
+                                return null;
+                            }
+                            return (
+                                <FieldRow>
+                                    <FieldAutoComplete
+                                        disabled
+                                        activeField={activeMetric}
+                                        fields={metrics}
+                                        onChange={() => undefined}
+                                    />
+                                    <Button
+                                        icon={'cross'}
+                                        onClick={() => {
+                                            chartConfig?.toggleYMetric(
+                                                yFieldId,
+                                            );
+                                        }}
+                                    />
+                                </FieldRow>
+                            );
+                        })}
+                        {isOpen && (
+                            <FieldAutoComplete
+                                fields={metrics}
+                                onChange={(field) => {
+                                    chartConfig?.toggleYMetric(fieldId(field));
+                                    toggle(false);
+                                }}
+                            />
+                        )}
+                        {!isOpen && (
+                            <Button
+                                icon={'plus'}
+                                text="Add"
+                                onClick={() => toggle(true)}
+                            />
+                        )}
+                    </InputWrapper>
+                }
+            />
+            <Tab
+                id="chart"
+                title="Chart"
+                panel={
+                    <InputWrapper label="Group">
+                        <FieldRow>
+                            <FieldAutoComplete
+                                activeField={activeGroupDimension}
+                                fields={groupDimensionsInMetricQuery}
+                                onChange={(field) =>
+                                    chartConfig?.setGroupDimension(
+                                        fieldId(field),
+                                    )
+                                }
+                            />
+                            {activeGroupDimension && (
+                                <Button
+                                    icon={'cross'}
+                                    onClick={() => {
+                                        chartConfig?.setGroupDimension(
+                                            undefined,
+                                        );
+                                    }}
+                                />
+                            )}
+                        </FieldRow>
+                    </InputWrapper>
+                }
+            />
+        </Tabs>
+    );
+};
+
 export const ChartConfigPanel: React.FC = () => {
     const { chartType, chartConfig } = useVisualizationContext();
     const disabled =
@@ -152,9 +310,7 @@ export const ChartConfigPanel: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     return (
         <Popover2
-            content={
-                chartConfig && <ChartConfigOptions chartConfig={chartConfig} />
-            }
+            content={chartConfig && <ChartConfigOptions2 />}
             interactionKind="click"
             popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
             isOpen={isOpen}
