@@ -3,11 +3,9 @@ import {
     ButtonGroup,
     Card,
     Collapse,
-    FormGroup,
     H5,
     Menu,
     MenuItem,
-    NumericInput,
     Tag,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
@@ -36,6 +34,7 @@ import {
 import { useExplorer } from '../providers/ExplorerProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
+import AddColumnButton from './AddColumnButton';
 import { ChartConfigPanel } from './ChartConfigPanel';
 import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
@@ -45,10 +44,12 @@ import {
     FieldsWithSuggestions,
     FiltersProvider,
 } from './common/Filters/FiltersProvider';
+import DownloadCsvButton from './DownloadCsvButton';
 import { ExplorerResults } from './Explorer/ExplorerResults';
 import VisualizationCardOptions from './Explorer/VisualizationCardOptions';
 import LightdashVisualization from './LightdashVisualization';
 import VisualizationProvider from './LightdashVisualization/VisualizationProvider';
+import LimitButton from './LimitButton';
 import { RefreshButton } from './RefreshButton';
 import { RefreshServerButton } from './RefreshServerButton';
 import { RenderedSql } from './RenderedSql';
@@ -84,7 +85,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             tableCalculations,
             selectedTableCalculations,
         },
-        actions: { setRowLimit: setResultsRowLimit, setFilters },
+        actions: { setRowLimit, setFilters },
     } = useExplorer();
     const explore = useExplore(tableName);
     const queryResults = useQueryResults();
@@ -414,24 +415,31 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             minimal
                             onClick={() => setResultsIsOpen((f) => !f)}
                         />
-                        <H5 style={{ margin: 0, padding: 0 }}>Results</H5>
+                        <H5 style={{ margin: 0, padding: 0, marginRight: 10 }}>
+                            Results
+                        </H5>
+                        {resultsIsOpen && (
+                            <LimitButton
+                                limit={limit}
+                                onLimitChange={setRowLimit}
+                            />
+                        )}
                     </div>
                     {resultsIsOpen && (
-                        <FormGroup
-                            style={{ marginRight: 12 }}
-                            label="Total rows:"
-                            inline
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                marginRight: 10,
+                                gap: 10,
+                            }}
                         >
-                            <NumericInput
-                                style={{ width: 100 }}
-                                min={0}
-                                buttonPosition="none"
-                                value={limit}
-                                onValueChange={(valueAsNumber) =>
-                                    setResultsRowLimit(valueAsNumber)
-                                }
+                            <AddColumnButton />
+                            <DownloadCsvButton
+                                fileName={tableName}
+                                rows={queryResults.data?.rows}
                             />
-                        </FormGroup>
+                        </div>
                     )}
                 </div>
                 <Collapse isOpen={resultsIsOpen}>
