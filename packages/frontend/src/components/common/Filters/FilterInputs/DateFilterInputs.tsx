@@ -113,7 +113,8 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                 <MultipleInputsWrapper>
                     <NumericInput
                         fill
-                        value={parseInt(filterRule.values?.[0], 10) || 1}
+                        value={parseInt(filterRule.values?.[0], 10)}
+                        min={1}
                         onValueChange={(value) =>
                             onChange({
                                 ...filterRule,
