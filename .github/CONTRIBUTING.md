@@ -199,9 +199,9 @@ The reviewers can still request adhoc changes for situations that haven't been e
 
 ## Setup Development Environment
 
-#### Environent variables in developent
+#### Environment variables in development
 
-When developing, you must activate the `./docker/.env` environent variable file, which configures Lightdash to run
+When developing, you must activate the `./docker/.env` environment variable file, which configures Lightdash to run
 in development mode. The following two guides will set this up correctly but if you're manually creating a 
 development environment you must run:
 ```shell
