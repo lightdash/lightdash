@@ -12,6 +12,7 @@ import * as fs from 'fs/promises';
 import yaml, { load as loadYaml } from 'js-yaml';
 import path from 'path';
 import { DbtError, ParseError } from '../errors';
+import Logger from '../logger';
 import { DbtClient } from '../types';
 
 type DbtProjectConfig = {
@@ -19,6 +20,7 @@ type DbtProjectConfig = {
 };
 
 type RawDbtProjectConfig = {
+    'target-path'?: string;
     'target-dir'?: string;
 };
 
@@ -44,7 +46,7 @@ export const getDbtConfig = async (
         throw new Error('dbt_project.yml not valid');
     }
     return {
-        targetDir: config['target-dir'] || '/target',
+        targetDir: config['target-path'] || config['target-dir'] || '/target',
     };
 };
 
@@ -109,6 +111,7 @@ export class DbtCliClient implements DbtClient {
             dbtArgs.push('--profile', this.profileName);
         }
         try {
+            Logger.debug(`Running dbt command: dbt ${dbtArgs.join(' ')}`);
             const dbtProcess = await execa('dbt', dbtArgs, {
                 all: true,
                 stdio: ['pipe', 'pipe', process.stderr],
@@ -195,6 +198,7 @@ export class DbtCliClient implements DbtClient {
         fileType: 'JSON' | 'YML' = 'JSON',
     ): Promise<any> {
         try {
+            Logger.debug(`Load dbt artifact: ${fullPath}`);
             const file = await fs.readFile(fullPath, 'utf-8');
             if (fileType === 'JSON') {
                 return JSON.parse(file);
