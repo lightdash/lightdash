@@ -1,13 +1,13 @@
 import { Button, Colors, HTMLSelect } from '@blueprintjs/core';
 import {
     createFilterRuleFromField,
-    Field,
     fieldId as getFieldId,
     FilterableField,
     FilterRule,
     FilterType,
     getFilterRuleWithDefaultValue,
     getFilterTypeFromField,
+    isField,
 } from 'common';
 import React, { FC, useCallback, useMemo } from 'react';
 import { FilterTypeConfig } from './configs';
@@ -73,8 +73,10 @@ const FilterRuleForm: FC<Props> = ({
                     <FieldAutoComplete
                         activeField={activeField}
                         fields={fields}
-                        onChange={(field: Field) => {
-                            onFieldChange(getFieldId(field));
+                        onChange={(field) => {
+                            if (isField(field)) {
+                                onFieldChange(getFieldId(field));
+                            }
                         }}
                     />
                     <HTMLSelect

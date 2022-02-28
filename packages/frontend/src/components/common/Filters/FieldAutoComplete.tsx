@@ -1,38 +1,59 @@
 import { Colors, Icon, MenuItem } from '@blueprintjs/core';
 import { ItemRenderer, Suggest } from '@blueprintjs/select';
-import { fieldId as getFieldId, FilterableField, isDimension } from 'common';
+import {
+    fieldId as getFieldId,
+    FilterableField,
+    isDimension,
+    isField,
+    TableCalculation,
+} from 'common';
 import React, { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
 
-const FieldSuggest = Suggest.ofType<FilterableField>();
+type Item = FilterableField | TableCalculation;
+
+const FieldSuggest = Suggest.ofType<Item>();
 
 const AutocompleteMaxHeight = createGlobalStyle`
-    .autocomplete-max-height {
-        max-height: 400px;
-        overflow-y: auto;
-    }
+  .autocomplete-max-height {
+    max-height: 400px;
+    overflow-y: auto;
+  }
 `;
 
-const renderItem: ItemRenderer<FilterableField> = (
-    field,
-    { modifiers, handleClick },
-) => {
+const getItemId = (item: Item) =>
+    isField(item) ? getFieldId(item) : item.name;
+
+const renderItem: ItemRenderer<Item> = (item, { modifiers, handleClick }) => {
     if (!modifiers.matchesPredicate) {
         return null;
     }
     return (
         <MenuItem
             active={modifiers.active}
-            key={getFieldId(field)}
+            key={getItemId(item)}
             icon={
                 <Icon
-                    icon={isDimension(field) ? 'tag' : 'numerical'}
-                    color={isDimension(field) ? Colors.BLUE1 : Colors.ORANGE1}
+                    icon={
+                        isField(item)
+                            ? isDimension(item)
+                                ? 'tag'
+                                : 'numerical'
+                            : 'function'
+                    }
+                    color={
+                        isField(item)
+                            ? isDimension(item)
+                                ? Colors.BLUE1
+                                : Colors.ORANGE1
+                            : Colors.GREEN1
+                    }
                 />
             }
             text={
                 <span>
-                    {field.tableLabel} <b>{field.label}</b>
+                    {isField(item) ? `${item.tableLabel} ` : ''}
+                    <b>{isField(item) ? item.label : item.displayName}</b>
                 </span>
             }
             onClick={handleClick}
@@ -44,9 +65,9 @@ const renderItem: ItemRenderer<FilterableField> = (
 type Props = {
     disabled?: boolean;
     autoFocus?: boolean;
-    activeField?: FilterableField;
-    fields: FilterableField[];
-    onChange: (value: FilterableField) => void;
+    activeField?: Item;
+    fields: Array<Item>;
+    onChange: (value: Item) => void;
     onClosed?: () => void;
 };
 
@@ -57,65 +78,69 @@ const FieldAutoComplete: FC<Props> = ({
     fields,
     onChange,
     onClosed,
-}) => {
-    return (
-        <>
-            <AutocompleteMaxHeight />
-            <FieldSuggest
-                fill
-                disabled={disabled}
-                inputProps={{
-                    autoFocus,
-                    placeholder: 'Search field...',
-                    leftIcon: activeField && (
-                        <Icon
-                            icon={
-                                isDimension(activeField) ? 'tag' : 'numerical'
-                            }
-                            color={
-                                isDimension(activeField)
+}) => (
+    <>
+        <AutocompleteMaxHeight />
+        <FieldSuggest
+            fill
+            disabled={disabled}
+            inputProps={{
+                autoFocus,
+                placeholder: 'Search field...',
+                leftIcon: activeField && (
+                    <Icon
+                        icon={
+                            isField(activeField)
+                                ? isDimension(activeField)
+                                    ? 'tag'
+                                    : 'numerical'
+                                : 'function'
+                        }
+                        color={
+                            isField(activeField)
+                                ? isDimension(activeField)
                                     ? Colors.BLUE1
                                     : Colors.ORANGE1
-                            }
-                        />
-                    ),
-                }}
-                items={fields}
-                itemsEqual={(value, other) =>
-                    getFieldId(value) === getFieldId(other)
+                                : Colors.GREEN1
+                        }
+                    />
+                ),
+            }}
+            items={fields}
+            itemsEqual={(value, other) => getItemId(value) === getItemId(other)}
+            inputValueRenderer={(item: Item) => {
+                if (!activeField) {
+                    return '';
                 }
-                inputValueRenderer={(field: FilterableField) => {
-                    console.log(field);
-                    return `${field.tableLabel} ${field.label}`;
-                }}
-                popoverProps={{
-                    minimal: true,
-                    onClosed,
-                    popoverClassName: 'autocomplete-max-height',
-                }}
-                itemRenderer={renderItem}
-                selectedItem={activeField}
-                noResults={<MenuItem disabled text="No results." />}
-                onItemSelect={onChange}
-                itemPredicate={(
-                    query: string,
-                    field: FilterableField,
-                    index?: undefined | number,
-                    exactMatch?: undefined | false | true,
-                ) => {
-                    if (exactMatch) {
-                        return (
-                            query.toLowerCase() ===
-                            `${field.tableLabel} ${field.label}`.toLowerCase()
-                        );
-                    }
-                    return `${field.tableLabel} ${field.label}`
-                        .toLowerCase()
-                        .includes(query.toLowerCase());
-                }}
-            />
-        </>
-    );
-};
+                return isField(item)
+                    ? `${item.tableLabel} ${item.label}`
+                    : item.displayName;
+            }}
+            popoverProps={{
+                minimal: true,
+                onClosed,
+                popoverClassName: 'autocomplete-max-height',
+            }}
+            itemRenderer={renderItem}
+            selectedItem={activeField}
+            noResults={<MenuItem disabled text="No results." />}
+            onItemSelect={onChange}
+            itemPredicate={(
+                query: string,
+                item: Item,
+                index?: undefined | number,
+                exactMatch?: undefined | false | true,
+            ) => {
+                const label = isField(item)
+                    ? `${item.tableLabel} ${item.label}`
+                    : item.displayName;
+                if (exactMatch) {
+                    return query.toLowerCase() === label.toLowerCase();
+                }
+                return label.toLowerCase().includes(query.toLowerCase());
+            }}
+        />
+    </>
+);
 
 export default FieldAutoComplete;

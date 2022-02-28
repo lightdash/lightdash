@@ -1,4 +1,4 @@
-import { FilterableField } from 'common';
+import { FilterableField, isField } from 'common';
 import React, { FC, useState } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
@@ -26,9 +26,11 @@ const FilterSearch: FC<Props> = ({ fields, onClose }) => {
 
                     <FieldAutoComplete
                         fields={fields}
-                        onChange={(field) =>
-                            setSelectedField(field as FilterableField)
-                        }
+                        onChange={(field) => {
+                            if (isField(field)) {
+                                setSelectedField(field);
+                            }
+                        }}
                     />
                     <FilterFooter>
                         Filters set on individual charts will be overridden.

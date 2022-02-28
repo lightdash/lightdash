@@ -35,7 +35,7 @@ import { useExplorer } from '../providers/ExplorerProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import AddColumnButton from './AddColumnButton';
-import { ChartConfigPanel } from './ChartConfigPanel';
+import ChartConfigPanel from './ChartConfigPanel';
 import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
 import EditableHeader from './common/EditableHeader';
