@@ -1051,12 +1051,6 @@
                     },
                     "password": {
                         "type": "string"
-                    },
-                    "isMarketingOptedIn": {
-                        "type": "boolean"
-                    },
-                    "isTrackingAnonymized": {
-                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -1064,9 +1058,7 @@
                     "firstName",
                     "lastName",
                     "email",
-                    "password",
-                    "isMarketingOptedIn",
-                    "isTrackingAnonymized"
+                    "password"
                 ]
             },
             "OrganizationUser": {

@@ -16,9 +16,16 @@ import './UserSettingsModal.css';
 interface Props {
     isOpen: boolean;
     onClose: () => void;
+    activeTab: string | undefined;
+    onChangeTab: (tab: string) => void;
 }
 
-const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
+const UserSettingsModal: FC<Props> = ({
+    isOpen,
+    onClose,
+    activeTab,
+    onChangeTab,
+}) => {
     const { user, health } = useApp();
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
@@ -37,6 +44,8 @@ const UserSettingsModal: FC<Props> = ({ isOpen, onClose }) => {
             <div className="user-settings">
                 <Tabs
                     id="user-settings"
+                    selectedTabId={activeTab}
+                    onChange={onChangeTab}
                     renderActiveTabPanelOnly
                     vertical
                     animate={false}

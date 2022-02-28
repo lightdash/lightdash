@@ -15,21 +15,7 @@
         },
         "password": {
             "type": "string"
-        },
-        "isMarketingOptedIn": {
-            "type": "boolean"
-        },
-        "isTrackingAnonymized": {
-            "type": "boolean"
         }
     },
-    "required": [
-        "inviteCode",
-        "firstName",
-        "lastName",
-        "email",
-        "password",
-        "isMarketingOptedIn",
-        "isTrackingAnonymized"
-    ]
+    "required": ["inviteCode", "firstName", "lastName", "email", "password"]
 }
