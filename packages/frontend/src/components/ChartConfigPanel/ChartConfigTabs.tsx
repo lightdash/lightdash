@@ -161,6 +161,7 @@ const ChartConfigTabs: FC = () => {
                                     minimal
                                     icon={'plus'}
                                     text="Add"
+                                    disabled={yOptions.length <= 0}
                                     onClick={() => toggle(true)}
                                 />
                             )}
@@ -174,6 +175,9 @@ const ChartConfigTabs: FC = () => {
                         <InputWrapper label="Group">
                             <FieldRow>
                                 <FieldAutoComplete
+                                    disabled={
+                                        groupDimensionsInMetricQuery.length <= 0
+                                    }
                                     activeField={activeGroupDimension}
                                     fields={groupDimensionsInMetricQuery}
                                     onChange={(field) => {
