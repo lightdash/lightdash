@@ -9,8 +9,10 @@ import {
     getFilterRulesByFieldType,
     getTotalFilterRules,
     isDimension,
+    isField,
     isMetric,
     Metric,
+    TableCalculation,
 } from 'common';
 import React, { FC, useCallback, useMemo } from 'react';
 import { useToggle } from 'react-use';
@@ -52,9 +54,11 @@ const FiltersForm: FC<Props> = ({ filters, setFilters }) => {
         filterRulesPerFieldType.metrics.length >= 1;
 
     const addFieldRule = useCallback(
-        (field: FilterableField) => {
-            setFilters(addFilterRule({ filters, field }), false);
-            toggleFieldInput(false);
+        (field: FilterableField | TableCalculation) => {
+            if (isField(field)) {
+                setFilters(addFilterRule({ filters, field }), false);
+                toggleFieldInput(false);
+            }
         },
         [filters, setFilters, toggleFieldInput],
     );
