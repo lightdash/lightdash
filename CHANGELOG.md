@@ -1,3 +1,12 @@
+## [0.28.2](https://github.com/lightdash/lightdash/compare/0.28.1...0.28.2) (2022-02-28)
+
+
+### Bug Fixes
+
+* **filters:** add min value to input instead of 'or' operator ([#1462](https://github.com/lightdash/lightdash/issues/1462)) ([fb144a9](https://github.com/lightdash/lightdash/commit/fb144a9738b353c4163457e7842927f6d263165b))
+* **filters:** filter by null [skip ci] ([#1459](https://github.com/lightdash/lightdash/issues/1459)) ([64b4a51](https://github.com/lightdash/lightdash/commit/64b4a519e9ba6e87ab4b7f53677a0e2e962cf229))
+* use dbt target-path value [skip ci]([#1456](https://github.com/lightdash/lightdash/issues/1456)) ([8f14534](https://github.com/lightdash/lightdash/commit/8f145341a7cd8de70b27da06b0151673ac91c2ea))
+
 ## [0.28.1](https://github.com/lightdash/lightdash/compare/0.28.0...0.28.1) (2022-02-25)
 
 
