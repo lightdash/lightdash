@@ -1,5 +1,4 @@
 import { Colors, H3, NonIdealState, Spinner, Toaster } from '@blueprintjs/core';
-import { IncompleteOnboarding } from 'common';
 import React, { FC } from 'react';
 import { useToggle, useUnmount } from 'react-use';
 import { OpenChatButton } from '../components/common/ChatBubble/OpenChatButton';
@@ -8,31 +7,10 @@ import Page from '../components/common/Page/Page';
 import LatestDashboards from '../components/Home/LatestDashboards/index';
 import LatestSavedCharts from '../components/Home/LatestSavedCharts';
 import SuccessfulOnboarding from '../components/Home/SuccessfulOnboarding';
-import OnboardingSteps from '../components/OnboardingSteps';
+import OnboardingPage from '../components/HomePage/OnboardingPage/index';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import { useDefaultProject } from '../hooks/useProjects';
 import { useApp } from '../providers/AppProvider';
-
-const OnboardingPage: FC<{
-    status: IncompleteOnboarding;
-    projectUuid: string;
-}> = ({ status, projectUuid }) => (
-    <div style={{ width: 570, paddingTop: 60 }}>
-        <H3 style={{ textAlign: 'center', marginBottom: 15 }}>
-            Welcome to Lightdash! 🎉
-        </H3>
-        <p
-            style={{
-                textAlign: 'center',
-                marginBottom: 35,
-                color: Colors.GRAY1,
-            }}
-        >
-            Let&apos;s get started with the basics to get you up and running:
-        </p>
-        <OnboardingSteps status={status} projectUuid={projectUuid} />
-    </div>
-);
 
 const LandingPage: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { user } = useApp();
@@ -80,7 +58,7 @@ const Home: FC = () => {
     const project = useDefaultProject();
     const isLoading = onboarding.isLoading || project.isLoading;
     const error = onboarding.error || project.error;
-
+    const { user } = useApp();
     useUnmount(() => onboarding.remove());
 
     if (isLoading) {
@@ -125,6 +103,7 @@ const Home: FC = () => {
                 <OnboardingPage
                     status={onboarding.data}
                     projectUuid={project.data.projectUuid}
+                    userName={user.data?.firstName}
                 />
             ) : (
                 <LandingPage projectUuid={project.data.projectUuid} />
