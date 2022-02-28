@@ -233,6 +233,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/smoens"><img src="https://avatars.githubusercontent.com/u/1371244?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Sarah Moens</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=smoens" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/Sync271"><img src="https://avatars.githubusercontent.com/u/67158080?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Abhishek K M</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=Sync271" title="Code">💻</a></td>
   </tr>
 </table>
 
