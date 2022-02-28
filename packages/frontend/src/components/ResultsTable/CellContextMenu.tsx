@@ -22,7 +22,13 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
                         <MenuItem
                             text={`Filter by "${cell.value}"`}
                             onClick={() => {
-                                addFilter(field, cell.value, true);
+                                addFilter(
+                                    field,
+                                    cell.value === undefined
+                                        ? null
+                                        : cell.value,
+                                    true,
+                                );
                             }}
                         />
                     </Menu>
