@@ -10,15 +10,15 @@ import {
     organizationModel,
     passwordResetLinkModel,
     projectModel,
+    savedChartModel,
     sessionModel,
     userModel,
 } from '../models/models';
-import { SavedQueriesModel } from '../models/savedQueries';
 import { DashboardService } from './DashboardService/DashboardService';
 import { HealthService } from './HealthService/HealthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { ProjectService } from './ProjectService/ProjectService';
-import { SavedChartsService } from './SavedChartsService/SavedChartsService';
+import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { UserService } from './UserService';
 
 const emailClient = new EmailClient({ lightdashConfig });
@@ -45,7 +45,7 @@ export const organizationService = new OrganizationService({
 export const projectService = new ProjectService({
     projectModel,
     onboardingModel,
-    savedChartModel: SavedQueriesModel,
+    savedChartModel,
 });
 
 export const healthService = new HealthService({
@@ -58,6 +58,7 @@ export const dashboardService = new DashboardService({
     dashboardModel,
 });
 
-export const savedChartsService = new SavedChartsService({
+export const savedChartsService = new SavedChartService({
     projectModel,
+    savedChartModel,
 });

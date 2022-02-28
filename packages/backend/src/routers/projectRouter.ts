@@ -15,8 +15,12 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import Logger from '../logger';
-import { SavedQueriesModel } from '../models/savedQueries';
-import { dashboardService, projectService } from '../services/services';
+import { savedChartModel } from '../models/models';
+import {
+    dashboardService,
+    projectService,
+    savedChartsService,
+} from '../services/services';
 
 export const projectRouter = express.Router({ mergeParams: true });
 
@@ -180,11 +184,8 @@ projectRouter.post(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        SavedQueriesModel.create(
-            req.user!,
-            req.params.projectUuid,
-            req.body.savedQuery,
-        )
+        savedChartsService
+            .create(req.user!, req.params.projectUuid, req.body.savedQuery)
             .then((results) => {
                 res.json({
                     status: 'ok',
@@ -196,7 +197,8 @@ projectRouter.post(
 );
 
 projectRouter.get('/spaces', isAuthenticated, async (req, res, next) => {
-    SavedQueriesModel.getAllSpaces(req.params.projectUuid)
+    savedChartModel
+        .getAllSpaces(req.params.projectUuid)
         .then((results) => {
             res.json({
                 status: 'ok',

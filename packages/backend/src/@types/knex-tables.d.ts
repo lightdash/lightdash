@@ -46,17 +46,17 @@ import {
 } from '../database/entities/passwordResetLinks';
 import { ProjectTable, ProjectTableName } from '../database/entities/projects';
 import {
+    SavedChartsTableName,
     SavedChartVersionFieldsTable,
     SavedChartVersionFieldsTableName,
     SavedChartVersionSortsTable,
     SavedChartVersionSortsTableName,
     SavedChartVersionsTable,
-    SavedQueriesTableName,
-    SavedQueriesVersionsTableName,
+    SavedChartVersionsTableName,
     SavedQueryTable,
     SavedQueryTableCalculationTable,
     SavedQueryTableCalculationTableName,
-} from '../database/entities/savedQueries';
+} from '../database/entities/savedCharts';
 import { SessionTable, SessionTableName } from '../database/entities/sessions';
 import { SpaceTable, SpaceTableName } from '../database/entities/spaces';
 import { UserTable, UserTableName } from '../database/entities/users';
@@ -74,8 +74,8 @@ declare module 'knex/types/tables' {
         [SessionTableName]: SessionTable;
         [WarehouseCredentialTableName]: WarehouseCredentialTable;
         [ProjectTableName]: ProjectTable;
-        [SavedQueriesTableName]: SavedQueryTable;
-        [SavedQueriesVersionsTableName]: SavedChartVersionsTable;
+        [SavedChartsTableName]: SavedQueryTable;
+        [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;
         [SavedQueryTableCalculationTableName]: SavedQueryTableCalculationTable;

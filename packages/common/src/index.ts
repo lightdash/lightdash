@@ -1,20 +1,5 @@
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
-import {
-    DashboardFilterRule,
-    DateFilterRule,
-    FilterOperator,
-    FilterRule,
-    Filters,
-    FilterType,
-    getFilterGroupItemsPropertyName,
-    getItemsFromFilterGroup,
-    UnitOfTime,
-} from './types/filter';
-import { OrganizationMemberProfile } from './types/organizationMemberProfile';
-import { LightdashUser } from './types/user';
-import { MetricQuery } from './types/metricQuery';
-import { SavedChart } from './types/savedCharts';
 import { Dashboard, DashboardBasicDetails } from './types/dashboard';
 import {
     CompiledDimension,
@@ -33,15 +18,31 @@ import {
     MetricType,
     Source,
 } from './types/field';
+import {
+    DashboardFilterRule,
+    DateFilterRule,
+    FilterOperator,
+    FilterRule,
+    Filters,
+    FilterType,
+    getFilterGroupItemsPropertyName,
+    getItemsFromFilterGroup,
+    UnitOfTime,
+} from './types/filter';
+import { MetricQuery } from './types/metricQuery';
+import { OrganizationMemberProfile } from './types/organizationMemberProfile';
+import { SavedChart } from './types/savedCharts';
+import { LightdashUser } from './types/user';
 
 export * from './authorization/organizationMemberAbility';
 export * from './types/dashboard';
+export * from './types/field';
 export * from './types/filter';
+export * from './types/metricQuery';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
 export * from './types/savedCharts';
 export * from './types/user';
-export * from './types/metricQuery';
 
 const DATE_FORMAT = 'YYYY-MM-DD';
 export const formatDate = (date: Date): string =>
@@ -1139,8 +1140,3 @@ export type CreateProject = Omit<Project, 'projectUuid'> & {
 export type UpdateProject = Omit<Project, 'projectUuid'> & {
     warehouseConnection: CreateWarehouseCredentials;
 };
-export { fieldId } from './types/field';
-export { FieldId } from './types/field';
-export { isField } from './types/field';
-export { Field } from './types/field';
-export { FieldType } from './types/field';

@@ -16,7 +16,7 @@ import {
     DashboardVersionTable,
     DashboardViewTable,
 } from '../../database/entities/dashboards';
-import { SavedQueryTable } from '../../database/entities/savedQueries';
+import { SavedChartTable } from '../../database/entities/savedCharts';
 import { SpaceTable } from '../../database/entities/spaces';
 import { GetChartTileQuery, GetDashboardQuery } from './DashboardModel';
 
@@ -110,7 +110,7 @@ export const spaceEntry: SpaceTable['base'] = {
     created_at: new Date(),
     project_id: 0,
 };
-export const savedChartEntry: SavedQueryTable['base'] = {
+export const savedChartEntry: SavedChartTable['base'] = {
     saved_query_id: 0,
     saved_query_uuid: '123',
     space_id: 0,

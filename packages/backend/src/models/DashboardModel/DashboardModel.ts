@@ -21,9 +21,9 @@ import {
 } from '../../database/entities/dashboards';
 import { ProjectTableName } from '../../database/entities/projects';
 import {
-    SavedQueriesTableName,
-    SavedQueryTable,
-} from '../../database/entities/savedQueries';
+    SavedChartsTableName,
+    SavedChartTable,
+} from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { NotFoundError, UnexpectedServerError } from '../../errors';
 import Transaction = Knex.Transaction;
@@ -43,7 +43,7 @@ export type GetChartTileQuery = Pick<
     DashboardTileChartTable['base'],
     'dashboard_tile_uuid'
 > &
-    Pick<SavedQueryTable['base'], 'saved_query_uuid'>;
+    Pick<SavedChartTable['base'], 'saved_query_uuid'>;
 
 type DashboardModelDependencies = {
     database: Knex;
@@ -97,7 +97,7 @@ export class DashboardModel {
                         case DashboardTileTypes.SAVED_CHART:
                             if (tile.properties.savedChartUuid) {
                                 const [savedChart] = await trx(
-                                    SavedQueriesTableName,
+                                    SavedChartsTableName,
                                 )
                                     .select(['saved_query_id'])
                                     .where(
@@ -247,7 +247,7 @@ export class DashboardModel {
                 `${DashboardTilesTableName}.width`,
                 `${DashboardTilesTableName}.height`,
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,
-                `${SavedQueriesTableName}.saved_query_uuid`,
+                `${SavedChartsTableName}.saved_query_uuid`,
                 `${DashboardTileLoomsTableName}.title as loomTitle`,
                 `${DashboardTileLoomsTableName}.url`,
                 `${DashboardTileMarkdownsTableName}.title as markdownTitle`,
@@ -290,9 +290,9 @@ export class DashboardModel {
                 );
             })
             .leftJoin(
-                SavedQueriesTableName,
+                SavedChartsTableName,
                 `${DashboardTileChartTableName}.saved_chart_id`,
-                `${SavedQueriesTableName}.saved_query_id`,
+                `${SavedChartsTableName}.saved_query_id`,
             )
             .where(
                 `${DashboardTilesTableName}.dashboard_version_id`,
