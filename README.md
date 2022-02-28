@@ -41,7 +41,7 @@ Come join the team, [we're hiring](https://lightdash.notion.site/Lightdash-Job-B
 
 </div>
 
-## Features:
+## Features: 
 
 * [x] 🙏 Familiar interface for your users to self-serve using pre-defined metrics
 * [x] 👩‍💻 Declare dimensions and metrics in yaml alongside your dbt project
