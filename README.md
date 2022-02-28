@@ -134,7 +134,7 @@ Love Looker, but don't love Looker's price tag?
 
 With Lightdash, we offer a free self-hosted service (it's all just open source!), or an affordable cloud-service option if you're looking for an easy analytics set up.
 
-## Docs
+## Docs 
 
 Have a question about a feature? Or maybe fancy some light reading? Head on over to
 our [Lightdash documentation](https://docs.lightdash.com/) to check out some tutorials, reference docs, FAQs and more.
