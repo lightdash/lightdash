@@ -1,17 +1,12 @@
 import { DBChartTypes } from 'common';
 import React, { FC } from 'react';
-import { LoadingState } from '../ResultsTable/States';
 import SimpleChart from '../SimpleChart';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
 import { useVisualizationContext } from './VisualizationProvider';
 
 const LightdashVisualization: FC = () => {
-    const { chartType, isLoading } = useVisualizationContext();
-
-    if (isLoading) {
-        return <LoadingState />;
-    }
+    const { chartType } = useVisualizationContext();
 
     const renderType = () => {
         switch (chartType) {
