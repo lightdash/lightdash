@@ -109,12 +109,13 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                 />
             );
         case FilterOperator.IN_THE_PAST:
+            const parsedValue = parseInt(filterRule.values?.[0], 10);
             return (
                 <MultipleInputsWrapper>
                     <NumericInput
                         fill
-                        value={parseInt(filterRule.values?.[0], 10)}
-                        min={1}
+                        value={isNaN(parsedValue) ? undefined : parsedValue}
+                        min={0}
                         onValueChange={(value) =>
                             onChange({
                                 ...filterRule,

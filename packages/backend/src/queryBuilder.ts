@@ -75,9 +75,9 @@ const renderNumberFilterSql = (
         case FilterOperator.NOT_NULL:
             return `(${dimensionSql}) IS NOT NULL`;
         case FilterOperator.GREATER_THAN:
-            return `(${dimensionSql}) > ${filter.values?.[0]}`;
+            return `(${dimensionSql}) > (${filter.values?.[0] || 0})`;
         case FilterOperator.LESS_THAN:
-            return `(${dimensionSql}) < ${filter.values?.[0]}`;
+            return `(${dimensionSql}) < (${filter.values?.[0] || 0})`;
         default:
             throw Error(
                 `No function implemented to render sql for filter type ${filterType} on dimension of number type`,

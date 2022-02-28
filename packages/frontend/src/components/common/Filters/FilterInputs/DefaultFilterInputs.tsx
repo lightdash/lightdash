@@ -89,10 +89,12 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
         case FilterOperator.LESS_THAN:
         case FilterOperator.LESS_THAN_OR_EQUAL:
         case FilterOperator.IN_THE_PAST:
+            const parsedValue = parseInt(filterRule.values?.[0], 10);
             return (
                 <NumericInput
                     fill
-                    value={filterRule.values?.[0]}
+                    value={isNaN(parsedValue) ? undefined : parsedValue}
+                    min={0}
                     onValueChange={(value) =>
                         onChange({
                             ...filterRule,
