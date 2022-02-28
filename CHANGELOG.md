@@ -1,3 +1,10 @@
+# [0.29.0](https://github.com/lightdash/lightdash/compare/0.28.2...0.29.0) (2022-02-28)
+
+
+### Features
+
+* add invite user action to avatar ([#1458](https://github.com/lightdash/lightdash/issues/1458)) ([36089f5](https://github.com/lightdash/lightdash/commit/36089f5547ee636347356425e7324baa558543f8))
+
 ## [0.28.2](https://github.com/lightdash/lightdash/compare/0.28.1...0.28.2) (2022-02-28)
 
 
