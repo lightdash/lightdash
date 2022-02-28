@@ -102,7 +102,7 @@ Join our community if you need help, want to chat or have any other questions fo
 - [Twitter](https://twitter.com/lightdash_devs) - For all the latest Lightdash news
 - [Slack](https://getdbt.slack.com/archives/C026WJE4A69) - Join the conversation! Get all the latest updates and chat to the devs
 
-## About Lightdash
+## About Lightdash 
 
 ### 🗂 **Keep all of your business logic in one place.**
 
