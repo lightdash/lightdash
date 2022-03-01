@@ -181,7 +181,6 @@ const createSavedQuery = async (
 ): Promise<SavedQuery> => {
     const { pivotConfig, chartConfig } = v1ToV2ChartConfig(data);
     const payload: CreateSavedChart = {
-        projectUuid: data.projectUuid,
         name: data.name,
         tableName: data.tableName,
         pivotConfig,

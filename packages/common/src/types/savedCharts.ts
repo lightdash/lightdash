@@ -63,7 +63,10 @@ export type SavedChart = {
     updatedAt: Date;
 };
 
-export type CreateSavedChart = Omit<SavedChart, 'uuid' | 'updatedAt'>;
+export type CreateSavedChart = Omit<
+    SavedChart,
+    'uuid' | 'updatedAt' | 'projectUuid'
+>;
 
 export type CreateSavedChartVersion = Omit<
     SavedChart,

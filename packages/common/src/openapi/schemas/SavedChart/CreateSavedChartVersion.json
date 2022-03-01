@@ -2,9 +2,6 @@
     "type": "object",
     "additionalProperties": false,
     "properties": {
-        "name": {
-            "type": "string"
-        },
         "tableName": {
             "type": "string"
         },
@@ -40,11 +37,5 @@
             "required": ["columns"]
         }
     },
-    "required": [
-        "name",
-        "tableName",
-        "metricQuery",
-        "chartConfig",
-        "tableConfig"
-    ]
+    "required": ["tableName", "metricQuery", "chartConfig", "tableConfig"]
 }
