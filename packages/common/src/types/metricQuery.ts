@@ -1,5 +1,5 @@
-import { Filters } from './filter';
 import { FieldId } from './field';
+import { Filters } from './filter';
 
 export type TableCalculation = {
     index?: number;
@@ -10,6 +10,7 @@ export type TableCalculation = {
 export type CompiledTableCalculation = TableCalculation & {
     compiledSql: string;
 };
+
 // Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {
     dimensions: FieldId[]; // Dimensions to group by in the explore
