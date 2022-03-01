@@ -7,7 +7,7 @@ import Page from '../components/common/Page/Page';
 import LatestDashboards from '../components/Home/LatestDashboards/index';
 import LatestSavedCharts from '../components/Home/LatestSavedCharts';
 import SuccessfulOnboarding from '../components/Home/SuccessfulOnboarding';
-import OnboardingPage from '../components/HomePage/OnboardingPage/index';
+import OnboardingPanel from '../components/HomePage/OnboardingPanel/index';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import { useDefaultProject } from '../hooks/useProjects';
 import { useApp } from '../providers/AppProvider';
@@ -100,8 +100,7 @@ const Home: FC = () => {
                     )}
             </Toaster>
             {!onboarding.data.isComplete ? (
-                <OnboardingPage
-                    status={onboarding.data}
+                <OnboardingPanel
                     projectUuid={project.data.projectUuid}
                     userName={user.data?.firstName}
                 />

@@ -1,34 +1,32 @@
 import { AnchorButton, Card, Colors, H3 } from '@blueprintjs/core';
 import styled from 'styled-components';
 
-export const OnboardingPageWrapper = styled.div`
+export const OnboardingPanelWrapper = styled.div`
     width: 54.857em;
     padding-top: 4.286em;
 `;
 
 export const Title = styled(H3)`
     text-align: left;
-    margin-bottom: 1.071em;
 `;
 
 export const Intro = styled.p`
     text-align: left;
-    margin-bottom: 2.5em;
     color: ${Colors.GRAY1};
 `;
 
 export const CardWrapper = styled(Card)`
-    margin: 1.714em 0;
-    padding: 3.143em 1.429em;
+    margin: 1.643em 0;
+    padding: 3.143em;
 `;
 
 export const StepsWrapper = styled.ul`
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     flex-direction: row;
     justify-content: space-between;
     padding: 0;
-    margin: auto;
-    width: 90%;
+    margin: 0;
 `;
 
 export const StepContainer = styled.li`
@@ -49,9 +47,17 @@ export const StepDescription = styled.p`
     color: ${Colors.GRAY2};
 `;
 
+export const ButtonWrapper = styled.div`
+    width: 100%;
+`;
+
 export const CTA = styled(AnchorButton)`
     margin-top: 2.929em;
     background: ${Colors.BLUE3};
+    font-weight: 500;
     width: 14.286em;
     height: 2.857em;
+    margin-left: 50%;
+    transform: translateX(-50%);
+    border: none;
 `;
