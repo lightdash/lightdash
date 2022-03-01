@@ -1,8 +1,10 @@
 import { Intent } from '@blueprintjs/core';
 import React, { FC } from 'react';
+import { useTracking } from '../../../providers/TrackingProvider';
 import Step1 from '../../../svgs/onboarding1.svg';
 import Step2 from '../../../svgs/onboarding2.svg';
 import Step3 from '../../../svgs/onboarding3.svg';
+import { EventName } from '../../../types/Events';
 import {
     ButtonWrapper,
     CardWrapper,
@@ -40,6 +42,7 @@ const onboardingSteps = [
 ];
 
 const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
+    const { track } = useTracking();
     return (
         <OnboardingPanelWrapper>
             <Title>
@@ -66,6 +69,14 @@ const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
                         text="Run your first query!"
                         intent={Intent.PRIMARY}
                         href={`/projects/${projectUuid}/tables`}
+                        onClick={() => {
+                            track({
+                                name: EventName.ONBOARDING_STEP_CLICKED,
+                                properties: {
+                                    action: 'run_query',
+                                },
+                            });
+                        }}
                     />
                 </ButtonWrapper>
             </CardWrapper>
