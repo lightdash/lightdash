@@ -5,7 +5,7 @@ import { useToggle, useUnmount } from 'react-use';
 import { OpenChatButton } from '../components/common/ChatBubble/OpenChatButton';
 import LinkButton from '../components/common/LinkButton';
 import Page from '../components/common/Page/Page';
-import LatestDashboards from '../components/Home/LatestDashboards';
+import LatestDashboards from '../components/Home/LatestDashboards/index';
 import LatestSavedCharts from '../components/Home/LatestSavedCharts';
 import SuccessfulOnboarding from '../components/Home/SuccessfulOnboarding';
 import OnboardingSteps from '../components/OnboardingSteps';
