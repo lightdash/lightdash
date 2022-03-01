@@ -86,7 +86,7 @@ cd lightdash
 ### Sign up to Lightdash Cloud
 You can avoid the hassle of hosting and configuring Lightdash yourself by [signing up to the waitlist for Lightdash Cloud Beta](https://lightdash.typeform.com/to/HFlicx4i#source=github) . We'll let you know once we're ready to bring you on board 🙂
 
-## Getting started
+## Getting started 
 
 Step 1 - ⚡️ [Install Lightdash](https://docs.lightdash.com/get-started/setup-lightdash/install-lightdash)
 
