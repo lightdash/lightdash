@@ -726,7 +726,7 @@
                     }
                 },
                 "responses": {
-                    "201": {
+                    "200": {
                         "description": "Details for a saved chart",
                         "content": {
                             "application/json": {
@@ -1080,7 +1080,7 @@
                     }
                 },
                 "responses": {
-                    "201": {
+                    "200": {
                         "description": "Details for a saved chart",
                         "content": {
                             "application/json": {
@@ -1560,85 +1560,17 @@
                 },
                 "required": ["tableSelection"]
             },
-            "ChartConfigBigNumber": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                    "chartType": {
-                        "type": "string",
-                        "enum": ["big_number"]
-                    },
-                    "config": {
-                        "type": "object",
-                        "additionalProperties": false
-                    }
-                }
-            },
-            "ChartConfigCartesian": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                    "chartType": {
-                        "type": "string",
-                        "enum": ["table"]
-                    },
-                    "config": {
-                        "type": "object",
-                        "properties": {
-                            "series": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "xField": {
-                                            "type": "string"
-                                        },
-                                        "yField": {
-                                            "type": "string"
-                                        },
-                                        "type": {
-                                            "type": "string",
-                                            "enum": ["line", "bar", "scatter"]
-                                        },
-                                        "flipAxes": {
-                                            "type": "boolean"
-                                        }
-                                    },
-                                    "required": ["xField", "yField", "type"]
-                                }
-                            }
-                        },
-                        "required": ["series"],
-                        "additionalProperties": false
-                    }
-                }
-            },
-            "ChartConfigTable": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                    "chartType": {
-                        "type": "string",
-                        "enum": ["table"]
-                    },
-                    "config": {
-                        "type": "object",
-                        "additionalProperties": false
-                    }
-                }
-            },
             "ChartConfig": {
-                "oneOf": [
-                    {
-                        "$ref": "#/components/schemas/ChartConfigBigNumber"
+                "properties": {
+                    "chartType": {
+                        "type": "string",
+                        "enum": ["big_number", "table", "cartesian"]
                     },
-                    {
-                        "$ref": "#/components/schemas/ChartConfigCartesian"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ChartConfigTable"
+                    "config": {
+                        "type": "object",
+                        "additionalProperties": true
                     }
-                ]
+                }
             },
             "CreateSavedChart": {
                 "type": "object",

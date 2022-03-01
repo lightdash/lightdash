@@ -1,13 +1,12 @@
 {
-    "oneOf": [
-        {
-            "$ref": "ChartConfig/ChartConfigBigNumber.json"
+    "properties": {
+        "chartType": {
+            "type": "string",
+            "enum": ["big_number", "table", "cartesian"]
         },
-        {
-            "$ref": "ChartConfig/ChartConfigCartesian.json"
-        },
-        {
-            "$ref": "ChartConfig/ChartConfigTable.json"
+        "config": {
+            "type": "object",
+            "additionalProperties": true
         }
-    ]
+    }
 }

@@ -13,7 +13,6 @@ import {
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import {
     countTotalFilterRules,
-    CreateSavedQueryVersion,
     DashboardTileTypes,
     DBChartTypes,
     DimensionType,
@@ -30,6 +29,7 @@ import { useChartConfig } from '../hooks/useChartConfig';
 import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
 import {
+    CreateSavedQueryVersion,
     useAddVersionMutation,
     useSavedQuery,
     useUpdateMutation,

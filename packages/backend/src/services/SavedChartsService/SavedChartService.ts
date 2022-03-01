@@ -18,7 +18,7 @@ type Dependencies = {
 export class SavedChartService {
     private readonly projectModel: ProjectModel;
 
-    private readonly savedChartModel;
+    private readonly savedChartModel: SavedChartModel;
 
     constructor(dependencies: Dependencies) {
         this.projectModel = dependencies.projectModel;

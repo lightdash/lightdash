@@ -1,39 +1,29 @@
 {
     "type": "object",
-    "additionalProperties": false,
     "properties": {
-        "chartType": {
-            "type": "string",
-            "enum": ["table"]
-        },
-        "config": {
-            "type": "object",
-            "properties": {
-                "series": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "xField": {
-                                "type": "string"
-                            },
-                            "yField": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["line", "bar", "scatter"]
-                            },
-                            "flipAxes": {
-                                "type": "boolean"
-                            }
-                        },
-                        "required": ["xField", "yField", "type"]
+        "series": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "xField": {
+                        "type": "string"
+                    },
+                    "yField": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["line", "bar", "scatter"]
+                    },
+                    "flipAxes": {
+                        "type": "boolean"
                     }
-                }
-            },
-            "required": ["series"],
-            "additionalProperties": false
+                },
+                "required": ["xField", "yField", "type"]
+            }
         }
-    }
+    },
+    "required": ["series"],
+    "additionalProperties": false
 }

@@ -1,11 +1,1 @@
-{
-    "type": "object",
-    "additionalProperties": false,
-    "properties": {
-        "chartType": {
-            "type": "string",
-            "enum": ["big_number"]
-        },
-        "config": { "type": "object", "additionalProperties": false }
-    }
-}
+{ "type": "object", "additionalProperties": false }

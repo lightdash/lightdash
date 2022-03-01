@@ -25,7 +25,7 @@
             }
         },
         "responses": {
-            "201": {
+            "200": {
                 "description": "Details for a saved chart",
                 "content": {
                     "application/json": {
