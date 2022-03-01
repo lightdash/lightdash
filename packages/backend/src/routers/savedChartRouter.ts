@@ -14,8 +14,6 @@ savedChartRouter.get(
         savedChartsService
             .get(req.params.savedQueryUuid)
             .then((results) => {
-                console.log(results);
-                console.log(results.chartConfig.config);
                 res.json({
                     status: 'ok',
                     results,
