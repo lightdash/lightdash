@@ -26,12 +26,6 @@ import {
     validExplore,
 } from './ProjectService.mock';
 
-jest.mock('../../models/savedQueries', () => ({
-    SavedQueriesModel: {
-        getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
-    },
-}));
-
 jest.mock('../../analytics/client', () => ({
     analytics: {
         track: jest.fn(),
