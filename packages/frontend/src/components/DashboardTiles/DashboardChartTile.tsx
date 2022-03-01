@@ -13,7 +13,6 @@ import {
     getDimensions,
     getFields,
     isFilterableField,
-    SavedQuery,
 } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, {
@@ -29,7 +28,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useChartConfig } from '../../hooks/useChartConfig';
 import { useExplore } from '../../hooks/useExplore';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
-import { useSavedQuery } from '../../hooks/useSavedQuery';
+import { SavedQuery, useSavedQuery } from '../../hooks/useSavedQuery';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { getFilterRuleLabel } from '../common/Filters/configs';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';

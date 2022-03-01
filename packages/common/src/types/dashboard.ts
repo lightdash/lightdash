@@ -112,7 +112,7 @@ export const defaultTileSize = {
 };
 
 export const getDefaultChartTileSize = (
-    chartType: SavedChartType | undefined,
+    chartType: SavedChartType | string | undefined,
 ) => {
     switch (chartType) {
         case 'big_number':
