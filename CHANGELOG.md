@@ -1,3 +1,10 @@
+## [0.29.1](https://github.com/lightdash/lightdash/compare/0.29.0...0.29.1) (2022-03-01)
+
+
+### Bug Fixes
+
+* fix SQL in jaffle shop example ([#1477](https://github.com/lightdash/lightdash/issues/1477)) ([ee74544](https://github.com/lightdash/lightdash/commit/ee74544e01f127dfa5d15d940adab41839d412c9))
+
 # [0.29.0](https://github.com/lightdash/lightdash/compare/0.28.2...0.29.0) (2022-02-28)
 
 
