@@ -185,7 +185,7 @@ projectRouter.post(
     unauthorisedInDemo,
     async (req, res, next) => {
         savedChartsService
-            .create(req.user!, req.params.projectUuid, req.body.savedQuery)
+            .create(req.user!, req.params.projectUuid, req.body)
             .then((results) => {
                 res.json({
                     status: 'ok',

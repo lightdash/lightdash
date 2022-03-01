@@ -64,7 +64,7 @@ savedChartRouter.patch(
     unauthorisedInDemo,
     async (req, res, next) => {
         savedChartsService
-            .update(req.user!, req.params.savedQueryUuid, req.body.savedQuery)
+            .update(req.user!, req.params.savedQueryUuid, req.body)
             .then((results) => {
                 res.json({
                     status: 'ok',
@@ -81,11 +81,7 @@ savedChartRouter.post(
     unauthorisedInDemo,
     async (req, res, next) => {
         savedChartsService
-            .createVersion(
-                req.user!,
-                req.params.savedQueryUuid,
-                req.body.savedQuery,
-            )
+            .createVersion(req.user!, req.params.savedQueryUuid, req.body)
             .then((results) => {
                 res.json({
                     status: 'ok',

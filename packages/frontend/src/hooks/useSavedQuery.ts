@@ -1,21 +1,201 @@
 import {
     ApiError,
-    CreateSavedQuery,
-    CreateSavedQueryVersion,
-    SavedQuery,
-    UpdateSavedQuery,
+    CartesianSeriesType,
+    ChartConfig,
+    CreateSavedChart,
+    CreateSavedChartVersion,
+    DBChartTypes,
+    MetricQuery,
+    SavedChart,
+    UpdateSavedChart,
 } from 'common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 
-const createSavedQuery = async (projectUuid: string, data: CreateSavedQuery) =>
-    lightdashApi<SavedQuery>({
+// Temporary types
+type ValidSeriesLayout = {
+    xDimension: string;
+    yMetrics: string[];
+    groupDimension: string | undefined;
+};
+type SeriesLayout = Partial<ValidSeriesLayout>;
+
+export type SavedQuery = {
+    uuid: string;
+    projectUuid: string;
+    name: string;
+    tableName: string;
+    metricQuery: MetricQuery;
+    chartConfig: {
+        chartType: DBChartTypes;
+        seriesLayout: SeriesLayout;
+    };
+    tableConfig: {
+        columnOrder: string[];
+    };
+    updatedAt: Date;
+};
+
+type CreateSavedQuery = Omit<SavedQuery, 'uuid' | 'updatedAt'>;
+
+export type CreateSavedQueryVersion = Omit<
+    SavedQuery,
+    'uuid' | 'name' | 'updatedAt' | 'projectUuid'
+>;
+
+type UpdateSavedQuery = Pick<SavedQuery, 'name'>;
+
+const v1ToV2ChartConfig = (
+    data: Pick<SavedQuery, 'chartConfig'>,
+): Pick<SavedChart, 'chartConfig' | 'pivotConfig'> => {
+    const pivotConfig = data.chartConfig.seriesLayout.groupDimension
+        ? { columns: [data.chartConfig.seriesLayout.groupDimension] }
+        : undefined;
+    let convertedChartType: ChartConfig['type'] = 'cartesian';
+    let convertedChartConfig: ChartConfig['config'] | undefined;
+    switch (data.chartConfig.chartType) {
+        case DBChartTypes.BIG_NUMBER:
+            convertedChartType = 'big_number';
+            convertedChartConfig = undefined;
+            break;
+        case DBChartTypes.TABLE:
+            convertedChartType = 'table';
+            convertedChartConfig = undefined;
+            break;
+        case DBChartTypes.COLUMN:
+        case DBChartTypes.LINE:
+        case DBChartTypes.SCATTER:
+        case DBChartTypes.BAR:
+            convertedChartType = 'cartesian';
+            const { xDimension } = data.chartConfig.seriesLayout;
+            let cartesianType: CartesianSeriesType;
+            switch (data.chartConfig.chartType) {
+                case DBChartTypes.BAR:
+                case DBChartTypes.COLUMN:
+                    cartesianType = CartesianSeriesType.BAR;
+                    break;
+                case DBChartTypes.SCATTER:
+                    cartesianType = CartesianSeriesType.SCATTER;
+                    break;
+                case DBChartTypes.LINE:
+                    cartesianType = CartesianSeriesType.LINE;
+                    break;
+                default:
+                    const never: never = data.chartConfig.chartType;
+            }
+            if (xDimension && data.chartConfig.seriesLayout.yMetrics) {
+                convertedChartConfig = {
+                    series: data.chartConfig.seriesLayout.yMetrics.map(
+                        (yField) => ({
+                            xField: xDimension,
+                            yField,
+                            type: cartesianType,
+                            flipAxes:
+                                data.chartConfig.chartType === DBChartTypes.BAR,
+                        }),
+                    ),
+                };
+            } else {
+                convertedChartConfig = { series: [] };
+            }
+            break;
+        default:
+            const never: never = data.chartConfig.chartType;
+    }
+    return {
+        chartConfig: {
+            type: convertedChartType,
+            config: convertedChartConfig,
+        } as ChartConfig,
+        ...(pivotConfig ? { pivotConfig } : {}),
+    };
+};
+
+const v2ToV1 = (chart: SavedChart): SavedQuery => {
+    const groupDimension = chart.pivotConfig
+        ? chart.pivotConfig.columns[0]
+        : undefined;
+    let xDimension: string | undefined;
+    let yMetrics: string[] = [];
+    let chartType: DBChartTypes = DBChartTypes.LINE;
+    const initialType = chart.chartConfig.type;
+    switch (initialType) {
+        case 'big_number':
+            chartType = DBChartTypes.BIG_NUMBER;
+            break;
+        case 'table':
+            chartType = DBChartTypes.TABLE;
+            break;
+        case 'cartesian':
+            const chartConfig = chart.chartConfig.config;
+            if (!chartConfig?.series) {
+                chartType = DBChartTypes.LINE;
+            } else {
+                const [firstSeries] = chartConfig.series;
+                switch (firstSeries.type) {
+                    case CartesianSeriesType.BAR:
+                        chartType = firstSeries.flipAxes
+                            ? DBChartTypes.BAR
+                            : DBChartTypes.COLUMN;
+                        break;
+                    case CartesianSeriesType.LINE:
+                        chartType = DBChartTypes.LINE;
+                        break;
+                    case CartesianSeriesType.SCATTER:
+                        chartType = DBChartTypes.SCATTER;
+                        break;
+                    default:
+                        const never: never = firstSeries.type;
+                }
+                xDimension = firstSeries.xField;
+                yMetrics = chartConfig.series.map((item) => item.yField);
+            }
+            break;
+        default:
+            const never: never = initialType;
+    }
+    return {
+        uuid: chart.uuid,
+        projectUuid: chart.projectUuid,
+        name: chart.name,
+        tableName: chart.tableName,
+        updatedAt: chart.updatedAt,
+        metricQuery: chart.metricQuery,
+        chartConfig: {
+            chartType,
+            seriesLayout: {
+                xDimension,
+                groupDimension,
+                yMetrics,
+            },
+        },
+        tableConfig: chart.tableConfig,
+    };
+};
+
+const createSavedQuery = async (
+    projectUuid: string,
+    data: CreateSavedQuery,
+): Promise<SavedQuery> => {
+    const { pivotConfig, chartConfig } = v1ToV2ChartConfig(data);
+    const payload: CreateSavedChart = {
+        projectUuid: data.projectUuid,
+        name: data.name,
+        tableName: data.tableName,
+        pivotConfig,
+        tableConfig: data.tableConfig,
+        metricQuery: data.metricQuery,
+        chartConfig,
+    };
+    const chart = await lightdashApi<SavedChart>({
         url: `/projects/${projectUuid}/saved`,
         method: 'POST',
-        body: JSON.stringify({ savedQuery: data }),
+        body: JSON.stringify(payload),
     });
+    return v2ToV1(chart);
+};
 
 const deleteSavedQuery = async (id: string) =>
     lightdashApi<undefined>({
@@ -24,19 +204,29 @@ const deleteSavedQuery = async (id: string) =>
         body: undefined,
     });
 
-const updateSavedQuery = async (id: string, data: UpdateSavedQuery) =>
-    lightdashApi<SavedQuery>({
+const updateSavedQuery = async (
+    id: string,
+    data: UpdateSavedQuery,
+): Promise<SavedQuery> => {
+    const payload: UpdateSavedChart = {
+        name: data.name,
+    };
+    const chart = await lightdashApi<SavedChart>({
         url: `/saved/${id}`,
         method: 'PATCH',
-        body: JSON.stringify({ savedQuery: data }),
+        body: JSON.stringify(payload),
     });
+    return v2ToV1(chart);
+};
 
-const getSavedQuery = async (id: string) =>
-    lightdashApi<SavedQuery>({
+const getSavedQuery = async (id: string): Promise<SavedQuery> => {
+    const chart = await lightdashApi<SavedChart>({
         url: `/saved/${id}`,
         method: 'GET',
         body: undefined,
     });
+    return v2ToV1(chart);
+};
 
 const addVersionSavedQuery = async ({
     uuid,
@@ -44,12 +234,22 @@ const addVersionSavedQuery = async ({
 }: {
     uuid: string;
     data: CreateSavedQueryVersion;
-}) =>
-    lightdashApi<SavedQuery>({
+}): Promise<SavedQuery> => {
+    const { chartConfig, pivotConfig } = v1ToV2ChartConfig(data);
+    const payload: CreateSavedChartVersion = {
+        tableName: data.tableName,
+        chartConfig,
+        pivotConfig,
+        tableConfig: data.tableConfig,
+        metricQuery: data.metricQuery,
+    };
+    const chart = await lightdashApi<SavedChart>({
         url: `/saved/${uuid}/version`,
         method: 'POST',
-        body: JSON.stringify({ savedQuery: data }),
+        body: JSON.stringify(payload),
     });
+    return v2ToV1(chart);
+};
 
 interface Args {
     id?: string;
