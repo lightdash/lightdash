@@ -14,10 +14,7 @@ export const PanelTitleWrapper = styled.div`
 `;
 
 export const ContentWrapper = styled.div`
-    display: flex;
+    display: inline-flex;
+    align-items: center;
     justify-content: space-between;
-`;
-
-export const TableTitle = styled.p`
-    padding: 0.625em;
 `;
