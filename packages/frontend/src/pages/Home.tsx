@@ -1,86 +1,20 @@
-import { Colors, H3, NonIdealState, Spinner, Toaster } from '@blueprintjs/core';
-import { IncompleteOnboarding } from 'common';
+import { NonIdealState, Spinner } from '@blueprintjs/core';
 import React, { FC } from 'react';
-import { useToggle, useUnmount } from 'react-use';
+import { useUnmount } from 'react-use';
 import { OpenChatButton } from '../components/common/ChatBubble/OpenChatButton';
-import LinkButton from '../components/common/LinkButton';
 import Page from '../components/common/Page/Page';
-import LatestDashboards from '../components/Home/LatestDashboards/index';
-import LatestSavedCharts from '../components/Home/LatestSavedCharts';
-import SuccessfulOnboarding from '../components/Home/SuccessfulOnboarding';
-import OnboardingSteps from '../components/OnboardingSteps';
+import LandingPanel from '../components/Home/LandingPanel';
+import OnboardingPanel from '../components/Home/OnboardingPanel/index';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import { useDefaultProject } from '../hooks/useProjects';
 import { useApp } from '../providers/AppProvider';
 
-const OnboardingPage: FC<{
-    status: IncompleteOnboarding;
-    projectUuid: string;
-}> = ({ status, projectUuid }) => (
-    <div style={{ width: 570, paddingTop: 60 }}>
-        <H3 style={{ textAlign: 'center', marginBottom: 15 }}>
-            Welcome to Lightdash! 🎉
-        </H3>
-        <p
-            style={{
-                textAlign: 'center',
-                marginBottom: 35,
-                color: Colors.GRAY1,
-            }}
-        >
-            Let&apos;s get started with the basics to get you up and running:
-        </p>
-        <OnboardingSteps status={status} projectUuid={projectUuid} />
-    </div>
-);
-
-const LandingPage: FC<{ projectUuid: string }> = ({ projectUuid }) => {
-    const { user } = useApp();
-
-    return (
-        <div style={{ width: 768, paddingTop: 60 }}>
-            <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginBottom: 35,
-                }}
-            >
-                <div style={{ flex: 1 }}>
-                    <H3 style={{ marginBottom: 15 }}>
-                        Welcome, {user.data?.firstName}! ⚡
-                    </H3>
-                    <p
-                        style={{
-                            color: Colors.GRAY1,
-                        }}
-                    >
-                        Run a query to ask a business question or browse your
-                        data below:
-                    </p>
-                </div>
-                <LinkButton
-                    style={{ height: 40 }}
-                    href={`/projects/${projectUuid}/tables`}
-                    intent="primary"
-                    icon="series-search"
-                >
-                    Run a query
-                </LinkButton>
-            </div>
-            <LatestDashboards projectUuid={projectUuid} />
-            <LatestSavedCharts projectUuid={projectUuid} />
-        </div>
-    );
-};
-
 const Home: FC = () => {
-    const [dismissedSuccess, toggleDismissedSuccess] = useToggle(false);
     const onboarding = useOnboardingStatus();
     const project = useDefaultProject();
     const isLoading = onboarding.isLoading || project.isLoading;
     const error = onboarding.error || project.error;
-
+    const { user } = useApp();
     useUnmount(() => onboarding.remove());
 
     if (isLoading) {
@@ -110,24 +44,22 @@ const Home: FC = () => {
             </div>
         );
     }
+
     return (
         <Page>
-            <Toaster position="top">
-                {onboarding.data?.isComplete &&
-                    onboarding.data.showSuccess &&
-                    !dismissedSuccess && (
-                        <SuccessfulOnboarding
-                            onDismiss={toggleDismissedSuccess}
-                        />
-                    )}
-            </Toaster>
-            {!onboarding.data.isComplete ? (
-                <OnboardingPage
-                    status={onboarding.data}
+            {!onboarding.data.isComplete && !onboarding.data.ranQuery ? (
+                <OnboardingPanel
                     projectUuid={project.data.projectUuid}
+                    userName={user.data?.firstName}
                 />
             ) : (
-                <LandingPage projectUuid={project.data.projectUuid} />
+                <LandingPanel
+                    hasSavedChart={
+                        onboarding.data.isComplete || onboarding.data.savedChart
+                    }
+                    userName={user.data?.firstName}
+                    projectUuid={project.data.projectUuid}
+                />
             )}
             <OpenChatButton />
         </Page>
