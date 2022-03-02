@@ -27,25 +27,20 @@ const getItemColor = (item: Item) =>
             : Colors.ORANGE1
         : Colors.GREEN1;
 
-const renderItem: ItemRenderer<Item> = (field, { modifiers, handleClick }) => {
+const renderItem: ItemRenderer<Item> = (item, { modifiers, handleClick }) => {
     if (!modifiers.matchesPredicate) {
         return null;
     }
     return (
         <MenuItem
             active={modifiers.active}
-            key={getItemId(field)}
-            icon={
-                <Icon icon={getItemIcon(field)} color={getItemColor(field)} />
-            }
+            key={getItemId(item)}
+            icon={<Icon icon={getItemIcon(item)} color={getItemColor(item)} />}
             text={
-                isField(field) ? (
-                    <span>
-                        {field.tableLabel} <b>{field.label}</b>
-                    </span>
-                ) : (
-                    <b>{field.displayName}</b>
-                )
+                <span>
+                    {isField(item) ? `${item.tableLabel} ` : ''}
+                    <b>{isField(item) ? item.label : item.displayName}</b>
+                </span>
             }
             onClick={handleClick}
             shouldDismissPopover={false}
@@ -57,7 +52,7 @@ type Props = {
     disabled?: boolean;
     autoFocus?: boolean;
     activeField?: Item;
-    fields: Item[];
+    fields: Array<Item>;
     onChange: (value: Item) => void;
     onClosed?: () => void;
 };
