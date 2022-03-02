@@ -1,15 +1,13 @@
-import { SpaceQuery } from 'common';
+import { CreateSavedChartVersion, SpaceQuery } from 'common';
+
 import React, { FC } from 'react';
-import {
-    CreateSavedQueryVersion,
-    useCreateMutation,
-} from '../../hooks/useSavedQuery';
+import { useCreateMutation } from '../../hooks/useSavedQuery';
 import { ActionModalProps } from '../common/modal/ActionModal';
 import CreateActionModal from '../common/modal/CreateActionModal';
 
 interface CreateSavedQueryModalProps {
     isOpen: boolean;
-    savedData: CreateSavedQueryVersion;
+    savedData: CreateSavedChartVersion;
     ModalContent: (
         props: Pick<
             ActionModalProps<SpaceQuery>,

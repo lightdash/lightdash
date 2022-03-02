@@ -1,20 +1,31 @@
 import { Button } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { DBChartTypes } from 'common';
+import { CartesianSeriesType, ChartType } from 'common';
 import React, { FC } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const VisualizationCardOptions: FC = () => {
-    const { chartType, setChartType, chartConfig } = useVisualizationContext();
-    const disabled = !chartConfig?.plotData;
+    const { chartType, setChartType, isLoading, plotData, cartesianConfig } =
+        useVisualizationContext();
+    const disabled = isLoading || plotData.length <= 0;
+    const cartesianType = cartesianConfig.dirtyConfig?.series[0]?.type;
+    const cartesianFlipAxis = cartesianConfig.dirtyConfig?.series[0]?.flipAxes;
+
     return (
         <>
             <Tooltip2 content="Column" placement="top" interactionKind="hover">
                 <Button
                     minimal
-                    active={chartType === DBChartTypes.COLUMN}
+                    active={
+                        chartType === ChartType.CARTESIAN &&
+                        cartesianType === CartesianSeriesType.BAR &&
+                        !cartesianFlipAxis
+                    }
                     icon="timeline-bar-chart"
-                    onClick={() => setChartType(DBChartTypes.COLUMN)}
+                    onClick={() => {
+                        setChartType(ChartType.CARTESIAN);
+                        cartesianConfig.setType(CartesianSeriesType.BAR, false);
+                    }}
                     disabled={disabled}
                     name="Column"
                 />
@@ -22,9 +33,16 @@ const VisualizationCardOptions: FC = () => {
             <Tooltip2 content="Bar" placement="top" interactionKind="hover">
                 <Button
                     minimal
-                    active={chartType === DBChartTypes.BAR}
+                    active={
+                        chartType === ChartType.CARTESIAN &&
+                        cartesianType === CartesianSeriesType.BAR &&
+                        cartesianFlipAxis
+                    }
                     icon="horizontal-bar-chart"
-                    onClick={() => setChartType(DBChartTypes.BAR)}
+                    onClick={() => {
+                        setChartType(ChartType.CARTESIAN);
+                        cartesianConfig.setType(CartesianSeriesType.BAR, true);
+                    }}
                     disabled={disabled}
                     name="Bar"
                 />
@@ -32,9 +50,18 @@ const VisualizationCardOptions: FC = () => {
             <Tooltip2 content="Line" placement="top" interactionKind="hover">
                 <Button
                     minimal
-                    active={chartType === DBChartTypes.LINE}
+                    active={
+                        chartType === ChartType.CARTESIAN &&
+                        cartesianType === CartesianSeriesType.LINE
+                    }
                     icon="timeline-line-chart"
-                    onClick={() => setChartType(DBChartTypes.LINE)}
+                    onClick={() => {
+                        setChartType(ChartType.CARTESIAN);
+                        cartesianConfig.setType(
+                            CartesianSeriesType.LINE,
+                            false,
+                        );
+                    }}
                     disabled={disabled}
                     name="Line"
                 />
@@ -42,9 +69,18 @@ const VisualizationCardOptions: FC = () => {
             <Tooltip2 content="Scatter" placement="top" interactionKind="hover">
                 <Button
                     minimal
-                    active={chartType === DBChartTypes.SCATTER}
+                    active={
+                        chartType === ChartType.CARTESIAN &&
+                        cartesianType === CartesianSeriesType.SCATTER
+                    }
                     icon="scatter-plot"
-                    onClick={() => setChartType(DBChartTypes.SCATTER)}
+                    onClick={() => {
+                        setChartType(ChartType.CARTESIAN);
+                        cartesianConfig.setType(
+                            CartesianSeriesType.SCATTER,
+                            false,
+                        );
+                    }}
                     disabled={disabled}
                     name="Scatter"
                 />
@@ -52,9 +88,11 @@ const VisualizationCardOptions: FC = () => {
             <Tooltip2 content="Table" placement="top" interactionKind="hover">
                 <Button
                     minimal
-                    active={chartType === DBChartTypes.TABLE}
+                    active={chartType === ChartType.TABLE}
                     icon="panel-table"
-                    onClick={() => setChartType(DBChartTypes.TABLE)}
+                    onClick={() => {
+                        setChartType(ChartType.TABLE);
+                    }}
                     disabled={disabled}
                     name="Table"
                 />
@@ -66,9 +104,11 @@ const VisualizationCardOptions: FC = () => {
             >
                 <Button
                     minimal
-                    active={chartType === DBChartTypes.BIG_NUMBER}
+                    active={chartType === ChartType.BIG_NUMBER}
                     icon="numerical"
-                    onClick={() => setChartType(DBChartTypes.BIG_NUMBER)}
+                    onClick={() => {
+                        setChartType(ChartType.BIG_NUMBER);
+                    }}
                     disabled={disabled}
                     name="Big Number"
                 />

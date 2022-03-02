@@ -1,4 +1,8 @@
-import { DashboardTileTypes, getDefaultChartTileSize } from 'common';
+import {
+    DashboardTileTypes,
+    getDefaultChartTileSize,
+    SavedChart,
+} from 'common';
 import React, { FC, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
@@ -7,7 +11,6 @@ import {
     useUpdateDashboard,
 } from '../../hooks/dashboard/useDashboard';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
-import { SavedQuery } from '../../hooks/useSavedQuery';
 import ActionModal, {
     ActionModalProps,
     ActionTypeModal,
@@ -51,7 +54,7 @@ const useUpdateMutation = (id?: string) => {
 };
 
 interface Props {
-    savedChart: SavedQuery;
+    savedChart: SavedChart;
     onClose?: () => void;
 }
 
@@ -85,9 +88,7 @@ const AddTilesToDashboardModal: FC<Props> = ({ savedChart, onClose }) => {
                         properties: {
                             savedChartUuid: savedChart.uuid,
                         },
-                        ...getDefaultChartTileSize(
-                            savedChart.chartConfig.chartType,
-                        ),
+                        ...getDefaultChartTileSize(savedChart.chartConfig.type),
                     },
                 ],
                 filters: data.filters,

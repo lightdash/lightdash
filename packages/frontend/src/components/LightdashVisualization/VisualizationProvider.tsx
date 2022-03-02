@@ -1,4 +1,4 @@
-import { ApiQueryResults, DBChartTypes, Explore, SavedQuery } from 'common';
+import { ApiQueryResults, ChartConfig, ChartType, Explore } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, {
     createContext,
@@ -8,76 +8,103 @@ import React, {
     useContext,
     useEffect,
     useRef,
-    useState,
 } from 'react';
-import { ChartConfig } from '../../hooks/useChartConfig';
+import useCartesianChartConfig from '../../hooks/useCartesianChartConfig';
 import { useExplore } from '../../hooks/useExplore';
+import useFormattedAndPlottedData from '../../hooks/useFormattedAndPlottedData';
+import usePivotDimensions from '../../hooks/usePivotDimensions';
+
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
 type VisualizationContext = {
     chartRef: RefObject<EChartsReact>;
-    chartType: DBChartTypes;
-    seriesLayout: SavedQuery['chartConfig']['seriesLayout'] | undefined;
-    chartConfig: ChartConfig | undefined;
+    chartType: ChartType;
+    cartesianConfig: ReturnType<typeof useCartesianChartConfig>;
+    pivotDimensions: string[] | undefined;
     explore: Explore | undefined;
+    formattedData: ApiQueryResults['rows'];
+    plotData: ApiQueryResults['rows'];
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
-    setChartConfig: (value: ChartConfig | undefined) => void;
-    setChartType: (value: DBChartTypes) => void;
+    setChartType: (value: ChartType) => void;
+    setPivotDimensions: (value: string[] | undefined) => void;
 };
 
 const Context = createContext<VisualizationContext | undefined>(undefined);
 
 type Props = {
-    chartType: DBChartTypes;
-    seriesLayout: SavedQuery['chartConfig']['seriesLayout'] | undefined;
+    chartType: ChartType;
+    chartConfigs: ChartConfig['config'];
+    pivotDimensions: string[] | undefined;
     tableName: string | undefined;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
-    onSeriesLayoutChange?: (
-        value: SavedQuery['chartConfig']['seriesLayout'] | undefined,
-    ) => void;
-    onChartTypeChange?: (value: DBChartTypes) => void;
+    onChartConfigChange?: (value: ChartConfig['config'] | undefined) => void;
+    onChartTypeChange?: (value: ChartType) => void;
+    onPivotDimensionsChange?: (value: string[] | undefined) => void;
 };
 
 export const VisualizationProvider: FC<Props> = ({
-    seriesLayout,
+    chartConfigs,
     chartType,
+    pivotDimensions,
+
     tableName,
     resultsData,
     isLoading,
     onSeriesContextMenu,
-    onSeriesLayoutChange,
+    onChartConfigChange,
     onChartTypeChange,
+    onPivotDimensionsChange,
     children,
 }) => {
     const chartRef = useRef<EChartsReact>(null);
-    const explore = useExplore(tableName);
-    const [chartConfig, setChartConfig] = useState<ChartConfig>();
-
-    useEffect(() => {
-        onSeriesLayoutChange?.(chartConfig?.seriesLayout);
-    }, [chartConfig, onSeriesLayoutChange]);
+    const { data: explore } = useExplore(tableName);
+    const { validPivotDimensions, setPivotDimensions } = usePivotDimensions(
+        pivotDimensions,
+        resultsData,
+    );
+    const cartesianConfig = useCartesianChartConfig(chartConfigs, resultsData);
+    const { validConfig } = cartesianConfig;
+    const [formattedData, plotData] = useFormattedAndPlottedData(
+        explore,
+        validConfig,
+        resultsData,
+        validPivotDimensions,
+    );
 
     const setChartType = useCallback(
-        (value: DBChartTypes) => onChartTypeChange?.(value),
+        (value: ChartType) => {
+            onChartTypeChange?.(value);
+        },
         [onChartTypeChange],
     );
+
+    useEffect(() => {
+        onChartConfigChange?.(validConfig);
+    }, [validConfig, onChartConfigChange]);
+
+    useEffect(() => {
+        onPivotDimensionsChange?.(validPivotDimensions);
+    }, [validPivotDimensions, onPivotDimensionsChange]);
+
     return (
         <Context.Provider
             value={{
-                seriesLayout,
-                chartConfig,
+                pivotDimensions: validPivotDimensions,
+                cartesianConfig,
                 chartRef,
                 chartType,
-                explore: explore.data,
+                explore,
+                formattedData,
+                plotData,
                 resultsData,
                 isLoading,
                 onSeriesContextMenu,
-                setChartConfig,
                 setChartType,
+                setPivotDimensions,
             }}
         >
             {children}

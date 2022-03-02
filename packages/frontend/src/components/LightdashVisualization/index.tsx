@@ -1,4 +1,5 @@
-import { DBChartTypes } from 'common';
+import { ChartType } from 'common';
+
 import React, { FC } from 'react';
 import SimpleChart from '../SimpleChart';
 import SimpleStatistic from '../SimpleStatistic';
@@ -10,14 +11,11 @@ const LightdashVisualization: FC = () => {
 
     const renderType = () => {
         switch (chartType) {
-            case DBChartTypes.BIG_NUMBER:
+            case ChartType.BIG_NUMBER:
                 return <SimpleStatistic />;
-            case DBChartTypes.TABLE:
+            case ChartType.TABLE:
                 return <SimpleTable />;
-            case DBChartTypes.COLUMN:
-            case DBChartTypes.LINE:
-            case DBChartTypes.SCATTER:
-            case DBChartTypes.BAR:
+            case ChartType.CARTESIAN:
                 return <SimpleChart />;
             default:
                 return null;

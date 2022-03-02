@@ -2,14 +2,15 @@ import { Button, Colors, Divider, Tag } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     addFilterRule,
+    Field,
     FilterableDimension,
-    FilterableField,
     FilterRule,
     Filters,
     getFilterRulesByFieldType,
     getTotalFilterRules,
     isDimension,
     isField,
+    isFilterableField,
     isMetric,
     Metric,
     TableCalculation,
@@ -54,8 +55,8 @@ const FiltersForm: FC<Props> = ({ filters, setFilters }) => {
         filterRulesPerFieldType.metrics.length >= 1;
 
     const addFieldRule = useCallback(
-        (field: FilterableField | TableCalculation) => {
-            if (isField(field)) {
+        (field: Field | TableCalculation) => {
+            if (isField(field) && isFilterableField(field)) {
                 setFilters(addFilterRule({ filters, field }), false);
                 toggleFieldInput(false);
             }

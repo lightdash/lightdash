@@ -1,16 +1,10 @@
 import { Colors, Icon, MenuItem } from '@blueprintjs/core';
 import { ItemRenderer, Suggest } from '@blueprintjs/select';
-import {
-    fieldId as getFieldId,
-    FilterableField,
-    isDimension,
-    isField,
-    TableCalculation,
-} from 'common';
+import { Field, fieldId, isDimension, isField, TableCalculation } from 'common';
 import React, { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
 
-type Item = FilterableField | TableCalculation;
+type Item = Field | TableCalculation;
 
 const FieldSuggest = Suggest.ofType<Item>();
 
@@ -21,8 +15,17 @@ const AutocompleteMaxHeight = createGlobalStyle`
   }
 `;
 
-const getItemId = (item: Item) =>
-    isField(item) ? getFieldId(item) : item.name;
+const getItemId = (item: Item) => (isField(item) ? fieldId(item) : item.name);
+const getItemLabel = (item: Item) =>
+    isField(item) ? `${item.tableLabel} ${item.label}` : item.displayName;
+const getItemIcon = (item: Item) =>
+    isField(item) ? (isDimension(item) ? 'tag' : 'numerical') : 'function';
+const getItemColor = (item: Item) =>
+    isField(item)
+        ? isDimension(item)
+            ? Colors.BLUE1
+            : Colors.ORANGE1
+        : Colors.GREEN1;
 
 const renderItem: ItemRenderer<Item> = (item, { modifiers, handleClick }) => {
     if (!modifiers.matchesPredicate) {
@@ -32,24 +35,7 @@ const renderItem: ItemRenderer<Item> = (item, { modifiers, handleClick }) => {
         <MenuItem
             active={modifiers.active}
             key={getItemId(item)}
-            icon={
-                <Icon
-                    icon={
-                        isField(item)
-                            ? isDimension(item)
-                                ? 'tag'
-                                : 'numerical'
-                            : 'function'
-                    }
-                    color={
-                        isField(item)
-                            ? isDimension(item)
-                                ? Colors.BLUE1
-                                : Colors.ORANGE1
-                            : Colors.GREEN1
-                    }
-                />
-            }
+            icon={<Icon icon={getItemIcon(item)} color={getItemColor(item)} />}
             text={
                 <span>
                     {isField(item) ? `${item.tableLabel} ` : ''}
@@ -89,20 +75,8 @@ const FieldAutoComplete: FC<Props> = ({
                 placeholder: 'Search field...',
                 leftIcon: activeField && (
                     <Icon
-                        icon={
-                            isField(activeField)
-                                ? isDimension(activeField)
-                                    ? 'tag'
-                                    : 'numerical'
-                                : 'function'
-                        }
-                        color={
-                            isField(activeField)
-                                ? isDimension(activeField)
-                                    ? Colors.BLUE1
-                                    : Colors.ORANGE1
-                                : Colors.GREEN1
-                        }
+                        icon={getItemIcon(activeField)}
+                        color={getItemColor(activeField)}
                     />
                 ),
             }}
@@ -112,9 +86,7 @@ const FieldAutoComplete: FC<Props> = ({
                 if (!activeField) {
                     return '';
                 }
-                return isField(item)
-                    ? `${item.tableLabel} ${item.label}`
-                    : item.displayName;
+                return getItemLabel(item);
             }}
             popoverProps={{
                 minimal: true,
@@ -131,9 +103,7 @@ const FieldAutoComplete: FC<Props> = ({
                 index?: undefined | number,
                 exactMatch?: undefined | false | true,
             ) => {
-                const label = isField(item)
-                    ? `${item.tableLabel} ${item.label}`
-                    : item.displayName;
+                const label = getItemLabel(item);
                 if (exactMatch) {
                     return query.toLowerCase() === label.toLowerCase();
                 }
