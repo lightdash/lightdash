@@ -203,7 +203,7 @@ const Dashboard = () => {
                         </div>
                     ))}
                 </ResponsiveGridLayout>
-                {dashboardTiles.length <= 0 && isEditMode && (
+                {dashboardTiles.length <= 0 && (
                     <EmptyStateNoTiles onAddTile={onAddTile} />
                 )}
             </Page>
