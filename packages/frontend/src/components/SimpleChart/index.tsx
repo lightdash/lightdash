@@ -1,8 +1,8 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, useCallback, useEffect } from 'react';
+import useEcharts from '../../hooks/useEcharts';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import useEcharts from './useEcharts';
 
 type EchartBaseClickEvent = {
     // The component name clicked,

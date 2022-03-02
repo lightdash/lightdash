@@ -11,8 +11,8 @@ import {
     MetricType,
 } from 'common';
 import { useMemo } from 'react';
-import { getPivotedDimension } from '../../hooks/useFormattedAndPlottedData';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../components/LightdashVisualization/VisualizationProvider';
+import { getPivotedDimension } from './useFormattedAndPlottedData';
 
 const getAxisTypeFromField = (field: Field | undefined): string => {
     if (!field) {
