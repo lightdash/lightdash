@@ -52,9 +52,9 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
                 </PanelTitleWrapper>
                 <Divider />
                 <ContentWrapper>
-                <p>
-                    <b>Table</b>: {tableName}
-                </p>
+                    <p>
+                        <b>Table</b>: {tableName}
+                    </p>
                     <LineageButton />
                 </ContentWrapper>
                 <p>
