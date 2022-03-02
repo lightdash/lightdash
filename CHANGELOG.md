@@ -1,3 +1,10 @@
+## [0.29.3](https://github.com/lightdash/lightdash/compare/0.29.2...0.29.3) (2022-03-02)
+
+
+### Bug Fixes
+
+* **onboarding:** simplify onboarding page ([#1474](https://github.com/lightdash/lightdash/issues/1474)) ([e36d10c](https://github.com/lightdash/lightdash/commit/e36d10c9377fccba383ef83c7c55c4d3db6ab76d))
+
 ## [0.29.2](https://github.com/lightdash/lightdash/compare/0.29.1...0.29.2) (2022-03-02)
 
 
