@@ -67,6 +67,20 @@ export const hasIntersection = (tags: string[], tags2: string[]): boolean => {
     return intersection.length > 0;
 };
 
+export const toggleArrayValue = (
+    initialArray: string[],
+    value: string,
+): string[] => {
+    const array = [...initialArray];
+    const index = array.indexOf(value);
+    if (index === -1) {
+        array.push(value);
+    } else {
+        array.splice(index, 1);
+    }
+    return array;
+};
+
 export type SqlResultsRow = { [columnName: string]: any };
 export type SqlResultsField = { name: string; type: string }; // TODO: standardise column types
 export type SqlQueryResults = {

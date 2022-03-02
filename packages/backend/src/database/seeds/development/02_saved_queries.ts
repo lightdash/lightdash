@@ -1,4 +1,4 @@
-import { CartesianSeriesType, SEED_PROJECT } from 'common';
+import { CartesianSeriesType, ChartType, SEED_PROJECT } from 'common';
 import { Knex } from 'knex';
 import { savedChartModel } from '../../../models/models';
 
@@ -27,7 +27,7 @@ export async function seed(knex: Knex): Promise<void> {
             tableCalculations: [],
         },
         chartConfig: {
-            type: 'cartesian',
+            type: ChartType.CARTESIAN,
             config: {
                 series: [
                     {
@@ -66,7 +66,7 @@ export async function seed(knex: Knex): Promise<void> {
             tableCalculations: [],
         },
         chartConfig: {
-            type: 'cartesian',
+            type: ChartType.CARTESIAN,
             config: {
                 series: [
                     {
@@ -106,7 +106,7 @@ export async function seed(knex: Knex): Promise<void> {
             ],
         },
         chartConfig: {
-            type: 'cartesian',
+            type: ChartType.CARTESIAN,
             config: {
                 series: [
                     {

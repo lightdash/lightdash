@@ -1,4 +1,10 @@
-import { FieldId, MetricQuery, SortField, TableCalculation } from 'common';
+import {
+    FieldId,
+    MetricQuery,
+    SortField,
+    TableCalculation,
+    toggleArrayValue,
+} from 'common';
 import React, {
     createContext,
     FC,
@@ -113,17 +119,6 @@ interface ExplorerContext {
         deleteTableCalculation: (name: string) => void;
     };
 }
-
-const toggleArrayValue = (initialArray: string[], value: string): string[] => {
-    const array = [...initialArray];
-    const index = array.indexOf(value);
-    if (index === -1) {
-        array.push(value);
-    } else {
-        array.splice(index, 1);
-    }
-    return array;
-};
 
 const Context = createContext<ExplorerContext>(undefined as any);
 

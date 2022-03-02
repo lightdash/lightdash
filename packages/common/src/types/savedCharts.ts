@@ -1,12 +1,18 @@
 import { MetricQuery } from './metricQuery';
 
+export enum ChartType {
+    CARTESIAN = 'cartesian',
+    TABLE = 'table',
+    BIG_NUMBER = 'big_number',
+}
+
 type BigNumberConfig = {
-    type: 'big_number';
+    type: ChartType.BIG_NUMBER;
     config: undefined;
 };
 
 type TableChartConfig = {
-    type: 'table';
+    type: ChartType.TABLE;
     config: undefined;
 };
 
@@ -16,18 +22,18 @@ export enum CartesianSeriesType {
     SCATTER = 'scatter',
 }
 
-type Series = {
+export type Series = {
     xField: string;
     yField: string;
     type: CartesianSeriesType;
     flipAxes?: boolean | undefined;
 };
 
-type CartesianChart = {
+export type CartesianChart = {
     series: Series[];
 };
 export type CartesianChartConfig = {
-    type: 'cartesian';
+    type: ChartType.CARTESIAN;
     config: CartesianChart;
 };
 
@@ -36,16 +42,7 @@ export type ChartConfig =
     | TableChartConfig
     | CartesianChartConfig;
 
-export type SavedChartType = ChartConfig['type'];
-
-export enum DBChartTypes {
-    COLUMN = 'column',
-    BAR = 'bar',
-    LINE = 'line',
-    SCATTER = 'scatter',
-    TABLE = 'table',
-    BIG_NUMBER = 'big_number',
-}
+export type SavedChartType = ChartType;
 
 export type SavedChart = {
     uuid: string;

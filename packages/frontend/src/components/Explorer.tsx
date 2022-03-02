@@ -10,15 +10,16 @@ import {
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import {
+    ChartConfig,
+    ChartType,
     countTotalFilterRules,
+    CreateSavedChartVersion,
     DashboardTileTypes,
-    DBChartTypes,
     DimensionType,
     fieldId,
     getDefaultChartTileSize,
     getFields,
     isFilterableField,
-    SavedQuery,
 } from 'common';
 import React, { FC, useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
@@ -26,7 +27,6 @@ import { v4 as uuid4 } from 'uuid';
 import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
 import {
-    CreateSavedQueryVersion,
     useAddVersionMutation,
     useSavedQuery,
     useUpdateMutation,
@@ -34,7 +34,6 @@ import {
 import { useExplorer } from '../providers/ExplorerProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
-import AddColumnButton from './AddColumnButton';
 import ChartConfigPanel from './ChartConfigPanel';
 import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
@@ -49,7 +48,6 @@ import { ExplorerResults } from './Explorer/ExplorerResults';
 import VisualizationCardOptions from './Explorer/VisualizationCardOptions';
 import LightdashVisualization from './LightdashVisualization';
 import VisualizationProvider from './LightdashVisualization/VisualizationProvider';
-import LimitButton from './LimitButton';
 import { RefreshButton } from './RefreshButton';
 import { RefreshServerButton } from './RefreshServerButton';
 import { RenderedSql } from './RenderedSql';
@@ -58,6 +56,8 @@ import CreateSavedDashboardModal from './SavedDashboards/CreateSavedDashboardMod
 import DashboardForm from './SavedDashboards/DashboardForm';
 import CreateSavedQueryModal from './SavedQueries/CreateSavedQueryModal';
 import SavedQueryForm from './SavedQueries/SavedQueryForm';
+import LimitButton from './LimitButton';
+import AddColumnButton from './AddColumnButton';
 
 interface Props {
     savedQueryUuid?: string;
@@ -90,9 +90,8 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const explore = useExplore(tableName);
     const queryResults = useQueryResults();
     const { data } = useSavedQuery({ id: savedQueryUuid });
-    const [seriesLayout, setSeriesLayout] = useState<
-        SavedQuery['chartConfig']['seriesLayout'] | undefined
-    >();
+    const [validChartConfig, setValidChartConfig] =
+        useState<ChartConfig['config']>();
 
     const update = useAddVersionMutation();
 
@@ -103,12 +102,12 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         !!savedQueryUuid && !location.state?.fromExplorer,
     );
     const totalActiveFilters: number = countTotalFilterRules(filters);
-    const [activeVizTab, setActiveVizTab] = useState<DBChartTypes>(
-        DBChartTypes.COLUMN,
+    const [activeVizTab, setActiveVizTab] = useState<ChartType>(
+        ChartType.CARTESIAN,
     );
-
-    const queryData: CreateSavedQueryVersion | undefined = tableName
-        ? {
+    const [pivotDimensions, setPivotDimensions] = useState<string[]>();
+    const queryData: CreateSavedChartVersion | undefined = tableName
+        ? ({
               tableName,
               metricQuery: {
                   dimensions,
@@ -120,14 +119,21 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                       selectedTableCalculations.includes(t.name),
                   ),
               },
+              pivotConfig: pivotDimensions
+                  ? { columns: pivotDimensions }
+                  : undefined,
               chartConfig: {
-                  chartType: activeVizTab,
-                  seriesLayout: seriesLayout || {},
+                  type: activeVizTab,
+                  config: [ChartType.TABLE, ChartType.BIG_NUMBER].includes(
+                      activeVizTab,
+                  )
+                      ? undefined
+                      : validChartConfig || { series: [] },
               },
               tableConfig: {
                   columnOrder,
               },
-          }
+          } as CreateSavedChartVersion)
         : undefined;
 
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
@@ -177,14 +183,14 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         if (savedQueryUuid && queryData) {
             update.mutate({
                 uuid: savedQueryUuid,
-                data: queryData,
+                payload: queryData,
             });
         }
     };
 
     useEffect(() => {
-        if (data?.chartConfig.chartType) {
-            setActiveVizTab(data.chartConfig.chartType);
+        if (data) {
+            setActiveVizTab(data.chartConfig.type);
         }
     }, [data]);
 
@@ -280,13 +286,15 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
 
             <Card style={{ padding: 5, overflowY: 'scroll' }} elevation={1}>
                 <VisualizationProvider
-                    seriesLayout={data?.chartConfig.seriesLayout}
+                    chartConfigs={data?.chartConfig.config}
                     chartType={activeVizTab}
+                    pivotDimensions={data?.pivotConfig?.columns}
                     tableName={tableName}
                     resultsData={queryResults.data}
                     isLoading={queryResults.isLoading}
-                    onSeriesLayoutChange={setSeriesLayout}
+                    onChartConfigChange={setValidChartConfig}
                     onChartTypeChange={setActiveVizTab}
+                    onPivotDimensionsChange={setPivotDimensions}
                 >
                     <div
                         style={{

@@ -8,7 +8,7 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import { DBChartTypes } from 'common';
+import { ChartType } from 'common';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { RefObject, useCallback, useState } from 'react';
@@ -101,7 +101,7 @@ function downloadPdf(base64: string, width: number, height: number) {
 
 type DownloadOptions = {
     chartRef: RefObject<EChartsReact>;
-    chartType: DBChartTypes;
+    chartType: ChartType;
     tableData: Record<string, any>[];
 };
 export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
@@ -115,7 +115,7 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
         state: { tableName: activeTableName },
     } = useExplorer();
 
-    const isTable = chartType === DBChartTypes.TABLE;
+    const isTable = chartType === ChartType.TABLE;
     const onDownload = useCallback(async () => {
         const echartsInstance = chartRef.current?.getEchartsInstance();
 
@@ -215,17 +215,17 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
 };
 
 export const ChartDownloadMenu: React.FC = () => {
-    const { chartRef, chartType, chartConfig } = useVisualizationContext();
+    const { chartRef, chartType, plotData } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
-    const disabled =
-        !chartConfig?.plotData || chartType === DBChartTypes.BIG_NUMBER;
+    const disabled = !plotData || chartType === ChartType.BIG_NUMBER;
+
     return (
         <Popover2
             content={
                 <ChartDownloadOptions
                     chartRef={chartRef}
                     chartType={chartType}
-                    tableData={chartConfig?.plotData || []}
+                    tableData={plotData || []}
                 />
             }
             popoverClassName={Classes.POPOVER2_CONTENT_SIZING}

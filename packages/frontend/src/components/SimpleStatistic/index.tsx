@@ -1,4 +1,5 @@
 import { NonIdealState } from '@blueprintjs/core';
+import { findFieldByIdInExplore, friendlyName, getFieldLabel } from 'common';
 import React, { FC } from 'react';
 import bigNumberConfig from '../../utils/bigNumberConfig';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -10,9 +11,16 @@ import {
 } from './SimpleStatistics.styles';
 
 const SimpleStatistic: FC = () => {
-    const { resultsData, chartConfig } = useVisualizationContext();
-    const label =
-        chartConfig?.metricOptions[0] && chartConfig?.metricOptions[0].label;
+    const { resultsData, explore } = useVisualizationContext();
+    const fieldId = resultsData?.metricQuery.metrics[0];
+    let label: string | undefined;
+    if (fieldId) {
+        const field = explore
+            ? findFieldByIdInExplore(explore, fieldId)
+            : undefined;
+        label = field ? getFieldLabel(field) : friendlyName(fieldId);
+    }
+
     const bigNumber = bigNumberConfig(resultsData);
     const validData = bigNumber && resultsData?.rows.length && label;
     return (

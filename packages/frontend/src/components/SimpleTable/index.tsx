@@ -10,8 +10,9 @@ import {
 } from './SimpleTable.styles';
 
 const SimpleTable: FC = () => {
-    const { resultsData } = useVisualizationContext();
-    const tableItems = resultsData ? resultsData.rows.slice(0, 25) : [];
+    const { plotData } = useVisualizationContext();
+    const tableItems = plotData ? plotData.slice(0, 25) : [];
+
     const { headers, rows } = mapDataToTable(tableItems);
     const validData = rows && headers;
     return (

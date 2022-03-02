@@ -1,16 +1,16 @@
 import { Button } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import { DBChartTypes } from 'common';
+import { ChartType } from 'common';
 import React, { useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import ChartConfigTabs from './ChartConfigTabs';
 
 export const ChartConfigPanel: React.FC = () => {
-    const { chartType, chartConfig } = useVisualizationContext();
+    const { chartType, plotData } = useVisualizationContext();
     const disabled =
-        !chartConfig?.plotData ||
-        chartType === DBChartTypes.BIG_NUMBER ||
-        chartType === DBChartTypes.TABLE;
+        !plotData ||
+        chartType === ChartType.BIG_NUMBER ||
+        chartType === ChartType.TABLE;
 
     const [isOpen, setIsOpen] = useState(false);
     return (

@@ -15,7 +15,21 @@ import { useVisualizationContext } from '../LightdashVisualization/Visualization
 import { FieldRow, InputWrapper, Wrapper } from './ChartConfigPanel.styles';
 
 const ChartConfigTabs: FC = () => {
-    const { explore, resultsData, chartConfig } = useVisualizationContext();
+    const {
+        explore,
+        resultsData,
+        cartesianConfig,
+        pivotDimensions,
+        setPivotDimensions,
+    } = useVisualizationContext();
+    const xField = cartesianConfig.dirtyConfig?.series[0]?.xField;
+    const yFields =
+        cartesianConfig.dirtyConfig?.series.reduce<string[]>(
+            (sum, { yField }) => (yField ? [...sum, yField] : sum),
+            [],
+        ) || [];
+    const pivotDimension = pivotDimensions?.[0];
+
     const [tab, setTab] = useState<string | number>('x-axis');
     const [isOpen, toggle] = useToggle(false);
 
@@ -26,14 +40,14 @@ const ChartConfigTabs: FC = () => {
         : [];
 
     const activeDimension = dimensionsInMetricQuery.find(
-        (field) => fieldId(field) === chartConfig?.seriesLayout.xDimension,
+        (field) => fieldId(field) === xField,
     );
 
     const metricsAndTableCalculations: Array<Metric | TableCalculation> =
         explore
             ? [
                   ...getMetrics(explore),
-                  ...(chartConfig?.tableCalculationOptions || []),
+                  ...(resultsData?.metricQuery.tableCalculations || []),
               ].filter((item) => {
                   if (isField(item)) {
                       return resultsData?.metricQuery.metrics.includes(
@@ -45,10 +59,7 @@ const ChartConfigTabs: FC = () => {
             : [];
 
     const yOptions = metricsAndTableCalculations.filter(
-        (item) =>
-            !chartConfig?.seriesLayout.yMetrics?.includes(
-                isField(item) ? fieldId(item) : item.name,
-            ),
+        (item) => !yFields.includes(isField(item) ? fieldId(item) : item.name),
     );
 
     const groupDimensionsInMetricQuery = explore
@@ -56,12 +67,12 @@ const ChartConfigTabs: FC = () => {
               (field) =>
                   resultsData?.metricQuery.dimensions.includes(
                       fieldId(field),
-                  ) && fieldId(field) !== chartConfig?.seriesLayout.xDimension,
+                  ) && fieldId(field) !== xField,
           )
         : [];
 
     const activeGroupDimension = groupDimensionsInMetricQuery.find(
-        (field) => fieldId(field) === chartConfig?.seriesLayout.groupDimension,
+        (field) => fieldId(field) === pivotDimension,
     );
 
     return (
@@ -81,7 +92,7 @@ const ChartConfigTabs: FC = () => {
                                 fields={dimensionsInMetricQuery}
                                 onChange={(field) => {
                                     if (isField(field)) {
-                                        chartConfig?.setXDimension(
+                                        cartesianConfig.setXField(
                                             fieldId(field),
                                         );
                                     }
@@ -95,55 +106,52 @@ const ChartConfigTabs: FC = () => {
                     title="Y-axis"
                     panel={
                         <InputWrapper label="Field(s)">
-                            {chartConfig?.seriesLayout.yMetrics?.map(
-                                (yFieldId) => {
-                                    const activeMetric =
-                                        metricsAndTableCalculations.find(
-                                            (item) =>
-                                                (isField(item)
-                                                    ? fieldId(item)
-                                                    : item.name) === yFieldId,
-                                        );
-                                    if (!activeMetric) {
-                                        return null;
-                                    }
-                                    return (
-                                        <FieldRow>
-                                            <FieldAutoComplete
-                                                disabled
-                                                activeField={activeMetric}
-                                                fields={yOptions}
-                                                onChange={() => undefined}
-                                            />
-                                            <Button
-                                                minimal
-                                                icon={'small-cross'}
-                                                disabled={
-                                                    chartConfig?.seriesLayout
-                                                        .yMetrics &&
-                                                    chartConfig?.seriesLayout
-                                                        .yMetrics?.length <= 1
-                                                }
-                                                onClick={() => {
-                                                    chartConfig?.toggleYMetric(
-                                                        yFieldId,
-                                                    );
-                                                }}
-                                            />
-                                        </FieldRow>
+                            {yFields.map((yFieldId) => {
+                                const activeMetric =
+                                    metricsAndTableCalculations.find(
+                                        (item) =>
+                                            (isField(item)
+                                                ? fieldId(item)
+                                                : item.name) === yFieldId,
                                     );
-                                },
-                            )}
+                                if (!activeMetric) {
+                                    return null;
+                                }
+                                return (
+                                    <FieldRow>
+                                        <FieldAutoComplete
+                                            disabled
+                                            activeField={activeMetric}
+                                            fields={yOptions}
+                                            onChange={() => undefined}
+                                        />
+                                        <Button
+                                            minimal
+                                            icon={'small-cross'}
+                                            disabled={yFields.length <= 1}
+                                            onClick={() => {
+                                                cartesianConfig.setYFields(
+                                                    yFields.filter(
+                                                        (value) =>
+                                                            value !== yFieldId,
+                                                    ),
+                                                );
+                                            }}
+                                        />
+                                    </FieldRow>
+                                );
+                            })}
                             {isOpen && (
                                 <FieldRow>
                                     <FieldAutoComplete
                                         fields={yOptions}
                                         onChange={(item) => {
-                                            chartConfig?.toggleYMetric(
+                                            cartesianConfig.setYFields([
+                                                ...yFields,
                                                 isField(item)
                                                     ? fieldId(item)
                                                     : item.name,
-                                            );
+                                            ]);
                                             toggle(false);
                                         }}
                                     />
@@ -182,9 +190,9 @@ const ChartConfigTabs: FC = () => {
                                     fields={groupDimensionsInMetricQuery}
                                     onChange={(field) => {
                                         if (isField(field)) {
-                                            chartConfig?.setGroupDimension(
+                                            setPivotDimensions([
                                                 fieldId(field),
-                                            );
+                                            ]);
                                         }
                                     }}
                                 />
@@ -193,9 +201,7 @@ const ChartConfigTabs: FC = () => {
                                         minimal
                                         icon={'small-cross'}
                                         onClick={() => {
-                                            chartConfig?.setGroupDimension(
-                                                undefined,
-                                            );
+                                            setPivotDimensions(undefined);
                                         }}
                                     />
                                 )}

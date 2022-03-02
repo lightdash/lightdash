@@ -1,4 +1,4 @@
-import { FilterableField, isField } from 'common';
+import { FilterableField, isField, isFilterableField } from 'common';
 import React, { FC, useState } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
@@ -27,7 +27,7 @@ const FilterSearch: FC<Props> = ({ fields, onClose }) => {
                     <FieldAutoComplete
                         fields={fields}
                         onChange={(field) => {
-                            if (isField(field)) {
+                            if (isField(field) && isFilterableField(field)) {
                                 setSelectedField(field);
                             }
                         }}

@@ -12,13 +12,14 @@ import {
     getDimensions,
     getFields,
     isFilterableField,
+    SavedChart,
 } from 'common';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useExplore } from '../../hooks/useExplore';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
-import { SavedQuery, useSavedQuery } from '../../hooks/useSavedQuery';
+import { useSavedQuery } from '../../hooks/useSavedQuery';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { getFilterRuleLabel } from '../common/Filters/configs';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
@@ -30,7 +31,7 @@ import TileBase from './TileBase/index';
 import { FilterLabel } from './TileBase/TileBase.styles';
 
 const ValidDashboardChartTile: FC<{
-    data: SavedQuery;
+    data: SavedChart;
     project: string;
     onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
 }> = ({ data, project, onSeriesContextMenu }) => {
@@ -57,8 +58,9 @@ const ValidDashboardChartTile: FC<{
 
     return (
         <VisualizationProvider
-            chartType={data.chartConfig.chartType}
-            seriesLayout={data.chartConfig.seriesLayout}
+            chartType={data.chartConfig.type}
+            chartConfigs={data.chartConfig.config}
+            pivotDimensions={data.pivotConfig?.columns}
             resultsData={resultData}
             tableName={data.tableName}
             isLoading={isLoading}
@@ -147,7 +149,7 @@ const DashboardChartTile: FC<Props> = (props) => {
 
     // START DASHBOARD FILTER LOGIC
     // TODO: move this logic out of component
-    let savedQueryWithDashboardFilters: SavedQuery | undefined;
+    let savedQueryWithDashboardFilters: SavedChart | undefined;
 
     const dashboardFiltersThatApplyToChart: DashboardFilters = useMemo(() => {
         const tables = explore ? Object.keys(explore.tables) : [];
