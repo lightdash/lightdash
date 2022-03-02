@@ -18,3 +18,7 @@ export const ContentWrapper = styled.div`
     align-items: center;
     justify-content: space-between;
 `;
+
+export const TableTitle = styled.p`
+    padding: 0.5em 0 0 0;
+`;
