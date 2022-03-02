@@ -182,7 +182,9 @@ const Dashboard = () => {
                 onCancel={onCancel}
             />
             <Page isContentFullWidth>
-                <DashboardFilter isEditMode={isEditMode} />
+                {dashboardTiles.length > 0 && (
+                    <DashboardFilter isEditMode={isEditMode} />
+                )}
                 <ResponsiveGridLayout
                     useCSSTransforms={false}
                     draggableCancel=".non-draggable"
@@ -203,8 +205,8 @@ const Dashboard = () => {
                         </div>
                     ))}
                 </ResponsiveGridLayout>
-                {dashboardTiles.length <= 0 && isEditMode && (
-                    <EmptyStateNoTiles onAddTile={onAddTile} />
+                {dashboardTiles.length <= 0 && (
+                    <EmptyStateNoTiles projectId={projectUuid} />
                 )}
             </Page>
         </>
