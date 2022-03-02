@@ -27,7 +27,7 @@ export type Series = {
     yField: string;
     type: CartesianSeriesType;
     flipAxes?: boolean | undefined;
-    valueLabels?: {
+    label?: {
         show?: boolean;
         position?: 'left' | 'top' | 'right' | 'left';
     };
