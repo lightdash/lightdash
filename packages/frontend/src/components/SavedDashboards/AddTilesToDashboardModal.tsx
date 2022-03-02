@@ -1,10 +1,8 @@
 import {
-    CartesianSeriesType,
     DashboardTileTypes,
     getDefaultChartTileSize,
     SavedChart,
 } from 'common';
-
 import React, { FC, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
@@ -90,7 +88,7 @@ const AddTilesToDashboardModal: FC<Props> = ({ savedChart, onClose }) => {
                         properties: {
                             savedChartUuid: savedChart.uuid,
                         },
-                        ...getDefaultChartTileSize(CartesianSeriesType.BAR),
+                        ...getDefaultChartTileSize(savedChart.chartConfig.type),
                     },
                 ],
                 filters: data.filters,
