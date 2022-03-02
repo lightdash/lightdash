@@ -3,8 +3,7 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
-import { SavedQueriesModel } from '../models/savedQueries';
-import { projectService } from '../services/services';
+import { projectService, savedChartsService } from '../services/services';
 
 export const savedChartRouter = express.Router();
 
@@ -12,7 +11,8 @@ savedChartRouter.get(
     '/:savedQueryUuid',
     isAuthenticated,
     async (req, res, next) => {
-        SavedQueriesModel.getById(req.params.savedQueryUuid)
+        savedChartsService
+            .get(req.params.savedQueryUuid)
             .then((results) => {
                 res.json({
                     status: 'ok',
@@ -46,7 +46,8 @@ savedChartRouter.delete(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        SavedQueriesModel.delete(req.user!, req.params.savedQueryUuid)
+        savedChartsService
+            .delete(req.user!, req.params.savedQueryUuid)
             .then(() => {
                 res.json({
                     status: 'ok',
@@ -62,11 +63,8 @@ savedChartRouter.patch(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        SavedQueriesModel.update(
-            req.user!,
-            req.params.savedQueryUuid,
-            req.body.savedQuery,
-        )
+        savedChartsService
+            .update(req.user!, req.params.savedQueryUuid, req.body)
             .then((results) => {
                 res.json({
                     status: 'ok',
@@ -82,11 +80,8 @@ savedChartRouter.post(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        SavedQueriesModel.addVersion(
-            req.user!,
-            req.params.savedQueryUuid,
-            req.body.savedQuery,
-        )
+        savedChartsService
+            .createVersion(req.user!, req.params.savedQueryUuid, req.body)
             .then((results) => {
                 res.json({
                     status: 'ok',

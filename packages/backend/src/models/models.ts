@@ -10,6 +10,7 @@ import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel
 import { OrganizationModel } from './OrganizationModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
+import { SavedChartModel } from './SavedChartModel';
 import { SessionModel } from './SessionModel';
 import { UserModel } from './UserModel';
 
@@ -34,3 +35,4 @@ export const passwordResetLinkModel = new PasswordResetLinkModel({
 });
 export const organizationMemberProfileModel =
     new OrganizationMemberProfileModel({ database });
+export const savedChartModel = new SavedChartModel({ database });

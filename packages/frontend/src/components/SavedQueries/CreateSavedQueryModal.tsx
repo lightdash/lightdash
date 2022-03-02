@@ -1,6 +1,9 @@
-import { CreateSavedQueryVersion, SpaceQuery } from 'common';
+import { SpaceQuery } from 'common';
 import React, { FC } from 'react';
-import { useCreateMutation } from '../../hooks/useSavedQuery';
+import {
+    CreateSavedQueryVersion,
+    useCreateMutation,
+} from '../../hooks/useSavedQuery';
 import { ActionModalProps } from '../common/modal/ActionModal';
 import CreateActionModal from '../common/modal/CreateActionModal';
 

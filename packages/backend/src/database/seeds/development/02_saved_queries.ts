@@ -1,14 +1,13 @@
-import { DBChartTypes, SEED_PROJECT } from 'common';
+import { CartesianSeriesType, SEED_PROJECT } from 'common';
 import { Knex } from 'knex';
-import { createSavedQuery } from '../../entities/savedQueries';
+import { savedChartModel } from '../../../models/models';
 
 export async function seed(knex: Knex): Promise<void> {
     // Deletes ALL existing entries
     await knex('saved_queries').del();
 
     // Inserts seed entries
-    await createSavedQuery(SEED_PROJECT.project_uuid, {
-        projectUuid: SEED_PROJECT.project_uuid,
+    await savedChartModel.create(SEED_PROJECT.project_uuid, {
         name: 'How much revenue do we have per payment method?',
         tableName: 'payments',
         metricQuery: {
@@ -28,8 +27,23 @@ export async function seed(knex: Knex): Promise<void> {
             tableCalculations: [],
         },
         chartConfig: {
-            chartType: DBChartTypes.COLUMN,
-            seriesLayout: {},
+            type: 'cartesian',
+            config: {
+                series: [
+                    {
+                        type: CartesianSeriesType.BAR,
+                        flipAxes: true,
+                        xField: 'payments_payment_method',
+                        yField: 'payments_total_revenue',
+                    },
+                    {
+                        type: CartesianSeriesType.BAR,
+                        flipAxes: true,
+                        xField: 'payments_payment_method',
+                        yField: 'payments_unique_payment_count',
+                    },
+                ],
+            },
         },
         tableConfig: {
             columnOrder: [
@@ -40,8 +54,7 @@ export async function seed(knex: Knex): Promise<void> {
         },
     });
 
-    await createSavedQuery(SEED_PROJECT.project_uuid, {
-        projectUuid: SEED_PROJECT.project_uuid,
+    await savedChartModel.create(SEED_PROJECT.project_uuid, {
         name: "What's the average spend per customer?",
         tableName: 'orders',
         metricQuery: {
@@ -53,10 +66,16 @@ export async function seed(knex: Knex): Promise<void> {
             tableCalculations: [],
         },
         chartConfig: {
-            chartType: DBChartTypes.COLUMN,
-            seriesLayout: {
-                xDimension: 'customers_customer_id',
-                yMetrics: ['orders_avg_amount'],
+            type: 'cartesian',
+            config: {
+                series: [
+                    {
+                        flipAxes: true,
+                        type: CartesianSeriesType.BAR,
+                        xField: 'customers_customer_id',
+                        yField: 'orders_avg_amount',
+                    },
+                ],
             },
         },
         tableConfig: {
@@ -64,8 +83,7 @@ export async function seed(knex: Knex): Promise<void> {
         },
     });
 
-    await createSavedQuery(SEED_PROJECT.project_uuid, {
-        projectUuid: SEED_PROJECT.project_uuid,
+    await savedChartModel.create(SEED_PROJECT.project_uuid, {
         name: 'How many orders we have over time ?',
         tableName: 'orders',
         metricQuery: {
@@ -88,12 +106,19 @@ export async function seed(knex: Knex): Promise<void> {
             ],
         },
         chartConfig: {
-            chartType: DBChartTypes.LINE,
-            seriesLayout: {
-                xDimension: 'orders_order_date',
-                yMetrics: [
-                    'orders_unique_order_count',
-                    'cumulative_order_count',
+            type: 'cartesian',
+            config: {
+                series: [
+                    {
+                        type: CartesianSeriesType.LINE,
+                        xField: 'orders_order_date',
+                        yField: 'orders_unique_order_count',
+                    },
+                    {
+                        type: CartesianSeriesType.LINE,
+                        xField: 'orders_order_date',
+                        yField: 'cumulative_order_count',
+                    },
                 ],
             },
         },

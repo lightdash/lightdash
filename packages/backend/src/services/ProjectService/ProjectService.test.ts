@@ -1,6 +1,9 @@
 import { analytics } from '../../analytics/client';
-import { onboardingModel, projectModel } from '../../models/models';
-import { SavedQueriesModel } from '../../models/savedQueries';
+import {
+    onboardingModel,
+    projectModel,
+    savedChartModel,
+} from '../../models/models';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -23,12 +26,6 @@ import {
     validExplore,
 } from './ProjectService.mock';
 
-jest.mock('../../models/savedQueries', () => ({
-    SavedQueriesModel: {
-        getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
-    },
-}));
-
 jest.mock('../../analytics/client', () => ({
     analytics: {
         track: jest.fn(),
@@ -42,9 +39,7 @@ jest.mock('../../models/models', () => ({
         getDefaultProject: jest.fn(async () => defaultProject),
     },
     onboardingModel: {},
-}));
-jest.mock('../../models/savedQueries', () => ({
-    SavedQueriesModel: {
+    savedChartModel: {
         getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
     },
 }));
@@ -54,7 +49,7 @@ describe('ProjectService', () => {
     const service = new ProjectService({
         projectModel,
         onboardingModel,
-        savedChartModel: SavedQueriesModel,
+        savedChartModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
@@ -164,9 +159,9 @@ describe('ProjectService', () => {
             expect(await service.hasSavedCharts(user)).toEqual(true);
         });
         test('should return false when there are no saved charts', async () => {
-            (
-                SavedQueriesModel.getAllSpaces as jest.Mock
-            ).mockImplementationOnce(async () => spacesWithNoSavedCharts);
+            (savedChartModel.getAllSpaces as jest.Mock).mockImplementationOnce(
+                async () => spacesWithNoSavedCharts,
+            );
             expect(await service.hasSavedCharts(user)).toEqual(false);
         });
     });

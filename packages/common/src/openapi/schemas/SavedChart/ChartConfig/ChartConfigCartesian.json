@@ -1,0 +1,29 @@
+{
+    "type": "object",
+    "properties": {
+        "series": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "xField": {
+                        "type": "string"
+                    },
+                    "yField": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["line", "bar", "scatter"]
+                    },
+                    "flipAxes": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["xField", "yField", "type"]
+            }
+        }
+    },
+    "required": ["series"],
+    "additionalProperties": false
+}

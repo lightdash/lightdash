@@ -2,15 +2,6 @@
     "type": "object",
     "additionalProperties": false,
     "properties": {
-        "uuid": {
-            "type": "string"
-        },
-        "projectUuid": {
-            "type": "string"
-        },
-        "name": {
-            "type": "string"
-        },
         "tableName": {
             "type": "string"
         },
@@ -33,19 +24,18 @@
             },
             "required": ["columnOrder"]
         },
-        "updatedAt": {
-            "type": "string",
-            "format": "date-time"
+        "pivotConfig": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": ["columns"]
         }
     },
-    "required": [
-        "uuid",
-        "projectUuid",
-        "name",
-        "tableName",
-        "metricQuery",
-        "chartConfig",
-        "tableConfig",
-        "updatedAt"
-    ]
+    "required": ["tableName", "metricQuery", "chartConfig", "tableConfig"]
 }

@@ -699,6 +699,61 @@
                 }
             }
         },
+        "/projects/{projectUuid}/saved": {
+            "post": {
+                "summary": "Create saved chart in project",
+                "tags": ["saved"],
+                "operationId": "postSavedChart",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateSavedChart"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Details for a saved chart",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/SavedChart"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
         "/dashboards/{dashboardUuid}": {
             "get": {
                 "summary": "Get dashboard",
@@ -869,16 +924,6 @@
             }
         },
         "/saved/{savedChartUuid}": {
-            "parameters": [
-                {
-                    "schema": {
-                        "type": "string"
-                    },
-                    "name": "savedChartUuid",
-                    "in": "path",
-                    "required": true
-                }
-            ],
             "get": {
                 "summary": "Get a saved chart",
                 "tags": ["saved"],
@@ -894,6 +939,146 @@
                         "required": true
                     }
                 ],
+                "responses": {
+                    "200": {
+                        "description": "Details for a saved chart",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/SavedChart"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete a saved chart",
+                "tags": ["saved"],
+                "operationId": "deleteSavedChart",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "savedChartUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Acknowledge success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Success"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            },
+            "patch": {
+                "summary": "Update a saved chart",
+                "tags": ["saved"],
+                "operationId": "patchSavedChart",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "savedChartUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "requestBody": {
+                    "description": "Saved chart name",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateSavedChart"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Details for a saved chart",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/SavedChart"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
+        "/saved/{savedChartUuid}/version": {
+            "post": {
+                "summary": "Create a new saved chart version",
+                "tags": ["saved"],
+                "operationId": "createSavedChartVersion",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "savedChartUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateSavedChartVersion"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "Details for a saved chart",
@@ -1367,6 +1552,131 @@
                 },
                 "required": ["tableSelection"]
             },
+            "ChartConfig": {
+                "properties": {
+                    "chartType": {
+                        "type": "string",
+                        "enum": ["big_number", "table", "cartesian"]
+                    },
+                    "config": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
+                }
+            },
+            "CreateSavedChart": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "metricQuery": {
+                        "type": "object"
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
+                    "tableConfig": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "columnOrder": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "required": ["columnOrder"]
+                    },
+                    "pivotConfig": {
+                        "type": "object",
+                        "properties": {
+                            "columns": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "required": ["columns"]
+                    }
+                },
+                "required": [
+                    "name",
+                    "tableName",
+                    "metricQuery",
+                    "chartConfig",
+                    "tableConfig"
+                ]
+            },
+            "SavedChart": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "metricQuery": {
+                        "type": "object"
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
+                    "tableConfig": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "columnOrder": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "required": ["columnOrder"]
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "pivotConfig": {
+                        "type": "object",
+                        "properties": {
+                            "columns": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "required": ["columns"]
+                    }
+                },
+                "required": [
+                    "uuid",
+                    "projectUuid",
+                    "name",
+                    "tableName",
+                    "metricQuery",
+                    "chartConfig",
+                    "tableConfig",
+                    "updatedAt"
+                ]
+            },
             "UpdateDashboard": {
                 "oneOf": [
                     {
@@ -1468,56 +1778,20 @@
                     "$ref": "#/components/schemas/Field"
                 }
             },
-            "ChartConfig": {
+            "UpdateSavedChart": {
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                    "chartType": {
-                        "type": "string",
-                        "enum": [
-                            "column",
-                            "bar",
-                            "line",
-                            "scatter",
-                            "table",
-                            "big_number"
-                        ]
-                    },
-                    "seriesLayout": {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "properties": {
-                            "xDimension": {
-                                "type": "string"
-                            },
-                            "yMetrics": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string"
-                                }
-                            },
-                            "groupDimension": {
-                                "type": "string",
-                                "nullable": true
-                            }
-                        }
-                    }
-                },
-                "required": ["seriesLayout", "chartType"]
-            },
-            "SavedChart": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
                     "name": {
                         "type": "string"
-                    },
+                    }
+                },
+                "required": ["name"]
+            },
+            "CreateSavedChartVersion": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
                     "tableName": {
                         "type": "string"
                     },
@@ -1540,20 +1814,24 @@
                         },
                         "required": ["columnOrder"]
                     },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
+                    "pivotConfig": {
+                        "type": "object",
+                        "properties": {
+                            "columns": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "required": ["columns"]
                     }
                 },
                 "required": [
-                    "uuid",
-                    "projectUuid",
-                    "name",
                     "tableName",
                     "metricQuery",
                     "chartConfig",
-                    "tableConfig",
-                    "updatedAt"
+                    "tableConfig"
                 ]
             }
         },

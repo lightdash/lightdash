@@ -16,7 +16,7 @@ import {
     DashboardVersionsTableName,
     DashboardViewsTableName,
 } from '../../database/entities/dashboards';
-import { SavedQueriesTableName } from '../../database/entities/savedQueries';
+import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { NotFoundError } from '../../errors';
 import { DashboardModel } from './DashboardModel';
@@ -167,7 +167,7 @@ describe('DashboardModel', () => {
             .response([dashboardTileEntry]);
         tracker.on
             .select(
-                queryMatcher(SavedQueriesTableName, [
+                queryMatcher(SavedChartsTableName, [
                     (addDashboardVersion.tiles[0] as DashboardChartTile)
                         .properties.savedChartUuid,
                     1,
@@ -262,7 +262,7 @@ describe('DashboardModel', () => {
             .response([dashboardTileEntry]);
         tracker.on
             .select(
-                queryMatcher(SavedQueriesTableName, [
+                queryMatcher(SavedChartsTableName, [
                     (
                         addDashboardVersionWithAllTiles
                             .tiles[0] as DashboardChartTile
@@ -386,7 +386,7 @@ describe('DashboardModel', () => {
             .response([dashboardTileEntry]);
         tracker.on
             .select(
-                queryMatcher(SavedQueriesTableName, [
+                queryMatcher(SavedChartsTableName, [
                     (addDashboardVersion.tiles[0] as DashboardChartTile)
                         .properties.savedChartUuid,
                     1,
@@ -490,7 +490,7 @@ describe('DashboardModel', () => {
             .response([dashboardTileEntry]);
         tracker.on
             .select(
-                queryMatcher(SavedQueriesTableName, [
+                queryMatcher(SavedChartsTableName, [
                     (addDashboardVersion.tiles[0] as DashboardChartTile)
                         .properties.savedChartUuid,
                     1,

@@ -11,7 +11,6 @@ import {
 import { Popover2 } from '@blueprintjs/popover2';
 import {
     countTotalFilterRules,
-    CreateSavedQueryVersion,
     DashboardTileTypes,
     DBChartTypes,
     DimensionType,
@@ -27,6 +26,7 @@ import { v4 as uuid4 } from 'uuid';
 import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
 import {
+    CreateSavedQueryVersion,
     useAddVersionMutation,
     useSavedQuery,
     useUpdateMutation,

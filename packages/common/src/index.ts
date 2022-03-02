@@ -2,6 +2,23 @@ import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import { Dashboard, DashboardBasicDetails } from './types/dashboard';
 import {
+    CompiledDimension,
+    CompiledField,
+    CompiledMetric,
+    Dimension,
+    DimensionType,
+    Field,
+    FieldId,
+    fieldId,
+    FilterableDimension,
+    FilterableField,
+    isDimension,
+    isFilterableDimension,
+    Metric,
+    MetricType,
+    Source,
+} from './types/field';
+import {
     DashboardFilterRule,
     DateFilterRule,
     FilterOperator,
@@ -12,13 +29,16 @@ import {
     getItemsFromFilterGroup,
     UnitOfTime,
 } from './types/filter';
+import { MetricQuery } from './types/metricQuery';
 import { OrganizationMemberProfile } from './types/organizationMemberProfile';
-import { DBChartTypes } from './types/savedCharts';
+import { SavedChart } from './types/savedCharts';
 import { LightdashUser } from './types/user';
 
 export * from './authorization/organizationMemberAbility';
 export * from './types/dashboard';
+export * from './types/field';
 export * from './types/filter';
+export * from './types/metricQuery';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
 export * from './types/savedCharts';
@@ -168,24 +188,6 @@ export type Table = TableBase & {
     source?: Source;
 };
 
-export type Source = {
-    path: string;
-    range: {
-        start: SourcePosition;
-        end: SourcePosition;
-    };
-    highlight?: {
-        start: SourcePosition;
-        end: SourcePosition;
-    };
-    content: string;
-};
-
-type SourcePosition = {
-    line: number;
-    character: number;
-};
-
 export type CompiledTable = TableBase & {
     dimensions: Record<string, CompiledDimension>;
     metrics: Record<string, CompiledMetric>;
@@ -212,203 +214,16 @@ export const getFields = (explore: Explore): CompiledField[] => [
     ...getMetrics(explore),
 ];
 
-export enum FieldType {
-    METRIC = 'metric',
-    DIMENSION = 'dimension',
-}
-
-// Every dimension and metric is a field
-export interface Field {
-    fieldType: FieldType;
-    type: string; // Discriminator field
-    name: string; // Field names are unique within a table
-    label: string; // Friendly name
-    table: string; // Table names are unique within the project
-    tableLabel: string; // Table friendly name
-    sql: string; // Templated sql
-    description?: string;
-    source?: Source | undefined;
-}
-
-export const isField = (field: any): field is Field => field?.fieldType;
-
-export enum DimensionType {
-    STRING = 'string',
-    NUMBER = 'number',
-    TIMESTAMP = 'timestamp',
-    DATE = 'date',
-    BOOLEAN = 'boolean',
-}
-
-export enum TimeInterval {
-    DAY = 'DAY',
-    WEEK = 'WEEK',
-    MONTH = 'MONTH',
-    YEAR = 'YEAR',
-}
-
-export interface Dimension extends Field {
-    fieldType: FieldType.DIMENSION;
-    type: DimensionType;
-    group?: string;
-    timeInterval?: TimeInterval | string;
-}
-
-export interface CompiledDimension extends Dimension {
-    compiledSql: string; // sql string with resolved template variables
-}
-
-export type CompiledField = CompiledDimension | CompiledMetric;
-
-export const isDimension = (
-    field: Pick<Field, 'fieldType'>,
-): field is Dimension => field.fieldType === FieldType.DIMENSION;
-
-// Field ids are unique across the project
-export type FieldId = string;
-export const fieldId = (field: Pick<Field, 'table' | 'name'>): FieldId =>
-    `${field.table}_${field.name}`;
-
 export const findFieldByIdInExplore = (
     explore: Explore,
     id: FieldId,
 ): Field | undefined =>
     getFields(explore).find((field) => fieldId(field) === id);
 
-export type FieldRef = string;
-export const getFieldRef = (field: Field): FieldRef =>
-    `${field.table}.${field.name}`;
-
-export const getFieldLabel = (field: Field): string =>
-    `${field.tableLabel} ${field.label}`;
-
-export enum MetricType {
-    AVERAGE = 'average',
-    COUNT = 'count',
-    COUNT_DISTINCT = 'count_distinct',
-    SUM = 'sum',
-    MIN = 'min',
-    MAX = 'max',
-    NUMBER = 'number',
-    STRING = ' string',
-    DATE = ' date',
-    BOOLEAN = ' boolean',
-}
-
-export const parseMetricType = (metricType: string): MetricType => {
-    switch (metricType) {
-        case 'average':
-            return MetricType.AVERAGE;
-        case 'count':
-            return MetricType.COUNT;
-        case 'count_distinct':
-            return MetricType.COUNT_DISTINCT;
-        case 'sum':
-            return MetricType.SUM;
-        case 'min':
-            return MetricType.MIN;
-        case 'max':
-            return MetricType.MAX;
-        case 'number':
-            return MetricType.NUMBER;
-        case 'string':
-            return MetricType.STRING;
-        case 'date':
-            return MetricType.DATE;
-        case 'boolean':
-            return MetricType.BOOLEAN;
-        default:
-            throw new Error(
-                `Cannot parse dbt metric with type '${metricType}'`,
-            );
-    }
-};
-
-const NonAggregateMetricTypes = [
-    MetricType.STRING,
-    MetricType.NUMBER,
-    MetricType.DATE,
-    MetricType.BOOLEAN,
-];
-
-export const isMetric = (field: Field): field is Metric =>
-    field.fieldType === FieldType.METRIC;
-
-export const isNonAggregateMetric = (field: Field): boolean =>
-    isMetric(field) && NonAggregateMetricTypes.includes(field.type);
-
-export interface Metric extends Field {
-    fieldType: FieldType.METRIC;
-    type: MetricType;
-    isAutoGenerated: boolean;
-}
-
-export interface CompiledMetric extends Metric {
-    compiledSql: string;
-}
-
-export type TableCalculation = {
-    index?: number;
-    name: string;
-    displayName: string;
-    sql: string;
-};
-
-export type CompiledTableCalculation = TableCalculation & {
-    compiledSql: string;
-};
-
-// Object used to query an explore. Queries only happen within a single explore
-export type MetricQuery = {
-    dimensions: FieldId[]; // Dimensions to group by in the explore
-    metrics: FieldId[]; // Metrics to compute in the explore
-    filters: Filters;
-    sorts: SortField[]; // Sorts for the data
-    limit: number; // Max number of rows to return from query
-    tableCalculations: TableCalculation[]; // calculations to append to results
-};
-
-export type CompiledMetricQuery = MetricQuery & {
-    compiledTableCalculations: CompiledTableCalculation[];
-};
-
-// Sort by
-export type SortField = {
-    fieldId: string; // Field must exist in the explore
-    descending: boolean; // Direction of the sort
-};
-
 export enum FilterGroupOperator {
     and = 'and',
     or = 'or',
 }
-
-export interface FilterableDimension extends Dimension {
-    type:
-        | DimensionType.STRING
-        | DimensionType.NUMBER
-        | DimensionType.DATE
-        | DimensionType.TIMESTAMP
-        | DimensionType.BOOLEAN;
-}
-
-export const isFilterableDimension = (
-    dimension: Dimension,
-): dimension is FilterableDimension =>
-    [
-        DimensionType.STRING,
-        DimensionType.NUMBER,
-        DimensionType.DATE,
-        DimensionType.TIMESTAMP,
-        DimensionType.BOOLEAN,
-    ].includes(dimension.type);
-
-export type FilterableField = FilterableDimension | Metric;
-
-export const isFilterableField = (
-    field: Field | Dimension | Metric,
-): field is FilterableField =>
-    isDimension(field) ? isFilterableDimension(field) : true;
 
 export const filterableDimensionsOnly = (
     dimensions: Dimension[],
@@ -831,7 +646,7 @@ type ApiResults =
     | ApiHealthResults
     | Organisation
     | LightdashUser
-    | SavedQuery
+    | SavedChart
     | Space[]
     | InviteLink
     | OrganizationProject[]
@@ -1092,45 +907,13 @@ export const isDbtRpcRunSqlResults = (
             Array.isArray(result.table.rows),
     );
 
-type ValidSeriesLayout = {
-    xDimension: string;
-    yMetrics: string[];
-    groupDimension: string | undefined;
-};
-type SeriesLayout = Partial<ValidSeriesLayout>;
-
-export type SavedQuery = {
-    uuid: string;
-    projectUuid: string;
-    name: string;
-    tableName: string;
-    metricQuery: MetricQuery;
-    chartConfig: {
-        chartType: DBChartTypes;
-        seriesLayout: SeriesLayout;
-    };
-    tableConfig: {
-        columnOrder: string[];
-    };
-    updatedAt: Date;
-};
-
-export type SpaceQuery = Pick<SavedQuery, 'uuid' | 'name' | 'updatedAt'>;
+export type SpaceQuery = Pick<SavedChart, 'uuid' | 'name' | 'updatedAt'>;
 
 export type Space = {
     uuid: string;
     name: string;
     queries: SpaceQuery[];
 };
-
-export type CreateSavedQuery = Omit<SavedQuery, 'uuid' | 'updatedAt'>;
-
-export type CreateSavedQueryVersion = Omit<
-    SavedQuery,
-    'uuid' | 'name' | 'updatedAt' | 'projectUuid'
->;
-
-export type UpdateSavedQuery = Pick<SavedQuery, 'name'>;
 
 export enum DBFieldTypes {
     DIMENSION = 'dimension',

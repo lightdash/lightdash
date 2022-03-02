@@ -1,5 +1,5 @@
 import { DashboardFilters } from './filter';
-import { DBChartTypes } from './savedCharts';
+import { SavedChartType } from './savedCharts';
 
 export enum DashboardTileTypes {
     SAVED_CHART = 'saved_chart',
@@ -112,10 +112,10 @@ export const defaultTileSize = {
 };
 
 export const getDefaultChartTileSize = (
-    chartType: DBChartTypes | undefined,
+    chartType: SavedChartType | string | undefined,
 ) => {
     switch (chartType) {
-        case DBChartTypes.BIG_NUMBER:
+        case 'big_number':
             return {
                 h: 2,
                 w: 3,

@@ -95,7 +95,7 @@ if (process.env.NODE_ENV === 'development') {
         OpenApiValidator.middleware({
             apiSpec: path.join(
                 __dirname,
-                '../../common/dist/openapibundle.json',
+                '../../common/src/openapibundle.json',
             ),
             // apiSpec,
             validateRequests: true,

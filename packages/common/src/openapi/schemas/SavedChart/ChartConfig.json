@@ -1,0 +1,12 @@
+{
+    "properties": {
+        "chartType": {
+            "type": "string",
+            "enum": ["big_number", "table", "cartesian"]
+        },
+        "config": {
+            "type": "object",
+            "additionalProperties": true
+        }
+    }
+}

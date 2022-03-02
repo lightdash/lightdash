@@ -31,7 +31,7 @@ import {
 } from '../../errors';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SavedQueriesModel } from '../../models/savedQueries';
+import { SavedChartModel } from '../../models/SavedChartModel';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -40,7 +40,7 @@ import { ProjectAdapter } from '../../types';
 type ProjectServiceDependencies = {
     projectModel: ProjectModel;
     onboardingModel: OnboardingModel;
-    savedChartModel: typeof SavedQueriesModel;
+    savedChartModel: SavedChartModel;
 };
 
 export class ProjectService {
@@ -54,7 +54,7 @@ export class ProjectService {
 
     projectAdapters: Record<string, ProjectAdapter>;
 
-    savedChartModel: typeof SavedQueriesModel;
+    savedChartModel: SavedChartModel;
 
     constructor({
         projectModel,
@@ -370,7 +370,7 @@ export class ProjectService {
         const project = await this.projectModel.getDefaultProject(
             organizationUuid,
         );
-        const spaces = await SavedQueriesModel.getAllSpaces(
+        const spaces = await this.savedChartModel.getAllSpaces(
             project.projectUuid,
         );
         return spaces.some((space) => space.queries.length > 0);
@@ -505,7 +505,7 @@ export class ProjectService {
         if (ability.cannot('view', 'Project')) {
             throw new AuthorizationError();
         }
-        const savedChart = await this.savedChartModel.getById(savedChartUuid);
+        const savedChart = await this.savedChartModel.get(savedChartUuid);
         const explore = await this.getExplore(
             user,
             savedChart.projectUuid,
