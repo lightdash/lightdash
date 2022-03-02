@@ -1,3 +1,10 @@
+## [0.29.2](https://github.com/lightdash/lightdash/compare/0.29.1...0.29.2) (2022-03-02)
+
+
+### Bug Fixes
+
+* add non ideal state to empty dashboard ([#1489](https://github.com/lightdash/lightdash/issues/1489)) ([31ec344](https://github.com/lightdash/lightdash/commit/31ec3442bee0c086771fd3f6802f1be4d6a43de2))
+
 ## [0.29.1](https://github.com/lightdash/lightdash/compare/0.29.0...0.29.1) (2022-03-01)
 
 
