@@ -56,11 +56,18 @@ const useCartesianChartConfig = (
     }, []);
 
     const validConfig = useMemo<CartesianChart | undefined>(() => {
-        if (
-            !resultsData ||
-            resultsData.metricQuery.dimensions.length <= 0 ||
-            resultsData.metricQuery.metrics.length <= 0
-        ) {
+        const availableXFields = resultsData
+            ? resultsData.metricQuery.dimensions
+            : [];
+        const availableYFields = resultsData
+            ? [
+                  ...resultsData.metricQuery.metrics,
+                  ...resultsData.metricQuery.tableCalculations.map(
+                      ({ name }) => name,
+                  ),
+              ]
+            : [];
+        if (availableXFields.length <= 0 || availableYFields.length <= 0) {
             return undefined;
         }
         const validSeries: Series[] =
@@ -68,8 +75,8 @@ const useCartesianChartConfig = (
                 .filter(isValidSeries)
                 .filter(
                     ({ xField, yField }) =>
-                        resultsData.metricQuery.dimensions.includes(xField) &&
-                        resultsData.metricQuery.metrics.includes(yField),
+                        availableXFields.includes(xField) &&
+                        availableYFields.includes(yField),
                 ) || [];
 
         if (validSeries.length <= 0) {
@@ -78,8 +85,8 @@ const useCartesianChartConfig = (
                 series: [
                     {
                         type: CartesianSeriesType.BAR,
-                        xField: resultsData.metricQuery.dimensions[0],
-                        yField: resultsData.metricQuery.metrics[0],
+                        xField: availableXFields[0],
+                        yField: availableYFields[0],
                         flipAxes: false,
                     },
                 ],

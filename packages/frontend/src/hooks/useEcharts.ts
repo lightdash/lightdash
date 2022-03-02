@@ -4,37 +4,55 @@ import {
     CartesianSeriesType,
     DimensionType,
     Explore,
-    Field,
     findFieldByIdInExplore,
     friendlyName,
     getFieldLabel,
     MetricType,
+    TableCalculation,
 } from 'common';
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../components/LightdashVisualization/VisualizationProvider';
 import { getPivotedDimension } from './useFormattedAndPlottedData';
 
-const getAxisTypeFromField = (field: Field | undefined): string => {
-    if (!field) {
-        return 'category';
+const getLabelFromField = (
+    explore: Explore,
+    tableCalculations: TableCalculation[],
+    key: string,
+) => {
+    const field = findFieldByIdInExplore(explore, key);
+    const tableCalculation = tableCalculations.find(({ name }) => name === key);
+    if (field) {
+        return getFieldLabel(field);
+    } else if (tableCalculation) {
+        return tableCalculation.displayName;
+    } else {
+        return friendlyName(key);
     }
-    switch (field.type) {
-        case DimensionType.NUMBER:
-        case MetricType.NUMBER:
-        case MetricType.AVERAGE:
-        case MetricType.COUNT:
-        case MetricType.COUNT_DISTINCT:
-        case MetricType.SUM:
-        case MetricType.MIN:
-        case MetricType.MAX:
-            return 'value';
-        case DimensionType.TIMESTAMP:
-        case DimensionType.DATE:
-        case MetricType.DATE:
-            return 'time';
-        default: {
-            return 'category';
+};
+
+const getAxisTypeFromField = (explore: Explore, key: string): string => {
+    const field = findFieldByIdInExplore(explore, key);
+    if (field) {
+        switch (field.type) {
+            case DimensionType.NUMBER:
+            case MetricType.NUMBER:
+            case MetricType.AVERAGE:
+            case MetricType.COUNT:
+            case MetricType.COUNT_DISTINCT:
+            case MetricType.SUM:
+            case MetricType.MIN:
+            case MetricType.MAX:
+                return 'value';
+            case DimensionType.TIMESTAMP:
+            case DimensionType.DATE:
+            case MetricType.DATE:
+                return 'time';
+            default: {
+                return 'category';
+            }
         }
+    } else {
+        return 'category';
     }
 };
 
@@ -69,6 +87,7 @@ export type EChartSeries = {
 
 export const getEchartsSeries = (
     explore: Explore,
+    tableCalculations: TableCalculation[],
     formattedData: ApiQueryResults['rows'],
     chartConfig: CartesianChart,
     pivotKey: string | undefined,
@@ -79,22 +98,16 @@ export const getEchartsSeries = (
         );
         return chartConfig.series.reduce<EChartSeries[]>(
             (sum, { yField, xField, type, flipAxes }) => {
-                const field = findFieldByIdInExplore(explore, xField);
                 const xAxisDimension = {
                     name: xField,
-                    displayName: field
-                        ? getFieldLabel(field)
-                        : friendlyName(xField),
+                    displayName: getLabelFromField(
+                        explore,
+                        tableCalculations,
+                        xField,
+                    ),
                 };
                 const groupSeries = uniquePivotValues.map((value) => {
                     const pivotedDimension = getPivotedDimension(value, yField);
-                    const pivotField = findFieldByIdInExplore(
-                        explore,
-                        pivotKey,
-                    );
-                    const pivotFieldLabel = pivotField
-                        ? getFieldLabel(pivotField)
-                        : friendlyName(pivotKey);
                     return {
                         type: type,
                         connectNulls: true,
@@ -113,7 +126,11 @@ export const getEchartsSeries = (
                                 name: pivotedDimension,
                                 displayName:
                                     chartConfig.series.length > 1
-                                        ? `[${value}] ${pivotFieldLabel}`
+                                        ? `[${value}] ${getLabelFromField(
+                                              explore,
+                                              tableCalculations,
+                                              yField,
+                                          )}`
                                         : value,
                             },
                         ],
@@ -127,8 +144,6 @@ export const getEchartsSeries = (
     } else {
         return chartConfig.series.reduce<EChartSeries[]>(
             (sum, { yField, xField, type, flipAxes }) => {
-                const xAxisField = findFieldByIdInExplore(explore, xField);
-                const yAxisField = findFieldByIdInExplore(explore, yField);
                 return [
                     ...sum,
                     {
@@ -146,15 +161,19 @@ export const getEchartsSeries = (
                         dimensions: [
                             {
                                 name: xField,
-                                displayName: xAxisField
-                                    ? getFieldLabel(xAxisField)
-                                    : friendlyName(xField),
+                                displayName: getLabelFromField(
+                                    explore,
+                                    tableCalculations,
+                                    xField,
+                                ),
                             },
                             {
                                 name: yField,
-                                displayName: yAxisField
-                                    ? getFieldLabel(yAxisField)
-                                    : friendlyName(yField),
+                                displayName: getLabelFromField(
+                                    explore,
+                                    tableCalculations,
+                                    yField,
+                                ),
                             },
                         ],
                     },
@@ -182,6 +201,7 @@ const useEcharts = () => {
 
         return getEchartsSeries(
             explore,
+            resultsData.metricQuery.tableCalculations,
             formattedData,
             validConfig,
             pivotDimensions?.[0],
@@ -192,34 +212,32 @@ const useEcharts = () => {
         return undefined;
     }
 
-    const xField = findFieldByIdInExplore(explore, series[0].encode.x);
-
-    const yField = findFieldByIdInExplore(explore, series[0].encode.y);
-
-    let ylabel: string | undefined;
-    if (series.length === 1) {
-        ylabel = yField
-            ? getFieldLabel(yField)
-            : friendlyName(series[0].encode.y);
-    }
-
     return {
         xAxis: {
             type: validConfig?.series[0].flipAxes
                 ? 'value'
-                : getAxisTypeFromField(xField),
-            name: xField
-                ? getFieldLabel(xField)
-                : friendlyName(series[0].encode.x),
+                : getAxisTypeFromField(explore, series[0].encode.x),
+            name: getLabelFromField(
+                explore,
+                resultsData?.metricQuery.tableCalculations || [],
+                series[0].encode.x,
+            ),
             nameLocation: 'center',
             nameGap: 30,
             nameTextStyle: { fontWeight: 'bold' },
         },
         yAxis: {
             type: validConfig?.series[0].flipAxes
-                ? getAxisTypeFromField(yField)
+                ? getAxisTypeFromField(explore, series[0].encode.y)
                 : 'value',
-            name: ylabel,
+            name:
+                series.length === 1
+                    ? getLabelFromField(
+                          explore,
+                          resultsData?.metricQuery.tableCalculations || [],
+                          series[0].encode.y,
+                      )
+                    : undefined,
             nameTextStyle: { fontWeight: 'bold', align: 'left' },
             nameLocation: 'end',
         },
