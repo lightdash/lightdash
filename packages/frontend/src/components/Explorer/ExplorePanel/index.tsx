@@ -9,6 +9,7 @@ import {
     ContentWrapper,
     LoadingStateWrapper,
     PanelTitleWrapper,
+    TableTitle,
 } from './ExplorePanel.styles';
 
 const SideBarLoadingState = () => (
@@ -52,9 +53,9 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
                 </PanelTitleWrapper>
                 <Divider />
                 <ContentWrapper>
-                    <p>
+                    <TableTitle>
                         <b>Table</b>: {tableName}
-                    </p>
+                    </TableTitle>
                     <LineageButton />
                 </ContentWrapper>
                 <p>

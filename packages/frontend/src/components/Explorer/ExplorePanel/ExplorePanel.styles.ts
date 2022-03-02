@@ -14,8 +14,7 @@ export const PanelTitleWrapper = styled.div`
 `;
 
 export const ContentWrapper = styled.div`
-    display: inline-flex;
-    align-items: center;
+    display: flex;
     justify-content: space-between;
 `;
 
