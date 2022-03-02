@@ -39,10 +39,6 @@ const ChartConfigTabs: FC = () => {
           )
         : [];
 
-    const activeDimension = dimensionsInMetricQuery.find(
-        (field) => fieldId(field) === xField,
-    );
-
     const metricsAndTableCalculations: Array<Metric | TableCalculation> =
         explore
             ? [
@@ -58,7 +54,13 @@ const ChartConfigTabs: FC = () => {
               })
             : [];
 
-    const yOptions = metricsAndTableCalculations.filter(
+    const items = [...dimensionsInMetricQuery, ...metricsAndTableCalculations];
+
+    const activeDimension = items.find(
+        (item) => (isField(item) ? fieldId(item) : item.name) === xField,
+    );
+
+    const yOptions = items.filter(
         (item) => !yFields.includes(isField(item) ? fieldId(item) : item.name),
     );
 
@@ -101,13 +103,13 @@ const ChartConfigTabs: FC = () => {
                                 <FieldAutoComplete
                                     activeField={activeDimension}
                                     fields={dimensionsInMetricQuery}
-                                    onChange={(field) => {
-                                        if (isField(field)) {
-                                            cartesianConfig.setXField(
-                                                fieldId(field),
-                                            );
-                                        }
-                                    }}
+                                    onChange={(item) =>
+                                        cartesianConfig.setXField(
+                                            isField(item)
+                                                ? fieldId(item)
+                                                : item.name,
+                                        )
+                                    }
                                 />
                             </InputWrapper>
                         </>
@@ -131,13 +133,12 @@ const ChartConfigTabs: FC = () => {
 
                             <InputWrapper label="Field(s)">
                                 {yFields.map((yFieldId) => {
-                                    const activeMetric =
-                                        metricsAndTableCalculations.find(
-                                            (item) =>
-                                                (isField(item)
-                                                    ? fieldId(item)
-                                                    : item.name) === yFieldId,
-                                        );
+                                    const activeMetric = items.find(
+                                        (item) =>
+                                            (isField(item)
+                                                ? fieldId(item)
+                                                : item.name) === yFieldId,
+                                    );
                                     if (!activeMetric) {
                                         return null;
                                     }
