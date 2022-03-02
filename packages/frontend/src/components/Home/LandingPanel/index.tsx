@@ -1,7 +1,7 @@
 import React, { FC } from 'react';
 import LinkButton from '../../common/LinkButton';
-import LatestDashboards from '../../Home/LatestDashboards';
-import LatestSavedCharts from '../../Home/LatestSavedCharts';
+import LatestDashboards from '../LatestDashboards';
+import LatestSavedCharts from '../LatestSavedCharts';
 import {
     Intro,
     LandingHeaderWrapper,
