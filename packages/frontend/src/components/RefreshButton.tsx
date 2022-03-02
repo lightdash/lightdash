@@ -1,4 +1,5 @@
-import { useHotkeys } from '@blueprintjs/core';
+import { KeyCombo, useHotkeys } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import React, { useCallback, useMemo } from 'react';
 import useDefaultSortField from '../hooks/useDefaultSortField';
 import { useQueryResults } from '../hooks/useQueryResults';
@@ -45,14 +46,16 @@ export const RefreshButton = () => {
     }, [onClick]);
     useHotkeys(hotkeys);
     return (
-        <BigButton
-            intent="primary"
-            style={{ width: 150, marginRight: '10px' }}
-            onClick={onClick}
-            disabled={!isValidQuery}
-            loading={isFetching || status.data === 'loading'}
-        >
-            Run query
-        </BigButton>
+        <Tooltip2 content={<KeyCombo combo="cmd+enter" />}>
+            <BigButton
+                intent="primary"
+                style={{ width: 150, marginRight: '10px' }}
+                onClick={onClick}
+                disabled={!isValidQuery}
+                loading={isFetching || status.data === 'loading'}
+            >
+                Run query
+            </BigButton>
+        </Tooltip2>
     );
 };
