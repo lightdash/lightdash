@@ -6,6 +6,8 @@ export const DashboardLinkButton = styled(LinkButton)`
     padding: 15px;
     height: 4.857em;
     text-align: center;
+    align-items: center;
+    justify-content: center;
     .bp3-button-text {
         width: 100%;
         display: flex;
@@ -22,12 +24,12 @@ export const DashboardsWrapper = styled.div`
 `;
 
 export const CreateDashboardButton = styled(Button)`
-    min-height: 5em;
+    height: 4.857em;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 500;
-    border: 0.071em dashed ${Colors.GRAY3};
+    border: 1px dashed ${Colors.GRAY3} !important;
 `;
 
 export const ViewAllDashboardsButton = styled(LinkButton)`

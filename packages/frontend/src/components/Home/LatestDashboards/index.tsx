@@ -75,7 +75,6 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
                 {dashboards.length < 6 && (
                     <CreateDashboardButton
                         minimal
-                        outlined
                         loading={createDashboard.isLoading}
                         intent="primary"
                         onClick={() =>
