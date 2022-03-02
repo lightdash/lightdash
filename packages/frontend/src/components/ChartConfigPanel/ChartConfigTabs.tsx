@@ -1,4 +1,11 @@
-import { Button, InputGroup, HTMLSelect, Switch, Tab, Tabs } from '@blueprintjs/core';
+import {
+    Button,
+    InputGroup,
+    HTMLSelect,
+    Switch,
+    Tab,
+    Tabs,
+} from '@blueprintjs/core';
 import {
     fieldId,
     getDimensions,
@@ -12,7 +19,12 @@ import { useToggle } from 'react-use';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import SimpleButton from '../common/SimpleButton';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import { FieldRow, InputWrapper, Wrapper } from './ChartConfigPanel.styles';
+import {
+    FieldRow,
+    InputWrapper,
+    SelectInput,
+    Wrapper,
+} from './ChartConfigPanel.styles';
 
 const ChartConfigTabs: FC = () => {
     const {
@@ -161,7 +173,6 @@ const ChartConfigTabs: FC = () => {
                                             />
                                         </FieldRow>
                                     );
-                                    
                                 })}
                                 {isOpen && (
                                     <FieldRow>
@@ -203,31 +214,62 @@ const ChartConfigTabs: FC = () => {
                     id="chart"
                     title="Chart"
                     panel={
-                        <InputWrapper label="Group">
-                            <FieldRow>
-                                <FieldAutoComplete
-                                    disabled={items.length <= 0}
-                                    activeField={activeGroupDimension}
-                                    fields={items}
-                                    onChange={(field) => {
-                                        if (isField(field)) {
-                                            setPivotDimensions([
-                                                fieldId(field),
-                                            ]);
-                                        }
-                                    }}
+                        <>
+                            <InputWrapper label="Labels">
+                                <Switch
+                                    checked={showValues}
+                                    label="Show value labels"
+                                    onChange={(e) =>
+                                        cartesianConfig.setLabel({
+                                            show: e.currentTarget.checked,
+                                        })
+                                    }
                                 />
-                                {activeGroupDimension && (
-                                    <Button
-                                        minimal
-                                        icon={'small-cross'}
-                                        onClick={() => {
-                                            setPivotDimensions(undefined);
+                            </InputWrapper>
+                            {showValues && (
+                                <InputWrapper label="Label position">
+                                    <SelectInput
+                                        options={[
+                                            'top',
+                                            'bottom',
+                                            'left',
+                                            'right',
+                                        ]}
+                                        onChange={(e) =>
+                                            cartesianConfig.setLabel({
+                                                position: e.currentTarget
+                                                    .value as any,
+                                            })
+                                        }
+                                    />
+                                </InputWrapper>
+                            )}
+                            <InputWrapper label="Group">
+                                <FieldRow>
+                                    <FieldAutoComplete
+                                        disabled={items.length <= 0}
+                                        activeField={activeGroupDimension}
+                                        fields={items}
+                                        onChange={(field) => {
+                                            if (isField(field)) {
+                                                setPivotDimensions([
+                                                    fieldId(field),
+                                                ]);
+                                            }
                                         }}
                                     />
-                                )}
-                            </FieldRow>
-                        </InputWrapper>
+                                    {activeGroupDimension && (
+                                        <Button
+                                            minimal
+                                            icon={'small-cross'}
+                                            onClick={() => {
+                                                setPivotDimensions(undefined);
+                                            }}
+                                        />
+                                    )}
+                                </FieldRow>
+                            </InputWrapper>
+                        </>
                     }
                 />
             </Tabs>

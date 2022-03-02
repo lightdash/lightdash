@@ -1,4 +1,4 @@
-import { FormGroup } from '@blueprintjs/core';
+import { FormGroup, HTMLSelect } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const InputWrapper = styled(FormGroup)`
@@ -6,6 +6,9 @@ export const InputWrapper = styled(FormGroup)`
         font-weight: 500;
         display: inline-flex;
         gap: 3px;
+    }
+    & .bp3-html-select {
+        width: 100%;
     }
 `;
 
@@ -16,4 +19,8 @@ export const FieldRow = styled(`div`)`
 
 export const Wrapper = styled(`div`)`
     width: 310px;
+`;
+
+export const SelectInput = styled(HTMLSelect)`
+    width: 100% !important;
 `;
