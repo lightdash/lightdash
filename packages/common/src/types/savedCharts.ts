@@ -29,7 +29,7 @@ export type Series = {
     flipAxes?: boolean | undefined;
     label?: {
         show?: boolean;
-        position?: 'left' | 'top' | 'right' | 'left';
+        position?: 'left' | 'top' | 'right' | 'bottom';
     };
 };
 

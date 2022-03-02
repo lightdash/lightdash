@@ -79,6 +79,28 @@ const useCartesianChartConfig = (
         }));
     }, []);
 
+    const setLabel = useCallback((label: Series['label']) => {
+        setDirtyConfig(
+            (prevState) =>
+                prevState && {
+                    ...prevState,
+                    series: prevState.series.map((series) => ({
+                        ...series,
+                        label: {
+                            show:
+                                label?.show !== undefined
+                                    ? label?.show
+                                    : series.label?.show,
+                            position:
+                                label?.position !== undefined
+                                    ? label?.position
+                                    : series.label?.position,
+                        },
+                    })),
+                },
+        );
+    }, []);
+
     const validConfig = useMemo<CartesianChart | undefined>(() => {
         const availableDimensions = resultsData
             ? resultsData.metricQuery.dimensions
@@ -141,6 +163,7 @@ const useCartesianChartConfig = (
         setYAxisName,
         xAxisName,
         yAxisName,
+        setLabel,
     };
 };
 

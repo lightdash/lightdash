@@ -1,4 +1,4 @@
-import { Button, InputGroup, Tab, Tabs } from '@blueprintjs/core';
+import { Button, InputGroup, HTMLSelect, Switch, Tab, Tabs } from '@blueprintjs/core';
 import {
     fieldId,
     getDimensions,
@@ -68,6 +68,9 @@ const ChartConfigTabs: FC = () => {
         (item) =>
             (isField(item) ? fieldId(item) : item.name) === pivotDimension,
     );
+
+    const showValues =
+        cartesianConfig.dirtyConfig?.series[0]?.label?.show || false;
 
     return (
         <Wrapper>
@@ -158,6 +161,7 @@ const ChartConfigTabs: FC = () => {
                                             />
                                         </FieldRow>
                                     );
+                                    
                                 })}
                                 {isOpen && (
                                     <FieldRow>
