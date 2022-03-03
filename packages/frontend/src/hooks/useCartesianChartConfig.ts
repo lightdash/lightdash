@@ -60,7 +60,7 @@ const useCartesianChartConfig = (
 
     const addSingleSeries = useCallback((newSeries: Partial<Series>) => {
         setDirtyConfig((prev) => {
-            const [{ name, yField, ...rest }] = prev?.series || [];
+            const [{ name, yField, color, ...rest }] = prev?.series || [];
             return {
                 ...prev,
                 series: [...(prev?.series || []), { ...rest, ...newSeries }],
@@ -71,7 +71,7 @@ const useCartesianChartConfig = (
     const updateSingleSeries = useCallback(
         (index: number, updatedSeries: Partial<Series>) => {
             setDirtyConfig((prev) => {
-                const [{ name, yField, ...rest }] = prev?.series || [];
+                const [{ name, yField, color, ...rest }] = prev?.series || [];
                 return {
                     ...prev,
                     series: prev?.series

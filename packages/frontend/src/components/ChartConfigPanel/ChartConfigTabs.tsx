@@ -174,6 +174,24 @@ const ChartConfigTabs: FC = () => {
                                                         }
                                                     />
                                                 </InputWrapper>
+                                                <InputWrapper label="Color">
+                                                    <InputGroup
+                                                        defaultValue={
+                                                            series.color
+                                                        }
+                                                        onBlur={(e) =>
+                                                            cartesianConfig.updateSingleSeries(
+                                                                index,
+                                                                {
+                                                                    ...series,
+                                                                    color: e
+                                                                        .currentTarget
+                                                                        .value,
+                                                                },
+                                                            )
+                                                        }
+                                                    />
+                                                </InputWrapper>
                                                 <Button
                                                     minimal
                                                     icon={'small-cross'}

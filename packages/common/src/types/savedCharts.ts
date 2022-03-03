@@ -28,6 +28,7 @@ export type Series = {
     type: CartesianSeriesType;
     flipAxes?: boolean | undefined;
     name?: string;
+    color?: string;
     label?: {
         show?: boolean;
         position?: 'left' | 'top' | 'right' | 'bottom';
