@@ -1,3 +1,10 @@
+## [0.30.1](https://github.com/lightdash/lightdash/compare/0.30.0...0.30.1) (2022-03-03)
+
+
+### Bug Fixes
+
+* **charts:** get axis type from field instead of series ([#1495](https://github.com/lightdash/lightdash/issues/1495)) ([3575c8b](https://github.com/lightdash/lightdash/commit/3575c8bcc9fae768809540e9dbcf0f5c151bb85d))
+
 # [0.30.0](https://github.com/lightdash/lightdash/compare/0.29.4...0.30.0) (2022-03-03)
 
 
