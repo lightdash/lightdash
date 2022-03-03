@@ -1,6 +1,18 @@
 {
     "type": "object",
     "properties": {
+        "xAxes": {
+            "type": "array",
+            "items": {
+                "$ref": "ChartAxis.json"
+            }
+        },
+        "yAxes": {
+            "type": "array",
+            "items": {
+                "$ref": "ChartAxis.json"
+            }
+        },
         "series": {
             "type": "array",
             "items": {

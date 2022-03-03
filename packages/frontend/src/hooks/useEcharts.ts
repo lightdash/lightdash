@@ -212,16 +212,20 @@ const useEcharts = () => {
         return undefined;
     }
 
+    const [xAxis] = validConfig?.xAxes || [];
+    const [yAxis] = validConfig?.yAxes || [];
     return {
         xAxis: {
             type: validConfig?.series[0].flipAxes
                 ? 'value'
                 : getAxisTypeFromField(explore, series[0].encode.x),
-            name: getLabelFromField(
-                explore,
-                resultsData?.metricQuery.tableCalculations || [],
-                series[0].encode.x,
-            ),
+            name:
+                xAxis?.name ||
+                getLabelFromField(
+                    explore,
+                    resultsData?.metricQuery.tableCalculations || [],
+                    series[0].encode.x,
+                ),
             nameLocation: 'center',
             nameGap: 30,
             nameTextStyle: { fontWeight: 'bold' },
@@ -231,13 +235,14 @@ const useEcharts = () => {
                 ? getAxisTypeFromField(explore, series[0].encode.y)
                 : 'value',
             name:
-                series.length === 1
+                yAxis?.name ||
+                (series.length === 1
                     ? getLabelFromField(
                           explore,
                           resultsData?.metricQuery.tableCalculations || [],
                           series[0].encode.y,
                       )
-                    : undefined,
+                    : undefined),
             nameTextStyle: { fontWeight: 'bold', align: 'left' },
             nameLocation: 'end',
         },

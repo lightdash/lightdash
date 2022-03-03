@@ -29,8 +29,14 @@ export type Series = {
     flipAxes?: boolean | undefined;
 };
 
+type Axis = {
+    name?: string;
+};
+
 export type CartesianChart = {
     series: Series[];
+    xAxes?: Axis[];
+    yAxes?: Axis[];
 };
 export type CartesianChartConfig = {
     type: ChartType.CARTESIAN;

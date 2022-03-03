@@ -7,7 +7,9 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type PartialCartesianChart = {
-    series: Partial<Series>[];
+    series?: Partial<Series>[];
+    xAxes?: CartesianChart['xAxes'];
+    yAxes?: CartesianChart['yAxes'];
 };
 
 export const isValidSeries = (series: Partial<Series>): series is Series =>
@@ -20,15 +22,37 @@ const useCartesianChartConfig = (
     const [dirtyConfig, setDirtyConfig] = useState<
         PartialCartesianChart | undefined
     >(chartConfigs);
+    const xAxisName = (dirtyConfig?.xAxes || [])[0]?.name;
+    const yAxisName = (dirtyConfig?.yAxes || [])[0]?.name;
 
     useEffect(() => {
         setDirtyConfig(chartConfigs);
     }, [chartConfigs]);
 
+    const setXAxisName = useCallback((name: string) => {
+        setDirtyConfig((prevState) => {
+            const [firstAxis, ...axes] = prevState?.xAxes || [];
+            return {
+                ...prevState,
+                xAxes: [{ ...firstAxis, name }, ...axes],
+            };
+        });
+    }, []);
+
+    const setYAxisName = useCallback((name: string) => {
+        setDirtyConfig((prevState) => {
+            const [firstAxis, ...axes] = prevState?.yAxes || [];
+            return {
+                ...prevState,
+                yAxes: [{ ...firstAxis, name }, ...axes],
+            };
+        });
+    }, []);
+
     const setXField = useCallback((xField: string) => {
         setDirtyConfig((prev) => ({
             ...prev,
-            series: prev?.series.map((series) => ({ ...series, xField })) || [
+            series: prev?.series?.map((series) => ({ ...series, xField })) || [
                 { xField },
             ],
         }));
@@ -36,7 +60,7 @@ const useCartesianChartConfig = (
 
     const setYFields = useCallback((yFields: string[]) => {
         setDirtyConfig((prev) => {
-            const firstSeries = prev?.series[0];
+            const [firstSeries] = prev?.series || [];
             return {
                 ...prev,
                 series: yFields.map((yField) => ({ ...firstSeries, yField })),
@@ -47,7 +71,7 @@ const useCartesianChartConfig = (
     const setType = useCallback((type: Series['type'], flipAxes: boolean) => {
         setDirtyConfig((prev) => ({
             ...prev,
-            series: prev?.series.map((series) => ({
+            series: prev?.series?.map((series) => ({
                 ...series,
                 type,
                 flipAxes,
@@ -72,7 +96,7 @@ const useCartesianChartConfig = (
         }
         const validSeries: Series[] =
             dirtyConfig?.series
-                .filter(isValidSeries)
+                ?.filter(isValidSeries)
                 .filter(
                     ({ xField, yField }) =>
                         availableXFields.includes(xField) &&
@@ -96,6 +120,8 @@ const useCartesianChartConfig = (
 
         return {
             series: validSeries,
+            xAxes: dirtyConfig?.xAxes,
+            yAxes: dirtyConfig?.yAxes,
         };
     }, [dirtyConfig, resultsData]);
 
@@ -105,6 +131,10 @@ const useCartesianChartConfig = (
         setXField,
         setYFields,
         setType,
+        setXAxisName,
+        setYAxisName,
+        xAxisName,
+        yAxisName,
     };
 };
 

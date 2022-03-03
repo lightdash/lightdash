@@ -1,4 +1,4 @@
-import { Button, Tab, Tabs } from '@blueprintjs/core';
+import { Button, InputGroup, Tab, Tabs } from '@blueprintjs/core';
 import {
     fieldId,
     getDimensions,
@@ -22,9 +22,9 @@ const ChartConfigTabs: FC = () => {
         pivotDimensions,
         setPivotDimensions,
     } = useVisualizationContext();
-    const xField = cartesianConfig.dirtyConfig?.series[0]?.xField;
+    const xField = (cartesianConfig.dirtyConfig?.series || [])[0]?.xField;
     const yFields =
-        cartesianConfig.dirtyConfig?.series.reduce<string[]>(
+        cartesianConfig.dirtyConfig?.series?.reduce<string[]>(
             (sum, { yField }) => (yField ? [...sum, yField] : sum),
             [],
         ) || [];
@@ -86,94 +86,120 @@ const ChartConfigTabs: FC = () => {
                     id="x-axis"
                     title="X-axis"
                     panel={
-                        <InputWrapper label="Field">
-                            <FieldAutoComplete
-                                activeField={activeDimension}
-                                fields={dimensionsInMetricQuery}
-                                onChange={(field) => {
-                                    if (isField(field)) {
-                                        cartesianConfig.setXField(
-                                            fieldId(field),
-                                        );
+                        <>
+                            <InputWrapper label="X-axis label">
+                                <InputGroup
+                                    defaultValue={cartesianConfig.xAxisName}
+                                    onBlur={(e) =>
+                                        cartesianConfig.setXAxisName(
+                                            e.currentTarget.value,
+                                        )
                                     }
-                                }}
-                            />
-                        </InputWrapper>
+                                />
+                            </InputWrapper>
+                            <InputWrapper label="Field">
+                                <FieldAutoComplete
+                                    activeField={activeDimension}
+                                    fields={dimensionsInMetricQuery}
+                                    onChange={(field) => {
+                                        if (isField(field)) {
+                                            cartesianConfig.setXField(
+                                                fieldId(field),
+                                            );
+                                        }
+                                    }}
+                                />
+                            </InputWrapper>
+                        </>
                     }
                 />
                 <Tab
                     id="y-axis"
                     title="Y-axis"
                     panel={
-                        <InputWrapper label="Field(s)">
-                            {yFields.map((yFieldId) => {
-                                const activeMetric =
-                                    metricsAndTableCalculations.find(
-                                        (item) =>
-                                            (isField(item)
-                                                ? fieldId(item)
-                                                : item.name) === yFieldId,
+                        <>
+                            <InputWrapper label="Y-axis label">
+                                <InputGroup
+                                    defaultValue={cartesianConfig.yAxisName}
+                                    onBlur={(e) =>
+                                        cartesianConfig.setYAxisName(
+                                            e.currentTarget.value,
+                                        )
+                                    }
+                                />
+                            </InputWrapper>
+
+                            <InputWrapper label="Field(s)">
+                                {yFields.map((yFieldId) => {
+                                    const activeMetric =
+                                        metricsAndTableCalculations.find(
+                                            (item) =>
+                                                (isField(item)
+                                                    ? fieldId(item)
+                                                    : item.name) === yFieldId,
+                                        );
+                                    if (!activeMetric) {
+                                        return null;
+                                    }
+                                    return (
+                                        <FieldRow>
+                                            <FieldAutoComplete
+                                                disabled
+                                                activeField={activeMetric}
+                                                fields={yOptions}
+                                                onChange={() => undefined}
+                                            />
+                                            <Button
+                                                minimal
+                                                icon={'small-cross'}
+                                                disabled={yFields.length <= 1}
+                                                onClick={() => {
+                                                    cartesianConfig.setYFields(
+                                                        yFields.filter(
+                                                            (value) =>
+                                                                value !==
+                                                                yFieldId,
+                                                        ),
+                                                    );
+                                                }}
+                                            />
+                                        </FieldRow>
                                     );
-                                if (!activeMetric) {
-                                    return null;
-                                }
-                                return (
+                                })}
+                                {isOpen && (
                                     <FieldRow>
                                         <FieldAutoComplete
-                                            disabled
-                                            activeField={activeMetric}
                                             fields={yOptions}
-                                            onChange={() => undefined}
+                                            onChange={(item) => {
+                                                cartesianConfig.setYFields([
+                                                    ...yFields,
+                                                    isField(item)
+                                                        ? fieldId(item)
+                                                        : item.name,
+                                                ]);
+                                                toggle(false);
+                                            }}
                                         />
                                         <Button
                                             minimal
                                             icon={'small-cross'}
-                                            disabled={yFields.length <= 1}
                                             onClick={() => {
-                                                cartesianConfig.setYFields(
-                                                    yFields.filter(
-                                                        (value) =>
-                                                            value !== yFieldId,
-                                                    ),
-                                                );
+                                                toggle(false);
                                             }}
                                         />
                                     </FieldRow>
-                                );
-                            })}
-                            {isOpen && (
-                                <FieldRow>
-                                    <FieldAutoComplete
-                                        fields={yOptions}
-                                        onChange={(item) => {
-                                            cartesianConfig.setYFields([
-                                                ...yFields,
-                                                isField(item)
-                                                    ? fieldId(item)
-                                                    : item.name,
-                                            ]);
-                                            toggle(false);
-                                        }}
-                                    />
-                                    <Button
+                                )}
+                                {!isOpen && (
+                                    <SimpleButton
                                         minimal
-                                        icon={'small-cross'}
-                                        onClick={() => {
-                                            toggle(false);
-                                        }}
+                                        icon={'plus'}
+                                        text="Add"
+                                        disabled={yOptions.length <= 0}
+                                        onClick={() => toggle(true)}
                                     />
-                                </FieldRow>
-                            )}
-                            {!isOpen && (
-                                <SimpleButton
-                                    minimal
-                                    icon={'plus'}
-                                    text="Add"
-                                    disabled={yOptions.length <= 0}
-                                    onClick={() => toggle(true)}
-                                />
-                            )}
-                        </InputWrapper>
+                                )}
+                            </InputWrapper>
+                        </>
                     }
                 />
                 <Tab
