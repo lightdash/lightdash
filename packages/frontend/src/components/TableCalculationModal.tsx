@@ -171,30 +171,29 @@ interface CreateTableCalculationModalProps {
     onClose: () => void;
 }
 
-export const CreateTableCalculationModal: FC<
-    CreateTableCalculationModalProps
-> = ({ isOpen, onClose }) => {
-    const {
-        actions: { addTableCalculation },
-    } = useExplorer();
-    const { track } = useTracking();
-    const onCreate = (value: TableCalculation) => {
-        addTableCalculation(value);
-        track({
-            name: EventName.CREATE_TABLE_CALCULATION_BUTTON_CLICKED,
-        });
-        onClose();
-    };
+export const CreateTableCalculationModal: FC<CreateTableCalculationModalProps> =
+    ({ isOpen, onClose }) => {
+        const {
+            actions: { addTableCalculation },
+        } = useExplorer();
+        const { track } = useTracking();
+        const onCreate = (value: TableCalculation) => {
+            addTableCalculation(value);
+            track({
+                name: EventName.CREATE_TABLE_CALCULATION_BUTTON_CLICKED,
+            });
+            onClose();
+        };
 
-    return (
-        <TableCalculationModal
-            isOpen={isOpen}
-            isDisabled={false}
-            onSave={onCreate}
-            onClose={onClose}
-        />
-    );
-};
+        return (
+            <TableCalculationModal
+                isOpen={isOpen}
+                isDisabled={false}
+                onSave={onCreate}
+                onClose={onClose}
+            />
+        );
+    };
 
 interface UpdateTableCalculationModalProps {
     isOpen: boolean;
@@ -202,31 +201,30 @@ interface UpdateTableCalculationModalProps {
     onClose: () => void;
 }
 
-export const UpdateTableCalculationModal: FC<
-    UpdateTableCalculationModalProps
-> = ({ isOpen, tableCalculation, onClose }) => {
-    const {
-        actions: { updateTableCalculation },
-    } = useExplorer();
-    const { track } = useTracking();
-    const onUpdate = (value: TableCalculation) => {
-        updateTableCalculation(tableCalculation.name, value);
-        track({
-            name: EventName.UPDATE_TABLE_CALCULATION_BUTTON_CLICKED,
-        });
-        onClose();
-    };
+export const UpdateTableCalculationModal: FC<UpdateTableCalculationModalProps> =
+    ({ isOpen, tableCalculation, onClose }) => {
+        const {
+            actions: { updateTableCalculation },
+        } = useExplorer();
+        const { track } = useTracking();
+        const onUpdate = (value: TableCalculation) => {
+            updateTableCalculation(tableCalculation.name, value);
+            track({
+                name: EventName.UPDATE_TABLE_CALCULATION_BUTTON_CLICKED,
+            });
+            onClose();
+        };
 
-    return (
-        <TableCalculationModal
-            isOpen={isOpen}
-            isDisabled={false}
-            tableCalculation={tableCalculation}
-            onSave={onUpdate}
-            onClose={onClose}
-        />
-    );
-};
+        return (
+            <TableCalculationModal
+                isOpen={isOpen}
+                isDisabled={false}
+                tableCalculation={tableCalculation}
+                onSave={onUpdate}
+                onClose={onClose}
+            />
+        );
+    };
 
 interface DeleteTableCalculationModalProps {
     isOpen: boolean;
@@ -234,43 +232,44 @@ interface DeleteTableCalculationModalProps {
     onClose: () => void;
 }
 
-export const DeleteTableCalculationModal: FC<
-    DeleteTableCalculationModalProps
-> = ({ isOpen, tableCalculation, onClose }) => {
-    const {
-        actions: { deleteTableCalculation },
-    } = useExplorer();
-    const { track } = useTracking();
+export const DeleteTableCalculationModal: FC<DeleteTableCalculationModalProps> =
+    ({ isOpen, tableCalculation, onClose }) => {
+        const {
+            actions: { deleteTableCalculation },
+        } = useExplorer();
+        const { track } = useTracking();
 
-    const onConfirm = () => {
-        deleteTableCalculation(tableCalculation.name);
-        track({
-            name: EventName.CONFIRM_DELETE_TABLE_CALCULATION_BUTTON_CLICKED,
-        });
-        onClose();
-    };
-    return (
-        <Dialog
-            isOpen={isOpen}
-            icon="cog"
-            onClose={onClose}
-            title="Settings"
-            lazy
-            canOutsideClickClose={false}
-        >
-            <div className={Classes.DIALOG_BODY}>
-                <p>Are you sure you want to delete this table calculation ?</p>
-            </div>
-            <div className={Classes.DIALOG_FOOTER}>
-                <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                    <Button onClick={onClose}>Cancel</Button>
-                    <Button intent="danger" onClick={onConfirm}>
-                        Delete
-                    </Button>
+        const onConfirm = () => {
+            deleteTableCalculation(tableCalculation.name);
+            track({
+                name: EventName.CONFIRM_DELETE_TABLE_CALCULATION_BUTTON_CLICKED,
+            });
+            onClose();
+        };
+        return (
+            <Dialog
+                isOpen={isOpen}
+                icon="cog"
+                onClose={onClose}
+                title="Settings"
+                lazy
+                canOutsideClickClose={false}
+            >
+                <div className={Classes.DIALOG_BODY}>
+                    <p>
+                        Are you sure you want to delete this table calculation ?
+                    </p>
                 </div>
-            </div>
-        </Dialog>
-    );
-};
+                <div className={Classes.DIALOG_FOOTER}>
+                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+                        <Button onClick={onClose}>Cancel</Button>
+                        <Button intent="danger" onClick={onConfirm}>
+                            Delete
+                        </Button>
+                    </div>
+                </div>
+            </Dialog>
+        );
+    };
 
 export default TableCalculationModal;
