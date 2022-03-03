@@ -84,7 +84,7 @@ const useCartesianChartConfig = (
             (prevState) =>
                 prevState && {
                     ...prevState,
-                    series: prevState.series.map((series) => ({
+                    series: prevState?.series?.map((series) => ({
                         ...series,
                         label: {
                             show:
