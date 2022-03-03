@@ -8,7 +8,11 @@ import FilterConfiguration from '../FilterConfiguration';
 import ActiveFilter from './ActiveFilter';
 import { TagsWrapper } from './ActiveFilters.styles';
 
-const ActiveFilters: FC = () => {
+interface Props {
+    isEditMode: boolean;
+}
+
+const ActiveFilters: FC<Props> = ({ isEditMode }) => {
     const {
         dashboard,
         dashboardFilters,
@@ -37,6 +41,7 @@ const ActiveFilters: FC = () => {
                         key={item.id}
                         content={
                             <FilterConfiguration
+                                isEditMode={isEditMode}
                                 field={activeField}
                                 filterRule={item}
                                 onSave={(value) => {

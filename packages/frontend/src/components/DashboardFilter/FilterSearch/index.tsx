@@ -11,10 +11,11 @@ import {
 
 type Props = {
     fields: FilterableField[];
+    isEditMode: boolean;
     onClose: () => void;
 };
 
-const FilterSearch: FC<Props> = ({ fields, onClose }) => {
+const FilterSearch: FC<Props> = ({ fields, onClose, isEditMode }) => {
     const [selectedField, setSelectedField] = useState<FilterableField>();
     const { addDimensionDashboardFilter } = useDashboardContext();
 
@@ -38,6 +39,7 @@ const FilterSearch: FC<Props> = ({ fields, onClose }) => {
                 </>
             ) : (
                 <FilterConfiguration
+                    isEditMode={isEditMode}
                     field={selectedField}
                     onSave={(value) => {
                         setSelectedField(undefined);
