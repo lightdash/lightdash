@@ -11,6 +11,8 @@ import {
     getFilterTypeFromField,
 } from 'common';
 import React, { FC, useMemo, useState } from 'react';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import { FilterTypeConfig } from '../../common/Filters/configs';
 import {
     ApplyFilterButton,
@@ -22,6 +24,7 @@ import {
 
 interface Props {
     field: FilterableField;
+    isEditMode: boolean;
     filterRule?: DashboardFilterRule;
     onSave: (value: DashboardFilterRule) => void;
     onBack?: () => void;
@@ -32,7 +35,9 @@ const FilterConfiguration: FC<Props> = ({
     filterRule,
     onSave,
     onBack,
+    isEditMode,
 }) => {
+    const { track } = useTracking();
     const [internalFilterRule, setInternalFilterRule] =
         useState<DashboardFilterRule>(
             filterRule || createDashboardFilterRuleFromField(field),
@@ -89,6 +94,13 @@ const FilterConfiguration: FC<Props> = ({
                         internalFilterRule.values.length <= 0)
                 }
                 onClick={() => {
+                    track({
+                        name: EventName.ADD_FILTER_CLICKED,
+                        properties: {
+                            mode: isEditMode ? 'edit' : 'viewer',
+                        },
+                    });
+
                     onSave(internalFilterRule);
                 }}
             />
