@@ -375,7 +375,7 @@ export class DashboardModel {
     async create(
         spaceUuid: string,
         dashboard: CreateDashboard,
-    ): Promise<string> {
+    ): Promise<Dashboard> {
         return this.database.transaction(async (trx) => {
             const [space] = await trx(SpaceTableName)
                 .where('space_uuid', spaceUuid)
@@ -398,7 +398,7 @@ export class DashboardModel {
                 dashboard,
             );
 
-            return newDashboard.dashboard_uuid;
+            return this.getById(newDashboard.dashboard_uuid);
         });
     }
 
@@ -420,7 +420,7 @@ export class DashboardModel {
     async addVersion(
         dashboardUuid: string,
         version: DashboardVersionedFields,
-    ): Promise<void> {
+    ): Promise<Dashboard> {
         const [dashboard] = await this.database(DashboardsTableName)
             .select(['dashboard_id'])
             .where('dashboard_uuid', dashboardUuid)
@@ -428,12 +428,13 @@ export class DashboardModel {
         if (!dashboard) {
             throw new NotFoundError('Dashboard not found');
         }
-        return this.database.transaction(async (trx) => {
+        await this.database.transaction(async (trx) => {
             await DashboardModel.createVersion(
                 trx,
                 dashboard.dashboard_id,
                 version,
             );
         });
+        return this.getById(dashboardUuid);
     }
 }

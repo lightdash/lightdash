@@ -3,6 +3,8 @@ import Analytics, {
     Track as AnalyticsTrack,
 } from '@rudderstack/rudder-sdk-node';
 import {
+    CartesianSeriesType,
+    ChartType,
     LightdashInstallType,
     LightdashUser,
     ProjectType,
@@ -96,13 +98,29 @@ type TrackUserDeletedEvent = BaseTrack & {
 };
 
 type TrackSavedChart = BaseTrack & {
-    event:
-        | 'saved_chart.created'
-        | 'saved_chart.updated'
-        | 'saved_chart.deleted'
-        | 'saved_chart_version.created';
+    event: 'saved_chart.updated' | 'saved_chart.deleted';
     properties: {
         savedQueryId: string;
+    };
+};
+
+export type CreateSavedChartOrVersionEvent = BaseTrack & {
+    event: 'saved_chart.created' | 'saved_chart_version.created';
+    properties: {
+        savedQueryId: string;
+        dimensionsCount: number;
+        metricsCount: number;
+        filtersCount: number;
+        sortsCount: number;
+        tableCalculationsCount: number;
+        pivotCount: number;
+        chartType: ChartType;
+        cartesian?: {
+            xAxisCount: number;
+            yAxisCount: number;
+            seriesCount: number;
+            seriesTypes: CartesianSeriesType[];
+        };
     };
 };
 
@@ -149,14 +167,22 @@ type ProjectErrorEvent = BaseTrack & {
 };
 
 type DashboardEvent = BaseTrack & {
-    event:
-        | 'dashboard.created'
-        | 'dashboard.updated'
-        | 'dashboard.deleted'
-        | 'dashboard_version.created';
+    event: 'dashboard.updated' | 'dashboard.deleted';
     userId: string;
     properties: {
         dashboardId: string;
+    };
+};
+
+export type CreateDashboardOrVersionEvent = BaseTrack & {
+    event: 'dashboard.created' | 'dashboard_version.created';
+    properties: {
+        dashboardId: string;
+        filtersCount: number;
+        tilesCount: number;
+        chartTilesCount: number;
+        markdownTilesCount: number;
+        loomTilesCount: number;
     };
 };
 
@@ -178,12 +204,14 @@ type Track =
     | UpdateUserEvent
     | QueryExecutionEvent
     | TrackSavedChart
+    | CreateSavedChartOrVersionEvent
     | TrackUserDeletedEvent
     | ProjectErrorEvent
     | ApiErrorEvent
     | ProjectEvent
     | ProjectCompiledEvent
     | DashboardEvent
+    | CreateDashboardOrVersionEvent
     | ProjectTablesConfigurationEvent
     | TrackOrganizationEvent
     | LoginEvent

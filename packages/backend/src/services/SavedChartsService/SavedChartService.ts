@@ -1,4 +1,6 @@
 import {
+    ChartType,
+    countTotalFilterRules,
     CreateSavedChart,
     CreateSavedChartVersion,
     SavedChart,
@@ -6,6 +8,7 @@ import {
     UpdateSavedChart,
 } from 'common';
 import { analytics } from '../../analytics/client';
+import { CreateSavedChartOrVersionEvent } from '../../analytics/LightdashAnalytics';
 import { ForbiddenError, NotExistsError } from '../../errors';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -25,6 +28,38 @@ export class SavedChartService {
         this.savedChartModel = dependencies.savedChartModel;
     }
 
+    static getCreateEventProperties(
+        savedChart: SavedChart,
+    ): CreateSavedChartOrVersionEvent['properties'] {
+        return {
+            savedQueryId: savedChart.uuid,
+            dimensionsCount: savedChart.metricQuery.dimensions.length,
+            metricsCount: savedChart.metricQuery.metrics.length,
+            filtersCount: countTotalFilterRules(savedChart.metricQuery.filters),
+            sortsCount: savedChart.metricQuery.sorts.length,
+            tableCalculationsCount:
+                savedChart.metricQuery.tableCalculations.length,
+            pivotCount: (savedChart.pivotConfig?.columns || []).length,
+            chartType: savedChart.chartConfig.type,
+            cartesian:
+                savedChart.chartConfig.type === ChartType.CARTESIAN
+                    ? {
+                          xAxisCount: (
+                              savedChart.chartConfig.config.xAxes || []
+                          ).length,
+                          yAxisCount: (
+                              savedChart.chartConfig.config.yAxes || []
+                          ).length,
+                          seriesTypes: savedChart.chartConfig.config.series.map(
+                              ({ type }) => type,
+                          ),
+                          seriesCount:
+                              savedChart.chartConfig.config.series.length,
+                      }
+                    : undefined,
+        };
+    }
+
     async createVersion(
         user: SessionUser,
         savedChartUuid: string,
@@ -41,9 +76,7 @@ export class SavedChartService {
             event: 'saved_chart_version.created',
             userId: user.userUuid,
             organizationId: user.organizationUuid,
-            properties: {
-                savedQueryId: savedChart.uuid,
-            },
+            properties: SavedChartService.getCreateEventProperties(savedChart),
         });
         return savedChart;
     }
@@ -107,9 +140,8 @@ export class SavedChartService {
             projectId: projectUuid,
             organizationId: user.organizationUuid,
             userId: user.userUuid,
-            properties: {
-                savedQueryId: newSavedChart.uuid,
-            },
+            properties:
+                SavedChartService.getCreateEventProperties(newSavedChart),
         });
         return newSavedChart;
     }
