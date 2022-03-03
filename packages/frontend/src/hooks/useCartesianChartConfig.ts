@@ -58,12 +58,45 @@ const useCartesianChartConfig = (
         }));
     }, []);
 
-    const setYFields = useCallback((yFields: string[]) => {
+    const addSingleSeries = useCallback((newSeries: Partial<Series>) => {
         setDirtyConfig((prev) => {
-            const [firstSeries] = prev?.series || [];
+            const [{ name, yField, ...rest }] = prev?.series || [];
             return {
                 ...prev,
-                series: yFields.map((yField) => ({ ...firstSeries, yField })),
+                series: [...(prev?.series || []), { ...rest, ...newSeries }],
+            };
+        });
+    }, []);
+
+    const updateSingleSeries = useCallback(
+        (index: number, updatedSeries: Partial<Series>) => {
+            setDirtyConfig((prev) => {
+                const [{ name, yField, ...rest }] = prev?.series || [];
+                return {
+                    ...prev,
+                    series: prev?.series
+                        ? [
+                              ...prev.series.slice(0, index),
+                              { ...rest, ...updatedSeries },
+                              ...prev.series.slice(index + 1),
+                          ]
+                        : [],
+                };
+            });
+        },
+        [],
+    );
+
+    const removeSingleSeries = useCallback((index: number) => {
+        setDirtyConfig((prev) => {
+            return {
+                ...prev,
+                series: prev?.series
+                    ? [
+                          ...prev.series.slice(0, index),
+                          ...prev.series.slice(index + 1),
+                      ]
+                    : [],
             };
         });
     }, []);
@@ -157,13 +190,15 @@ const useCartesianChartConfig = (
         dirtyConfig,
         validConfig,
         setXField,
-        setYFields,
         setType,
         setXAxisName,
         setYAxisName,
         xAxisName,
         yAxisName,
         setLabel,
+        addSingleSeries,
+        updateSingleSeries,
+        removeSingleSeries,
     };
 };
 

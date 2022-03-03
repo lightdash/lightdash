@@ -30,7 +30,7 @@ const ChartConfigTabs: FC = () => {
         setPivotDimensions,
     } = useVisualizationContext();
     const xField = (cartesianConfig.dirtyConfig?.series || [])[0]?.xField;
-    const yFields =
+    const yFieldsKeys =
         cartesianConfig.dirtyConfig?.series?.reduce<string[]>(
             (sum, { yField }) => (yField ? [...sum, yField] : sum),
             [],
@@ -68,7 +68,8 @@ const ChartConfigTabs: FC = () => {
     );
 
     const yOptions = items.filter(
-        (item) => !yFields.includes(isField(item) ? fieldId(item) : item.name),
+        (item) =>
+            !yFieldsKeys.includes(isField(item) ? fieldId(item) : item.name),
     );
 
     const activeGroupDimension = items.find(
@@ -135,52 +136,72 @@ const ChartConfigTabs: FC = () => {
                             </InputWrapper>
 
                             <InputWrapper label="Field(s)">
-                                {yFields.map((yFieldId) => {
-                                    const activeMetric = items.find(
-                                        (item) =>
-                                            (isField(item)
-                                                ? fieldId(item)
-                                                : item.name) === yFieldId,
-                                    );
-                                    if (!activeMetric) {
-                                        return null;
-                                    }
-                                    return (
-                                        <FieldRow>
-                                            <FieldAutoComplete
-                                                disabled
-                                                activeField={activeMetric}
-                                                fields={yOptions}
-                                                onChange={() => undefined}
-                                            />
-                                            <Button
-                                                minimal
-                                                icon={'small-cross'}
-                                                disabled={yFields.length <= 1}
-                                                onClick={() => {
-                                                    cartesianConfig.setYFields(
-                                                        yFields.filter(
-                                                            (value) =>
-                                                                value !==
-                                                                yFieldId,
-                                                        ),
-                                                    );
-                                                }}
-                                            />
-                                        </FieldRow>
-                                    );
-                                })}
+                                {cartesianConfig.dirtyConfig?.series?.map(
+                                    (series, index) => {
+                                        const activeMetric = items.find(
+                                            (item) =>
+                                                (isField(item)
+                                                    ? fieldId(item)
+                                                    : item.name) ===
+                                                series.yField,
+                                        );
+                                        if (!activeMetric) {
+                                            return null;
+                                        }
+                                        return (
+                                            <FieldRow>
+                                                <FieldAutoComplete
+                                                    disabled
+                                                    activeField={activeMetric}
+                                                    fields={yOptions}
+                                                    onChange={() => undefined}
+                                                />
+                                                <InputWrapper label="Series label">
+                                                    <InputGroup
+                                                        defaultValue={
+                                                            series.name
+                                                        }
+                                                        onBlur={(e) =>
+                                                            cartesianConfig.updateSingleSeries(
+                                                                index,
+                                                                {
+                                                                    ...series,
+                                                                    name: e
+                                                                        .currentTarget
+                                                                        .value,
+                                                                },
+                                                            )
+                                                        }
+                                                    />
+                                                </InputWrapper>
+                                                <Button
+                                                    minimal
+                                                    icon={'small-cross'}
+                                                    disabled={
+                                                        yFieldsKeys.length <= 1
+                                                    }
+                                                    onClick={() =>
+                                                        cartesianConfig.removeSingleSeries(
+                                                            index,
+                                                        )
+                                                    }
+                                                />
+                                            </FieldRow>
+                                        );
+                                    },
+                                )}
                                 {isOpen && (
                                     <FieldRow>
                                         <FieldAutoComplete
                                             fields={yOptions}
                                             onChange={(item) => {
-                                                cartesianConfig.setYFields([
-                                                    ...yFields,
-                                                    isField(item)
-                                                        ? fieldId(item)
-                                                        : item.name,
-                                                ]);
+                                                cartesianConfig.addSingleSeries(
+                                                    {
+                                                        yField: isField(item)
+                                                            ? fieldId(item)
+                                                            : item.name,
+                                                    },
+                                                );
                                                 toggle(false);
                                             }}
                                         />

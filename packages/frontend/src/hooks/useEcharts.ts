@@ -102,7 +102,7 @@ export const getEchartsSeries = (
             new Set(formattedData.map((row) => row[pivotKey])),
         );
         return chartConfig.series.reduce<EChartSeries[]>(
-            (sum, { yField, xField, type, flipAxes, label }) => {
+            (sum, { yField, xField, type, flipAxes, name, label }) => {
                 const xAxisDimension = {
                     name: xField,
                     displayName: getLabelFromField(
@@ -117,6 +117,10 @@ export const getEchartsSeries = (
                         label,
                         type,
                         connectNulls: true,
+                        name:
+                            name && chartConfig.series.length > 1
+                                ? `[${value}] ${name}`
+                                : undefined,
                         encode: {
                             x: flipAxes ? pivotedDimension : xField,
                             y: flipAxes ? xField : pivotedDimension,
@@ -149,13 +153,14 @@ export const getEchartsSeries = (
         );
     } else {
         return chartConfig.series.reduce<EChartSeries[]>(
-            (sum, { yField, xField, type, flipAxes, label }) => {
+            (sum, { yField, xField, type, flipAxes, name, label }) => {
                 return [
                     ...sum,
                     {
                         type,
                         label,
                         connectNulls: true,
+                        name,
                         encode: {
                             x: flipAxes ? yField : xField,
                             y: flipAxes ? xField : yField,
