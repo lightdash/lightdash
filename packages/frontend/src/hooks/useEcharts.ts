@@ -30,8 +30,11 @@ const getLabelFromField = (
     }
 };
 
-const getAxisTypeFromField = (explore: Explore, key: string): string => {
-    const field = findFieldByIdInExplore(explore, key);
+const getAxisTypeFromField = (
+    explore: Explore,
+    key: string | undefined,
+): string => {
+    const field = key ? findFieldByIdInExplore(explore, key) : undefined;
     if (field) {
         switch (field.type) {
             case DimensionType.NUMBER:
@@ -217,8 +220,14 @@ const useEcharts = () => {
     const [xAxis] = validConfig?.xAxes || [];
     const [yAxis] = validConfig?.yAxes || [];
 
-    const defaultXAxisType = getAxisTypeFromField(explore, series[0].encode.x);
-    const defaultYAxisType = getAxisTypeFromField(explore, series[0].encode.y);
+    const defaultXAxisType = getAxisTypeFromField(
+        explore,
+        validConfig?.series[0].xField,
+    );
+    const defaultYAxisType = getAxisTypeFromField(
+        explore,
+        validConfig?.series[0].yField,
+    );
     let xAxisType: string;
     let yAxisType: string;
     if (validConfig?.series[0].flipAxes) {
