@@ -1,3 +1,10 @@
+## [0.29.4](https://github.com/lightdash/lightdash/compare/0.29.3...0.29.4) (2022-03-03)
+
+
+### Bug Fixes
+
+* adds commands tooltip to table explorer ([#1491](https://github.com/lightdash/lightdash/issues/1491)) ([d318194](https://github.com/lightdash/lightdash/commit/d3181942ab170b3b5c81a94ff512bfc669f7d193))
+
 ## [0.29.3](https://github.com/lightdash/lightdash/compare/0.29.2...0.29.3) (2022-03-02)
 
 
