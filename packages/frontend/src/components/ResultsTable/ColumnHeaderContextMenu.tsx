@@ -4,6 +4,8 @@ import { isFilterableField } from 'common';
 import React from 'react';
 import { HeaderGroup } from 'react-table';
 import { useFilters } from '../../hooks/useFilters';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
 
 type ColumnHeaderContextMenuProps = {
     column: HeaderGroup | undefined;
@@ -15,6 +17,8 @@ const ColumnHeaderContextMenu: React.FC<ColumnHeaderContextMenuProps> = ({
 }) => {
     const { addFilter } = useFilters();
     const field = column?.field;
+    const { track } = useTracking();
+
     if (field && isFilterableField(field)) {
         return (
             <ContextMenu2
@@ -23,6 +27,9 @@ const ColumnHeaderContextMenu: React.FC<ColumnHeaderContextMenuProps> = ({
                         <MenuItem
                             text={`Filter by ${field.label}`}
                             onClick={(e) => {
+                                track({
+                                    name: EventName.ADD_FILTER_CLICKED,
+                                });
                                 e.stopPropagation();
                                 addFilter(field, undefined, false);
                             }}

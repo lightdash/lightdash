@@ -4,6 +4,8 @@ import { isFilterableField } from 'common';
 import React from 'react';
 import { Cell } from 'react-table';
 import { useFilters } from '../../hooks/useFilters';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
 
 type CellContextMenuProps = {
     cell: Cell;
@@ -14,6 +16,8 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
 }) => {
     const { addFilter } = useFilters();
     const field = cell.column?.field;
+    const { track } = useTracking();
+
     if (field && isFilterableField(field)) {
         return (
             <ContextMenu2
@@ -22,6 +26,9 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
                         <MenuItem
                             text={`Filter by "${cell.value}"`}
                             onClick={() => {
+                                track({
+                                    name: EventName.ADD_FILTER_CLICKED,
+                                });
                                 addFilter(
                                     field,
                                     cell.value === undefined
