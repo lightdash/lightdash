@@ -19,12 +19,7 @@ import { useToggle } from 'react-use';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import SimpleButton from '../common/SimpleButton';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import {
-    FieldRow,
-    InputWrapper,
-    SelectInput,
-    Wrapper,
-} from './ChartConfigPanel.styles';
+import { FieldRow, InputWrapper, Wrapper } from './ChartConfigPanel.styles';
 
 const ChartConfigTabs: FC = () => {
     const {
@@ -236,13 +231,14 @@ const ChartConfigTabs: FC = () => {
                             </InputWrapper>
                             {showValues && (
                                 <InputWrapper label="Label position">
-                                    <SelectInput
+                                    <HTMLSelect
                                         options={[
                                             'top',
                                             'bottom',
                                             'left',
                                             'right',
                                         ]}
+                                        fill
                                         onChange={(e) =>
                                             cartesianConfig.setLabel({
                                                 position: e.currentTarget
