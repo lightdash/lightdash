@@ -19,5 +19,5 @@ export const ContentWrapper = styled.div`
 `;
 
 export const TableTitle = styled.p`
-    padding: 0.625em;
+    padding: 0.5em 0 0 0;
 `;
