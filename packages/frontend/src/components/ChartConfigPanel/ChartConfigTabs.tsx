@@ -220,9 +220,17 @@ const ChartConfigTabs: FC = () => {
                                     checked={showValues}
                                     label="Show value labels"
                                     onChange={(e) =>
-                                        cartesianConfig.setLabel({
-                                            show: e.currentTarget.checked,
-                                        })
+                                        cartesianConfig.setLabel(
+                                            e.currentTarget.checked
+                                                ? {
+                                                      show: true,
+                                                      position: 'top',
+                                                  }
+                                                : {
+                                                      show: false,
+                                                      position: undefined,
+                                                  },
+                                        )
                                     }
                                 />
                             </InputWrapper>
