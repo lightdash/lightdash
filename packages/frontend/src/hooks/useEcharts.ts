@@ -214,11 +214,24 @@ const useEcharts = () => {
 
     const [xAxis] = validConfig?.xAxes || [];
     const [yAxis] = validConfig?.yAxes || [];
+
+    const defaultXAxisType = getAxisTypeFromField(explore, series[0].encode.x);
+    const defaultYAxisType = getAxisTypeFromField(explore, series[0].encode.y);
+    let xAxisType: string;
+    let yAxisType: string;
+    if (validConfig?.series[0].flipAxes) {
+        xAxisType = 'value';
+        yAxisType =
+            defaultYAxisType === 'value' ? 'category' : defaultYAxisType;
+    } else {
+        xAxisType =
+            defaultXAxisType === 'value' ? 'category' : defaultXAxisType;
+        yAxisType = 'value';
+    }
+
     return {
         xAxis: {
-            type: validConfig?.series[0].flipAxes
-                ? 'value'
-                : getAxisTypeFromField(explore, series[0].encode.x),
+            type: xAxisType,
             name:
                 xAxis?.name ||
                 getLabelFromField(
@@ -231,9 +244,7 @@ const useEcharts = () => {
             nameTextStyle: { fontWeight: 'bold' },
         },
         yAxis: {
-            type: validConfig?.series[0].flipAxes
-                ? getAxisTypeFromField(explore, series[0].encode.y)
-                : 'value',
+            type: yAxisType,
             name:
                 yAxis?.name ||
                 (series.length === 1

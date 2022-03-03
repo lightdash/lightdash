@@ -64,17 +64,9 @@ const ChartConfigTabs: FC = () => {
         (item) => !yFields.includes(isField(item) ? fieldId(item) : item.name),
     );
 
-    const groupDimensionsInMetricQuery = explore
-        ? getDimensions(explore).filter(
-              (field) =>
-                  resultsData?.metricQuery.dimensions.includes(
-                      fieldId(field),
-                  ) && fieldId(field) !== xField,
-          )
-        : [];
-
-    const activeGroupDimension = groupDimensionsInMetricQuery.find(
-        (field) => fieldId(field) === pivotDimension,
+    const activeGroupDimension = items.find(
+        (item) =>
+            (isField(item) ? fieldId(item) : item.name) === pivotDimension,
     );
 
     return (
@@ -210,11 +202,9 @@ const ChartConfigTabs: FC = () => {
                         <InputWrapper label="Group">
                             <FieldRow>
                                 <FieldAutoComplete
-                                    disabled={
-                                        groupDimensionsInMetricQuery.length <= 0
-                                    }
+                                    disabled={items.length <= 0}
                                     activeField={activeGroupDimension}
-                                    fields={groupDimensionsInMetricQuery}
+                                    fields={items}
                                     onChange={(field) => {
                                         if (isField(field)) {
                                             setPivotDimensions([
