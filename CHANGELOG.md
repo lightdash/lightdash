@@ -1,3 +1,12 @@
+# [0.30.0](https://github.com/lightdash/lightdash/compare/0.29.4...0.30.0) (2022-03-03)
+
+
+### Features
+
+* add chart value labels  ([#1485](https://github.com/lightdash/lightdash/issues/1485)) ([d5c3f2b](https://github.com/lightdash/lightdash/commit/d5c3f2bf3bf798efc7d03f2bb1e0d78e0b7c8b5e))
+* **charts:** allow all field types to be applied to both axis and pivoting [skip ci]([#1490](https://github.com/lightdash/lightdash/issues/1490)) ([ef0a037](https://github.com/lightdash/lightdash/commit/ef0a037ee607f374ff96a7a62abe014bc3c0cd9b))
+* **charts:** option to rename chart axes [skip ci]([#1486](https://github.com/lightdash/lightdash/issues/1486)) ([13e9633](https://github.com/lightdash/lightdash/commit/13e96333e369498f3e24fef86622c7b51d8b7a88))
+
 ## [0.29.4](https://github.com/lightdash/lightdash/compare/0.29.3...0.29.4) (2022-03-03)
 
 
