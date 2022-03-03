@@ -1,7 +1,7 @@
 import {
     Button,
-    InputGroup,
     HTMLSelect,
+    InputGroup,
     Switch,
     Tab,
     Tabs,
@@ -76,8 +76,9 @@ const ChartConfigTabs: FC = () => {
             (isField(item) ? fieldId(item) : item.name) === pivotDimension,
     );
 
-    const showValues =
-        cartesianConfig.dirtyConfig?.series[0]?.label?.show || false;
+    const showValues = cartesianConfig.dirtyConfig?.series
+        ? cartesianConfig.dirtyConfig?.series[0]?.label?.show
+        : false;
 
     return (
         <Wrapper>
