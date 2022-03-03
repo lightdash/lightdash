@@ -376,7 +376,7 @@ export class DashboardModel {
         spaceUuid: string,
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
-        return this.database.transaction(async (trx) => {
+        const dashboardId = await this.database.transaction(async (trx) => {
             const [space] = await trx(SpaceTableName)
                 .where('space_uuid', spaceUuid)
                 .select('spaces.*')
@@ -398,8 +398,9 @@ export class DashboardModel {
                 dashboard,
             );
 
-            return this.getById(newDashboard.dashboard_uuid);
+            return newDashboard.dashboard_uuid;
         });
+        return this.getById(dashboardId);
     }
 
     async update(
