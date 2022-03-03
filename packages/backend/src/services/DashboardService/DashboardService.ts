@@ -2,12 +2,14 @@ import {
     CreateDashboard,
     Dashboard,
     DashboardBasicDetails,
+    DashboardTileTypes,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     SessionUser,
     UpdateDashboard,
 } from 'common';
 import { analytics } from '../../analytics/client';
+import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytics';
 import database from '../../database/database';
 import { getSpace } from '../../database/entities/spaces';
 import { ForbiddenError } from '../../errors';
@@ -22,6 +24,28 @@ export class DashboardService {
 
     constructor({ dashboardModel }: Dependencies) {
         this.dashboardModel = dashboardModel;
+    }
+
+    static getCreateEventProperties(
+        dashboard: Dashboard,
+    ): CreateDashboardOrVersionEvent['properties'] {
+        return {
+            dashboardId: dashboard.uuid,
+            filtersCount: dashboard.filters
+                ? dashboard.filters.metrics.length +
+                  dashboard.filters.dimensions.length
+                : 0,
+            tilesCount: dashboard.tiles.length,
+            chartTilesCount: dashboard.tiles.filter(
+                ({ type }) => type === DashboardTileTypes.SAVED_CHART,
+            ).length,
+            markdownTilesCount: dashboard.tiles.filter(
+                ({ type }) => type === DashboardTileTypes.MARKDOWN,
+            ).length,
+            loomTilesCount: dashboard.tiles.filter(
+                ({ type }) => type === DashboardTileTypes.LOOM,
+            ).length,
+        };
     }
 
     async getAllByProject(
@@ -47,7 +71,7 @@ export class DashboardService {
             throw new ForbiddenError();
         }
         const space = await getSpace(database, projectUuid);
-        const dashboardUuid = await this.dashboardModel.create(
+        const newDashboard = await this.dashboardModel.create(
             space.space_uuid,
             dashboard,
         );
@@ -56,11 +80,9 @@ export class DashboardService {
             userId: user.userUuid,
             projectId: projectUuid,
             organizationId: user.organizationUuid,
-            properties: {
-                dashboardId: dashboardUuid,
-            },
+            properties: DashboardService.getCreateEventProperties(newDashboard),
         });
-        return this.getById(user, dashboardUuid);
+        return this.getById(user, newDashboard.uuid);
     }
 
     async update(
@@ -86,17 +108,19 @@ export class DashboardService {
             });
         }
         if (isDashboardVersionedFields(dashboard)) {
-            await this.dashboardModel.addVersion(dashboardUuid, {
-                tiles: dashboard.tiles,
-                filters: dashboard.filters,
-            });
+            const updatedDashboard = await this.dashboardModel.addVersion(
+                dashboardUuid,
+                {
+                    tiles: dashboard.tiles,
+                    filters: dashboard.filters,
+                },
+            );
             analytics.track({
                 event: 'dashboard_version.created',
                 userId: user.userUuid,
                 organizationId: user.organizationUuid,
-                properties: {
-                    dashboardId: dashboardUuid,
-                },
+                properties:
+                    DashboardService.getCreateEventProperties(updatedDashboard),
             });
         }
         return this.getById(user, dashboardUuid);

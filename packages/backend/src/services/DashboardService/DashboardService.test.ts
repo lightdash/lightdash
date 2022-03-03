@@ -32,13 +32,13 @@ jest.mock('../../models/models', () => ({
 
         getById: jest.fn(async () => dashboard),
 
-        create: jest.fn(async () => dashboard.uuid),
+        create: jest.fn(async () => dashboard),
 
         update: jest.fn(),
 
         delete: jest.fn(),
 
-        addVersion: jest.fn(),
+        addVersion: jest.fn(async () => dashboard),
     },
 }));
 

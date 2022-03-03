@@ -183,10 +183,12 @@ describe('DashboardModel', () => {
                 ]),
             )
             .response([]);
+        jest.spyOn(model, 'getById').mockImplementationOnce(() =>
+            Promise.resolve(expectedDashboard),
+        );
 
-        const newDashboardUuid = await model.create(spaceUuid, createDashboard);
+        await model.create(spaceUuid, createDashboard);
 
-        expect(newDashboardUuid).toBe(dashboardEntry.dashboard_uuid);
         expect(tracker.history.select).toHaveLength(2);
         expect(tracker.history.insert).toHaveLength(5);
     });
@@ -340,6 +342,9 @@ describe('DashboardModel', () => {
                 ]),
             )
             .response([]);
+        jest.spyOn(model, 'getById').mockImplementationOnce(() =>
+            Promise.resolve(expectedDashboard),
+        );
 
         await model.addVersion(
             expectedDashboard.uuid,
@@ -402,6 +407,9 @@ describe('DashboardModel', () => {
                 ]),
             )
             .response([]);
+        jest.spyOn(model, 'getById').mockImplementationOnce(() =>
+            Promise.resolve(expectedDashboard),
+        );
 
         await model.addVersion(
             expectedDashboard.uuid,
@@ -445,6 +453,9 @@ describe('DashboardModel', () => {
                 ]),
             )
             .response([dashboardTileEntry]);
+        jest.spyOn(model, 'getById').mockImplementationOnce(() =>
+            Promise.resolve(expectedDashboard),
+        );
 
         await model.addVersion(
             expectedDashboard.uuid,
