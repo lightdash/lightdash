@@ -105,7 +105,7 @@ const ChartConfigTabs: FC = () => {
                             <InputWrapper label="Field">
                                 <FieldAutoComplete
                                     activeField={activeDimension}
-                                    fields={dimensionsInMetricQuery}
+                                    fields={items}
                                     onChange={(item) =>
                                         cartesianConfig.setXField(
                                             isField(item)
@@ -255,13 +255,13 @@ const ChartConfigTabs: FC = () => {
                                         disabled={items.length <= 0}
                                         activeField={activeGroupDimension}
                                         fields={items}
-                                        onChange={(field) => {
-                                            if (isField(field)) {
-                                                setPivotDimensions([
-                                                    fieldId(field),
-                                                ]);
-                                            }
-                                        }}
+                                        onChange={(item) =>
+                                            setPivotDimensions([
+                                                isField(item)
+                                                    ? fieldId(item)
+                                                    : item.name,
+                                            ])
+                                        }
                                     />
                                     {activeGroupDimension && (
                                         <Button
