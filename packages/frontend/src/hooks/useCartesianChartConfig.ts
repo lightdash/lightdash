@@ -80,10 +80,10 @@ const useCartesianChartConfig = (
     }, []);
 
     const validConfig = useMemo<CartesianChart | undefined>(() => {
-        const availableXFields = resultsData
+        const availableDimensions = resultsData
             ? resultsData.metricQuery.dimensions
             : [];
-        const availableYFields = resultsData
+        const availableMetricsAndTableCalculations = resultsData
             ? [
                   ...resultsData.metricQuery.metrics,
                   ...resultsData.metricQuery.tableCalculations.map(
@@ -91,7 +91,11 @@ const useCartesianChartConfig = (
                   ),
               ]
             : [];
-        if (availableXFields.length <= 0 || availableYFields.length <= 0) {
+        const availableFields = [
+            ...availableDimensions,
+            ...availableMetricsAndTableCalculations,
+        ];
+        if (availableFields.length <= 1) {
             return undefined;
         }
         const validSeries: Series[] =
@@ -99,8 +103,8 @@ const useCartesianChartConfig = (
                 ?.filter(isValidSeries)
                 .filter(
                     ({ xField, yField }) =>
-                        availableXFields.includes(xField) &&
-                        availableYFields.includes(yField),
+                        availableFields.includes(xField) &&
+                        availableFields.includes(yField),
                 ) || [];
 
         if (validSeries.length <= 0) {
@@ -109,8 +113,10 @@ const useCartesianChartConfig = (
                 series: [
                     {
                         type: CartesianSeriesType.BAR,
-                        xField: availableXFields[0],
-                        yField: availableYFields[0],
+                        xField: availableDimensions[0] || availableFields[0],
+                        yField:
+                            availableMetricsAndTableCalculations[0] ||
+                            availableFields[1],
                         flipAxes: false,
                     },
                 ],

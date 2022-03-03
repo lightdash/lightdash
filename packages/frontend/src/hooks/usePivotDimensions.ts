@@ -15,10 +15,22 @@ const usePivotDimensions = (
     const validPivotDimensions = useMemo(() => {
         if (resultsData) {
             const pivotDimension = dirtyPivotDimensions?.[0];
-            if (
-                pivotDimension &&
-                resultsData.metricQuery.dimensions.includes(pivotDimension)
-            ) {
+            const availableDimensions = resultsData
+                ? resultsData.metricQuery.dimensions
+                : [];
+            const availableMetricsAndTableCalculations = resultsData
+                ? [
+                      ...resultsData.metricQuery.metrics,
+                      ...resultsData.metricQuery.tableCalculations.map(
+                          ({ name }) => name,
+                      ),
+                  ]
+                : [];
+            const availableFields = [
+                ...availableDimensions,
+                ...availableMetricsAndTableCalculations,
+            ];
+            if (pivotDimension && availableFields.includes(pivotDimension)) {
                 return [pivotDimension];
             }
             return undefined;
