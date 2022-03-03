@@ -220,13 +220,13 @@ const useEcharts = () => {
     let xAxisType: string;
     let yAxisType: string;
     if (validConfig?.series[0].flipAxes) {
-        xAxisType = 'value';
+        xAxisType = defaultXAxisType;
         yAxisType =
             defaultYAxisType === 'value' ? 'category' : defaultYAxisType;
     } else {
         xAxisType =
             defaultXAxisType === 'value' ? 'category' : defaultXAxisType;
-        yAxisType = 'value';
+        yAxisType = defaultYAxisType;
     }
 
     return {
