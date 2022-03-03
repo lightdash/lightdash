@@ -1,4 +1,11 @@
-import { Button, InputGroup, Tab, Tabs } from '@blueprintjs/core';
+import {
+    Button,
+    HTMLSelect,
+    InputGroup,
+    Switch,
+    Tab,
+    Tabs,
+} from '@blueprintjs/core';
 import {
     fieldId,
     getDimensions,
@@ -69,6 +76,10 @@ const ChartConfigTabs: FC = () => {
             (isField(item) ? fieldId(item) : item.name) === pivotDimension,
     );
 
+    const showValues = cartesianConfig.dirtyConfig?.series
+        ? cartesianConfig.dirtyConfig?.series[0]?.label?.show
+        : false;
+
     return (
         <Wrapper>
             <Tabs
@@ -94,7 +105,7 @@ const ChartConfigTabs: FC = () => {
                             <InputWrapper label="Field">
                                 <FieldAutoComplete
                                     activeField={activeDimension}
-                                    fields={dimensionsInMetricQuery}
+                                    fields={items}
                                     onChange={(item) =>
                                         cartesianConfig.setXField(
                                             isField(item)
@@ -199,31 +210,71 @@ const ChartConfigTabs: FC = () => {
                     id="chart"
                     title="Chart"
                     panel={
-                        <InputWrapper label="Group">
-                            <FieldRow>
-                                <FieldAutoComplete
-                                    disabled={items.length <= 0}
-                                    activeField={activeGroupDimension}
-                                    fields={items}
-                                    onChange={(field) => {
-                                        if (isField(field)) {
-                                            setPivotDimensions([
-                                                fieldId(field),
-                                            ]);
-                                        }
-                                    }}
+                        <>
+                            <InputWrapper label="Labels">
+                                <Switch
+                                    checked={showValues}
+                                    label="Show value labels"
+                                    onChange={(e) =>
+                                        cartesianConfig.setLabel(
+                                            e.currentTarget.checked
+                                                ? {
+                                                      show: true,
+                                                      position: 'top',
+                                                  }
+                                                : {
+                                                      show: false,
+                                                      position: undefined,
+                                                  },
+                                        )
+                                    }
                                 />
-                                {activeGroupDimension && (
-                                    <Button
-                                        minimal
-                                        icon={'small-cross'}
-                                        onClick={() => {
-                                            setPivotDimensions(undefined);
-                                        }}
+                            </InputWrapper>
+                            {showValues && (
+                                <InputWrapper label="Label position">
+                                    <HTMLSelect
+                                        options={[
+                                            'top',
+                                            'bottom',
+                                            'left',
+                                            'right',
+                                        ]}
+                                        fill
+                                        onChange={(e) =>
+                                            cartesianConfig.setLabel({
+                                                position: e.currentTarget
+                                                    .value as any,
+                                            })
+                                        }
                                     />
-                                )}
-                            </FieldRow>
-                        </InputWrapper>
+                                </InputWrapper>
+                            )}
+                            <InputWrapper label="Group">
+                                <FieldRow>
+                                    <FieldAutoComplete
+                                        disabled={items.length <= 0}
+                                        activeField={activeGroupDimension}
+                                        fields={items}
+                                        onChange={(item) =>
+                                            setPivotDimensions([
+                                                isField(item)
+                                                    ? fieldId(item)
+                                                    : item.name,
+                                            ])
+                                        }
+                                    />
+                                    {activeGroupDimension && (
+                                        <Button
+                                            minimal
+                                            icon={'small-cross'}
+                                            onClick={() => {
+                                                setPivotDimensions(undefined);
+                                            }}
+                                        />
+                                    )}
+                                </FieldRow>
+                            </InputWrapper>
+                        </>
                     }
                 />
             </Tabs>

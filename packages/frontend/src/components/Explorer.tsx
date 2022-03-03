@@ -34,6 +34,7 @@ import {
 import { useExplorer } from '../providers/ExplorerProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
+import AddColumnButton from './AddColumnButton';
 import ChartConfigPanel from './ChartConfigPanel';
 import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
@@ -48,6 +49,7 @@ import { ExplorerResults } from './Explorer/ExplorerResults';
 import VisualizationCardOptions from './Explorer/VisualizationCardOptions';
 import LightdashVisualization from './LightdashVisualization';
 import VisualizationProvider from './LightdashVisualization/VisualizationProvider';
+import LimitButton from './LimitButton';
 import { RefreshButton } from './RefreshButton';
 import { RefreshServerButton } from './RefreshServerButton';
 import { RenderedSql } from './RenderedSql';
@@ -56,8 +58,6 @@ import CreateSavedDashboardModal from './SavedDashboards/CreateSavedDashboardMod
 import DashboardForm from './SavedDashboards/DashboardForm';
 import CreateSavedQueryModal from './SavedQueries/CreateSavedQueryModal';
 import SavedQueryForm from './SavedQueries/SavedQueryForm';
-import LimitButton from './LimitButton';
-import AddColumnButton from './AddColumnButton';
 
 interface Props {
     savedQueryUuid?: string;

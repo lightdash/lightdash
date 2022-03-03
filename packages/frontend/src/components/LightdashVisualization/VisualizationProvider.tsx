@@ -13,7 +13,6 @@ import useCartesianChartConfig from '../../hooks/useCartesianChartConfig';
 import { useExplore } from '../../hooks/useExplore';
 import useFormattedAndPlottedData from '../../hooks/useFormattedAndPlottedData';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
-
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
 type VisualizationContext = {

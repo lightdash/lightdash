@@ -27,6 +27,10 @@ export type Series = {
     yField: string;
     type: CartesianSeriesType;
     flipAxes?: boolean | undefined;
+    label?: {
+        show?: boolean;
+        position?: 'left' | 'top' | 'right' | 'bottom';
+    };
 };
 
 type Axis = {

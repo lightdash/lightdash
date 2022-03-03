@@ -30,6 +30,18 @@
                     },
                     "flipAxes": {
                         "type": "boolean"
+                    },
+                    "label": {
+                        "type": "object",
+                        "properties": {
+                            "show": {
+                                "type": "boolean"
+                            },
+                            "position": {
+                                "type": "string",
+                                "enum": ["top", "bottom", "left", "right"]
+                            }
+                        }
                     }
                 },
                 "required": ["xField", "yField", "type"]
