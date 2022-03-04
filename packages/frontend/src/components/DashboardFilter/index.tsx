@@ -64,7 +64,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                         </FilterTrigger>
                     </Tooltip2>
                 </TriggerWrapper>
-                {dashboardFilters && <ActiveFilters isEditMode={isEditMode} />}
+                {dashboardFilters && <ActiveFilters />}
             </DashboardFilterWrapper>
         </FiltersProvider>
     );
