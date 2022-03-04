@@ -17,16 +17,18 @@ import { getPivotedDimension } from './useFormattedAndPlottedData';
 const getLabelFromField = (
     explore: Explore,
     tableCalculations: TableCalculation[],
-    key: string,
+    key: string | undefined,
 ) => {
-    const field = findFieldByIdInExplore(explore, key);
+    const field = key ? findFieldByIdInExplore(explore, key) : undefined;
     const tableCalculation = tableCalculations.find(({ name }) => name === key);
     if (field) {
         return getFieldLabel(field);
     } else if (tableCalculation) {
         return tableCalculation.displayName;
-    } else {
+    } else if (key) {
         return friendlyName(key);
+    } else {
+        return '';
     }
 };
 
@@ -55,7 +57,7 @@ const getAxisTypeFromField = (
             }
         }
     } else {
-        return 'category';
+        return 'value';
     }
 };
 
@@ -220,14 +222,16 @@ const useEcharts = () => {
     const [xAxis] = validConfig?.xAxes || [];
     const [yAxis] = validConfig?.yAxes || [];
 
-    const defaultXAxisType = getAxisTypeFromField(
-        explore,
-        validConfig?.series[0].xField,
-    );
-    const defaultYAxisType = getAxisTypeFromField(
-        explore,
-        validConfig?.series[0].yField,
-    );
+    const xAxisField = validConfig?.series[0].flipAxes
+        ? validConfig?.series[0].yField
+        : validConfig?.series[0].xField;
+    const yAxisField = validConfig?.series[0].flipAxes
+        ? validConfig?.series[0].xField
+        : validConfig?.series[0].yField;
+
+    const defaultXAxisType = getAxisTypeFromField(explore, xAxisField);
+    const defaultYAxisType = getAxisTypeFromField(explore, yAxisField);
+
     let xAxisType: string;
     let yAxisType: string;
     if (validConfig?.series[0].flipAxes) {
@@ -248,7 +252,7 @@ const useEcharts = () => {
                 getLabelFromField(
                     explore,
                     resultsData?.metricQuery.tableCalculations || [],
-                    series[0].encode.x,
+                    xAxisField,
                 ),
             nameLocation: 'center',
             nameGap: 30,
@@ -262,7 +266,7 @@ const useEcharts = () => {
                     ? getLabelFromField(
                           explore,
                           resultsData?.metricQuery.tableCalculations || [],
-                          series[0].encode.y,
+                          yAxisField,
                       )
                     : undefined),
             nameTextStyle: { fontWeight: 'bold', align: 'left' },
