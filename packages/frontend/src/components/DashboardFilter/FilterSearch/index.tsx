@@ -21,7 +21,7 @@ const FilterSearch: FC<Props> = ({ fields, onClose, isEditMode }) => {
     const [selectedField, setSelectedField] = useState<FilterableField>();
     const { addDimensionDashboardFilter } = useDashboardContext();
     const { track } = useTracking();
-    
+
     return (
         <FilterModalContainer>
             {!selectedField ? (
@@ -45,11 +45,11 @@ const FilterSearch: FC<Props> = ({ fields, onClose, isEditMode }) => {
                     field={selectedField}
                     onSave={(value) => {
                         track({
-                        name: EventName.ADD_FILTER_CLICKED,
-                        properties: {
-                            mode: isEditMode ? 'edit' : 'viewer',
-                        },
-                    });
+                            name: EventName.ADD_FILTER_CLICKED,
+                            properties: {
+                                mode: isEditMode ? 'edit' : 'viewer',
+                            },
+                        });
                         setSelectedField(undefined);
                         addDimensionDashboardFilter(value);
                         onClose();
