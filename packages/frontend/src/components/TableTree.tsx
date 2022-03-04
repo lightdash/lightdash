@@ -26,6 +26,8 @@ import {
 import Fuse from 'fuse.js';
 import React, { FC, ReactNode, useCallback, useMemo, useState } from 'react';
 import { useFilters } from '../hooks/useFilters';
+import { TrackSection, useTracking } from '../providers/TrackingProvider';
+import { EventName, SectionName } from '../types/Events';
 
 type NodeDataProps = {
     fieldId: FieldId;
@@ -124,7 +126,7 @@ const NodeItemButtons: FC<{
 }> = ({ node, onOpenSourceDialog, isHovered }) => {
     const { isFilteredField, addFilter } = useFilters();
     const isFiltered = isFilteredField(node);
-
+    const { track } = useTracking();
     const menuItems: ReactNode[] = [];
     if (node.source) {
         menuItems.push(
@@ -149,6 +151,9 @@ const NodeItemButtons: FC<{
                 icon="filter"
                 text="Add filter"
                 onClick={(e) => {
+                    track({
+                        name: EventName.ADD_FILTER_CLICKED,
+                    });
                     e.stopPropagation();
                     addFilter(node, undefined);
                 }}
@@ -454,20 +459,22 @@ const TableTree: FC<TableTreeProps> = ({
     );
 
     return (
-        <Tree
-            contents={contents}
-            onNodeCollapse={(node) => {
-                setExpandedNodes((prevState) =>
-                    prevState.filter((id) => id !== node.id),
-                );
-            }}
-            onNodeExpand={(node) => {
-                setExpandedNodes((prevState) => [...prevState, node.id]);
-            }}
-            onNodeClick={handleNodeClick}
-            onNodeMouseEnter={onNodeMouseEnter}
-            onNodeMouseLeave={onNodeMouseLeave}
-        />
+        <TrackSection name={SectionName.SIDEBAR}>
+            <Tree
+                contents={contents}
+                onNodeCollapse={(node) => {
+                    setExpandedNodes((prevState) =>
+                        prevState.filter((id) => id !== node.id),
+                    );
+                }}
+                onNodeExpand={(node) => {
+                    setExpandedNodes((prevState) => [...prevState, node.id]);
+                }}
+                onNodeClick={handleNodeClick}
+                onNodeMouseEnter={onNodeMouseEnter}
+                onNodeMouseLeave={onNodeMouseLeave}
+            />
+        </TrackSection>
     );
 };
 
