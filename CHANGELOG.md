@@ -1,3 +1,10 @@
+## [0.30.4](https://github.com/lightdash/lightdash/compare/0.30.3...0.30.4) (2022-03-04)
+
+
+### Bug Fixes
+
+* set correct axis type ([#1501](https://github.com/lightdash/lightdash/issues/1501)) ([99adcc3](https://github.com/lightdash/lightdash/commit/99adcc3024401d0bf6b3ed89e80267d373c31fd9))
+
 ## [0.30.3](https://github.com/lightdash/lightdash/compare/0.30.2...0.30.3) (2022-03-04)
 
 
