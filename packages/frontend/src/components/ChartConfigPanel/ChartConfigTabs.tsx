@@ -200,12 +200,23 @@ const ChartConfigTabs: FC = () => {
                                                             }
                                                             position="bottom"
                                                             lazy={true}
+                                                            disabled={
+                                                                !!pivotDimension
+                                                            }
                                                         >
                                                             <ColorButton
                                                                 style={{
+                                                                    cursor: !!pivotDimension
+                                                                        ? 'not-allowed'
+                                                                        : 'pointer',
                                                                     backgroundColor:
-                                                                        series.color,
+                                                                        !!pivotDimension
+                                                                            ? Colors.GRAY3
+                                                                            : series.color,
                                                                 }}
+                                                                disabled={
+                                                                    !!pivotDimension
+                                                                }
                                                             >
                                                                 {!series.color && (
                                                                     <Icon
@@ -222,6 +233,16 @@ const ChartConfigTabs: FC = () => {
                                                             placeholder="Enter custom series label"
                                                             defaultValue={
                                                                 series.name
+                                                            }
+                                                            disabled={
+                                                                cartesianConfig
+                                                                    .dirtyConfig
+                                                                    ?.series &&
+                                                                cartesianConfig
+                                                                    .dirtyConfig
+                                                                    ?.series
+                                                                    ?.length <=
+                                                                    1
                                                             }
                                                             onBlur={(e) =>
                                                                 cartesianConfig.updateSingleSeries(
