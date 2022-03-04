@@ -1,11 +1,14 @@
 import {
     Button,
+    Colors,
     HTMLSelect,
+    Icon,
     InputGroup,
     Switch,
     Tab,
     Tabs,
 } from '@blueprintjs/core';
+import { Popover2 } from '@blueprintjs/popover2';
 import {
     fieldId,
     getDimensions,
@@ -15,11 +18,20 @@ import {
     TableCalculation,
 } from 'common';
 import React, { FC, useState } from 'react';
+import { BlockPicker, ColorResult } from 'react-color';
 import { useToggle } from 'react-use';
+import { ECHARTS_DEFAULT_COLORS } from '../../hooks/useCartesianChartConfig';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import SimpleButton from '../common/SimpleButton';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import { FieldRow, InputWrapper, Wrapper } from './ChartConfigPanel.styles';
+import {
+    ColorButton,
+    FieldRow,
+    FieldRowInlineInputs,
+    FieldRowInputs,
+    InputWrapper,
+    Wrapper,
+} from './ChartConfigPanel.styles';
 
 const ChartConfigTabs: FC = () => {
     const {
@@ -95,6 +107,7 @@ const ChartConfigTabs: FC = () => {
                         <>
                             <InputWrapper label="X-axis label">
                                 <InputGroup
+                                    placeholder="Enter X-axis label"
                                     defaultValue={cartesianConfig.xAxisName}
                                     onBlur={(e) =>
                                         cartesianConfig.setXAxisName(
@@ -126,6 +139,7 @@ const ChartConfigTabs: FC = () => {
                         <>
                             <InputWrapper label="Y-axis label">
                                 <InputGroup
+                                    placeholder="Enter Y-axis label"
                                     defaultValue={cartesianConfig.yAxisName}
                                     onBlur={(e) =>
                                         cartesianConfig.setYAxisName(
@@ -150,48 +164,79 @@ const ChartConfigTabs: FC = () => {
                                         }
                                         return (
                                             <FieldRow>
-                                                <FieldAutoComplete
-                                                    disabled
-                                                    activeField={activeMetric}
-                                                    fields={yOptions}
-                                                    onChange={() => undefined}
-                                                />
-                                                <InputWrapper label="Series label">
-                                                    <InputGroup
-                                                        defaultValue={
-                                                            series.name
+                                                <FieldRowInputs>
+                                                    <FieldAutoComplete
+                                                        disabled
+                                                        activeField={
+                                                            activeMetric
                                                         }
-                                                        onBlur={(e) =>
-                                                            cartesianConfig.updateSingleSeries(
-                                                                index,
-                                                                {
-                                                                    ...series,
-                                                                    name: e
-                                                                        .currentTarget
-                                                                        .value,
-                                                                },
-                                                            )
+                                                        fields={yOptions}
+                                                        onChange={() =>
+                                                            undefined
                                                         }
                                                     />
-                                                </InputWrapper>
-                                                <InputWrapper label="Color">
-                                                    <InputGroup
-                                                        defaultValue={
-                                                            series.color
-                                                        }
-                                                        onBlur={(e) =>
-                                                            cartesianConfig.updateSingleSeries(
-                                                                index,
-                                                                {
-                                                                    ...series,
-                                                                    color: e
-                                                                        .currentTarget
-                                                                        .value,
-                                                                },
-                                                            )
-                                                        }
-                                                    />
-                                                </InputWrapper>
+                                                    <FieldRowInlineInputs>
+                                                        <Popover2
+                                                            content={
+                                                                <BlockPicker
+                                                                    color={
+                                                                        series.color
+                                                                    }
+                                                                    colors={
+                                                                        ECHARTS_DEFAULT_COLORS
+                                                                    }
+                                                                    onChange={(
+                                                                        color: ColorResult,
+                                                                    ) => {
+                                                                        cartesianConfig.updateSingleSeries(
+                                                                            index,
+                                                                            {
+                                                                                ...series,
+                                                                                color: color.hex,
+                                                                            },
+                                                                        );
+                                                                    }}
+                                                                />
+                                                            }
+                                                            position="bottom"
+                                                            lazy={true}
+                                                        >
+                                                            <ColorButton
+                                                                style={{
+                                                                    backgroundColor:
+                                                                        series.color,
+                                                                }}
+                                                            >
+                                                                {!series.color && (
+                                                                    <Icon
+                                                                        icon="tint"
+                                                                        color={
+                                                                            Colors.GRAY3
+                                                                        }
+                                                                    />
+                                                                )}
+                                                            </ColorButton>
+                                                        </Popover2>
+                                                        <InputGroup
+                                                            fill
+                                                            placeholder="Enter custom series label"
+                                                            defaultValue={
+                                                                series.name
+                                                            }
+                                                            onBlur={(e) =>
+                                                                cartesianConfig.updateSingleSeries(
+                                                                    index,
+                                                                    {
+                                                                        ...series,
+                                                                        name: e
+                                                                            .currentTarget
+                                                                            .value,
+                                                                    },
+                                                                )
+                                                            }
+                                                        />
+                                                    </FieldRowInlineInputs>
+                                                </FieldRowInputs>
                                                 <Button
                                                     minimal
                                                     icon={'small-cross'}

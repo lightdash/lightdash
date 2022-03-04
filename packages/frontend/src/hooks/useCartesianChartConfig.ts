@@ -15,6 +15,22 @@ type PartialCartesianChart = {
 export const isValidSeries = (series: Partial<Series>): series is Series =>
     !!series.type && !!series.xField && !!series.yField;
 
+export const ECHARTS_DEFAULT_COLORS = [
+    '#5470c6',
+    '#91cc75',
+    '#fac858',
+    '#ee6666',
+    '#73c0de',
+    '#3ba272',
+    '#fc8452',
+    '#9a60b4',
+    '#ea7ccc',
+];
+
+const getDefaultSeriesColor = (index: number) => {
+    return ECHARTS_DEFAULT_COLORS[index % ECHARTS_DEFAULT_COLORS.length];
+};
+
 const useCartesianChartConfig = (
     chartConfigs: CartesianChart | undefined,
     resultsData: ApiQueryResults | undefined,
@@ -61,9 +77,17 @@ const useCartesianChartConfig = (
     const addSingleSeries = useCallback((newSeries: Partial<Series>) => {
         setDirtyConfig((prev) => {
             const [{ name, yField, color, ...rest }] = prev?.series || [];
+            const currentSeries = prev?.series || [];
             return {
                 ...prev,
-                series: [...(prev?.series || []), { ...rest, ...newSeries }],
+                series: [
+                    ...currentSeries,
+                    {
+                        color: getDefaultSeriesColor(currentSeries.length),
+                        ...rest,
+                        ...newSeries,
+                    },
+                ],
             };
         });
     }, []);
@@ -173,6 +197,7 @@ const useCartesianChartConfig = (
                             availableMetricsAndTableCalculations[0] ||
                             availableFields[1],
                         flipAxes: false,
+                        color: getDefaultSeriesColor(0),
                     },
                 ],
             });
