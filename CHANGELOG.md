@@ -1,3 +1,10 @@
+## [0.30.3](https://github.com/lightdash/lightdash/compare/0.30.2...0.30.3) (2022-03-04)
+
+
+### Bug Fixes
+
+* include joined tables ([#1500](https://github.com/lightdash/lightdash/issues/1500)) ([97254a3](https://github.com/lightdash/lightdash/commit/97254a35ce08ca87310be7cda961fbcfda87b548))
+
 ## [0.30.2](https://github.com/lightdash/lightdash/compare/0.30.1...0.30.2) (2022-03-04)
 
 
