@@ -306,6 +306,9 @@ export const buildQuery = ({
     ]);
 
     const getJoinedTables = (tableNames: string[]): string[] => {
+        if (tableNames.length === 0) {
+            return [];
+        }
         const joins = tableNames
             .map((t) => explore.joinedTables.find((join) => join.table === t))
             .filter((t): t is CompiledExploreJoin => !!t);
@@ -320,7 +323,7 @@ export const buildQuery = ({
 
     const joinedTables = new Set([
         ...selectedTables,
-        getJoinedTables([...selectedTables]),
+        ...getJoinedTables([...selectedTables]),
     ]);
 
     const sqlJoins = explore.joinedTables

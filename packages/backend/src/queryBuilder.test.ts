@@ -2,6 +2,7 @@ import { buildQuery, renderDateFilterSql } from './queryBuilder';
 import {
     DimensionSqlMock,
     EXPLORE,
+    EXPLORE_JOIN_CHAIN,
     InTheLast1CompletedYearFilter,
     InTheLast1CompletedYearFilterSQL,
     InTheLast1DayFilter,
@@ -13,6 +14,8 @@ import {
     InTheLast1YearFilter,
     InTheLast1YearFilterSQL,
     METRIC_QUERY,
+    METRIC_QUERY_JOIN_CHAIN,
+    METRIC_QUERY_JOIN_CHAIN_SQL,
     METRIC_QUERY_SQL,
     METRIC_QUERY_TWO_TABLES,
     METRIC_QUERY_TWO_TABLES_SQL,
@@ -50,6 +53,15 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_FILTER,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_FILTER_SQL);
+    });
+
+    test('should join chain of intermediary tables', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_JOIN_CHAIN,
+                compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_JOIN_CHAIN_SQL);
     });
 
     test('Should build query with filter OR operator', () => {
