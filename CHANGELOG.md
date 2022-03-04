@@ -1,3 +1,10 @@
+# [0.31.0](https://github.com/lightdash/lightdash/compare/0.30.4...0.31.0) (2022-03-04)
+
+
+### Features
+
+* **charts:** allow custom series name and color ([#1497](https://github.com/lightdash/lightdash/issues/1497)) ([3d744a5](https://github.com/lightdash/lightdash/commit/3d744a553937c0bb72eb60ffaa91538791b927df))
+
 ## [0.30.4](https://github.com/lightdash/lightdash/compare/0.30.3...0.30.4) (2022-03-04)
 
 
