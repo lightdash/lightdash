@@ -1,3 +1,10 @@
+## [0.30.2](https://github.com/lightdash/lightdash/compare/0.30.1...0.30.2) (2022-03-04)
+
+
+### Bug Fixes
+
+* trigger helm chart update upon release ([#1463](https://github.com/lightdash/lightdash/issues/1463)) ([b11ec79](https://github.com/lightdash/lightdash/commit/b11ec7962b515e2038ebe0ad541574305e5b99b1))
+
 ## [0.30.1](https://github.com/lightdash/lightdash/compare/0.30.0...0.30.1) (2022-03-03)
 
 
