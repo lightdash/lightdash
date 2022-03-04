@@ -1,8 +1,12 @@
-import { AnchorButton, Colors } from '@blueprintjs/core';
+import { AnchorButton } from '@blueprintjs/core';
 import React, { FC } from 'react';
-import { useSavedCharts } from '../../hooks/useSpaces';
-import LinkButton from '../common/LinkButton';
-import LatestCard from './LatestCard';
+import { useSavedCharts } from '../../../hooks/useSpaces';
+import LatestCard from '../LatestCard';
+import {
+    ChartName,
+    CreateChartButton,
+    ViewAllButton,
+} from './LatestSavedCharts.style';
 
 const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const savedChartsRequest = useSavedCharts(projectUuid);
@@ -10,15 +14,14 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     return (
         <LatestCard
             isLoading={savedChartsRequest.isLoading}
-            title={`Browse saved charts (${savedCharts.length})`}
+            title="Browse saved charts"
             headerAction={
                 savedCharts.length > 0 ? (
-                    <LinkButton
-                        text="View all"
+                    <ViewAllButton
+                        text={`View all ${savedCharts.length}`}
                         minimal
                         outlined
                         href={`/projects/${projectUuid}/saved`}
-                        style={{ width: 100 }}
                     />
                 ) : (
                     <AnchorButton
@@ -40,35 +43,22 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 )
                 .slice(0, 5)
                 .map(({ uuid, name }) => (
-                    <LinkButton
+                    <ChartName
                         minimal
                         href={`/projects/${projectUuid}/saved/${uuid}`}
-                        style={{
-                            width: '100%',
-                            justifyContent: 'left',
-                            color: Colors.DARK_GRAY1,
-                            fontWeight: 600,
-                            marginBottom: 10,
-                        }}
                         alignText="left"
                     >
                         {name}
-                    </LinkButton>
+                    </ChartName>
                 ))}
             {savedCharts.length === 0 && (
-                <LinkButton
+                <CreateChartButton
                     minimal
                     href={`/projects/${projectUuid}/tables`}
-                    style={{
-                        width: '100%',
-                        justifyContent: 'left',
-                        fontWeight: 500,
-                        marginBottom: 10,
-                    }}
                     intent="primary"
                 >
                     + Create a saved chart
-                </LinkButton>
+                </CreateChartButton>
             )}
         </LatestCard>
     );
