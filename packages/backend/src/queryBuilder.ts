@@ -1,4 +1,5 @@
 import {
+    CompiledExploreJoin,
     CompiledMetricQuery,
     DateFilterRule,
     DimensionType,
@@ -22,6 +23,7 @@ import {
     unitOfTimeFormat,
 } from 'common';
 import moment from 'moment';
+import { parseAllReferences } from './exploreCompiler';
 
 const renderStringFilterSql = (
     dimensionSql: string,
@@ -303,8 +305,26 @@ export const buildQuery = ({
         ),
     ]);
 
+    const getJoinedTables = (tableNames: string[]): string[] => {
+        const joins = tableNames
+            .map((t) => explore.joinedTables.find((join) => join.table === t))
+            .filter((t): t is CompiledExploreJoin => !!t);
+        const references = joins.flatMap((t) =>
+            parseAllReferences(t.sqlOn, t.table).map((ref) => ref.refTable),
+        );
+        const newReferences = references.filter(
+            (ref) => !tableNames.includes(ref),
+        );
+        return [...newReferences, ...getJoinedTables(newReferences)];
+    };
+
+    const joinedTables = new Set([
+        ...selectedTables,
+        getJoinedTables([...selectedTables]),
+    ]);
+
     const sqlJoins = explore.joinedTables
-        .filter((join) => selectedTables.has(join.table))
+        .filter((join) => joinedTables.has(join.table))
         .map((join) => {
             const joinTable = explore.tables[join.table].sqlTable;
             const alias = join.table;
