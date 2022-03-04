@@ -1,5 +1,4 @@
 import {
-    CompiledExploreJoin,
     CompiledMetricQuery,
     DateFilterRule,
     DimensionType,
@@ -309,16 +308,26 @@ export const buildQuery = ({
         if (tableNames.length === 0) {
             return [];
         }
-        const joins = tableNames
-            .map((t) => explore.joinedTables.find((join) => join.table === t))
-            .filter((t): t is CompiledExploreJoin => !!t);
-        const references = joins.flatMap((t) =>
-            parseAllReferences(t.sqlOn, t.table).map((ref) => ref.refTable),
+        const allNewReferences = explore.joinedTables.reduce<string[]>(
+            (sum, joinedTable) => {
+                if (tableNames.includes(joinedTable.table)) {
+                    const newReferencesInJoin = parseAllReferences(
+                        joinedTable.sqlOn,
+                        joinedTable.table,
+                    ).reduce<string[]>(
+                        (acc, { refTable }) =>
+                            !tableNames.includes(refTable)
+                                ? [...acc, refTable]
+                                : acc,
+                        [],
+                    );
+                    return [...sum, ...newReferencesInJoin];
+                }
+                return sum;
+            },
+            [],
         );
-        const newReferences = references.filter(
-            (ref) => !tableNames.includes(ref),
-        );
-        return [...newReferences, ...getJoinedTables(newReferences)];
+        return [...allNewReferences, ...getJoinedTables(allNewReferences)];
     };
 
     const joinedTables = new Set([
