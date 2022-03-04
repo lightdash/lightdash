@@ -16,10 +16,11 @@ import { CompileError } from './errors';
 
 export const lightdashVariablePattern = /\$\{([a-zA-Z0-9_.]+)\}/g;
 
-const getParsedReference = (
-    ref: string,
-    currentTable: string,
-): { refTable: string; refName: string } => {
+type Reference = {
+    refTable: string;
+    refName: string;
+};
+const getParsedReference = (ref: string, currentTable: string): Reference => {
     // Reference to another dimension
     const split = ref.split('.');
     if (split.length > 2) {
@@ -33,6 +34,14 @@ const getParsedReference = (
 
     return { refTable, refName };
 };
+
+export const parseAllReferences = (
+    raw: string,
+    currentTable: string,
+): Reference[] =>
+    (raw.match(lightdashVariablePattern) || []).map((value) =>
+        getParsedReference(value.slice(2), currentTable),
+    );
 
 export const compileDimensionSql = (
     dimension: Dimension,

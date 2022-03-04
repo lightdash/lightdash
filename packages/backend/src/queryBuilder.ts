@@ -22,6 +22,7 @@ import {
     unitOfTimeFormat,
 } from 'common';
 import moment from 'moment';
+import { parseAllReferences } from './exploreCompiler';
 
 const renderStringFilterSql = (
     dimensionSql: string,
@@ -303,8 +304,39 @@ export const buildQuery = ({
         ),
     ]);
 
+    const getJoinedTables = (tableNames: string[]): string[] => {
+        if (tableNames.length === 0) {
+            return [];
+        }
+        const allNewReferences = explore.joinedTables.reduce<string[]>(
+            (sum, joinedTable) => {
+                if (tableNames.includes(joinedTable.table)) {
+                    const newReferencesInJoin = parseAllReferences(
+                        joinedTable.sqlOn,
+                        joinedTable.table,
+                    ).reduce<string[]>(
+                        (acc, { refTable }) =>
+                            !tableNames.includes(refTable)
+                                ? [...acc, refTable]
+                                : acc,
+                        [],
+                    );
+                    return [...sum, ...newReferencesInJoin];
+                }
+                return sum;
+            },
+            [],
+        );
+        return [...allNewReferences, ...getJoinedTables(allNewReferences)];
+    };
+
+    const joinedTables = new Set([
+        ...selectedTables,
+        ...getJoinedTables([...selectedTables]),
+    ]);
+
     const sqlJoins = explore.joinedTables
-        .filter((join) => selectedTables.has(join.table))
+        .filter((join) => joinedTables.has(join.table))
         .map((join) => {
             const joinTable = explore.tables[join.table].sqlTable;
             const alias = join.table;
