@@ -23,7 +23,9 @@ import {
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../providers/DashboardProvider';
+import { TrackSection } from '../providers/TrackingProvider';
 import '../styles/react-grid.css';
+import { SectionName } from '../types/Events';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -196,12 +198,14 @@ const Dashboard = () => {
                 >
                     {dashboardTiles.map((tile) => (
                         <div key={tile.uuid}>
-                            <GridTile
-                                isEditMode={isEditMode}
-                                tile={tile}
-                                onDelete={onDelete}
-                                onEdit={onEdit}
-                            />
+                            <TrackSection name={SectionName.DASHBOARD_TILE}>
+                                <GridTile
+                                    isEditMode={isEditMode}
+                                    tile={tile}
+                                    onDelete={onDelete}
+                                    onEdit={onEdit}
+                                />
+                            </TrackSection>
                         </div>
                     ))}
                 </ResponsiveGridLayout>
