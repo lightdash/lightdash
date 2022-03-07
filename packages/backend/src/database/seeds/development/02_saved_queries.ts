@@ -130,4 +130,77 @@ export async function seed(knex: Knex): Promise<void> {
             ],
         },
     });
+
+    await savedChartModel.create(SEED_PROJECT.project_uuid, {
+        name: `What's our total revenue to date?`,
+        tableName: 'payments',
+        metricQuery: {
+            dimensions: ['orders_status'],
+            metrics: ['payments_total_revenue'],
+            filters: {},
+            limit: 500,
+            sorts: [
+                {
+                    fieldId: 'payments_total_revenue',
+                    descending: true,
+                },
+            ],
+            tableCalculations: [
+                {
+                    name: 'total_revenue',
+                    displayName: 'total revenue',
+                    sql: 'SUM(${payments.total_revenue}) OVER(PARTITION BY NULL)',
+                },
+            ],
+        },
+        chartConfig: {
+            type: ChartType.BIG_NUMBER,
+            config: undefined,
+        },
+        tableConfig: {
+            columnOrder: [
+                'orders_status',
+                'payments_total_revenue',
+                'total_revenue',
+            ],
+        },
+    });
+
+    await savedChartModel.create(SEED_PROJECT.project_uuid, {
+        name: 'Which customers have not recently ordered an item?',
+        tableName: 'payments',
+        metricQuery: {
+            dimensions: [
+                'customers_customer_id',
+                'customers_days_since_last_order',
+                'customers_days_between_created_and_first_order',
+            ],
+            metrics: [
+                'payments_total_revenue',
+                'payments_unique_payment_count',
+            ],
+            filters: {},
+            limit: 500,
+            sorts: [
+                {
+                    fieldId: 'customers_days_since_last_order',
+                    descending: false,
+                },
+            ],
+            tableCalculations: [],
+        },
+        chartConfig: {
+            type: ChartType.TABLE,
+            config: undefined,
+        },
+        tableConfig: {
+            columnOrder: [
+                'customers_customer_id',
+                'customers_days_since_last_order',
+                'customers_days_between_created_and_first_order',
+                'payments_total_revenue',
+                'payments_unique_payment_count',
+            ],
+        },
+    });
 }
