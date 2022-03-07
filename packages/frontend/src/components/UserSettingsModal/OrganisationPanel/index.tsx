@@ -4,6 +4,7 @@ import React, { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';
+import { isValidEmailDomain } from '../../../utils/fieldValidators';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
 import TagInput from '../../ReactHookForm/TagInput';
@@ -33,7 +34,12 @@ const OrganisationPanel: FC = () => {
 
     return (
         <FormWrapper>
-            <Form name="login" methods={methods} onSubmit={handleUpdate}>
+            <Form
+                name="login"
+                methods={methods}
+                onSubmit={handleUpdate}
+                disableSubmitOnEnter
+            >
                 <Input
                     label="Organisation name"
                     name="name"
@@ -48,7 +54,15 @@ const OrganisationPanel: FC = () => {
                     name="allowedEmailDomains"
                     disabled={isLoading}
                     defaultValue={[]}
+                    rules={{
+                        validate: {
+                            isValidEmailDomain: isValidEmailDomain(
+                                'allowedEmailDomains',
+                            ),
+                        },
+                    }}
                 />
+
                 <div style={{ flex: 1 }} />
                 <Button
                     style={{ alignSelf: 'flex-end', marginTop: 20 }}
