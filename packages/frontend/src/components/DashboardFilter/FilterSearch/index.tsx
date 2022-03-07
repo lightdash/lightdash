@@ -1,6 +1,8 @@
 import { FilterableField, isField, isFilterableField } from 'common';
 import React, { FC, useState } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import FilterConfiguration from '../FilterConfiguration';
 import {
@@ -11,12 +13,14 @@ import {
 
 type Props = {
     fields: FilterableField[];
+    isEditMode: boolean;
     onClose: () => void;
 };
 
-const FilterSearch: FC<Props> = ({ fields, onClose }) => {
+const FilterSearch: FC<Props> = ({ fields, onClose, isEditMode }) => {
     const [selectedField, setSelectedField] = useState<FilterableField>();
     const { addDimensionDashboardFilter } = useDashboardContext();
+    const { track } = useTracking();
 
     return (
         <FilterModalContainer>
@@ -40,6 +44,12 @@ const FilterSearch: FC<Props> = ({ fields, onClose }) => {
                 <FilterConfiguration
                     field={selectedField}
                     onSave={(value) => {
+                        track({
+                            name: EventName.ADD_FILTER_CLICKED,
+                            properties: {
+                                mode: isEditMode ? 'edit' : 'viewer',
+                            },
+                        });
                         setSelectedField(undefined);
                         addDimensionDashboardFilter(value);
                         onClose();

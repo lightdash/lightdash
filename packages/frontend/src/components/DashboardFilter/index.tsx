@@ -30,6 +30,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                 <TriggerWrapper
                     content={
                         <FilterSearch
+                            isEditMode={isEditMode}
                             fields={filterableFields}
                             onClose={() => setIsOpen(false)}
                         />

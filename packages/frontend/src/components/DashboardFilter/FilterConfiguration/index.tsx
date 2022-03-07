@@ -88,9 +88,7 @@ const FilterConfiguration: FC<Props> = ({
                     (!internalFilterRule.values ||
                         internalFilterRule.values.length <= 0)
                 }
-                onClick={() => {
-                    onSave(internalFilterRule);
-                }}
+                onClick={() => onSave(internalFilterRule)}
             />
         </ConfigureFilterWrapper>
     );

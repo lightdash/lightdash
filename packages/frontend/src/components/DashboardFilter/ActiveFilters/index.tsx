@@ -39,12 +39,9 @@ const ActiveFilters: FC = () => {
                             <FilterConfiguration
                                 field={activeField}
                                 filterRule={item}
-                                onSave={(value) => {
-                                    updateDimensionDashboardFilter(
-                                        value,
-                                        index,
-                                    );
-                                }}
+                                onSave={(value) =>
+                                    updateDimensionDashboardFilter(value, index)
+                                }
                             />
                         }
                         popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
