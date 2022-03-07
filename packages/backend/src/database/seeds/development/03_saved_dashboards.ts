@@ -21,6 +21,10 @@ we want to enable everybody in your company to answer their own questions using 
 Have any questions? Feel free to send us a message at support@lightdash.com. Or, just talk to the bot on this page - he may not have the answers to life's great questions, but he'll get you in touch with the right people.
 `;
 
+const markdownRevenue = `Charts related to our Jaffle Shop's revenue.`;
+
+const markdownOrders = `Details about our Jaffle orders and customer activity.`;
+
 export async function seed(knex: Knex): Promise<void> {
     // delete existing dashboards
     await knex('dashboards').del();
@@ -59,6 +63,19 @@ export async function seed(knex: Knex): Promise<void> {
         },
     };
 
+     const markdownRevenueTile: DashboardMarkdownTile = {
+         uuid: uuidv4(),
+         x: 6,
+         y: 0,
+         w: 6,
+         h: 3,
+         type: DashboardTileTypes.MARKDOWN,
+         properties: {
+             title: 'Revenue',
+             content: markdownRevenue,
+         },
+     };
+
     const chartTiles = queries.map<DashboardChartTile>(
         ({ uuid: savedChartUuid }, i) => ({
             uuid: uuidv4(),
@@ -70,6 +87,19 @@ export async function seed(knex: Knex): Promise<void> {
             properties: { savedChartUuid },
         }),
     );
+
+     const markdownRevenueTile: DashboardMarkdownTile = {
+         uuid: uuidv4(),
+         x: 6,
+         y: 0,
+         w: 6,
+         h: 3,
+         type: DashboardTileTypes.MARKDOWN,
+         properties: {
+             title: 'Revenue',
+             content: markdownRevenue,
+         },
+     };
 
     await dashboardModel.create(spaceUuid, {
         name: 'Jaffle dashboard',
