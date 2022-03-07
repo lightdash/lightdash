@@ -146,7 +146,7 @@ const ChartConfigTabs: FC = () => {
                     title="Axes"
                     panel={
                         <>
-                            <InputWrapper label="X-axis">
+                            <InputWrapper label="X-axis label">
                                 <InputGroup
                                     placeholder={
                                         xAxisField
@@ -161,7 +161,7 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
-                            <InputWrapper label="Y-axis">
+                            <InputWrapper label="Y-axis label">
                                 <InputGroup
                                     placeholder={
                                         cartesianConfig.dirtyConfig?.series?.[0]
