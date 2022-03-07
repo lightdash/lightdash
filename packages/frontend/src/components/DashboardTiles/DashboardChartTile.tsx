@@ -21,6 +21,8 @@ import { useExplore } from '../../hooks/useExplore';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import { useDashboardContext } from '../../providers/DashboardProvider';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
 import { getFilterRuleLabel } from '../common/Filters/configs';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
 import { Tooltip } from '../DashboardFilter/DashboardFilter.styles';
@@ -85,10 +87,12 @@ type Props = Pick<
 > & { tile: IDashboardChartTile };
 
 const DashboardChartTile: FC<Props> = (props) => {
+    const { track } = useTracking();
     const {
         tile: {
             properties: { savedChartUuid },
         },
+        isEditMode,
     } = props;
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: savedQuery, isLoading } = useSavedQuery({
@@ -276,11 +280,19 @@ const DashboardChartTile: FC<Props> = (props) => {
                                                             filter.values &&
                                                             filter.values[0]
                                                         }`}
-                                                        onClick={() =>
+                                                        onClick={() => {
+                                                            track({
+                                                                name: EventName.ADD_FILTER_CLICKED,
+                                                                properties: {
+                                                                    mode: isEditMode
+                                                                        ? 'edit'
+                                                                        : 'viewer',
+                                                                },
+                                                            });
                                                             addDimensionDashboardFilter(
                                                                 filter,
-                                                            )
-                                                        }
+                                                            );
+                                                        }}
                                                     />
                                                 ),
                                             )}

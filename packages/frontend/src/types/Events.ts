@@ -42,6 +42,7 @@ export enum SectionName {
     PAGE_CONTENT = 'page_content',
     PAGE_FOOTER = 'page_footer',
     RESULTS_TABLE = 'results_table',
+    DASHBOARD_TILE = 'dashboard_tile',
 }
 
 export enum EventName {
