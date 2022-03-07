@@ -1,37 +1,26 @@
-import {
-    Button,
-    Colors,
-    HTMLSelect,
-    Icon,
-    InputGroup,
-    Switch,
-    Tab,
-    Tabs,
-} from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
+import { HTMLSelect, InputGroup, Switch, Tab, Tabs } from '@blueprintjs/core';
 import {
     fieldId,
     getDimensions,
+    getItemId,
+    getItemLabel,
     getMetrics,
     isField,
     Metric,
     TableCalculation,
 } from 'common';
 import React, { FC, useState } from 'react';
-import { BlockPicker, ColorResult } from 'react-color';
-import { useToggle } from 'react-use';
-import { ECHARTS_DEFAULT_COLORS } from '../../hooks/useCartesianChartConfig';
-import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
-import SimpleButton from '../common/SimpleButton';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
-    ColorButton,
     FieldRow,
-    FieldRowInlineInputs,
     FieldRowInputs,
+    FieldsGrid,
+    GridLabel,
     InputWrapper,
     Wrapper,
 } from './ChartConfigPanel.styles';
+import FieldLayoutOptions from './FieldLayoutOptions';
+import SeriesColorPicker from './SeriesColorPicker';
 
 const ChartConfigTabs: FC = () => {
     const {
@@ -41,7 +30,6 @@ const ChartConfigTabs: FC = () => {
         pivotDimensions,
         setPivotDimensions,
     } = useVisualizationContext();
-    const xField = (cartesianConfig.dirtyConfig?.series || [])[0]?.xField;
     const yFieldsKeys =
         cartesianConfig.dirtyConfig?.series?.reduce<string[]>(
             (sum, { yField }) => (yField ? [...sum, yField] : sum),
@@ -49,8 +37,7 @@ const ChartConfigTabs: FC = () => {
         ) || [];
     const pivotDimension = pivotDimensions?.[0];
 
-    const [tab, setTab] = useState<string | number>('x-axis');
-    const [isOpen, toggle] = useToggle(false);
+    const [tab, setTab] = useState<string | number>('layout');
 
     const dimensionsInMetricQuery = explore
         ? getDimensions(explore).filter((field) =>
@@ -75,18 +62,16 @@ const ChartConfigTabs: FC = () => {
 
     const items = [...dimensionsInMetricQuery, ...metricsAndTableCalculations];
 
-    const activeDimension = items.find(
-        (item) => (isField(item) ? fieldId(item) : item.name) === xField,
+    const xAxisField = items.find(
+        (item) =>
+            getItemId(item) ===
+            (cartesianConfig.dirtyConfig?.series || [])[0]?.xField,
     );
 
-    const yOptions = items.filter(
+    const firstYAxisField = items.find(
         (item) =>
-            !yFieldsKeys.includes(isField(item) ? fieldId(item) : item.name),
-    );
-
-    const activeGroupDimension = items.find(
-        (item) =>
-            (isField(item) ? fieldId(item) : item.name) === pivotDimension,
+            getItemId(item) ===
+            (cartesianConfig.dirtyConfig?.series || [])[0]?.yField,
     );
 
     const showValues = cartesianConfig.dirtyConfig?.series
@@ -101,13 +86,73 @@ const ChartConfigTabs: FC = () => {
                 renderActiveTabPanelOnly
             >
                 <Tab
-                    id="x-axis"
-                    title="X-axis"
+                    id="layout"
+                    title="Layout"
+                    panel={
+                        <FieldsGrid>
+                            <GridLabel>Field</GridLabel>
+                            <GridLabel>Axis</GridLabel>
+                            {items.map((item) => {
+                                const itemId = getItemId(item);
+                                return (
+                                    <FieldLayoutOptions
+                                        key={getItemId(item)}
+                                        item={item}
+                                        isXActive={
+                                            xAxisField &&
+                                            getItemId(xAxisField) === itemId
+                                        }
+                                        isYActive={yFieldsKeys.includes(itemId)}
+                                        isGroupActive={
+                                            !!pivotDimension &&
+                                            pivotDimension === itemId
+                                        }
+                                        onXClick={() =>
+                                            cartesianConfig.setXField(itemId)
+                                        }
+                                        onYClick={(isActive) => {
+                                            if (isActive) {
+                                                cartesianConfig.addSingleSeries(
+                                                    {
+                                                        yField: itemId,
+                                                    },
+                                                );
+                                            } else {
+                                                const seriesIndex =
+                                                    cartesianConfig.dirtyConfig?.series?.findIndex(
+                                                        ({ yField }) =>
+                                                            yField === itemId,
+                                                    );
+                                                if (seriesIndex !== undefined) {
+                                                    cartesianConfig.removeSingleSeries(
+                                                        seriesIndex,
+                                                    );
+                                                }
+                                            }
+                                        }}
+                                        onGroupClick={(isActive) =>
+                                            isActive
+                                                ? setPivotDimensions([itemId])
+                                                : setPivotDimensions(undefined)
+                                        }
+                                    />
+                                );
+                            })}
+                        </FieldsGrid>
+                    }
+                />
+                <Tab
+                    id="axes"
+                    title="Axes"
                     panel={
                         <>
-                            <InputWrapper label="X-axis label">
+                            <InputWrapper label="X-axis">
                                 <InputGroup
-                                    placeholder="Enter X-axis label"
+                                    placeholder={
+                                        xAxisField
+                                            ? getItemLabel(xAxisField)
+                                            : 'Enter X-axis label'
+                                    }
                                     defaultValue={cartesianConfig.xAxisName}
                                     onBlur={(e) =>
                                         cartesianConfig.setXAxisName(
@@ -116,30 +161,15 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
-                            <InputWrapper label="Field">
-                                <FieldAutoComplete
-                                    activeField={activeDimension}
-                                    fields={items}
-                                    onChange={(item) =>
-                                        cartesianConfig.setXField(
-                                            isField(item)
-                                                ? fieldId(item)
-                                                : item.name,
-                                        )
-                                    }
-                                />
-                            </InputWrapper>
-                        </>
-                    }
-                />
-                <Tab
-                    id="y-axis"
-                    title="Y-axis"
-                    panel={
-                        <>
-                            <InputWrapper label="Y-axis label">
+                            <InputWrapper label="Y-axis">
                                 <InputGroup
-                                    placeholder="Enter Y-axis label"
+                                    placeholder={
+                                        cartesianConfig.dirtyConfig?.series?.[0]
+                                            ?.name ||
+                                        (firstYAxisField
+                                            ? getItemLabel(firstYAxisField)
+                                            : 'Enter Y-axis label')
+                                    }
                                     defaultValue={cartesianConfig.yAxisName}
                                     onBlur={(e) =>
                                         cartesianConfig.setYAxisName(
@@ -148,178 +178,78 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
-
-                            <InputWrapper label="Field(s)">
+                        </>
+                    }
+                />
+                <Tab
+                    id="series"
+                    title="Series"
+                    panel={
+                        <>
+                            <InputWrapper label="Custom series labels">
                                 {cartesianConfig.dirtyConfig?.series?.map(
                                     (series, index) => {
-                                        const activeMetric = items.find(
+                                        const activeField = items.find(
                                             (item) =>
-                                                (isField(item)
-                                                    ? fieldId(item)
-                                                    : item.name) ===
+                                                getItemId(item) ===
                                                 series.yField,
                                         );
-                                        if (!activeMetric) {
+                                        if (!activeField) {
                                             return null;
                                         }
                                         return (
                                             <FieldRow>
                                                 <FieldRowInputs>
-                                                    <FieldAutoComplete
-                                                        disabled
-                                                        activeField={
-                                                            activeMetric
-                                                        }
-                                                        fields={yOptions}
-                                                        onChange={() =>
-                                                            undefined
-                                                        }
-                                                    />
-                                                    <FieldRowInlineInputs>
-                                                        <Popover2
-                                                            content={
-                                                                <BlockPicker
-                                                                    color={
-                                                                        series.color
-                                                                    }
-                                                                    colors={
-                                                                        ECHARTS_DEFAULT_COLORS
-                                                                    }
-                                                                    onChange={(
-                                                                        color: ColorResult,
-                                                                    ) => {
-                                                                        cartesianConfig.updateSingleSeries(
-                                                                            index,
-                                                                            {
-                                                                                ...series,
-                                                                                color: color.hex,
-                                                                            },
-                                                                        );
-                                                                    }}
-                                                                />
-                                                            }
-                                                            position="bottom"
-                                                            lazy={true}
-                                                            disabled={
-                                                                !!pivotDimension
-                                                            }
-                                                        >
-                                                            <ColorButton
-                                                                style={{
-                                                                    cursor: !!pivotDimension
-                                                                        ? 'not-allowed'
-                                                                        : 'pointer',
-                                                                    backgroundColor:
-                                                                        !!pivotDimension
-                                                                            ? Colors.GRAY3
-                                                                            : series.color,
-                                                                }}
-                                                                disabled={
-                                                                    !!pivotDimension
-                                                                }
-                                                            >
-                                                                {!series.color && (
-                                                                    <Icon
-                                                                        icon="tint"
-                                                                        color={
-                                                                            Colors.GRAY3
-                                                                        }
-                                                                    />
-                                                                )}
-                                                            </ColorButton>
-                                                        </Popover2>
-                                                        <InputGroup
-                                                            fill
-                                                            placeholder="Enter custom series label"
-                                                            defaultValue={
-                                                                series.name
-                                                            }
-                                                            disabled={
-                                                                cartesianConfig
-                                                                    .dirtyConfig
-                                                                    ?.series &&
-                                                                cartesianConfig
-                                                                    .dirtyConfig
-                                                                    ?.series
-                                                                    ?.length <=
-                                                                    1
-                                                            }
-                                                            onBlur={(e) =>
+                                                    {!pivotDimension && (
+                                                        <SeriesColorPicker
+                                                            color={series.color}
+                                                            onChange={(
+                                                                color,
+                                                            ) => {
                                                                 cartesianConfig.updateSingleSeries(
                                                                     index,
                                                                     {
                                                                         ...series,
-                                                                        name: e
-                                                                            .currentTarget
-                                                                            .value,
+                                                                        color,
                                                                     },
-                                                                )
-                                                            }
+                                                                );
+                                                            }}
                                                         />
-                                                    </FieldRowInlineInputs>
+                                                    )}
+                                                    <InputGroup
+                                                        fill
+                                                        placeholder={
+                                                            activeField
+                                                                ? getItemLabel(
+                                                                      activeField,
+                                                                  )
+                                                                : 'Enter custom series label'
+                                                        }
+                                                        defaultValue={
+                                                            series.name
+                                                        }
+                                                        onBlur={(e) =>
+                                                            cartesianConfig.updateSingleSeries(
+                                                                index,
+                                                                {
+                                                                    ...series,
+                                                                    name: e
+                                                                        .currentTarget
+                                                                        .value,
+                                                                },
+                                                            )
+                                                        }
+                                                    />
                                                 </FieldRowInputs>
-                                                <Button
-                                                    minimal
-                                                    icon={'small-cross'}
-                                                    disabled={
-                                                        yFieldsKeys.length <= 1
-                                                    }
-                                                    onClick={() =>
-                                                        cartesianConfig.removeSingleSeries(
-                                                            index,
-                                                        )
-                                                    }
-                                                />
                                             </FieldRow>
                                         );
                                     },
                                 )}
-                                {isOpen && (
-                                    <FieldRow>
-                                        <FieldAutoComplete
-                                            fields={yOptions}
-                                            onChange={(item) => {
-                                                cartesianConfig.addSingleSeries(
-                                                    {
-                                                        yField: isField(item)
-                                                            ? fieldId(item)
-                                                            : item.name,
-                                                    },
-                                                );
-                                                toggle(false);
-                                            }}
-                                        />
-                                        <Button
-                                            minimal
-                                            icon={'small-cross'}
-                                            onClick={() => {
-                                                toggle(false);
-                                            }}
-                                        />
-                                    </FieldRow>
-                                )}
-                                {!isOpen && (
-                                    <SimpleButton
-                                        minimal
-                                        icon={'plus'}
-                                        text="Add"
-                                        disabled={yOptions.length <= 0}
-                                        onClick={() => toggle(true)}
-                                    />
-                                )}
                             </InputWrapper>
-                        </>
-                    }
-                />
-                <Tab
-                    id="chart"
-                    title="Chart"
-                    panel={
-                        <>
-                            <InputWrapper label="Labels">
+                            <InputWrapper label="Value labels">
                                 <Switch
                                     checked={showValues}
-                                    label="Show value labels"
+                                    label={showValues ? 'On' : 'Off'}
                                     onChange={(e) =>
                                         cartesianConfig.setLabel(
                                             e.currentTarget.checked
@@ -334,9 +264,7 @@ const ChartConfigTabs: FC = () => {
                                         )
                                     }
                                 />
-                            </InputWrapper>
-                            {showValues && (
-                                <InputWrapper label="Label position">
+                                {showValues && (
                                     <HTMLSelect
                                         options={[
                                             'top',
@@ -352,32 +280,7 @@ const ChartConfigTabs: FC = () => {
                                             })
                                         }
                                     />
-                                </InputWrapper>
-                            )}
-                            <InputWrapper label="Group">
-                                <FieldRow>
-                                    <FieldAutoComplete
-                                        disabled={items.length <= 0}
-                                        activeField={activeGroupDimension}
-                                        fields={items}
-                                        onChange={(item) =>
-                                            setPivotDimensions([
-                                                isField(item)
-                                                    ? fieldId(item)
-                                                    : item.name,
-                                            ])
-                                        }
-                                    />
-                                    {activeGroupDimension && (
-                                        <Button
-                                            minimal
-                                            icon={'small-cross'}
-                                            onClick={() => {
-                                                setPivotDimensions(undefined);
-                                            }}
-                                        />
-                                    )}
-                                </FieldRow>
+                                )}
                             </InputWrapper>
                         </>
                     }

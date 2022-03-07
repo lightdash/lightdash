@@ -81,6 +81,8 @@ const getEchartsTooltipConfig = (type: CartesianChart['series'][0]['type']) =>
 export type EChartSeries = {
     type: CartesianChart['series'][0]['type'];
     connectNulls: boolean;
+    name?: string;
+    color?: string;
     encode: {
         x: string;
         y: string;
@@ -269,7 +271,8 @@ const useEcharts = () => {
             name:
                 yAxis?.name ||
                 (series.length === 1
-                    ? getLabelFromField(
+                    ? series[0].name ||
+                      getLabelFromField(
                           explore,
                           resultsData?.metricQuery.tableCalculations || [],
                           yAxisField,

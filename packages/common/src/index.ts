@@ -13,6 +13,7 @@ import {
     FilterableDimension,
     FilterableField,
     isDimension,
+    isField,
     isFilterableDimension,
     Metric,
     MetricType,
@@ -29,7 +30,7 @@ import {
     getItemsFromFilterGroup,
     UnitOfTime,
 } from './types/filter';
-import { MetricQuery } from './types/metricQuery';
+import { MetricQuery, TableCalculation } from './types/metricQuery';
 import { OrganizationMemberProfile } from './types/organizationMemberProfile';
 import { SavedChart } from './types/savedCharts';
 import { LightdashUser } from './types/user';
@@ -1154,4 +1155,21 @@ export type CreateProject = Omit<Project, 'projectUuid'> & {
 
 export type UpdateProject = Omit<Project, 'projectUuid'> & {
     warehouseConnection: CreateWarehouseCredentials;
+};
+
+export const getItemId = (item: Field | TableCalculation) =>
+    isField(item) ? fieldId(item) : item.name;
+export const getItemLabel = (item: Field | TableCalculation) =>
+    isField(item) ? `${item.tableLabel} ${item.label}` : item.displayName;
+export const getItemIcon = (item: Field | TableCalculation) => {
+    if (isField(item)) {
+        return isDimension(item) ? 'tag' : 'numerical';
+    }
+    return 'function';
+};
+export const getItemColor = (item: Field | TableCalculation) => {
+    if (isField(item)) {
+        return isDimension(item) ? '#0E5A8A' : '#A66321';
+    }
+    return '#0A6640';
 };
