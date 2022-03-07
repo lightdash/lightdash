@@ -14,7 +14,9 @@ const markdownSample = `### Lightdash is an open source analytics for your dbt p
 
 We're kind of like Looker, but without the price tag. 
 
-At Lightdash, our mission is simple: we want to enable everybody in your company to answer their own questions using data.
+## At Lightdash, our mission is simple: 
+
+we want to enable everybody in your company to answer their own questions using data.
 
 Have any questions? Feel free to send us a message at support@lightdash.com. Or, just talk to the bot on this page - he may not have the answers to life's great questions, but he'll get you in touch with the right people.
 `;

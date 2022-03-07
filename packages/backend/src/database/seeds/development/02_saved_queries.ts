@@ -155,7 +155,6 @@ export async function seed(knex: Knex): Promise<void> {
         },
         chartConfig: {
             type: ChartType.BIG_NUMBER,
-            config: undefined,
         },
         tableConfig: {
             columnOrder: [
@@ -191,7 +190,6 @@ export async function seed(knex: Knex): Promise<void> {
         },
         chartConfig: {
             type: ChartType.TABLE,
-            config: undefined,
         },
         tableConfig: {
             columnOrder: [
