@@ -1,3 +1,10 @@
+## [0.31.1](https://github.com/lightdash/lightdash/compare/0.31.0...0.31.1) (2022-03-08)
+
+
+### Bug Fixes
+
+* **charts:** redesign chart configuration panel ([#1512](https://github.com/lightdash/lightdash/issues/1512)) ([d0e9f1a](https://github.com/lightdash/lightdash/commit/d0e9f1a4606f359277726fab265b2936ef91cae8))
+
 # [0.31.0](https://github.com/lightdash/lightdash/compare/0.30.4...0.31.0) (2022-03-04)
 
 
