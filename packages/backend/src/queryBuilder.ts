@@ -42,14 +42,16 @@ const renderStringFilterSql = (
                 : `(${dimensionSql}) NOT IN (${filter.values
                       .map((v) => `'${v}'`)
                       .join(',')})`;
+        case FilterOperator.INCLUDE:
+            return `(${dimensionSql}) LIKE '%${filter.values?.[0] || ''}%'`;
         case FilterOperator.NOT_INCLUDE:
-            return `(${dimensionSql}) NOT LIKE '%${filter.values?.[0]}%'`;
+            return `(${dimensionSql}) NOT LIKE '%${filter.values?.[0] || ''}%'`;
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
         case FilterOperator.NOT_NULL:
             return `(${dimensionSql}) IS NOT NULL`;
         case FilterOperator.STARTS_WITH:
-            return `(${dimensionSql}) LIKE '${filter.values?.[0]}%'`;
+            return `(${dimensionSql}) LIKE '${filter.values?.[0] || ''}%'`;
         default:
             throw Error(
                 `No function implemented to render sql for filter type ${filterType} on dimension of string type`,

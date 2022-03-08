@@ -11,6 +11,7 @@ export enum FilterOperator {
     EQUALS = 'equals',
     NOT_EQUALS = 'notEquals',
     STARTS_WITH = 'startsWith',
+    INCLUDE = 'include',
     NOT_INCLUDE = 'doesNotInclude',
     LESS_THAN = 'lessThan',
     LESS_THAN_OR_EQUAL = 'lessThanOrEqual',
