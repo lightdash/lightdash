@@ -14,7 +14,12 @@ const VisualizationCardOptions: FC = () => {
 
     return (
         <>
-            <Tooltip2 content="Column" placement="top" interactionKind="hover">
+            <Tooltip2
+                content="Column"
+                placement="top"
+                interactionKind="hover"
+                disabled={disabled}
+            >
                 <Button
                     minimal
                     active={
@@ -31,7 +36,12 @@ const VisualizationCardOptions: FC = () => {
                     name="Column"
                 />
             </Tooltip2>
-            <Tooltip2 content="Bar" placement="top" interactionKind="hover">
+            <Tooltip2
+                content="Bar"
+                placement="top"
+                interactionKind="hover"
+                disabled={disabled}
+            >
                 <Button
                     minimal
                     active={
@@ -48,7 +58,12 @@ const VisualizationCardOptions: FC = () => {
                     name="Bar"
                 />
             </Tooltip2>
-            <Tooltip2 content="Line" placement="top" interactionKind="hover">
+            <Tooltip2
+                content="Line"
+                placement="top"
+                interactionKind="hover"
+                disabled={disabled}
+            >
                 <Button
                     minimal
                     active={
@@ -67,7 +82,12 @@ const VisualizationCardOptions: FC = () => {
                     name="Line"
                 />
             </Tooltip2>
-            <Tooltip2 content="Scatter" placement="top" interactionKind="hover">
+            <Tooltip2
+                content="Scatter"
+                placement="top"
+                interactionKind="hover"
+                disabled={disabled}
+            >
                 <Button
                     minimal
                     active={
@@ -86,7 +106,12 @@ const VisualizationCardOptions: FC = () => {
                     name="Scatter"
                 />
             </Tooltip2>
-            <Tooltip2 content="Table" placement="top" interactionKind="hover">
+            <Tooltip2
+                content="Table"
+                placement="top"
+                interactionKind="hover"
+                disabled={disabled}
+            >
                 <Button
                     minimal
                     active={chartType === ChartType.TABLE}
@@ -102,6 +127,7 @@ const VisualizationCardOptions: FC = () => {
                 content="Big number"
                 placement="top"
                 interactionKind="hover"
+                disabled={disabled}
             >
                 <Button
                     minimal

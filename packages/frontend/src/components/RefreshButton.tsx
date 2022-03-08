@@ -18,6 +18,8 @@ export const RefreshButton = () => {
     const { isFetching, remove } = useQueryResults();
     const { track } = useTracking();
     const defaultSort = useDefaultSortField();
+    const isDisabled = !isValidQuery;
+    const isLoading = isFetching || status.data === 'loading';
     const onClick = useCallback(async () => {
         remove();
         syncState(sorts.length === 0 ? defaultSort : undefined);
@@ -46,13 +48,17 @@ export const RefreshButton = () => {
     }, [onClick]);
     useHotkeys(hotkeys);
     return (
-        <Tooltip2 content={<KeyCombo combo="cmd+enter" />}>
+        <Tooltip2
+            content={<KeyCombo combo="cmd+enter" />}
+            position="bottom"
+            disabled={isDisabled || isLoading}
+        >
             <BigButton
                 intent="primary"
                 style={{ width: 150, marginRight: '10px' }}
                 onClick={onClick}
-                disabled={!isValidQuery}
-                loading={isFetching || status.data === 'loading'}
+                disabled={isDisabled}
+                loading={isLoading}
             >
                 Run query
             </BigButton>
