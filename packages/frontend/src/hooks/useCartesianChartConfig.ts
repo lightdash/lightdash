@@ -12,7 +12,7 @@ type PartialCartesianChart = {
     yAxes?: CartesianChart['yAxes'];
 };
 
-export const isValidSeries = (series: Partial<Series>): series is Series =>
+export const isCompleteSeries = (series: Partial<Series>): series is Series =>
     !!series.type && !!series.xField && !!series.yField;
 
 export const ECHARTS_DEFAULT_COLORS = [
@@ -30,6 +30,18 @@ export const ECHARTS_DEFAULT_COLORS = [
 const getDefaultSeriesColor = (index: number) => {
     return ECHARTS_DEFAULT_COLORS[index % ECHARTS_DEFAULT_COLORS.length];
 };
+
+const getValidSeries = (
+    series: Partial<Series>[] | undefined,
+    availableFields: string[],
+): Series[] =>
+    series
+        ?.filter(isCompleteSeries)
+        .filter(
+            ({ xField, yField }) =>
+                availableFields.includes(xField) &&
+                availableFields.includes(yField),
+        ) || [];
 
 const useCartesianChartConfig = (
     chartConfigs: CartesianChart | undefined,
@@ -188,52 +200,44 @@ const useCartesianChartConfig = (
         if (availableFields.length <= 1) {
             return undefined;
         }
-        const validSeries: Series[] =
-            dirtyConfig?.series
-                ?.filter(isValidSeries)
-                .filter(
-                    ({ xField, yField }) =>
-                        availableFields.includes(xField) &&
-                        availableFields.includes(yField),
-                ) || [];
-
         return {
-            series: validSeries,
+            series: getValidSeries(dirtyConfig?.series, availableFields),
             xAxes: dirtyConfig?.xAxes,
             yAxes: dirtyConfig?.yAxes,
         };
     }, [dirtyConfig, availableFields]);
 
     useEffect(() => {
-        setDirtyConfig((prev) => {
-            const hasFields: boolean =
-                !!prev?.series &&
-                !!prev.series[0] &&
-                !!prev.series[0].xField &&
-                !!prev.series[0].yField;
+        if (availableFields.length > 1) {
+            setDirtyConfig((prev) => {
+                const validSeries = getValidSeries(
+                    prev?.series,
+                    availableFields,
+                );
+                if (validSeries.length > 0) {
+                    return { ...prev };
+                }
 
-            if (hasFields) {
-                return { ...prev };
-            }
-
-            const defaultChartConfig: PartialCartesianChart = {
-                ...prev,
-                series: [
-                    {
-                        type: CartesianSeriesType.BAR,
-                        xField: availableDimensions[0] || availableFields[0],
-                        yField:
-                            [
-                                ...availableMetrics,
-                                ...availableTableCalculations,
-                            ][0] || availableFields[1],
-                        flipAxes: false,
-                        color: getDefaultSeriesColor(0),
-                    },
-                ],
-            };
-            return defaultChartConfig;
-        });
+                const defaultChartConfig: PartialCartesianChart = {
+                    ...prev,
+                    series: [
+                        {
+                            type: CartesianSeriesType.BAR,
+                            xField:
+                                availableDimensions[0] || availableFields[0],
+                            yField:
+                                [
+                                    ...availableMetrics,
+                                    ...availableTableCalculations,
+                                ][0] || availableFields[1],
+                            flipAxes: false,
+                            color: getDefaultSeriesColor(0),
+                        },
+                    ],
+                };
+                return defaultChartConfig;
+            });
+        }
     }, [
         availableFields,
         availableDimensions,
