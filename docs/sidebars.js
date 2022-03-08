@@ -43,7 +43,7 @@ module.exports = {
       type: "category",
       label: "How to guides",
       items: [
-        "guides/how-to-deploy-to-production",
+        "guides/how-to-deploy-to-kubernetes",
         "guides/how-to-join-tables",
       ],
     },
