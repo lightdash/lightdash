@@ -1,3 +1,10 @@
+## [0.31.6](https://github.com/lightdash/lightdash/compare/0.31.5...0.31.6) (2022-03-08)
+
+
+### Bug Fixes
+
+* disable tooltips on disabled buttons ([#1529](https://github.com/lightdash/lightdash/issues/1529)) ([8f3dbb4](https://github.com/lightdash/lightdash/commit/8f3dbb425ce3ec04d806e1f4e60d3147788a4d1e))
+
 ## [0.31.5](https://github.com/lightdash/lightdash/compare/0.31.4...0.31.5) (2022-03-08)
 
 
