@@ -195,6 +195,32 @@ export const getEchartsSeries = (
     }
 };
 
+const getEchartAxis = (
+    validConfig: CartesianChart | undefined,
+    explore: Explore,
+    xAxisField: string | undefined,
+    yAxisField: string | undefined,
+) => {
+    const defaultXAxisType = getAxisTypeFromField(explore, xAxisField);
+    const defaultYAxisType = getAxisTypeFromField(explore, yAxisField);
+
+    let xAxisType = defaultXAxisType;
+    let yAxisType = defaultYAxisType;
+    if (validConfig?.series[0].type === CartesianSeriesType.BAR) {
+        if (validConfig?.series[0].flipAxes) {
+            xAxisType = defaultXAxisType;
+            yAxisType =
+                defaultYAxisType === 'value' ? 'category' : defaultYAxisType;
+        } else {
+            xAxisType =
+                defaultXAxisType === 'value' ? 'category' : defaultXAxisType;
+            yAxisType = defaultYAxisType;
+        }
+    }
+
+    return { xAxisType, xAxisField, yAxisType, yAxisField };
+};
+
 const useEcharts = () => {
     const {
         cartesianConfig: { validConfig },
@@ -233,20 +259,12 @@ const useEcharts = () => {
         ? validConfig?.series[0].xField
         : validConfig?.series[0].yField;
 
-    const defaultXAxisType = getAxisTypeFromField(explore, xAxisField);
-    const defaultYAxisType = getAxisTypeFromField(explore, yAxisField);
-
-    let xAxisType: string;
-    let yAxisType: string;
-    if (validConfig?.series[0].flipAxes) {
-        xAxisType = defaultXAxisType;
-        yAxisType =
-            defaultYAxisType === 'value' ? 'category' : defaultYAxisType;
-    } else {
-        xAxisType =
-            defaultXAxisType === 'value' ? 'category' : defaultXAxisType;
-        yAxisType = defaultYAxisType;
-    }
+    const { xAxisType, yAxisType } = getEchartAxis(
+        validConfig,
+        explore,
+        xAxisField,
+        yAxisField,
+    );
 
     return {
         xAxis: {
