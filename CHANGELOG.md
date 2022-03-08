@@ -1,3 +1,10 @@
+## [0.31.4](https://github.com/lightdash/lightdash/compare/0.31.3...0.31.4) (2022-03-08)
+
+
+### Bug Fixes
+
+* **charts:** allow value/value axis for charts that are not bars ([#1525](https://github.com/lightdash/lightdash/issues/1525)) ([030df6b](https://github.com/lightdash/lightdash/commit/030df6bc314792b814ae81c7975db96a8a4f3fb1))
+
 ## [0.31.3](https://github.com/lightdash/lightdash/compare/0.31.2...0.31.3) (2022-03-08)
 
 
