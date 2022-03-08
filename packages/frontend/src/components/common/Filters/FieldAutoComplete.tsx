@@ -1,6 +1,14 @@
-import { Colors, Icon, MenuItem } from '@blueprintjs/core';
+import { Icon, MenuItem } from '@blueprintjs/core';
 import { ItemRenderer, Suggest } from '@blueprintjs/select';
-import { Field, fieldId, isDimension, isField, TableCalculation } from 'common';
+import {
+    Field,
+    getItemColor,
+    getItemIcon,
+    getItemId,
+    getItemLabel,
+    isField,
+    TableCalculation,
+} from 'common';
 import React, { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
 
@@ -14,18 +22,6 @@ const AutocompleteMaxHeight = createGlobalStyle`
     overflow-y: auto;
   }
 `;
-
-const getItemId = (item: Item) => (isField(item) ? fieldId(item) : item.name);
-const getItemLabel = (item: Item) =>
-    isField(item) ? `${item.tableLabel} ${item.label}` : item.displayName;
-const getItemIcon = (item: Item) =>
-    isField(item) ? (isDimension(item) ? 'tag' : 'numerical') : 'function';
-const getItemColor = (item: Item) =>
-    isField(item)
-        ? isDimension(item)
-            ? Colors.BLUE1
-            : Colors.ORANGE1
-        : Colors.GREEN1;
 
 const renderItem: ItemRenderer<Item> = (item, { modifiers, handleClick }) => {
     if (!modifiers.matchesPredicate) {
