@@ -71,7 +71,7 @@ const dateIntervals = ['DAY', 'WEEK', 'MONTH', 'YEAR'];
 
 const convertDimension = (
     targetWarehouse: SupportedDbtAdapter,
-    modelName: string,
+    model: Pick<DbtModelNode, 'name' | 'relation_name'>,
     tableLabel: string,
     column: DbtModelColumn,
     source?: Source,
@@ -80,7 +80,7 @@ const convertDimension = (
     let type = column.meta.dimension?.type || column.data_type;
     if (type === undefined) {
         throw new MissingCatalogEntryError(
-            `Could not automatically find type information for column "${column.name}" in dbt model "${modelName}". Check for this column in your warehouse or specify the type manually.`,
+            `Could not find dimension "${column.name}" for dbt model "${model.name}". Expected at ${model.relation_name}.`,
             {},
         );
     }
@@ -110,7 +110,7 @@ const convertDimension = (
         name,
         label,
         sql,
-        table: modelName,
+        table: model.name,
         tableLabel,
         type,
         description: column.meta.dimension?.description || column.description,
@@ -271,7 +271,7 @@ export const convertTable = (
 
             const dimension = convertDimension(
                 adapterType,
-                model.name,
+                model,
                 tableLabel,
                 column,
             );
@@ -304,7 +304,7 @@ export const convertTable = (
                         ...acc,
                         [`${column.name}_${interval}`]: convertDimension(
                             adapterType,
-                            model.name,
+                            model,
                             tableLabel,
                             column,
                             undefined,
