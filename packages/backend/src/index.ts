@@ -122,6 +122,7 @@ app.use(
     expressSession({
         secret: lightdashConfig.lightdashSecret,
         proxy: lightdashConfig.trustProxy,
+        rolling: true,
         cookie: {
             maxAge: 86400000, // 1 day
             secure: lightdashConfig.secureCookies,
