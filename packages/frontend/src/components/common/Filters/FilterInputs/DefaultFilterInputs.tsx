@@ -71,6 +71,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
         }
 
         case FilterOperator.STARTS_WITH:
+        case FilterOperator.INCLUDE:
         case FilterOperator.NOT_INCLUDE:
             return (
                 <InputGroup
