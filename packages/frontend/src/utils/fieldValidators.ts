@@ -28,10 +28,6 @@ export const startWithSlash: FieldValidator<string> = (fieldName) => (value) =>
 export const isValidEmail: FieldValidator<string> = (fieldName) => (value) =>
     !value || validateEmail(value) ? undefined : `${fieldName} is not valid`;
 
-type DomainValidator = (
-    fieldName: string,
-) => (value: string[] | undefined) => string | undefined;
-
 export const isValidEmailDomain: FieldValidator<string[]> =
     (fieldName) => (value) => {
         if (value) {
