@@ -55,31 +55,37 @@ export async function seed(knex: Knex): Promise<void> {
     });
 
     await savedChartModel.create(SEED_PROJECT.project_uuid, {
-        name: "What's the average spend per customer?",
-        tableName: 'orders',
+        name: `What's our total revenue to date?`,
+        tableName: 'payments',
         metricQuery: {
-            dimensions: ['customers_customer_id'],
-            metrics: ['orders_avg_amount'],
+            dimensions: ['orders_status'],
+            metrics: ['payments_total_revenue'],
             filters: {},
             limit: 500,
-            sorts: [{ fieldId: 'orders_avg_amount', descending: true }],
-            tableCalculations: [],
+            sorts: [
+                {
+                    fieldId: 'payments_total_revenue',
+                    descending: true,
+                },
+            ],
+            tableCalculations: [
+                {
+                    name: 'total_revenue',
+                    displayName: 'total revenue',
+                    sql: 'SUM(${payments.total_revenue}) OVER(PARTITION BY NULL)',
+                },
+            ],
         },
         chartConfig: {
-            type: ChartType.CARTESIAN,
-            config: {
-                series: [
-                    {
-                        flipAxes: true,
-                        type: CartesianSeriesType.BAR,
-                        xField: 'customers_customer_id',
-                        yField: 'orders_avg_amount',
-                    },
-                ],
-            },
+            type: ChartType.BIG_NUMBER,
+            config: undefined,
         },
         tableConfig: {
-            columnOrder: ['customers_customer_id', 'orders_avg_amount'],
+            columnOrder: [
+                'orders_status',
+                'payments_total_revenue',
+                'total_revenue',
+            ],
         },
     });
 
@@ -132,36 +138,31 @@ export async function seed(knex: Knex): Promise<void> {
     });
 
     await savedChartModel.create(SEED_PROJECT.project_uuid, {
-        name: `What's our total revenue to date?`,
-        tableName: 'payments',
+        name: "What's the average spend per customer?",
+        tableName: 'orders',
         metricQuery: {
-            dimensions: ['orders_status'],
-            metrics: ['payments_total_revenue'],
+            dimensions: ['customers_customer_id'],
+            metrics: ['orders_avg_amount'],
             filters: {},
             limit: 500,
-            sorts: [
-                {
-                    fieldId: 'payments_total_revenue',
-                    descending: true,
-                },
-            ],
-            tableCalculations: [
-                {
-                    name: 'total_revenue',
-                    displayName: 'total revenue',
-                    sql: 'SUM(${payments.total_revenue}) OVER(PARTITION BY NULL)',
-                },
-            ],
+            sorts: [{ fieldId: 'orders_avg_amount', descending: true }],
+            tableCalculations: [],
         },
         chartConfig: {
-            type: ChartType.BIG_NUMBER,
+            type: ChartType.CARTESIAN,
+            config: {
+                series: [
+                    {
+                        flipAxes: true,
+                        type: CartesianSeriesType.BAR,
+                        xField: 'customers_customer_id',
+                        yField: 'orders_avg_amount',
+                    },
+                ],
+            },
         },
         tableConfig: {
-            columnOrder: [
-                'orders_status',
-                'payments_total_revenue',
-                'total_revenue',
-            ],
+            columnOrder: ['customers_customer_id', 'orders_avg_amount'],
         },
     });
 
@@ -190,6 +191,7 @@ export async function seed(knex: Knex): Promise<void> {
         },
         chartConfig: {
             type: ChartType.TABLE,
+            config: undefined,
         },
         tableConfig: {
             columnOrder: [
