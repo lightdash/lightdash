@@ -32,10 +32,14 @@ type DomainValidator = (
     fieldName: string,
 ) => (value: string[] | undefined) => string | undefined;
 
-export const isValidEmailDomain: DomainValidator = (fieldName) => (value) =>
-    value &&
-    value.find((item) =>
-        item.match(/@/)
-            ? `${fieldName} should not contain @, eg: (gmail.com)`
-            : undefined,
-    );
+export const isValidEmailDomain: FieldValidator<string[]> =
+    (fieldName) => (value) => {
+        if (value) {
+            const hasInvalidValue = value.some((item: string) =>
+                item.match(/@/),
+            );
+            return hasInvalidValue
+                ? `${fieldName} should not contain @, eg: (gmail.com)`
+                : undefined;
+        }
+    };

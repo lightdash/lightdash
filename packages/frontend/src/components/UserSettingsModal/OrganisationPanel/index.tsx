@@ -11,25 +11,23 @@ import TagInput from '../../ReactHookForm/TagInput';
 import { FormWrapper } from './OrganisationPanel.styles';
 
 const OrganisationPanel: FC = () => {
-    const org = useOrganisation();
+    const { isLoading: isOrgLoading, data } = useOrganisation();
     const updateMutation = useOrganisationUpdateMutation();
-    const isLoading = updateMutation.isLoading || org.isLoading;
+    const isLoading = updateMutation.isLoading || isOrgLoading;
     const methods = useForm<Organisation>({
         mode: 'onSubmit',
     });
+    const { setValue } = methods;
 
     useEffect(() => {
-        if (org.data) {
-            methods.setValue('name', org.data?.name);
-            methods.setValue(
-                'allowedEmailDomains',
-                org.data?.allowedEmailDomains,
-            );
+        if (data) {
+            setValue('name', data?.name);
+            setValue('allowedEmailDomains', data?.allowedEmailDomains);
         }
-    }, [org, methods]);
+    }, [data, setValue]);
 
-    const handleUpdate = (data: Organisation) => {
-        updateMutation.mutate(data);
+    const handleUpdate = (value: Organisation) => {
+        updateMutation.mutate(value);
     };
 
     return (
@@ -62,7 +60,6 @@ const OrganisationPanel: FC = () => {
                         },
                     }}
                 />
-
                 <div style={{ flex: 1 }} />
                 <Button
                     style={{ alignSelf: 'flex-end', marginTop: 20 }}
