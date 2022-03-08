@@ -83,6 +83,11 @@ cd lightdash
 ./install.sh
 ```
 
+### Deploy to production
+
+Follow our [kubernetes guide](https://docs.lightdash.com/guides/how-to-deploy-to-kubernetes) to deploy Lightdash to 
+production using our [community helm charts](https://github.com/lightdash/helm-charts).
+
 ### Sign up to Lightdash Cloud
 You can avoid the hassle of hosting and configuring Lightdash yourself by [signing up to the waitlist for Lightdash Cloud Beta](https://lightdash.typeform.com/to/HFlicx4i#source=github) . We'll let you know once we're ready to bring you on board 🙂
 
