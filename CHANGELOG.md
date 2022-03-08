@@ -1,3 +1,10 @@
+## [0.31.5](https://github.com/lightdash/lightdash/compare/0.31.4...0.31.5) (2022-03-08)
+
+
+### Bug Fixes
+
+* **charts:** set default series when selected fields change ([#1528](https://github.com/lightdash/lightdash/issues/1528)) ([5feda68](https://github.com/lightdash/lightdash/commit/5feda6826939308872d687b07fd606fb04d60b77))
+
 ## [0.31.4](https://github.com/lightdash/lightdash/compare/0.31.3...0.31.4) (2022-03-08)
 
 
