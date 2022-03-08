@@ -88,7 +88,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters }) => {
                               }
                             : undefined,
                 },
-                true,
+                false,
             );
         },
         [fields, filters, setFilters],

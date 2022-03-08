@@ -76,7 +76,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
             return (
                 <InputGroup
                     fill
-                    value={filterRule.values?.[0]}
+                    value={filterRule.values?.[0] || ''}
                     onChange={(e) =>
                         onChange({
                             ...filterRule,
