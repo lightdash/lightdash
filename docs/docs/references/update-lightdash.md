@@ -16,6 +16,16 @@ docker pull lightdash/lightdash
 
 Now [restart Lightdash](../get-started/setup-lightdash/install-lightdash.mdx) and you'll be upgraded to the latest version.
 
+## Kubernetes/helm deployments
+
+If you install Lightdash into kubernetes using our [community helm charts](https://github.com/lightdash/helm-charts) 
+you need to update your helm chart repository and upgrade your deployment.
+
+```shell
+helm repo update lightdash
+helm upgrade -f values.yml lightdash lightdash/lightdash
+```
+
 ## Heroku deployments
 
 Follow these instructions if you used the "deploy to heroku" button to deploy Lightdash.
