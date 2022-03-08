@@ -65,7 +65,7 @@ const useCartesianChartConfig = (
         });
     }, []);
 
-    const setXField = useCallback((xField: string) => {
+    const setXField = useCallback((xField: string | undefined) => {
         setDirtyConfig((prev) => ({
             ...prev,
             series: prev?.series?.map((series) => ({ ...series, xField })) || [
@@ -113,6 +113,12 @@ const useCartesianChartConfig = (
 
     const removeSingleSeries = useCallback((index: number) => {
         setDirtyConfig((prev) => {
+            if (prev?.series && prev?.series.length === 1) {
+                return {
+                    ...prev,
+                    series: [{ ...prev.series[0], yField: undefined }],
+                };
+            }
             return {
                 ...prev,
                 series: prev?.series
@@ -158,22 +164,27 @@ const useCartesianChartConfig = (
         );
     }, []);
 
-    const validConfig = useMemo<CartesianChart | undefined>(() => {
-        const availableDimensions = resultsData
-            ? resultsData.metricQuery.dimensions
-            : [];
-        const availableMetricsAndTableCalculations = resultsData
-            ? [
-                  ...resultsData.metricQuery.metrics,
-                  ...resultsData.metricQuery.tableCalculations.map(
-                      ({ name }) => name,
-                  ),
-              ]
-            : [];
-        const availableFields = [
-            ...availableDimensions,
-            ...availableMetricsAndTableCalculations,
+    const [
+        availableFields,
+        availableDimensions,
+        availableMetrics,
+        availableTableCalculations,
+    ] = useMemo(() => {
+        const dimensions = resultsData?.metricQuery.dimensions || [];
+        const metrics = resultsData?.metricQuery.metrics || [];
+        const tableCalculations =
+            resultsData?.metricQuery.tableCalculations.map(
+                ({ name }) => name,
+            ) || [];
+        return [
+            [...dimensions, ...metrics, ...tableCalculations],
+            dimensions,
+            metrics,
+            tableCalculations,
         ];
+    }, [resultsData]);
+
+    const validConfig = useMemo<CartesianChart | undefined>(() => {
         if (availableFields.length <= 1) {
             return undefined;
         }
@@ -186,30 +197,49 @@ const useCartesianChartConfig = (
                         availableFields.includes(yField),
                 ) || [];
 
-        if (validSeries.length <= 0) {
-            // reset chart config to valid state
-            setDirtyConfig({
-                series: [
-                    {
-                        type: CartesianSeriesType.BAR,
-                        xField: availableDimensions[0] || availableFields[0],
-                        yField:
-                            availableMetricsAndTableCalculations[0] ||
-                            availableFields[1],
-                        flipAxes: false,
-                        color: getDefaultSeriesColor(0),
-                    },
-                ],
-            });
-            return undefined;
-        }
-
         return {
             series: validSeries,
             xAxes: dirtyConfig?.xAxes,
             yAxes: dirtyConfig?.yAxes,
         };
-    }, [dirtyConfig, resultsData]);
+    }, [dirtyConfig, availableFields]);
+
+    useEffect(() => {
+        setDirtyConfig((prev) => {
+            const hasFields: boolean =
+                !!prev?.series &&
+                !!prev.series[0] &&
+                !!prev.series[0].xField &&
+                !!prev.series[0].yField;
+
+            if (hasFields) {
+                return { ...prev };
+            }
+
+            const defaultChartConfig: PartialCartesianChart = {
+                ...prev,
+                series: [
+                    {
+                        type: CartesianSeriesType.BAR,
+                        xField: availableDimensions[0] || availableFields[0],
+                        yField:
+                            [
+                                ...availableMetrics,
+                                ...availableTableCalculations,
+                            ][0] || availableFields[1],
+                        flipAxes: false,
+                        color: getDefaultSeriesColor(0),
+                    },
+                ],
+            };
+            return defaultChartConfig;
+        });
+    }, [
+        availableFields,
+        availableDimensions,
+        availableMetrics,
+        availableTableCalculations,
+    ]);
 
     return {
         dirtyConfig,

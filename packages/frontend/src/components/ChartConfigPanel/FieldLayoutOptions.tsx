@@ -14,7 +14,7 @@ type Props = {
     isXActive?: boolean;
     isYActive?: boolean;
     isGroupActive?: boolean;
-    onXClick: () => void;
+    onXClick: (isActive: boolean) => void;
     onYClick: (isActive: boolean) => void;
     onGroupClick: (isActive: boolean) => void;
 };
@@ -40,7 +40,7 @@ const FieldLayoutOptions: FC<Props> = ({
             <ButtonGroup>
                 <Button
                     intent={isXActive ? 'primary' : 'none'}
-                    onClick={() => onXClick()}
+                    onClick={() => onXClick(!isXActive)}
                 >
                     x
                 </Button>

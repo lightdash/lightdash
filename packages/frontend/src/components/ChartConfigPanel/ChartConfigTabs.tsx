@@ -107,8 +107,10 @@ const ChartConfigTabs: FC = () => {
                                             !!pivotDimension &&
                                             pivotDimension === itemId
                                         }
-                                        onXClick={() =>
-                                            cartesianConfig.setXField(itemId)
+                                        onXClick={(isActive) =>
+                                            cartesianConfig.setXField(
+                                                isActive ? itemId : undefined,
+                                            )
                                         }
                                         onYClick={(isActive) => {
                                             if (isActive) {
