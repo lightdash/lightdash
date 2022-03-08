@@ -4,36 +4,40 @@ import React, { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';
+import { isValidEmailDomain } from '../../../utils/fieldValidators';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
 import TagInput from '../../ReactHookForm/TagInput';
 import { FormWrapper } from './OrganisationPanel.styles';
 
 const OrganisationPanel: FC = () => {
-    const org = useOrganisation();
+    const { isLoading: isOrgLoading, data } = useOrganisation();
     const updateMutation = useOrganisationUpdateMutation();
-    const isLoading = updateMutation.isLoading || org.isLoading;
+    const isLoading = updateMutation.isLoading || isOrgLoading;
     const methods = useForm<Organisation>({
         mode: 'onSubmit',
     });
+    const { setValue } = methods;
 
     useEffect(() => {
-        if (org.data) {
-            methods.setValue('name', org.data?.name);
-            methods.setValue(
-                'allowedEmailDomains',
-                org.data?.allowedEmailDomains,
-            );
+        if (data) {
+            setValue('name', data?.name);
+            setValue('allowedEmailDomains', data?.allowedEmailDomains);
         }
-    }, [org, methods]);
+    }, [data, setValue]);
 
-    const handleUpdate = (data: Organisation) => {
-        updateMutation.mutate(data);
+    const handleUpdate = (value: Organisation) => {
+        updateMutation.mutate(value);
     };
 
     return (
         <FormWrapper>
-            <Form name="login" methods={methods} onSubmit={handleUpdate}>
+            <Form
+                name="login"
+                methods={methods}
+                onSubmit={handleUpdate}
+                disableSubmitOnEnter
+            >
                 <Input
                     label="Organisation name"
                     name="name"
@@ -48,6 +52,13 @@ const OrganisationPanel: FC = () => {
                     name="allowedEmailDomains"
                     disabled={isLoading}
                     defaultValue={[]}
+                    rules={{
+                        validate: {
+                            isValidEmailDomain: isValidEmailDomain(
+                                'allowedEmailDomains',
+                            ),
+                        },
+                    }}
                 />
                 <div style={{ flex: 1 }} />
                 <Button

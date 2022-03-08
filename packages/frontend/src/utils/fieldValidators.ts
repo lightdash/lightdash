@@ -27,3 +27,15 @@ export const startWithSlash: FieldValidator<string> = (fieldName) => (value) =>
 
 export const isValidEmail: FieldValidator<string> = (fieldName) => (value) =>
     !value || validateEmail(value) ? undefined : `${fieldName} is not valid`;
+
+export const isValidEmailDomain: FieldValidator<string[]> =
+    (fieldName) => (value) => {
+        if (value) {
+            const hasInvalidValue = value.some((item: string) =>
+                item.match(/@/),
+            );
+            return hasInvalidValue
+                ? `${fieldName} should not contain @, eg: (gmail.com)`
+                : undefined;
+        }
+    };
