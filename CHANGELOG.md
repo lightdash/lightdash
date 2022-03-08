@@ -1,3 +1,10 @@
+## [0.31.3](https://github.com/lightdash/lightdash/compare/0.31.2...0.31.3) (2022-03-08)
+
+
+### Bug Fixes
+
+* refresh cookie expire date on user interaction ([#1522](https://github.com/lightdash/lightdash/issues/1522)) ([e88d69a](https://github.com/lightdash/lightdash/commit/e88d69a7c3f6281da9454d10855fd8e9d674f485))
+
 ## [0.31.2](https://github.com/lightdash/lightdash/compare/0.31.1...0.31.2) (2022-03-08)
 
 
