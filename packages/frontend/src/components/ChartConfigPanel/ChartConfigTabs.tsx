@@ -186,21 +186,21 @@ const ChartConfigTabs: FC = () => {
                     title="Series"
                     panel={
                         <>
-                            <InputWrapper label="Custom series labels">
-                                {cartesianConfig.dirtyConfig?.series?.map(
-                                    (series, index) => {
-                                        const activeField = items.find(
-                                            (item) =>
-                                                getItemId(item) ===
-                                                series.yField,
-                                        );
-                                        if (!activeField) {
-                                            return null;
-                                        }
-                                        return (
-                                            <FieldRow>
-                                                <FieldRowInputs>
-                                                    {!pivotDimension && (
+                            {!pivotDimension && (
+                                <InputWrapper label="Custom series labels">
+                                    {cartesianConfig.dirtyConfig?.series?.map(
+                                        (series, index) => {
+                                            const activeField = items.find(
+                                                (item) =>
+                                                    getItemId(item) ===
+                                                    series.yField,
+                                            );
+                                            if (!activeField) {
+                                                return null;
+                                            }
+                                            return (
+                                                <FieldRow>
+                                                    <FieldRowInputs>
                                                         <SeriesColorPicker
                                                             color={series.color}
                                                             onChange={(
@@ -215,37 +215,38 @@ const ChartConfigTabs: FC = () => {
                                                                 );
                                                             }}
                                                         />
-                                                    )}
-                                                    <InputGroup
-                                                        fill
-                                                        placeholder={
-                                                            activeField
-                                                                ? getItemLabel(
-                                                                      activeField,
-                                                                  )
-                                                                : 'Enter custom series label'
-                                                        }
-                                                        defaultValue={
-                                                            series.name
-                                                        }
-                                                        onBlur={(e) =>
-                                                            cartesianConfig.updateSingleSeries(
-                                                                index,
-                                                                {
-                                                                    ...series,
-                                                                    name: e
-                                                                        .currentTarget
-                                                                        .value,
-                                                                },
-                                                            )
-                                                        }
-                                                    />
-                                                </FieldRowInputs>
-                                            </FieldRow>
-                                        );
-                                    },
-                                )}
-                            </InputWrapper>
+
+                                                        <InputGroup
+                                                            fill
+                                                            placeholder={
+                                                                activeField
+                                                                    ? getItemLabel(
+                                                                          activeField,
+                                                                      )
+                                                                    : 'Enter custom series label'
+                                                            }
+                                                            defaultValue={
+                                                                series.name
+                                                            }
+                                                            onBlur={(e) =>
+                                                                cartesianConfig.updateSingleSeries(
+                                                                    index,
+                                                                    {
+                                                                        ...series,
+                                                                        name: e
+                                                                            .currentTarget
+                                                                            .value,
+                                                                    },
+                                                                )
+                                                            }
+                                                        />
+                                                    </FieldRowInputs>
+                                                </FieldRow>
+                                            );
+                                        },
+                                    )}
+                                </InputWrapper>
+                            )}
                             <InputWrapper label="Value labels">
                                 <Switch
                                     checked={showValues}
