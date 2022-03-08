@@ -1,3 +1,10 @@
+## [0.31.2](https://github.com/lightdash/lightdash/compare/0.31.1...0.31.2) (2022-03-08)
+
+
+### Bug Fixes
+
+* add validation to email domains input field ([#1513](https://github.com/lightdash/lightdash/issues/1513)) ([03eb35f](https://github.com/lightdash/lightdash/commit/03eb35f0e2072bd5fc6f550493dfa2ea009280d6))
+
 ## [0.31.1](https://github.com/lightdash/lightdash/compare/0.31.0...0.31.1) (2022-03-08)
 
 
