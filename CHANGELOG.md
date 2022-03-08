@@ -1,3 +1,10 @@
+## [0.32.1](https://github.com/lightdash/lightdash/compare/0.32.0...0.32.1) (2022-03-08)
+
+
+### Bug Fixes
+
+* add column details to missing column error ([#1532](https://github.com/lightdash/lightdash/issues/1532)) ([dee2bee](https://github.com/lightdash/lightdash/commit/dee2bee40020015b5685ec7f44431e1a09f33dcc))
+
 # [0.32.0](https://github.com/lightdash/lightdash/compare/0.31.6...0.32.0) (2022-03-08)
 
 
