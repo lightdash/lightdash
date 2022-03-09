@@ -1,3 +1,10 @@
+## [0.32.3](https://github.com/lightdash/lightdash/compare/0.32.2...0.32.3) (2022-03-09)
+
+
+### Bug Fixes
+
+* **charts:** timestamps and formatted values in tooltips in charts ([#1535](https://github.com/lightdash/lightdash/issues/1535)) ([d8d751a](https://github.com/lightdash/lightdash/commit/d8d751ad5b6a7935d4f77cec3279302728e5e24d))
+
 ## [0.32.2](https://github.com/lightdash/lightdash/compare/0.32.1...0.32.2) (2022-03-09)
 
 
