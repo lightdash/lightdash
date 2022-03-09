@@ -229,6 +229,9 @@ export const getFields = (explore: Explore): CompiledField[] => [
     ...getMetrics(explore),
 ];
 
+export const getVisibleFields = (explore: Explore): CompiledField[] =>
+    getFields(explore).filter(({ hidden }) => !hidden);
+
 export const findFieldByIdInExplore = (
     explore: Explore,
     id: FieldId,
@@ -494,6 +497,7 @@ type DbtColumnLightdashDimension = {
     description?: string;
     sql?: string;
     time_intervals?: string | string[];
+    hidden?: boolean;
 };
 
 export type DbtColumnLightdashMetric = {
@@ -501,6 +505,7 @@ export type DbtColumnLightdashMetric = {
     type: MetricType;
     description?: string;
     sql?: string;
+    hidden?: boolean;
 };
 
 export type ApiQueryResults = {
@@ -829,9 +834,13 @@ export type DbtMetric = {
     time_grains: string[];
     dimensions: string[];
     resource_type?: 'metric';
-    meta?: Record<string, any>;
+    meta?: Record<string, any> & DbtMetricLightdashMetadata;
     tags?: string[];
     sql?: string | null;
+};
+
+export type DbtMetricLightdashMetadata = {
+    hidden?: boolean;
 };
 
 export interface DbtManifest {

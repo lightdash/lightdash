@@ -14,6 +14,7 @@ export interface Field {
     sql: string; // Templated sql
     description?: string;
     source?: Source | undefined;
+    hidden: boolean;
 }
 
 export const isField = (field: any): field is Field => field?.fieldType;

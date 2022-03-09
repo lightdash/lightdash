@@ -10,7 +10,7 @@ import {
     FilterOperator,
     friendlyName,
     getDimensions,
-    getFields,
+    getVisibleFields,
     isFilterableField,
     SavedChart,
 } from 'common';
@@ -206,7 +206,7 @@ const DashboardChartTile: FC<Props> = (props) => {
 
     const renderFilterRule = useCallback(
         (filterRule: DashboardFilterRule) => {
-            const fields: Field[] = explore ? getFields(explore) : [];
+            const fields: Field[] = explore ? getVisibleFields(explore) : [];
             const field = fields.find(
                 (f) => fieldId(f) === filterRule.target.fieldId,
             );
