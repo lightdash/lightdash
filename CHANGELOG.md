@@ -1,3 +1,10 @@
+## [0.32.2](https://github.com/lightdash/lightdash/compare/0.32.1...0.32.2) (2022-03-09)
+
+
+### Bug Fixes
+
+* **dashboards:** fix scroll after adding markdown tile ([#1534](https://github.com/lightdash/lightdash/issues/1534)) ([2301cf6](https://github.com/lightdash/lightdash/commit/2301cf68eeb9546ba9685e4be2529f4f8a2f5d07))
+
 ## [0.32.1](https://github.com/lightdash/lightdash/compare/0.32.0...0.32.1) (2022-03-08)
 
 
