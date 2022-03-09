@@ -2,17 +2,21 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
+    Dimension,
     DimensionType,
     Explore,
+    fieldId,
     findFieldByIdInExplore,
     friendlyName,
+    getDimensions,
     getFieldLabel,
     MetricType,
     TableCalculation,
 } from 'common';
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../components/LightdashVisualization/VisualizationProvider';
-import { getPivotedDimension } from './useFormattedAndPlottedData';
+import { getDimensionFormatter } from '../utils/resultFormatter';
+import { getPivotedDimension } from './usePlottedData';
 
 const getLabelFromField = (
     explore: Explore,
@@ -92,16 +96,50 @@ export type EChartSeries = {
     dimensions: Array<{ name: string; displayName: string }>;
 };
 
+const getFormatterValue = (value: any, key: string, fields: Dimension[]) => {
+    const field = fields.find((item) => fieldId(item) === key);
+    const fieldFormatter = field ? getDimensionFormatter(field) : null;
+    return fieldFormatter?.({ value: value }) ?? `${value}`;
+};
+
+const valueFormatter =
+    (xField: string, yField: string, explore: Explore) => (rawValue: any) => {
+        if (Array.isArray(rawValue)) {
+            const xValue = getFormatterValue(
+                rawValue[0],
+                xField,
+                getDimensions(explore),
+            );
+            const yValue = getFormatterValue(
+                rawValue[1],
+                yField,
+                getDimensions(explore),
+            );
+            return `${xValue} ${yValue}`;
+        }
+
+        return getFormatterValue(rawValue, yField, getDimensions(explore));
+    };
+
 export const getEchartsSeries = (
     explore: Explore,
     tableCalculations: TableCalculation[],
-    formattedData: ApiQueryResults['rows'],
+    originalData: ApiQueryResults['rows'],
     chartConfig: CartesianChart,
     pivotKey: string | undefined,
 ): EChartSeries[] => {
     if (pivotKey) {
-        const uniquePivotValues = Array.from(
-            new Set(formattedData.map((row) => row[pivotKey])),
+        const uniquePivotValues: string[] = Array.from(
+            new Set(
+                originalData.map((row) => {
+                    const rawValue = row[pivotKey];
+                    return getFormatterValue(
+                        rawValue,
+                        pivotKey,
+                        getDimensions(explore),
+                    );
+                }),
+            ),
         );
         return chartConfig.series.reduce<EChartSeries[]>(
             (sum, { yField, xField, type, flipAxes, label }) => {
@@ -142,6 +180,13 @@ export const getEchartsSeries = (
                                         : value,
                             },
                         ],
+                        tooltip: {
+                            valueFormatter: valueFormatter(
+                                xField,
+                                yField,
+                                explore,
+                            ),
+                        },
                     };
                 });
 
@@ -187,6 +232,13 @@ export const getEchartsSeries = (
                                 ),
                             },
                         ],
+                        tooltip: {
+                            valueFormatter: valueFormatter(
+                                xField,
+                                yField,
+                                explore,
+                            ),
+                        },
                     },
                 ];
             },
@@ -226,7 +278,7 @@ const useEcharts = () => {
         cartesianConfig: { validConfig },
         explore,
         plotData,
-        formattedData,
+        originalData,
         pivotDimensions,
         resultsData,
     } = useVisualizationContext();
@@ -239,11 +291,11 @@ const useEcharts = () => {
         return getEchartsSeries(
             explore,
             resultsData.metricQuery.tableCalculations,
-            formattedData,
+            originalData,
             validConfig,
             pivotDimensions?.[0],
         );
-    }, [explore, validConfig, resultsData, pivotDimensions, formattedData]);
+    }, [explore, validConfig, resultsData, pivotDimensions, originalData]);
 
     if (!explore || series.length <= 0 || plotData.length <= 0) {
         return undefined;

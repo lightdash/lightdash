@@ -11,8 +11,8 @@ import React, {
 } from 'react';
 import useCartesianChartConfig from '../../hooks/useCartesianChartConfig';
 import { useExplore } from '../../hooks/useExplore';
-import useFormattedAndPlottedData from '../../hooks/useFormattedAndPlottedData';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
+import usePlottedData from '../../hooks/usePlottedData';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
 type VisualizationContext = {
@@ -21,7 +21,7 @@ type VisualizationContext = {
     cartesianConfig: ReturnType<typeof useCartesianChartConfig>;
     pivotDimensions: string[] | undefined;
     explore: Explore | undefined;
-    formattedData: ApiQueryResults['rows'];
+    originalData: ApiQueryResults['rows'];
     plotData: ApiQueryResults['rows'];
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
@@ -67,7 +67,7 @@ export const VisualizationProvider: FC<Props> = ({
     );
     const cartesianConfig = useCartesianChartConfig(chartConfigs, resultsData);
     const { validConfig } = cartesianConfig;
-    const [formattedData, plotData] = useFormattedAndPlottedData(
+    const plotData = usePlottedData(
         explore,
         validConfig,
         resultsData,
@@ -97,7 +97,7 @@ export const VisualizationProvider: FC<Props> = ({
                 chartRef,
                 chartType,
                 explore,
-                formattedData,
+                originalData: resultsData?.rows || [],
                 plotData,
                 resultsData,
                 isLoading,
