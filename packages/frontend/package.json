@@ -15,7 +15,7 @@
         "@testing-library/react": "^12.1.2",
         "@testing-library/user-event": "^13.5.0",
         "@typescript-eslint/eslint-plugin": "^5.11.0",
-        "@uiw/react-md-editor": "^3.9.4",
+        "@uiw/react-md-editor": "^3.10.0",
         "ace-builds": "^1.4.14",
         "cohere-js": "^1.0.19",
         "common": "^0.32.1",

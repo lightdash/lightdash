@@ -30,6 +30,7 @@ const MarkdownTileForm = ({
             attributes={{
                 preview: 'edit',
                 height: 400,
+                overflow: false,
             }}
         />
     </>
