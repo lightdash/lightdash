@@ -1682,6 +1682,7 @@
                     {
                         "title": "Unversioned fields",
                         "type": "object",
+                        "additionalProperties": false,
                         "properties": {
                             "name": {
                                 "type": "string"
@@ -1696,6 +1697,7 @@
                     {
                         "title": "Versioned fields",
                         "type": "object",
+                        "additionalProperties": false,
                         "properties": {
                             "tiles": {
                                 "type": "array",
@@ -1712,6 +1714,7 @@
                     {
                         "title": "All fields",
                         "type": "object",
+                        "additionalProperties": false,
                         "properties": {
                             "name": {
                                 "type": "string"
