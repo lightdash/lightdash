@@ -60,7 +60,6 @@ const EditableHeader: FC<Props> = ({
                     onChange={setTitle}
                     onCancel={onCancel}
                     onEdit={() => setIsEditable(true)}
-                    confirmOnEnterKey={false}
                 />
             </H3>
             {!isEditable && !readonly && (
