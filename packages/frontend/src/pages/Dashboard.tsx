@@ -184,7 +184,7 @@ const Dashboard = () => {
                     mutate({
                         tiles: dashboardTiles,
                         filters: dashboardFilters,
-                        name: dashboardName,
+                        name: dashboardName || dashboard.name,
                     })
                 }
                 onSaveTitle={(name) => updateTitle(name)}
