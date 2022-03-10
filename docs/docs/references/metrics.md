@@ -56,6 +56,8 @@ metrics:
     description: "A NEW DBT METRIC nuuuuuts"
     type: count_distinct
     sql: customer_id # must be a simple column name that you want to apply this metric to
+    meta:
+      hidden: false
 ```
 
 
@@ -136,16 +138,18 @@ models:
               type: count_distinct
               description: "Count the unique number of user IDs"
               sql: "IF(${user_id} = 'katie@lightdash.com', NULL, ${user_id})"
+              hidden: false
 ```
 
 Here are all of the properties you can customize:
 
-| Property                                            | Value                 | Note                                                                                  |
-| --------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------- |
-| label                                               | string                | Custom label. This is what you'll see in Lightdash instead of the metric name.        |
-| [type](#metric-types)                               | Metric type           | Metrics must be one of the supported types.                                           |
-| [description](#adding-your-own-metric-descriptions) | string                | Description of the metric that appears in Lightdash.                                  |
-| [sql](#using-custom-sql-in-aggregate-metrics)       | string                | Custom SQL used to define the metric.                                                 |
+| Property                                            | Required | Value                 | Description                                                                           |
+| --------------------------------------------------- | -------- | --------------------- | ------------------------------------------------------------------------------------- |
+| label                                               | No       | string                | Custom label. This is what you'll see in Lightdash instead of the metric name.        |
+| [type](#metric-types)                               | Yes      | metric type           | Metrics must be one of the supported types.                                           |
+| [description](#adding-your-own-metric-descriptions) | No       | string                | Description of the metric that appears in Lightdash. A default description is created by Lightdash if this isn't included                                 |
+| [sql](#using-custom-sql-in-aggregate-metrics)       | No       | string                | Custom SQL used to define the metric.                                                 |
+| hidden                                              | No       | boolean               | If set to `true`, the metric is hidden from Lightdash. By default, this is set to `false` if you don't include this property. |
 
 ## Metric types:
 
