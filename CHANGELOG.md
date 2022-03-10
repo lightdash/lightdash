@@ -1,3 +1,10 @@
+# [0.33.0](https://github.com/lightdash/lightdash/compare/0.32.4...0.33.0) (2022-03-10)
+
+
+### Features
+
+* allow to hide dbt dimensions and metrics ([#1536](https://github.com/lightdash/lightdash/issues/1536)) ([dd44e5d](https://github.com/lightdash/lightdash/commit/dd44e5d95ee21224927df35a712d82a499ef6276))
+
 ## [0.32.4](https://github.com/lightdash/lightdash/compare/0.32.3...0.32.4) (2022-03-10)
 
 
