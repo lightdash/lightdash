@@ -43,17 +43,19 @@ models:
             label: 'email' # this is the label you'll see in Lightdash
             description: 'My custom description'
             sql: "IF(${registered_user_email} = 'katie@lightdash.com', NULL, ${registered_user_email})"
+            hidden: true
 ```
 
 All the properties you can customize:
 
-| Property        | Value                 | Note                                                                                  |
-| --------------- | --------------------- | ------------------------------------------------------------------------------------- |
-| label           | string                | Custom label. This is what you'll see in Lightdash instead of the dimension name.     |
-| type            | Dimension type        | The dimension type is automatically pulled from your table schemas in Lightdash but you can override the type using this property. |
-| description     | string                | Description of the dimension in Lightdash. You can use this to override the description you have for the dimension in dbt. |
-| sql             | string                | Custom SQL applied to the column used to define the dimension.                        |
-| time_intervals  | `'default'` or `OFF` or string[] | `'default'` will be converted into `['DAY', 'WEEK', 'MONTH', 'YEAR']` for dates and `['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']` for timestamps, as will not setting anything; if you want no time intervals set `'OFF'` |
+| Property        | Required | Value                 | Description                                                                           |
+| --------------- | -------- | --------------------- | ------------------------------------------------------------------------------------- |
+| label           | No       | string                | Custom label. If you set this property, this is what you'll see in Lightdash instead of the dimension name.     |
+| type            | No       | Dimension type        | The dimension type is automatically pulled from your table schemas in Lightdash but you can override the type using this property. |
+| description     | No       | string                | Description of the dimension in Lightdash. You can use this to override the description you have for the dimension in dbt. |
+| sql             | No       | string                | Custom SQL applied to the column used to define the dimension.                        |
+| time_intervals  | No       | `'default'` or `OFF` or string[] | `'default'` will be converted into `['DAY', 'WEEK', 'MONTH', 'YEAR']` for dates and `['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']` for timestamps, as will not setting anything; if you want no time intervals set `'OFF'` |
+| hidden          | No       | boolean               | If set to `true`, the dimension is hidden from Lightdash. By default, this is set to `false` if you don't include this property. |
 
 
 ## Dimension types
