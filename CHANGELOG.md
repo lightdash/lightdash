@@ -1,3 +1,10 @@
+## [0.33.1](https://github.com/lightdash/lightdash/compare/0.33.0...0.33.1) (2022-03-10)
+
+
+### Bug Fixes
+
+* **charts:** pivot by date ([#1544](https://github.com/lightdash/lightdash/issues/1544)) ([4ca7da3](https://github.com/lightdash/lightdash/commit/4ca7da3415c3fa0da29f04a25b2459ef18498d05))
+
 # [0.33.0](https://github.com/lightdash/lightdash/compare/0.32.4...0.33.0) (2022-03-10)
 
 
