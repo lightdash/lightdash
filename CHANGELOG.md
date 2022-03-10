@@ -1,3 +1,10 @@
+## [0.32.4](https://github.com/lightdash/lightdash/compare/0.32.3...0.32.4) (2022-03-10)
+
+
+### Bug Fixes
+
+* **dashboards:** save to be active when title changes and send request on save ([#1533](https://github.com/lightdash/lightdash/issues/1533)) ([8cd6f86](https://github.com/lightdash/lightdash/commit/8cd6f86c06a1f3c9a1754d3f76e1d9f854510ecd))
+
 ## [0.32.3](https://github.com/lightdash/lightdash/compare/0.32.2...0.32.3) (2022-03-09)
 
 
