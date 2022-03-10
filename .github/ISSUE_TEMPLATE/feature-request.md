@@ -29,19 +29,6 @@ If you're a Lightdash user suggesting a feature, you can skip this!
 Otherwise, add any links to customer conversations or research. 
 -->
 
-### Success: How will we know if we’ve solved this problem?
-
-<!--
-Add how we will determine whether the problem has being solved. Qualitative and
-quantitative measures.
--->
-
-### Audience: Who are we building this for?
-
-<!-- 
-Add example user descriptions that would benefit from this solution (e.g. users who are onboarding, data consumers, data builders). It's unlikely that a solution is for everyone 🙂 
---> 
-
 ### What: Roughly, what does this look like in the product?
 
 <!-- 
