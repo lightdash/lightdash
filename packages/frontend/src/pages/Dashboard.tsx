@@ -64,7 +64,8 @@ const Dashboard = () => {
 
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
-    const [hasTilesChanged, setHasTilesChanged] = useState(false);
+    const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
+    const [dashboardName, setDashboardName] = useState<string>('');
     const {
         mutate,
         isSuccess,
@@ -163,6 +164,11 @@ const Dashboard = () => {
         );
     }, [dashboard, dashboardUuid, history, projectUuid]);
 
+    const updateTitle = (name: string) => {
+        setHasTilesChanged(true);
+        setDashboardName(name);
+    };
+
     if (dashboard === undefined) {
         return <Spinner />;
     }
@@ -178,9 +184,10 @@ const Dashboard = () => {
                     mutate({
                         tiles: dashboardTiles,
                         filters: dashboardFilters,
+                        name: dashboardName || dashboard.name,
                     })
                 }
-                onSaveTitle={(name) => mutate({ name })}
+                onSaveTitle={(name) => updateTitle(name)}
                 onCancel={onCancel}
             />
             <Page isContentFullWidth>
