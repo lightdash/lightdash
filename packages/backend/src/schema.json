@@ -33,6 +33,9 @@
                             }
                         }
                     ]
+                },
+                "hidden": {
+                    "type": "boolean"
                 }
             }
         },
@@ -60,6 +63,9 @@
                 },
                 "sql": {
                     "type": "string"
+                },
+                "hidden": {
+                    "type": "boolean"
                 }
             }
         },

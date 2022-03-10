@@ -18,7 +18,7 @@ import {
     DimensionType,
     fieldId,
     getDefaultChartTileSize,
-    getFields,
+    getVisibleFields,
     isFilterableField,
 } from 'common';
 import React, { FC, useEffect, useState } from 'react';
@@ -141,7 +141,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     useEffect(() => {
         if (explore.data) {
             setFieldsWithSuggestions((prev) => {
-                return getFields(explore.data).reduce((sum, field) => {
+                return getVisibleFields(explore.data).reduce((sum, field) => {
                     if (isFilterableField(field)) {
                         let suggestions: string[] = [];
                         if (field.type === DimensionType.STRING) {

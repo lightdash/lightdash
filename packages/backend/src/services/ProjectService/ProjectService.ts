@@ -511,8 +511,8 @@ export class ProjectService {
             savedChart.projectUuid,
             savedChart.tableName,
         );
-        return getDimensions(explore).filter((field) =>
-            isFilterableDimension(field),
+        return getDimensions(explore).filter(
+            (field) => isFilterableDimension(field) && !field.hidden,
         );
     }
 }

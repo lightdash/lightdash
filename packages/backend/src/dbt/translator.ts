@@ -117,6 +117,7 @@ const convertDimension = (
         source,
         group,
         timeInterval,
+        hidden: !!column.meta.dimension?.hidden,
     };
 };
 
@@ -148,6 +149,7 @@ const convertMetric = ({
         metric.description ||
         `${friendlyName(metric.type)} of ${friendlyName(columnName)}`,
     source,
+    hidden: !!metric.hidden,
 });
 
 const generateTableLineage = (
@@ -191,8 +193,8 @@ const autoGenerateMetrics = (
     { name: modelName, columns }: Pick<DbtModelNode, 'name' | 'columns'>,
     tableLabel: string,
 ): Record<string, Metric> =>
-    Object.keys(columns).reduce<Record<string, Metric>>(
-        (previous, columnName) => {
+    Object.entries(columns).reduce<Record<string, Metric>>(
+        (previous, [columnName, column]) => {
             const entityName = extractEntityNameFromIdColumn(columnName);
             if (entityName === null) {
                 return previous;
@@ -210,6 +212,7 @@ const autoGenerateMetrics = (
                 sql: defaultSql(columnName),
                 table: modelName,
                 tableLabel,
+                hidden: !!column.meta.dimension?.hidden,
             };
             return { ...previous, [metricName]: metric };
         },
@@ -239,6 +242,7 @@ const convertDbtMetricToLightdashMetric = (
         sql: metric.sql ? defaultSql(metric.sql) : defaultSql(metric.name),
         description: metric.description,
         source: undefined,
+        hidden: !!metric.meta?.hidden,
     };
 };
 
