@@ -1,4 +1,5 @@
 import { Button } from '@blueprintjs/core';
+import { WarehouseTypes } from 'common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces, isUppercase } from '../../../utils/fieldValidators';
@@ -7,11 +8,15 @@ import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
+import { useProjectFormContext } from '../ProjectFormProvider';
 
 const SnowflakeForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
+    const { savedProject } = useProjectFormContext();
+    const requireSecrets: boolean =
+        savedProject?.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE;
     return (
         <>
             <Input
@@ -31,8 +36,11 @@ const SnowflakeForm: FC<{
                 label="User"
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#user-2"
                 rules={{
-                    required: 'Required field',
+                    required: requireSecrets ? 'Required field' : undefined,
                 }}
+                placeholder={
+                    disabled || !requireSecrets ? '**************' : undefined
+                }
                 disabled={disabled}
             />
             <PasswordInput
@@ -40,8 +48,11 @@ const SnowflakeForm: FC<{
                 label="Password"
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#password-2"
                 rules={{
-                    required: 'Required field',
+                    required: requireSecrets ? 'Required field' : undefined,
                 }}
+                placeholder={
+                    disabled || !requireSecrets ? '**************' : undefined
+                }
                 disabled={disabled}
             />
             <Input

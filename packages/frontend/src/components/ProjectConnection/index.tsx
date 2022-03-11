@@ -20,6 +20,7 @@ import { EventName } from '../../types/Events';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import Form from '../ReactHookForm/Form';
 import DbtSettingsForm from './DbtSettingsForm';
+import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
 
@@ -175,7 +176,9 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
             onSubmit={onSubmit}
             onError={onError}
         >
-            <ProjectForm disabled={isSaving} />
+            <ProjectFormProvider savedProject={data}>
+                <ProjectForm disabled={isSaving} />
+            </ProjectFormProvider>
             {!isIdle && (
                 <ProjectStatusCallout
                     style={{ marginBottom: '20px' }}
@@ -237,10 +240,12 @@ export const CreateProjectConnection: FC = () => {
             onSubmit={onSubmit}
             onError={onError}
         >
-            <ProjectForm
-                disabled={isSaving || isSuccess}
-                defaultType={health.data?.defaultProject?.type}
-            />
+            <ProjectFormProvider>
+                <ProjectForm
+                    disabled={isSaving || isSuccess}
+                    defaultType={health.data?.defaultProject?.type}
+                />
+            </ProjectFormProvider>
             {!isIdle && (
                 <ProjectStatusCallout
                     style={{ marginBottom: '20px' }}
