@@ -1,3 +1,10 @@
+## [0.33.2](https://github.com/lightdash/lightdash/compare/0.33.1...0.33.2) (2022-03-11)
+
+
+### Bug Fixes
+
+* error message for wrong dimension type ([#1549](https://github.com/lightdash/lightdash/issues/1549)) ([fe4a607](https://github.com/lightdash/lightdash/commit/fe4a607039fb683bd7d243572821fd22fcd3144a))
+
 ## [0.33.1](https://github.com/lightdash/lightdash/compare/0.33.0...0.33.1) (2022-03-10)
 
 
