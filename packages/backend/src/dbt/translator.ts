@@ -84,6 +84,16 @@ const convertDimension = (
             {},
         );
     }
+    if (!Object.values(DimensionType).includes(type)) {
+        throw new MissingCatalogEntryError(
+            `Could not recognise type "${type}" for dimension "${
+                column.name
+            }" in dbt model "${model.name}". Valid types are: ${Object.values(
+                DimensionType,
+            ).join(', ')}`,
+            {},
+        );
+    }
     let group: string | undefined;
     let name = column.meta.dimension?.name || column.name;
     let sql = column.meta.dimension?.sql || defaultSql(column.name);
