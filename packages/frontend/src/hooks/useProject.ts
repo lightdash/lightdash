@@ -44,13 +44,10 @@ export const useUpdateMutation = (id: string) => {
         {
             mutationKey: ['project_update'],
             onSuccess: async () => {
-                await queryClient.invalidateQueries([
-                    'project',
-                    id,
-                    'tables',
-                    'queryResults',
-                    'status',
-                ]);
+                await queryClient.invalidateQueries(['project', id]);
+                await queryClient.invalidateQueries('tables');
+                await queryClient.invalidateQueries('queryResults');
+                await queryClient.invalidateQueries('status');
                 showToastSuccess({
                     title: `Success! Project was updated.`,
                 });
