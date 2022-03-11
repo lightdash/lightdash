@@ -11,6 +11,8 @@ type Args = {
     branch: string;
     projectDirectorySubPath: string;
     warehouseCredentials: CreateWarehouseCredentials;
+    targetName: string | undefined;
+    environment: Record<string, string> | undefined;
 };
 
 export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
@@ -23,6 +25,8 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
         branch,
         projectDirectorySubPath,
         warehouseCredentials,
+        targetName,
+        environment,
     }: Args) {
         const remoteRepositoryUrl = `https://${personalAccessToken}@dev.azure.com/${organization}/${project}/_git/${repository}`;
         super({
@@ -31,6 +35,8 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
             remoteRepositoryUrl,
             projectDirectorySubPath,
             warehouseCredentials,
+            targetName,
+            environment,
         });
     }
 }

@@ -18,6 +18,8 @@ export type DbtGitProjectAdapterArgs = {
     gitBranch: string;
     projectDirectorySubPath: string;
     warehouseCredentials: CreateWarehouseCredentials;
+    targetName: string | undefined;
+    environment: Record<string, string> | undefined;
 };
 
 export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
@@ -37,6 +39,8 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         gitBranch,
         projectDirectorySubPath,
         warehouseCredentials,
+        targetName,
+        environment,
     }: DbtGitProjectAdapterArgs) {
         const localRepositoryDir = tempy.directory({
             prefix: 'git_',
@@ -49,6 +53,8 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
             warehouseClient,
             projectDir,
             warehouseCredentials,
+            targetName,
+            environment,
         });
         this.projectDirectorySubPath = projectDirectorySubPath;
         this.localRepositoryDir = localRepositoryDir;

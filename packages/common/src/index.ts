@@ -1085,11 +1085,15 @@ export interface DbtProjectConfigBase {
     name: string;
 }
 
-export interface DbtLocalProjectConfig extends DbtProjectConfigBase {
+export interface DbtProjectCompilerBase extends DbtProjectConfigBase {
+    target?: string;
+    environment?: Record<string, string>;
+}
+
+export interface DbtLocalProjectConfig extends DbtProjectCompilerBase {
     type: ProjectType.DBT;
     profiles_dir?: string;
     project_dir?: string;
-    target?: string;
 }
 
 export interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
@@ -1100,7 +1104,7 @@ export interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
     project_id: string | number;
 }
 
-export interface DbtGithubProjectConfig extends DbtProjectConfigBase {
+export interface DbtGithubProjectConfig extends DbtProjectCompilerBase {
     type: ProjectType.GITHUB;
     personal_access_token: string;
     repository: string;
@@ -1109,7 +1113,7 @@ export interface DbtGithubProjectConfig extends DbtProjectConfigBase {
     host_domain?: string;
 }
 
-export interface DbtGitlabProjectConfig extends DbtProjectConfigBase {
+export interface DbtGitlabProjectConfig extends DbtProjectCompilerBase {
     type: ProjectType.GITLAB;
     personal_access_token: string;
     repository: string;
@@ -1118,7 +1122,7 @@ export interface DbtGitlabProjectConfig extends DbtProjectConfigBase {
     host_domain?: string;
 }
 
-export interface DbtBitBucketProjectConfig extends DbtProjectConfigBase {
+export interface DbtBitBucketProjectConfig extends DbtProjectCompilerBase {
     type: ProjectType.BITBUCKET;
     username: string;
     personal_access_token: string;
@@ -1128,7 +1132,7 @@ export interface DbtBitBucketProjectConfig extends DbtProjectConfigBase {
     host_domain?: string;
 }
 
-export interface DbtAzureDevOpsProjectConfig extends DbtProjectConfigBase {
+export interface DbtAzureDevOpsProjectConfig extends DbtProjectCompilerBase {
     type: ProjectType.AZURE_DEVOPS;
     personal_access_token: string;
     organization: string;

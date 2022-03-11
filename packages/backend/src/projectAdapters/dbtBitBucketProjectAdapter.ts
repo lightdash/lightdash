@@ -13,6 +13,8 @@ type Args = {
     projectDirectorySubPath: string;
     warehouseCredentials: CreateWarehouseCredentials;
     hostDomain?: string;
+    targetName: string | undefined;
+    environment: Record<string, string> | undefined;
 };
 
 export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
@@ -25,6 +27,8 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
         projectDirectorySubPath,
         warehouseCredentials,
         hostDomain,
+        targetName,
+        environment,
     }: Args) {
         const remoteRepositoryUrl = `https://${username}:${personalAccessToken}@${
             hostDomain || DEFAULT_HOST_DOMAIN
@@ -35,6 +39,8 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
             remoteRepositoryUrl,
             projectDirectorySubPath,
             warehouseCredentials,
+            targetName,
+            environment,
         });
     }
 }

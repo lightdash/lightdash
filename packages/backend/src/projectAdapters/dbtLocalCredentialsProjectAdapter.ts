@@ -16,6 +16,8 @@ type DbtLocalCredentialsProjectAdapterArgs = {
     warehouseClient: WarehouseClient;
     projectDir: string;
     warehouseCredentials: CreateWarehouseCredentials;
+    targetName: string | undefined;
+    environment: Record<string, string> | undefined;
 };
 
 export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
@@ -25,19 +27,25 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         warehouseClient,
         projectDir,
         warehouseCredentials,
+        targetName,
+        environment,
     }: DbtLocalCredentialsProjectAdapterArgs) {
         const profilesDir = tempy.directory();
         const profilesFilename = path.join(profilesDir, 'profiles.yml');
-        const { profile, environment } =
-            profileFromCredentials(warehouseCredentials);
+        const { profile, environment: injectedEnvironment } =
+            profileFromCredentials(warehouseCredentials, targetName);
         writeFileSync(profilesFilename, profile);
+        const updatedEnvironment = {
+            ...(environment || {}),
+            ...injectedEnvironment,
+        };
         super({
             warehouseClient,
-            target: LIGHTDASH_TARGET_NAME,
+            target: targetName || LIGHTDASH_TARGET_NAME,
             profileName: LIGHTDASH_PROFILE_NAME,
             profilesDir,
             projectDir,
-            environment,
+            environment: updatedEnvironment,
         });
         this.profilesDir = profilesDir;
     }

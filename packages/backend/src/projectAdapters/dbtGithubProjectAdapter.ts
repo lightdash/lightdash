@@ -12,6 +12,8 @@ type DbtGithubProjectAdapterArgs = {
     projectDirectorySubPath: string;
     warehouseCredentials: CreateWarehouseCredentials;
     hostDomain?: string;
+    targetName: string | undefined;
+    environment: Record<string, string> | undefined;
 };
 
 export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
@@ -23,6 +25,8 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         projectDirectorySubPath,
         warehouseCredentials,
         hostDomain,
+        targetName,
+        environment,
     }: DbtGithubProjectAdapterArgs) {
         const remoteRepositoryUrl = `https://${githubPersonalAccessToken}@${
             hostDomain || DEFAULT_GITHUB_HOST_DOMAIN
@@ -33,6 +37,8 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             projectDirectorySubPath,
             warehouseCredentials,
             gitBranch: githubBranch,
+            targetName,
+            environment,
         });
     }
 }

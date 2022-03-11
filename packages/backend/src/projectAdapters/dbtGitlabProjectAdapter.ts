@@ -12,6 +12,8 @@ type DbtGitlabProjectAdapterArgs = {
     projectDirectorySubPath: string;
     warehouseCredentials: CreateWarehouseCredentials;
     hostDomain?: string;
+    targetName: string | undefined;
+    environment: Record<string, string> | undefined;
 };
 
 export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
@@ -23,6 +25,8 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
         projectDirectorySubPath,
         warehouseCredentials,
         hostDomain,
+        targetName,
+        environment,
     }: DbtGitlabProjectAdapterArgs) {
         const remoteRepositoryUrl = `https://:${gitlabPersonalAccessToken}@${
             hostDomain || DEFAULT_GITLAB_HOST_DOMAIN
@@ -33,6 +37,8 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
             remoteRepositoryUrl,
             projectDirectorySubPath,
             warehouseCredentials,
+            targetName,
+            environment,
         });
     }
 }
