@@ -83,14 +83,6 @@ export const BaseResponse = {
 
 export const Config = {
     mode: LightdashMode.DEFAULT,
-    projects: [
-        {
-            name: 'default',
-            type: 'dbt',
-            profiles_dir: '/',
-            project_dir: '/',
-        },
-    ],
     auth: {
         disablePasswordAuthentication: false,
         google: {

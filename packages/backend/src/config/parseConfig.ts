@@ -1,18 +1,6 @@
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
-import {
-    DbtAzureDevOpsProjectConfig,
-    DbtBitBucketProjectConfig,
-    DbtCloudIDEProjectConfig,
-    DbtGithubProjectConfig,
-    DbtGitlabProjectConfig,
-    DbtLocalProjectConfig,
-    DbtProjectConfig,
-    DbtProjectConfigBase,
-    isLightdashMode,
-    LightdashMode,
-    ProjectType,
-} from 'common';
+import { isLightdashMode, LightdashMode } from 'common';
 import { ParseError } from '../errors';
 import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
 import Logger from '../logger';
@@ -34,13 +22,9 @@ export const getIntegerFromEnvironmentVariable = (
     return parsed;
 };
 
-export type DbtProjectConfigIn<T extends DbtProjectConfig> = Partial<T> &
-    DbtProjectConfigBase;
-
 export type LightdashConfigIn = {
     version: '1.0';
     mode: LightdashMode;
-    projects?: Array<Partial<DbtProjectConfig> & DbtProjectConfigBase>;
 };
 
 export type LightdashConfig = {
@@ -52,7 +36,6 @@ export type LightdashConfig = {
     smtp: SmtpConfig | undefined;
     rudder: RudderConfig;
     mode: LightdashMode;
-    projects: Array<DbtProjectConfig>;
     sentry: SentryConfig;
     auth: AuthConfig;
     cohere: CohereConfig;
@@ -113,133 +96,7 @@ export type SmtpConfig = {
     };
 };
 
-type ConfigKeys<T extends DbtProjectConfig> = {
-    [P in keyof Required<T>]: boolean;
-};
-const dbtLocalProjectConfigKeys: ConfigKeys<DbtLocalProjectConfig> = {
-    type: true,
-    name: true,
-    profiles_dir: false,
-    project_dir: true,
-    target: false,
-};
-const dbtCloudIDEProjectConfigKeys: ConfigKeys<DbtCloudIDEProjectConfig> = {
-    type: true,
-    name: true,
-    api_key: true,
-    account_id: true,
-    environment_id: true,
-    project_id: true,
-};
-const dbtGithubProjectConfigKeys: ConfigKeys<DbtGithubProjectConfig> = {
-    type: true,
-    name: true,
-    personal_access_token: true,
-    repository: true,
-    branch: true,
-    project_sub_path: true,
-    host_domain: true,
-};
-const dbtGitlabProjectConfigKeys: ConfigKeys<DbtGitlabProjectConfig> = {
-    type: true,
-    name: true,
-    personal_access_token: true,
-    repository: true,
-    branch: true,
-    project_sub_path: true,
-    host_domain: true,
-};
-const dbtBitBucketProjectConfigKeys: ConfigKeys<DbtBitBucketProjectConfig> = {
-    type: true,
-    name: true,
-    username: true,
-    personal_access_token: true,
-    repository: true,
-    branch: true,
-    project_sub_path: true,
-    host_domain: true,
-};
-const dbtAzureDevOpsProjectConfigKeys: ConfigKeys<DbtAzureDevOpsProjectConfig> =
-    {
-        type: true,
-        name: true,
-        organization: true,
-        project: true,
-        repository: true,
-        branch: true,
-        project_sub_path: true,
-        personal_access_token: true,
-    };
-
-const mergeProjectWithEnvironment = <T extends DbtProjectConfig>(
-    projectIndex: number,
-    project: DbtProjectConfigIn<T>,
-    configKeys: ConfigKeys<T>,
-): T =>
-    Object.entries(configKeys).reduce((prev, [key, isRequired]) => {
-        const envKey = `LIGHTDASH_PROJECT_${projectIndex}_${key}`.toUpperCase();
-        const value = process.env[envKey] || project[key as keyof T];
-        if (isRequired && value === undefined) {
-            throw new ParseError(
-                `Lightdash config file successfully loaded but invalid: Project index: ${projectIndex} must have ${key} or environment variable ${envKey}.`,
-                {},
-            );
-        }
-        return {
-            ...prev,
-            [key]: value,
-        };
-    }, project) as T;
-
 const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
-    const mergedProjects = (config.projects || []).map((project, idx) => {
-        const projectType = project.type;
-        switch (project.type) {
-            case ProjectType.DBT:
-                return mergeProjectWithEnvironment(
-                    idx,
-                    project,
-                    dbtLocalProjectConfigKeys,
-                );
-            case ProjectType.DBT_CLOUD_IDE:
-                return mergeProjectWithEnvironment(
-                    idx,
-                    project,
-                    dbtCloudIDEProjectConfigKeys,
-                );
-            case ProjectType.GITHUB:
-                return mergeProjectWithEnvironment(
-                    idx,
-                    project,
-                    dbtGithubProjectConfigKeys,
-                );
-            case ProjectType.GITLAB:
-                return mergeProjectWithEnvironment(
-                    idx,
-                    project,
-                    dbtGitlabProjectConfigKeys,
-                );
-            case ProjectType.BITBUCKET:
-                return mergeProjectWithEnvironment(
-                    idx,
-                    project,
-                    dbtBitBucketProjectConfigKeys,
-                );
-            case ProjectType.AZURE_DEVOPS:
-                return mergeProjectWithEnvironment(
-                    idx,
-                    project,
-                    dbtAzureDevOpsProjectConfigKeys,
-                );
-            default: {
-                const never: never = project;
-                throw new ParseError(
-                    `Lightdash config file successfully loaded but invalid: Project type: ${projectType} is not supported`,
-                    {},
-                );
-            }
-        }
-    });
     const lightdashSecret = process.env.LIGHTDASH_SECRET;
     if (!lightdashSecret) {
         throw new ParseError(
@@ -271,7 +128,6 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
     return {
         ...config,
         mode,
-        projects: mergedProjects,
         smtp: process.env.EMAIL_SMTP_HOST
             ? {
                   host: process.env.EMAIL_SMTP_HOST,
