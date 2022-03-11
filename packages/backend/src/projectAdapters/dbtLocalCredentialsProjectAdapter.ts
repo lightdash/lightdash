@@ -1,4 +1,7 @@
-import { CreateWarehouseCredentials } from 'common';
+import {
+    CreateWarehouseCredentials,
+    DbtProjectEnvironmentVariable,
+} from 'common';
 import { writeFileSync } from 'fs';
 import * as fspromises from 'fs/promises';
 import * as path from 'path';
@@ -17,7 +20,7 @@ type DbtLocalCredentialsProjectAdapterArgs = {
     projectDir: string;
     warehouseCredentials: CreateWarehouseCredentials;
     targetName: string | undefined;
-    environment: Record<string, string> | undefined;
+    environment: DbtProjectEnvironmentVariable[] | undefined;
 };
 
 export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
@@ -35,8 +38,15 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         const { profile, environment: injectedEnvironment } =
             profileFromCredentials(warehouseCredentials, targetName);
         writeFileSync(profilesFilename, profile);
+        const e = (environment || []).reduce(
+            (previousValue, { key, value }) => ({
+                ...previousValue,
+                ...(key.length > 0 ? { [key]: value } : {}), // ignore empty strings
+            }),
+            {} as Record<string, string>,
+        );
         const updatedEnvironment = {
-            ...(environment || {}),
+            ...e,
             ...injectedEnvironment,
         };
         super({

@@ -1,4 +1,7 @@
-import { CreateWarehouseCredentials } from 'common';
+import {
+    CreateWarehouseCredentials,
+    DbtProjectEnvironmentVariable,
+} from 'common';
 import { WarehouseClient } from '../types';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 
@@ -12,7 +15,7 @@ type Args = {
     projectDirectorySubPath: string;
     warehouseCredentials: CreateWarehouseCredentials;
     targetName: string | undefined;
-    environment: Record<string, string> | undefined;
+    environment: DbtProjectEnvironmentVariable[] | undefined;
 };
 
 export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {

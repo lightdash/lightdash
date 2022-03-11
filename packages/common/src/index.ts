@@ -1085,9 +1085,14 @@ export interface DbtProjectConfigBase {
     name: string;
 }
 
+export type DbtProjectEnvironmentVariable = {
+    key: string;
+    value: string;
+};
+
 export interface DbtProjectCompilerBase extends DbtProjectConfigBase {
     target?: string;
-    environment?: Record<string, string>;
+    environment?: DbtProjectEnvironmentVariable[];
 }
 
 export interface DbtLocalProjectConfig extends DbtProjectCompilerBase {

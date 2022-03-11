@@ -1,7 +1,11 @@
+import { Button } from '@blueprintjs/core';
 import { ProjectType, ProjectTypeLabels } from 'common';
-import React, { FC, useMemo } from 'react';
+import React, { FC, useMemo, useState } from 'react';
 import { useWatch } from 'react-hook-form';
 import { useApp } from '../../providers/AppProvider';
+import FormSection from '../ReactHookForm/FormSection';
+import Input from '../ReactHookForm/Input';
+import { MultiKeyValuePairsInput } from '../ReactHookForm/MultiKeyValuePairsInput';
 import SelectField from '../ReactHookForm/Select';
 import AzureDevOpsForm from './DbtForms/AzureDevOpsForm';
 import BitBucketForm from './DbtForms/BitBucketForm';
@@ -23,6 +27,10 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         name: 'dbt.type',
         defaultValue: defaultType || ProjectType.GITHUB,
     });
+    const [isAdvancedSettingsOpen, setIsAdvancedSettingsOpen] =
+        useState<boolean>(false);
+    const toggleAdvancedSettingsOpen = () =>
+        setIsAdvancedSettingsOpen((open) => !open);
     const { health } = useApp();
     const options = useMemo(() => {
         const enabledTypes = [
@@ -80,6 +88,36 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 defaultValue={ProjectType.GITHUB}
             />
             {form}
+            <FormSection name={'Advanced'} isOpen={isAdvancedSettingsOpen}>
+                <Input
+                    name="dbt.target"
+                    label="Target name"
+                    disabled={disabled}
+                    placeholder="prod"
+                />
+                <MultiKeyValuePairsInput
+                    name="dbt.environment"
+                    label="Environment variables"
+                />
+            </FormSection>
+            <div
+                style={{
+                    display: 'flex',
+                    marginTop: 20,
+                    justifyContent: 'flex-end',
+                }}
+            >
+                <Button
+                    minimal
+                    text={`${
+                        isAdvancedSettingsOpen ? 'Hide' : 'Show'
+                    } advanced fields`}
+                    onClick={toggleAdvancedSettingsOpen}
+                    style={{
+                        marginRight: 10,
+                    }}
+                />
+            </div>
         </div>
     );
 };
