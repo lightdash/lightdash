@@ -44,7 +44,6 @@ export const lightdashConfigMock: LightdashConfig = {
         token: '',
     },
     smtp: undefined,
-    projects: [],
     siteUrl: '',
     database: {
         connectionUri: undefined,
