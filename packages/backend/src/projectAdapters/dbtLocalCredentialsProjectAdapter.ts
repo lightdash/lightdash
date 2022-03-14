@@ -38,12 +38,12 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         const { profile, environment: injectedEnvironment } =
             profileFromCredentials(warehouseCredentials, targetName);
         writeFileSync(profilesFilename, profile);
-        const e = (environment || []).reduce(
+        const e = (environment || []).reduce<Record<string, string>>(
             (previousValue, { key, value }) => ({
                 ...previousValue,
                 ...(key.length > 0 ? { [key]: value } : {}), // ignore empty strings
             }),
-            {} as Record<string, string>,
+            {},
         );
         const updatedEnvironment = {
             ...e,

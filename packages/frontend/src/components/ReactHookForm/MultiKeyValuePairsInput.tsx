@@ -18,7 +18,7 @@ export const MultiKeyValuePairsInput = ({ name, label }: Props) => {
     } = useFormContext();
     const { fields, remove, append } = useFieldArray({ name, control });
     return (
-        <FormGroup label={label}>
+        <FormGroup className="input-wrapper" label={label}>
             {fields.map((field, index) => (
                 <MultiKeyValuePairRow key={field.id}>
                     <Input name={`${name}.${index}.key`} placeholder="Key" />
@@ -33,14 +33,12 @@ export const MultiKeyValuePairsInput = ({ name, label }: Props) => {
                     />
                 </MultiKeyValuePairRow>
             ))}
-            <AddKeyValuePairRow>
-                <Button
-                    minimal
-                    onClick={() => append({ key: '', value: '' })}
-                    icon={'plus'}
-                    text="Add variable"
-                />
-            </AddKeyValuePairRow>
+            <Button
+                minimal
+                onClick={() => append({ key: '', value: '' })}
+                icon={'plus'}
+                text="Add variable"
+            />
         </FormGroup>
     );
 };
