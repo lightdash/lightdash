@@ -2,6 +2,7 @@ import {
     Alignment,
     Button,
     Classes,
+    HTMLSelect,
     Menu,
     MenuItem,
     NavbarGroup,
@@ -11,9 +12,9 @@ import {
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { useState } from 'react';
 import { useMutation } from 'react-query';
-import { useParams } from 'react-router-dom';
+import { generatePath, Route, useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
-import { useDefaultProject } from '../../hooks/useProjects';
+import { useDefaultProject, useProjects } from '../../hooks/useProjects';
 import { useApp } from '../../providers/AppProvider';
 import { UserAvatar } from '../Avatar';
 import { ErrorLogsDrawer } from '../ErrorLogsDrawer';
@@ -43,8 +44,10 @@ const NavBar = () => {
         errorLogs: { errorLogs, setErrorLogsVisible },
     } = useApp();
     const defaultProject = useDefaultProject();
+    const { isLoading, data } = useProjects();
     const params = useParams<{ projectUuid: string | undefined }>();
     const projectUuid = params.projectUuid || defaultProject.data?.projectUuid;
+    const history = useHistory();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<string | undefined>();
     const { mutate } = useMutation(logoutQuery, {
@@ -64,6 +67,32 @@ const NavBar = () => {
                     >
                         <LogoContainer title="Home" />
                     </NavLink>
+                    <Route
+                        children={({ match }) => {
+                            if (!match) {
+                                return null;
+                            }
+                            return (
+                                <HTMLSelect
+                                    disabled={isLoading}
+                                    options={data?.map((item) => ({
+                                        value: item.projectUuid,
+                                        label: `${item.name} ${item.projectUuid}`,
+                                    }))}
+                                    fill
+                                    onChange={(e) =>
+                                        history.push({
+                                            pathname: generatePath(match.path, {
+                                                ...params,
+                                                projectUuid:
+                                                    e.currentTarget.value,
+                                            }),
+                                        })
+                                    }
+                                />
+                            );
+                        }}
+                    />
                     {!!projectUuid && (
                         <>
                             <ExploreMenu projectId={projectUuid} />
