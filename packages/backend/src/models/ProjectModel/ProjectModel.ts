@@ -37,6 +37,73 @@ export class ProjectModel {
         this.encryptionService = deps.encryptionService;
     }
 
+    static mergeMissingDbtConfigSecrets(
+        incompleteConfig: DbtProjectConfig,
+        completeConfig: DbtProjectConfig,
+    ): DbtProjectConfig {
+        if (incompleteConfig.type !== completeConfig.type) {
+            return incompleteConfig;
+        }
+        return {
+            ...incompleteConfig,
+            ...sensitiveDbtCredentialsFieldNames.reduce(
+                (sum, secretKey) =>
+                    !(incompleteConfig as any)[secretKey] &&
+                    (completeConfig as any)[secretKey]
+                        ? {
+                              ...sum,
+                              [secretKey]: (completeConfig as any)[secretKey],
+                          }
+                        : sum,
+                {},
+            ),
+        };
+    }
+
+    static mergeMissingWarehouseSecrets(
+        incompleteConfig: CreateWarehouseCredentials,
+        completeConfig: CreateWarehouseCredentials,
+    ): CreateWarehouseCredentials {
+        if (incompleteConfig.type !== completeConfig.type) {
+            return incompleteConfig;
+        }
+        return {
+            ...incompleteConfig,
+            ...sensitiveCredentialsFieldNames.reduce(
+                (sum, secretKey) =>
+                    !(incompleteConfig as any)[secretKey] &&
+                    (completeConfig as any)[secretKey]
+                        ? {
+                              ...sum,
+                              [secretKey]: (completeConfig as any)[secretKey],
+                          }
+                        : sum,
+                {},
+            ),
+        };
+    }
+
+    static mergeMissingProjectConfigSecrets(
+        incompleteProjectConfig: UpdateProject,
+        completeProjectConfig: Project & {
+            warehouseConnection?: CreateWarehouseCredentials;
+        },
+    ): UpdateProject {
+        return {
+            ...incompleteProjectConfig,
+            dbtConnection: ProjectModel.mergeMissingDbtConfigSecrets(
+                incompleteProjectConfig.dbtConnection,
+                completeProjectConfig.dbtConnection,
+            ),
+            warehouseConnection: completeProjectConfig.warehouseConnection
+                ? ProjectModel.mergeMissingWarehouseSecrets(
+                      incompleteProjectConfig.warehouseConnection,
+                      completeProjectConfig.warehouseConnection,
+                  )
+                : incompleteProjectConfig.warehouseConnection,
+        };
+    }
+
     async getAllByOrganizationUuid(
         organizationUuid: string,
     ): Promise<OrganizationProject[]> {

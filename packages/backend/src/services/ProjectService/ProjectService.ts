@@ -3,8 +3,6 @@ import {
     ApiSqlQueryResults,
     countTotalFilterRules,
     CreateProject,
-    CreateWarehouseCredentials,
-    DbtProjectConfig,
     defineAbilityForOrganizationMember,
     Explore,
     ExploreError,
@@ -17,8 +15,6 @@ import {
     MetricQuery,
     Project,
     ProjectCatalog,
-    sensitiveCredentialsFieldNames,
-    sensitiveDbtCredentialsFieldNames,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
@@ -40,71 +36,6 @@ import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { ProjectAdapter } from '../../types';
-
-const mergeMissingDbtConfigSecrets = (
-    incompleteConfig: DbtProjectConfig,
-    completeConfig: DbtProjectConfig,
-): DbtProjectConfig => {
-    if (incompleteConfig.type !== completeConfig.type) {
-        return incompleteConfig;
-    }
-    return {
-        ...incompleteConfig,
-        ...sensitiveDbtCredentialsFieldNames.reduce(
-            (sum, secretKey) =>
-                !(incompleteConfig as any)[secretKey] &&
-                (completeConfig as any)[secretKey]
-                    ? {
-                          ...sum,
-                          [secretKey]: (completeConfig as any)[secretKey],
-                      }
-                    : sum,
-            {},
-        ),
-    };
-};
-
-const mergeMissingWarehouseSecrets = (
-    incompleteConfig: CreateWarehouseCredentials,
-    completeConfig: CreateWarehouseCredentials,
-): CreateWarehouseCredentials => {
-    if (incompleteConfig.type !== completeConfig.type) {
-        return incompleteConfig;
-    }
-    return {
-        ...incompleteConfig,
-        ...sensitiveCredentialsFieldNames.reduce(
-            (sum, secretKey) =>
-                !(incompleteConfig as any)[secretKey] &&
-                (completeConfig as any)[secretKey]
-                    ? {
-                          ...sum,
-                          [secretKey]: (completeConfig as any)[secretKey],
-                      }
-                    : sum,
-            {},
-        ),
-    };
-};
-
-const mergeMissingProjectConfigSecrets = (
-    incompleteProjectConfig: UpdateProject,
-    completeProjectConfig: Project & {
-        warehouseConnection?: CreateWarehouseCredentials;
-    },
-): UpdateProject => ({
-    ...incompleteProjectConfig,
-    dbtConnection: mergeMissingDbtConfigSecrets(
-        incompleteProjectConfig.dbtConnection,
-        completeProjectConfig.dbtConnection,
-    ),
-    warehouseConnection: completeProjectConfig.warehouseConnection
-        ? mergeMissingWarehouseSecrets(
-              incompleteProjectConfig.warehouseConnection,
-              completeProjectConfig.warehouseConnection,
-          )
-        : incompleteProjectConfig.warehouseConnection,
-});
 
 type ProjectServiceDependencies = {
     projectModel: ProjectModel;
@@ -209,7 +140,7 @@ export class ProjectService {
             projectUuid,
         );
 
-        const updatedProject = mergeMissingProjectConfigSecrets(
+        const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
             data,
             savedProject,
         );
