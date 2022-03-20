@@ -120,6 +120,17 @@ export type Explore = {
     targetDatabase: SupportedDbtAdapter; // Type of target database e.g. postgres/redshift/bigquery/snowflake/spark
 };
 
+export type ExplorePA = Explore & {
+    event_id_field: string;
+    event_timestamp_field: string;
+    event_type_field: string;
+    feature_variant_field?: string;
+    session_id_field?: string;
+    session_table?: string;
+    cohort_field?: string;
+    user_cohort_table?: string;
+};
+
 export enum InlineErrorType {
     METADATA_PARSE_ERROR = 'METADATA_PARSE_ERROR',
     NO_DIMENSIONS_FOUND = 'NO_DIMENSIONS_FOUND',
