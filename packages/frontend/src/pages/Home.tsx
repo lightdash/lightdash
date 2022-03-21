@@ -1,17 +1,23 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import React, { FC } from 'react';
+import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import { OpenChatButton } from '../components/common/ChatBubble/OpenChatButton';
 import Page from '../components/common/Page/Page';
 import LandingPanel from '../components/Home/LandingPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
+import { useProject } from '../hooks/useProject';
 import { useDefaultProject } from '../hooks/useProjects';
 import { useApp } from '../providers/AppProvider';
 
 const Home: FC = () => {
+    const params = useParams<{ projectUuid: string | undefined }>();
+    const defaultProject = useDefaultProject();
+    const selectedProjectUuid =
+        params.projectUuid || defaultProject.data?.projectUuid;
+    const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
-    const project = useDefaultProject();
     const isLoading = onboarding.isLoading || project.isLoading;
     const error = onboarding.error || project.error;
     const { user } = useApp();

@@ -12,7 +12,7 @@ import {
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { useState } from 'react';
 import { useMutation } from 'react-query';
-import { generatePath, Route, useHistory, useParams } from 'react-router-dom';
+import { Route, useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
 import { useDefaultProject, useProjects } from '../../hooks/useProjects';
 import { useApp } from '../../providers/AppProvider';
@@ -46,7 +46,8 @@ const NavBar = () => {
     const defaultProject = useDefaultProject();
     const { isLoading, data } = useProjects();
     const params = useParams<{ projectUuid: string | undefined }>();
-    const projectUuid = params.projectUuid || defaultProject.data?.projectUuid;
+    const selectedProjectUuid =
+        params.projectUuid || defaultProject.data?.projectUuid;
     const history = useHistory();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<string | undefined>();
@@ -62,7 +63,7 @@ const NavBar = () => {
             <NavBarWrapper className={Classes.DARK}>
                 <NavbarGroup align={Alignment.LEFT}>
                     <NavLink
-                        to="/home"
+                        to={`/home/${selectedProjectUuid}`}
                         style={{ marginRight: 24, display: 'flex' }}
                     >
                         <LogoContainer title="Home" />
@@ -80,23 +81,18 @@ const NavBar = () => {
                                         label: `${item.name} ${item.projectUuid}`,
                                     }))}
                                     fill
+                                    value={selectedProjectUuid}
                                     onChange={(e) =>
-                                        history.push({
-                                            pathname: generatePath(match.path, {
-                                                ...params,
-                                                projectUuid:
-                                                    e.currentTarget.value,
-                                            }),
-                                        })
+                                        history.push(`/home/${e.target.value}`)
                                     }
                                 />
                             );
                         }}
                     />
-                    {!!projectUuid && (
+                    {!!selectedProjectUuid && (
                         <>
-                            <ExploreMenu projectId={projectUuid} />
-                            <BrowseMenu projectId={projectUuid} />
+                            <ExploreMenu projectId={selectedProjectUuid} />
+                            <BrowseMenu projectId={selectedProjectUuid} />
                         </>
                     )}
                     <Button

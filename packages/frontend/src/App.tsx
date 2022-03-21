@@ -226,7 +226,10 @@ const App = () => (
                                                     >
                                                         <Projects />
                                                     </Route>
-                                                    <Route path="/home" exact>
+                                                    <Route
+                                                        path="/home/:projectUuid?"
+                                                        exact
+                                                    >
                                                         <NavBar />
                                                         <TrackPage
                                                             name={PageName.HOME}
