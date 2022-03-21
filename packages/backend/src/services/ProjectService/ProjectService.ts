@@ -136,11 +136,20 @@ export class ProjectService {
         if (user.ability.cannot('update', 'Project')) {
             throw new ForbiddenError();
         }
+        const savedProject = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
+
+        const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
+            data,
+            savedProject,
+        );
+
         this.projectLoading[projectUuid] = true;
         const [adapter, explores] = await ProjectService.testProjectAdapter(
-            data,
+            updatedProject,
         );
-        await this.projectModel.update(projectUuid, data);
+        await this.projectModel.update(projectUuid, updatedProject);
         analytics.track({
             event: 'project.updated',
             userId: user.userUuid,
@@ -148,8 +157,9 @@ export class ProjectService {
             organizationId: user.organizationUuid,
             properties: {
                 projectId: projectUuid,
-                projectType: data.dbtConnection.type,
-                warehouseConnectionType: data.warehouseConnection.type,
+                projectType: updatedProject.dbtConnection.type,
+                warehouseConnectionType:
+                    updatedProject.warehouseConnection.type,
             },
         });
         this.projectLoading[projectUuid] = false;

@@ -1,13 +1,18 @@
 import { FileInput as File } from '@blueprintjs/core';
-import React, { FC, useState } from 'react';
+import React, { ComponentProps, FC, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 
 interface FileFieldProps extends Omit<InputWrapperProps, 'render'> {
     acceptedTypes?: React.HTMLProps<HTMLInputElement>['accept'];
+    fileInputProps?: ComponentProps<typeof File>;
 }
 
-const FileInput: FC<FileFieldProps> = ({ acceptedTypes, ...rest }) => {
+const FileInput: FC<FileFieldProps> = ({
+    acceptedTypes,
+    fileInputProps,
+    ...rest
+}) => {
     const [fileName, setFileName] = useState<string>();
     const { setError } = useFormContext();
     return (
@@ -42,6 +47,7 @@ const FileInput: FC<FileFieldProps> = ({ acceptedTypes, ...rest }) => {
                     }}
                     onBlur={onBlur}
                     {...props}
+                    {...fileInputProps}
                 />
             )}
         />

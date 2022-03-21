@@ -1,4 +1,5 @@
 import { Button } from '@blueprintjs/core';
+import { WarehouseTypes } from 'common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
@@ -7,11 +8,15 @@ import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
 import SelectField from '../../ReactHookForm/Select';
+import { useProjectFormContext } from '../ProjectFormProvider';
 
 const BigQueryForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
+    const { savedProject } = useProjectFormContext();
+    const requireSecrets: boolean =
+        savedProject?.warehouseConnection?.type !== WarehouseTypes.BIGQUERY;
     return (
         <>
             <Input
@@ -55,7 +60,10 @@ const BigQueryForm: FC<{
                 label="Key File"
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#key-file"
                 rules={{
-                    required: 'Required field',
+                    required: requireSecrets ? 'Required field' : undefined,
+                }}
+                fileInputProps={{
+                    text: !requireSecrets ? '**************' : undefined,
                 }}
                 acceptedTypes="application/json"
                 disabled={disabled}

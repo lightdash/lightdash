@@ -1,4 +1,5 @@
 import { Button } from '@blueprintjs/core';
+import { WarehouseTypes } from 'common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
@@ -7,11 +8,15 @@ import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import Select from '../../ReactHookForm/Select';
+import { useProjectFormContext } from '../ProjectFormProvider';
 
 const PostgresForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
+    const { savedProject } = useProjectFormContext();
+    const requireSecrets: boolean =
+        savedProject?.warehouseConnection?.type !== WarehouseTypes.POSTGRES;
     return (
         <>
             <Input
@@ -31,11 +36,14 @@ const PostgresForm: FC<{
                 label="User"
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#user"
                 rules={{
-                    required: 'Required field',
+                    required: requireSecrets ? 'Required field' : undefined,
                     validate: {
                         hasNoWhiteSpaces: hasNoWhiteSpaces('User'),
                     },
                 }}
+                placeholder={
+                    disabled || !requireSecrets ? '**************' : undefined
+                }
                 disabled={disabled}
             />
             <PasswordInput
@@ -43,8 +51,11 @@ const PostgresForm: FC<{
                 label="Password"
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#password"
                 rules={{
-                    required: 'Required field',
+                    required: requireSecrets ? 'Required field' : undefined,
                 }}
+                placeholder={
+                    disabled || !requireSecrets ? '**************' : undefined
+                }
                 disabled={disabled}
             />
             <Input
