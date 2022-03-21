@@ -1,6 +1,6 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import React, { FC } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { FC, useEffect } from 'react';
+import { useHistory, useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import { OpenChatButton } from '../components/common/ChatBubble/OpenChatButton';
 import Page from '../components/common/Page/Page';
@@ -13,15 +13,21 @@ import { useApp } from '../providers/AppProvider';
 
 const Home: FC = () => {
     const params = useParams<{ projectUuid: string | undefined }>();
-    const defaultProject = useDefaultProject();
-    const selectedProjectUuid =
-        params.projectUuid || defaultProject.data?.projectUuid;
+    const { data } = useDefaultProject();
+    const selectedProjectUuid = params.projectUuid;
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
     const isLoading = onboarding.isLoading || project.isLoading;
     const error = onboarding.error || project.error;
     const { user } = useApp();
+    const history = useHistory();
     useUnmount(() => onboarding.remove());
+
+    useEffect(() => {
+        if (!params.projectUuid && data) {
+            history.push(`/home/${data.projectUuid}`);
+        }
+    }, [history, params, data]);
 
     if (isLoading) {
         return (

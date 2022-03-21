@@ -1,39 +1,33 @@
-import { Button, ButtonGroup, Card, Classes } from '@blueprintjs/core';
+import { Button, ButtonGroup, Classes } from '@blueprintjs/core';
 import { OrganizationProject } from 'common';
 import React, { FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { useProjects } from '../../../hooks/useProjects';
 import LinkButton from '../../common/LinkButton';
-import { HeaderActions, Wrapper } from './ProjectManagementPanel.styles';
+import {
+    HeaderActions,
+    ItemContent,
+    ProjectInfo,
+    ProjectListItemWrapper,
+    ProjectManagementPanelWrapper,
+    ProjectName,
+    ProjectTag,
+} from './ProjectManagementPanel.styles';
 
-const ProjectListItem: FC<{ project: OrganizationProject }> = ({
-    project: { projectUuid, name },
-}) => (
-    <Card
-        elevation={0}
-        style={{
-            display: 'flex',
-            flexDirection: 'column',
-            marginBottom: '20px',
-        }}
-    >
-        <div
-            style={{
-                display: 'flex',
-                alignItems: 'center',
-            }}
-        >
-            <p
-                style={{
-                    margin: 0,
-                    marginRight: '10px',
-                    flex: 1,
-                    fontWeight: 'bold',
-                }}
-                className={Classes.TEXT_OVERFLOW_ELLIPSIS}
-            >
-                {name}
-            </p>
+const ProjectListItem: FC<{
+    isCurrentProject: boolean;
+    project: OrganizationProject;
+}> = ({ isCurrentProject, project: { projectUuid, name } }) => (
+    <ProjectListItemWrapper elevation={0}>
+        <ItemContent>
+            <ProjectInfo>
+                <ProjectName className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
+                    {name}
+                </ProjectName>
+                {isCurrentProject && (
+                    <ProjectTag minimal>Current Project</ProjectTag>
+                )}
+            </ProjectInfo>
             <ButtonGroup>
                 <LinkButton
                     icon="cog"
@@ -42,15 +36,16 @@ const ProjectListItem: FC<{ project: OrganizationProject }> = ({
                     href={`/projects/${projectUuid}/settings`}
                 />
             </ButtonGroup>
-        </div>
-    </Card>
+        </ItemContent>
+    </ProjectListItemWrapper>
 );
 
 const ProjectManagementPanel: FC = () => {
     const { data } = useProjects();
     const history = useHistory();
+    const params = useParams<{ projectUuid: string | undefined }>();
     return (
-        <Wrapper>
+        <ProjectManagementPanelWrapper>
             <HeaderActions>
                 <Button
                     intent="primary"
@@ -62,11 +57,14 @@ const ProjectManagementPanel: FC = () => {
                 {data?.map((project) => (
                     <ProjectListItem
                         key={project.projectUuid}
+                        isCurrentProject={
+                            params.projectUuid === project.projectUuid
+                        }
                         project={project}
                     />
                 ))}
             </div>
-        </Wrapper>
+        </ProjectManagementPanelWrapper>
     );
 };
 
