@@ -19,12 +19,14 @@ import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import Form from '../ReactHookForm/Form';
+import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
 
 type ProjectConnectionForm = {
+    name: string;
     dbt: DbtProjectConfig;
     warehouse?: CreateWarehouseCredentials;
 };
@@ -36,6 +38,37 @@ interface Props {
 
 const ProjectForm: FC<Props> = ({ disabled, defaultType }) => (
     <>
+        <Card
+            style={{
+                marginBottom: '20px',
+                display: 'flex',
+                flexDirection: 'row',
+                gap: 20,
+            }}
+            elevation={1}
+        >
+            <div style={{ flex: 1 }}>
+                <div
+                    style={{
+                        marginBottom: 15,
+                    }}
+                >
+                    <H5 style={{ display: 'inline', marginRight: 5 }}>
+                        Base details
+                    </H5>
+                </div>
+            </div>
+            <div style={{ flex: 1 }}>
+                <Input
+                    name="name"
+                    label="Project name"
+                    rules={{
+                        required: 'Required field',
+                    }}
+                    disabled={disabled}
+                />
+            </div>
+        </Card>
         <Card
             style={{
                 marginBottom: '20px',
@@ -138,6 +171,7 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
     const methods = useForm<ProjectConnectionForm>({
         shouldUnregister: true,
         defaultValues: {
+            name: data?.name,
             dbt: data?.dbtConnection,
             warehouse: data?.warehouseConnection,
         },
@@ -146,6 +180,7 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
     useEffect(() => {
         if (data) {
             reset({
+                name: data.name,
                 dbt: data.dbtConnection,
                 warehouse: data.warehouseConnection,
             });
@@ -154,18 +189,16 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
     const { track } = useTracking();
 
     const onSubmit = async ({
+        name,
         dbt: dbtConnection,
         warehouse: warehouseConnection,
-    }: {
-        dbt: DbtProjectConfig;
-        warehouse: CreateWarehouseCredentials;
-    }) => {
+    }: Required<ProjectConnectionForm>) => {
         if (user.data) {
             track({
                 name: EventName.UPDATE_PROJECT_BUTTON_CLICKED,
             });
             await mutateAsync({
-                name: user.data.organizationName,
+                name,
                 dbtConnection,
                 warehouseConnection,
             });
@@ -214,23 +247,22 @@ export const CreateProjectConnection: FC = () => {
     const methods = useForm<ProjectConnectionForm>({
         shouldUnregister: true,
         defaultValues: {
+            name: user.data?.organizationName || `My new project`,
             dbt: health.data?.defaultProject,
         },
     });
     const { track } = useTracking();
 
     const onSubmit = async ({
+        name,
         dbt: dbtConnection,
         warehouse: warehouseConnection,
-    }: {
-        dbt: DbtProjectConfig;
-        warehouse: CreateWarehouseCredentials;
-    }) => {
+    }: Required<ProjectConnectionForm>) => {
         track({
             name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
         });
         await mutateAsync({
-            name: user.data?.organizationName || `My project`,
+            name,
             dbtConnection,
             warehouseConnection,
         });
