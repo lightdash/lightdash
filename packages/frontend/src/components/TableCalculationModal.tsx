@@ -105,7 +105,7 @@ const TableCalculationModal: FC<Props> = ({
                                                 ),
                                         )
                                         .some(
-                                            (fieldName, index) =>
+                                            (fieldName) =>
                                                 fieldName ===
                                                 snakeCaseName(columnName),
                                         ) ||
