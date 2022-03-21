@@ -17,7 +17,7 @@ export const useSqlQueryMutation = () => {
     return useMutation<ApiSqlQueryResults, ApiError, string>(
         (sql) => runSqlQuery(projectUuid, sql),
         {
-            mutationKey: ['run_sql_query'],
+            mutationKey: ['run_sql_query', projectUuid],
             onError: (error) => {
                 showToastError({
                     title: `Failed to run sql query`,

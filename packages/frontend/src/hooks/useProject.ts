@@ -42,7 +42,7 @@ export const useUpdateMutation = (id: string) => {
     return useMutation<undefined, ApiError, UpdateProject>(
         (data) => updateProject(id, data),
         {
-            mutationKey: ['project_update'],
+            mutationKey: ['project_update', id],
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['project', id]);
                 await queryClient.invalidateQueries('tables');

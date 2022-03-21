@@ -36,7 +36,7 @@ export const useUpdateProjectTablesConfiguration = (projectUuid: string) => {
     return useMutation<TablesConfiguration, ApiError, TablesConfiguration>(
         (data) => updateProjectTablesConfigurationQuery(projectUuid, data),
         {
-            mutationKey: ['tables_configuration_update'],
+            mutationKey: ['tables_configuration_update', projectUuid],
             onSuccess: async (data) => {
                 await queryClient.invalidateQueries('tables');
                 queryClient.setQueryData(

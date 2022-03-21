@@ -17,7 +17,7 @@ export const useRefreshServer = () => {
     const queryClient = useQueryClient();
     const setErrorResponse = useQueryError();
     return useMutation<void, ApiError>({
-        mutationKey: 'refresh',
+        mutationKey: ['refresh', projectUuid],
         mutationFn: () => refresh(projectUuid),
         onSettled: async () => {
             queryClient.setQueryData('status', 'loading');

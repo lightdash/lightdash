@@ -130,7 +130,7 @@ export const useCreateMutation = () => {
     return useMutation<SavedChart, ApiError, CreateSavedChart>(
         (data) => createSavedQuery(projectUuid, data),
         {
-            mutationKey: ['saved_query_create'],
+            mutationKey: ['saved_query_create', projectUuid],
             onSuccess: (data) => {
                 queryClient.setQueryData(['saved_query', data.uuid], data);
                 showToastSuccess({
