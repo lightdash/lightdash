@@ -98,6 +98,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 <MultiKeyValuePairsInput
                     name="dbt.environment"
                     label="Environment variables"
+                    disabled={disabled}
                 />
             </FormSection>
             <div
