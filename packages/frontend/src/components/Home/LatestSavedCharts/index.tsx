@@ -44,6 +44,7 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 .slice(0, 5)
                 .map(({ uuid, name }) => (
                     <ChartName
+                        key={uuid}
                         minimal
                         href={`/projects/${projectUuid}/saved/${uuid}`}
                         alignText="left"
