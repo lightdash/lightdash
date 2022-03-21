@@ -12,16 +12,6 @@ const CreateProject: FC = () => {
         return <PageSpinner />;
     }
 
-    // if (health.status === 'success' && !health.data?.needsProject) {
-    //     return (
-    //         <Redirect
-    //             to={{
-    //                 pathname: '/',
-    //             }}
-    //         />
-    //     );
-    // }
-
     return (
         <Page>
             <div
