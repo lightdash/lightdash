@@ -1,9 +1,4 @@
-import {
-    MenuItem,
-    Navbar,
-    NavbarDivider,
-    NavbarHeading,
-} from '@blueprintjs/core';
+import { HTMLSelect, MenuItem, Navbar, NavbarDivider } from '@blueprintjs/core';
 import styled from 'styled-components';
 import { ReactComponent as Logo } from '../../svgs/logo.svg';
 
@@ -12,9 +7,8 @@ export const NavBarWrapper = styled(Navbar)`
     top: 0;
 `;
 
-export const NavHeading = styled(NavbarHeading)`
+export const ProjectDropdown = styled(HTMLSelect)`
     margin: 0 1.143em 0 0;
-    font-size: 1em;
 `;
 
 export const LogoContainer = styled(Logo)`
