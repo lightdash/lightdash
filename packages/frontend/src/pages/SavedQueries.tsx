@@ -1,27 +1,13 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import { SpaceQuery } from 'common';
-import React, { FC, useEffect, useMemo, useState } from 'react';
+import React, { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import SavedQueriesContent from '../components/SavedQueries/SavedQueriesContent';
-import { useSpaces } from '../hooks/useSpaces';
+import { useSavedCharts } from '../hooks/useSpaces';
 
 const SavedQueries: FC = () => {
-    const [selectedMenu, setSelectedMenu] = useState<string>();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-
-    const { isLoading, data } = useSpaces(projectUuid);
-
-    const savedQueries: SpaceQuery[] = useMemo(
-        () => data?.find(({ uuid }) => uuid === selectedMenu)?.queries || [],
-        [selectedMenu, data],
-    );
-
-    useEffect(() => {
-        if (!selectedMenu && data && data.length > 0) {
-            setSelectedMenu(data[0].uuid);
-        }
-    }, [selectedMenu, data]);
+    const { isLoading, data } = useSavedCharts(projectUuid);
 
     if (isLoading) {
         return (
@@ -34,7 +20,7 @@ const SavedQueries: FC = () => {
     return (
         <Page>
             <SavedQueriesContent
-                savedQueries={savedQueries}
+                savedQueries={data || []}
                 projectUuid={projectUuid}
             />
         </Page>

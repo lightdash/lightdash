@@ -16,7 +16,7 @@ export const useServerStatus = (refetchInterval = 5000) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const setErrorResponse = useQueryError();
-    const queryKey = 'status';
+    const queryKey = ['status', projectUuid];
     const [previousState, setPreviousState] = useState<string>();
     return useQuery<ApiStatusResults, ApiError>({
         queryKey,

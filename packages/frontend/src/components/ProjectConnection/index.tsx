@@ -145,7 +145,10 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
     const { reset } = methods;
     useEffect(() => {
         if (data) {
-            reset();
+            reset({
+                dbt: data.dbtConnection,
+                warehouse: data.warehouseConnection,
+            });
         }
     }, [reset, data]);
     const { track } = useTracking();
