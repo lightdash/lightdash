@@ -1,3 +1,10 @@
+## [0.33.3](https://github.com/lightdash/lightdash/compare/0.33.2...0.33.3) (2022-03-21)
+
+
+### Bug Fixes
+
+* dont require project secrets on edit ([#1546](https://github.com/lightdash/lightdash/issues/1546)) ([5bd7b2e](https://github.com/lightdash/lightdash/commit/5bd7b2ef27ae42afb3f4a291b80cfa65a7a39472))
+
 ## [0.33.2](https://github.com/lightdash/lightdash/compare/0.33.1...0.33.2) (2022-03-11)
 
 
