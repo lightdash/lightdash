@@ -2,7 +2,6 @@ import {
     Alignment,
     Button,
     Classes,
-    HTMLSelect,
     Menu,
     MenuItem,
     NavbarGroup,
@@ -12,7 +11,7 @@ import {
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { useState } from 'react';
 import { useMutation } from 'react-query';
-import { Route, useHistory, useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
 import { useDefaultProject, useProjects } from '../../hooks/useProjects';
 import { useApp } from '../../providers/AppProvider';
@@ -28,7 +27,7 @@ import {
     Divider,
     LogoContainer,
     NavBarWrapper,
-    NavHeading,
+    ProjectDropdown,
 } from './NavBar.styles';
 
 const logoutQuery = async () =>
@@ -42,6 +41,7 @@ const NavBar = () => {
     const {
         user,
         errorLogs: { errorLogs, setErrorLogsVisible },
+        showToastSuccess,
     } = useApp();
     const defaultProject = useDefaultProject();
     const { isLoading, data } = useProjects();
@@ -68,27 +68,6 @@ const NavBar = () => {
                     >
                         <LogoContainer title="Home" />
                     </NavLink>
-                    <Route
-                        children={({ match }) => {
-                            if (!match) {
-                                return null;
-                            }
-                            return (
-                                <HTMLSelect
-                                    disabled={isLoading}
-                                    options={data?.map((item) => ({
-                                        value: item.projectUuid,
-                                        label: item.name,
-                                    }))}
-                                    fill
-                                    value={selectedProjectUuid}
-                                    onChange={(e) =>
-                                        history.push(`/home/${e.target.value}`)
-                                    }
-                                />
-                            );
-                        }}
-                    />
                     {!!selectedProjectUuid && (
                         <>
                             <ExploreMenu projectId={selectedProjectUuid} />
@@ -110,8 +89,27 @@ const NavBar = () => {
                         errorLogs={errorLogs}
                         setErrorLogsVisible={setErrorLogsVisible}
                     />
-                    <NavHeading>{user.data?.organizationName}</NavHeading>
-
+                    <ProjectDropdown
+                        disabled={isLoading}
+                        options={data?.map((item) => ({
+                            value: item.projectUuid,
+                            label: item.name,
+                        }))}
+                        fill
+                        value={selectedProjectUuid}
+                        onChange={(e) => {
+                            showToastSuccess({
+                                icon: 'tick',
+                                title: `You are now viewing ${
+                                    data?.find(
+                                        ({ projectUuid }) =>
+                                            projectUuid === e.target.value,
+                                    )?.name
+                                }`,
+                            });
+                            history.push(`/home/${e.target.value}`);
+                        }}
+                    />
                     <Popover2
                         interactionKind={PopoverInteractionKind.CLICK}
                         content={

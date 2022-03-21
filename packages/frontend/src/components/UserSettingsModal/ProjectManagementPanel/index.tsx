@@ -1,8 +1,10 @@
-import { ButtonGroup, Card, Classes } from '@blueprintjs/core';
+import { Button, ButtonGroup, Card, Classes } from '@blueprintjs/core';
 import { OrganizationProject } from 'common';
 import React, { FC } from 'react';
+import { useHistory } from 'react-router-dom';
 import { useProjects } from '../../../hooks/useProjects';
 import LinkButton from '../../common/LinkButton';
+import { HeaderActions, Wrapper } from './ProjectManagementPanel.styles';
 
 const ProjectListItem: FC<{ project: OrganizationProject }> = ({
     project: { projectUuid, name },
@@ -46,11 +48,16 @@ const ProjectListItem: FC<{ project: OrganizationProject }> = ({
 
 const ProjectManagementPanel: FC = () => {
     const { data } = useProjects();
-
+    const history = useHistory();
     return (
-        <div
-            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-        >
+        <Wrapper>
+            <HeaderActions>
+                <Button
+                    intent="primary"
+                    onClick={() => history.push(`/createProject`)}
+                    text="Create new"
+                />
+            </HeaderActions>
             <div>
                 {data?.map((project) => (
                     <ProjectListItem
@@ -59,7 +66,7 @@ const ProjectManagementPanel: FC = () => {
                     />
                 ))}
             </div>
-        </div>
+        </Wrapper>
     );
 };
 
