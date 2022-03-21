@@ -5,6 +5,7 @@ import {
     SubmitErrorHandler,
     SubmitHandler,
 } from 'react-hook-form/dist/types/form';
+import { StyledProps } from 'styled-components';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 
@@ -16,13 +17,14 @@ interface FormProps<T extends object = any> {
     onError?: SubmitErrorHandler<T>;
 }
 
-const Form: FC<FormProps> = ({
+const Form: FC<FormProps & StyledProps<any>> = ({
     name,
     disableSubmitOnEnter,
     methods,
     children,
     onSubmit,
     onError,
+    ...rest
 }) => {
     const { handleSubmit, formState } = methods;
     const { track } = useTracking();
@@ -61,6 +63,7 @@ const Form: FC<FormProps> = ({
                         e.preventDefault();
                     }
                 }}
+                {...rest}
             >
                 {children}
             </form>
