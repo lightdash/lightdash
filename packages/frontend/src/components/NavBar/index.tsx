@@ -78,7 +78,7 @@ const NavBar = () => {
                                     disabled={isLoading}
                                     options={data?.map((item) => ({
                                         value: item.projectUuid,
-                                        label: `${item.name} ${item.projectUuid}`,
+                                        label: item.name,
                                     }))}
                                     fill
                                     value={selectedProjectUuid}
