@@ -189,8 +189,20 @@ export class ProjectService {
         if (user.ability.cannot('delete', 'Project')) {
             throw new ForbiddenError();
         }
-        // TODO check it is not the last project (similar to users)
-        // TODO delete the project adaptor
+        // Check it is not the last project
+        /* const [admin, ...remainingAdmins] =
+        await this.organizationMemberProfileModel.getOrganizationAdmins(
+            user.organizationUuid,
+        );
+        if (
+            remainingAdmins.length === 0 &&
+            admin.userUuid === userUuidToDelete
+        ) {
+            throw new ForbiddenError(
+                'Organization must have at least one admin',
+            );
+        } */
+
         await this.projectModel.delete(projectUuid);
         analytics.track({
             event: 'project.deleted',
@@ -201,6 +213,12 @@ export class ProjectService {
                 projectId: projectUuid,
             },
         });
+
+        const runningAdapter = this.projectAdapters[projectUuid];
+        if (runningAdapter !== undefined) {
+            await runningAdapter.destroy();
+        }
+        this.projectLoading[projectUuid] = false;
     }
 
     private async restartAdapter(projectUuid: string): Promise<ProjectAdapter> {
