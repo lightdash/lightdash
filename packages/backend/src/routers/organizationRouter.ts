@@ -66,11 +66,11 @@ organizationRouter.post('/projects', isAuthenticated, async (req, res, next) =>
 );
 
 organizationRouter.delete(
-    '/projects',
+    '/projects/:projectUuid',
     isAuthenticated,
     async (req, res, next) =>
         projectService
-            .delete(req.params.projectUuid, req.user!, req.body)
+            .delete(req.params.projectUuid, req.user!)
             .then((results) => {
                 res.json({
                     status: 'ok',

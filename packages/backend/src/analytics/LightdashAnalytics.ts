@@ -125,12 +125,20 @@ export type CreateSavedChartOrVersionEvent = BaseTrack & {
 };
 
 type ProjectEvent = BaseTrack & {
-    event: 'project.updated' | 'project.created' | 'project.deleted';
+    event: 'project.updated' | 'project.created';
     userId: string;
     properties: {
         projectId: string;
         projectType: ProjectType;
         warehouseConnectionType: WarehouseTypes;
+    };
+};
+
+type ProjectDeletedEvent = BaseTrack & {
+    event: 'project.deleted';
+    userId: string;
+    properties: {
+        projectId: string;
     };
 };
 
@@ -209,6 +217,7 @@ type Track =
     | ProjectErrorEvent
     | ApiErrorEvent
     | ProjectEvent
+    | ProjectDeletedEvent
     | ProjectCompiledEvent
     | DashboardEvent
     | CreateDashboardOrVersionEvent

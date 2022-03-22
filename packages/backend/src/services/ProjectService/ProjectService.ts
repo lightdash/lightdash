@@ -4,7 +4,6 @@ import {
     countTotalFilterRules,
     CreateProject,
     defineAbilityForOrganizationMember,
-    DeleteProject,
     Explore,
     ExploreError,
     FilterableField,
@@ -186,24 +185,20 @@ export class ProjectService {
         return [adapter, explores];
     }
 
-    async delete(
-        projectUuid: string,
-        user: SessionUser,
-        data: DeleteProject,
-    ): Promise<void> {
+    async delete(projectUuid: string, user: SessionUser): Promise<void> {
         if (user.ability.cannot('delete', 'Project')) {
             throw new ForbiddenError();
         }
+        // TODO check it is not the last project (similar to users)
+        // TODO delete the project adaptor
         await this.projectModel.delete(projectUuid);
         analytics.track({
-            event: 'project.updated',
+            event: 'project.deleted',
             userId: user.userUuid,
             projectId: projectUuid,
             organizationId: user.organizationUuid,
             properties: {
                 projectId: projectUuid,
-                projectType: data.dbtConnection.type,
-                warehouseConnectionType: data.warehouseConnection.type,
             },
         });
     }

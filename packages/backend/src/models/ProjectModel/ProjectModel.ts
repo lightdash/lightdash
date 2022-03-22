@@ -256,7 +256,9 @@ export class ProjectModel {
     }
 
     async delete(projectUuid: string): Promise<string> {
-        return this.database.where('project_uuid', projectUuid).delete();
+        return this.database('projects')
+            .where('project_uuid', projectUuid)
+            .delete();
     }
 
     async getWithSensitiveFields(
