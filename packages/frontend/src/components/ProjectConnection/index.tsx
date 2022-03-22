@@ -32,12 +32,50 @@ type ProjectConnectionForm = {
 };
 
 interface Props {
+    showGeneralSettings: boolean;
     disabled: boolean;
     defaultType?: ProjectType;
 }
 
-const ProjectForm: FC<Props> = ({ disabled, defaultType }) => (
+const ProjectForm: FC<Props> = ({
+    showGeneralSettings,
+    disabled,
+    defaultType,
+}) => (
     <>
+        {showGeneralSettings && (
+            <Card
+                style={{
+                    marginBottom: '20px',
+                    display: 'flex',
+                    flexDirection: 'row',
+                    gap: 20,
+                }}
+                elevation={1}
+            >
+                <div style={{ flex: 1 }}>
+                    <div
+                        style={{
+                            marginBottom: 15,
+                        }}
+                    >
+                        <H5 style={{ display: 'inline', marginRight: 5 }}>
+                            General settings
+                        </H5>
+                    </div>
+                </div>
+                <div style={{ flex: 1 }}>
+                    <Input
+                        name="name"
+                        label="Project name"
+                        rules={{
+                            required: 'Required field',
+                        }}
+                        disabled={disabled}
+                    />
+                </div>
+            </Card>
+        )}
         <Card
             style={{
                 marginBottom: '20px',
@@ -213,7 +251,7 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
             onError={onError}
         >
             <ProjectFormProvider savedProject={data}>
-                <ProjectForm disabled={isSaving} />
+                <ProjectForm showGeneralSettings disabled={isSaving} />
             </ProjectFormProvider>
             {!isIdle && (
                 <ProjectStatusCallout
@@ -262,7 +300,7 @@ export const CreateProjectConnection: FC = () => {
             name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
         });
         await mutateAsync({
-            name,
+            name: name || user.data?.organizationName || 'My project',
             dbtConnection,
             warehouseConnection,
         });
@@ -277,6 +315,7 @@ export const CreateProjectConnection: FC = () => {
         >
             <ProjectFormProvider>
                 <ProjectForm
+                    showGeneralSettings={!health.data?.needsProject}
                     disabled={isSaving || isSuccess}
                     defaultType={health.data?.defaultProject?.type}
                 />

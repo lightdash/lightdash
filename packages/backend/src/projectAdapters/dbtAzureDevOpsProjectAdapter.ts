@@ -1,4 +1,7 @@
-import { CreateWarehouseCredentials } from 'common';
+import {
+    CreateWarehouseCredentials,
+    DbtProjectEnvironmentVariable,
+} from 'common';
 import { WarehouseClient } from '../types';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 
@@ -11,6 +14,8 @@ type Args = {
     branch: string;
     projectDirectorySubPath: string;
     warehouseCredentials: CreateWarehouseCredentials;
+    targetName: string | undefined;
+    environment: DbtProjectEnvironmentVariable[] | undefined;
 };
 
 export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
@@ -23,6 +28,8 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
         branch,
         projectDirectorySubPath,
         warehouseCredentials,
+        targetName,
+        environment,
     }: Args) {
         const remoteRepositoryUrl = `https://${personalAccessToken}@dev.azure.com/${organization}/${project}/_git/${repository}`;
         super({
@@ -31,6 +38,8 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
             remoteRepositoryUrl,
             projectDirectorySubPath,
             warehouseCredentials,
+            targetName,
+            environment,
         });
     }
 }

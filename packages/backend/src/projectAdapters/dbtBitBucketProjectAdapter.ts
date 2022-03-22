@@ -1,4 +1,7 @@
-import { CreateWarehouseCredentials } from 'common';
+import {
+    CreateWarehouseCredentials,
+    DbtProjectEnvironmentVariable,
+} from 'common';
 import { WarehouseClient } from '../types';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 
@@ -13,6 +16,8 @@ type Args = {
     projectDirectorySubPath: string;
     warehouseCredentials: CreateWarehouseCredentials;
     hostDomain?: string;
+    targetName: string | undefined;
+    environment: DbtProjectEnvironmentVariable[] | undefined;
 };
 
 export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
@@ -25,6 +30,8 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
         projectDirectorySubPath,
         warehouseCredentials,
         hostDomain,
+        targetName,
+        environment,
     }: Args) {
         const remoteRepositoryUrl = `https://${username}:${personalAccessToken}@${
             hostDomain || DEFAULT_HOST_DOMAIN
@@ -35,6 +42,8 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
             remoteRepositoryUrl,
             projectDirectorySubPath,
             warehouseCredentials,
+            targetName,
+            environment,
         });
     }
 }

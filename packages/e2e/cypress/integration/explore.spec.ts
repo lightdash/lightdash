@@ -1,3 +1,5 @@
+import { SEED_PROJECT } from 'common';
+
 describe('Explore', () => {
     before(() => {
         // @ts-ignore
@@ -11,7 +13,7 @@ describe('Explore', () => {
     });
 
     it('Should query orders', () => {
-        cy.visit('/projects');
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
         cy.findByText('Orders').click();
         cy.findByText('First name').click();

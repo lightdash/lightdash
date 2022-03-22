@@ -31,7 +31,7 @@ const BaseModal = ({
                         <Form
                             name={modalProps.title}
                             methods={methods}
-                            onSubmit={(data) => handleSubmit(data)}
+                            onSubmit={(data: any) => handleSubmit(data)}
                         >
                             {children}
                         </Form>

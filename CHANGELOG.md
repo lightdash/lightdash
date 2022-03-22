@@ -1,3 +1,29 @@
+# [0.35.0](https://github.com/lightdash/lightdash/compare/0.34.1...0.35.0) (2022-03-22)
+
+
+### Features
+
+* support multiple projects ([#1555](https://github.com/lightdash/lightdash/issues/1555)) ([07b4e17](https://github.com/lightdash/lightdash/commit/07b4e17e69d9b54bc93ce7a3e39edf519bbbd7fd))
+
+## [0.34.1](https://github.com/lightdash/lightdash/compare/0.34.0...0.34.1) (2022-03-22)
+
+
+### Bug Fixes
+
+* wrap table calculation sql + expand modal ([#1560](https://github.com/lightdash/lightdash/issues/1560)) ([97ad94f](https://github.com/lightdash/lightdash/commit/97ad94fb1dba45a13041873ee33f330536d1452d))
+
+# [0.34.0](https://github.com/lightdash/lightdash/compare/0.33.4...0.34.0) (2022-03-22)
+
+
+### Bug Fixes
+
+* add python3-dev to dockerfile ([#1557](https://github.com/lightdash/lightdash/issues/1557)) ([5e03e42](https://github.com/lightdash/lightdash/commit/5e03e4242d08e41d941e00bab44e128b281071e8))
+
+
+### Features
+
+* add configurable environment variables for dbt project ([#1550](https://github.com/lightdash/lightdash/issues/1550)) ([6ca89ab](https://github.com/lightdash/lightdash/commit/6ca89ab31520ba1aa3e20d458df110645b4c6f76))
+
 ## [0.33.4](https://github.com/lightdash/lightdash/compare/0.33.3...0.33.4) (2022-03-22)
 
 

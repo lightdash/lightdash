@@ -1,16 +1,21 @@
-import { Button, Callout, Classes, Dialog, Intent } from '@blueprintjs/core';
+import { Button, Callout, Classes, Intent, Switch } from '@blueprintjs/core';
 import { hasSpecialCharacters, snakeCaseName, TableCalculation } from 'common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
-import { useExplore } from '../hooks/useExplore';
-import { useExplorerAceEditorCompleter } from '../hooks/useExplorerAceEditorCompleter';
-import { useApp } from '../providers/AppProvider';
-import { useExplorer } from '../providers/ExplorerProvider';
-import { useTracking } from '../providers/TrackingProvider';
-import { EventName } from '../types/Events';
-import Form from './ReactHookForm/Form';
-import Input from './ReactHookForm/Input';
-import SqlInput from './ReactHookForm/SqlInput';
+import { useToggle } from 'react-use';
+import { useExplore } from '../../hooks/useExplore';
+import { useExplorerAceEditorCompleter } from '../../hooks/useExplorerAceEditorCompleter';
+import { useApp } from '../../providers/AppProvider';
+import { useExplorer } from '../../providers/ExplorerProvider';
+import Input from '../ReactHookForm/Input';
+import SqlInput from '../ReactHookForm/SqlInput';
+import {
+    DialogBody,
+    DialogButtons,
+    FlexForm,
+    TableCalculationDialog,
+    TableCalculationSqlInputWrapper,
+} from './TableCalculationModal.styles';
 
 const SQL_PLACEHOLDER =
     // eslint-disable-next-line no-template-curly-in-string
@@ -36,6 +41,7 @@ const TableCalculationModal: FC<Props> = ({
     onSave,
     onClose,
 }) => {
+    const [isFullscreen, toggleFullscreen] = useToggle(false);
     const { showToastError } = useApp();
     const {
         state: { dimensions, metrics, tableCalculations, tableName },
@@ -51,17 +57,26 @@ const TableCalculationModal: FC<Props> = ({
     });
 
     return (
-        <Dialog
+        <TableCalculationDialog
             isOpen={isOpen}
             onClose={() => (!isDisabled ? onClose() : undefined)}
             title="Save"
             lazy
             canOutsideClickClose
+            style={
+                isFullscreen
+                    ? {
+                          position: 'absolute',
+                          width: '100%',
+                          height: '100%',
+                      }
+                    : undefined
+            }
         >
-            <Form
+            <FlexForm
                 name="table_calculation"
                 methods={methods}
-                onSubmit={(data) => {
+                onSubmit={(data: TableCalculationFormInputs) => {
                     const { name, sql } = data;
                     try {
                         onSave({
@@ -77,7 +92,7 @@ const TableCalculationModal: FC<Props> = ({
                     }
                 }}
             >
-                <div className={Classes.DIALOG_BODY}>
+                <DialogBody className={Classes.DIALOG_BODY}>
                     <Input
                         label="Name"
                         name="name"
@@ -105,7 +120,7 @@ const TableCalculationModal: FC<Props> = ({
                                                 ),
                                         )
                                         .some(
-                                            (fieldName, index) =>
+                                            (fieldName) =>
                                                 fieldName ===
                                                 snakeCaseName(columnName),
                                         ) ||
@@ -135,23 +150,33 @@ const TableCalculationModal: FC<Props> = ({
                             </p>
                         </Callout>
                     )}
-                    <SqlInput
-                        name="sql"
-                        label="SQL"
-                        attributes={{
-                            readOnly: isDisabled,
-                            height: '100px',
-                            width: '100%',
-                            editorProps: { $blockScrolling: true },
-                            enableBasicAutocompletion: true,
-                            enableLiveAutocompletion: true,
-                            onLoad: setAceEditor,
-                        }}
-                        placeholder={SQL_PLACEHOLDER}
-                    />
-                </div>
+                    <TableCalculationSqlInputWrapper>
+                        <SqlInput
+                            name="sql"
+                            label="SQL"
+                            attributes={{
+                                readOnly: isDisabled,
+                                height: '100%',
+                                width: '100%',
+                                maxLines: isFullscreen ? 40 : 20,
+                                minLines: isFullscreen ? 40 : 8,
+                                editorProps: { $blockScrolling: true },
+                                enableBasicAutocompletion: true,
+                                enableLiveAutocompletion: true,
+                                onLoad: setAceEditor,
+                                wrapEnabled: true,
+                            }}
+                            placeholder={SQL_PLACEHOLDER}
+                        />
+                    </TableCalculationSqlInputWrapper>
+                </DialogBody>
                 <div className={Classes.DIALOG_FOOTER}>
-                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+                    <DialogButtons className={Classes.DIALOG_FOOTER_ACTIONS}>
+                        <Switch
+                            checked={isFullscreen}
+                            label="Fullscreen"
+                            onChange={toggleFullscreen}
+                        />
                         <Button onClick={onClose}>Cancel</Button>
                         <Button
                             type="submit"
@@ -159,117 +184,10 @@ const TableCalculationModal: FC<Props> = ({
                             text="Save"
                             loading={isDisabled}
                         />
-                    </div>
+                    </DialogButtons>
                 </div>
-            </Form>
-        </Dialog>
-    );
-};
-
-interface CreateTableCalculationModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-}
-
-export const CreateTableCalculationModal: FC<
-    CreateTableCalculationModalProps
-> = ({ isOpen, onClose }) => {
-    const {
-        actions: { addTableCalculation },
-    } = useExplorer();
-    const { track } = useTracking();
-    const onCreate = (value: TableCalculation) => {
-        addTableCalculation(value);
-        track({
-            name: EventName.CREATE_TABLE_CALCULATION_BUTTON_CLICKED,
-        });
-        onClose();
-    };
-
-    return (
-        <TableCalculationModal
-            isOpen={isOpen}
-            isDisabled={false}
-            onSave={onCreate}
-            onClose={onClose}
-        />
-    );
-};
-
-interface UpdateTableCalculationModalProps {
-    isOpen: boolean;
-    tableCalculation: TableCalculation;
-    onClose: () => void;
-}
-
-export const UpdateTableCalculationModal: FC<
-    UpdateTableCalculationModalProps
-> = ({ isOpen, tableCalculation, onClose }) => {
-    const {
-        actions: { updateTableCalculation },
-    } = useExplorer();
-    const { track } = useTracking();
-    const onUpdate = (value: TableCalculation) => {
-        updateTableCalculation(tableCalculation.name, value);
-        track({
-            name: EventName.UPDATE_TABLE_CALCULATION_BUTTON_CLICKED,
-        });
-        onClose();
-    };
-
-    return (
-        <TableCalculationModal
-            isOpen={isOpen}
-            isDisabled={false}
-            tableCalculation={tableCalculation}
-            onSave={onUpdate}
-            onClose={onClose}
-        />
-    );
-};
-
-interface DeleteTableCalculationModalProps {
-    isOpen: boolean;
-    tableCalculation: TableCalculation;
-    onClose: () => void;
-}
-
-export const DeleteTableCalculationModal: FC<
-    DeleteTableCalculationModalProps
-> = ({ isOpen, tableCalculation, onClose }) => {
-    const {
-        actions: { deleteTableCalculation },
-    } = useExplorer();
-    const { track } = useTracking();
-
-    const onConfirm = () => {
-        deleteTableCalculation(tableCalculation.name);
-        track({
-            name: EventName.CONFIRM_DELETE_TABLE_CALCULATION_BUTTON_CLICKED,
-        });
-        onClose();
-    };
-    return (
-        <Dialog
-            isOpen={isOpen}
-            icon="cog"
-            onClose={onClose}
-            title="Settings"
-            lazy
-            canOutsideClickClose={false}
-        >
-            <div className={Classes.DIALOG_BODY}>
-                <p>Are you sure you want to delete this table calculation ?</p>
-            </div>
-            <div className={Classes.DIALOG_FOOTER}>
-                <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                    <Button onClick={onClose}>Cancel</Button>
-                    <Button intent="danger" onClick={onConfirm}>
-                        Delete
-                    </Button>
-                </div>
-            </div>
-        </Dialog>
+            </FlexForm>
+        </TableCalculationDialog>
     );
 };
 
