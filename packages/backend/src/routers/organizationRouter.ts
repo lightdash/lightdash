@@ -65,6 +65,21 @@ organizationRouter.post('/projects', isAuthenticated, async (req, res, next) =>
         .catch(next),
 );
 
+organizationRouter.delete(
+    '/projects',
+    isAuthenticated,
+    async (req, res, next) =>
+        projectService
+            .delete(req.params.projectUuid, req.user!, req.body)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next),
+);
+
 organizationRouter.get('/users', isAuthenticated, async (req, res, next) =>
     organizationService
         .getUsers(req.user!)

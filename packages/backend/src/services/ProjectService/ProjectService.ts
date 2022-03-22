@@ -4,6 +4,7 @@ import {
     countTotalFilterRules,
     CreateProject,
     defineAbilityForOrganizationMember,
+    DeleteProject,
     Explore,
     ExploreError,
     FilterableField,
@@ -183,6 +184,28 @@ export class ProjectService {
             throw e;
         }
         return [adapter, explores];
+    }
+
+    async delete(
+        projectUuid: string,
+        user: SessionUser,
+        data: DeleteProject,
+    ): Promise<void> {
+        if (user.ability.cannot('delete', 'Project')) {
+            throw new ForbiddenError();
+        }
+        await this.projectModel.delete(projectUuid);
+        analytics.track({
+            event: 'project.updated',
+            userId: user.userUuid,
+            projectId: projectUuid,
+            organizationId: user.organizationUuid,
+            properties: {
+                projectId: projectUuid,
+                projectType: data.dbtConnection.type,
+                warehouseConnectionType: data.warehouseConnection.type,
+            },
+        });
     }
 
     private async restartAdapter(projectUuid: string): Promise<ProjectAdapter> {

@@ -125,7 +125,7 @@ export type CreateSavedChartOrVersionEvent = BaseTrack & {
 };
 
 type ProjectEvent = BaseTrack & {
-    event: 'project.updated' | 'project.created';
+    event: 'project.updated' | 'project.created' | 'project.deleted';
     userId: string;
     properties: {
         projectId: string;

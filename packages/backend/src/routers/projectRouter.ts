@@ -237,6 +237,23 @@ projectRouter.post(
     },
 );
 
+projectRouter.delete(
+    '/dashboards',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        dashboardService
+            .delete(req.user!, req.params.projectUuid)
+            .then((results) => {
+                res.status(201).json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
 projectRouter.post(
     '/sqlQuery',
     isAuthenticated,
