@@ -247,7 +247,7 @@ export const CreateProjectConnection: FC = () => {
     const methods = useForm<ProjectConnectionForm>({
         shouldUnregister: true,
         defaultValues: {
-            name: user.data?.organizationName || `My new project`,
+            name: user.data?.organizationName,
             dbt: health.data?.defaultProject,
         },
     });

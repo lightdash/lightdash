@@ -90,7 +90,7 @@ const NavBar = () => {
                         setErrorLogsVisible={setErrorLogsVisible}
                     />
                     <ProjectDropdown
-                        disabled={isLoading}
+                        disabled={isLoading || (data || []).length <= 0}
                         options={data?.map((item) => ({
                             value: item.projectUuid,
                             label: item.name,
