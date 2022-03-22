@@ -1,4 +1,7 @@
-import { CreateWarehouseCredentials } from 'common';
+import {
+    CreateWarehouseCredentials,
+    DbtProjectEnvironmentVariable,
+} from 'common';
 import * as fspromises from 'fs-extra';
 import * as path from 'path';
 import simpleGit, { SimpleGit, SimpleGitProgressEvent } from 'simple-git';
@@ -18,6 +21,8 @@ export type DbtGitProjectAdapterArgs = {
     gitBranch: string;
     projectDirectorySubPath: string;
     warehouseCredentials: CreateWarehouseCredentials;
+    targetName: string | undefined;
+    environment: DbtProjectEnvironmentVariable[] | undefined;
 };
 
 export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
@@ -37,6 +42,8 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         gitBranch,
         projectDirectorySubPath,
         warehouseCredentials,
+        targetName,
+        environment,
     }: DbtGitProjectAdapterArgs) {
         const localRepositoryDir = tempy.directory({
             prefix: 'git_',
@@ -49,6 +56,8 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
             warehouseClient,
             projectDir,
             warehouseCredentials,
+            targetName,
+            environment,
         });
         this.projectDirectorySubPath = projectDirectorySubPath;
         this.localRepositoryDir = localRepositoryDir;

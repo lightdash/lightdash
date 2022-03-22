@@ -27,6 +27,8 @@ export const projectAdapterFromConfig = async (
                 warehouseClient,
                 projectDir: config.project_dir || '/usr/app/dbt',
                 warehouseCredentials,
+                targetName: config.target,
+                environment: config.environment,
             });
         case ProjectType.DBT_CLOUD_IDE:
             return new DbtCloudIdeProjectAdapter({
@@ -45,6 +47,8 @@ export const projectAdapterFromConfig = async (
                 projectDirectorySubPath: config.project_sub_path,
                 hostDomain: config.host_domain,
                 warehouseCredentials,
+                targetName: config.target,
+                environment: config.environment,
             });
         case ProjectType.GITLAB:
             return new DbtGitlabProjectAdapter({
@@ -55,6 +59,8 @@ export const projectAdapterFromConfig = async (
                 projectDirectorySubPath: config.project_sub_path,
                 hostDomain: config.host_domain,
                 warehouseCredentials,
+                targetName: config.target,
+                environment: config.environment,
             });
         case ProjectType.BITBUCKET:
             return new DbtBitBucketProjectAdapter({
@@ -66,6 +72,8 @@ export const projectAdapterFromConfig = async (
                 projectDirectorySubPath: config.project_sub_path,
                 hostDomain: config.host_domain,
                 warehouseCredentials,
+                targetName: config.target,
+                environment: config.environment,
             });
         case ProjectType.AZURE_DEVOPS:
             return new DbtAzureDevOpsProjectAdapter({
@@ -77,6 +85,8 @@ export const projectAdapterFromConfig = async (
                 branch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,
                 warehouseCredentials,
+                targetName: config.target,
+                environment: config.environment,
             });
         default:
             const never: never = config;
