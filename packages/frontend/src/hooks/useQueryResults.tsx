@@ -42,7 +42,7 @@ export const useQueryResults = () => {
             selectedTableCalculations.includes(name),
         ),
     };
-    const queryKey = ['queryResults', tableId, metricQuery];
+    const queryKey = ['queryResults', tableId, metricQuery, projectUuid];
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,
         queryFn: () => getQueryResults(projectUuid, tableId || '', metricQuery),
@@ -61,6 +61,7 @@ export const useSavedChartResults = (
         'savedChartResults',
         savedChart.uuid,
         JSON.stringify(savedChart),
+        projectUuid,
     ];
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,

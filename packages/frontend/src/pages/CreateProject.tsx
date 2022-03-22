@@ -1,6 +1,5 @@
 import { Colors, H1 } from '@blueprintjs/core';
 import React, { FC } from 'react';
-import { Redirect } from 'react-router-dom';
 import { OpenChatButton } from '../components/common/ChatBubble/OpenChatButton';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
@@ -11,16 +10,6 @@ const CreateProject: FC = () => {
     const { health } = useApp();
     if (health.isLoading) {
         return <PageSpinner />;
-    }
-
-    if (health.status === 'success' && !health.data?.needsProject) {
-        return (
-            <Redirect
-                to={{
-                    pathname: '/',
-                }}
-            />
-        );
     }
 
     return (

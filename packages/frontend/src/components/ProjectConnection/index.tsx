@@ -19,23 +19,63 @@ import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import Form from '../ReactHookForm/Form';
+import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
 
 type ProjectConnectionForm = {
+    name: string;
     dbt: DbtProjectConfig;
     warehouse?: CreateWarehouseCredentials;
 };
 
 interface Props {
+    showGeneralSettings: boolean;
     disabled: boolean;
     defaultType?: ProjectType;
 }
 
-const ProjectForm: FC<Props> = ({ disabled, defaultType }) => (
+const ProjectForm: FC<Props> = ({
+    showGeneralSettings,
+    disabled,
+    defaultType,
+}) => (
     <>
+        {showGeneralSettings && (
+            <Card
+                style={{
+                    marginBottom: '20px',
+                    display: 'flex',
+                    flexDirection: 'row',
+                    gap: 20,
+                }}
+                elevation={1}
+            >
+                <div style={{ flex: 1 }}>
+                    <div
+                        style={{
+                            marginBottom: 15,
+                        }}
+                    >
+                        <H5 style={{ display: 'inline', marginRight: 5 }}>
+                            General settings
+                        </H5>
+                    </div>
+                </div>
+                <div style={{ flex: 1 }}>
+                    <Input
+                        name="name"
+                        label="Project name"
+                        rules={{
+                            required: 'Required field',
+                        }}
+                        disabled={disabled}
+                    />
+                </div>
+            </Card>
+        )}
         <Card
             style={{
                 marginBottom: '20px',
@@ -138,6 +178,7 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
     const methods = useForm<ProjectConnectionForm>({
         shouldUnregister: true,
         defaultValues: {
+            name: data?.name,
             dbt: data?.dbtConnection,
             warehouse: data?.warehouseConnection,
         },
@@ -145,24 +186,26 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
     const { reset } = methods;
     useEffect(() => {
         if (data) {
-            reset();
+            reset({
+                name: data.name,
+                dbt: data.dbtConnection,
+                warehouse: data.warehouseConnection,
+            });
         }
     }, [reset, data]);
     const { track } = useTracking();
 
     const onSubmit = async ({
+        name,
         dbt: dbtConnection,
         warehouse: warehouseConnection,
-    }: {
-        dbt: DbtProjectConfig;
-        warehouse: CreateWarehouseCredentials;
-    }) => {
+    }: Required<ProjectConnectionForm>) => {
         if (user.data) {
             track({
                 name: EventName.UPDATE_PROJECT_BUTTON_CLICKED,
             });
             await mutateAsync({
-                name: user.data.organizationName,
+                name,
                 dbtConnection,
                 warehouseConnection,
             });
@@ -177,7 +220,7 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
             onError={onError}
         >
             <ProjectFormProvider savedProject={data}>
-                <ProjectForm disabled={isSaving} />
+                <ProjectForm showGeneralSettings disabled={isSaving} />
             </ProjectFormProvider>
             {!isIdle && (
                 <ProjectStatusCallout
@@ -211,23 +254,22 @@ export const CreateProjectConnection: FC = () => {
     const methods = useForm<ProjectConnectionForm>({
         shouldUnregister: true,
         defaultValues: {
+            name: user.data?.organizationName,
             dbt: health.data?.defaultProject,
         },
     });
     const { track } = useTracking();
 
     const onSubmit = async ({
+        name,
         dbt: dbtConnection,
         warehouse: warehouseConnection,
-    }: {
-        dbt: DbtProjectConfig;
-        warehouse: CreateWarehouseCredentials;
-    }) => {
+    }: Required<ProjectConnectionForm>) => {
         track({
             name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
         });
         await mutateAsync({
-            name: user.data?.organizationName || `My project`,
+            name: name || user.data?.organizationName || 'My project',
             dbtConnection,
             warehouseConnection,
         });
@@ -242,6 +284,7 @@ export const CreateProjectConnection: FC = () => {
         >
             <ProjectFormProvider>
                 <ProjectForm
+                    showGeneralSettings={!health.data?.needsProject}
                     disabled={isSaving || isSuccess}
                     defaultType={health.data?.defaultProject?.type}
                 />

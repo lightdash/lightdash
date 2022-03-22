@@ -41,7 +41,7 @@ export const useCompliedSql = () => {
             selectedTableCalculations.includes(name),
         ),
     };
-    const queryKey = ['compiledQuery', tableId, metricQuery];
+    const queryKey = ['compiledQuery', tableId, metricQuery, projectUuid];
     return useQuery<ApiCompiledQueryResults, ApiError>({
         enabled: tableId !== undefined,
         queryKey,

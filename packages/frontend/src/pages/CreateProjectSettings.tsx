@@ -1,7 +1,7 @@
 import { Colors, Divider, H1 } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useQueryClient } from 'react-query';
-import { Redirect, useHistory, useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
@@ -16,20 +16,10 @@ const CreateProjectSettings: FC = () => {
         return <PageSpinner />;
     }
 
-    if (health.status === 'success' && !health.data?.needsProject) {
-        return (
-            <Redirect
-                to={{
-                    pathname: '/',
-                }}
-            />
-        );
-    }
-
     const onSuccess = async () => {
         await queryClient.invalidateQueries(['health']);
         history.push({
-            pathname: `/projects/${projectUuid}`,
+            pathname: `/projects/${projectUuid}/home`,
         });
     };
 

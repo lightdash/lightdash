@@ -23,9 +23,9 @@ const getDashboard = async (id: string) =>
         body: undefined,
     });
 
-const createDashboard = async (projectId: string, data: CreateDashboard) =>
+const createDashboard = async (projectUuid: string, data: CreateDashboard) =>
     lightdashApi<Dashboard>({
-        url: `/projects/${projectId}/dashboards`,
+        url: `/projects/${projectUuid}/dashboards`,
         method: 'POST',
         body: JSON.stringify(data),
     });
@@ -171,17 +171,16 @@ export const useUpdateDashboardName = (
 };
 
 export const useCreateMutation = (
-    projectId: string,
+    projectUuid: string,
     showRedirectButton: boolean = false,
 ) => {
     const history = useHistory();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { showToastSuccess, showToastError } = useApp();
     const queryClient = useQueryClient();
     return useMutation<Dashboard, ApiError, CreateDashboard>(
-        (data) => createDashboard(projectId, data),
+        (data) => createDashboard(projectUuid, data),
         {
-            mutationKey: ['dashboard_create'],
+            mutationKey: ['dashboard_create', projectUuid],
             onSuccess: async (result) => {
                 await queryClient.invalidateQueries('dashboards');
                 showToastSuccess({

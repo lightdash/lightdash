@@ -15,7 +15,7 @@ export const useProjectCatalog = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const setErrorResponse = useQueryError();
     return useQuery<ProjectCatalog, ApiError>({
-        queryKey: ['projectCatalog'],
+        queryKey: ['projectCatalog', projectUuid],
         queryFn: () => getProjectCatalogQuery(projectUuid),
         onError: (result) => setErrorResponse(result),
     });

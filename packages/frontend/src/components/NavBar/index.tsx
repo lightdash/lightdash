@@ -11,9 +11,9 @@ import {
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { useState } from 'react';
 import { useMutation } from 'react-query';
-import { useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
-import { useDefaultProject } from '../../hooks/useProjects';
+import { useDefaultProject, useProjects } from '../../hooks/useProjects';
 import { useApp } from '../../providers/AppProvider';
 import { UserAvatar } from '../Avatar';
 import { ErrorLogsDrawer } from '../ErrorLogsDrawer';
@@ -27,7 +27,7 @@ import {
     Divider,
     LogoContainer,
     NavBarWrapper,
-    NavHeading,
+    ProjectDropdown,
 } from './NavBar.styles';
 
 const logoutQuery = async () =>
@@ -41,10 +41,14 @@ const NavBar = () => {
     const {
         user,
         errorLogs: { errorLogs, setErrorLogsVisible },
+        showToastSuccess,
     } = useApp();
     const defaultProject = useDefaultProject();
+    const { isLoading, data } = useProjects();
     const params = useParams<{ projectUuid: string | undefined }>();
-    const projectUuid = params.projectUuid || defaultProject.data?.projectUuid;
+    const selectedProjectUuid =
+        params.projectUuid || defaultProject.data?.projectUuid;
+    const history = useHistory();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<string | undefined>();
     const { mutate } = useMutation(logoutQuery, {
@@ -59,15 +63,15 @@ const NavBar = () => {
             <NavBarWrapper className={Classes.DARK}>
                 <NavbarGroup align={Alignment.LEFT}>
                     <NavLink
-                        to="/home"
+                        to={`/projects/${selectedProjectUuid}/home`}
                         style={{ marginRight: 24, display: 'flex' }}
                     >
                         <LogoContainer title="Home" />
                     </NavLink>
-                    {!!projectUuid && (
+                    {!!selectedProjectUuid && (
                         <>
-                            <ExploreMenu projectId={projectUuid} />
-                            <BrowseMenu projectId={projectUuid} />
+                            <ExploreMenu projectId={selectedProjectUuid} />
+                            <BrowseMenu projectId={selectedProjectUuid} />
                         </>
                     )}
                     <Button
@@ -85,8 +89,31 @@ const NavBar = () => {
                         errorLogs={errorLogs}
                         setErrorLogsVisible={setErrorLogsVisible}
                     />
-                    <NavHeading>{user.data?.organizationName}</NavHeading>
-
+                    {selectedProjectUuid && (
+                        <ProjectDropdown
+                            disabled={isLoading || (data || []).length <= 0}
+                            options={data?.map((item) => ({
+                                value: item.projectUuid,
+                                label: item.name,
+                            }))}
+                            fill
+                            value={selectedProjectUuid}
+                            onChange={(e) => {
+                                showToastSuccess({
+                                    icon: 'tick',
+                                    title: `You are now viewing ${
+                                        data?.find(
+                                            ({ projectUuid }) =>
+                                                projectUuid === e.target.value,
+                                        )?.name
+                                    }`,
+                                });
+                                history.push(
+                                    `/projects/${e.target.value}/home`,
+                                );
+                            }}
+                        />
+                    )}
                     <Popover2
                         interactionKind={PopoverInteractionKind.CLICK}
                         content={

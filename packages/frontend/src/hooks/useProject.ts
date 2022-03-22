@@ -25,7 +25,7 @@ const getProject = async (id: string) =>
         body: undefined,
     });
 
-export const useProject = (id: string) => {
+export const useProject = (id: string | undefined) => {
     const setErrorResponse = useQueryError();
     return useQuery<Project, ApiError>({
         queryKey: ['project', id],
@@ -42,8 +42,9 @@ export const useUpdateMutation = (id: string) => {
     return useMutation<undefined, ApiError, UpdateProject>(
         (data) => updateProject(id, data),
         {
-            mutationKey: ['project_update'],
+            mutationKey: ['project_update', id],
             onSuccess: async () => {
+                await queryClient.invalidateQueries(['projects']);
                 await queryClient.invalidateQueries(['project', id]);
                 await queryClient.invalidateQueries('tables');
                 await queryClient.invalidateQueries('queryResults');
@@ -57,12 +58,18 @@ export const useUpdateMutation = (id: string) => {
 };
 
 export const useCreateMutation = () => {
+    const queryClient = useQueryClient();
     const { showToastSuccess } = useApp();
     return useMutation<Project, ApiError, UpdateProject>(
         (data) => createProject(data),
         {
             mutationKey: ['project_create'],
             onSuccess: async () => {
+                await queryClient.invalidateQueries(['projects']);
+                await queryClient.invalidateQueries([
+                    'projects',
+                    'defaultProject',
+                ]);
                 showToastSuccess({
                     title: `Success! New project was created`,
                 });
