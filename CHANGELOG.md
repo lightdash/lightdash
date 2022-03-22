@@ -1,3 +1,10 @@
+# [0.35.0](https://github.com/lightdash/lightdash/compare/0.34.1...0.35.0) (2022-03-22)
+
+
+### Features
+
+* support multiple projects ([#1555](https://github.com/lightdash/lightdash/issues/1555)) ([07b4e17](https://github.com/lightdash/lightdash/commit/07b4e17e69d9b54bc93ce7a3e39edf519bbbd7fd))
+
 ## [0.34.1](https://github.com/lightdash/lightdash/compare/0.34.0...0.34.1) (2022-03-22)
 
 
