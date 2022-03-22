@@ -1,7 +1,6 @@
 import { ApiError, OrganizationProject } from 'common';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../api';
-import useQueryError from './useQueryError';
 
 const getProjectsQuery = async () =>
     lightdashApi<OrganizationProject[]>({
@@ -11,11 +10,10 @@ const getProjectsQuery = async () =>
     });
 
 export const useProjects = () => {
-    const setErrorResponse = useQueryError();
     return useQuery<OrganizationProject[], ApiError>({
         queryKey: ['projects'],
         queryFn: getProjectsQuery,
-        onError: (result) => setErrorResponse(result),
+        retry: false,
     });
 };
 
@@ -23,6 +21,7 @@ export const useDefaultProject = () => {
     const projectsQuery = useQuery<OrganizationProject[], ApiError>({
         queryKey: ['projects', 'defaultProject'],
         queryFn: getProjectsQuery,
+        retry: false,
     });
     return { ...projectsQuery, data: projectsQuery.data?.[0] };
 };
