@@ -1,3 +1,10 @@
+## [0.33.4](https://github.com/lightdash/lightdash/compare/0.33.3...0.33.4) (2022-03-22)
+
+
+### Bug Fixes
+
+* add missing key to homepage ([#1562](https://github.com/lightdash/lightdash/issues/1562)) ([c3cd0f8](https://github.com/lightdash/lightdash/commit/c3cd0f8ea18a1a49efbd38d79e5298a17f934954))
+
 ## [0.33.3](https://github.com/lightdash/lightdash/compare/0.33.2...0.33.3) (2022-03-21)
 
 
