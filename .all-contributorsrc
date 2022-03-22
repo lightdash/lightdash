@@ -508,6 +508,15 @@
         "code",
         "bug"
       ]
+    },
+    {
+      "login": "Vfisa",
+      "name": "Fisa",
+      "avatar_url": "https://avatars.githubusercontent.com/u/2714554?v=4",
+      "profile": "http://@VFisa",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
