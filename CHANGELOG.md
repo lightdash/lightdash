@@ -1,3 +1,10 @@
+## [0.34.1](https://github.com/lightdash/lightdash/compare/0.34.0...0.34.1) (2022-03-22)
+
+
+### Bug Fixes
+
+* wrap table calculation sql + expand modal ([#1560](https://github.com/lightdash/lightdash/issues/1560)) ([97ad94f](https://github.com/lightdash/lightdash/commit/97ad94fb1dba45a13041873ee33f330536d1452d))
+
 # [0.34.0](https://github.com/lightdash/lightdash/compare/0.33.4...0.34.0) (2022-03-22)
 
 
