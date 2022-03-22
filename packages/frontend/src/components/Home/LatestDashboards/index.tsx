@@ -65,6 +65,7 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
                     .slice(0, 6)
                     .map(({ uuid, name }) => (
                         <DashboardLinkButton
+                            key={uuid}
                             minimal
                             outlined
                             href={`/projects/${projectUuid}/dashboards/${uuid}`}
