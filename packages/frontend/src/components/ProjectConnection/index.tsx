@@ -91,37 +91,6 @@ const ProjectForm: FC<Props> = ({
                         marginBottom: 15,
                     }}
                 >
-                    <H5 style={{ display: 'inline', marginRight: 5 }}>
-                        Base details
-                    </H5>
-                </div>
-            </div>
-            <div style={{ flex: 1 }}>
-                <Input
-                    name="name"
-                    label="Project name"
-                    rules={{
-                        required: 'Required field',
-                    }}
-                    disabled={disabled}
-                />
-            </div>
-        </Card>
-        <Card
-            style={{
-                marginBottom: '20px',
-                display: 'flex',
-                flexDirection: 'row',
-                gap: 20,
-            }}
-            elevation={1}
-        >
-            <div style={{ flex: 1 }}>
-                <div
-                    style={{
-                        marginBottom: 15,
-                    }}
-                >
                     <H5
                         style={{
                             display: 'inline',
