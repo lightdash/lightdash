@@ -1,4 +1,4 @@
-import { Button, ButtonGroup, Classes, Intent } from '@blueprintjs/core';
+import { Button, ButtonGroup, Classes } from '@blueprintjs/core';
 import { OrganizationProject } from 'common';
 import React, { FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
@@ -34,14 +34,6 @@ const ProjectListItem: FC<{
                     outlined
                     text="Settings"
                     href={`/projects/${projectUuid}/settings`}
-                />
-                <LinkButton
-                    icon="trash"
-                    outlined
-                    text="Delete"
-                    intent={Intent.DANGER}
-                    style={{ marginLeft: 10 }}
-                    href={`#`}
                 />
             </ButtonGroup>
         </ItemContent>
