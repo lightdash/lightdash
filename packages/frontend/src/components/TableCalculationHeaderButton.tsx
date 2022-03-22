@@ -13,7 +13,7 @@ import { EventName } from '../types/Events';
 import {
     DeleteTableCalculationModal,
     UpdateTableCalculationModal,
-} from './TableCalculationModal';
+} from './TableCalculationModels';
 
 const TableCalculationHeaderButton: FC<{
     tableCalculation: TableCalculation;

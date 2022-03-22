@@ -2,7 +2,7 @@ import React, { FC, useState } from 'react';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
 import SimpleButton from './common/SimpleButton';
-import { CreateTableCalculationModal } from './TableCalculationModal';
+import { CreateTableCalculationModal } from './TableCalculationModels';
 
 const AddColumnButton: FC = () => {
     const [isOpen, setIsOpen] = useState<boolean>(false);

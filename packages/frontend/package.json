@@ -52,7 +52,9 @@
         "test": "react-scripts test",
         "eject": "react-scripts eject",
         "lint": "eslint ./src",
-        "format": "prettier --check --ignore-unknown ./src"
+        "fix-lint": "eslint --fix ./src",
+        "format": "prettier --check --ignore-unknown ./src",
+        "fix-format": "prettier --write --ignore-unknown ./src"
     },
     "eslintConfig": {
         "extends": [
