@@ -63,7 +63,7 @@ const NavBar = () => {
             <NavBarWrapper className={Classes.DARK}>
                 <NavbarGroup align={Alignment.LEFT}>
                     <NavLink
-                        to={`/home/${selectedProjectUuid}`}
+                        to={`/projects/${selectedProjectUuid}/home`}
                         style={{ marginRight: 24, display: 'flex' }}
                     >
                         <LogoContainer title="Home" />
@@ -89,27 +89,31 @@ const NavBar = () => {
                         errorLogs={errorLogs}
                         setErrorLogsVisible={setErrorLogsVisible}
                     />
-                    <ProjectDropdown
-                        disabled={isLoading || (data || []).length <= 0}
-                        options={data?.map((item) => ({
-                            value: item.projectUuid,
-                            label: item.name,
-                        }))}
-                        fill
-                        value={selectedProjectUuid}
-                        onChange={(e) => {
-                            showToastSuccess({
-                                icon: 'tick',
-                                title: `You are now viewing ${
-                                    data?.find(
-                                        ({ projectUuid }) =>
-                                            projectUuid === e.target.value,
-                                    )?.name
-                                }`,
-                            });
-                            history.push(`/home/${e.target.value}`);
-                        }}
-                    />
+                    {selectedProjectUuid && (
+                        <ProjectDropdown
+                            disabled={isLoading || (data || []).length <= 0}
+                            options={data?.map((item) => ({
+                                value: item.projectUuid,
+                                label: item.name,
+                            }))}
+                            fill
+                            value={selectedProjectUuid}
+                            onChange={(e) => {
+                                showToastSuccess({
+                                    icon: 'tick',
+                                    title: `You are now viewing ${
+                                        data?.find(
+                                            ({ projectUuid }) =>
+                                                projectUuid === e.target.value,
+                                        )?.name
+                                    }`,
+                                });
+                                history.push(
+                                    `/projects/${e.target.value}/home`,
+                                );
+                            }}
+                        />
+                    )}
                     <Popover2
                         interactionKind={PopoverInteractionKind.CLICK}
                         content={

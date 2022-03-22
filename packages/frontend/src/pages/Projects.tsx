@@ -1,20 +1,43 @@
+import { NonIdealState, Spinner } from '@blueprintjs/core';
 import React, { FC } from 'react';
-import { Redirect } from 'react-router-dom';
+import { Redirect, useParams } from 'react-router-dom';
 import { useProjects } from '../hooks/useProjects';
 
 export const Projects: FC = () => {
+    const params = useParams<{ projectUuid: string | undefined }>();
     const { isLoading, data, error } = useProjects();
-    if (data === undefined) {
-        if (isLoading) {
-            return <div>Loading...</div>;
-        }
-        if (error) {
-            return <div>Error: ${error}</div>;
-        }
-        return <div>Idle?</div>;
+    if (isLoading) {
+        return (
+            <div style={{ marginTop: '20px' }}>
+                <NonIdealState title="Loading..." icon={<Spinner />} />
+            </div>
+        );
     }
-    if (data.length === 0) {
-        return <div>No project found!</div>;
+    if (error) {
+        return (
+            <div style={{ marginTop: '20px' }}>
+                <NonIdealState
+                    title="Unexpected error"
+                    description={error.error.message}
+                />
+            </div>
+        );
     }
-    return <Redirect to={`/projects/${data[0].projectUuid}/tables`} />;
+    if (!data || data.length <= 0) {
+        return (
+            <div style={{ marginTop: '20px' }}>
+                <NonIdealState
+                    title="No projects found"
+                    description="Please contact support"
+                />
+            </div>
+        );
+    }
+    const availableProjectUuids = data.map(({ projectUuid }) => projectUuid);
+    const projectUuid =
+        params.projectUuid && availableProjectUuids.includes(params.projectUuid)
+            ? params.projectUuid
+            : availableProjectUuids[0];
+
+    return <Redirect to={`/projects/${projectUuid}/home`} />;
 };

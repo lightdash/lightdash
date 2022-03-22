@@ -221,13 +221,7 @@ const App = () => (
                                                         </TrackPage>
                                                     </Route>
                                                     <Route
-                                                        path="/projects"
-                                                        exact
-                                                    >
-                                                        <Projects />
-                                                    </Route>
-                                                    <Route
-                                                        path="/home/:projectUuid?"
+                                                        path="/projects/:projectUuid/home"
                                                         exact
                                                     >
                                                         <NavBar />
@@ -237,7 +231,13 @@ const App = () => (
                                                             <Home />
                                                         </TrackPage>
                                                     </Route>
-                                                    <Redirect to="/home" />
+                                                    <Route
+                                                        path="/projects/:projectUuid?"
+                                                        exact
+                                                    >
+                                                        <Projects />
+                                                    </Route>
+                                                    <Redirect to="/projects" />
                                                 </Switch>
                                             </AppRoute>
                                         </Switch>
