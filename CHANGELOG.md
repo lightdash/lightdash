@@ -1,3 +1,15 @@
+# [0.34.0](https://github.com/lightdash/lightdash/compare/0.33.4...0.34.0) (2022-03-22)
+
+
+### Bug Fixes
+
+* add python3-dev to dockerfile ([#1557](https://github.com/lightdash/lightdash/issues/1557)) ([5e03e42](https://github.com/lightdash/lightdash/commit/5e03e4242d08e41d941e00bab44e128b281071e8))
+
+
+### Features
+
+* add configurable environment variables for dbt project ([#1550](https://github.com/lightdash/lightdash/issues/1550)) ([6ca89ab](https://github.com/lightdash/lightdash/commit/6ca89ab31520ba1aa3e20d458df110645b4c6f76))
+
 ## [0.33.4](https://github.com/lightdash/lightdash/compare/0.33.3...0.33.4) (2022-03-22)
 
 
