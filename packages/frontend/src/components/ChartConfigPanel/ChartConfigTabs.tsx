@@ -7,10 +7,10 @@ import {
     getMetrics,
     isField,
     Metric,
+    parsePivotedFieldKey,
     TableCalculation,
 } from 'common';
 import React, { FC, useState } from 'react';
-import { parsePivotedFieldKey } from '../../hooks/usePlottedData';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
     FieldRow,
@@ -84,7 +84,7 @@ const ChartConfigTabs: FC = () => {
                         <FieldsGrid>
                             <GridLabel>Field</GridLabel>
                             <GridLabel>Axis</GridLabel>
-                            {items.map((item, index) => {
+                            {items.map((item) => {
                                 const itemId = getItemId(item);
                                 return (
                                     <FieldLayoutOptions
@@ -110,9 +110,16 @@ const ChartConfigTabs: FC = () => {
                                                     itemId,
                                                 );
                                             } else {
-                                                cartesianConfig.removeSingleSeries(
-                                                    index,
-                                                );
+                                                const index =
+                                                    yFieldsKeys.findIndex(
+                                                        (yField) =>
+                                                            yField === itemId,
+                                                    );
+                                                if (index !== undefined) {
+                                                    cartesianConfig.removeSingleSeries(
+                                                        index,
+                                                    );
+                                                }
                                             }
                                         }}
                                         onGroupClick={(isActive) =>

@@ -36,11 +36,13 @@ export type Series = {
     };
 };
 
-export type EChartsConfig = {
-    series?: Series[];
-    xAxis?: Axis[];
-    yAxis?: Axis[];
+export type CompleteEChartsConfig = {
+    series: Series[];
+    xAxis: Axis[];
+    yAxis: Axis[];
 };
+
+export type EChartsConfig = Partial<CompleteEChartsConfig>;
 
 type Axis = {
     name?: string;
@@ -86,12 +88,16 @@ type Axis = {
 //     },
 // });
 
+export type CompleteCartesianChartLayout = {
+    xField: string;
+    yField: string[];
+    flipAxes?: boolean | undefined;
+};
+
+export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;
+
 export type CartesianChart = {
-    layout: {
-        xField?: string;
-        yField?: string[];
-        flipAxes?: boolean | undefined;
-    };
+    layout: CartesianChartLayout;
     eChartsConfig: EChartsConfig;
 };
 
@@ -134,3 +140,23 @@ export type CreateSavedChartVersion = Omit<
 >;
 
 export type UpdateSavedChart = Pick<SavedChart, 'name'>;
+
+export const isCompleteLayout = (
+    value: CartesianChartLayout | undefined,
+): value is CompleteCartesianChartLayout =>
+    !!value && !!value.xField && !!value.yField && value.yField.length > 0;
+
+export const isCompleteEchartsConfig = (
+    value: EChartsConfig | undefined,
+): value is CompleteEChartsConfig =>
+    !!value && !!value.series && value.series.length > 0;
+
+export const getSeriesId = (series: Series) =>
+    `${series.encode.x}|${series.encode.y}`;
+
+// todo: use . and encode/parse values with \.
+export const getPivotedFieldKey = (pivotValue: string, yAxis: string): string =>
+    `${yAxis}|${pivotValue}`;
+
+export const parsePivotedFieldKey = (pivotedFieldKey: string): string[] =>
+    pivotedFieldKey.split('|');

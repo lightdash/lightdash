@@ -2,10 +2,13 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
+    getPivotedFieldKey,
+    getSeriesId,
+    isCompleteEchartsConfig,
+    isCompleteLayout,
     Series,
 } from 'common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getPivotedFieldKey } from './usePlottedData';
 
 export const ECHARTS_DEFAULT_COLORS = [
     '#5470c6',
@@ -19,21 +22,10 @@ export const ECHARTS_DEFAULT_COLORS = [
     '#ea7ccc',
 ];
 
+// todo: use this in the tabs UI to figure out each series color without setting it to the series object
 const getDefaultSeriesColor = (index: number) => {
     return ECHARTS_DEFAULT_COLORS[index % ECHARTS_DEFAULT_COLORS.length];
 };
-
-const getSeriesId = (series: Series) => `${series.encode.x}|${series.encode.y}`;
-
-export const isCompleteLayout = (
-    value: Partial<CartesianChart['layout']> | undefined,
-): value is CartesianChart['layout'] =>
-    !!value && !!value.xField && !!value.yField && value.yField.length > 0;
-
-export const isCompleteEchartsConfig = (
-    value: Partial<CartesianChart['eChartsConfig']> | undefined,
-): value is CartesianChart['eChartsConfig'] =>
-    !!value && !!value.series && value.series.length > 0;
 
 const useCartesianChartConfig = (
     chartConfigs: CartesianChart | undefined,
@@ -61,10 +53,7 @@ const useCartesianChartConfig = (
             const [firstAxis, ...axes] = prevState?.xAxis || [];
             return {
                 ...prevState,
-                eChartsConfig: {
-                    ...prevState,
-                    xAxis: [{ ...firstAxis, name }, ...axes],
-                },
+                xAxis: [{ ...firstAxis, name }, ...axes],
             };
         });
     }, []);
@@ -74,10 +63,7 @@ const useCartesianChartConfig = (
             const [firstAxis, ...axes] = prevState?.yAxis || [];
             return {
                 ...prevState,
-                eChartsConfig: {
-                    ...prevState,
-                    yAxis: [{ ...firstAxis, name }, ...axes],
-                },
+                yAxis: [{ ...firstAxis, name }, ...axes],
             };
         });
     }, []);
@@ -114,6 +100,16 @@ const useCartesianChartConfig = (
             ...prev,
             flipAxes,
         }));
+        setDirtyEchartsConfig(
+            (prevState) =>
+                prevState && {
+                    ...prevState,
+                    series: prevState?.series?.map((series) => ({
+                        ...series,
+                        type,
+                    })),
+                },
+        );
     }, []);
 
     const setLabel = useCallback((label: Series['label']) => {
@@ -209,80 +205,79 @@ const useCartesianChartConfig = (
     ]);
 
     // Generate expected series
-    const expectedSeriesMap = useMemo(() => {
+    useEffect(() => {
         if (isCompleteLayout(dirtyLayout)) {
+            let expectedSeriesMap: Record<string, Series>;
             if (pivotKey) {
                 const uniquePivotValues: string[] = Array.from(
                     new Set(resultsData?.rows.map((row) => row[pivotKey])),
                 );
-                return dirtyLayout.yField.reduce<Record<string, Series>>(
-                    (sum, yField) => {
-                        const groupSeries = uniquePivotValues.reduce<
-                            Record<string, Series>
-                        >((acc, rawValue) => {
-                            const pivotSeries = {
-                                type: dirtyChartType,
-                                encode: {
-                                    x: dirtyLayout.xField,
-                                    y: getPivotedFieldKey(rawValue, yField),
-                                },
-                            };
-                            return {
-                                ...acc,
-                                [getSeriesId(pivotSeries)]: pivotSeries,
-                            };
-                        }, {});
-
-                        return { ...sum, ...groupSeries };
-                    },
-                    {},
-                );
-            } else {
-                return dirtyLayout.yField.reduce<Record<string, Series>>(
-                    (sum, yField) => {
-                        const series = {
+                expectedSeriesMap = (dirtyLayout.yField || []).reduce<
+                    Record<string, Series>
+                >((sum, yField) => {
+                    const groupSeries = uniquePivotValues.reduce<
+                        Record<string, Series>
+                    >((acc, rawValue) => {
+                        const pivotSeries: Series = {
+                            type: dirtyChartType,
                             encode: {
                                 x: dirtyLayout.xField,
-                                y: yField,
+                                y: getPivotedFieldKey(rawValue, yField),
                             },
-                            type: dirtyChartType,
                         };
-                        return { ...sum, [getSeriesId(series)]: series };
-                    },
-                    {},
-                );
-            }
-        }
-        return {};
-    }, [dirtyChartType, dirtyLayout, pivotKey, resultsData]);
+                        return {
+                            ...acc,
+                            [getSeriesId(pivotSeries)]: pivotSeries,
+                        };
+                    }, {});
 
-    // Validate series
-    useEffect(() => {
-        setDirtyEchartsConfig((prev) => {
-            const existingValidSeriesMap =
-                prev?.series?.reduce<Record<string, Series>>((sum, series) => {
-                    if (
-                        Object.keys(expectedSeriesMap).includes(
-                            getSeriesId(series),
-                        )
-                    ) {
-                        return { ...sum };
-                    }
-                    return {
-                        ...sum,
-                        [getSeriesId(series)]: series,
+                    return { ...sum, ...groupSeries };
+                }, {});
+            } else {
+                expectedSeriesMap = (dirtyLayout.yField || []).reduce<
+                    Record<string, Series>
+                >((sum, yField) => {
+                    const series = {
+                        encode: {
+                            x: dirtyLayout.xField,
+                            y: yField,
+                        },
+                        type: dirtyChartType,
                     };
-                }, {}) || {};
-
-            return {
-                ...prev,
-                series: Object.values({
-                    ...expectedSeriesMap,
-                    ...existingValidSeriesMap,
-                }),
-            };
-        });
-    }, [expectedSeriesMap]);
+                    return { ...sum, [getSeriesId(series)]: series };
+                }, {});
+            }
+            setDirtyEchartsConfig((prev) => {
+                const existingValidSeriesMap =
+                    prev?.series?.reduce<Record<string, Series>>(
+                        (sum, series) => {
+                            if (
+                                !Object.keys(expectedSeriesMap).includes(
+                                    getSeriesId(series),
+                                )
+                            ) {
+                                return { ...sum };
+                            }
+                            return {
+                                ...sum,
+                                [getSeriesId(series)]: series,
+                            };
+                        },
+                        {},
+                    ) || {};
+                console.log('Validate series', {
+                    existingValidSeriesMap,
+                });
+                return {
+                    ...prev,
+                    series: Object.values({
+                        ...expectedSeriesMap,
+                        ...existingValidSeriesMap,
+                    }),
+                };
+            });
+        }
+    }, [dirtyChartType, dirtyLayout, pivotKey, resultsData]);
 
     const validCartesianConfig: CartesianChart | undefined = useMemo(
         () =>
@@ -295,7 +290,7 @@ const useCartesianChartConfig = (
                 : undefined,
         [dirtyLayout, dirtyEchartsConfig],
     );
-
+    console.log('validCartesianConfig', validCartesianConfig);
     return {
         validCartesianConfig,
         dirtyChartType,

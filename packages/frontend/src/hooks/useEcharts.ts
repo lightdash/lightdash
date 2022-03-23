@@ -11,13 +11,13 @@ import {
     getDimensions,
     getFieldLabel,
     MetricType,
+    parsePivotedFieldKey,
     Series,
     TableCalculation,
 } from 'common';
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../components/LightdashVisualization/VisualizationProvider';
 import { getDimensionFormatter } from '../utils/resultFormatter';
-import { parsePivotedFieldKey } from './usePlottedData';
 
 const getLabelFromField = (
     explore: Explore,
@@ -130,7 +130,7 @@ export const getEchartsSeries = (
     pivotKey: string | undefined,
 ): EChartSeries[] => {
     if (pivotKey) {
-        return cartesianChart.eChartsConfig.series.map<EChartSeries>(
+        return (cartesianChart.eChartsConfig.series || []).map<EChartSeries>(
             (series) => {
                 const { flipAxes } = cartesianChart.layout;
                 const xField = series.encode.x;
@@ -166,6 +166,7 @@ export const getEchartsSeries = (
                         {
                             name: pivotedField,
                             displayName:
+                                cartesianChart.eChartsConfig.series &&
                                 cartesianChart.eChartsConfig.series.length > 1
                                     ? `[${value}] ${getLabelFromField(
                                           explore,
@@ -182,56 +183,51 @@ export const getEchartsSeries = (
             },
         );
     } else {
-        return cartesianChart.eChartsConfig.series.reduce<EChartSeries[]>(
-            (sum, series) => {
-                const { flipAxes } = cartesianChart.layout;
-                const xField = series.encode.x;
-                const yField = series.encode.y;
-                return [
-                    ...sum,
-                    {
-                        ...series,
-                        connectNulls: true,
-                        encode: {
-                            ...series.encode,
-                            x: flipAxes ? yField : xField,
-                            y: flipAxes ? xField : yField,
-                            tooltip:
-                                series.type === CartesianSeriesType.BAR
-                                    ? [yField]
-                                    : [xField, yField],
-                            seriesName: yField,
-                        },
-                        dimensions: [
-                            {
-                                name: xField,
-                                displayName: getLabelFromField(
-                                    explore,
-                                    tableCalculations,
-                                    xField,
-                                ),
-                            },
-                            {
-                                name: yField,
-                                displayName: getLabelFromField(
-                                    explore,
-                                    tableCalculations,
-                                    yField,
-                                ),
-                            },
-                        ],
-                        tooltip: {
-                            valueFormatter: valueFormatter(
-                                xField,
-                                yField,
+        return (cartesianChart.eChartsConfig.series || []).reduce<
+            EChartSeries[]
+        >((sum, series) => {
+            const { flipAxes } = cartesianChart.layout;
+            const xField = series.encode.x;
+            const yField = series.encode.y;
+            return [
+                ...sum,
+                {
+                    ...series,
+                    connectNulls: true,
+                    encode: {
+                        ...series.encode,
+                        x: flipAxes ? yField : xField,
+                        y: flipAxes ? xField : yField,
+                        tooltip:
+                            series.type === CartesianSeriesType.BAR
+                                ? [yField]
+                                : [xField, yField],
+                        seriesName: yField,
+                    },
+                    dimensions: [
+                        {
+                            name: xField,
+                            displayName: getLabelFromField(
                                 explore,
+                                tableCalculations,
+                                xField,
                             ),
                         },
+                        {
+                            name: yField,
+                            displayName: getLabelFromField(
+                                explore,
+                                tableCalculations,
+                                yField,
+                            ),
+                        },
+                    ],
+                    tooltip: {
+                        valueFormatter: valueFormatter(xField, yField, explore),
                     },
-                ];
-            },
-            [],
-        );
+                },
+            ];
+        }, []);
     }
 };
 
@@ -316,7 +312,7 @@ const useEcharts = () => {
         series,
         explore,
         xAxisField,
-        yAxisField,
+        yAxisField ? parsePivotedFieldKey(yAxisField)[0] : undefined,
     );
 
     return {

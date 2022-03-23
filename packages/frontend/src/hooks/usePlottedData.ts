@@ -1,11 +1,11 @@
-import { ApiQueryResults, ChartConfig, Explore } from 'common';
+import {
+    ApiQueryResults,
+    ChartConfig,
+    Explore,
+    getPivotedFieldKey,
+    isCompleteLayout,
+} from 'common';
 import { useMemo } from 'react';
-
-export const getPivotedFieldKey = (pivotValue: string, yAxis: string): string =>
-    `${yAxis}|${pivotValue}`;
-
-export const parsePivotedFieldKey = (pivotedFieldKey: string): string[] =>
-    pivotedFieldKey.split('|');
 
 export const getPivotedData = (
     rows: ApiQueryResults['rows'],
@@ -38,11 +38,11 @@ const usePlottedData = (
             return [];
         }
         const pivotDimension = pivotDimensions?.[0];
-        if (pivotDimension && chartConfig.eChartsConfig.series.length > 0) {
+        if (pivotDimension && isCompleteLayout(chartConfig.layout)) {
             return getPivotedData(
                 resultsData.rows,
-                chartConfig.eChartsConfig.series[0].encode.x,
-                chartConfig.eChartsConfig.series.map(({ encode: { y } }) => y),
+                chartConfig.layout.xField,
+                chartConfig.layout.yField,
                 pivotDimension,
             );
         }
