@@ -1,3 +1,4 @@
+import { Button } from '@blueprintjs/core';
 import { Field, isField, TableCalculation } from 'common';
 import React, { FC, useState } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
@@ -32,6 +33,13 @@ const FieldLayoutOptions: FC<Props> = ({
     console.log(items);
     const [activeXField, setActiveXField] = useState<Item>();
     const [activeYField, setActiveYField] = useState<Item>();
+    const [numberOfFields, setNumberOfFields] = useState([items]);
+
+    const onAddField = () => {
+        setNumberOfFields([...numberOfFields, items]);
+    };
+    const onRemoveField = (item: number) => {};
+
     return (
         <>
             {/* <GridFieldLabel>
@@ -77,17 +85,36 @@ const FieldLayoutOptions: FC<Props> = ({
             </AxisGroup>
             <AxisGroup>
                 <AxisTitle>Y axis field</AxisTitle>
-                <AxisFieldDropdown>
-                    <FieldAutoComplete
-                        fields={items}
-                        activeField={activeYField}
-                        onChange={(item) => {
-                            if (isField(item)) {
-                                setActiveYField(item);
-                            }
-                        }}
-                    />
-                </AxisFieldDropdown>
+
+                {numberOfFields.map((field, index) => (
+                    <AxisFieldDropdown key={index}>
+                        <FieldAutoComplete
+                            fields={field}
+                            //   activeField={(item) => item}
+                            onChange={(item) => {
+                                if (isField(item)) {
+                                    setActiveYField(item);
+                                }
+                            }}
+                        />
+                        {index !== 0 && (
+                            <Button
+                                minimal
+                                icon="cross"
+                                onClick={() => onRemoveField(index)}
+                            />
+                        )}
+                    </AxisFieldDropdown>
+                ))}
+                {numberOfFields.length < items.length && (
+                    <Button
+                        minimal
+                        intent="primary"
+                        onClick={() => onAddField()}
+                    >
+                        + Add field
+                    </Button>
+                )}
             </AxisGroup>
         </>
     );
