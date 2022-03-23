@@ -48,7 +48,7 @@ const ProjectListItem: FC<{
                         href={`/projects/${projectUuid}/settings`}
                     />
                     <Button
-                        icon="trash"
+                        icon="delete"
                         outlined
                         text="Delete"
                         intent={Intent.DANGER}
@@ -59,7 +59,7 @@ const ProjectListItem: FC<{
             </ItemContent>
             <Dialog
                 isOpen={isDeleteDialogOpen}
-                icon="trash"
+                icon="delete"
                 onClose={() =>
                     !isDeleting ? setIsDeleteDialogOpen(false) : undefined
                 }
@@ -104,8 +104,6 @@ const ProjectManagementPanel: FC = () => {
     const { data } = useProjects();
     const history = useHistory();
     const params = useParams<{ projectUuid: string }>();
-
-    //const updateUser = useUpdateUserMutation(userUuid);
 
     return (
         <ProjectManagementPanelWrapper>
