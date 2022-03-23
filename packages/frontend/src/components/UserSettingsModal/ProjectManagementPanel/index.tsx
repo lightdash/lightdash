@@ -84,7 +84,12 @@ const ProjectListItem: FC<{
                         <Button
                             disabled={isDeleting}
                             intent="danger"
-                            onClick={() => mutate(projectUuid)}
+                            onClick={() => {
+                                mutate(projectUuid);
+                                if (isCurrentProject) {
+                                    window.location.href = '/';
+                                }
+                            }}
                         >
                             Delete
                         </Button>
