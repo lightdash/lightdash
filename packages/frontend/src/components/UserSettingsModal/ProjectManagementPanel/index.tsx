@@ -1,8 +1,17 @@
-import { Button, ButtonGroup, Classes } from '@blueprintjs/core';
+import {
+    Button,
+    ButtonGroup,
+    Classes,
+    Dialog,
+    Intent,
+} from '@blueprintjs/core';
 import { OrganizationProject } from 'common';
-import React, { FC } from 'react';
+import React, { FC, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import { useProjects } from '../../../hooks/useProjects';
+import {
+    useDeleteProjectMutation,
+    useProjects,
+} from '../../../hooks/useProjects';
 import LinkButton from '../../common/LinkButton';
 import {
     HeaderActions,
@@ -17,33 +26,79 @@ import {
 const ProjectListItem: FC<{
     isCurrentProject: boolean;
     project: OrganizationProject;
-}> = ({ isCurrentProject, project: { projectUuid, name } }) => (
-    <ProjectListItemWrapper elevation={0}>
-        <ItemContent>
-            <ProjectInfo>
-                <ProjectName className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
-                    {name}
-                </ProjectName>
-                {isCurrentProject && (
-                    <ProjectTag minimal>Current Project</ProjectTag>
-                )}
-            </ProjectInfo>
-            <ButtonGroup>
-                <LinkButton
-                    icon="cog"
-                    outlined
-                    text="Settings"
-                    href={`/projects/${projectUuid}/settings`}
-                />
-            </ButtonGroup>
-        </ItemContent>
-    </ProjectListItemWrapper>
-);
+}> = ({ isCurrentProject, project: { projectUuid, name } }) => {
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const { mutate, isLoading: isDeleting } = useDeleteProjectMutation();
+    return (
+        <ProjectListItemWrapper elevation={0}>
+            <ItemContent>
+                <ProjectInfo>
+                    <ProjectName className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
+                        {name}
+                    </ProjectName>
+                    {isCurrentProject && (
+                        <ProjectTag minimal>Current Project</ProjectTag>
+                    )}
+                </ProjectInfo>
+                <ButtonGroup>
+                    <LinkButton
+                        icon="cog"
+                        outlined
+                        text="Settings"
+                        href={`/projects/${projectUuid}/settings`}
+                    />
+                    <Button
+                        icon="trash"
+                        outlined
+                        text="Delete"
+                        intent={Intent.DANGER}
+                        style={{ marginLeft: 10 }}
+                        onClick={() => setIsDeleteDialogOpen(true)}
+                    />
+                </ButtonGroup>
+            </ItemContent>
+            <Dialog
+                isOpen={isDeleteDialogOpen}
+                icon="trash"
+                onClose={() =>
+                    !isDeleting ? setIsDeleteDialogOpen(false) : undefined
+                }
+                title="Delete project"
+                lazy
+                canOutsideClickClose={false}
+            >
+                <div className={Classes.DIALOG_BODY}>
+                    <p>Are you sure you want to delete this project ?</p>
+                </div>
+                <div className={Classes.DIALOG_FOOTER}>
+                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+                        <Button
+                            disabled={isDeleting}
+                            onClick={() => setIsDeleteDialogOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={isDeleting}
+                            intent="danger"
+                            onClick={() => mutate(projectUuid)}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                </div>
+            </Dialog>
+        </ProjectListItemWrapper>
+    );
+};
 
 const ProjectManagementPanel: FC = () => {
     const { data } = useProjects();
     const history = useHistory();
-    const params = useParams<{ projectUuid: string | undefined }>();
+    const params = useParams<{ projectUuid: string }>();
+
+    //const updateUser = useUpdateUserMutation(userUuid);
+
     return (
         <ProjectManagementPanelWrapper>
             <HeaderActions>
@@ -55,13 +110,15 @@ const ProjectManagementPanel: FC = () => {
             </HeaderActions>
             <div>
                 {data?.map((project) => (
-                    <ProjectListItem
-                        key={project.projectUuid}
-                        isCurrentProject={
-                            params.projectUuid === project.projectUuid
-                        }
-                        project={project}
-                    />
+                    <>
+                        <ProjectListItem
+                            key={project.projectUuid}
+                            isCurrentProject={
+                                params.projectUuid === project.projectUuid
+                            }
+                            project={project}
+                        />
+                    </>
                 ))}
             </div>
         </ProjectManagementPanelWrapper>
