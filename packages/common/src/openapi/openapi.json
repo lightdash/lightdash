@@ -40,6 +40,12 @@
         "/org/users": {
             "$ref": "./paths/organizationUsers.json"
         },
+        "/org/projects/{projectUuid}": {
+            "$ref": "./paths/organizationProject.json"
+        },
+        "/org/projects": {
+            "$ref": "./paths/organizationProjects.json"
+        },
         "/org/users/{userUuid}": {
             "$ref": "./paths/organizationUser.json"
         },

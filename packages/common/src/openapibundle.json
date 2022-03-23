@@ -200,6 +200,85 @@
                 }
             }
         },
+        "/org/projects/{projectUuid}": {
+            "delete": {
+                "summary": "Delete organization project",
+                "tags": ["organization", "project"],
+                "operationId": "deleteOrganizationProject",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/SuccessResponse"
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
+        "/org/projects": {
+            "get": {
+                "summary": "List organization projects",
+                "tags": ["organization", "project"],
+                "operationId": "getOrganizationProjects",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "role": {
+                                        "type": "string"
+                                    }
+                                },
+                                "additionalProperties": false
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successfully got projects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Projects"
+                                                    }
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
+        },
         "/org/users/{userUuid}": {
             "patch": {
                 "summary": "Update organization member",
@@ -1263,6 +1342,24 @@
                     }
                 },
                 "required": ["userUuid", "firstName", "lastName"]
+            },
+            "Project": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "projectUuid"]
+            },
+            "Projects": {
+                "type": "array",
+                "items": {
+                    "$ref": "#/components/schemas/Project"
+                }
             },
             "CreateInviteLink": {
                 "type": "object",

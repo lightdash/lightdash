@@ -185,6 +185,30 @@ export class ProjectService {
         return [adapter, explores];
     }
 
+    async delete(projectUuid: string, user: SessionUser): Promise<void> {
+        if (user.ability.cannot('delete', 'Project')) {
+            throw new ForbiddenError();
+        }
+
+        await this.projectModel.delete(projectUuid);
+        analytics.track({
+            event: 'project.deleted',
+            userId: user.userUuid,
+            projectId: projectUuid,
+            organizationId: user.organizationUuid,
+            properties: {
+                projectId: projectUuid,
+            },
+        });
+
+        const runningAdapter = this.projectAdapters[projectUuid];
+        if (runningAdapter !== undefined) {
+            await runningAdapter.destroy();
+        }
+        this.projectLoading[projectUuid] = false;
+        delete this.projectAdapters[projectUuid];
+    }
+
     private async restartAdapter(projectUuid: string): Promise<ProjectAdapter> {
         const runningAdapter = this.projectAdapters[projectUuid];
         if (runningAdapter !== undefined) {
