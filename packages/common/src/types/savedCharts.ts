@@ -37,7 +37,7 @@ export type Series = {
 };
 
 export type EChartsConfig = {
-    series: Series[];
+    series?: Series[];
     xAxis?: Axis[];
     yAxis?: Axis[];
 };
@@ -88,8 +88,8 @@ type Axis = {
 
 export type CartesianChart = {
     layout: {
-        xField: string;
-        yField: string[];
+        xField?: string;
+        yField?: string[];
         flipAxes?: boolean | undefined;
     };
     eChartsConfig: EChartsConfig;
