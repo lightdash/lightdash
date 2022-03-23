@@ -63,12 +63,15 @@ const ProjectListItem: FC<{
                 onClose={() =>
                     !isDeleting ? setIsDeleteDialogOpen(false) : undefined
                 }
-                title="Delete project"
+                title={'Delete project ' + name}
                 lazy
                 canOutsideClickClose={false}
             >
                 <div className={Classes.DIALOG_BODY}>
-                    <p>Are you sure you want to delete this project ?</p>
+                    <p>
+                        Are you sure you want to delete this project{' '}
+                        <b>{name}</b> ?
+                    </p>
                 </div>
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>
