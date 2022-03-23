@@ -68,6 +68,7 @@ organizationRouter.post('/projects', isAuthenticated, async (req, res, next) =>
 organizationRouter.delete(
     '/projects/:projectUuid',
     isAuthenticated,
+    unauthorisedInDemo,
     async (req, res, next) =>
         projectService
             .delete(req.params.projectUuid, req.user!)

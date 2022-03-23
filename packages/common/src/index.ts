@@ -1175,10 +1175,6 @@ export type UpdateProject = Omit<Project, 'projectUuid'> & {
     warehouseConnection: CreateWarehouseCredentials;
 };
 
-export type DeleteProject = Omit<Project, 'projectUuid'> & {
-    warehouseConnection: CreateWarehouseCredentials;
-};
-
 export const getItemId = (item: Field | TableCalculation) =>
     isField(item) ? fieldId(item) : item.name;
 export const getItemLabel = (item: Field | TableCalculation) =>
