@@ -69,8 +69,8 @@ const ProjectListItem: FC<{
             >
                 <div className={Classes.DIALOG_BODY}>
                     <p>
-                        Are you sure you want to delete this project{' '}
-                        <b>{name}</b> ?
+                        Are you sure ? This will permanently delete the
+                        <b> {name} </b> project.
                     </p>
                 </div>
                 <div className={Classes.DIALOG_FOOTER}>
