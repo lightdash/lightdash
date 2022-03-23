@@ -29,7 +29,7 @@ export class SavedChartService {
     }
 
     static getCreateEventProperties(
-        savedChart: SavedChart,
+        savedChart: any,
     ): CreateSavedChartOrVersionEvent['properties'] {
         return {
             savedQueryId: savedChart.uuid,
@@ -51,7 +51,7 @@ export class SavedChartService {
                               savedChart.chartConfig.config.yAxes || []
                           ).length,
                           seriesTypes: savedChart.chartConfig.config.series.map(
-                              ({ type }) => type,
+                              ({ type }: any) => type,
                           ),
                           seriesCount:
                               savedChart.chartConfig.config.series.length,

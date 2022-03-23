@@ -8,9 +8,8 @@ const VisualizationCardOptions: FC = () => {
     const { chartType, setChartType, isLoading, plotData, cartesianConfig } =
         useVisualizationContext();
     const disabled = isLoading || plotData.length <= 0;
-    const cartesianType = (cartesianConfig.dirtyConfig?.series || [])[0]?.type;
-    const cartesianFlipAxis = (cartesianConfig.dirtyConfig?.series || [])[0]
-        ?.flipAxes;
+    const cartesianType = cartesianConfig.dirtyChartType;
+    const cartesianFlipAxis = cartesianConfig.dirtyLayout?.flipAxes;
 
     return (
         <>

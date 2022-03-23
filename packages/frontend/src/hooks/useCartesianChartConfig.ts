@@ -5,15 +5,7 @@ import {
     Series,
 } from 'common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-
-type PartialCartesianChart = {
-    series?: Partial<Series>[];
-    xAxes?: CartesianChart['xAxes'];
-    yAxes?: CartesianChart['yAxes'];
-};
-
-export const isCompleteSeries = (series: Partial<Series>): series is Series =>
-    !!series.type && !!series.xField && !!series.yField;
+import { getPivotedFieldKey } from './usePlottedData';
 
 export const ECHARTS_DEFAULT_COLORS = [
     '#5470c6',
@@ -31,131 +23,101 @@ const getDefaultSeriesColor = (index: number) => {
     return ECHARTS_DEFAULT_COLORS[index % ECHARTS_DEFAULT_COLORS.length];
 };
 
-const getValidSeries = (
-    series: Partial<Series>[] | undefined,
-    availableFields: string[],
-): Series[] =>
-    series
-        ?.filter(isCompleteSeries)
-        .filter(
-            ({ xField, yField }) =>
-                availableFields.includes(xField) &&
-                availableFields.includes(yField),
-        ) || [];
+const getSeriesId = (series: Series) => `${series.encode.x}|${series.encode.y}`;
+
+export const isCompleteLayout = (
+    value: Partial<CartesianChart['layout']> | undefined,
+): value is CartesianChart['layout'] =>
+    !!value && !!value.xField && !!value.yField && value.yField.length > 0;
+
+export const isCompleteEchartsConfig = (
+    value: Partial<CartesianChart['eChartsConfig']> | undefined,
+): value is CartesianChart['eChartsConfig'] =>
+    !!value && !!value.series && value.series.length > 0;
 
 const useCartesianChartConfig = (
     chartConfigs: CartesianChart | undefined,
+    pivotKey: string | undefined,
     resultsData: ApiQueryResults | undefined,
 ) => {
-    const [dirtyConfig, setDirtyConfig] = useState<
-        PartialCartesianChart | undefined
-    >(chartConfigs);
-    const xAxisName = (dirtyConfig?.xAxes || [])[0]?.name;
-    const yAxisName = (dirtyConfig?.yAxes || [])[0]?.name;
+    const [dirtyChartType, setChartType] = useState<CartesianSeriesType>(
+        chartConfigs?.eChartsConfig.series?.[0]?.type ||
+            CartesianSeriesType.BAR,
+    );
+    const [dirtyLayout, setDirtyLayout] = useState<
+        Partial<CartesianChart['layout']> | undefined
+    >(chartConfigs?.layout);
+    const [dirtyEchartsConfig, setDirtyEchartsConfig] = useState<
+        Partial<CartesianChart['eChartsConfig']> | undefined
+    >(chartConfigs?.eChartsConfig);
 
     useEffect(() => {
-        setDirtyConfig(chartConfigs);
+        setDirtyLayout(chartConfigs?.layout);
+        setDirtyEchartsConfig(chartConfigs?.eChartsConfig);
     }, [chartConfigs]);
 
     const setXAxisName = useCallback((name: string) => {
-        setDirtyConfig((prevState) => {
-            const [firstAxis, ...axes] = prevState?.xAxes || [];
+        setDirtyEchartsConfig((prevState) => {
+            const [firstAxis, ...axes] = prevState?.xAxis || [];
             return {
                 ...prevState,
-                xAxes: [{ ...firstAxis, name }, ...axes],
+                eChartsConfig: {
+                    ...prevState,
+                    xAxis: [{ ...firstAxis, name }, ...axes],
+                },
             };
         });
     }, []);
 
     const setYAxisName = useCallback((name: string) => {
-        setDirtyConfig((prevState) => {
-            const [firstAxis, ...axes] = prevState?.yAxes || [];
+        setDirtyEchartsConfig((prevState) => {
+            const [firstAxis, ...axes] = prevState?.yAxis || [];
             return {
                 ...prevState,
-                yAxes: [{ ...firstAxis, name }, ...axes],
+                eChartsConfig: {
+                    ...prevState,
+                    yAxis: [{ ...firstAxis, name }, ...axes],
+                },
             };
         });
     }, []);
 
     const setXField = useCallback((xField: string | undefined) => {
-        setDirtyConfig((prev) => ({
+        setDirtyLayout((prev) => ({
             ...prev,
-            series: prev?.series?.map((series) => ({ ...series, xField })) || [
-                { xField },
-            ],
+            xField,
         }));
     }, []);
 
-    const addSingleSeries = useCallback((newSeries: Partial<Series>) => {
-        setDirtyConfig((prev) => {
-            const [{ name, yField, color, ...rest }] = prev?.series || [];
-            const currentSeries = prev?.series || [];
-            return {
-                ...prev,
-                series: [
-                    ...currentSeries,
-                    {
-                        color: getDefaultSeriesColor(currentSeries.length),
-                        ...rest,
-                        ...newSeries,
-                    },
-                ],
-            };
-        });
+    const addSingleSeries = useCallback((yField: string) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            yField: [...(prev?.yField || []), yField],
+        }));
     }, []);
 
-    const updateSingleSeries = useCallback(
-        (index: number, updatedSeries: Partial<Series>) => {
-            setDirtyConfig((prev) => {
-                const [{ name, yField, color, ...rest }] = prev?.series || [];
-                return {
-                    ...prev,
-                    series: prev?.series
-                        ? [
-                              ...prev.series.slice(0, index),
-                              { ...rest, ...updatedSeries },
-                              ...prev.series.slice(index + 1),
-                          ]
-                        : [],
-                };
-            });
-        },
-        [],
-    );
-
     const removeSingleSeries = useCallback((index: number) => {
-        setDirtyConfig((prev) => {
-            if (prev?.series && prev?.series.length === 1) {
-                return {
-                    ...prev,
-                    series: [{ ...prev.series[0], yField: undefined }],
-                };
-            }
-            return {
-                ...prev,
-                series: prev?.series
-                    ? [
-                          ...prev.series.slice(0, index),
-                          ...prev.series.slice(index + 1),
-                      ]
-                    : [],
-            };
-        });
+        setDirtyLayout((prev) => ({
+            ...prev,
+            yField: prev?.yField
+                ? [
+                      ...prev.yField.slice(0, index),
+                      ...prev.yField.slice(index + 1),
+                  ]
+                : [],
+        }));
     }, []);
 
     const setType = useCallback((type: Series['type'], flipAxes: boolean) => {
-        setDirtyConfig((prev) => ({
+        setChartType(type);
+        setDirtyLayout((prev) => ({
             ...prev,
-            series: prev?.series?.map((series) => ({
-                ...series,
-                type,
-                flipAxes,
-            })) || [{ type, flipAxes }],
+            flipAxes,
         }));
     }, []);
 
     const setLabel = useCallback((label: Series['label']) => {
-        setDirtyConfig(
+        setDirtyEchartsConfig(
             (prevState) =>
                 prevState && {
                     ...prevState,
@@ -175,6 +137,24 @@ const useCartesianChartConfig = (
                 },
         );
     }, []);
+
+    const updateSingleSeries = useCallback(
+        (index: number, updatedSeries: Partial<Series>) => {
+            setDirtyEchartsConfig((prev) => {
+                return {
+                    ...prev,
+                    series: prev?.series
+                        ? [
+                              ...prev.series.slice(0, index),
+                              { ...prev?.series[index], ...updatedSeries },
+                              ...prev.series.slice(index + 1),
+                          ]
+                        : [],
+                };
+            });
+        },
+        [],
+    );
 
     const [
         availableFields,
@@ -196,46 +176,29 @@ const useCartesianChartConfig = (
         ];
     }, [resultsData]);
 
-    const validConfig = useMemo<CartesianChart | undefined>(() => {
-        if (availableFields.length <= 1) {
-            return undefined;
-        }
-        return {
-            series: getValidSeries(dirtyConfig?.series, availableFields),
-            xAxes: dirtyConfig?.xAxes,
-            yAxes: dirtyConfig?.yAxes,
-        };
-    }, [dirtyConfig, availableFields]);
-
+    // Set fallout layout values
     useEffect(() => {
         if (availableFields.length > 1) {
-            setDirtyConfig((prev) => {
-                const validSeries = getValidSeries(
-                    prev?.series,
-                    availableFields,
-                );
-                if (validSeries.length > 0) {
-                    return { ...prev };
-                }
-
-                const defaultChartConfig: PartialCartesianChart = {
+            setDirtyLayout((prev) => {
+                const fallbackXField =
+                    availableDimensions[0] || availableFields[0];
+                const fallbackYField =
+                    [...availableMetrics, ...availableTableCalculations][0] ||
+                    availableFields[1];
+                const validYFields = prev?.yField
+                    ? prev.yField.filter((y) => availableFields.includes(y))
+                    : [];
+                return {
                     ...prev,
-                    series: [
-                        {
-                            type: CartesianSeriesType.BAR,
-                            xField:
-                                availableDimensions[0] || availableFields[0],
-                            yField:
-                                [
-                                    ...availableMetrics,
-                                    ...availableTableCalculations,
-                                ][0] || availableFields[1],
-                            flipAxes: false,
-                            color: getDefaultSeriesColor(0),
-                        },
-                    ],
+                    xField:
+                        prev?.xField && availableFields.includes(prev?.xField)
+                            ? prev?.xField
+                            : fallbackXField,
+                    yField:
+                        validYFields.length > 0
+                            ? validYFields
+                            : [fallbackYField],
                 };
-                return defaultChartConfig;
             });
         }
     }, [
@@ -245,15 +208,103 @@ const useCartesianChartConfig = (
         availableTableCalculations,
     ]);
 
+    // Generate expected series
+    const expectedSeriesMap = useMemo(() => {
+        if (isCompleteLayout(dirtyLayout)) {
+            if (pivotKey) {
+                const uniquePivotValues: string[] = Array.from(
+                    new Set(resultsData?.rows.map((row) => row[pivotKey])),
+                );
+                return dirtyLayout.yField.reduce<Record<string, Series>>(
+                    (sum, yField) => {
+                        const groupSeries = uniquePivotValues.reduce<
+                            Record<string, Series>
+                        >((acc, rawValue) => {
+                            const pivotSeries = {
+                                type: dirtyChartType,
+                                encode: {
+                                    x: dirtyLayout.xField,
+                                    y: getPivotedFieldKey(rawValue, yField),
+                                },
+                            };
+                            return {
+                                ...acc,
+                                [getSeriesId(pivotSeries)]: pivotSeries,
+                            };
+                        }, {});
+
+                        return { ...sum, ...groupSeries };
+                    },
+                    {},
+                );
+            } else {
+                return dirtyLayout.yField.reduce<Record<string, Series>>(
+                    (sum, yField) => {
+                        const series = {
+                            encode: {
+                                x: dirtyLayout.xField,
+                                y: yField,
+                            },
+                            type: dirtyChartType,
+                        };
+                        return { ...sum, [getSeriesId(series)]: series };
+                    },
+                    {},
+                );
+            }
+        }
+        return {};
+    }, [dirtyChartType, dirtyLayout, pivotKey, resultsData]);
+
+    // Validate series
+    useEffect(() => {
+        setDirtyEchartsConfig((prev) => {
+            const existingValidSeriesMap =
+                prev?.series?.reduce<Record<string, Series>>((sum, series) => {
+                    if (
+                        Object.keys(expectedSeriesMap).includes(
+                            getSeriesId(series),
+                        )
+                    ) {
+                        return { ...sum };
+                    }
+                    return {
+                        ...sum,
+                        [getSeriesId(series)]: series,
+                    };
+                }, {}) || {};
+
+            return {
+                ...prev,
+                series: Object.values({
+                    ...expectedSeriesMap,
+                    ...existingValidSeriesMap,
+                }),
+            };
+        });
+    }, [expectedSeriesMap]);
+
+    const validCartesianConfig: CartesianChart | undefined = useMemo(
+        () =>
+            isCompleteLayout(dirtyLayout) &&
+            isCompleteEchartsConfig(dirtyEchartsConfig)
+                ? {
+                      layout: dirtyLayout,
+                      eChartsConfig: dirtyEchartsConfig,
+                  }
+                : undefined,
+        [dirtyLayout, dirtyEchartsConfig],
+    );
+
     return {
-        dirtyConfig,
-        validConfig,
+        validCartesianConfig,
+        dirtyChartType,
+        dirtyLayout,
+        dirtyEchartsConfig,
         setXField,
         setType,
         setXAxisName,
         setYAxisName,
-        xAxisName,
-        yAxisName,
         setLabel,
         addSingleSeries,
         updateSingleSeries,

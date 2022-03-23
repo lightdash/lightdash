@@ -10,6 +10,7 @@ import {
     TableCalculation,
 } from 'common';
 import React, { FC, useState } from 'react';
+import { parsePivotedFieldKey } from '../../hooks/usePlottedData';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
     FieldRow,
@@ -30,11 +31,7 @@ const ChartConfigTabs: FC = () => {
         pivotDimensions,
         setPivotDimensions,
     } = useVisualizationContext();
-    const yFieldsKeys =
-        cartesianConfig.dirtyConfig?.series?.reduce<string[]>(
-            (sum, { yField }) => (yField ? [...sum, yField] : sum),
-            [],
-        ) || [];
+    const yFieldsKeys = cartesianConfig.dirtyLayout?.yField || [];
     const pivotDimension = pivotDimensions?.[0];
 
     const [tab, setTab] = useState<string | number>('layout');
@@ -63,20 +60,15 @@ const ChartConfigTabs: FC = () => {
     const items = [...dimensionsInMetricQuery, ...metricsAndTableCalculations];
 
     const xAxisField = items.find(
-        (item) =>
-            getItemId(item) ===
-            (cartesianConfig.dirtyConfig?.series || [])[0]?.xField,
+        (item) => getItemId(item) === cartesianConfig.dirtyLayout?.xField,
     );
 
     const firstYAxisField = items.find(
-        (item) =>
-            getItemId(item) ===
-            (cartesianConfig.dirtyConfig?.series || [])[0]?.yField,
+        (item) => getItemId(item) === cartesianConfig.dirtyLayout?.yField?.[0],
     );
 
-    const showValues = cartesianConfig.dirtyConfig?.series
-        ? cartesianConfig.dirtyConfig?.series[0]?.label?.show
-        : false;
+    const showValues =
+        !!cartesianConfig.dirtyEchartsConfig?.series?.[0]?.label?.show;
 
     return (
         <Wrapper>
@@ -92,7 +84,7 @@ const ChartConfigTabs: FC = () => {
                         <FieldsGrid>
                             <GridLabel>Field</GridLabel>
                             <GridLabel>Axis</GridLabel>
-                            {items.map((item) => {
+                            {items.map((item, index) => {
                                 const itemId = getItemId(item);
                                 return (
                                     <FieldLayoutOptions
@@ -115,21 +107,12 @@ const ChartConfigTabs: FC = () => {
                                         onYClick={(isActive) => {
                                             if (isActive) {
                                                 cartesianConfig.addSingleSeries(
-                                                    {
-                                                        yField: itemId,
-                                                    },
+                                                    itemId,
                                                 );
                                             } else {
-                                                const seriesIndex =
-                                                    cartesianConfig.dirtyConfig?.series?.findIndex(
-                                                        ({ yField }) =>
-                                                            yField === itemId,
-                                                    );
-                                                if (seriesIndex !== undefined) {
-                                                    cartesianConfig.removeSingleSeries(
-                                                        seriesIndex,
-                                                    );
-                                                }
+                                                cartesianConfig.removeSingleSeries(
+                                                    index,
+                                                );
                                             }
                                         }}
                                         onGroupClick={(isActive) =>
@@ -155,7 +138,10 @@ const ChartConfigTabs: FC = () => {
                                             ? getItemLabel(xAxisField)
                                             : 'Enter X-axis label'
                                     }
-                                    defaultValue={cartesianConfig.xAxisName}
+                                    defaultValue={
+                                        cartesianConfig.dirtyEchartsConfig
+                                            ?.xAxis?.[0].name
+                                    }
                                     onBlur={(e) =>
                                         cartesianConfig.setXAxisName(
                                             e.currentTarget.value,
@@ -166,13 +152,16 @@ const ChartConfigTabs: FC = () => {
                             <InputWrapper label="Y-axis label">
                                 <InputGroup
                                     placeholder={
-                                        cartesianConfig.dirtyConfig?.series?.[0]
-                                            ?.name ||
+                                        cartesianConfig.dirtyEchartsConfig
+                                            ?.series?.[0]?.name ||
                                         (firstYAxisField
                                             ? getItemLabel(firstYAxisField)
                                             : 'Enter Y-axis label')
                                     }
-                                    defaultValue={cartesianConfig.yAxisName}
+                                    defaultValue={
+                                        cartesianConfig.dirtyEchartsConfig
+                                            ?.yAxis?.[0].name
+                                    }
                                     onBlur={(e) =>
                                         cartesianConfig.setYAxisName(
                                             e.currentTarget.value,
@@ -190,12 +179,16 @@ const ChartConfigTabs: FC = () => {
                         <>
                             {!pivotDimension && (
                                 <InputWrapper label="Custom series labels">
-                                    {cartesianConfig.dirtyConfig?.series?.map(
+                                    {cartesianConfig.dirtyEchartsConfig?.series?.map(
                                         (series, index) => {
+                                            const yField = pivotDimension
+                                                ? parsePivotedFieldKey(
+                                                      series.encode.y,
+                                                  )
+                                                : series.encode.y;
                                             const activeField = items.find(
                                                 (item) =>
-                                                    getItemId(item) ===
-                                                    series.yField,
+                                                    getItemId(item) === yField,
                                             );
                                             if (!activeField) {
                                                 return null;
