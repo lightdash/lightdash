@@ -206,6 +206,7 @@ export class ProjectService {
             await runningAdapter.destroy();
         }
         this.projectLoading[projectUuid] = false;
+        delete this.projectAdapters[projectUuid];
     }
 
     private async restartAdapter(projectUuid: string): Promise<ProjectAdapter> {
