@@ -1,36 +1,40 @@
-import { Button, ButtonGroup, Icon } from '@blueprintjs/core';
+import { Field, isField, TableCalculation } from 'common';
+import React, { FC, useState } from 'react';
+import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import {
-    Field,
-    getItemColor,
-    getItemIcon,
-    isField,
-    TableCalculation,
-} from 'common';
-import React, { FC } from 'react';
-import { GridFieldLabel } from './ChartConfigPanel.styles';
+    AxisFieldDropdown,
+    AxisGroup,
+    AxisTitle,
+} from './ChartConfigPanel.styles';
+
+type Item = Field | TableCalculation;
 
 type Props = {
-    item: Field | TableCalculation;
-    isXActive?: boolean;
-    isYActive?: boolean;
-    isGroupActive?: boolean;
-    onXClick: (isActive: boolean) => void;
-    onYClick: (isActive: boolean) => void;
-    onGroupClick: (isActive: boolean) => void;
+    items: (Field | TableCalculation)[];
+    // item: Field | TableCalculation;
+    // isXActive?: boolean;
+    // isYActive?: boolean;
+    // isGroupActive?: boolean;
+    // onXClick: (isActive: boolean) => void;
+    // onYClick: (isActive: boolean) => void;
+    // onGroupClick: (isActive: boolean) => void;
 };
 
 const FieldLayoutOptions: FC<Props> = ({
-    item,
-    isXActive,
-    isGroupActive,
-    onGroupClick,
-    onXClick,
-    onYClick,
-    isYActive,
+    items,
+    // isXActive,
+    // isGroupActive,
+    // onGroupClick,
+    // onXClick,
+    // onYClick,
+    // isYActive,
 }) => {
+    console.log(items);
+    const [activeXField, setActiveXField] = useState<Item>();
+    const [activeYField, setActiveYField] = useState<Item>();
     return (
         <>
-            <GridFieldLabel>
+            {/* <GridFieldLabel>
                 <Icon icon={getItemIcon(item)} color={getItemColor(item)} />
                 <span>
                     {isField(item) ? `${item.tableLabel} ` : ''}
@@ -56,7 +60,35 @@ const FieldLayoutOptions: FC<Props> = ({
                 >
                     group
                 </Button>
-            </ButtonGroup>
+            </ButtonGroup> */}
+            <AxisGroup>
+                <AxisTitle>X axis field</AxisTitle>
+                <AxisFieldDropdown>
+                    <FieldAutoComplete
+                        fields={items}
+                        activeField={activeXField}
+                        onChange={(item) => {
+                            if (isField(item)) {
+                                setActiveXField(item);
+                            }
+                        }}
+                    />
+                </AxisFieldDropdown>
+            </AxisGroup>
+            <AxisGroup>
+                <AxisTitle>Y axis field</AxisTitle>
+                <AxisFieldDropdown>
+                    <FieldAutoComplete
+                        fields={items}
+                        activeField={activeYField}
+                        onChange={(item) => {
+                            if (isField(item)) {
+                                setActiveYField(item);
+                            }
+                        }}
+                    />
+                </AxisFieldDropdown>
+            </AxisGroup>
         </>
     );
 };

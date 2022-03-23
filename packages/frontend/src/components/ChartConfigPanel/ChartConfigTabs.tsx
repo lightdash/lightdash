@@ -15,7 +15,8 @@ import {
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
-    FieldsGrid,
+    FieldRow,
+    FieldRowInputs,
     GridLabel,
     InputWrapper,
     Wrapper,
@@ -115,51 +116,49 @@ const ChartConfigTabs: FC = () => {
                     id="layout"
                     title="Layout"
                     panel={
-                        <FieldsGrid>
-                            <GridLabel>Field</GridLabel>
-                            <GridLabel>Axis</GridLabel>
-                            {items.map((item) => {
-                                const itemId = getItemId(item);
-                                return (
-                                    <FieldLayoutOptions
-                                        key={getItemId(item)}
-                                        item={item}
-                                        isXActive={
-                                            xAxisField &&
-                                            getItemId(xAxisField) === itemId
-                                        }
-                                        isYActive={yFieldsKeys.includes(itemId)}
-                                        isGroupActive={
-                                            !!pivotDimension &&
-                                            pivotDimension === itemId
-                                        }
-                                        onXClick={(isActive) =>
-                                            setXField(
-                                                isActive ? itemId : undefined,
-                                            )
-                                        }
-                                        onYClick={(isActive) => {
-                                            if (isActive) {
-                                                addSingleSeries(itemId);
-                                            } else {
-                                                const index =
-                                                    yFieldsKeys.findIndex(
-                                                        (yField) =>
-                                                            yField === itemId,
-                                                    );
-                                                if (index !== undefined) {
-                                                    removeSingleSeries(index);
-                                                }
-                                            }
-                                        }}
-                                        onGroupClick={(isActive) =>
-                                            isActive
-                                                ? setPivotDimensions([itemId])
-                                                : setPivotDimensions(undefined)
-                                        }
-                                    />
-                                );
-                            })}
+                        <>
+                            <FieldLayoutOptions
+                                items={items}
+                                // key={getItemId(item)}
+                                // item={item}
+                                // isXActive={
+                                //     xAxisField &&
+                                //     getItemId(xAxisField) === itemId
+                                // }
+                                // isYActive={yFieldsKeys.includes(itemId)}
+                                // isGroupActive={
+                                //     !!pivotDimension &&
+                                //     pivotDimension === itemId
+                                // }
+                                // onXClick={(isActive) =>
+                                //     cartesianConfig.setXField(
+                                //         isActive ? itemId : undefined,
+                                //     )
+                                // }
+                                // onYClick={(isActive) => {
+                                //     if (isActive) {
+                                //         cartesianConfig.addSingleSeries({
+                                //             yField: itemId,
+                                //         });
+                                //     } else {
+                                //         const seriesIndex =
+                                //             cartesianConfig.dirtyConfig?.series?.findIndex(
+                                //                 ({ yField }) =>
+                                //                     yField === itemId,
+                                //             );
+                                //         if (seriesIndex !== undefined) {
+                                //             cartesianConfig.removeSingleSeries(
+                                //                 seriesIndex,
+                                //             );
+                                //         }
+                                //     }
+                                // }}
+                                // onGroupClick={(isActive) =>
+                                //     isActive
+                                //         ? setPivotDimensions([itemId])
+                                //         : setPivotDimensions(undefined)
+                                // }
+                            />
                             {pivotDimension && (
                                 <>
                                     <GridLabel>Stacking</GridLabel>
@@ -179,7 +178,7 @@ const ChartConfigTabs: FC = () => {
                                     </ButtonGroup>
                                 </>
                             )}
-                        </FieldsGrid>
+                        </>
                     }
                 />
                 <Tab

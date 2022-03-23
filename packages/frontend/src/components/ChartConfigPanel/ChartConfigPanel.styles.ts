@@ -35,3 +35,12 @@ export const GridFieldLabel = styled.span`
         margin: 2px;
     }
 `;
+
+export const AxisGroup = styled.div`
+    padding: 1em;
+`;
+export const AxisTitle = styled.p`
+    color: rgba(61, 73, 83, 0.8);
+    font-weight: 600;
+`;
+export const AxisFieldDropdown = styled.div``;
