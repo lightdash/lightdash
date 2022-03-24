@@ -2,7 +2,6 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
-    getPivotedFieldKey,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
@@ -203,8 +202,13 @@ const useCartesianChartConfig = (
                         const pivotSeries: Series = {
                             type: dirtyChartType,
                             encode: {
-                                x: dirtyLayout.xField,
-                                y: getPivotedFieldKey(yField, rawValue),
+                                xRef: { field: dirtyLayout.xField },
+                                yRef: {
+                                    field: yField,
+                                    pivotValues: [
+                                        { field: pivotKey, value: rawValue },
+                                    ],
+                                },
                             },
                         };
                         return {
@@ -221,8 +225,10 @@ const useCartesianChartConfig = (
                 >((sum, yField) => {
                     const series = {
                         encode: {
-                            x: dirtyLayout.xField,
-                            y: yField,
+                            xRef: { field: dirtyLayout.xField },
+                            yRef: {
+                                field: yField,
+                            },
                         },
                         type: dirtyChartType,
                     };
@@ -247,9 +253,6 @@ const useCartesianChartConfig = (
                         },
                         {},
                     ) || {};
-                console.log('Validate series', {
-                    existingValidSeriesMap,
-                });
                 return {
                     ...prev,
                     series: Object.values({
@@ -272,7 +275,6 @@ const useCartesianChartConfig = (
                 : undefined,
         [dirtyLayout, dirtyEchartsConfig],
     );
-    console.log('validCartesianConfig', validCartesianConfig);
     return {
         validCartesianConfig,
         dirtyChartType,

@@ -9,7 +9,6 @@ import {
     getSeriesId,
     isField,
     Metric,
-    parsePivotedFieldKey,
     TableCalculation,
 } from 'common';
 import React, { FC, useCallback, useMemo, useState } from 'react';
@@ -207,11 +206,8 @@ const ChartConfigTabs: FC = () => {
                                 <InputWrapper label="Custom series labels">
                                     {dirtyEchartsConfig?.series?.map(
                                         (series, index) => {
-                                            const yField = pivotDimension
-                                                ? parsePivotedFieldKey(
-                                                      series.encode.y,
-                                                  )
-                                                : series.encode.y;
+                                            const yField =
+                                                series.encode.yRef.field;
                                             const activeField = items.find(
                                                 (item) =>
                                                     getItemId(item) === yField,

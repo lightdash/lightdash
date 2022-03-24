@@ -119,24 +119,17 @@ export const isCompleteEchartsConfig = (
 ): value is CompleteEChartsConfig =>
     !!value && !!value.series && value.series.length > 0;
 
+export const hashFieldReference = (reference: PivotReference) =>
+    reference.pivotValues
+        ? `${reference.field}.${reference.pivotValues
+              .map(({ field, value }) => `${field}.${value}`)
+              .join('.')}`
+        : reference.field;
+
 export const getSeriesId = (series: Series) =>
-    `${series.encode.x}|${series.encode.y}`;
-
-// prettier-ignore
-const escapePivotValue = (pivotValue: string) =>
-    pivotValue.replaceAll('.', '\.');
-
-// prettier-ignore
-const parsePivotValue = (escapedPivotValue: string) =>
-    escapedPivotValue.replaceAll('\.', '.');
-
-export const getPivotedFieldKey = (yAxis: string, pivotValue: string): string =>
-    `${yAxis}.${escapePivotValue(pivotValue)}`;
-
-export const parsePivotedFieldKey = (pivotedFieldKey: string): string[] => {
-    const [yAxis, ...rest] = pivotedFieldKey.split('.');
-    return [yAxis, parsePivotValue(rest.join('.'))];
-};
+    `${hashFieldReference(series.encode.xRef)}|${hashFieldReference(
+        series.encode.yRef,
+    )}`;
 
 export const ECHARTS_DEFAULT_COLORS = [
     '#5470c6',

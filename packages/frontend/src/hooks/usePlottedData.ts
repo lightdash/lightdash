@@ -2,7 +2,7 @@ import {
     ApiQueryResults,
     ChartConfig,
     Explore,
-    getPivotedFieldKey,
+    hashFieldReference,
     isCompleteLayout,
 } from 'common';
 import { useMemo } from 'react';
@@ -19,8 +19,14 @@ export const getPivotedData = (
                 [xAxis]: row[xAxis],
             };
             yAxis.forEach((metricKey) => {
-                acc[row[xAxis]][getPivotedFieldKey(metricKey, row[pivotKey])] =
-                    row[metricKey];
+                acc[row[xAxis]][
+                    hashFieldReference({
+                        field: metricKey,
+                        pivotValues: [
+                            { field: pivotKey, value: row[pivotKey] },
+                        ],
+                    })
+                ] = row[metricKey];
             });
             return acc;
         }, {}),

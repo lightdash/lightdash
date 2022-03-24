@@ -10,8 +10,8 @@ import {
     friendlyName,
     getDimensions,
     getFieldLabel,
+    hashFieldReference,
     MetricType,
-    parsePivotedFieldKey,
     Series,
     TableCalculation,
 } from 'common';
@@ -133,12 +133,14 @@ export const getEchartsSeries = (
         return (cartesianChart.eChartsConfig.series || []).map<EChartSeries>(
             (series) => {
                 const { flipAxes } = cartesianChart.layout;
-                const xField = series.encode.x;
-                const pivotedField = series.encode.y;
-                const [yField, rawValue] = parsePivotedFieldKey(pivotedField);
+                const xField = hashFieldReference(series.encode.xRef);
+                const yFieldHash = hashFieldReference(series.encode.yRef);
+                const pivotField = series.encode.yRef.pivotValues?.find(
+                    ({ field }) => field === pivotKey,
+                );
 
                 const value = getFormatterValue(
-                    rawValue,
+                    pivotField?.value,
                     pivotKey,
                     getDimensions(explore),
                 );
@@ -146,13 +148,13 @@ export const getEchartsSeries = (
                     ...series,
                     connectNulls: true,
                     encode: {
-                        x: flipAxes ? pivotedField : xField,
-                        y: flipAxes ? xField : pivotedField,
+                        x: flipAxes ? yFieldHash : xField,
+                        y: flipAxes ? xField : yFieldHash,
                         tooltip:
                             series.type === CartesianSeriesType.BAR
-                                ? [pivotedField]
-                                : [xField, pivotedField],
-                        seriesName: pivotedField,
+                                ? [yFieldHash]
+                                : [xField, yFieldHash],
+                        seriesName: yFieldHash,
                     },
                     dimensions: [
                         {
@@ -164,20 +166,24 @@ export const getEchartsSeries = (
                             ),
                         },
                         {
-                            name: pivotedField,
+                            name: yFieldHash,
                             displayName:
                                 cartesianChart.eChartsConfig.series &&
                                 cartesianChart.eChartsConfig.series.length > 1
                                     ? `[${value}] ${getLabelFromField(
                                           explore,
                                           tableCalculations,
-                                          yField,
+                                          series.encode.yRef.field,
                                       )}`
                                     : value,
                         },
                     ],
                     tooltip: {
-                        valueFormatter: valueFormatter(xField, yField, explore),
+                        valueFormatter: valueFormatter(
+                            xField,
+                            series.encode.yRef.field,
+                            explore,
+                        ),
                     },
                 };
             },
@@ -187,8 +193,8 @@ export const getEchartsSeries = (
             EChartSeries[]
         >((sum, series) => {
             const { flipAxes } = cartesianChart.layout;
-            const xField = series.encode.x;
-            const yField = series.encode.y;
+            const xField = hashFieldReference(series.encode.xRef);
+            const yField = hashFieldReference(series.encode.yRef);
             return [
                 ...sum,
                 {
@@ -233,7 +239,7 @@ export const getEchartsSeries = (
 
 const getEchartAxis = (
     layout: CartesianChart['layout'],
-    series: Series[],
+    series: EChartSeries[],
     explore: Explore,
     xAxisField: string | undefined,
     yAxisField: string | undefined,
@@ -312,7 +318,7 @@ const useEcharts = () => {
         series,
         explore,
         xAxisField,
-        yAxisField ? parsePivotedFieldKey(yAxisField)[0] : undefined,
+        yAxisField ? yAxisField : undefined,
     );
 
     return {
