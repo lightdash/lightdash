@@ -1,0 +1,40 @@
+{
+    "type": "object",
+    "properties": {
+        "encode": {
+            "type": "object",
+            "properties": {
+                "x": {
+                    "type": "string"
+                },
+                "y": {
+                    "type": "string"
+                }
+            },
+            "required": ["x", "y"]
+        },
+        "type": {
+            "type": "string",
+            "enum": ["line", "bar", "scatter"]
+        },
+        "name": {
+            "type": "string"
+        },
+        "color": {
+            "type": "string"
+        },
+        "label": {
+            "type": "object",
+            "properties": {
+                "show": {
+                    "type": "boolean"
+                },
+                "position": {
+                    "type": "string",
+                    "enum": ["top", "bottom", "left", "right"]
+                }
+            }
+        }
+    },
+    "required": ["encode", "type"]
+}

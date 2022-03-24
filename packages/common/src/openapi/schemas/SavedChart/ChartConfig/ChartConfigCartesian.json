@@ -1,53 +1,45 @@
 {
     "type": "object",
     "properties": {
-        "xAxes": {
-            "type": "array",
-            "items": {
-                "$ref": "ChartAxis.json"
-            }
-        },
-        "yAxes": {
-            "type": "array",
-            "items": {
-                "$ref": "ChartAxis.json"
-            }
-        },
-        "series": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "xField": {
+        "layout": {
+            "type": "object",
+            "properties": {
+                "xField": {
+                    "type": "string"
+                },
+                "yField": {
+                    "type": "array",
+                    "items": {
                         "type": "string"
-                    },
-                    "yField": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["line", "bar", "scatter"]
-                    },
-                    "flipAxes": {
-                        "type": "boolean"
-                    },
-                    "label": {
-                        "type": "object",
-                        "properties": {
-                            "show": {
-                                "type": "boolean"
-                            },
-                            "position": {
-                                "type": "string",
-                                "enum": ["top", "bottom", "left", "right"]
-                            }
-                        }
                     }
                 },
-                "required": ["xField", "yField", "type"]
+                "flipAxes": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "echartsConfig": {
+            "type": "object",
+            "properties": {
+                "xAxis": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "ChartAxis.json"
+                    }
+                },
+                "yAxis": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "ChartAxis.json"
+                    }
+                },
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "ChartSeries.json"
+                    }
+                }
             }
         }
-    },
-    "required": ["series"],
-    "additionalProperties": false
+    }
 }
