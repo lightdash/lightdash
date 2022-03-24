@@ -1,6 +1,6 @@
 import { Button } from '@blueprintjs/core';
 import { Field, getItemId, isField, TableCalculation } from 'common';
-import React, { FC, useState } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
@@ -30,7 +30,16 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         setPivotDimensions,
     } = useVisualizationContext();
     const [activeYField, setActiveYField] = useState<Item>();
+    const [yInputFields, setYInputFields] = useState([items]);
     const pivotDimension = pivotDimensions?.[0];
+
+    useEffect(() => {
+        items.forEach((item) => {
+            if (items.length > yInputFields.length) {
+                setYInputFields([...yInputFields, item && items]);
+            }
+        });
+    });
 
     const xAxisField = items.find(
         (item) => getItemId(item) === dirtyLayout?.xField,
@@ -103,44 +112,40 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             <AxisGroup>
                 <AxisTitle>Y axis field</AxisTitle>
 
-                {yAxisFields.map((field, index) => (
+                {yInputFields.map((field, index) => (
                     <AxisFieldDropdown key={`${index}-y-axis`}>
                         <FieldAutoComplete
                             key={`inputfield-${index}`}
                             fields={items}
-                            activeField={field}
+                            activeField={activeYField || firstYAxisField}
                             onChange={(item) => {
+                                console.log(item);
                                 if (isField(item)) {
                                     setActiveYField(item);
                                     onYClick(getItemId(item));
                                 }
                             }}
                         />
-                        <DeleteFieldButton
-                            minimal
-                            icon="cross"
-                            onClick={(e) => {
-                                //    onYClick();
-                            }}
-                        />
+                        {index !== 0 && (
+                            <Button
+                                minimal
+                                icon="cross"
+                                onClick={(e) => {
+                                    e.currentTarget.parentElement?.remove();
+                                    //  removeItem(index);
+                                }}
+                            />
+                        )}
                     </AxisFieldDropdown>
                 ))}
 
-                <Button minimal intent="primary" onClick={() => onAddField()}>
-                    + Add
+                <Button
+                    minimal
+                    intent="primary"
+                    //  onClick={() => onAddField()}
+                >
+                    + Add field
                 </Button>
-            </AxisGroup>
-            <AxisGroup>
-                <AxisTitle>Group</AxisTitle>
-                <FieldAutoComplete
-                    fields={items}
-                    activeField={groupSelectedField}
-                    onChange={(item) => {
-                        if (isField(item)) {
-                            onGroupClick(getItemId(item));
-                        }
-                    }}
-                />
             </AxisGroup>
             <AxisGroup>
                 <AxisTitle>Group</AxisTitle>
