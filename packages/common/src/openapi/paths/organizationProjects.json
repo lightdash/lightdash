@@ -34,7 +34,7 @@
                                         "results": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "../schemas/Projects.json"
+                                                "$ref": "../schemas/Project.json"
                                             }
                                         }
                                     },
