@@ -1,3 +1,10 @@
+# [0.36.0](https://github.com/lightdash/lightdash/compare/0.35.0...0.36.0) (2022-03-24)
+
+
+### Features
+
+* add delete project backend ([#1567](https://github.com/lightdash/lightdash/issues/1567)) ([d011e3c](https://github.com/lightdash/lightdash/commit/d011e3ca6874dbe202efeed0a0736a401c2c4b1a))
+
 # [0.35.0](https://github.com/lightdash/lightdash/compare/0.34.1...0.35.0) (2022-03-22)
 
 
