@@ -1,4 +1,3 @@
-/* eslint-disable no-useless-escape */
 import { MetricQuery } from './metricQuery';
 
 export enum ChartType {

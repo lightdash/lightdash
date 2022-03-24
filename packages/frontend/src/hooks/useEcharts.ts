@@ -318,7 +318,7 @@ const useEcharts = () => {
         series,
         explore,
         xAxisField,
-        yAxisField ? yAxisField : undefined,
+        yAxisField,
     );
 
     return {
