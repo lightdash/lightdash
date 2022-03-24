@@ -1,3 +1,10 @@
+## [0.36.1](https://github.com/lightdash/lightdash/compare/0.36.0...0.36.1) (2022-03-24)
+
+
+### Bug Fixes
+
+* dont collapse chart on save ([#1580](https://github.com/lightdash/lightdash/issues/1580)) ([5144a1c](https://github.com/lightdash/lightdash/commit/5144a1cbc34d7af5020f4ab75d7dc4d497dc1ccf))
+
 # [0.36.0](https://github.com/lightdash/lightdash/compare/0.35.0...0.36.0) (2022-03-24)
 
 
