@@ -10,25 +10,11 @@ describe('Dashboard List', () => {
         Cypress.Cookies.preserveOnce('connect.sid');
     });
 
-    it('Should display dashboards', () => {
-        cy.visit('/');
-        cy.findByRole('button', { name: 'Browse' }).click();
-        cy.findByRole('button', { name: 'Dashboards' }).click();
-        cy.findByText('Jaffle dashboard').should('exist');
-    });
-
-    it('Should delete dashboards', () => {
-        cy.visit('/');
-        cy.findByRole('button', { name: 'Browse' }).click();
-        cy.findByRole('button', { name: 'Dashboards' }).click();
-        // click on delete
-        cy.get('[data-icon=more]').click();
-        cy.findByRole('button', { name: 'Delete' }).click();
-        // click on delete in the popup
-        cy.get('[data-cy=submit-base-modal]').click();
-        cy.findByText('No results available');
-    });
-
+    /* 
+        These tests assumes there are no dashboards, 
+        If we want to make it compatible with multiple dashboards,
+        we should filter the buttons for updating and deleting by selecting only 1
+    */
     it('Should create a new dashboard', () => {
         cy.visit('/');
         cy.findByRole('button', { name: 'Browse' }).click();
@@ -55,5 +41,24 @@ describe('Dashboard List', () => {
 
         // verify dashboard name has been updated in the list
         cy.findByText('Jaffle dashboard').should('exist');
+    });
+
+    it('Should display dashboards', () => {
+        cy.visit('/');
+        cy.findByRole('button', { name: 'Browse' }).click();
+        cy.findByRole('button', { name: 'Dashboards' }).click();
+        cy.findByText('Jaffle dashboard').should('exist');
+    });
+
+    it('Should delete dashboards', () => {
+        cy.visit('/');
+        cy.findByRole('button', { name: 'Browse' }).click();
+        cy.findByRole('button', { name: 'Dashboards' }).click();
+        // click on delete
+        cy.get('[data-icon=more]').click();
+        cy.findByRole('button', { name: 'Delete' }).click();
+        // click on delete in the popup
+        cy.get('[data-cy=submit-base-modal]').click();
+        cy.findByText('No results available');
     });
 });

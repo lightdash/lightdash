@@ -60,6 +60,9 @@ Cypress.Commands.add('preCompileProject', () => {
     });
     cy.request({
         url: 'api/v1/org/projects',
+        headers: {
+            'Content-type': 'application/json',
+        },
         method: 'GET',
     }).then(({ body }) => {
         const project = body.results[0];
