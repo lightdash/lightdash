@@ -8,6 +8,7 @@ import {
     Series,
 } from 'common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+
 const useCartesianChartConfig = (
     chartConfigs: CartesianChart | undefined,
     pivotKey: string | undefined,
@@ -96,6 +97,10 @@ const useCartesianChartConfig = (
                     series: prevState?.series?.map((series) => ({
                         ...series,
                         type,
+                        stack:
+                            type === CartesianSeriesType.BAR
+                                ? series.stack
+                                : undefined,
                     })),
                 },
         );
@@ -130,6 +135,18 @@ const useCartesianChartConfig = (
                 ),
             };
         });
+    }, []);
+    const setStacking = useCallback((isStacked: boolean) => {
+        setDirtyEchartsConfig(
+            (prevState) =>
+                prevState && {
+                    ...prevState,
+                    series: prevState?.series?.map((series) => ({
+                        ...series,
+                        stack: isStacked ? 'stack' : undefined,
+                    })),
+                },
+        );
     }, []);
 
     const [
@@ -283,6 +300,7 @@ const useCartesianChartConfig = (
         setType,
         setXAxisName,
         setYAxisName,
+        setStacking,
         addSingleSeries,
         updateSingleSeries,
         removeSingleSeries,

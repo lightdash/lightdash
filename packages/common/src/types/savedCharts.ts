@@ -35,6 +35,7 @@ export type Series = {
         y?: string; // hash of yRef
     };
     type: CartesianSeriesType;
+    stack?: string;
     name?: string;
     color?: string;
     yAxisIndex?: number;
