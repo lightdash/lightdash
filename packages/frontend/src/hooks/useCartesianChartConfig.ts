@@ -25,6 +25,10 @@ const useCartesianChartConfig = (
     >(chartConfigs?.eChartsConfig);
 
     useEffect(() => {
+        setChartType(
+            chartConfigs?.eChartsConfig.series?.[0]?.type ||
+                CartesianSeriesType.BAR,
+        );
         setDirtyLayout(chartConfigs?.layout);
         setDirtyEchartsConfig(chartConfigs?.eChartsConfig);
     }, [chartConfigs]);

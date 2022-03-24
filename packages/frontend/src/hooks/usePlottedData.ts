@@ -40,11 +40,15 @@ const usePlottedData = (
     pivotDimensions: string[] | undefined,
 ): ApiQueryResults['rows'] => {
     return useMemo(() => {
-        if (!explore || !resultsData || !chartConfig) {
+        if (!explore || !resultsData) {
             return [];
         }
         const pivotDimension = pivotDimensions?.[0];
-        if (pivotDimension && isCompleteLayout(chartConfig.layout)) {
+        if (
+            pivotDimension &&
+            chartConfig &&
+            isCompleteLayout(chartConfig.layout)
+        ) {
             return getPivotedData(
                 resultsData.rows,
                 chartConfig.layout.xField,
