@@ -142,6 +142,18 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                     }}
                 />
             </AxisGroup>
+            <AxisGroup>
+                <AxisTitle>Group</AxisTitle>
+                <FieldAutoComplete
+                    fields={items}
+                    activeField={groupSelectedField}
+                    onChange={(item) => {
+                        if (isField(item)) {
+                            onGroupClick(getItemId(item));
+                        }
+                    }}
+                />
+            </AxisGroup>
         </>
     );
 };
