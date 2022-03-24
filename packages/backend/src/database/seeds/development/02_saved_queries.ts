@@ -41,15 +41,17 @@ export async function seed(knex: Knex): Promise<void> {
                     series: [
                         {
                             encode: {
-                                x: 'payments_payment_method',
-                                y: 'payments_total_revenue',
+                                xRef: { field: 'payments_payment_method' },
+                                yRef: { field: 'payments_total_revenue' },
                             },
                             type: CartesianSeriesType.BAR,
                         },
                         {
                             encode: {
-                                x: 'payments_payment_method',
-                                y: 'payments_unique_payment_count',
+                                xRef: { field: 'payments_payment_method' },
+                                yRef: {
+                                    field: 'payments_unique_payment_count',
+                                },
                             },
                             type: CartesianSeriesType.BAR,
                         },
@@ -137,15 +139,15 @@ export async function seed(knex: Knex): Promise<void> {
                     series: [
                         {
                             encode: {
-                                x: 'orders_order_date',
-                                y: 'orders_unique_order_count',
+                                xRef: { field: 'orders_order_date' },
+                                yRef: { field: 'orders_unique_order_count' },
                             },
                             type: CartesianSeriesType.LINE,
                         },
                         {
                             encode: {
-                                x: 'orders_order_date',
-                                y: 'cumulative_order_count',
+                                xRef: { field: 'orders_order_date' },
+                                yRef: { field: 'cumulative_order_count' },
                             },
                             type: CartesianSeriesType.LINE,
                         },
@@ -185,8 +187,8 @@ export async function seed(knex: Knex): Promise<void> {
                     series: [
                         {
                             encode: {
-                                x: 'customers_customer_id',
-                                y: 'orders_avg_amount',
+                                xRef: { field: 'customers_customer_id' },
+                                yRef: { field: 'orders_avg_amount' },
                             },
                             type: CartesianSeriesType.BAR,
                         },

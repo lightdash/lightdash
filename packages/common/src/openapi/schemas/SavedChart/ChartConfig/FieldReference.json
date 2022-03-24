@@ -1,0 +1,24 @@
+{
+    "type": "object",
+    "properties": {
+        "field": {
+            "type": "string"
+        },
+        "pivotValues": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "field": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    }
+                },
+                "required": ["field", "value"]
+            }
+        }
+    },
+    "required": ["field"]
+}

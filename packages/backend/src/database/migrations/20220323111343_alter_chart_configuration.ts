@@ -22,8 +22,8 @@ export async function up(knex: Knex): Promise<void> {
                                 'color', value->'color',
                                 'label', value->'label',
                                 'encode', json_build_object(
-                                    'x', value->'xField',
-                                    'y', value->'yField'
+                                    'xRef', json_build_object('field', value->'xField'),
+                                    'yRef', json_build_object('field', value->'yField'),
                                 )
                             )     
                         ) 

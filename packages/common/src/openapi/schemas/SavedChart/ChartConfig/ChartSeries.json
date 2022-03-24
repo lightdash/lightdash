@@ -4,6 +4,12 @@
         "encode": {
             "type": "object",
             "properties": {
+                "xRef": {
+                    "$ref": "./FieldReference.json"
+                },
+                "yRef": {
+                    "$ref": "./FieldReference.json"
+                },
                 "x": {
                     "type": "string"
                 },
@@ -11,7 +17,7 @@
                     "type": "string"
                 }
             },
-            "required": ["x", "y"]
+            "required": ["xRef", "yRef"]
         },
         "type": {
             "type": "string",

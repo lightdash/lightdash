@@ -23,10 +23,17 @@ export enum CartesianSeriesType {
     SCATTER = 'scatter',
 }
 
+type PivotReference = {
+    field: string;
+    pivotValues?: { field: string; value: any }[];
+};
+
 export type Series = {
     encode: {
-        x: string; // `explore.field.pivot.values`
-        y: string; // `explore.field.pivot.values`
+        xRef: PivotReference;
+        yRef: PivotReference;
+        x?: string; // hash of xRef
+        y?: string; // hash of yRef
     };
     type: CartesianSeriesType;
     name?: string;
@@ -48,46 +55,6 @@ export type EChartsConfig = Partial<CompleteEChartsConfig>;
 type Axis = {
     name?: string;
 };
-
-// type PrevSeries = {
-//     xField: string;
-//     yField: string;
-//     type: CartesianSeriesType;
-//     flipAxes?: boolean | undefined;
-//     name?: string;
-//     color?: string;
-//     label?: {
-//         show?: boolean;
-//         position?: 'left' | 'top' | 'right' | 'bottom';
-//     };
-// };
-// type Prev = {
-//     series: PrevSeries[];
-//     xAxes?: Axis[];
-//     yAxes?: Axis[];
-// };
-
-// const configMap = (prev: Prev): CartesianChart => ({
-//     layout: {
-//         xField: prev.series[0].xField,
-//         yField: prev.series.map((s) => s.yField),
-//         flipAxes: prev.series[0].flipAxes,
-//     },
-//     eChartsConfig: {
-//         series: prev.series.map((s) => ({
-//             encode: {
-//                 x: s.xField,
-//                 y: s.yField,
-//             },
-//             type: s.type,
-//             name: s.name,
-//             color: s.color,
-//             label: s.label,
-//         })),
-//         xAxis: prev.xAxes,
-//         yAxis: prev.yAxes,
-//     },
-// });
 
 export type CompleteCartesianChartLayout = {
     xField: string;
