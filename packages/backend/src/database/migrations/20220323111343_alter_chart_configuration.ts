@@ -23,7 +23,7 @@ export async function up(knex: Knex): Promise<void> {
                                 'label', value->'label',
                                 'encode', json_build_object(
                                     'xRef', json_build_object('field', value->'xField'),
-                                    'yRef', json_build_object('field', value->'yField'),
+                                    'yRef', json_build_object('field', value->'yField')
                                 )
                             )     
                         ) 
