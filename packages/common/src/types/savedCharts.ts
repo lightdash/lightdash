@@ -22,11 +22,19 @@ export enum CartesianSeriesType {
     SCATTER = 'scatter',
 }
 
+type PivotReference = {
+    field: string;
+    pivotValues?: { field: string; value: any }[];
+};
+
 export type Series = {
-    xField: string;
-    yField: string;
+    encode: {
+        xRef: PivotReference;
+        yRef: PivotReference;
+        x?: string; // hash of xRef
+        y?: string; // hash of yRef
+    };
     type: CartesianSeriesType;
-    flipAxes?: boolean | undefined;
     name?: string;
     color?: string;
     label?: {
@@ -35,15 +43,31 @@ export type Series = {
     };
 };
 
+export type CompleteEChartsConfig = {
+    series: Series[];
+    xAxis: Axis[];
+    yAxis: Axis[];
+};
+
+export type EChartsConfig = Partial<CompleteEChartsConfig>;
+
 type Axis = {
     name?: string;
 };
 
-export type CartesianChart = {
-    series: Series[];
-    xAxes?: Axis[];
-    yAxes?: Axis[];
+export type CompleteCartesianChartLayout = {
+    xField: string;
+    yField: string[];
+    flipAxes?: boolean | undefined;
 };
+
+export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;
+
+export type CartesianChart = {
+    layout: CartesianChartLayout;
+    eChartsConfig: EChartsConfig;
+};
+
 export type CartesianChartConfig = {
     type: ChartType.CARTESIAN;
     config: CartesianChart;
@@ -83,3 +107,40 @@ export type CreateSavedChartVersion = Omit<
 >;
 
 export type UpdateSavedChart = Pick<SavedChart, 'name'>;
+
+export const isCompleteLayout = (
+    value: CartesianChartLayout | undefined,
+): value is CompleteCartesianChartLayout =>
+    !!value && !!value.xField && !!value.yField && value.yField.length > 0;
+
+export const isCompleteEchartsConfig = (
+    value: EChartsConfig | undefined,
+): value is CompleteEChartsConfig =>
+    !!value && !!value.series && value.series.length > 0;
+
+export const hashFieldReference = (reference: PivotReference) =>
+    reference.pivotValues
+        ? `${reference.field}.${reference.pivotValues
+              .map(({ field, value }) => `${field}.${value}`)
+              .join('.')}`
+        : reference.field;
+
+export const getSeriesId = (series: Series) =>
+    `${hashFieldReference(series.encode.xRef)}|${hashFieldReference(
+        series.encode.yRef,
+    )}`;
+
+export const ECHARTS_DEFAULT_COLORS = [
+    '#5470c6',
+    '#91cc75',
+    '#fac858',
+    '#ee6666',
+    '#73c0de',
+    '#3ba272',
+    '#fc8452',
+    '#9a60b4',
+    '#ea7ccc',
+];
+
+export const getDefaultSeriesColor = (index: number) =>
+    ECHARTS_DEFAULT_COLORS[index % ECHARTS_DEFAULT_COLORS.length];

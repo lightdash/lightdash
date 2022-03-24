@@ -1,9 +1,9 @@
 import { Colors, Icon } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
+import { ECHARTS_DEFAULT_COLORS } from 'common';
 import React, { FC } from 'react';
 import { BlockPicker, ColorResult } from 'react-color';
 import { useToggle } from 'react-use';
-import { ECHARTS_DEFAULT_COLORS } from '../../hooks/useCartesianChartConfig';
 import { ColorButton } from './ChartConfigPanel.styles';
 
 type Props = {

@@ -5,13 +5,17 @@ import React, { FC } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const VisualizationCardOptions: FC = () => {
-    const { chartType, setChartType, isLoading, plotData, cartesianConfig } =
-        useVisualizationContext();
+    const {
+        chartType,
+        setChartType,
+        isLoading,
+        plotData,
+        cartesianConfig,
+        setPivotDimensions,
+    } = useVisualizationContext();
     const disabled = isLoading || plotData.length <= 0;
-    const cartesianType = (cartesianConfig.dirtyConfig?.series || [])[0]?.type;
-    const cartesianFlipAxis = (cartesianConfig.dirtyConfig?.series || [])[0]
-        ?.flipAxes;
-
+    const cartesianType = cartesianConfig.dirtyChartType;
+    const cartesianFlipAxis = cartesianConfig.dirtyLayout?.flipAxes;
     return (
         <>
             <Tooltip2
@@ -118,6 +122,7 @@ const VisualizationCardOptions: FC = () => {
                     icon="panel-table"
                     onClick={() => {
                         setChartType(ChartType.TABLE);
+                        setPivotDimensions(undefined);
                     }}
                     disabled={disabled}
                     name="Table"
@@ -135,6 +140,7 @@ const VisualizationCardOptions: FC = () => {
                     icon="numerical"
                     onClick={() => {
                         setChartType(ChartType.BIG_NUMBER);
+                        setPivotDimensions(undefined);
                     }}
                     disabled={disabled}
                     name="Big Number"
