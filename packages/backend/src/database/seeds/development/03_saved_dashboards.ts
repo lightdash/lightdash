@@ -1,5 +1,3 @@
-import { Knex } from 'knex';
-import { v4 as uuidv4 } from 'uuid';
 import {
     DashboardChartTile,
     DashboardLoomTile,
@@ -8,8 +6,10 @@ import {
     FilterOperator,
     SEED_PROJECT,
 } from 'common';
-import { getSpaceWithQueries } from '../../entities/spaces';
+import { Knex } from 'knex';
+import { v4 as uuidv4 } from 'uuid';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
+import { getSpaceWithQueries } from '../../entities/spaces';
 
 const markdownSample = `### Lightdash is an open source analytics for your dbt project. 
 
