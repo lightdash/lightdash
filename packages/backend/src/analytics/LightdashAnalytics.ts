@@ -134,6 +134,14 @@ type ProjectEvent = BaseTrack & {
     };
 };
 
+type ProjectDeletedEvent = BaseTrack & {
+    event: 'project.deleted';
+    userId: string;
+    properties: {
+        projectId: string;
+    };
+};
+
 type ProjectTablesConfigurationEvent = BaseTrack & {
     event: 'project_tables_configuration.updated';
     userId: string;
@@ -209,6 +217,7 @@ type Track =
     | ProjectErrorEvent
     | ApiErrorEvent
     | ProjectEvent
+    | ProjectDeletedEvent
     | ProjectCompiledEvent
     | DashboardEvent
     | CreateDashboardOrVersionEvent

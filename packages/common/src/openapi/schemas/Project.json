@@ -1,0 +1,12 @@
+{
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string"
+        },
+        "projectUuid": {
+            "type": "string"
+        }
+    },
+    "required": ["name", "projectUuid"]
+}

@@ -255,6 +255,12 @@ export class ProjectModel {
         });
     }
 
+    async delete(projectUuid: string): Promise<void> {
+        await this.database('projects')
+            .where('project_uuid', projectUuid)
+            .delete();
+    }
+
     async getWithSensitiveFields(
         projectUuid: string,
     ): Promise<Project & { warehouseConnection?: CreateWarehouseCredentials }> {
