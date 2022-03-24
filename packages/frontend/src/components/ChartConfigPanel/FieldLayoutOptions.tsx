@@ -1,6 +1,6 @@
 import { Button } from '@blueprintjs/core';
 import { Field, getItemId, isField, TableCalculation } from 'common';
-import React, { FC, useState } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
@@ -19,8 +19,16 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     const { cartesianConfig, pivotDimensions, setPivotDimensions } =
         useVisualizationContext();
     const [activeYField, setActiveYField] = useState<Item>();
-    const [numberOfFields, setNumberOfFields] = useState([items]);
+    const [yInputFields, setYInputFields] = useState([items]);
     const pivotDimension = pivotDimensions?.[0];
+
+    useEffect(() => {
+        items.forEach((item) => {
+            if (items.length > yInputFields.length) {
+                setYInputFields([...yInputFields, item && items]);
+            }
+        });
+    });
 
     const xAxisField = items.find(
         (item) =>
@@ -70,10 +78,19 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             : setPivotDimensions(undefined);
     };
 
-    const onAddField = () => {
-        setNumberOfFields([...numberOfFields, items]);
-    };
-    const onRemoveField = (item: number) => {};
+    // const onAddField = () => {
+    //     setNumberOfFields([...numberOfFields, items]);
+    // };
+
+    // const removeItem = (index: number) => {
+    //     console.log(index);
+
+    //     const newArr = items.splice(index, 1);
+    //     console.log(newArr);
+    //     setYInputFields(newArr);
+    // };
+
+    // console.log(yInputFields);
 
     return (
         <>
@@ -94,13 +111,14 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             <AxisGroup>
                 <AxisTitle>Y axis field</AxisTitle>
 
-                {numberOfFields.map((field, index) => (
-                    <AxisFieldDropdown key={index}>
+                {yInputFields.map((field, index) => (
+                    <AxisFieldDropdown key={`${index}-y-axis`}>
                         <FieldAutoComplete
-                            key={index}
-                            fields={field}
+                            key={`inputfield-${index}`}
+                            fields={items}
                             activeField={activeYField || firstYAxisField}
                             onChange={(item) => {
+                                console.log(item);
                                 if (isField(item)) {
                                     setActiveYField(item);
                                     onYClick(getItemId(item));
@@ -111,20 +129,22 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                             <Button
                                 minimal
                                 icon="cross"
-                                onClick={() => onRemoveField(index)}
+                                onClick={(e) => {
+                                    e.currentTarget.parentElement?.remove();
+                                    //  removeItem(index);
+                                }}
                             />
                         )}
                     </AxisFieldDropdown>
                 ))}
-                {numberOfFields.length < items.length && (
-                    <Button
-                        minimal
-                        intent="primary"
-                        onClick={() => onAddField()}
-                    >
-                        + Add field
-                    </Button>
-                )}
+
+                <Button
+                    minimal
+                    intent="primary"
+                    //  onClick={() => onAddField()}
+                >
+                    + Add field
+                </Button>
             </AxisGroup>
             <AxisGroup>
                 <AxisTitle>Group</AxisTitle>
