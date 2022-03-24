@@ -45,5 +45,5 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-    return undefined;
+    await knex('saved_queries_versions').delete();
 }
