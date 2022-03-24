@@ -193,14 +193,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             setActiveVizTab(data.chartConfig.type);
         }
     }, [data]);
-    console.log('PATATA savedQueryUuid', savedQueryUuid, !!savedQueryUuid);
-    console.log(
-        'PATATA location',
-        location.state?.fromExplorer,
-        !location.state?.fromExplorer,
-        location.state?.fromExplorer === undefined,
-    );
-    console.log('PATATA vizIsOpen', vizIsOpen);
 
     return (
         <>
