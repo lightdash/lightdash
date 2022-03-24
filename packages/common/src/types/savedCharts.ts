@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 import { MetricQuery } from './metricQuery';
 
 export enum ChartType {
@@ -154,9 +155,33 @@ export const isCompleteEchartsConfig = (
 export const getSeriesId = (series: Series) =>
     `${series.encode.x}|${series.encode.y}`;
 
-// todo: use . and encode/parse values with \.
-export const getPivotedFieldKey = (pivotValue: string, yAxis: string): string =>
-    `${yAxis}|${pivotValue}`;
+// prettier-ignore
+const escapePivotValue = (pivotValue: string) =>
+    pivotValue.replaceAll('.', '\.');
 
-export const parsePivotedFieldKey = (pivotedFieldKey: string): string[] =>
-    pivotedFieldKey.split('|');
+// prettier-ignore
+const parsePivotValue = (escapedPivotValue: string) =>
+    escapedPivotValue.replaceAll('\.', '.');
+
+export const getPivotedFieldKey = (yAxis: string, pivotValue: string): string =>
+    `${yAxis}.${escapePivotValue(pivotValue)}`;
+
+export const parsePivotedFieldKey = (pivotedFieldKey: string): string[] => {
+    const [yAxis, ...rest] = pivotedFieldKey.split('.');
+    return [yAxis, parsePivotValue(rest.join('.'))];
+};
+
+export const ECHARTS_DEFAULT_COLORS = [
+    '#5470c6',
+    '#91cc75',
+    '#fac858',
+    '#ee6666',
+    '#73c0de',
+    '#3ba272',
+    '#fc8452',
+    '#9a60b4',
+    '#ea7ccc',
+];
+
+export const getDefaultSeriesColor = (index: number) =>
+    ECHARTS_DEFAULT_COLORS[index % ECHARTS_DEFAULT_COLORS.length];

@@ -9,24 +9,6 @@ import {
     Series,
 } from 'common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-
-export const ECHARTS_DEFAULT_COLORS = [
-    '#5470c6',
-    '#91cc75',
-    '#fac858',
-    '#ee6666',
-    '#73c0de',
-    '#3ba272',
-    '#fc8452',
-    '#9a60b4',
-    '#ea7ccc',
-];
-
-// todo: use this in the tabs UI to figure out each series color without setting it to the series object
-const getDefaultSeriesColor = (index: number) => {
-    return ECHARTS_DEFAULT_COLORS[index % ECHARTS_DEFAULT_COLORS.length];
-};
-
 const useCartesianChartConfig = (
     chartConfigs: CartesianChart | undefined,
     pivotKey: string | undefined,
@@ -222,7 +204,7 @@ const useCartesianChartConfig = (
                             type: dirtyChartType,
                             encode: {
                                 x: dirtyLayout.xField,
-                                y: getPivotedFieldKey(rawValue, yField),
+                                y: getPivotedFieldKey(yField, rawValue),
                             },
                         };
                         return {

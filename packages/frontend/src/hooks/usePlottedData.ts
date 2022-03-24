@@ -19,7 +19,7 @@ export const getPivotedData = (
                 [xAxis]: row[xAxis],
             };
             yAxis.forEach((metricKey) => {
-                acc[row[xAxis]][getPivotedFieldKey(row[pivotKey], metricKey)] =
+                acc[row[xAxis]][getPivotedFieldKey(metricKey, row[pivotKey])] =
                     row[metricKey];
             });
             return acc;
