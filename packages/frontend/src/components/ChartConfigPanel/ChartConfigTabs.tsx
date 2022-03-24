@@ -119,40 +119,12 @@ const ChartConfigTabs: FC = () => {
                         <>
                             <FieldLayoutOptions
                                 items={items}
-                                // key={getItemId(item)}
-                                // item={item}
-                                // isXActive={
-                                //     xAxisField &&
-                                //     getItemId(xAxisField) === itemId
-                                // }
-                                // isYActive={yFieldsKeys.includes(itemId)}
+
                                 // isGroupActive={
                                 //     !!pivotDimension &&
                                 //     pivotDimension === itemId
                                 // }
-                                // onXClick={(isActive) =>
-                                //     cartesianConfig.setXField(
-                                //         isActive ? itemId : undefined,
-                                //     )
-                                // }
-                                // onYClick={(isActive) => {
-                                //     if (isActive) {
-                                //         cartesianConfig.addSingleSeries({
-                                //             yField: itemId,
-                                //         });
-                                //     } else {
-                                //         const seriesIndex =
-                                //             cartesianConfig.dirtyConfig?.series?.findIndex(
-                                //                 ({ yField }) =>
-                                //                     yField === itemId,
-                                //             );
-                                //         if (seriesIndex !== undefined) {
-                                //             cartesianConfig.removeSingleSeries(
-                                //                 seriesIndex,
-                                //             );
-                                //         }
-                                //     }
-                                // }}
+
                                 // onGroupClick={(isActive) =>
                                 //     isActive
                                 //         ? setPivotDimensions([itemId])

@@ -1,7 +1,8 @@
 import { Button } from '@blueprintjs/core';
-import { Field, isField, TableCalculation } from 'common';
+import { Field, getItemId, isField, TableCalculation } from 'common';
 import React, { FC, useState } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
+import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
     AxisFieldDropdown,
     AxisGroup,
@@ -12,28 +13,62 @@ type Item = Field | TableCalculation;
 
 type Props = {
     items: (Field | TableCalculation)[];
-    // item: Field | TableCalculation;
-    // isXActive?: boolean;
-    // isYActive?: boolean;
-    // isGroupActive?: boolean;
-    // onXClick: (isActive: boolean) => void;
-    // onYClick: (isActive: boolean) => void;
-    // onGroupClick: (isActive: boolean) => void;
 };
 
-const FieldLayoutOptions: FC<Props> = ({
-    items,
-    // isXActive,
-    // isGroupActive,
-    // onGroupClick,
-    // onXClick,
-    // onYClick,
-    // isYActive,
-}) => {
-    console.log(items);
-    const [activeXField, setActiveXField] = useState<Item>();
+const FieldLayoutOptions: FC<Props> = ({ items }) => {
+    const { cartesianConfig, pivotDimensions, setPivotDimensions } =
+        useVisualizationContext();
     const [activeYField, setActiveYField] = useState<Item>();
     const [numberOfFields, setNumberOfFields] = useState([items]);
+    const pivotDimension = pivotDimensions?.[0];
+
+    const xAxisField = items.find(
+        (item) =>
+            getItemId(item) ===
+            (cartesianConfig.dirtyConfig?.series || [])[0]?.xField,
+    );
+    const firstYAxisField = items.find(
+        (item) =>
+            getItemId(item) ===
+            (cartesianConfig.dirtyConfig?.series || [])[0]?.yField,
+    );
+    const groupSelectedField = items.find(
+        (item) => getItemId(item) === pivotDimension,
+    );
+
+    const yFieldsKeys =
+        cartesianConfig.dirtyConfig?.series?.reduce<string[]>(
+            (sum, { yField }) => (yField ? [...sum, yField] : sum),
+            [],
+        ) || [];
+
+    const onXClick = (itemId: any) => {
+        const isActive = xAxisField && getItemId(xAxisField) === itemId;
+        cartesianConfig.setXField(!isActive ? itemId : undefined);
+    };
+    const onYClick = (itemId: any) => {
+        const isYActive = yFieldsKeys.includes(itemId);
+        if (!isYActive) {
+            cartesianConfig.addSingleSeries({
+                yField: itemId,
+            });
+        } else {
+            const seriesIndex = cartesianConfig.dirtyConfig?.series?.findIndex(
+                ({ yField }) => yField === itemId,
+            );
+            if (seriesIndex !== undefined) {
+                cartesianConfig.removeSingleSeries(seriesIndex);
+            }
+        }
+    };
+
+    const onGroupClick = (itemId: any) => {
+        const isGroupActive = !!pivotDimension && pivotDimension === itemId;
+
+        return !isGroupActive
+            ? setPivotDimensions([itemId])
+            : setPivotDimensions(undefined);
+    };
 
     const onAddField = () => {
         setNumberOfFields([...numberOfFields, items]);
@@ -42,42 +77,15 @@ const FieldLayoutOptions: FC<Props> = ({
 
     return (
         <>
-            {/* <GridFieldLabel>
-                <Icon icon={getItemIcon(item)} color={getItemColor(item)} />
-                <span>
-                    {isField(item) ? `${item.tableLabel} ` : ''}
-                    <b>{isField(item) ? item.label : item.displayName}</b>
-                </span>
-            </GridFieldLabel>
-            <ButtonGroup>
-                <Button
-                    intent={isXActive ? 'primary' : 'none'}
-                    onClick={() => onXClick(!isXActive)}
-                >
-                    x
-                </Button>
-                <Button
-                    intent={isYActive ? 'primary' : 'none'}
-                    onClick={() => onYClick(!isYActive)}
-                >
-                    y
-                </Button>
-                <Button
-                    intent={isGroupActive ? 'primary' : 'none'}
-                    onClick={() => onGroupClick(!isGroupActive)}
-                >
-                    group
-                </Button>
-            </ButtonGroup> */}
             <AxisGroup>
                 <AxisTitle>X axis field</AxisTitle>
                 <AxisFieldDropdown>
                     <FieldAutoComplete
                         fields={items}
-                        activeField={activeXField}
+                        activeField={xAxisField}
                         onChange={(item) => {
                             if (isField(item)) {
-                                setActiveXField(item);
+                                onXClick(getItemId(item));
                             }
                         }}
                     />
@@ -89,11 +97,13 @@ const FieldLayoutOptions: FC<Props> = ({
                 {numberOfFields.map((field, index) => (
                     <AxisFieldDropdown key={index}>
                         <FieldAutoComplete
+                            key={index}
                             fields={field}
-                            //   activeField={(item) => item}
+                            activeField={activeYField || firstYAxisField}
                             onChange={(item) => {
                                 if (isField(item)) {
                                     setActiveYField(item);
+                                    onYClick(getItemId(item));
                                 }
                             }}
                         />
@@ -115,6 +125,18 @@ const FieldLayoutOptions: FC<Props> = ({
                         + Add field
                     </Button>
                 )}
+            </AxisGroup>
+            <AxisGroup>
+                <AxisTitle>Group</AxisTitle>
+                <FieldAutoComplete
+                    fields={items}
+                    activeField={groupSelectedField}
+                    onChange={(item) => {
+                        if (isField(item)) {
+                            onGroupClick(getItemId(item));
+                        }
+                    }}
+                />
             </AxisGroup>
         </>
     );
