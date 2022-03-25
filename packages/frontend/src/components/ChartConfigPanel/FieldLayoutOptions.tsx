@@ -17,53 +17,53 @@ type Props = {
 };
 
 const FieldLayoutOptions: FC<Props> = ({ items }) => {
-    const { cartesianConfig, pivotDimensions, setPivotDimensions } =
-        useVisualizationContext();
+    const {
+        explore,
+        resultsData,
+        cartesianConfig: {
+            dirtyLayout,
+            setXField,
+            addSingleSeries,
+            removeSingleSeries,
+        },
+        pivotDimensions,
+        setPivotDimensions,
+    } = useVisualizationContext();
     const [activeYField, setActiveYField] = useState<Item>();
     const pivotDimension = pivotDimensions?.[0];
+    console.log(explore);
 
     const xAxisField = items.find(
-        (item) =>
-            getItemId(item) ===
-            (cartesianConfig.dirtyConfig?.series || [])[0]?.xField,
+        (item) => getItemId(item) === dirtyLayout?.xField,
     );
 
     const yAxisFields = items.filter((item) => {
         // @ts-ignore
         return item.fieldType === 'metric';
     });
-
     const firstYAxisField = items.find(
-        (item) =>
-            getItemId(item) ===
-            (cartesianConfig.dirtyConfig?.series || [])[0]?.yField,
+        (item) => getItemId(item) === dirtyLayout?.yField?.[0],
     );
     const groupSelectedField = items.find(
         (item) => getItemId(item) === pivotDimension,
     );
 
-    const yFieldsKeys =
-        cartesianConfig.dirtyConfig?.series?.reduce<string[]>(
-            (sum, { yField }) => (yField ? [...sum, yField] : sum),
-            [],
-        ) || [];
+    const yFieldsKeys = dirtyLayout?.yField || [];
 
     const onXClick = (itemId: any) => {
         const isActive = xAxisField && getItemId(xAxisField) === itemId;
-        cartesianConfig.setXField(!isActive ? itemId : undefined);
+        setXField(!isActive ? itemId : undefined);
     };
     const onYClick = (itemId: any) => {
         const isYActive = yFieldsKeys.includes(itemId);
         if (!isYActive) {
-            cartesianConfig.addSingleSeries({
-                yField: itemId,
-            });
+            addSingleSeries(itemId);
         } else {
-            const seriesIndex = cartesianConfig.dirtyConfig?.series?.findIndex(
-                ({ yField }) => yField === itemId,
+            const index = yFieldsKeys.findIndex(
+                (yField: any) => yField === itemId,
             );
-            if (seriesIndex !== undefined) {
-                cartesianConfig.removeSingleSeries(seriesIndex);
+            if (index !== undefined) {
+                removeSingleSeries(index);
             }
         }
     };
