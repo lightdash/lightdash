@@ -21,10 +21,40 @@ const VisualizationCardOptions: FC = () => {
     const cartesianType = cartesianConfig.dirtyChartType;
     const cartesianFlipAxis = cartesianConfig.dirtyLayout?.flipAxes;
     const [isOpen, setIsOpen] = useState<boolean>(false);
-    const [activeChartType, setActiveChartType] = useState({
-        text: 'Column chart',
-        icon: 'timeline-bar-chart',
-    });
+
+    const selectChartType = () => {
+        if (chartType === ChartType.CARTESIAN) {
+            switch (cartesianType) {
+                case 'line':
+                    return { text: 'Line chart', icon: 'timeline-line-chart' };
+                case 'bar':
+                    return cartesianFlipAxis
+                        ? { text: 'Bar chart', icon: 'horizontal-bar-chart' }
+                        : { text: 'Column chart', icon: 'timeline-bar-chart' };
+                case 'scatter':
+                    return { text: 'Scatter chart', icon: 'scatter-plot' };
+                default:
+                    break;
+            }
+        }
+        if (chartType === ChartType.TABLE) {
+            return {
+                text: 'Table',
+                icon: 'panel-table',
+            };
+        }
+
+        if (chartType === ChartType.BIG_NUMBER) {
+            return {
+                text: 'Big number',
+                icon: 'numerical',
+            };
+        } else {
+            return { text: 'Bar chart', icon: 'horizontal-bar-chart' };
+        }
+    };
+
+    const [activeChartType, setActiveChartType] = useState(selectChartType());
 
     return (
         <Popover2
@@ -44,10 +74,7 @@ const VisualizationCardOptions: FC = () => {
                                 CartesianSeriesType.BAR,
                                 false,
                             );
-                            setActiveChartType({
-                                text: 'Column chart',
-                                icon: 'timeline-bar-chart',
-                            });
+                            setActiveChartType(selectChartType);
                         }}
                         disabled={disabled}
                         name="Column"
@@ -68,10 +95,7 @@ const VisualizationCardOptions: FC = () => {
                                 CartesianSeriesType.BAR,
                                 true,
                             );
-                            setActiveChartType({
-                                text: 'Bar chart',
-                                icon: 'horizontal-bar-chart',
-                            });
+                            setActiveChartType(selectChartType);
                         }}
                         disabled={disabled}
                         name="Bar"
@@ -91,10 +115,7 @@ const VisualizationCardOptions: FC = () => {
                                 CartesianSeriesType.LINE,
                                 false,
                             );
-                            setActiveChartType({
-                                text: 'Line chart',
-                                icon: 'timeline-line-chart',
-                            });
+                            setActiveChartType(selectChartType);
                         }}
                         disabled={disabled}
                         name="Line"
@@ -114,10 +135,7 @@ const VisualizationCardOptions: FC = () => {
                                 CartesianSeriesType.SCATTER,
                                 false,
                             );
-                            setActiveChartType({
-                                text: 'Scatter chart',
-                                icon: 'scatter-plot',
-                            });
+                            setActiveChartType(selectChartType);
                         }}
                         disabled={disabled}
                         name="Scatter"
@@ -131,10 +149,7 @@ const VisualizationCardOptions: FC = () => {
                         onClick={() => {
                             setChartType(ChartType.TABLE);
                             setPivotDimensions(undefined);
-                            setActiveChartType({
-                                text: 'Table',
-                                icon: 'panel-table',
-                            });
+                             setActiveChartType(selectChartType);
                         }}
                         disabled={disabled}
                         name="Table"
@@ -148,14 +163,11 @@ const VisualizationCardOptions: FC = () => {
                         onClick={() => {
                             setChartType(ChartType.BIG_NUMBER);
                             setPivotDimensions(undefined);
-                            setActiveChartType({
-                                text: 'Big number',
-                                icon: 'numerical',
-                            });
+                            setActiveChartType(selectChartType);
                         }}
                         disabled={disabled}
                         name="Big Number"
-                        text="Big Number"
+                        text="Big number"
                     />
                 </ChartOptionsWrapper>
             }
@@ -168,9 +180,9 @@ const VisualizationCardOptions: FC = () => {
         >
             <Button
                 minimal
-                icon={activeChartType.icon as IconName}
+                icon={selectChartType().icon as IconName}
                 rightIcon="caret-down"
-                text={activeChartType.text}
+                text={selectChartType().text}
                 disabled={disabled}
             />
         </Popover2>
