@@ -160,6 +160,7 @@ const convertMetric = ({
         `${friendlyName(metric.type)} of ${friendlyName(columnName)}`,
     source,
     hidden: !!metric.hidden,
+    round: metric.round,
 });
 
 const generateTableLineage = (

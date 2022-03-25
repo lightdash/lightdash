@@ -506,6 +506,7 @@ export type DbtColumnLightdashMetric = {
     description?: string;
     sql?: string;
     hidden?: boolean;
+    round?: number;
 };
 
 export type ApiQueryResults = {
