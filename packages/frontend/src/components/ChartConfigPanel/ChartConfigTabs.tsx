@@ -177,7 +177,6 @@ const ChartConfigTabs: FC = () => {
                                     defaultValue={
                                         dirtyEchartsConfig?.yAxis?.[0]?.name
                                     }
-                                    value={dirtyEchartsConfig?.yAxis?.[0]?.name}
                                     onBlur={(e) =>
                                         setYAxisName(0, e.currentTarget.value)
                                     }
