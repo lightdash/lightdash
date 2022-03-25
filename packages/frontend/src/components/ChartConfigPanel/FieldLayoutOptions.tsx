@@ -31,7 +31,6 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     } = useVisualizationContext();
     const [activeYField, setActiveYField] = useState<Item>();
     const pivotDimension = pivotDimensions?.[0];
-    console.log(explore);
 
     const xAxisField = items.find(
         (item) => getItemId(item) === dirtyLayout?.xField,
@@ -41,9 +40,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         // @ts-ignore
         return item.fieldType === 'metric';
     });
-    const firstYAxisField = items.find(
-        (item) => getItemId(item) === dirtyLayout?.yField?.[0],
-    );
+
     const groupSelectedField = items.find(
         (item) => getItemId(item) === pivotDimension,
     );
@@ -86,7 +83,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     //         setYInputFields(yInputFields.splice(index, 1));
     //     }
     // };
-
+    console.log(dirtyLayout);
     return (
         <>
             <AxisGroup>

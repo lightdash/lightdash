@@ -14,13 +14,7 @@ import {
 } from 'common';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import {
-    FieldRow,
-    FieldRowInputs,
-    GridLabel,
-    InputWrapper,
-    Wrapper,
-} from './ChartConfigPanel.styles';
+import { InputWrapper, Wrapper, GridLabel, } from './ChartConfigPanel.styles';
 import FieldLayoutOptions from './FieldLayoutOptions';
 import BasicSeriesConfiguration from './Series/BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './Series/GroupedSeriesConfiguration';
@@ -32,9 +26,6 @@ const ChartConfigTabs: FC = () => {
         cartesianConfig: {
             dirtyLayout,
             dirtyEchartsConfig,
-            setXField,
-            addSingleSeries,
-            removeSingleSeries,
             updateSingleSeries,
             setStacking,
             isStacked,
@@ -43,9 +34,7 @@ const ChartConfigTabs: FC = () => {
             setYAxisName,
         },
         pivotDimensions,
-        setPivotDimensions,
     } = useVisualizationContext();
-    const yFieldsKeys = dirtyLayout?.yField || [];
     const pivotDimension = pivotDimensions?.[0];
 
     const [tab, setTab] = useState<string | number>('layout');
