@@ -1,3 +1,10 @@
+# [0.37.0](https://github.com/lightdash/lightdash/compare/0.36.1...0.37.0) (2022-03-25)
+
+
+### Features
+
+* **charts:** configure grouped series ([#1587](https://github.com/lightdash/lightdash/issues/1587)) ([b838733](https://github.com/lightdash/lightdash/commit/b8387333ca3215c37a6a2acbbaabb1ea6b193622))
+
 ## [0.36.1](https://github.com/lightdash/lightdash/compare/0.36.0...0.36.1) (2022-03-24)
 
 
