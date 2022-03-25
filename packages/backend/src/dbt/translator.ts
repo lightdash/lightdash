@@ -132,6 +132,7 @@ const convertDimension = (
         group,
         timeInterval,
         hidden: !!column.meta.dimension?.hidden,
+        format: column.meta.dimension?.format,
     };
 };
 
@@ -165,6 +166,7 @@ const convertMetric = ({
     source,
     hidden: !!metric.hidden,
     round: metric.round,
+    format: metric.format,
 });
 
 const generateTableLineage = (
@@ -637,6 +639,7 @@ export const convertExplores = async (
             };
         }
     });
+
     return [...explores, ...exploreErrors];
 };
 

@@ -290,6 +290,8 @@ export class ProjectService {
         });
         const adapter = await this.getAdapter(projectUuid);
         const rows = await adapter.runQuery(query);
+
+        // TODO this could be the place were we want to do some post processing
         return {
             rows,
             metricQuery,
