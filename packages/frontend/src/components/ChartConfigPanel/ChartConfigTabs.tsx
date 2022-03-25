@@ -1,4 +1,4 @@
-import { HTMLSelect, InputGroup, Switch, Tab, Tabs } from '@blueprintjs/core';
+import { InputGroup, Tab, Tabs } from '@blueprintjs/core';
 import {
     fieldId,
     getDefaultSeriesColor,
@@ -14,15 +14,14 @@ import {
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
-    FieldRow,
-    FieldRowInputs,
     FieldsGrid,
     GridLabel,
     InputWrapper,
     Wrapper,
 } from './ChartConfigPanel.styles';
 import FieldLayoutOptions from './FieldLayoutOptions';
-import SeriesColorPicker from './SeriesColorPicker';
+import BasicSeriesConfiguration from './Series/BasicSeriesConfiguration';
+import GroupedSeriesConfiguration from './Series/GroupedSeriesConfiguration';
 
 const ChartConfigTabs: FC = () => {
     const {
@@ -35,7 +34,7 @@ const ChartConfigTabs: FC = () => {
             addSingleSeries,
             removeSingleSeries,
             updateSingleSeries,
-            setLabel,
+            updateAllGroupedSeries,
             setXAxisName,
             setYAxisName,
         },
@@ -77,8 +76,6 @@ const ChartConfigTabs: FC = () => {
     const firstYAxisField = items.find(
         (item) => getItemId(item) === dirtyLayout?.yField?.[0],
     );
-
-    const showValues = !!dirtyEchartsConfig?.series?.[0]?.label?.show;
 
     const fallbackSeriesColours = useMemo(() => {
         return (dirtyEchartsConfig?.series || [])
@@ -201,113 +198,22 @@ const ChartConfigTabs: FC = () => {
                     id="series"
                     title="Series"
                     panel={
-                        <>
-                            {!pivotDimension && (
-                                <InputWrapper label="Custom series labels">
-                                    {dirtyEchartsConfig?.series?.map(
-                                        (series, index) => {
-                                            const yField =
-                                                series.encode.yRef.field;
-                                            const activeField = items.find(
-                                                (item) =>
-                                                    getItemId(item) === yField,
-                                            );
-                                            if (!activeField) {
-                                                return null;
-                                            }
-                                            return (
-                                                <FieldRow>
-                                                    <FieldRowInputs>
-                                                        <SeriesColorPicker
-                                                            color={
-                                                                series.color ||
-                                                                getSeriesColor(
-                                                                    getSeriesId(
-                                                                        series,
-                                                                    ),
-                                                                )
-                                                            }
-                                                            onChange={(
-                                                                color,
-                                                            ) => {
-                                                                updateSingleSeries(
-                                                                    index,
-                                                                    {
-                                                                        ...series,
-                                                                        color,
-                                                                    },
-                                                                );
-                                                            }}
-                                                        />
-
-                                                        <InputGroup
-                                                            fill
-                                                            placeholder={
-                                                                activeField
-                                                                    ? getItemLabel(
-                                                                          activeField,
-                                                                      )
-                                                                    : 'Enter custom series label'
-                                                            }
-                                                            defaultValue={
-                                                                series.name
-                                                            }
-                                                            onBlur={(e) =>
-                                                                updateSingleSeries(
-                                                                    index,
-                                                                    {
-                                                                        ...series,
-                                                                        name: e
-                                                                            .currentTarget
-                                                                            .value,
-                                                                    },
-                                                                )
-                                                            }
-                                                        />
-                                                    </FieldRowInputs>
-                                                </FieldRow>
-                                            );
-                                        },
-                                    )}
-                                </InputWrapper>
-                            )}
-                            <InputWrapper label="Value labels">
-                                <Switch
-                                    checked={showValues}
-                                    label={showValues ? 'On' : 'Off'}
-                                    onChange={(e) =>
-                                        setLabel(
-                                            e.currentTarget.checked
-                                                ? {
-                                                      show: true,
-                                                      position: 'top',
-                                                  }
-                                                : {
-                                                      show: false,
-                                                      position: undefined,
-                                                  },
-                                        )
-                                    }
-                                />
-                                {showValues && (
-                                    <HTMLSelect
-                                        options={[
-                                            'top',
-                                            'bottom',
-                                            'left',
-                                            'right',
-                                        ]}
-                                        fill
-                                        onChange={(e) =>
-                                            setLabel({
-                                                position: e.currentTarget
-                                                    .value as any,
-                                            })
-                                        }
-                                    />
-                                )}
-                            </InputWrapper>
-                        </>
+                        pivotDimension ? (
+                            <GroupedSeriesConfiguration
+                                items={items}
+                                series={dirtyEchartsConfig?.series}
+                                getSeriesColor={getSeriesColor}
+                                updateSingleSeries={updateSingleSeries}
+                                updateAllGroupedSeries={updateAllGroupedSeries}
+                            />
+                        ) : (
+                            <BasicSeriesConfiguration
+                                items={items}
+                                series={dirtyEchartsConfig?.series}
+                                getSeriesColor={getSeriesColor}
+                                updateSingleSeries={updateSingleSeries}
+                            />
+                        )
                     }
                 />
             </Tabs>

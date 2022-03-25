@@ -96,46 +96,37 @@ const useCartesianChartConfig = (
                 },
         );
     }, []);
-
-    const setLabel = useCallback((label: Series['label']) => {
-        setDirtyEchartsConfig(
-            (prevState) =>
-                prevState && {
-                    ...prevState,
-                    series: prevState?.series?.map((series) => ({
-                        ...series,
-                        label: {
-                            show:
-                                label?.show !== undefined
-                                    ? label?.show
-                                    : series.label?.show,
-                            position:
-                                label?.position !== undefined
-                                    ? label?.position
-                                    : series.label?.position,
-                        },
-                    })),
-                },
-        );
-    }, []);
-
-    const updateSingleSeries = useCallback(
-        (index: number, updatedSeries: Partial<Series>) => {
-            setDirtyEchartsConfig((prev) => {
-                return {
-                    ...prev,
-                    series: prev?.series
-                        ? [
-                              ...prev.series.slice(0, index),
-                              { ...prev?.series[index], ...updatedSeries },
-                              ...prev.series.slice(index + 1),
-                          ]
-                        : [],
-                };
-            });
-        },
+    const updateAllGroupedSeries = useCallback(
+        (fieldKey: string, updateSeries: Partial<Series>) =>
+            setDirtyEchartsConfig(
+                (prevState) =>
+                    prevState && {
+                        ...prevState,
+                        series: prevState?.series?.map((series) =>
+                            series.encode.yRef.field === fieldKey
+                                ? {
+                                      ...series,
+                                      ...updateSeries,
+                                  }
+                                : series,
+                        ),
+                    },
+            ),
         [],
     );
+
+    const updateSingleSeries = useCallback((updatedSeries: Series) => {
+        setDirtyEchartsConfig((prev) => {
+            return {
+                ...prev,
+                series: (prev?.series || []).map((currentSeries) =>
+                    getSeriesId(currentSeries) === getSeriesId(updatedSeries)
+                        ? { ...currentSeries, ...updatedSeries }
+                        : currentSeries,
+                ),
+            };
+        });
+    }, []);
 
     const [
         availableFields,
@@ -288,10 +279,10 @@ const useCartesianChartConfig = (
         setType,
         setXAxisName,
         setYAxisName,
-        setLabel,
         addSingleSeries,
         updateSingleSeries,
         removeSingleSeries,
+        updateAllGroupedSeries,
     };
 };
 

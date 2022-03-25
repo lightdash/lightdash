@@ -4,7 +4,7 @@ import { ECHARTS_DEFAULT_COLORS } from 'common';
 import React, { FC } from 'react';
 import { BlockPicker, ColorResult } from 'react-color';
 import { useToggle } from 'react-use';
-import { ColorButton } from './ChartConfigPanel.styles';
+import { ColorButton, ColorButtonInner } from './Series.styles';
 
 type Props = {
     color?: string;
@@ -36,13 +36,14 @@ const SeriesColorPicker: FC<Props> = ({ color, onChange }) => {
                 },
             }}
         >
-            <ColorButton
-                onClick={toggle}
-                style={{
-                    backgroundColor: color,
-                }}
-            >
-                {!color && <Icon icon="tint" color={Colors.GRAY3} />}
+            <ColorButton onClick={toggle}>
+                <ColorButtonInner
+                    style={{
+                        backgroundColor: color,
+                    }}
+                >
+                    {!color && <Icon icon="tint" color={Colors.GRAY3} />}
+                </ColorButtonInner>
             </ColorButton>
         </Popover2>
     );
