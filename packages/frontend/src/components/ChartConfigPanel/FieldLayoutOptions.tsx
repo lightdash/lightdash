@@ -1,12 +1,13 @@
 import { Button } from '@blueprintjs/core';
 import { Field, getItemId, isField, TableCalculation } from 'common';
-import React, { FC, useEffect, useState } from 'react';
+import React, { FC, useState } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
     AxisFieldDropdown,
     AxisGroup,
     AxisTitle,
+    DeleteFieldButton,
 } from './ChartConfigPanel.styles';
 
 type Item = Field | TableCalculation;
@@ -19,22 +20,19 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     const { cartesianConfig, pivotDimensions, setPivotDimensions } =
         useVisualizationContext();
     const [activeYField, setActiveYField] = useState<Item>();
-    const [yInputFields, setYInputFields] = useState([items]);
     const pivotDimension = pivotDimensions?.[0];
-
-    useEffect(() => {
-        items.forEach((item) => {
-            if (items.length > yInputFields.length) {
-                setYInputFields([...yInputFields, item && items]);
-            }
-        });
-    });
 
     const xAxisField = items.find(
         (item) =>
             getItemId(item) ===
             (cartesianConfig.dirtyConfig?.series || [])[0]?.xField,
     );
+
+    const yAxisFields = items.filter((item) => {
+        // @ts-ignore
+        return item.fieldType === 'metric';
+    });
+
     const firstYAxisField = items.find(
         (item) =>
             getItemId(item) ===
@@ -78,19 +76,16 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             : setPivotDimensions(undefined);
     };
 
-    // const onAddField = () => {
-    //     setNumberOfFields([...numberOfFields, items]);
-    // };
+    const onAddField = () => {
+        // setYInputFields([...yInputFields, items]);
+    };
 
     // const removeItem = (index: number) => {
     //     console.log(index);
-
-    //     const newArr = items.splice(index, 1);
-    //     console.log(newArr);
-    //     setYInputFields(newArr);
+    //     if (index > -1) {
+    //         setYInputFields(yInputFields.splice(index, 1));
+    //     }
     // };
-
-    // console.log(yInputFields);
 
     return (
         <>
@@ -111,39 +106,31 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             <AxisGroup>
                 <AxisTitle>Y axis field</AxisTitle>
 
-                {yInputFields.map((field, index) => (
+                {yAxisFields.map((field, index) => (
                     <AxisFieldDropdown key={`${index}-y-axis`}>
                         <FieldAutoComplete
                             key={`inputfield-${index}`}
                             fields={items}
-                            activeField={activeYField || firstYAxisField}
+                            activeField={field}
                             onChange={(item) => {
-                                console.log(item);
                                 if (isField(item)) {
                                     setActiveYField(item);
                                     onYClick(getItemId(item));
                                 }
                             }}
                         />
-                        {index !== 0 && (
-                            <Button
-                                minimal
-                                icon="cross"
-                                onClick={(e) => {
-                                    e.currentTarget.parentElement?.remove();
-                                    //  removeItem(index);
-                                }}
-                            />
-                        )}
+                        <DeleteFieldButton
+                            minimal
+                            icon="cross"
+                            onClick={(e) => {
+                                //    onYClick();
+                            }}
+                        />
                     </AxisFieldDropdown>
                 ))}
 
-                <Button
-                    minimal
-                    intent="primary"
-                    //  onClick={() => onAddField()}
-                >
-                    + Add field
+                <Button minimal intent="primary" onClick={() => onAddField()}>
+                    + Add
                 </Button>
             </AxisGroup>
             <AxisGroup>
