@@ -498,6 +498,7 @@ type DbtColumnLightdashDimension = {
     sql?: string;
     time_intervals?: string | string[];
     hidden?: boolean;
+    round?: number;
 };
 
 export type DbtColumnLightdashMetric = {

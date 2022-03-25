@@ -115,6 +115,10 @@ const convertDimension = (
         }
     }
 
+    if (column.meta.dimension?.round !== undefined) {
+        sql = `ROUND(${sql}, ${column.meta.dimension?.round})`;
+    }
+
     return {
         fieldType: FieldType.DIMENSION,
         name,
