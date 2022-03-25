@@ -54,8 +54,6 @@ const VisualizationCardOptions: FC = () => {
         }
     };
 
-    const [activeChartType, setActiveChartType] = useState(selectChartType());
-
     return (
         <Popover2
             content={
@@ -74,7 +72,6 @@ const VisualizationCardOptions: FC = () => {
                                 CartesianSeriesType.BAR,
                                 false,
                             );
-                            setActiveChartType(selectChartType);
                         }}
                         disabled={disabled}
                         name="Column"
@@ -95,7 +92,6 @@ const VisualizationCardOptions: FC = () => {
                                 CartesianSeriesType.BAR,
                                 true,
                             );
-                            setActiveChartType(selectChartType);
                         }}
                         disabled={disabled}
                         name="Bar"
@@ -115,7 +111,6 @@ const VisualizationCardOptions: FC = () => {
                                 CartesianSeriesType.LINE,
                                 false,
                             );
-                            setActiveChartType(selectChartType);
                         }}
                         disabled={disabled}
                         name="Line"
@@ -135,7 +130,6 @@ const VisualizationCardOptions: FC = () => {
                                 CartesianSeriesType.SCATTER,
                                 false,
                             );
-                            setActiveChartType(selectChartType);
                         }}
                         disabled={disabled}
                         name="Scatter"
@@ -149,7 +143,6 @@ const VisualizationCardOptions: FC = () => {
                         onClick={() => {
                             setChartType(ChartType.TABLE);
                             setPivotDimensions(undefined);
-                             setActiveChartType(selectChartType);
                         }}
                         disabled={disabled}
                         name="Table"
@@ -163,7 +156,6 @@ const VisualizationCardOptions: FC = () => {
                         onClick={() => {
                             setChartType(ChartType.BIG_NUMBER);
                             setPivotDimensions(undefined);
-                            setActiveChartType(selectChartType);
                         }}
                         disabled={disabled}
                         name="Big Number"
