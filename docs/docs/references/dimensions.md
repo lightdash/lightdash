@@ -56,7 +56,7 @@ All the properties you can customize:
 | sql             | No       | string                | Custom SQL applied to the column used to define the dimension.                        |
 | time_intervals  | No       | `'default'` or `OFF` or string[] | `'default'` will be converted into `['DAY', 'WEEK', 'MONTH', 'YEAR']` for dates and `['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']` for timestamps, as will not setting anything; if you want no time intervals set `'OFF'` |
 | hidden          | No       | boolean               | If set to `true`, the dimension is hidden from Lightdash. By default, this is set to `false` if you don't include this property. |
-
+| round          | No       | number               | Rounds a number to a specified number of digits  |
 
 ## Dimension types
 

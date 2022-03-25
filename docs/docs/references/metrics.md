@@ -150,6 +150,7 @@ Here are all of the properties you can customize:
 | [description](#adding-your-own-metric-descriptions) | No       | string                | Description of the metric that appears in Lightdash. A default description is created by Lightdash if this isn't included                                 |
 | [sql](#using-custom-sql-in-aggregate-metrics)       | No       | string                | Custom SQL used to define the metric.                                                 |
 | hidden                                              | No       | boolean               | If set to `true`, the metric is hidden from Lightdash. By default, this is set to `false` if you don't include this property. |
+| round          | No       | number               | Rounds a number to a specified number of digits  |
 
 ## Metric types:
 
