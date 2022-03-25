@@ -4,7 +4,7 @@ import { ECHARTS_DEFAULT_COLORS } from 'common';
 import React, { FC } from 'react';
 import { BlockPicker, ColorResult } from 'react-color';
 import { useToggle } from 'react-use';
-import { ColorButton, ColorButtonInner } from './ChartConfigPanel.styles';
+import { ColorButton, ColorButtonInner } from './Series.styles';
 
 type Props = {
     color?: string;
