@@ -88,6 +88,7 @@ export type EChartSeries = {
     connectNulls: boolean;
     name?: string;
     color?: string;
+    yAxisIndex?: number;
     encode: {
         x: string;
         y: string;
@@ -304,7 +305,7 @@ const useEcharts = () => {
     }
 
     const [xAxis] = validCartesianConfig.eChartsConfig?.xAxis || [];
-    const [yAxis] = validCartesianConfig.eChartsConfig?.yAxis || [];
+    const yAxes = validCartesianConfig.eChartsConfig?.yAxis || [{}, {}];
 
     const xAxisField = validCartesianConfig.layout?.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -335,21 +336,40 @@ const useEcharts = () => {
             nameGap: 30,
             nameTextStyle: { fontWeight: 'bold' },
         },
-        yAxis: {
-            type: yAxisType,
-            name:
-                yAxis?.name ||
-                (series.length === 1
-                    ? series[0].name ||
-                      getLabelFromField(
-                          explore,
-                          resultsData?.metricQuery.tableCalculations || [],
-                          yAxisField,
-                      )
-                    : undefined),
-            nameTextStyle: { fontWeight: 'bold', align: 'left' },
-            nameLocation: 'end',
-        },
+        yAxis: [
+            {
+                type: yAxisType,
+                name:
+                    yAxes[0]?.name ||
+                    (series.length === 1 &&
+                    (series[0].yAxisIndex === 0 ||
+                        series[0].yAxisIndex === undefined)
+                        ? series[0].name ||
+                          getLabelFromField(
+                              explore,
+                              resultsData?.metricQuery.tableCalculations || [],
+                              yAxisField,
+                          )
+                        : undefined),
+                nameTextStyle: { fontWeight: 'bold', align: 'left' },
+                nameLocation: 'end',
+            },
+            {
+                type: yAxisType,
+                name:
+                    yAxes[1]?.name ||
+                    (series.length === 1 && series[0].yAxisIndex === 1
+                        ? series[0].name ||
+                          getLabelFromField(
+                              explore,
+                              resultsData?.metricQuery.tableCalculations || [],
+                              yAxisField,
+                          )
+                        : undefined),
+                nameTextStyle: { fontWeight: 'bold', align: 'right' },
+                nameLocation: 'end',
+            },
+        ],
         series,
         legend: {
             show: series.length > 1,

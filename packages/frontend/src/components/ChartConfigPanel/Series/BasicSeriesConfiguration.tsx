@@ -70,6 +70,12 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                                     label,
                                 });
                             }}
+                            onYAxisChange={(yAxisIndex) => {
+                                updateSingleSeries({
+                                    ...series,
+                                    yAxisIndex,
+                                });
+                            }}
                         />
                     </SeriesBlock>
                 );

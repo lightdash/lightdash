@@ -18,6 +18,7 @@ type Props = {
     onColorChange: (color: string) => void;
     onNameChange: (name: string | undefined) => void;
     onLabelChange: (label: Series['label']) => void;
+    onYAxisChange: (yAxisIndex: number) => void;
 };
 
 const SingleSeriesConfiguration: FC<Props> = ({
@@ -28,6 +29,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
     onColorChange,
     onNameChange,
     onLabelChange,
+    onYAxisChange,
 }) => {
     const [isOpen, toggleIsOpen] = useToggle(false);
     return (
@@ -52,6 +54,19 @@ const SingleSeriesConfiguration: FC<Props> = ({
             </SeriesMainInputs>
             <Collapse isOpen={!isCollapsable || isOpen}>
                 <SeriesExtraInputs>
+                    <SeriesExtraInputWrapper label="Axis">
+                        <HTMLSelect
+                            fill
+                            value={series.yAxisIndex}
+                            options={[
+                                { value: 0, label: 'Left' },
+                                { value: 1, label: 'Right' },
+                            ]}
+                            onChange={(e) => {
+                                onYAxisChange(parseInt(e.target.value, 10));
+                            }}
+                        />
+                    </SeriesExtraInputWrapper>
                     <SeriesExtraInputWrapper label="Value labels">
                         <HTMLSelect
                             fill

@@ -175,19 +175,31 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
-                            <InputWrapper label="Y-axis label">
+                            <InputWrapper label="Y-axis label (left)">
                                 <InputGroup
                                     placeholder={
                                         dirtyEchartsConfig?.series?.[0]?.name ||
                                         (firstYAxisField
                                             ? getItemLabel(firstYAxisField)
-                                            : 'Enter Y-axis label')
+                                            : `Enter left Y-axis label`)
                                     }
-                                    defaultValue={
-                                        dirtyEchartsConfig?.yAxis?.[0].name
-                                    }
+                                    value={dirtyEchartsConfig?.yAxis?.[0]?.name}
                                     onBlur={(e) =>
-                                        setYAxisName(e.currentTarget.value)
+                                        setYAxisName(0, e.currentTarget.value)
+                                    }
+                                />
+                            </InputWrapper>
+                            <InputWrapper label="Y-axis label (right)">
+                                <InputGroup
+                                    placeholder={
+                                        dirtyEchartsConfig?.series?.[0]?.name ||
+                                        (firstYAxisField
+                                            ? getItemLabel(firstYAxisField)
+                                            : `Enter left Y-axis label`)
+                                    }
+                                    value={dirtyEchartsConfig?.yAxis?.[1]?.name}
+                                    onBlur={(e) =>
+                                        setYAxisName(1, e.currentTarget.value)
                                     }
                                 />
                             </InputWrapper>
