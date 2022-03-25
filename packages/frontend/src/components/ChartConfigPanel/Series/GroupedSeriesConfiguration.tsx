@@ -186,6 +186,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                 );
                                 return (
                                     <SingleSeriesConfiguration
+                                        key={getSeriesId(singleSeries)}
                                         isCollapsable
                                         series={singleSeries}
                                         placeholderName={`[${formattedValue}] ${getItemLabel(

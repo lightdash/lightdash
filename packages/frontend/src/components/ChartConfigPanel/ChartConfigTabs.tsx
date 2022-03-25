@@ -96,6 +96,21 @@ const ChartConfigTabs: FC = () => {
         [fallbackSeriesColours],
     );
 
+    const selectedAxisInSeries = Array.from(
+        new Set(
+            dirtyEchartsConfig?.series?.map(({ yAxisIndex }) => yAxisIndex),
+        ),
+    );
+    const isAxisTheSameForAllSeries: boolean =
+        selectedAxisInSeries.length === 1;
+    const selectedAxisIndex = selectedAxisInSeries[0] || 0;
+
+    const fallbackAxisName: string | undefined =
+        dirtyEchartsConfig?.series && dirtyEchartsConfig?.series.length === 1
+            ? dirtyEchartsConfig.series[0].name ||
+              (firstYAxisField && getItemLabel(firstYAxisField))
+            : undefined;
+
     return (
         <Wrapper>
             <Tabs
@@ -156,6 +171,28 @@ const ChartConfigTabs: FC = () => {
                     }
                 />
                 <Tab
+                    id="series"
+                    title="Series"
+                    panel={
+                        pivotDimension ? (
+                            <GroupedSeriesConfiguration
+                                items={items}
+                                series={dirtyEchartsConfig?.series}
+                                getSeriesColor={getSeriesColor}
+                                updateSingleSeries={updateSingleSeries}
+                                updateAllGroupedSeries={updateAllGroupedSeries}
+                            />
+                        ) : (
+                            <BasicSeriesConfiguration
+                                items={items}
+                                series={dirtyEchartsConfig?.series}
+                                getSeriesColor={getSeriesColor}
+                                updateSingleSeries={updateSingleSeries}
+                            />
+                        )
+                    }
+                />
+                <Tab
                     id="axes"
                     title="Axes"
                     panel={
@@ -178,12 +215,14 @@ const ChartConfigTabs: FC = () => {
                             <InputWrapper label="Y-axis label (left)">
                                 <InputGroup
                                     placeholder={
-                                        dirtyEchartsConfig?.series?.[0]?.name ||
-                                        (firstYAxisField
-                                            ? getItemLabel(firstYAxisField)
-                                            : `Enter left Y-axis label`)
+                                        !isAxisTheSameForAllSeries ||
+                                        selectedAxisIndex === 0
+                                            ? fallbackAxisName
+                                            : 'Enter left Y-axis label'
                                     }
-                                    value={dirtyEchartsConfig?.yAxis?.[0]?.name}
+                                    defaultValue={
+                                        dirtyEchartsConfig?.yAxis?.[0]?.name
+                                    }
                                     onBlur={(e) =>
                                         setYAxisName(0, e.currentTarget.value)
                                     }
@@ -192,40 +231,20 @@ const ChartConfigTabs: FC = () => {
                             <InputWrapper label="Y-axis label (right)">
                                 <InputGroup
                                     placeholder={
-                                        dirtyEchartsConfig?.series?.[0]?.name ||
-                                        (firstYAxisField
-                                            ? getItemLabel(firstYAxisField)
-                                            : `Enter left Y-axis label`)
+                                        isAxisTheSameForAllSeries &&
+                                        selectedAxisIndex === 1
+                                            ? fallbackAxisName
+                                            : 'Enter right Y-axis label'
                                     }
-                                    value={dirtyEchartsConfig?.yAxis?.[1]?.name}
+                                    defaultValue={
+                                        dirtyEchartsConfig?.yAxis?.[1]?.name
+                                    }
                                     onBlur={(e) =>
                                         setYAxisName(1, e.currentTarget.value)
                                     }
                                 />
                             </InputWrapper>
                         </>
-                    }
-                />
-                <Tab
-                    id="series"
-                    title="Series"
-                    panel={
-                        pivotDimension ? (
-                            <GroupedSeriesConfiguration
-                                items={items}
-                                series={dirtyEchartsConfig?.series}
-                                getSeriesColor={getSeriesColor}
-                                updateSingleSeries={updateSingleSeries}
-                                updateAllGroupedSeries={updateAllGroupedSeries}
-                            />
-                        ) : (
-                            <BasicSeriesConfiguration
-                                items={items}
-                                series={dirtyEchartsConfig?.series}
-                                getSeriesColor={getSeriesColor}
-                                updateSingleSeries={updateSingleSeries}
-                            />
-                        )
                     }
                 />
             </Tabs>

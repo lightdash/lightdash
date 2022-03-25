@@ -305,7 +305,6 @@ const useEcharts = () => {
     }
 
     const [xAxis] = validCartesianConfig.eChartsConfig?.xAxis || [];
-    const yAxes = validCartesianConfig.eChartsConfig?.yAxis || [{}, {}];
 
     const xAxisField = validCartesianConfig.layout?.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -321,6 +320,13 @@ const useEcharts = () => {
         xAxisField,
         yAxisField,
     );
+
+    const selectedAxisInSeries = Array.from(
+        new Set(series?.map(({ yAxisIndex }) => yAxisIndex)),
+    );
+    const isAxisTheSameForAllSeries: boolean =
+        selectedAxisInSeries.length === 1;
+    const selectedAxisIndex = selectedAxisInSeries[0] || 0;
 
     return {
         xAxis: {
@@ -339,8 +345,9 @@ const useEcharts = () => {
         yAxis: [
             {
                 type: yAxisType,
+                // todo: should be undefined if axis is not being used in any series
                 name:
-                    yAxes[0]?.name ||
+                    validCartesianConfig.eChartsConfig?.yAxis?.[0]?.name ||
                     (series.length === 1 &&
                     (series[0].yAxisIndex === 0 ||
                         series[0].yAxisIndex === undefined)
@@ -357,7 +364,7 @@ const useEcharts = () => {
             {
                 type: yAxisType,
                 name:
-                    yAxes[1]?.name ||
+                    validCartesianConfig.eChartsConfig?.yAxis?.[1]?.name ||
                     (series.length === 1 && series[0].yAxisIndex === 1
                         ? series[0].name ||
                           getLabelFromField(
@@ -368,6 +375,9 @@ const useEcharts = () => {
                         : undefined),
                 nameTextStyle: { fontWeight: 'bold', align: 'right' },
                 nameLocation: 'end',
+                splitLine: {
+                    show: isAxisTheSameForAllSeries,
+                },
             },
         ],
         series,
