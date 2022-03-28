@@ -8,8 +8,10 @@ import {
     fieldId,
     findFieldByIdInExplore,
     friendlyName,
+    getAxisName,
     getDimensions,
     getFieldLabel,
+    getFields,
     hashFieldReference,
     MetricType,
     Series,
@@ -328,6 +330,11 @@ const useEcharts = () => {
         selectedAxisInSeries.length === 1;
     const selectedAxisIndex = selectedAxisInSeries[0] || 0;
 
+    const items = [
+        ...getFields(explore),
+        ...(resultsData?.metricQuery.tableCalculations || []),
+    ];
+
     return {
         xAxis: {
             type: xAxisType,
@@ -345,34 +352,29 @@ const useEcharts = () => {
         yAxis: [
             {
                 type: yAxisType,
-                // todo: should be undefined if axis is not being used in any series
-                name:
-                    validCartesianConfig.eChartsConfig?.yAxis?.[0]?.name ||
-                    (series.length === 1 &&
-                    (series[0].yAxisIndex === 0 ||
-                        series[0].yAxisIndex === undefined)
-                        ? series[0].name ||
-                          getLabelFromField(
-                              explore,
-                              resultsData?.metricQuery.tableCalculations || [],
-                              yAxisField,
-                          )
-                        : undefined),
+                name: getAxisName({
+                    isAxisTheSameForAllSeries,
+                    selectedAxisIndex,
+                    axisIndex: 0,
+                    axisName:
+                        validCartesianConfig.eChartsConfig?.yAxis?.[0]?.name,
+                    series: validCartesianConfig.eChartsConfig?.series,
+                    items,
+                }),
                 nameTextStyle: { fontWeight: 'bold', align: 'left' },
                 nameLocation: 'end',
             },
             {
                 type: yAxisType,
-                name:
-                    validCartesianConfig.eChartsConfig?.yAxis?.[1]?.name ||
-                    (series.length === 1 && series[0].yAxisIndex === 1
-                        ? series[0].name ||
-                          getLabelFromField(
-                              explore,
-                              resultsData?.metricQuery.tableCalculations || [],
-                              yAxisField,
-                          )
-                        : undefined),
+                name: getAxisName({
+                    isAxisTheSameForAllSeries,
+                    selectedAxisIndex,
+                    axisIndex: 1,
+                    axisName:
+                        validCartesianConfig.eChartsConfig?.yAxis?.[1]?.name,
+                    series: validCartesianConfig.eChartsConfig?.series,
+                    items,
+                }),
                 nameTextStyle: { fontWeight: 'bold', align: 'right' },
                 nameLocation: 'end',
                 splitLine: {

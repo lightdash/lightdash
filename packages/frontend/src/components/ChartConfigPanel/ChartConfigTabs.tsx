@@ -1,6 +1,7 @@
 import { InputGroup, Tab, Tabs } from '@blueprintjs/core';
 import {
     fieldId,
+    getAxisName,
     getDefaultSeriesColor,
     getDimensions,
     getItemId,
@@ -73,10 +74,6 @@ const ChartConfigTabs: FC = () => {
         (item) => getItemId(item) === dirtyLayout?.xField,
     );
 
-    const firstYAxisField = items.find(
-        (item) => getItemId(item) === dirtyLayout?.yField?.[0],
-    );
-
     const fallbackSeriesColours = useMemo(() => {
         return (dirtyEchartsConfig?.series || [])
             .filter(({ color }) => !color)
@@ -104,12 +101,6 @@ const ChartConfigTabs: FC = () => {
     const isAxisTheSameForAllSeries: boolean =
         selectedAxisInSeries.length === 1;
     const selectedAxisIndex = selectedAxisInSeries[0] || 0;
-
-    const fallbackAxisName: string | undefined =
-        dirtyEchartsConfig?.series && dirtyEchartsConfig?.series.length === 1
-            ? dirtyEchartsConfig.series[0].name ||
-              (firstYAxisField && getItemLabel(firstYAxisField))
-            : undefined;
 
     return (
         <Wrapper>
@@ -215,10 +206,13 @@ const ChartConfigTabs: FC = () => {
                             <InputWrapper label="Y-axis label (left)">
                                 <InputGroup
                                     placeholder={
-                                        !isAxisTheSameForAllSeries ||
-                                        selectedAxisIndex === 0
-                                            ? fallbackAxisName
-                                            : 'Enter left Y-axis label'
+                                        getAxisName({
+                                            isAxisTheSameForAllSeries,
+                                            selectedAxisIndex,
+                                            axisIndex: 0,
+                                            series: dirtyEchartsConfig?.series,
+                                            items,
+                                        }) || 'Enter left Y-axis label'
                                     }
                                     defaultValue={
                                         dirtyEchartsConfig?.yAxis?.[0]?.name
@@ -231,10 +225,13 @@ const ChartConfigTabs: FC = () => {
                             <InputWrapper label="Y-axis label (right)">
                                 <InputGroup
                                     placeholder={
-                                        isAxisTheSameForAllSeries &&
-                                        selectedAxisIndex === 1
-                                            ? fallbackAxisName
-                                            : 'Enter right Y-axis label'
+                                        getAxisName({
+                                            isAxisTheSameForAllSeries,
+                                            selectedAxisIndex,
+                                            axisIndex: 1,
+                                            series: dirtyEchartsConfig?.series,
+                                            items,
+                                        }) || 'Enter right Y-axis label'
                                     }
                                     defaultValue={
                                         dirtyEchartsConfig?.yAxis?.[1]?.name
