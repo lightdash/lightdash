@@ -88,6 +88,15 @@ const useCartesianChartConfig = (
         }));
     }, []);
 
+    const updateYField = useCallback((index: number, type: string) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            yField: prev?.yField?.map((field, i) => {
+                return i === index ? type : field;
+            }),
+        }));
+    }, []);
+
     const setType = useCallback((type: Series['type'], flipAxes: boolean) => {
         setChartType(type);
         setDirtyLayout((prev) => ({
@@ -305,6 +314,7 @@ const useCartesianChartConfig = (
         updateSingleSeries,
         removeSingleSeries,
         updateAllGroupedSeries,
+        updateYField,
     };
 };
 

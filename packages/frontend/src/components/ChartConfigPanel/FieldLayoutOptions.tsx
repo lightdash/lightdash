@@ -10,8 +10,6 @@ import {
     DeleteFieldButton,
 } from './ChartConfigPanel.styles';
 
-type Item = Field | TableCalculation;
-
 type Props = {
     items: (Field | TableCalculation)[];
 };
@@ -25,6 +23,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             setXField,
             addSingleSeries,
             removeSingleSeries,
+            updateYField,
         },
         pivotDimensions,
         setPivotDimensions,
@@ -32,47 +31,43 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     const [activeYField, setActiveYField] = useState<Item>();
     const [yInputFields, setYInputFields] = useState([items]);
     const pivotDimension = pivotDimensions?.[0];
+    const [yFieldsKeys, setYFieldKeys] = useState(dirtyLayout?.yField || []);
 
     useEffect(() => {
-        items.forEach((item) => {
-            if (items.length > yInputFields.length) {
-                setYInputFields([...yInputFields, item && items]);
-            }
-        });
-    });
+        if (dirtyLayout) {
+            setYFieldKeys(dirtyLayout?.yField || []);
+        }
+    }, [dirtyLayout?.yField]);
 
+    // X axis logic
     const xAxisField = items.find(
         (item) => getItemId(item) === dirtyLayout?.xField,
     );
-
-    const yAxisFields = items.filter((item) => {
-        // @ts-ignore
-        return item.fieldType === 'metric';
-    });
-
-    const groupSelectedField = items.find(
-        (item) => getItemId(item) === pivotDimension,
-    );
-
-    const yFieldsKeys = dirtyLayout?.yField || [];
 
     const onXClick = (itemId: any) => {
         const isActive = xAxisField && getItemId(xAxisField) === itemId;
         setXField(!isActive ? itemId : undefined);
     };
-    const onYClick = (itemId: any) => {
-        const isYActive = yFieldsKeys.includes(itemId);
-        if (!isYActive) {
-            addSingleSeries(itemId);
-        } else {
-            const index = yFieldsKeys.findIndex(
-                (yField: any) => yField === itemId,
-            );
-            if (index !== undefined) {
-                removeSingleSeries(index);
-            }
-        }
+
+    // Y axis logic
+    const yActiveField = (field: string) => {
+        return items.find((item) => field.includes(item.name));
     };
+
+    const availableYFields = () => {
+        return items.filter(
+            (item) => !dirtyLayout?.yField?.includes(getItemId(item)),
+        );
+    };
+
+    const onAddField = () => {
+        addSingleSeries(getItemId(availableYFields()[0]));
+    };
+
+    // Group series logic
+    const groupSelectedField = items.find(
+        (item) => getItemId(item) === pivotDimension,
+    );
 
     const onGroupClick = (itemId: any) => {
         const isGroupActive = !!pivotDimension && pivotDimension === itemId;
@@ -82,17 +77,6 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             : setPivotDimensions(undefined);
     };
 
-    const onAddField = () => {
-        // setYInputFields([...yInputFields, items]);
-    };
-
-    // const removeItem = (index: number) => {
-    //     console.log(index);
-    //     if (index > -1) {
-    //         setYInputFields(yInputFields.splice(index, 1));
-    //     }
-    // };
-    console.log(dirtyLayout);
     return (
         <>
             <AxisGroup>
@@ -112,40 +96,39 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             <AxisGroup>
                 <AxisTitle>Y axis field</AxisTitle>
 
-                {yInputFields.map((field, index) => (
-                    <AxisFieldDropdown key={`${index}-y-axis`}>
-                        <FieldAutoComplete
-                            key={`inputfield-${index}`}
-                            fields={items}
-                            activeField={activeYField || firstYAxisField}
-                            onChange={(item) => {
-                                console.log(item);
-                                if (isField(item)) {
-                                    setActiveYField(item);
-                                    onYClick(getItemId(item));
-                                }
-                            }}
-                        />
-                        {index !== 0 && (
-                            <Button
-                                minimal
-                                icon="cross"
-                                onClick={(e) => {
-                                    e.currentTarget.parentElement?.remove();
-                                    //  removeItem(index);
-                                }}
-                            />
-                        )}
-                    </AxisFieldDropdown>
-                ))}
-
-                <Button
-                    minimal
-                    intent="primary"
-                    //  onClick={() => onAddField()}
-                >
-                    + Add field
-                </Button>
+                {dirtyLayout?.yField
+                    ? dirtyLayout?.yField.map((field, index) => (
+                          <AxisFieldDropdown key={`${index}-y-axis`}>
+                              <FieldAutoComplete
+                                  fields={availableYFields()}
+                                  activeField={yActiveField(field)}
+                                  onChange={(item) => {
+                                      if (isField(item)) {
+                                          updateYField(index, getItemId(item));
+                                      }
+                                  }}
+                              />
+                              {dirtyLayout.yField?.length !== 1 && (
+                                  <DeleteFieldButton
+                                      minimal
+                                      icon="cross"
+                                      onClick={() => {
+                                          removeSingleSeries(index);
+                                      }}
+                                  />
+                              )}
+                          </AxisFieldDropdown>
+                      ))
+                    : null}
+                {items.length > yFieldsKeys.length && (
+                    <Button
+                        minimal
+                        intent="primary"
+                        onClick={() => onAddField()}
+                    >
+                        + Add
+                    </Button>
+                )}
             </AxisGroup>
             <AxisGroup>
                 <AxisTitle>Group</AxisTitle>
