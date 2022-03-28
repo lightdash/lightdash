@@ -43,6 +43,22 @@ type ProjectServiceDependencies = {
     savedChartModel: SavedChartModel;
 };
 
+// TODO Extract to another file
+function formatRows(rows: { [col: string]: any }[]): { [col: string]: any }[] {
+    const formattedRows: { [col: string]: any }[] = [];
+    rows.forEach((row) => {
+        const formattedRow: { [col: string]: any } = {};
+        Object.keys(row).forEach((columnName: string) => {
+            const col = row[columnName];
+            // TODO do conversion based on metrics/dimension
+            formattedRow[columnName] = `${col} %`;
+        });
+
+        formattedRows.push(formattedRow);
+    });
+    return formattedRows;
+}
+
 export class ProjectService {
     projectModel: ProjectModel;
 
@@ -291,10 +307,11 @@ export class ProjectService {
         const adapter = await this.getAdapter(projectUuid);
         const rows = await adapter.runQuery(query);
 
-        // TODO this could be the place were we want to do some post processing
+        const formattedRows = formatRows(rows);
         return {
             rows,
             metricQuery,
+            formattedRows,
         };
     }
 

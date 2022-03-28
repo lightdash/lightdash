@@ -28,7 +28,10 @@ export const ExplorerResults = () => {
     } = useExplorer();
     const activeExplore = useExplore(activeTableName);
     const safeData = React.useMemo(
-        () => (queryResults.status === 'success' ? queryResults.data.rows : []),
+        () =>
+            queryResults.status === 'success'
+                ? queryResults.data.formattedRows
+                : [],
         [queryResults.status, queryResults.data],
     );
 

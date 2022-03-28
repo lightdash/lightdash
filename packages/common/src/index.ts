@@ -514,7 +514,8 @@ export type DbtColumnLightdashMetric = {
 
 export type ApiQueryResults = {
     metricQuery: MetricQuery;
-    rows: { [col: string]: any }[];
+    rows: { [col: string]: any }[]; // TODO make this a type
+    formattedRows?: { [col: string]: any }[];
 };
 
 export type ApiSqlQueryResults = {
