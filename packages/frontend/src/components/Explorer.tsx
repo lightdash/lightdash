@@ -18,6 +18,7 @@ import {
     DimensionType,
     fieldId,
     getDefaultChartTileSize,
+    getResultValues,
     getVisibleFields,
     isFilterableField,
 } from 'common';
@@ -147,17 +148,19 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         if (field.type === DimensionType.STRING) {
                             const currentSuggestions =
                                 prev[fieldId(field)]?.suggestions || [];
-                            const newSuggestions: string[] = // FIXME
-                                queryResults.data?.rows.reduce<string[]>(
-                                    (acc, row) => {
+                            const newSuggestions: string[] =
+                                (queryResults.data &&
+                                    getResultValues(
+                                        queryResults.data.rows,
+                                        true,
+                                    ).reduce<string[]>((acc, row) => {
                                         const value = row[fieldId(field)];
                                         if (typeof value === 'string') {
                                             return [...acc, value];
                                         }
                                         return acc;
-                                    },
-                                    [],
-                                ) || [];
+                                    }, [])) ||
+                                [];
                             suggestions = Array.from(
                                 new Set([
                                     ...currentSuggestions,
