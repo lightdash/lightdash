@@ -6,6 +6,7 @@
         },
         "config": {
             "type": "object",
+            "nullable": true,
             "additionalProperties": true
         }
     }

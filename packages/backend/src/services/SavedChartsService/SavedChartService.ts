@@ -45,16 +45,21 @@ export class SavedChartService {
                 savedChart.chartConfig.type === ChartType.CARTESIAN
                     ? {
                           xAxisCount: (
-                              savedChart.chartConfig.config.xAxes || []
+                              savedChart.chartConfig.config.eChartsConfig
+                                  .xAxis || []
                           ).length,
                           yAxisCount: (
-                              savedChart.chartConfig.config.yAxes || []
+                              savedChart.chartConfig.config.eChartsConfig
+                                  .yAxis || []
                           ).length,
-                          seriesTypes: savedChart.chartConfig.config.series.map(
-                              ({ type }) => type,
-                          ),
-                          seriesCount:
-                              savedChart.chartConfig.config.series.length,
+                          seriesTypes: (
+                              savedChart.chartConfig.config.eChartsConfig
+                                  .series || []
+                          ).map(({ type }) => type),
+                          seriesCount: (
+                              savedChart.chartConfig.config.eChartsConfig
+                                  .series || []
+                          ).length,
                       }
                     : undefined,
         };

@@ -510,6 +510,7 @@ export type DbtColumnLightdashMetric = {
     hidden?: boolean;
     round?: number;
     format?: string;
+
 };
 
 export type ApiQueryResults = {

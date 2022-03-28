@@ -262,7 +262,7 @@
                                                 "results": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/components/schemas/Projects"
+                                                        "$ref": "#/components/schemas/Project"
                                                     }
                                                 }
                                             },
@@ -1355,12 +1355,6 @@
                 },
                 "required": ["name", "projectUuid"]
             },
-            "Projects": {
-                "type": "array",
-                "items": {
-                    "$ref": "#/components/schemas/Project"
-                }
-            },
             "CreateInviteLink": {
                 "type": "object",
                 "properties": {
@@ -1657,6 +1651,7 @@
                     },
                     "config": {
                         "type": "object",
+                        "nullable": true,
                         "additionalProperties": true
                     }
                 }

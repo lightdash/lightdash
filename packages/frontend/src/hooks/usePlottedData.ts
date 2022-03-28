@@ -1,10 +1,11 @@
-import { ApiQueryResults, ChartConfig, Explore } from 'common';
+import {
+    ApiQueryResults,
+    ChartConfig,
+    Explore,
+    hashFieldReference,
+    isCompleteLayout,
+} from 'common';
 import { useMemo } from 'react';
-
-export const getPivotedDimension = (
-    pivotValue: string,
-    yAxis: string,
-): string => `${pivotValue}_${yAxis}`;
 
 export const getPivotedData = (
     rows: ApiQueryResults['rows'],
@@ -18,8 +19,14 @@ export const getPivotedData = (
                 [xAxis]: row[xAxis],
             };
             yAxis.forEach((metricKey) => {
-                acc[row[xAxis]][getPivotedDimension(row[pivotKey], metricKey)] =
-                    row[metricKey];
+                acc[row[xAxis]][
+                    hashFieldReference({
+                        field: metricKey,
+                        pivotValues: [
+                            { field: pivotKey, value: row[pivotKey] },
+                        ],
+                    })
+                ] = row[metricKey];
             });
             return acc;
         }, {}),
@@ -33,15 +40,19 @@ const usePlottedData = (
     pivotDimensions: string[] | undefined,
 ): ApiQueryResults['rows'] => {
     return useMemo(() => {
-        if (!explore || !resultsData || !chartConfig) {
+        if (!explore || !resultsData) {
             return [];
         }
         const pivotDimension = pivotDimensions?.[0];
-        if (pivotDimension && chartConfig.series.length > 0) {
+        if (
+            pivotDimension &&
+            chartConfig &&
+            isCompleteLayout(chartConfig.layout)
+        ) {
             return getPivotedData(
                 resultsData.rows,
-                chartConfig.series[0].xField,
-                chartConfig.series.map(({ yField }) => yField),
+                chartConfig.layout.xField,
+                chartConfig.layout.yField,
                 pivotDimension,
             );
         }

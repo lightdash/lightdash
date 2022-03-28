@@ -1,40 +1,47 @@
-import { HTMLSelect, InputGroup, Switch, Tab, Tabs } from '@blueprintjs/core';
+import { InputGroup, Tab, Tabs } from '@blueprintjs/core';
 import {
     fieldId,
+    getDefaultSeriesColor,
     getDimensions,
     getItemId,
     getItemLabel,
     getMetrics,
+    getSeriesId,
     isField,
     Metric,
     TableCalculation,
 } from 'common';
-import React, { FC, useState } from 'react';
+import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
-    FieldRow,
-    FieldRowInputs,
     FieldsGrid,
     GridLabel,
     InputWrapper,
     Wrapper,
 } from './ChartConfigPanel.styles';
 import FieldLayoutOptions from './FieldLayoutOptions';
-import SeriesColorPicker from './SeriesColorPicker';
+import BasicSeriesConfiguration from './Series/BasicSeriesConfiguration';
+import GroupedSeriesConfiguration from './Series/GroupedSeriesConfiguration';
 
 const ChartConfigTabs: FC = () => {
     const {
         explore,
         resultsData,
-        cartesianConfig,
+        cartesianConfig: {
+            dirtyLayout,
+            dirtyEchartsConfig,
+            setXField,
+            addSingleSeries,
+            removeSingleSeries,
+            updateSingleSeries,
+            updateAllGroupedSeries,
+            setXAxisName,
+            setYAxisName,
+        },
         pivotDimensions,
         setPivotDimensions,
     } = useVisualizationContext();
-    const yFieldsKeys =
-        cartesianConfig.dirtyConfig?.series?.reduce<string[]>(
-            (sum, { yField }) => (yField ? [...sum, yField] : sum),
-            [],
-        ) || [];
+    const yFieldsKeys = dirtyLayout?.yField || [];
     const pivotDimension = pivotDimensions?.[0];
 
     const [tab, setTab] = useState<string | number>('layout');
@@ -63,20 +70,31 @@ const ChartConfigTabs: FC = () => {
     const items = [...dimensionsInMetricQuery, ...metricsAndTableCalculations];
 
     const xAxisField = items.find(
-        (item) =>
-            getItemId(item) ===
-            (cartesianConfig.dirtyConfig?.series || [])[0]?.xField,
+        (item) => getItemId(item) === dirtyLayout?.xField,
     );
 
     const firstYAxisField = items.find(
-        (item) =>
-            getItemId(item) ===
-            (cartesianConfig.dirtyConfig?.series || [])[0]?.yField,
+        (item) => getItemId(item) === dirtyLayout?.yField?.[0],
     );
 
-    const showValues = cartesianConfig.dirtyConfig?.series
-        ? cartesianConfig.dirtyConfig?.series[0]?.label?.show
-        : false;
+    const fallbackSeriesColours = useMemo(() => {
+        return (dirtyEchartsConfig?.series || [])
+            .filter(({ color }) => !color)
+            .reduce<Record<string, string>>(
+                (sum, series, index) => ({
+                    ...sum,
+                    [getSeriesId(series)]: getDefaultSeriesColor(index),
+                }),
+                {},
+            );
+    }, [dirtyEchartsConfig]);
+
+    const getSeriesColor = useCallback(
+        (seriesId: string) => {
+            return fallbackSeriesColours[seriesId];
+        },
+        [fallbackSeriesColours],
+    );
 
     return (
         <Wrapper>
@@ -108,27 +126,21 @@ const ChartConfigTabs: FC = () => {
                                             pivotDimension === itemId
                                         }
                                         onXClick={(isActive) =>
-                                            cartesianConfig.setXField(
+                                            setXField(
                                                 isActive ? itemId : undefined,
                                             )
                                         }
                                         onYClick={(isActive) => {
                                             if (isActive) {
-                                                cartesianConfig.addSingleSeries(
-                                                    {
-                                                        yField: itemId,
-                                                    },
-                                                );
+                                                addSingleSeries(itemId);
                                             } else {
-                                                const seriesIndex =
-                                                    cartesianConfig.dirtyConfig?.series?.findIndex(
-                                                        ({ yField }) =>
+                                                const index =
+                                                    yFieldsKeys.findIndex(
+                                                        (yField) =>
                                                             yField === itemId,
                                                     );
-                                                if (seriesIndex !== undefined) {
-                                                    cartesianConfig.removeSingleSeries(
-                                                        seriesIndex,
-                                                    );
+                                                if (index !== undefined) {
+                                                    removeSingleSeries(index);
                                                 }
                                             }
                                         }}
@@ -155,28 +167,27 @@ const ChartConfigTabs: FC = () => {
                                             ? getItemLabel(xAxisField)
                                             : 'Enter X-axis label'
                                     }
-                                    defaultValue={cartesianConfig.xAxisName}
+                                    defaultValue={
+                                        dirtyEchartsConfig?.xAxis?.[0].name
+                                    }
                                     onBlur={(e) =>
-                                        cartesianConfig.setXAxisName(
-                                            e.currentTarget.value,
-                                        )
+                                        setXAxisName(e.currentTarget.value)
                                     }
                                 />
                             </InputWrapper>
                             <InputWrapper label="Y-axis label">
                                 <InputGroup
                                     placeholder={
-                                        cartesianConfig.dirtyConfig?.series?.[0]
-                                            ?.name ||
+                                        dirtyEchartsConfig?.series?.[0]?.name ||
                                         (firstYAxisField
                                             ? getItemLabel(firstYAxisField)
                                             : 'Enter Y-axis label')
                                     }
-                                    defaultValue={cartesianConfig.yAxisName}
+                                    defaultValue={
+                                        dirtyEchartsConfig?.yAxis?.[0].name
+                                    }
                                     onBlur={(e) =>
-                                        cartesianConfig.setYAxisName(
-                                            e.currentTarget.value,
-                                        )
+                                        setYAxisName(e.currentTarget.value)
                                     }
                                 />
                             </InputWrapper>
@@ -187,105 +198,22 @@ const ChartConfigTabs: FC = () => {
                     id="series"
                     title="Series"
                     panel={
-                        <>
-                            {!pivotDimension && (
-                                <InputWrapper label="Custom series labels">
-                                    {cartesianConfig.dirtyConfig?.series?.map(
-                                        (series, index) => {
-                                            const activeField = items.find(
-                                                (item) =>
-                                                    getItemId(item) ===
-                                                    series.yField,
-                                            );
-                                            if (!activeField) {
-                                                return null;
-                                            }
-                                            return (
-                                                <FieldRow>
-                                                    <FieldRowInputs>
-                                                        <SeriesColorPicker
-                                                            color={series.color}
-                                                            onChange={(
-                                                                color,
-                                                            ) => {
-                                                                cartesianConfig.updateSingleSeries(
-                                                                    index,
-                                                                    {
-                                                                        ...series,
-                                                                        color,
-                                                                    },
-                                                                );
-                                                            }}
-                                                        />
-
-                                                        <InputGroup
-                                                            fill
-                                                            placeholder={
-                                                                activeField
-                                                                    ? getItemLabel(
-                                                                          activeField,
-                                                                      )
-                                                                    : 'Enter custom series label'
-                                                            }
-                                                            defaultValue={
-                                                                series.name
-                                                            }
-                                                            onBlur={(e) =>
-                                                                cartesianConfig.updateSingleSeries(
-                                                                    index,
-                                                                    {
-                                                                        ...series,
-                                                                        name: e
-                                                                            .currentTarget
-                                                                            .value,
-                                                                    },
-                                                                )
-                                                            }
-                                                        />
-                                                    </FieldRowInputs>
-                                                </FieldRow>
-                                            );
-                                        },
-                                    )}
-                                </InputWrapper>
-                            )}
-                            <InputWrapper label="Value labels">
-                                <Switch
-                                    checked={showValues}
-                                    label={showValues ? 'On' : 'Off'}
-                                    onChange={(e) =>
-                                        cartesianConfig.setLabel(
-                                            e.currentTarget.checked
-                                                ? {
-                                                      show: true,
-                                                      position: 'top',
-                                                  }
-                                                : {
-                                                      show: false,
-                                                      position: undefined,
-                                                  },
-                                        )
-                                    }
-                                />
-                                {showValues && (
-                                    <HTMLSelect
-                                        options={[
-                                            'top',
-                                            'bottom',
-                                            'left',
-                                            'right',
-                                        ]}
-                                        fill
-                                        onChange={(e) =>
-                                            cartesianConfig.setLabel({
-                                                position: e.currentTarget
-                                                    .value as any,
-                                            })
-                                        }
-                                    />
-                                )}
-                            </InputWrapper>
-                        </>
+                        pivotDimension ? (
+                            <GroupedSeriesConfiguration
+                                items={items}
+                                series={dirtyEchartsConfig?.series}
+                                getSeriesColor={getSeriesColor}
+                                updateSingleSeries={updateSingleSeries}
+                                updateAllGroupedSeries={updateAllGroupedSeries}
+                            />
+                        ) : (
+                            <BasicSeriesConfiguration
+                                items={items}
+                                series={dirtyEchartsConfig?.series}
+                                getSeriesColor={getSeriesColor}
+                                updateSingleSeries={updateSingleSeries}
+                            />
+                        )
                     }
                 />
             </Tabs>

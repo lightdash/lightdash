@@ -65,11 +65,15 @@ export const VisualizationProvider: FC<Props> = ({
         pivotDimensions,
         resultsData,
     );
-    const cartesianConfig = useCartesianChartConfig(chartConfigs, resultsData);
-    const { validConfig } = cartesianConfig;
+    const cartesianConfig = useCartesianChartConfig(
+        chartConfigs,
+        validPivotDimensions?.[0],
+        resultsData,
+    );
+    const { validCartesianConfig } = cartesianConfig;
     const plotData = usePlottedData(
         explore,
-        validConfig,
+        validCartesianConfig,
         resultsData,
         validPivotDimensions,
     );
@@ -82,8 +86,8 @@ export const VisualizationProvider: FC<Props> = ({
     );
 
     useEffect(() => {
-        onChartConfigChange?.(validConfig);
-    }, [validConfig, onChartConfigChange]);
+        onChartConfigChange?.(validCartesianConfig);
+    }, [validCartesianConfig, onChartConfigChange]);
 
     useEffect(() => {
         onPivotDimensionsChange?.(validPivotDimensions);

@@ -29,20 +29,34 @@ export async function seed(knex: Knex): Promise<void> {
         chartConfig: {
             type: ChartType.CARTESIAN,
             config: {
-                series: [
-                    {
-                        type: CartesianSeriesType.BAR,
-                        flipAxes: true,
-                        xField: 'payments_payment_method',
-                        yField: 'payments_total_revenue',
-                    },
-                    {
-                        type: CartesianSeriesType.BAR,
-                        flipAxes: true,
-                        xField: 'payments_payment_method',
-                        yField: 'payments_unique_payment_count',
-                    },
-                ],
+                layout: {
+                    flipAxes: true,
+                    xField: 'payments_payment_method',
+                    yField: [
+                        'payments_total_revenue',
+                        'payments_unique_payment_count',
+                    ],
+                },
+                eChartsConfig: {
+                    series: [
+                        {
+                            encode: {
+                                xRef: { field: 'payments_payment_method' },
+                                yRef: { field: 'payments_total_revenue' },
+                            },
+                            type: CartesianSeriesType.BAR,
+                        },
+                        {
+                            encode: {
+                                xRef: { field: 'payments_payment_method' },
+                                yRef: {
+                                    field: 'payments_unique_payment_count',
+                                },
+                            },
+                            type: CartesianSeriesType.BAR,
+                        },
+                    ],
+                },
             },
         },
         tableConfig: {
@@ -114,18 +128,31 @@ export async function seed(knex: Knex): Promise<void> {
         chartConfig: {
             type: ChartType.CARTESIAN,
             config: {
-                series: [
-                    {
-                        type: CartesianSeriesType.LINE,
-                        xField: 'orders_order_date',
-                        yField: 'orders_unique_order_count',
-                    },
-                    {
-                        type: CartesianSeriesType.LINE,
-                        xField: 'orders_order_date',
-                        yField: 'cumulative_order_count',
-                    },
-                ],
+                layout: {
+                    xField: 'orders_order_date',
+                    yField: [
+                        'orders_unique_order_count',
+                        'cumulative_order_count',
+                    ],
+                },
+                eChartsConfig: {
+                    series: [
+                        {
+                            encode: {
+                                xRef: { field: 'orders_order_date' },
+                                yRef: { field: 'orders_unique_order_count' },
+                            },
+                            type: CartesianSeriesType.LINE,
+                        },
+                        {
+                            encode: {
+                                xRef: { field: 'orders_order_date' },
+                                yRef: { field: 'cumulative_order_count' },
+                            },
+                            type: CartesianSeriesType.LINE,
+                        },
+                    ],
+                },
             },
         },
         tableConfig: {
@@ -151,14 +178,22 @@ export async function seed(knex: Knex): Promise<void> {
         chartConfig: {
             type: ChartType.CARTESIAN,
             config: {
-                series: [
-                    {
-                        flipAxes: true,
-                        type: CartesianSeriesType.BAR,
-                        xField: 'customers_customer_id',
-                        yField: 'orders_avg_amount',
-                    },
-                ],
+                layout: {
+                    xField: 'customers_customer_id',
+                    yField: ['orders_avg_amount'],
+                    flipAxes: true,
+                },
+                eChartsConfig: {
+                    series: [
+                        {
+                            encode: {
+                                xRef: { field: 'customers_customer_id' },
+                                yRef: { field: 'orders_avg_amount' },
+                            },
+                            type: CartesianSeriesType.BAR,
+                        },
+                    ],
+                },
             },
         },
         tableConfig: {
