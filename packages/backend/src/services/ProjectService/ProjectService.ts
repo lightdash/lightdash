@@ -15,6 +15,7 @@ import {
     MetricQuery,
     Project,
     ProjectCatalog,
+    ResultRow,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
@@ -62,8 +63,8 @@ function formatValue(format: string, value: any): any {
 function formatRows(
     rows: { [col: string]: any }[],
     explore: Explore,
-): { [col: string]: any }[] {
-    const formattedRows: { [col: string]: any }[] = [];
+): ResultRow[] {
+    const formattedRows: ResultRow[] = [];
 
     // TODO do this in a better way . Suggestions? do we have a similar function somewhere ?
     // Currently,find this column format flag from explorer
@@ -89,14 +90,19 @@ function formatRows(
         return '';
     }
     rows.forEach((row) => {
-        const formattedRow: { [col: string]: any } = {};
+        const formattedRow: ResultRow = {};
         Object.keys(row).forEach((columnName: string) => {
             const col = row[columnName];
 
             const format = getFormat(columnName);
             const formattedColumn = formatValue(format, col);
 
-            formattedRow[columnName] = formattedColumn;
+            formattedRow[columnName] = {
+                value: {
+                    raw: col,
+                    formatted: formattedColumn,
+                },
+            };
         });
 
         formattedRows.push(formattedRow);
@@ -355,9 +361,8 @@ export class ProjectService {
 
         const formattedRows = formatRows(rows, explore);
         return {
-            rows,
+            rows: formattedRows,
             metricQuery,
-            formattedRows,
         };
     }
 

@@ -510,12 +510,19 @@ export type DbtColumnLightdashMetric = {
     hidden?: boolean;
     round?: number;
     format?: string;
-
 };
 
+export type ResultRow = {
+    [col: string]: {
+        [value: string]: {
+            raw: any;
+            formatted: string;
+        };
+    };
+};
 export type ApiQueryResults = {
     metricQuery: MetricQuery;
-    rows: { [col: string]: any }[]; // TODO make this a type
+    rows: ResultRow[];
     formattedRows?: { [col: string]: any }[];
 };
 
