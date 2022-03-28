@@ -2,6 +2,7 @@ import { Colors, HTMLSelect } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     CartesianSeriesType,
+    CartesianChartLayout,
     Field,
     getItemId,
     getItemLabel,
@@ -45,6 +46,10 @@ const CHART_TYPE_OPTIONS = [
     { value: CartesianSeriesType.BAR, label: 'Bar' },
     { value: CartesianSeriesType.LINE, label: 'Line' },
     { value: CartesianSeriesType.SCATTER, label: 'Scatter' },
+
+const FLIPPED_AXIS_OPTIONS = [
+    { value: 0, label: 'Bottom' },
+    { value: 1, label: 'Top' },
 ];
 
 const getFormatterValue = (

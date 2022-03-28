@@ -1,6 +1,5 @@
 import { Button, Collapse, HTMLSelect, InputGroup } from '@blueprintjs/core';
-import { CartesianChartLayout, Series } from 'common';
-import { CartesianSeriesType, Series } from 'common';
+import { CartesianChartLayout, CartesianSeriesType, Series } from 'common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import {
