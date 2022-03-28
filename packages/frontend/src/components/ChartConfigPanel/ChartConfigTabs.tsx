@@ -1,6 +1,5 @@
-import { InputGroup, Tab, Tabs, HTMLSelect } from '@blueprintjs/core';
+import { Button, ButtonGroup, InputGroup, Tab, Tabs } from '@blueprintjs/core';
 import {
-    CartesianSeriesType,
     fieldId,
     getAxisName,
     getDefaultSeriesColor,
@@ -31,13 +30,13 @@ const ChartConfigTabs: FC = () => {
         resultsData,
         cartesianConfig: {
             dirtyLayout,
-            dirtyChartType,
             dirtyEchartsConfig,
             setXField,
             addSingleSeries,
             removeSingleSeries,
             updateSingleSeries,
             setStacking,
+            isStacked,
             updateAllGroupedSeries,
             setXAxisName,
             setYAxisName,
@@ -161,19 +160,23 @@ const ChartConfigTabs: FC = () => {
                                     />
                                 );
                             })}
-                            {dirtyChartType === CartesianSeriesType.BAR && (
+                            {(dirtyEchartsConfig?.series || []).length > 1 && (
                                 <>
                                     <GridLabel>Stacking</GridLabel>
-                                    <HTMLSelect
-                                        options={['stacking', 'no stacking']}
-                                        defaultValue={'no stacking'}
-                                        onChange={(e) =>
-                                            setStacking(
-                                                e.currentTarget.value ===
-                                                    'stacking',
-                                            )
-                                        }
-                                    />
+                                    <ButtonGroup>
+                                        <Button
+                                            onClick={() => setStacking(false)}
+                                            active={!isStacked}
+                                        >
+                                            Group
+                                        </Button>
+                                        <Button
+                                            onClick={() => setStacking(true)}
+                                            active={isStacked}
+                                        >
+                                            Stack
+                                        </Button>
+                                    </ButtonGroup>
                                 </>
                             )}
                         </FieldsGrid>

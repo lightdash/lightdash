@@ -25,6 +25,10 @@ const useCartesianChartConfig = (
         Partial<CartesianChart['eChartsConfig']> | undefined
     >(chartConfigs?.eChartsConfig);
 
+    const isStacked = (dirtyEchartsConfig?.series || []).some(
+        (series: Series) => series.stack !== undefined,
+    );
+
     useEffect(() => {
         setChartType(
             chartConfigs?.eChartsConfig.series?.[0]?.type ||
@@ -97,10 +101,6 @@ const useCartesianChartConfig = (
                     series: prevState?.series?.map((series) => ({
                         ...series,
                         type,
-                        stack:
-                            type === CartesianSeriesType.BAR
-                                ? series.stack
-                                : undefined,
                     })),
                 },
         );
@@ -136,14 +136,14 @@ const useCartesianChartConfig = (
             };
         });
     }, []);
-    const setStacking = useCallback((isStacked: boolean) => {
+    const setStacking = useCallback((stack: boolean) => {
         setDirtyEchartsConfig(
             (prevState) =>
                 prevState && {
                     ...prevState,
                     series: prevState?.series?.map((series) => ({
                         ...series,
-                        stack: isStacked ? 'stack' : undefined,
+                        stack: stack ? 'stack' : undefined,
                     })),
                 },
         );
@@ -301,6 +301,7 @@ const useCartesianChartConfig = (
         setXAxisName,
         setYAxisName,
         setStacking,
+        isStacked,
         addSingleSeries,
         updateSingleSeries,
         removeSingleSeries,
