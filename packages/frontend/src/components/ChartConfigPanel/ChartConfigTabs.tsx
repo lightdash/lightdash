@@ -196,7 +196,7 @@ const ChartConfigTabs: FC = () => {
                                             : 'Enter X-axis label'
                                     }
                                     defaultValue={
-                                        dirtyEchartsConfig?.xAxis?.[0].name
+                                        dirtyEchartsConfig?.xAxis?.[0]?.name
                                     }
                                     onBlur={(e) =>
                                         setXAxisName(e.currentTarget.value)
@@ -209,6 +209,7 @@ const ChartConfigTabs: FC = () => {
                                         getAxisName({
                                             isAxisTheSameForAllSeries,
                                             selectedAxisIndex,
+                                            axisReference: 'yRef',
                                             axisIndex: 0,
                                             series: dirtyEchartsConfig?.series,
                                             items,
@@ -228,6 +229,7 @@ const ChartConfigTabs: FC = () => {
                                         getAxisName({
                                             isAxisTheSameForAllSeries,
                                             selectedAxisIndex,
+                                            axisReference: 'yRef',
                                             axisIndex: 1,
                                             series: dirtyEchartsConfig?.series,
                                             items,

@@ -5,6 +5,7 @@ import {
     Dimension,
     DimensionType,
     Explore,
+    Field,
     fieldId,
     findFieldByIdInExplore,
     friendlyName,
@@ -12,7 +13,10 @@ import {
     getDimensions,
     getFieldLabel,
     getFields,
+    getItemId,
+    getItemLabel,
     hashFieldReference,
+    isField,
     MetricType,
     Series,
     TableCalculation,
@@ -39,13 +43,9 @@ const getLabelFromField = (
     }
 };
 
-const getAxisTypeFromField = (
-    explore: Explore,
-    key: string | undefined,
-): string => {
-    const field = key ? findFieldByIdInExplore(explore, key) : undefined;
-    if (field) {
-        switch (field.type) {
+const getAxisTypeFromField = (item?: Field): string => {
+    if (item) {
+        switch (item.type) {
             case DimensionType.NUMBER:
             case MetricType.NUMBER:
             case MetricType.AVERAGE:
@@ -91,6 +91,7 @@ export type EChartSeries = {
     name?: string;
     color?: string;
     yAxisIndex?: number;
+    xAxisIndex?: number;
     encode: {
         x: string;
         y: string;
@@ -149,6 +150,8 @@ export const getEchartsSeries = (
                 );
                 return {
                     ...series,
+                    xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
+                    yAxisIndex: flipAxes ? undefined : series.yAxisIndex,
                     connectNulls: true,
                     encode: {
                         x: flipAxes ? yFieldHash : xField,
@@ -202,6 +205,8 @@ export const getEchartsSeries = (
                 ...sum,
                 {
                     ...series,
+                    xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
+                    yAxisIndex: flipAxes ? undefined : series.yAxisIndex,
                     connectNulls: true,
                     encode: {
                         ...series.encode,
@@ -240,31 +245,160 @@ export const getEchartsSeries = (
     }
 };
 
-const getEchartAxis = (
-    layout: CartesianChart['layout'],
-    series: EChartSeries[],
-    explore: Explore,
-    xAxisField: string | undefined,
-    yAxisField: string | undefined,
-) => {
-    const defaultXAxisType = getAxisTypeFromField(explore, xAxisField);
-    const defaultYAxisType = getAxisTypeFromField(explore, yAxisField);
+const getEchartAxis = ({
+    items,
+    validCartesianConfig,
+    series,
+}: {
+    validCartesianConfig: CartesianChart;
+    items: Array<Field | TableCalculation>;
+    series: EChartSeries[];
+}) => {
+    const xAxisItem = items.find(
+        (item) =>
+            getItemId(item) ===
+            (validCartesianConfig.layout.flipAxes
+                ? validCartesianConfig.layout?.yField?.[0]
+                : validCartesianConfig.layout?.xField),
+    );
+    const yAxisItem = items.find(
+        (item) =>
+            getItemId(item) ===
+            (validCartesianConfig.layout.flipAxes
+                ? validCartesianConfig.layout?.xField
+                : validCartesianConfig.layout?.yField?.[0]),
+    );
 
-    let xAxisType = defaultXAxisType;
-    let yAxisType = defaultYAxisType;
-    if (series[0].type === CartesianSeriesType.BAR) {
-        if (layout.flipAxes) {
-            xAxisType = defaultXAxisType;
-            yAxisType =
-                defaultYAxisType === 'value' ? 'category' : defaultYAxisType;
-        } else {
-            xAxisType =
-                defaultXAxisType === 'value' ? 'category' : defaultXAxisType;
-            yAxisType = defaultYAxisType;
-        }
+    const defaultXAxisType = getAxisTypeFromField(
+        isField(xAxisItem) ? xAxisItem : undefined,
+    );
+    const defaultYAxisType = getAxisTypeFromField(
+        isField(yAxisItem) ? yAxisItem : undefined,
+    );
+
+    let xAxisType;
+    let yAxisType;
+
+    if (validCartesianConfig.layout.flipAxes) {
+        xAxisType = defaultXAxisType;
+        yAxisType =
+            defaultYAxisType === 'value' ? 'category' : defaultYAxisType;
+    } else {
+        xAxisType =
+            defaultXAxisType === 'value' ? 'category' : defaultXAxisType;
+        yAxisType = defaultYAxisType;
     }
 
-    return { xAxisType, xAxisField, yAxisType, yAxisField };
+    const selectedAxisInSeries = Array.from(
+        new Set(
+            series?.map(({ yAxisIndex, xAxisIndex }) =>
+                validCartesianConfig.layout.flipAxes ? xAxisIndex : yAxisIndex,
+            ),
+        ),
+    );
+    const isAxisTheSameForAllSeries: boolean =
+        selectedAxisInSeries.length === 1;
+    const selectedAxisIndex = selectedAxisInSeries[0] || 0;
+
+    const xAxisConfiguration = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.eChartsConfig?.yAxis
+        : validCartesianConfig.eChartsConfig?.xAxis;
+    const yAxisConfiguration = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.eChartsConfig?.xAxis
+        : validCartesianConfig.eChartsConfig?.yAxis;
+
+    return {
+        xAxis: [
+            {
+                type: xAxisType,
+                name: validCartesianConfig.layout.flipAxes
+                    ? getAxisName({
+                          isAxisTheSameForAllSeries,
+                          selectedAxisIndex,
+                          axisIndex: 0,
+                          axisReference: 'yRef',
+                          axisName: xAxisConfiguration?.[0]?.name,
+                          items,
+                          series: validCartesianConfig.eChartsConfig.series,
+                      })
+                    : xAxisConfiguration?.[0]?.name ||
+                      (xAxisItem ? getItemLabel(xAxisItem) : undefined),
+                nameLocation: 'center',
+                nameGap: 30,
+                nameTextStyle: {
+                    fontWeight: 'bold',
+                },
+            },
+            {
+                type: xAxisType,
+                name: validCartesianConfig.layout.flipAxes
+                    ? getAxisName({
+                          isAxisTheSameForAllSeries,
+                          selectedAxisIndex,
+                          axisIndex: 1,
+                          axisReference: 'yRef',
+                          axisName: xAxisConfiguration?.[1]?.name,
+                          items,
+                          series: validCartesianConfig.eChartsConfig.series,
+                      })
+                    : xAxisConfiguration?.[0]?.name,
+                nameLocation: 'center',
+                nameGap: 30,
+                nameTextStyle: {
+                    fontWeight: 'bold',
+                },
+                splitLine: {
+                    show: isAxisTheSameForAllSeries,
+                },
+            },
+        ],
+        yAxis: [
+            {
+                type: yAxisType,
+                name: validCartesianConfig.layout.flipAxes
+                    ? yAxisConfiguration?.[0]?.name ||
+                      (yAxisItem ? getItemLabel(yAxisItem) : undefined)
+                    : getAxisName({
+                          isAxisTheSameForAllSeries,
+                          selectedAxisIndex,
+                          axisIndex: 0,
+                          axisReference: 'yRef',
+                          axisName: yAxisConfiguration?.[0]?.name,
+                          items,
+                          series: validCartesianConfig.eChartsConfig.series,
+                      }),
+                nameTextStyle: {
+                    fontWeight: 'bold',
+                    align: 'left',
+                },
+                nameLocation: 'end',
+                nameGap: 30,
+            },
+            {
+                type: yAxisType,
+                name: validCartesianConfig.layout.flipAxes
+                    ? yAxisConfiguration?.[0]?.name
+                    : getAxisName({
+                          isAxisTheSameForAllSeries,
+                          selectedAxisIndex,
+                          axisIndex: 1,
+                          axisReference: 'yRef',
+                          axisName: yAxisConfiguration?.[1]?.name,
+                          items,
+                          series: validCartesianConfig.eChartsConfig.series,
+                      }),
+                nameTextStyle: {
+                    fontWeight: 'bold',
+                    align: 'right',
+                },
+                nameLocation: 'end',
+                nameGap: 30,
+                splitLine: {
+                    show: isAxisTheSameForAllSeries,
+                },
+            },
+        ],
+    };
 };
 
 const useEcharts = () => {
@@ -297,6 +431,24 @@ const useEcharts = () => {
         originalData,
     ]);
 
+    const items = useMemo(() => {
+        if (!explore || !resultsData) {
+            return [];
+        }
+        return [
+            ...getFields(explore),
+            ...(resultsData?.metricQuery.tableCalculations || []),
+        ];
+    }, [explore, resultsData]);
+
+    const axis = useMemo(() => {
+        if (!validCartesianConfig) {
+            return { xAxis: [], yAxis: [] };
+        }
+
+        return getEchartAxis({ items, series, validCartesianConfig });
+    }, [items, series, validCartesianConfig]);
+
     if (
         !explore ||
         series.length <= 0 ||
@@ -306,82 +458,9 @@ const useEcharts = () => {
         return undefined;
     }
 
-    const [xAxis] = validCartesianConfig.eChartsConfig?.xAxis || [];
-
-    const xAxisField = validCartesianConfig.layout?.flipAxes
-        ? validCartesianConfig.layout?.yField?.[0]
-        : validCartesianConfig.layout?.xField;
-    const yAxisField = validCartesianConfig.layout?.flipAxes
-        ? validCartesianConfig.layout?.xField
-        : validCartesianConfig.layout?.yField?.[0];
-
-    const { xAxisType, yAxisType } = getEchartAxis(
-        validCartesianConfig.layout,
-        series,
-        explore,
-        xAxisField,
-        yAxisField,
-    );
-
-    const selectedAxisInSeries = Array.from(
-        new Set(series?.map(({ yAxisIndex }) => yAxisIndex)),
-    );
-    const isAxisTheSameForAllSeries: boolean =
-        selectedAxisInSeries.length === 1;
-    const selectedAxisIndex = selectedAxisInSeries[0] || 0;
-
-    const items = [
-        ...getFields(explore),
-        ...(resultsData?.metricQuery.tableCalculations || []),
-    ];
-
     return {
-        xAxis: {
-            type: xAxisType,
-            name:
-                xAxis?.name ||
-                getLabelFromField(
-                    explore,
-                    resultsData?.metricQuery.tableCalculations || [],
-                    xAxisField,
-                ),
-            nameLocation: 'center',
-            nameGap: 30,
-            nameTextStyle: { fontWeight: 'bold' },
-        },
-        yAxis: [
-            {
-                type: yAxisType,
-                name: getAxisName({
-                    isAxisTheSameForAllSeries,
-                    selectedAxisIndex,
-                    axisIndex: 0,
-                    axisName:
-                        validCartesianConfig.eChartsConfig?.yAxis?.[0]?.name,
-                    series: validCartesianConfig.eChartsConfig?.series,
-                    items,
-                }),
-                nameTextStyle: { fontWeight: 'bold', align: 'left' },
-                nameLocation: 'end',
-            },
-            {
-                type: yAxisType,
-                name: getAxisName({
-                    isAxisTheSameForAllSeries,
-                    selectedAxisIndex,
-                    axisIndex: 1,
-                    axisName:
-                        validCartesianConfig.eChartsConfig?.yAxis?.[1]?.name,
-                    series: validCartesianConfig.eChartsConfig?.series,
-                    items,
-                }),
-                nameTextStyle: { fontWeight: 'bold', align: 'right' },
-                nameLocation: 'end',
-                splitLine: {
-                    show: isAxisTheSameForAllSeries,
-                },
-            },
-        ],
+        xAxis: axis.xAxis,
+        yAxis: axis.yAxis,
         series,
         legend: {
             show: series.length > 1,

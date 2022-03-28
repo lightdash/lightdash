@@ -1195,6 +1195,7 @@ export const getItemColor = (item: Field | TableCalculation) => {
 export const getAxisName = ({
     isAxisTheSameForAllSeries,
     selectedAxisIndex,
+    axisReference,
     axisIndex,
     axisName,
     series,
@@ -1202,18 +1203,19 @@ export const getAxisName = ({
 }: {
     isAxisTheSameForAllSeries: boolean;
     selectedAxisIndex: number;
+    axisReference: 'yRef' | 'xRef';
     axisIndex: number;
     axisName?: string;
     series?: Series[];
     items: Array<Field | TableCalculation>;
 }): string | undefined => {
-    const firstYAxisField = items.find(
-        (item) => getItemId(item) === (series || [])[0].encode.yRef.field,
+    const defaultItem = items.find(
+        (item) =>
+            getItemId(item) === (series || [])[0]?.encode[axisReference].field,
     );
     const fallbackSeriesName: string | undefined =
         series && series.length === 1
-            ? series[0].name ||
-              (firstYAxisField && getItemLabel(firstYAxisField))
+            ? series[0].name || (defaultItem && getItemLabel(defaultItem))
             : undefined;
     return !isAxisTheSameForAllSeries || selectedAxisIndex === axisIndex
         ? axisName || fallbackSeriesName
