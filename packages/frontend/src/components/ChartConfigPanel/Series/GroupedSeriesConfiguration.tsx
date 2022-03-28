@@ -1,6 +1,7 @@
 import { Colors, HTMLSelect } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
+    CartesianSeriesType,
     Field,
     getItemId,
     getItemLabel,
@@ -38,6 +39,12 @@ const AXIS_OPTIONS = [
 const FLIPPED_AXIS_OPTIONS = [
     { value: 0, label: 'Bottom' },
     { value: 1, label: 'Top' },
+];
+
+const CHART_TYPE_OPTIONS = [
+    { value: CartesianSeriesType.BAR, label: 'Bar' },
+    { value: CartesianSeriesType.LINE, label: 'Line' },
+    { value: CartesianSeriesType.SCATTER, label: 'Scatter' },
 ];
 
 const getFormatterValue = (
@@ -112,12 +119,58 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     new Set(seriesGroup.map(({ yAxisIndex }) => yAxisIndex))
                         .size === 1;
 
+                const isChartTypeTheSameForAllSeries: boolean =
+                    new Set(seriesGroup.map(({ type }) => type)).size === 1;
+
+                console.log(
+                    getItemLabel(field),
+                    isChartTypeTheSameForAllSeries
+                        ? seriesGroup[0].type
+                        : 'mixed',
+                    isAxisTheSameForAllSeries
+                        ? CHART_TYPE_OPTIONS
+                        : [
+                              ...CHART_TYPE_OPTIONS,
+                              {
+                                  value: 'mixed',
+                                  label: 'Mixed',
+                              },
+                          ],
+                    new Set(seriesGroup.map(({ type }) => type)),
+                );
                 return (
                     <GroupSeriesBlock key={fieldKey}>
                         <SeriesTitle>
                             {getItemLabel(field)} (grouped)
                         </SeriesTitle>
                         <GroupSeriesInputs>
+                            <SeriesExtraInputWrapper label="Chart type">
+                                <HTMLSelect
+                                    fill
+                                    value={
+                                        isChartTypeTheSameForAllSeries
+                                            ? seriesGroup[0].type
+                                            : 'mixed'
+                                    }
+                                    options={
+                                        isChartTypeTheSameForAllSeries
+                                            ? CHART_TYPE_OPTIONS
+                                            : [
+                                                  ...CHART_TYPE_OPTIONS,
+                                                  {
+                                                      value: 'mixed',
+                                                      label: 'Mixed',
+                                                  },
+                                              ]
+                                    }
+                                    onChange={(e) => {
+                                        updateAllGroupedSeries(fieldKey, {
+                                            type: e.target
+                                                .value as Series['type'],
+                                        });
+                                    }}
+                                />
+                            </SeriesExtraInputWrapper>
                             <SeriesExtraInputWrapper label="Axis">
                                 <HTMLSelect
                                     fill
@@ -208,30 +261,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                         fallbackColor={getSeriesColor(
                                             getSeriesId(singleSeries),
                                         )}
-                                        onColorChange={(color) => {
-                                            updateSingleSeries({
-                                                ...singleSeries,
-                                                color,
-                                            });
-                                        }}
-                                        onNameChange={(name) =>
-                                            updateSingleSeries({
-                                                ...singleSeries,
-                                                name,
-                                            })
-                                        }
-                                        onLabelChange={(label) => {
-                                            updateSingleSeries({
-                                                ...singleSeries,
-                                                label,
-                                            });
-                                        }}
-                                        onYAxisChange={(yAxisIndex) => {
-                                            updateSingleSeries({
-                                                ...singleSeries,
-                                                yAxisIndex,
-                                            });
-                                        }}
+                                        updateSingleSeries={updateSingleSeries}
                                     />
                                 );
                             })}

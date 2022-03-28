@@ -1,5 +1,6 @@
 import { Button, Collapse, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import { CartesianChartLayout, Series } from 'common';
+import { CartesianSeriesType, Series } from 'common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import {
@@ -16,10 +17,7 @@ type Props = {
     layout?: CartesianChartLayout;
     series: Series;
     fallbackColor?: string;
-    onColorChange: (color: string) => void;
-    onNameChange: (name: string | undefined) => void;
-    onLabelChange: (label: Series['label']) => void;
-    onYAxisChange: (yAxisIndex: number) => void;
+    updateSingleSeries: (updatedSeries: Series) => void;
 };
 
 const SingleSeriesConfiguration: FC<Props> = ({
@@ -28,10 +26,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
     placeholderName,
     series,
     fallbackColor,
-    onColorChange,
-    onNameChange,
-    onLabelChange,
-    onYAxisChange,
+    updateSingleSeries,
 }) => {
     const [isOpen, toggleIsOpen] = useToggle(false);
     return (
@@ -39,13 +34,23 @@ const SingleSeriesConfiguration: FC<Props> = ({
             <SeriesMainInputs>
                 <SeriesColorPicker
                     color={series.color || fallbackColor}
-                    onChange={onColorChange}
+                    onChange={(color) => {
+                        updateSingleSeries({
+                            ...series,
+                            color,
+                        });
+                    }}
                 />
                 <InputGroup
                     fill
                     placeholder={placeholderName}
                     defaultValue={series.name}
-                    onBlur={(e) => onNameChange(e.currentTarget.value)}
+                    onBlur={(e) => {
+                        updateSingleSeries({
+                            ...series,
+                            name: e.currentTarget.value,
+                        });
+                    }}
                 />
                 {isCollapsable && (
                     <Button
@@ -56,6 +61,32 @@ const SingleSeriesConfiguration: FC<Props> = ({
             </SeriesMainInputs>
             <Collapse isOpen={!isCollapsable || isOpen}>
                 <SeriesExtraInputs>
+                    <SeriesExtraInputWrapper label="Chart type">
+                        <HTMLSelect
+                            fill
+                            value={series.type}
+                            options={[
+                                {
+                                    value: CartesianSeriesType.BAR,
+                                    label: 'Bar',
+                                },
+                                {
+                                    value: CartesianSeriesType.LINE,
+                                    label: 'Line',
+                                },
+                                {
+                                    value: CartesianSeriesType.SCATTER,
+                                    label: 'Scatter',
+                                },
+                            ]}
+                            onChange={(e) => {
+                                updateSingleSeries({
+                                    ...series,
+                                    type: e.target.value as CartesianSeriesType,
+                                });
+                            }}
+                        />
+                    </SeriesExtraInputWrapper>
                     <SeriesExtraInputWrapper label="Axis">
                         <HTMLSelect
                             fill
@@ -71,7 +102,10 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 },
                             ]}
                             onChange={(e) => {
-                                onYAxisChange(parseInt(e.target.value, 10));
+                                updateSingleSeries({
+                                    ...series,
+                                    yAxisIndex: parseInt(e.target.value, 10),
+                                });
                             }}
                         />
                     </SeriesExtraInputWrapper>
@@ -88,14 +122,16 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             ]}
                             onChange={(e) => {
                                 const option = e.target.value;
-                                onLabelChange(
-                                    option === 'hidden'
-                                        ? { show: false }
-                                        : {
-                                              show: true,
-                                              position: option as any,
-                                          },
-                                );
+                                updateSingleSeries({
+                                    ...series,
+                                    label:
+                                        option === 'hidden'
+                                            ? { show: false }
+                                            : {
+                                                  show: true,
+                                                  position: option as any,
+                                              },
+                                });
                             }}
                         />
                     </SeriesExtraInputWrapper>

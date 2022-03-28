@@ -24,6 +24,7 @@ export const GroupSeriesInputs = styled.div`
     display: flex;
     flex: 1;
     gap: 10px;
+    justify-content: space-between;
 `;
 
 export const SeriesBlock = styled.div`
@@ -59,6 +60,7 @@ export const SeriesExtraInputs = styled.div`
     flex: 1;
     gap: 10px;
     margin-top: 10px;
+    justify-content: space-between;
 `;
 
 export const SeriesExtraInputWrapper = styled(FormGroup)`

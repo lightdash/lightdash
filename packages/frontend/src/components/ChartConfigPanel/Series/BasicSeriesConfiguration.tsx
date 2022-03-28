@@ -56,30 +56,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                             series={series}
                             placeholderName={getItemLabel(field)}
                             fallbackColor={getSeriesColor(getSeriesId(series))}
-                            onColorChange={(color) => {
-                                updateSingleSeries({
-                                    ...series,
-                                    color,
-                                });
-                            }}
-                            onNameChange={(name) =>
-                                updateSingleSeries({
-                                    ...series,
-                                    name,
-                                })
-                            }
-                            onLabelChange={(label) => {
-                                updateSingleSeries({
-                                    ...series,
-                                    label,
-                                });
-                            }}
-                            onYAxisChange={(yAxisIndex) => {
-                                updateSingleSeries({
-                                    ...series,
-                                    yAxisIndex,
-                                });
-                            }}
+                            updateSingleSeries={updateSingleSeries}
                         />
                     </SeriesBlock>
                 );
