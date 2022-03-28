@@ -1,3 +1,10 @@
+# [0.41.0](https://github.com/lightdash/lightdash/compare/0.40.0...0.41.0) (2022-03-28)
+
+
+### Features
+
+* **charts:** add option to stack bars ([#1584](https://github.com/lightdash/lightdash/issues/1584)) ([dde5725](https://github.com/lightdash/lightdash/commit/dde572542155fcdb7837df9e041bfdaba2fcf32b))
+
 # [0.40.0](https://github.com/lightdash/lightdash/compare/0.39.0...0.40.0) (2022-03-28)
 
 
