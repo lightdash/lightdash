@@ -2,19 +2,19 @@ import {
     ApiQueryResults,
     ChartConfig,
     Explore,
+    getResultValues,
+    hashFieldReference,
     isCompleteLayout,
 } from 'common';
 import { useMemo } from 'react';
 
 export const getPivotedData = (
-    rows: ApiQueryResults['rows'],
+    rows: { [col: string]: any }[],
     xAxis: string,
     yAxis: string[],
     pivotKey: string,
-): ApiQueryResults['rows'] => {
-    return rows;
-    // FIXME return right ResultRow type
-    /* return Object.values(
+): { [col: string]: any }[] => {
+    return Object.values(
         rows.reduce((acc, row) => {
             acc[row[xAxis]] = acc[row[xAxis]] || {
                 [xAxis]: row[xAxis],
@@ -31,7 +31,7 @@ export const getPivotedData = (
             });
             return acc;
         }, {}),
-    );*/
+    );
 };
 
 const usePlottedData = (
@@ -51,13 +51,13 @@ const usePlottedData = (
             isCompleteLayout(chartConfig.layout)
         ) {
             return getPivotedData(
-                resultsData.rows,
+                getResultValues(resultsData.rows, true),
                 chartConfig.layout.xField,
                 chartConfig.layout.yField,
                 pivotDimension,
             );
         }
-        return resultsData.rows;
+        return getResultValues(resultsData.rows, true);
     }, [explore, resultsData, chartConfig, pivotDimensions]);
 };
 

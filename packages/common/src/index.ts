@@ -1203,3 +1203,20 @@ export const getItemColor = (item: Field | TableCalculation) => {
     }
     return '#0A6640';
 };
+
+export const getResultValues = (
+    rows: ResultRow[],
+    onlyRaw: boolean = false,
+): { [col: string]: any }[] => rows.map((row: ResultRow) => {
+        const newRow: { [col: string]: any } = {};
+        Object.keys(row).forEach((key: string) => {
+            const value: string = onlyRaw
+                ? row[key]?.value?.raw || row[key]
+                : row[key]?.value?.formatted ||
+                  row[key]?.value?.raw ||
+                  row[key];
+
+            newRow[key] = value;
+        });
+        return newRow;
+    });
