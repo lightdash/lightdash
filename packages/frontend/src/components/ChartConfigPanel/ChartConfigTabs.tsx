@@ -1,4 +1,4 @@
-import { InputGroup, Tab, Tabs } from '@blueprintjs/core';
+import { Button, ButtonGroup, InputGroup, Tab, Tabs } from '@blueprintjs/core';
 import {
     fieldId,
     getAxisName,
@@ -35,6 +35,8 @@ const ChartConfigTabs: FC = () => {
             addSingleSeries,
             removeSingleSeries,
             updateSingleSeries,
+            setStacking,
+            isStacked,
             updateAllGroupedSeries,
             setXAxisName,
             setYAxisName,
@@ -158,6 +160,25 @@ const ChartConfigTabs: FC = () => {
                                     />
                                 );
                             })}
+                            {pivotDimension && (
+                                <>
+                                    <GridLabel>Stacking</GridLabel>
+                                    <ButtonGroup fill>
+                                        <Button
+                                            onClick={() => setStacking(false)}
+                                            active={!isStacked}
+                                        >
+                                            No stacking
+                                        </Button>
+                                        <Button
+                                            onClick={() => setStacking(true)}
+                                            active={isStacked}
+                                        >
+                                            Stack
+                                        </Button>
+                                    </ButtonGroup>
+                                </>
+                            )}
                         </FieldsGrid>
                     }
                 />
