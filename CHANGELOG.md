@@ -1,3 +1,10 @@
+# [0.38.0](https://github.com/lightdash/lightdash/compare/0.37.0...0.38.0) (2022-03-28)
+
+
+### Features
+
+* add new round meta tag on dbt schema ([#1586](https://github.com/lightdash/lightdash/issues/1586)) ([f2248ad](https://github.com/lightdash/lightdash/commit/f2248ada9009ceba24be56de6303a0dc34f42f25))
+
 # [0.37.0](https://github.com/lightdash/lightdash/compare/0.36.1...0.37.0) (2022-03-25)
 
 
