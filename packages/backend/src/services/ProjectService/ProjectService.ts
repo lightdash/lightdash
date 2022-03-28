@@ -353,6 +353,20 @@ export class ProjectService {
                     packagesCount: packages
                         ? Object.keys(packages).length
                         : undefined,
+                    roundCount: explores.reduce<number>((acc, explore) => {
+                        if (!isExploreError(explore)) {
+                            return (
+                                acc +
+                                getMetrics(explore).filter(
+                                    ({ round }) => round !== undefined,
+                                ).length +
+                                getDimensions(explore).filter(
+                                    ({ round }) => round !== undefined,
+                                ).length
+                            );
+                        }
+                        return acc;
+                    }, 0),
                 },
             });
             return explores;

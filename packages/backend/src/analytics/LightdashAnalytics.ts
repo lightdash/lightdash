@@ -161,6 +161,7 @@ type ProjectCompiledEvent = BaseTrack & {
         modelsWithErrorsCount: number;
         metricsCount: number;
         packagesCount?: number;
+        roundCount?: number;
     };
 };
 
