@@ -163,7 +163,6 @@ const ChartConfigTabs: FC = () => {
                             {pivotDimension && (
                                 <>
                                     <GridLabel>Stacking</GridLabel>
-                                    <GridLabel />
                                     <ButtonGroup fill>
                                         <Button
                                             onClick={() => setStacking(false)}

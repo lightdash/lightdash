@@ -145,7 +145,7 @@ const useCartesianChartConfig = (
                 });
             });
         },
-        [updateAllGroupedSeries],
+        [updateAllGroupedSeries, dirtyLayout],
     );
 
     const [
