@@ -1,5 +1,10 @@
 import { Button } from '@blueprintjs/core';
-import { Field, getItemId, TableCalculation } from 'common';
+import {
+    CartesianSeriesType,
+    Field,
+    getItemId,
+    TableCalculation,
+} from 'common';
 import React, { FC, useMemo } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -24,6 +29,8 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             addSingleSeries,
             removeSingleSeries,
             updateYField,
+            dirtyChartType,
+            validCartesianConfig,
         },
         pivotDimensions,
         setPivotDimensions,
@@ -31,6 +38,10 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     const [activeYField, setActiveYField] = useState<Item>();
     const [yInputFields, setYInputFields] = useState([items]);
     const pivotDimension = pivotDimensions?.[0];
+
+    const isHorizontalBarType =
+        dirtyChartType === CartesianSeriesType.BAR &&
+        validCartesianConfig?.layout.flipAxes;
 
     // X axis logic
     const xAxisField = items.find(
@@ -58,11 +69,14 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     const groupSelectedField = items.find(
         (item) => getItemId(item) === pivotDimension,
     );
+    console.log(dirtyChartType);
 
     return (
         <>
             <AxisGroup>
-                <AxisTitle>X axis field</AxisTitle>
+                <AxisTitle>{`${
+                    isHorizontalBarType ? 'Y' : 'X'
+                } axis field`}</AxisTitle>
                 <AxisFieldDropdown>
                     <FieldAutoComplete
                         fields={items}
@@ -74,7 +88,9 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                 </AxisFieldDropdown>
             </AxisGroup>
             <AxisGroup>
-                <AxisTitle>Y axis field</AxisTitle>
+                <AxisTitle>
+                    {`${isHorizontalBarType ? 'X' : 'Y'} axis field`}
+                </AxisTitle>
 
                 {yFields.map((field, index) => (
                     <AxisFieldDropdown key={`${field}-y-axis`}>
