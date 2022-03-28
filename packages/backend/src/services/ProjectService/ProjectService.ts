@@ -22,7 +22,6 @@ import {
     TableSelectionType,
     UpdateProject,
 } from 'common';
-import moment from 'moment';
 import { analytics } from '../../analytics/client';
 import {
     AuthorizationError,
@@ -50,9 +49,8 @@ function formatValue(format: string, value: any): any {
         case 'km':
         case 'mi':
             return `${value} ${format}`;
-        case 'date':
-            console.log('parse date ', value);
-            return moment(value).format('YYYY-MM-DD');
+        // case 'date':
+        //    return moment(value).format('YYYY-MM-DD');
         case 'usd':
             return `$${value} `;
         case 'gbp':
