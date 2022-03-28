@@ -523,7 +523,6 @@ export type ResultRow = {
 export type ApiQueryResults = {
     metricQuery: MetricQuery;
     rows: ResultRow[];
-    formattedRows?: { [col: string]: any }[];
 };
 
 export type ApiSqlQueryResults = {

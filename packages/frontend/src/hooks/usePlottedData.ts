@@ -2,7 +2,6 @@ import {
     ApiQueryResults,
     ChartConfig,
     Explore,
-    hashFieldReference,
     isCompleteLayout,
 } from 'common';
 import { useMemo } from 'react';
@@ -13,7 +12,9 @@ export const getPivotedData = (
     yAxis: string[],
     pivotKey: string,
 ): ApiQueryResults['rows'] => {
-    return Object.values(
+    return rows;
+    // FIXME return right ResultRow type
+    /* return Object.values(
         rows.reduce((acc, row) => {
             acc[row[xAxis]] = acc[row[xAxis]] || {
                 [xAxis]: row[xAxis],
@@ -30,7 +31,7 @@ export const getPivotedData = (
             });
             return acc;
         }, {}),
-    );
+    );*/
 };
 
 const usePlottedData = (

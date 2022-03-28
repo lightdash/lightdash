@@ -186,7 +186,11 @@ const useCartesianChartConfig = (
             let expectedSeriesMap: Record<string, Series>;
             if (pivotKey) {
                 const uniquePivotValues: string[] = Array.from(
-                    new Set(resultsData?.rows.map((row) => row[pivotKey])),
+                    new Set(
+                        resultsData?.rows.map(
+                            (row) => row[pivotKey].value?.raw,
+                        ),
+                    ),
                 );
                 expectedSeriesMap = (dirtyLayout.yField || []).reduce<
                     Record<string, Series>

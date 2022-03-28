@@ -147,11 +147,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         if (field.type === DimensionType.STRING) {
                             const currentSuggestions =
                                 prev[fieldId(field)]?.suggestions || [];
-                            console.log(
-                                'queryResults.data?.formattedRows',
-                                queryResults.data?.formattedRows,
-                            );
-                            const newSuggestions: string[] =
+                            const newSuggestions: string[] = // FIXME
                                 queryResults.data?.rows.reduce<string[]>(
                                     (acc, row) => {
                                         const value = row[fieldId(field)];
@@ -449,7 +445,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             <AddColumnButton />
                             <DownloadCsvButton
                                 fileName={tableName}
-                                rows={queryResults.data?.formattedRows}
+                                rows={queryResults.data?.rows}
                             />
                         </div>
                     )}

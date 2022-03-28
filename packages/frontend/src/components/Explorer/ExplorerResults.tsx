@@ -1,4 +1,5 @@
 import { Colors } from '@blueprintjs/core';
+import { ResultRow } from 'common';
 import React from 'react';
 import { useColumns } from '../../hooks/useColumns';
 import { useExplore } from '../../hooks/useExplore';
@@ -14,6 +15,17 @@ import {
     NoTableSelected,
 } from './ExplorerResultsNonIdealStates';
 
+function getValues(rows: ResultRow[]): { [col: string]: any }[] {
+    return rows.map((row: ResultRow) => {
+        let newRow: { [col: string]: any } = {};
+        Object.keys(row).forEach((key: string) => {
+            const value: string =
+                row[key]?.value?.formatted || row[key]?.value?.raw || row[key];
+            newRow[key] = value;
+        });
+        return newRow;
+    });
+}
 export const ExplorerResults = () => {
     const dataColumns = useColumns();
     const queryResults = useQueryResults();
@@ -28,12 +40,10 @@ export const ExplorerResults = () => {
     } = useExplorer();
     const activeExplore = useExplore(activeTableName);
     const safeData = React.useMemo(
-        () =>
-            queryResults.status === 'success'
-                ? queryResults.data.formattedRows
-                : [],
+        () => (queryResults.status === 'success' ? queryResults.data.rows : []),
         [queryResults.status, queryResults.data],
     );
+    const rawData = getValues(safeData);
 
     if (!activeTableName) return <NoTableSelected />;
 
@@ -72,7 +82,7 @@ export const ExplorerResults = () => {
 
     return (
         <Table
-            data={safeData}
+            data={rawData}
             dataColumns={dataColumns}
             loading={queryResults.isLoading}
             idle={queryResults.isIdle}
