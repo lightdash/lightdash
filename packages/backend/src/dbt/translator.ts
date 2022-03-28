@@ -115,6 +115,10 @@ const convertDimension = (
         }
     }
 
+    if (column.meta.dimension?.round !== undefined) {
+        sql = `ROUND(${sql}, ${column.meta.dimension?.round})`;
+    }
+
     return {
         fieldType: FieldType.DIMENSION,
         name,
@@ -160,6 +164,7 @@ const convertMetric = ({
         `${friendlyName(metric.type)} of ${friendlyName(columnName)}`,
     source,
     hidden: !!metric.hidden,
+    round: metric.round,
 });
 
 const generateTableLineage = (

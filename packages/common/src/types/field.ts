@@ -15,6 +15,7 @@ export interface Field {
     description?: string;
     source?: Source | undefined;
     hidden: boolean;
+    round?: number;
 }
 
 export const isField = (field: any): field is Field => field?.fieldType;

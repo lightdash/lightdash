@@ -115,28 +115,34 @@ export const compileMetricSql = (
         ? compileMetricReference
         : compileDimensionReference;
     // Metric might have references to other dimensions
-    const renderedSql = metric.sql.replace(lightdashVariablePattern, (_, p1) =>
+    let renderedSql = metric.sql.replace(lightdashVariablePattern, (_, p1) =>
         compileReference(p1, tables, metric.table),
     );
     const metricType = metric.type;
     switch (metricType) {
         case MetricType.AVERAGE:
-            return `AVG(${renderedSql})`;
+            renderedSql = `AVG(${renderedSql})`;
+            break;
         case MetricType.COUNT:
-            return `COUNT(${renderedSql})`;
+            renderedSql = `COUNT(${renderedSql})`;
+            break;
         case MetricType.COUNT_DISTINCT:
-            return `COUNT(DISTINCT ${renderedSql})`;
+            renderedSql = `COUNT(DISTINCT ${renderedSql})`;
+            break;
         case MetricType.MAX:
-            return `MAX(${renderedSql})`;
+            renderedSql = `MAX(${renderedSql})`;
+            break;
         case MetricType.MIN:
-            return `MIN(${renderedSql})`;
+            renderedSql = `MIN(${renderedSql})`;
+            break;
         case MetricType.SUM:
-            return `SUM(${renderedSql})`;
+            renderedSql = `SUM(${renderedSql})`;
+            break;
         case MetricType.NUMBER:
         case MetricType.STRING:
         case MetricType.DATE:
         case MetricType.BOOLEAN:
-            return renderedSql;
+            break;
         default:
             const nope: never = metricType;
             throw new CompileError(
@@ -144,6 +150,10 @@ export const compileMetricSql = (
                 {},
             );
     }
+
+    if (metric.round !== undefined)
+        renderedSql = `ROUND(${renderedSql}, ${metric.round})`;
+    return renderedSql;
 };
 
 export const compileExploreJoinSql = (
