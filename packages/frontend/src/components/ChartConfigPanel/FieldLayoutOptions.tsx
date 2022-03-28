@@ -69,7 +69,6 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     const groupSelectedField = items.find(
         (item) => getItemId(item) === pivotDimension,
     );
-    console.log(dirtyChartType);
 
     return (
         <>
