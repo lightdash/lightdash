@@ -1,4 +1,4 @@
-import { Button, ButtonGroup, InputGroup, Tab, Tabs } from '@blueprintjs/core';
+import { InputGroup, Tab, Tabs } from '@blueprintjs/core';
 import {
     fieldId,
     getAxisName,
@@ -14,7 +14,7 @@ import {
 } from 'common';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import { InputWrapper, Wrapper, GridLabel, } from './ChartConfigPanel.styles';
+import { InputWrapper, Wrapper } from './ChartConfigPanel.styles';
 import FieldLayoutOptions from './FieldLayoutOptions';
 import BasicSeriesConfiguration from './Series/BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './Series/GroupedSeriesConfiguration';
@@ -27,8 +27,6 @@ const ChartConfigTabs: FC = () => {
             dirtyLayout,
             dirtyEchartsConfig,
             updateSingleSeries,
-            setStacking,
-            isStacked,
             updateAllGroupedSeries,
             setXAxisName,
             setYAxisName,
@@ -107,25 +105,6 @@ const ChartConfigTabs: FC = () => {
                     panel={
                         <>
                             <FieldLayoutOptions items={items} />
-                            {pivotDimension && (
-                                <>
-                                    <GridLabel>Stacking</GridLabel>
-                                    <ButtonGroup fill>
-                                        <Button
-                                            onClick={() => setStacking(false)}
-                                            active={!isStacked}
-                                        >
-                                            No stacking
-                                        </Button>
-                                        <Button
-                                            onClick={() => setStacking(true)}
-                                            active={isStacked}
-                                        >
-                                            Stack
-                                        </Button>
-                                    </ButtonGroup>
-                                </>
-                            )}
                         </>
                     }
                 />

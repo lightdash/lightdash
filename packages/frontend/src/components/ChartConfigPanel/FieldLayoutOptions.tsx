@@ -1,4 +1,4 @@
-import { Button } from '@blueprintjs/core';
+import { Button, ButtonGroup } from '@blueprintjs/core';
 import {
     CartesianSeriesType,
     Field,
@@ -13,6 +13,7 @@ import {
     AxisGroup,
     AxisTitle,
     DeleteFieldButton,
+    GridLabel,
 } from './ChartConfigPanel.styles';
 
 type Props = {
@@ -21,8 +22,6 @@ type Props = {
 
 const FieldLayoutOptions: FC<Props> = ({ items }) => {
     const {
-        explore,
-        resultsData,
         cartesianConfig: {
             dirtyLayout,
             setXField,
@@ -31,12 +30,12 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             updateYField,
             dirtyChartType,
             validCartesianConfig,
+            setStacking,
+            isStacked,
         },
         pivotDimensions,
         setPivotDimensions,
     } = useVisualizationContext();
-    const [activeYField, setActiveYField] = useState<Item>();
-    const [yInputFields, setYInputFields] = useState([items]);
     const pivotDimension = pivotDimensions?.[0];
 
     const isHorizontalBarType =
@@ -139,6 +138,27 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         }}
                     />
                 </AxisFieldDropdown>
+            </AxisGroup>
+            <AxisGroup>
+                {pivotDimension && (
+                    <>
+                        <GridLabel>Stacking</GridLabel>
+                        <ButtonGroup fill>
+                            <Button
+                                onClick={() => setStacking(false)}
+                                active={!isStacked}
+                            >
+                                No stacking
+                            </Button>
+                            <Button
+                                onClick={() => setStacking(true)}
+                                active={isStacked}
+                            >
+                                Stack
+                            </Button>
+                        </ButtonGroup>
+                    </>
+                )}
             </AxisGroup>
         </>
     );
