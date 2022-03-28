@@ -1,3 +1,10 @@
+# [0.40.0](https://github.com/lightdash/lightdash/compare/0.39.0...0.40.0) (2022-03-28)
+
+
+### Features
+
+* **charts:** support multiple y axis ([#1589](https://github.com/lightdash/lightdash/issues/1589)) ([2cc8f4a](https://github.com/lightdash/lightdash/commit/2cc8f4a0d46d069cbcea4aa754ae4fe6cccb460b))
+
 # [0.39.0](https://github.com/lightdash/lightdash/compare/0.38.1...0.39.0) (2022-03-28)
 
 
