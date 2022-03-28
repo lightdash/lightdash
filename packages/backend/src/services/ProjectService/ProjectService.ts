@@ -43,15 +43,60 @@ type ProjectServiceDependencies = {
     savedChartModel: SavedChartModel;
 };
 
+function formatValue(format: string, value: any): any {
+    switch (format) {
+        case 'usd':
+            return `$${value} `;
+        case 'gbp':
+            return `${value}£`;
+        case 'percent':
+            return `${parseFloat(value) / 100} %`;
+        case '': // no format
+            return value;
+        default: // unrecognized format
+        // TODO throw warning ?
+    }
+    return value;
+}
 // TODO Extract to another file
-function formatRows(rows: { [col: string]: any }[]): { [col: string]: any }[] {
+function formatRows(
+    rows: { [col: string]: any }[],
+    explore: Explore,
+): { [col: string]: any }[] {
     const formattedRows: { [col: string]: any }[] = [];
+
+    // TODO do this in a better way . Suggestions? do we have a similar function somewhere ?
+    // Currently,find this column format flag from explorer
+    // and store it in a key/value as a way of caching
+    const columnFormats: { [key: string]: string } = {};
+    function getFormat(columnName: string) {
+        if (columnFormats[columnName] !== undefined) {
+            return columnFormats[columnName];
+        } 
+            const tableName = columnName.split('_')[0];
+            const metricName = columnName.split('_').slice(1).join('_');
+            const table = explore.tables[tableName];
+            const format =
+                table.metrics[metricName]?.format ||
+                table.dimensions[metricName]?.format;
+            console.log('format ', tableName, metricName, format);
+            if (format) {
+                columnFormats[columnName] = format;
+                return format;
+            }
+        
+        columnFormats[columnName] = '';
+        return '';
+    }
     rows.forEach((row) => {
         const formattedRow: { [col: string]: any } = {};
         Object.keys(row).forEach((columnName: string) => {
             const col = row[columnName];
-            // TODO do conversion based on metrics/dimension
-            formattedRow[columnName] = `${col} %`;
+
+            const format = getFormat(columnName);
+            const formattedColumn = formatValue(format, col);
+
+            formattedRow[columnName] = formattedColumn;
         });
 
         formattedRows.push(formattedRow);
@@ -304,10 +349,11 @@ export class ProjectService {
                 tableCalculationsCount: metricQuery.tableCalculations.length,
             },
         });
+        const explore = await this.getExplore(user, projectUuid, exploreName);
         const adapter = await this.getAdapter(projectUuid);
         const rows = await adapter.runQuery(query);
 
-        const formattedRows = formatRows(rows);
+        const formattedRows = formatRows(rows, explore);
         return {
             rows,
             metricQuery,
