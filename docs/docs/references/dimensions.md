@@ -57,6 +57,7 @@ All the properties you can customize:
 | time_intervals  | No       | `'default'` or `OFF` or string[] | `'default'` will be converted into `['DAY', 'WEEK', 'MONTH', 'YEAR']` for dates and `['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']` for timestamps, as will not setting anything; if you want no time intervals set `'OFF'` |
 | hidden          | No       | boolean               | If set to `true`, the dimension is hidden from Lightdash. By default, this is set to `false` if you don't include this property. |
 | round          | No       | number               | Rounds a number to a specified number of digits  |
+| format          | No       | string               | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']`  |
 
 ## Dimension types
 
