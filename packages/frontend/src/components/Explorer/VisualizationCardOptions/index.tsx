@@ -1,7 +1,7 @@
 import { Button, IconName } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { CartesianSeriesType, ChartType } from 'common';
-import React, { FC, useState } from 'react';
+import React, { FC, useMemo, useState } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import {
     ChartOption,
@@ -22,37 +22,48 @@ const VisualizationCardOptions: FC = () => {
     const cartesianFlipAxis = cartesianConfig.dirtyLayout?.flipAxes;
     const [isOpen, setIsOpen] = useState<boolean>(false);
 
-    const selectChartType = () => {
-        if (chartType === ChartType.CARTESIAN) {
-            switch (cartesianType) {
-                case 'line':
-                    return { text: 'Line chart', icon: 'timeline-line-chart' };
-                case 'bar':
-                    return cartesianFlipAxis
-                        ? { text: 'Bar chart', icon: 'horizontal-bar-chart' }
-                        : { text: 'Column chart', icon: 'timeline-bar-chart' };
-                case 'scatter':
-                    return { text: 'Scatter chart', icon: 'scatter-plot' };
-                default:
-                    break;
+    const selectedChartType = useMemo<{ text: string; icon: IconName }>(() => {
+        switch (chartType) {
+            case ChartType.CARTESIAN: {
+                switch (cartesianType) {
+                    case CartesianSeriesType.LINE:
+                        return {
+                            text: 'Line chart',
+                            icon: 'timeline-line-chart',
+                        };
+                    case CartesianSeriesType.BAR:
+                        return cartesianFlipAxis
+                            ? {
+                                  text: 'Bar chart',
+                                  icon: 'horizontal-bar-chart',
+                              }
+                            : {
+                                  text: 'Column chart',
+                                  icon: 'timeline-bar-chart',
+                              };
+                    case CartesianSeriesType.SCATTER:
+                        return { text: 'Scatter chart', icon: 'scatter-plot' };
+                    default:
+                        const never: never = cartesianType;
+                        throw new Error('Cartesian type not supported');
+                }
+            }
+            case ChartType.TABLE:
+                return {
+                    text: 'Table',
+                    icon: 'panel-table',
+                };
+            case ChartType.BIG_NUMBER:
+                return {
+                    text: 'Big number',
+                    icon: 'numerical',
+                };
+            default: {
+                const never: never = chartType;
+                throw new Error('Chart type not supported');
             }
         }
-        if (chartType === ChartType.TABLE) {
-            return {
-                text: 'Table',
-                icon: 'panel-table',
-            };
-        }
-
-        if (chartType === ChartType.BIG_NUMBER) {
-            return {
-                text: 'Big number',
-                icon: 'numerical',
-            };
-        } else {
-            return { text: 'Bar chart', icon: 'horizontal-bar-chart' };
-        }
-    };
+    }, [cartesianFlipAxis, cartesianType, chartType]);
 
     return (
         <Popover2
@@ -172,9 +183,9 @@ const VisualizationCardOptions: FC = () => {
         >
             <Button
                 minimal
-                icon={selectChartType().icon as IconName}
+                icon={selectedChartType.icon}
                 rightIcon="caret-down"
-                text={selectChartType().text}
+                text={selectedChartType.text}
                 disabled={disabled}
             />
         </Popover2>
