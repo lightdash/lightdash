@@ -58,6 +58,9 @@
         "/projects/{projectUuid}/sqlQuery": {
             "$ref": "./paths/projectSqlQuery.json"
         },
+        "/projects/{projectUuid}/explores/{tableId}/runQuery": {
+            "$ref": "./paths/projectRunQuery.json"
+        },
         "/projects/{projectUuid}/catalog": {
             "$ref": "./paths/projectCatalog.json"
         },
