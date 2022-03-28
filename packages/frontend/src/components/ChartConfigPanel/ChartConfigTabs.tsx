@@ -168,6 +168,7 @@ const ChartConfigTabs: FC = () => {
                         pivotDimension ? (
                             <GroupedSeriesConfiguration
                                 items={items}
+                                layout={dirtyLayout}
                                 series={dirtyEchartsConfig?.series}
                                 getSeriesColor={getSeriesColor}
                                 updateSingleSeries={updateSingleSeries}
@@ -176,6 +177,7 @@ const ChartConfigTabs: FC = () => {
                         ) : (
                             <BasicSeriesConfiguration
                                 items={items}
+                                layout={dirtyLayout}
                                 series={dirtyEchartsConfig?.series}
                                 getSeriesColor={getSeriesColor}
                                 updateSingleSeries={updateSingleSeries}
@@ -203,7 +205,11 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
-                            <InputWrapper label="Y-axis label (left)">
+                            <InputWrapper
+                                label={`Y-axis label (${
+                                    dirtyLayout?.flipAxes ? 'bottom' : 'left'
+                                })`}
+                            >
                                 <InputGroup
                                     placeholder={
                                         getAxisName({
@@ -223,7 +229,11 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
-                            <InputWrapper label="Y-axis label (right)">
+                            <InputWrapper
+                                label={`Y-axis label (${
+                                    dirtyLayout?.flipAxes ? 'top' : 'right'
+                                })`}
+                            >
                                 <InputGroup
                                     placeholder={
                                         getAxisName({

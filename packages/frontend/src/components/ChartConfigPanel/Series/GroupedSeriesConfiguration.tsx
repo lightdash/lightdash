@@ -1,5 +1,6 @@
 import { Colors, HTMLSelect } from '@blueprintjs/core';
 import {
+    CartesianChartLayout,
     Field,
     getItemId,
     getItemLabel,
@@ -34,6 +35,11 @@ const AXIS_OPTIONS = [
     { value: 1, label: 'Right' },
 ];
 
+const FLIPPED_AXIS_OPTIONS = [
+    { value: 0, label: 'Bottom' },
+    { value: 1, label: 'Top' },
+];
+
 const getFormatterValue = (
     value: any,
     key: string,
@@ -48,6 +54,7 @@ const getFormatterValue = (
 };
 
 type GroupedSeriesConfigurationProps = {
+    layout?: CartesianChartLayout;
     series?: Series[];
     items: Array<Field | TableCalculation>;
     getSeriesColor: (key: string) => string | undefined;
@@ -56,6 +63,7 @@ type GroupedSeriesConfigurationProps = {
 };
 
 const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
+    layout,
     series,
     items,
     getSeriesColor,
@@ -120,9 +128,13 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                     }
                                     options={
                                         isAxisTheSameForAllSeries
-                                            ? AXIS_OPTIONS
+                                            ? layout?.flipAxes
+                                                ? FLIPPED_AXIS_OPTIONS
+                                                : AXIS_OPTIONS
                                             : [
-                                                  ...AXIS_OPTIONS,
+                                                  ...(layout?.flipAxes
+                                                      ? FLIPPED_AXIS_OPTIONS
+                                                      : AXIS_OPTIONS),
                                                   {
                                                       value: 'mixed',
                                                       label: 'Mixed',
@@ -188,6 +200,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                     <SingleSeriesConfiguration
                                         key={getSeriesId(singleSeries)}
                                         isCollapsable
+                                        layout={layout}
                                         series={singleSeries}
                                         placeholderName={`[${formattedValue}] ${getItemLabel(
                                             field,

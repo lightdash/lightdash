@@ -1,5 +1,5 @@
 import { Button, Collapse, HTMLSelect, InputGroup } from '@blueprintjs/core';
-import { Series } from 'common';
+import { CartesianChartLayout, Series } from 'common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import {
@@ -13,6 +13,7 @@ import SeriesColorPicker from './SeriesColorPicker';
 type Props = {
     isCollapsable?: boolean;
     placeholderName: string;
+    layout?: CartesianChartLayout;
     series: Series;
     fallbackColor?: string;
     onColorChange: (color: string) => void;
@@ -22,6 +23,7 @@ type Props = {
 };
 
 const SingleSeriesConfiguration: FC<Props> = ({
+    layout,
     isCollapsable,
     placeholderName,
     series,
@@ -59,8 +61,14 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             fill
                             value={series.yAxisIndex}
                             options={[
-                                { value: 0, label: 'Left' },
-                                { value: 1, label: 'Right' },
+                                {
+                                    value: 0,
+                                    label: layout?.flipAxes ? 'Bottom' : 'Left',
+                                },
+                                {
+                                    value: 1,
+                                    label: layout?.flipAxes ? 'Top' : 'Right',
+                                },
                             ]}
                             onChange={(e) => {
                                 onYAxisChange(parseInt(e.target.value, 10));
