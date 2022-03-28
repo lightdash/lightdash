@@ -1,3 +1,10 @@
+## [0.38.1](https://github.com/lightdash/lightdash/compare/0.38.0...0.38.1) (2022-03-28)
+
+
+### Bug Fixes
+
+* update chart name on save as ([#1581](https://github.com/lightdash/lightdash/issues/1581)) ([0ea476e](https://github.com/lightdash/lightdash/commit/0ea476e8bbc2ae15ff56e63e4ae0ce7684c07c74))
+
 # [0.38.0](https://github.com/lightdash/lightdash/compare/0.37.0...0.38.0) (2022-03-28)
 
 
