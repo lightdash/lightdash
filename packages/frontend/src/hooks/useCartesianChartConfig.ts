@@ -136,18 +136,17 @@ const useCartesianChartConfig = (
             };
         });
     }, []);
-    const setStacking = useCallback((stack: boolean) => {
-        setDirtyEchartsConfig(
-            (prevState) =>
-                prevState && {
-                    ...prevState,
-                    series: prevState?.series?.map((series) => ({
-                        ...series,
-                        stack: stack ? 'stack' : undefined,
-                    })),
-                },
-        );
-    }, []);
+    const setStacking = useCallback(
+        (stack: boolean) => {
+            const yFields = dirtyLayout?.yField || [];
+            yFields.forEach((yField) => {
+                updateAllGroupedSeries(yField, {
+                    stack: stack ? yField : undefined,
+                });
+            });
+        },
+        [updateAllGroupedSeries],
+    );
 
     const [
         availableFields,

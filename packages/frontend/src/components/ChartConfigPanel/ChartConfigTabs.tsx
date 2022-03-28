@@ -160,15 +160,16 @@ const ChartConfigTabs: FC = () => {
                                     />
                                 );
                             })}
-                            {(dirtyEchartsConfig?.series || []).length > 1 && (
+                            {pivotDimension && (
                                 <>
                                     <GridLabel>Stacking</GridLabel>
-                                    <ButtonGroup>
+                                    <GridLabel />
+                                    <ButtonGroup fill>
                                         <Button
                                             onClick={() => setStacking(false)}
                                             active={!isStacked}
                                         >
-                                            Group
+                                            No stacking
                                         </Button>
                                         <Button
                                             onClick={() => setStacking(true)}
