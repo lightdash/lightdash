@@ -1,3 +1,10 @@
+# [0.39.0](https://github.com/lightdash/lightdash/compare/0.38.1...0.39.0) (2022-03-28)
+
+
+### Features
+
+* **charts:** group chart types in a dropdown ([#1574](https://github.com/lightdash/lightdash/issues/1574)) ([fa33bdb](https://github.com/lightdash/lightdash/commit/fa33bdb125f4556fe27d70a4086436cdf37b9812))
+
 ## [0.38.1](https://github.com/lightdash/lightdash/compare/0.38.0...0.38.1) (2022-03-28)
 
 
