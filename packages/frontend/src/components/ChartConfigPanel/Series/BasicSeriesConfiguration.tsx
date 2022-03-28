@@ -1,5 +1,6 @@
 import { Colors } from '@blueprintjs/core';
 import {
+    CartesianChartLayout,
     Field,
     getItemId,
     getItemLabel,
@@ -12,6 +13,7 @@ import { SeriesBlock, SeriesTitle } from './Series.styles';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
 type BasicSeriesConfigurationProps = {
+    layout?: CartesianChartLayout;
     series?: Series[];
     items: Array<Field | TableCalculation>;
     getSeriesColor: (key: string) => string | undefined;
@@ -19,6 +21,7 @@ type BasicSeriesConfigurationProps = {
 };
 
 const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
+    layout,
     series: allSeries,
     items,
     getSeriesColor,
@@ -49,6 +52,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                     <SeriesBlock key={getSeriesId(series)}>
                         <SeriesTitle>{getItemLabel(field)}</SeriesTitle>
                         <SingleSeriesConfiguration
+                            layout={layout}
                             series={series}
                             placeholderName={getItemLabel(field)}
                             fallbackColor={getSeriesColor(getSeriesId(series))}
@@ -68,6 +72,12 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                                 updateSingleSeries({
                                     ...series,
                                     label,
+                                });
+                            }}
+                            onYAxisChange={(yAxisIndex) => {
+                                updateSingleSeries({
+                                    ...series,
+                                    yAxisIndex,
                                 });
                             }}
                         />

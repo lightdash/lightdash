@@ -43,12 +43,16 @@ const useCartesianChartConfig = (
         });
     }, []);
 
-    const setYAxisName = useCallback((name: string) => {
+    const setYAxisName = useCallback((index: number, name: string) => {
         setDirtyEchartsConfig((prevState) => {
-            const [firstAxis, ...axes] = prevState?.yAxis || [];
             return {
                 ...prevState,
-                yAxis: [{ ...firstAxis, name }, ...axes],
+                yAxis: [
+                    prevState?.yAxis?.[0] || {},
+                    prevState?.yAxis?.[1] || {},
+                ].map((axis, axisIndex) =>
+                    axisIndex === index ? { ...axis, name } : axis,
+                ),
             };
         });
     }, []);

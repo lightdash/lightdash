@@ -37,6 +37,7 @@ export type Series = {
     type: CartesianSeriesType;
     name?: string;
     color?: string;
+    yAxisIndex?: number;
     label?: {
         show?: boolean;
         position?: 'left' | 'top' | 'right' | 'bottom';

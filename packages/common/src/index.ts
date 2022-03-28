@@ -32,7 +32,7 @@ import {
 } from './types/filter';
 import { MetricQuery, TableCalculation } from './types/metricQuery';
 import { OrganizationMemberProfile } from './types/organizationMemberProfile';
-import { SavedChart } from './types/savedCharts';
+import { SavedChart, Series } from './types/savedCharts';
 import { LightdashUser } from './types/user';
 
 export * from './authorization/organizationMemberAbility';
@@ -1192,4 +1192,34 @@ export const getItemColor = (item: Field | TableCalculation) => {
         return isDimension(item) ? '#0E5A8A' : '#A66321';
     }
     return '#0A6640';
+};
+
+export const getAxisName = ({
+    isAxisTheSameForAllSeries,
+    selectedAxisIndex,
+    axisReference,
+    axisIndex,
+    axisName,
+    series,
+    items,
+}: {
+    isAxisTheSameForAllSeries: boolean;
+    selectedAxisIndex: number;
+    axisReference: 'yRef' | 'xRef';
+    axisIndex: number;
+    axisName?: string;
+    series?: Series[];
+    items: Array<Field | TableCalculation>;
+}): string | undefined => {
+    const defaultItem = items.find(
+        (item) =>
+            getItemId(item) === (series || [])[0]?.encode[axisReference].field,
+    );
+    const fallbackSeriesName: string | undefined =
+        series && series.length === 1
+            ? series[0].name || (defaultItem && getItemLabel(defaultItem))
+            : undefined;
+    return !isAxisTheSameForAllSeries || selectedAxisIndex === axisIndex
+        ? axisName || fallbackSeriesName
+        : undefined;
 };
