@@ -22,6 +22,7 @@ import {
     TableSelectionType,
     UpdateProject,
 } from 'common';
+import moment from 'moment';
 import { analytics } from '../../analytics/client';
 import {
     AuthorizationError,
@@ -46,12 +47,18 @@ type ProjectServiceDependencies = {
 
 function formatValue(format: string, value: any): any {
     switch (format) {
+        case 'km':
+        case 'mi':
+            return `${value} ${format}`;
+        case 'date':
+            console.log('parse date ', value);
+            return moment(value).format('YYYY-MM-DD');
         case 'usd':
             return `$${value} `;
         case 'gbp':
             return `${value}£`;
         case 'percent':
-            return `${parseFloat(value) / 100} %`;
+            return `${parseFloat(value) * 100} %`;
         case '': // no format
             return value;
         default: // unrecognized format
@@ -73,19 +80,18 @@ function formatRows(
     function getFormat(columnName: string) {
         if (columnFormats[columnName] !== undefined) {
             return columnFormats[columnName];
-        } 
-            const tableName = columnName.split('_')[0];
-            const metricName = columnName.split('_').slice(1).join('_');
-            const table = explore.tables[tableName];
-            const format =
-                table.metrics[metricName]?.format ||
-                table.dimensions[metricName]?.format;
-            console.log('format ', tableName, metricName, format);
-            if (format) {
-                columnFormats[columnName] = format;
-                return format;
-            }
-        
+        }
+        const tableName = columnName.split('_')[0];
+        const metricName = columnName.split('_').slice(1).join('_');
+        const table = explore.tables[tableName];
+        const format =
+            table.metrics[metricName]?.format ||
+            table.dimensions[metricName]?.format;
+        if (format) {
+            columnFormats[columnName] = format;
+            return format;
+        }
+
         columnFormats[columnName] = '';
         return '';
     }
