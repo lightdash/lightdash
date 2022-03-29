@@ -2,11 +2,13 @@ import { Button, ButtonGroup } from '@blueprintjs/core';
 import { Field, getItemId, TableCalculation } from 'common';
 import React, { FC, useMemo } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
+import SimpleButton from '../common/SimpleButton';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
     AxisFieldDropdown,
     AxisGroup,
     AxisTitle,
+    AxisTitleWrapper,
     DeleteFieldButton,
     GridLabel,
 } from './ChartConfigPanel.styles';
@@ -26,6 +28,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             validCartesianConfig,
             setStacking,
             isStacked,
+            setFlipAxis,
         },
         pivotDimensions,
         setPivotDimensions,
@@ -58,9 +61,17 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     return (
         <>
             <AxisGroup>
-                <AxisTitle>{`${
-                    validCartesianConfig?.layout.flipAxes ? 'Y' : 'X'
-                } axis field`}</AxisTitle>
+                <AxisTitleWrapper>
+                    <AxisTitle>
+                        {`${
+                            validCartesianConfig?.layout.flipAxes ? 'Y' : 'X'
+                        } axis field`}
+                    </AxisTitle>
+                    <SimpleButton
+                        text="Flip axes"
+                        onClick={() => setFlipAxis(!dirtyLayout?.flipAxes)}
+                    />
+                </AxisTitleWrapper>
                 <AxisFieldDropdown>
                     <FieldAutoComplete
                         fields={items}

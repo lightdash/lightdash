@@ -37,7 +37,13 @@ export const GridFieldLabel = styled.span`
 `;
 
 export const AxisGroup = styled.div`
-    padding: 0.643em 0;
+    padding-bottom: 1.286em;
+`;
+export const AxisTitleWrapper = styled.div`
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
 `;
 export const AxisTitle = styled.p`
     color: ${Colors.DARK_GRAY1};

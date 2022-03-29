@@ -102,11 +102,7 @@ const ChartConfigTabs: FC = () => {
                 <Tab
                     id="layout"
                     title="Layout"
-                    panel={
-                        <>
-                            <FieldLayoutOptions items={items} />
-                        </>
-                    }
+                    panel={<FieldLayoutOptions items={items} />}
                 />
                 <Tab
                     id="series"
