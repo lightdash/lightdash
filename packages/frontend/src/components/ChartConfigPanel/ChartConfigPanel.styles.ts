@@ -1,4 +1,4 @@
-import { Button, Colors, FormGroup } from '@blueprintjs/core';
+import { Button, ButtonGroup, Colors, FormGroup } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const InputWrapper = styled(FormGroup)`
@@ -74,4 +74,21 @@ export const DeleteFieldButton = styled(Button)`
         height: 13px;
         fill: ${Colors.GRAY1};
     }
+`;
+
+export const StackingWrapper = styled(ButtonGroup)`
+    padding: 0.357em 0;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+
+    .bp3-active {
+        background: #4b86be !important;
+        color: ${Colors.WHITE};
+    }
+`;
+
+export const StackButton = styled(Button)`
+    background-color: #fcfdfe !important;
+    border: 0.5px solid #cdced0;
+    box-shadow: none !important;
 `;

@@ -1,4 +1,4 @@
-import { Button, ButtonGroup } from '@blueprintjs/core';
+import { Button } from '@blueprintjs/core';
 import { Field, getItemId, TableCalculation } from 'common';
 import React, { FC, useMemo } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
@@ -11,6 +11,8 @@ import {
     AxisTitleWrapper,
     DeleteFieldButton,
     GridLabel,
+    StackButton,
+    StackingWrapper,
 } from './ChartConfigPanel.styles';
 
 type Props = {
@@ -144,20 +146,20 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                 {pivotDimension && (
                     <>
                         <GridLabel>Stacking</GridLabel>
-                        <ButtonGroup fill>
-                            <Button
+                        <StackingWrapper fill>
+                            <StackButton
                                 onClick={() => setStacking(false)}
                                 active={!isStacked}
                             >
                                 No stacking
-                            </Button>
-                            <Button
+                            </StackButton>
+                            <StackButton
                                 onClick={() => setStacking(true)}
                                 active={isStacked}
                             >
                                 Stack
-                            </Button>
-                        </ButtonGroup>
+                            </StackButton>
+                        </StackingWrapper>
                     </>
                 )}
             </AxisGroup>
