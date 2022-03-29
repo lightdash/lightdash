@@ -1,3 +1,10 @@
+## [0.43.1](https://github.com/lightdash/lightdash/compare/0.43.0...0.43.1) (2022-03-29)
+
+
+### Bug Fixes
+
+* **charts:** top axis name ([#1603](https://github.com/lightdash/lightdash/issues/1603)) ([26a15d2](https://github.com/lightdash/lightdash/commit/26a15d2bcc6ca5518d1519e535e32ccabaad5a1a))
+
 # [0.43.0](https://github.com/lightdash/lightdash/compare/0.42.0...0.43.0) (2022-03-29)
 
 
