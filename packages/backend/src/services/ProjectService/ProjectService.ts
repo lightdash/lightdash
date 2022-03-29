@@ -295,7 +295,6 @@ export class ProjectService {
 
         const formattedRows = formatRows(rows, explore);
 
-        console.log('projectservice ', formattedRows);
         return {
             rows: formattedRows,
             metricQuery,

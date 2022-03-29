@@ -20,7 +20,7 @@ function formatValue(format: string, value: any): any {
     }
     return value;
 }
-// TODO Extract to another file
+
 export function formatRows(
     rows: { [col: string]: any }[],
     explore: Explore,
@@ -57,10 +57,6 @@ export function formatRows(
             const format = getFormat(columnName);
             const formattedColumn = formatValue(format, col);
 
-            console.log('columnName', columnName);
-            console.log('col', col);
-            console.log('formattedColumn', formattedColumn);
-
             formattedRow[columnName] = {
                 value: {
                     raw: col,
@@ -69,11 +65,8 @@ export function formatRows(
             };
         });
 
-        console.log('formattedRow', formattedRow);
-
         formattedRows.push(formattedRow);
     });
-    console.log('formattedRows', formattedRows);
 
     return formattedRows;
 }
