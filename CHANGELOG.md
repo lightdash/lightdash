@@ -1,3 +1,10 @@
+## [0.43.2](https://github.com/lightdash/lightdash/compare/0.43.1...0.43.2) (2022-03-29)
+
+
+### Bug Fixes
+
+* **charts:** default label for single grouped metric ([#1605](https://github.com/lightdash/lightdash/issues/1605)) ([7357423](https://github.com/lightdash/lightdash/commit/73574235812b88e81567de0118affdb5ce0e102b))
+
 ## [0.43.1](https://github.com/lightdash/lightdash/compare/0.43.0...0.43.1) (2022-03-29)
 
 
