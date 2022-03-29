@@ -137,12 +137,16 @@ const ChartConfigTabs: FC = () => {
                     title="Axes"
                     panel={
                         <>
-                            <InputWrapper label="X-axis label">
+                            <InputWrapper
+                                label={`${
+                                    dirtyLayout?.flipAxes ? 'Y' : 'X'
+                                }-axis label`}
+                            >
                                 <InputGroup
                                     placeholder={
                                         xAxisField
                                             ? getItemLabel(xAxisField)
-                                            : 'Enter X-axis label'
+                                            : `Enter axis label`
                                     }
                                     defaultValue={
                                         dirtyEchartsConfig?.xAxis?.[0]?.name
@@ -153,7 +157,9 @@ const ChartConfigTabs: FC = () => {
                                 />
                             </InputWrapper>
                             <InputWrapper
-                                label={`Y-axis label (${
+                                label={`${
+                                    dirtyLayout?.flipAxes ? 'X' : 'Y'
+                                }-axis label (${
                                     dirtyLayout?.flipAxes ? 'bottom' : 'left'
                                 })`}
                             >
@@ -166,7 +172,7 @@ const ChartConfigTabs: FC = () => {
                                             axisIndex: 0,
                                             series: dirtyEchartsConfig?.series,
                                             items,
-                                        }) || 'Enter left Y-axis label'
+                                        }) || `Enter axis label`
                                     }
                                     defaultValue={
                                         dirtyEchartsConfig?.yAxis?.[0]?.name
@@ -177,7 +183,9 @@ const ChartConfigTabs: FC = () => {
                                 />
                             </InputWrapper>
                             <InputWrapper
-                                label={`Y-axis label (${
+                                label={`${
+                                    dirtyLayout?.flipAxes ? 'X' : 'Y'
+                                }-axis label (${
                                     dirtyLayout?.flipAxes ? 'top' : 'right'
                                 })`}
                             >
@@ -190,7 +198,7 @@ const ChartConfigTabs: FC = () => {
                                             axisIndex: 1,
                                             series: dirtyEchartsConfig?.series,
                                             items,
-                                        }) || 'Enter right Y-axis label'
+                                        }) || `Enter axis label`
                                     }
                                     defaultValue={
                                         dirtyEchartsConfig?.yAxis?.[1]?.name

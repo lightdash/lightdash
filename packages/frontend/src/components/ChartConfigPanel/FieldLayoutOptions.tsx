@@ -1,10 +1,5 @@
 import { Button, ButtonGroup } from '@blueprintjs/core';
-import {
-    CartesianSeriesType,
-    Field,
-    getItemId,
-    TableCalculation,
-} from 'common';
+import { Field, getItemId, TableCalculation } from 'common';
 import React, { FC, useMemo } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -28,7 +23,6 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             addSingleSeries,
             removeSingleSeries,
             updateYField,
-            dirtyChartType,
             validCartesianConfig,
             setStacking,
             isStacked,
@@ -38,17 +32,13 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     } = useVisualizationContext();
     const pivotDimension = pivotDimensions?.[0];
 
-    const isHorizontalBarType =
-        dirtyChartType === CartesianSeriesType.BAR &&
-        validCartesianConfig?.layout.flipAxes;
-
     // X axis logic
     const xAxisField = items.find(
         (item) => getItemId(item) === dirtyLayout?.xField,
     );
 
     // Y axis logic
-    const yFields = dirtyLayout?.yField ? dirtyLayout?.yField : [];
+    const yFields = dirtyLayout?.yField || [];
 
     const yActiveField = (field: string) => {
         return items.find((item) => field.includes(item.name));
@@ -58,11 +48,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         return items.filter(
             (item) => !dirtyLayout?.yField?.includes(getItemId(item)),
         );
-    }, [dirtyLayout?.yField, items]);
-
-    const onAddField = () => {
-        addSingleSeries(getItemId(availableYFields[0]));
-    };
+    }, [dirtyLayout, items]);
 
     // Group series logic
     const groupSelectedField = items.find(
@@ -73,7 +59,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         <>
             <AxisGroup>
                 <AxisTitle>{`${
-                    isHorizontalBarType ? 'Y' : 'X'
+                    validCartesianConfig?.layout.flipAxes ? 'Y' : 'X'
                 } axis field`}</AxisTitle>
                 <AxisFieldDropdown>
                     <FieldAutoComplete
@@ -87,7 +73,9 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             </AxisGroup>
             <AxisGroup>
                 <AxisTitle>
-                    {`${isHorizontalBarType ? 'X' : 'Y'} axis field`}
+                    {`${
+                        validCartesianConfig?.layout.flipAxes ? 'X' : 'Y'
+                    } axis field`}
                 </AxisTitle>
 
                 {yFields.map((field, index) => (
@@ -110,11 +98,13 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         )}
                     </AxisFieldDropdown>
                 ))}
-                {items.length > yFields.length && (
+                {availableYFields.length > 0 && (
                     <Button
                         minimal
                         intent="primary"
-                        onClick={() => onAddField()}
+                        onClick={() =>
+                            addSingleSeries(getItemId(availableYFields[0]))
+                        }
                     >
                         + Add
                     </Button>
