@@ -122,22 +122,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                 const isChartTypeTheSameForAllSeries: boolean =
                     new Set(seriesGroup.map(({ type }) => type)).size === 1;
 
-                console.log(
-                    getItemLabel(field),
-                    isChartTypeTheSameForAllSeries
-                        ? seriesGroup[0].type
-                        : 'mixed',
-                    isAxisTheSameForAllSeries
-                        ? CHART_TYPE_OPTIONS
-                        : [
-                              ...CHART_TYPE_OPTIONS,
-                              {
-                                  value: 'mixed',
-                                  label: 'Mixed',
-                              },
-                          ],
-                    new Set(seriesGroup.map(({ type }) => type)),
-                );
                 return (
                     <GroupSeriesBlock key={fieldKey}>
                         <SeriesTitle>
