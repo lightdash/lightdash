@@ -12,7 +12,7 @@ export const InputWrapper = styled(FormGroup)`
 export const Wrapper = styled.div`
     max-width: 28.571em;
     min-width: 25em;
-    padding: 1.429em;
+    padding: 1.429em 1.429em 2.143em;
 `;
 
 export const FieldsGrid = styled.div`
@@ -37,7 +37,7 @@ export const GridFieldLabel = styled.span`
 `;
 
 export const AxisGroup = styled.div`
-    padding-bottom: 1.286em;
+    margin-top: 1.286em;
 `;
 export const AxisTitleWrapper = styled.div`
     display: flex;

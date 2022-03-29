@@ -142,27 +142,25 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                     />
                 </AxisFieldDropdown>
             </AxisGroup>
-            <AxisGroup>
-                {pivotDimension && (
-                    <>
-                        <GridLabel>Stacking</GridLabel>
-                        <StackingWrapper fill>
-                            <StackButton
-                                onClick={() => setStacking(false)}
-                                active={!isStacked}
-                            >
-                                No stacking
-                            </StackButton>
-                            <StackButton
-                                onClick={() => setStacking(true)}
-                                active={isStacked}
-                            >
-                                Stack
-                            </StackButton>
-                        </StackingWrapper>
-                    </>
-                )}
-            </AxisGroup>
+            {pivotDimension && (
+                <AxisGroup>
+                    <GridLabel>Stacking</GridLabel>
+                    <StackingWrapper fill>
+                        <StackButton
+                            onClick={() => setStacking(false)}
+                            active={!isStacked}
+                        >
+                            No stacking
+                        </StackButton>
+                        <StackButton
+                            onClick={() => setStacking(true)}
+                            active={isStacked}
+                        >
+                            Stack
+                        </StackButton>
+                    </StackingWrapper>
+                </AxisGroup>
+            )}
         </>
     );
 };
