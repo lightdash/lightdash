@@ -1,3 +1,10 @@
+## [0.43.3](https://github.com/lightdash/lightdash/compare/0.43.2...0.43.3) (2022-03-29)
+
+
+### Bug Fixes
+
+* **charts:** load saved pivoted charts ([#1611](https://github.com/lightdash/lightdash/issues/1611)) ([fdf642c](https://github.com/lightdash/lightdash/commit/fdf642c9d51cbf814dd12a8b033597e95bd1865d))
+
 ## [0.43.2](https://github.com/lightdash/lightdash/compare/0.43.1...0.43.2) (2022-03-29)
 
 
