@@ -517,6 +517,15 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "JoelAlander",
+      "name": "JoelAlander",
+      "avatar_url": "https://avatars.githubusercontent.com/u/33990367?v=4",
+      "profile": "https://github.com/JoelAlander",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,

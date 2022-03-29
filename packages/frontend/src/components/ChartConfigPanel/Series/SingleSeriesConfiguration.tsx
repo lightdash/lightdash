@@ -1,5 +1,5 @@
 import { Button, Collapse, HTMLSelect, InputGroup } from '@blueprintjs/core';
-import { Series } from 'common';
+import { CartesianChartLayout, Series } from 'common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import {
@@ -13,14 +13,17 @@ import SeriesColorPicker from './SeriesColorPicker';
 type Props = {
     isCollapsable?: boolean;
     placeholderName: string;
+    layout?: CartesianChartLayout;
     series: Series;
     fallbackColor?: string;
     onColorChange: (color: string) => void;
     onNameChange: (name: string | undefined) => void;
     onLabelChange: (label: Series['label']) => void;
+    onYAxisChange: (yAxisIndex: number) => void;
 };
 
 const SingleSeriesConfiguration: FC<Props> = ({
+    layout,
     isCollapsable,
     placeholderName,
     series,
@@ -28,6 +31,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
     onColorChange,
     onNameChange,
     onLabelChange,
+    onYAxisChange,
 }) => {
     const [isOpen, toggleIsOpen] = useToggle(false);
     return (
@@ -52,6 +56,25 @@ const SingleSeriesConfiguration: FC<Props> = ({
             </SeriesMainInputs>
             <Collapse isOpen={!isCollapsable || isOpen}>
                 <SeriesExtraInputs>
+                    <SeriesExtraInputWrapper label="Axis">
+                        <HTMLSelect
+                            fill
+                            value={series.yAxisIndex}
+                            options={[
+                                {
+                                    value: 0,
+                                    label: layout?.flipAxes ? 'Bottom' : 'Left',
+                                },
+                                {
+                                    value: 1,
+                                    label: layout?.flipAxes ? 'Top' : 'Right',
+                                },
+                            ]}
+                            onChange={(e) => {
+                                onYAxisChange(parseInt(e.target.value, 10));
+                            }}
+                        />
+                    </SeriesExtraInputWrapper>
                     <SeriesExtraInputWrapper label="Value labels">
                         <HTMLSelect
                             fill

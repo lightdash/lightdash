@@ -36,7 +36,7 @@ const EditableHeader: FC<Props> = ({
         setTitle(value);
         setIsEditable(false);
     };
-
+    useEffect(() => setTitle(value), [value]);
     useEffect(() => {
         onIsEditingChange?.(isEditable);
     }, [isEditable, onIsEditingChange]);
@@ -53,7 +53,7 @@ const EditableHeader: FC<Props> = ({
                     type="h3"
                     isEditing={isEditable}
                     multiline={false}
-                    defaultValue={value}
+                    value={title}
                     placeholder={placeholder}
                     disabled={isDisabled || readonly}
                     onConfirm={onConfirm}
