@@ -114,6 +114,14 @@ const useCartesianChartConfig = (
                 },
         );
     }, []);
+
+    const setFlipAxis = useCallback((flipAxes: boolean) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            flipAxes,
+        }));
+    }, []);
+
     const updateAllGroupedSeries = useCallback(
         (fieldKey: string, updateSeries: Partial<Series>) =>
             setDirtyEchartsConfig(
@@ -315,6 +323,7 @@ const useCartesianChartConfig = (
         removeSingleSeries,
         updateAllGroupedSeries,
         updateYField,
+        setFlipAxis,
     };
 };
 

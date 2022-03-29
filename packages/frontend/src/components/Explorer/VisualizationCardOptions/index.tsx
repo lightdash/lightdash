@@ -21,10 +21,20 @@ const VisualizationCardOptions: FC = () => {
     const cartesianType = cartesianConfig.dirtyChartType;
     const cartesianFlipAxis = cartesianConfig.dirtyLayout?.flipAxes;
     const [isOpen, setIsOpen] = useState<boolean>(false);
+    const isChartTypeTheSameForAllSeries: boolean =
+        new Set(
+            cartesianConfig.dirtyEchartsConfig?.series?.map(({ type }) => type),
+        ).size === 1;
 
     const selectedChartType = useMemo<{ text: string; icon: IconName }>(() => {
         switch (chartType) {
             case ChartType.CARTESIAN: {
+                if (!isChartTypeTheSameForAllSeries) {
+                    return {
+                        text: 'Mixed',
+                        icon: 'chart',
+                    };
+                }
                 switch (cartesianType) {
                     case CartesianSeriesType.LINE:
                         return {
@@ -63,7 +73,12 @@ const VisualizationCardOptions: FC = () => {
                 throw new Error('Chart type not supported');
             }
         }
-    }, [cartesianFlipAxis, cartesianType, chartType]);
+    }, [
+        isChartTypeTheSameForAllSeries,
+        cartesianFlipAxis,
+        cartesianType,
+        chartType,
+    ]);
 
     return (
         <Popover2
@@ -72,6 +87,7 @@ const VisualizationCardOptions: FC = () => {
                     <ChartOption
                         minimal
                         active={
+                            isChartTypeTheSameForAllSeries &&
                             chartType === ChartType.CARTESIAN &&
                             cartesianType === CartesianSeriesType.BAR &&
                             !cartesianFlipAxis
@@ -83,6 +99,7 @@ const VisualizationCardOptions: FC = () => {
                                 CartesianSeriesType.BAR,
                                 false,
                             );
+                            setIsOpen(false);
                         }}
                         disabled={disabled}
                         name="Column"
@@ -92,6 +109,7 @@ const VisualizationCardOptions: FC = () => {
                     <ChartOption
                         minimal
                         active={
+                            isChartTypeTheSameForAllSeries &&
                             chartType === ChartType.CARTESIAN &&
                             cartesianType === CartesianSeriesType.BAR &&
                             cartesianFlipAxis
@@ -103,6 +121,7 @@ const VisualizationCardOptions: FC = () => {
                                 CartesianSeriesType.BAR,
                                 true,
                             );
+                            setIsOpen(false);
                         }}
                         disabled={disabled}
                         name="Bar"
@@ -112,6 +131,7 @@ const VisualizationCardOptions: FC = () => {
                     <ChartOption
                         minimal
                         active={
+                            isChartTypeTheSameForAllSeries &&
                             chartType === ChartType.CARTESIAN &&
                             cartesianType === CartesianSeriesType.LINE
                         }
@@ -122,6 +142,7 @@ const VisualizationCardOptions: FC = () => {
                                 CartesianSeriesType.LINE,
                                 false,
                             );
+                            setIsOpen(false);
                         }}
                         disabled={disabled}
                         name="Line"
@@ -131,6 +152,7 @@ const VisualizationCardOptions: FC = () => {
                     <ChartOption
                         minimal
                         active={
+                            isChartTypeTheSameForAllSeries &&
                             chartType === ChartType.CARTESIAN &&
                             cartesianType === CartesianSeriesType.SCATTER
                         }
@@ -141,6 +163,7 @@ const VisualizationCardOptions: FC = () => {
                                 CartesianSeriesType.SCATTER,
                                 false,
                             );
+                            setIsOpen(false);
                         }}
                         disabled={disabled}
                         name="Scatter"
@@ -154,6 +177,7 @@ const VisualizationCardOptions: FC = () => {
                         onClick={() => {
                             setChartType(ChartType.TABLE);
                             setPivotDimensions(undefined);
+                            setIsOpen(false);
                         }}
                         disabled={disabled}
                         name="Table"
@@ -167,6 +191,7 @@ const VisualizationCardOptions: FC = () => {
                         onClick={() => {
                             setChartType(ChartType.BIG_NUMBER);
                             setPivotDimensions(undefined);
+                            setIsOpen(false);
                         }}
                         disabled={disabled}
                         name="Big Number"
