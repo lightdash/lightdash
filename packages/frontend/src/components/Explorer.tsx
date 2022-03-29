@@ -448,7 +448,10 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             <AddColumnButton />
                             <DownloadCsvButton
                                 fileName={tableName}
-                                rows={queryResults.data?.rows}
+                                rows={
+                                    queryResults.data &&
+                                    getResultValues(queryResults.data.rows)
+                                }
                             />
                         </div>
                     )}
