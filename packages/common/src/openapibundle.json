@@ -573,9 +573,6 @@
                                     },
                                     "tableCalculations": {
                                         "type": "array"
-                                    },
-                                    "filters": {
-                                        "type": "array"
                                     }
                                 },
                                 "required": ["metrics", "dimensions"]
@@ -1486,7 +1483,23 @@
                             "type": "object",
                             "properties": {
                                 "raw": {
-                                    "type": "number"
+                                    "oneOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "number"
+                                        },
+                                        {
+                                            "type": "boolean"
+                                        },
+                                        {
+                                            "type": "array"
+                                        },
+                                        {
+                                            "type": "object"
+                                        }
+                                    ]
                                 },
                                 "formatted": {
                                     "type": "string"

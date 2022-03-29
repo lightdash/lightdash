@@ -45,9 +45,6 @@
                             },
                             "tableCalculations": {
                                 "type": "array"
-                            },
-                            "filters": {
-                                "type": "array"
                             }
                         },
                         "required": ["metrics", "dimensions"]
