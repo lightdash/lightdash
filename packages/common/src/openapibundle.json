@@ -1482,25 +1482,7 @@
                         "value": {
                             "type": "object",
                             "properties": {
-                                "raw": {
-                                    "oneOf": [
-                                        {
-                                            "type": "null"
-                                        },
-                                        {
-                                            "type": "undefined"
-                                        },
-                                        {
-                                            "type": "boolean"
-                                        },
-                                        {
-                                            "type": "array"
-                                        },
-                                        {
-                                            "type": "object"
-                                        }
-                                    ]
-                                },
+                                "raw": {},
                                 "formatted": {
                                     "type": "string"
                                 }

@@ -7,16 +7,7 @@
             "value": {
                 "type": "object",
                 "properties": {
-                    "raw": {
-                        "oneOf": [
-                            { "type": "string" },
-                            { "type": "number" },
-                            { "type": "boolean" },
-                            { "type": "array" },
-                            { "type": "object" },
-                            { "type": "null" }
-                        ]
-                    },
+                    "raw": {},
                     "formatted": {
                         "type": "string"
                     }
