@@ -1,3 +1,31 @@
+# [0.41.0](https://github.com/lightdash/lightdash/compare/0.40.0...0.41.0) (2022-03-28)
+
+
+### Features
+
+* **charts:** add option to stack bars ([#1584](https://github.com/lightdash/lightdash/issues/1584)) ([dde5725](https://github.com/lightdash/lightdash/commit/dde572542155fcdb7837df9e041bfdaba2fcf32b))
+
+# [0.40.0](https://github.com/lightdash/lightdash/compare/0.39.0...0.40.0) (2022-03-28)
+
+
+### Features
+
+* **charts:** support multiple y axis ([#1589](https://github.com/lightdash/lightdash/issues/1589)) ([2cc8f4a](https://github.com/lightdash/lightdash/commit/2cc8f4a0d46d069cbcea4aa754ae4fe6cccb460b))
+
+# [0.39.0](https://github.com/lightdash/lightdash/compare/0.38.1...0.39.0) (2022-03-28)
+
+
+### Features
+
+* **charts:** group chart types in a dropdown ([#1574](https://github.com/lightdash/lightdash/issues/1574)) ([fa33bdb](https://github.com/lightdash/lightdash/commit/fa33bdb125f4556fe27d70a4086436cdf37b9812))
+
+## [0.38.1](https://github.com/lightdash/lightdash/compare/0.38.0...0.38.1) (2022-03-28)
+
+
+### Bug Fixes
+
+* update chart name on save as ([#1581](https://github.com/lightdash/lightdash/issues/1581)) ([0ea476e](https://github.com/lightdash/lightdash/commit/0ea476e8bbc2ae15ff56e63e4ae0ce7684c07c74))
+
 # [0.38.0](https://github.com/lightdash/lightdash/compare/0.37.0...0.38.0) (2022-03-28)
 
 

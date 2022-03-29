@@ -1,5 +1,6 @@
 import { Colors, HTMLSelect } from '@blueprintjs/core';
 import {
+    CartesianChartLayout,
     Field,
     getItemId,
     getItemLabel,
@@ -29,6 +30,16 @@ const VALUE_LABELS_OPTIONS = [
     { value: 'right', label: 'Right' },
 ];
 
+const AXIS_OPTIONS = [
+    { value: 0, label: 'Left' },
+    { value: 1, label: 'Right' },
+];
+
+const FLIPPED_AXIS_OPTIONS = [
+    { value: 0, label: 'Bottom' },
+    { value: 1, label: 'Top' },
+];
+
 const getFormatterValue = (
     value: any,
     key: string,
@@ -43,6 +54,7 @@ const getFormatterValue = (
 };
 
 type GroupedSeriesConfigurationProps = {
+    layout?: CartesianChartLayout;
     series?: Series[];
     items: Array<Field | TableCalculation>;
     getSeriesColor: (key: string) => string | undefined;
@@ -51,6 +63,7 @@ type GroupedSeriesConfigurationProps = {
 };
 
 const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
+    layout,
     series,
     items,
     getSeriesColor,
@@ -94,35 +107,58 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                 const isLabelTheSameForAllSeries: boolean =
                     new Set(seriesGroup.map(({ label }) => label?.position))
                         .size === 1;
+
+                const isAxisTheSameForAllSeries: boolean =
+                    new Set(seriesGroup.map(({ yAxisIndex }) => yAxisIndex))
+                        .size === 1;
+
                 return (
                     <GroupSeriesBlock key={fieldKey}>
                         <SeriesTitle>
                             {getItemLabel(field)} (grouped)
                         </SeriesTitle>
                         <GroupSeriesInputs>
-                            <SeriesExtraInputWrapper
-                                label={
-                                    !isLabelTheSameForAllSeries ? (
-                                        <span>
-                                            Value labels{' '}
-                                            <span
-                                                style={{ color: Colors.RED1 }}
-                                            >
-                                                (!)
-                                            </span>
-                                        </span>
-                                    ) : (
-                                        'Value labels'
-                                    )
-                                }
-                            >
+                            <SeriesExtraInputWrapper label="Axis">
+                                <HTMLSelect
+                                    fill
+                                    value={
+                                        isAxisTheSameForAllSeries
+                                            ? seriesGroup[0].yAxisIndex
+                                            : 'mixed'
+                                    }
+                                    options={
+                                        isAxisTheSameForAllSeries
+                                            ? layout?.flipAxes
+                                                ? FLIPPED_AXIS_OPTIONS
+                                                : AXIS_OPTIONS
+                                            : [
+                                                  ...(layout?.flipAxes
+                                                      ? FLIPPED_AXIS_OPTIONS
+                                                      : AXIS_OPTIONS),
+                                                  {
+                                                      value: 'mixed',
+                                                      label: 'Mixed',
+                                                  },
+                                              ]
+                                    }
+                                    onChange={(e) => {
+                                        updateAllGroupedSeries(fieldKey, {
+                                            yAxisIndex: parseInt(
+                                                e.target.value,
+                                                10,
+                                            ),
+                                        });
+                                    }}
+                                />
+                            </SeriesExtraInputWrapper>
+                            <SeriesExtraInputWrapper label="Value labels">
                                 <HTMLSelect
                                     fill
                                     value={
                                         isLabelTheSameForAllSeries
                                             ? seriesGroup[0].label?.position ||
                                               'hidden'
-                                            : 'combo'
+                                            : 'mixed'
                                     }
                                     options={
                                         isLabelTheSameForAllSeries
@@ -130,8 +166,8 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                             : [
                                                   ...VALUE_LABELS_OPTIONS,
                                                   {
-                                                      value: 'combo',
-                                                      label: 'Combo',
+                                                      value: 'mixed',
+                                                      label: 'Mixed',
                                                   },
                                               ]
                                     }
@@ -162,7 +198,9 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                 );
                                 return (
                                     <SingleSeriesConfiguration
+                                        key={getSeriesId(singleSeries)}
                                         isCollapsable
+                                        layout={layout}
                                         series={singleSeries}
                                         placeholderName={`[${formattedValue}] ${getItemLabel(
                                             field,
@@ -186,6 +224,12 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                             updateSingleSeries({
                                                 ...singleSeries,
                                                 label,
+                                            });
+                                        }}
+                                        onYAxisChange={(yAxisIndex) => {
+                                            updateSingleSeries({
+                                                ...singleSeries,
+                                                yAxisIndex,
                                             });
                                         }}
                                     />

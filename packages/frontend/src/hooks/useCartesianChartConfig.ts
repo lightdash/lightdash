@@ -8,6 +8,7 @@ import {
     Series,
 } from 'common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+
 const useCartesianChartConfig = (
     chartConfigs: CartesianChart | undefined,
     pivotKey: string | undefined,
@@ -23,6 +24,10 @@ const useCartesianChartConfig = (
     const [dirtyEchartsConfig, setDirtyEchartsConfig] = useState<
         Partial<CartesianChart['eChartsConfig']> | undefined
     >(chartConfigs?.eChartsConfig);
+
+    const isStacked = (dirtyEchartsConfig?.series || []).some(
+        (series: Series) => series.stack !== undefined,
+    );
 
     useEffect(() => {
         setChartType(
@@ -43,12 +48,16 @@ const useCartesianChartConfig = (
         });
     }, []);
 
-    const setYAxisName = useCallback((name: string) => {
+    const setYAxisName = useCallback((index: number, name: string) => {
         setDirtyEchartsConfig((prevState) => {
-            const [firstAxis, ...axes] = prevState?.yAxis || [];
             return {
                 ...prevState,
-                yAxis: [{ ...firstAxis, name }, ...axes],
+                yAxis: [
+                    prevState?.yAxis?.[0] || {},
+                    prevState?.yAxis?.[1] || {},
+                ].map((axis, axisIndex) =>
+                    axisIndex === index ? { ...axis, name } : axis,
+                ),
             };
         });
     }, []);
@@ -127,6 +136,17 @@ const useCartesianChartConfig = (
             };
         });
     }, []);
+    const setStacking = useCallback(
+        (stack: boolean) => {
+            const yFields = dirtyLayout?.yField || [];
+            yFields.forEach((yField) => {
+                updateAllGroupedSeries(yField, {
+                    stack: stack ? yField : undefined,
+                });
+            });
+        },
+        [updateAllGroupedSeries, dirtyLayout],
+    );
 
     const [
         availableFields,
@@ -283,6 +303,8 @@ const useCartesianChartConfig = (
         setType,
         setXAxisName,
         setYAxisName,
+        setStacking,
+        isStacked,
         addSingleSeries,
         updateSingleSeries,
         removeSingleSeries,
