@@ -2,6 +2,7 @@ import { Button, ButtonGroup, Colors, FormGroup } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const InputWrapper = styled(FormGroup)`
+    margin: 1.357em 0 0;
     & label.bp3-label {
         font-weight: 500;
         display: inline-flex;

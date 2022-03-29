@@ -128,6 +128,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                 <AxisFieldDropdown>
                     <FieldAutoComplete
                         fields={items}
+                        placeholder="Select a field to group by"
                         activeField={groupSelectedField}
                         onChange={(item) => {
                             setPivotDimensions([getItemId(item)]);
