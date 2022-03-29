@@ -1485,10 +1485,10 @@
                                 "raw": {
                                     "oneOf": [
                                         {
-                                            "type": "string"
+                                            "type": "null"
                                         },
                                         {
-                                            "type": "number"
+                                            "type": "undefined"
                                         },
                                         {
                                             "type": "boolean"
