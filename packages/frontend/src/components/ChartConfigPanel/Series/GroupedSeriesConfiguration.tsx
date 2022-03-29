@@ -239,9 +239,14 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                         isCollapsable
                                         layout={layout}
                                         series={singleSeries}
-                                        placeholderName={`[${formattedValue}] ${getItemLabel(
-                                            field,
-                                        )}`}
+                                        placeholderName={
+                                            layout?.yField &&
+                                            layout.yField.length > 1
+                                                ? `[${formattedValue}] ${getItemLabel(
+                                                      field,
+                                                  )}`
+                                                : formattedValue
+                                        }
                                         fallbackColor={getSeriesColor(
                                             getSeriesId(singleSeries),
                                         )}
