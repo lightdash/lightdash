@@ -1,3 +1,10 @@
+# [0.42.0](https://github.com/lightdash/lightdash/compare/0.41.0...0.42.0) (2022-03-29)
+
+
+### Features
+
+* **charts:** replace chart configuration buttons with autocomplete fields ([#1576](https://github.com/lightdash/lightdash/issues/1576)) ([31aac30](https://github.com/lightdash/lightdash/commit/31aac30c9cfe64b5319403e047b966a13d54a7d0))
+
 # [0.41.0](https://github.com/lightdash/lightdash/compare/0.40.0...0.41.0) (2022-03-28)
 
 
