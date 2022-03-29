@@ -355,7 +355,7 @@ const getEchartAxis = ({
                           items,
                           series: validCartesianConfig.eChartsConfig.series,
                       })
-                    : xAxisConfiguration?.[0]?.name,
+                    : undefined,
                 nameLocation: 'center',
                 nameGap: 30,
                 nameTextStyle: {
