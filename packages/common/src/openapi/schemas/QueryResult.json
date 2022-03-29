@@ -8,9 +8,7 @@
                 "type": "object",
                 "properties": {
                     "raw": {},
-                    "formatted": {
-                        "type": "string"
-                    }
+                    "formatted": {}
                 }
             }
         }

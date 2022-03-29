@@ -514,9 +514,9 @@ export type DbtColumnLightdashMetric = {
 
 export type ResultRow = {
     [col: string]: {
-        [value: string]: {
+        value: {
             raw: any;
-            formatted: string;
+            formatted: any;
         };
     };
 };
@@ -1210,15 +1210,13 @@ export const getResultValues = (
 ): { [col: string]: any }[] =>
     rows.map((row: ResultRow) => {
         const newRow: { [col: string]: any } = {};
-        Object.keys(row).forEach((key: string) => {
+        Object.keys(row).reduce((acc, key) => {
             const value: string = onlyRaw
-                ? row[key]?.value?.raw || row[key]
-                : row[key]?.value?.formatted ||
-                  row[key]?.value?.raw ||
-                  row[key];
+                ? row[key]?.value?.raw
+                : row[key]?.value?.formatted || row[key]?.value?.raw;
 
-            newRow[key] = value;
-        });
+            return { ...acc, [key]: value };
+        }, {});
         return newRow;
     });
 
