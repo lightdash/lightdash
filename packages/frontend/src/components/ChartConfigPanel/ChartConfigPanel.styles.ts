@@ -1,4 +1,4 @@
-import { FormGroup } from '@blueprintjs/core';
+import { Button, Colors, FormGroup } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const InputWrapper = styled(FormGroup)`
@@ -33,5 +33,39 @@ export const GridFieldLabel = styled.span`
     gap: 0.357em;
     & .bp3-icon {
         margin: 2px;
+    }
+`;
+
+export const AxisGroup = styled.div`
+    padding: 0.643em 0;
+`;
+export const AxisTitle = styled.p`
+    color: ${Colors.DARK_GRAY1};
+    margin: 0;
+    font-weight: 600;
+`;
+export const AxisFieldDropdown = styled.div`
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 0.357em 0;
+
+    .bp3-input-group .bp3-input {
+        border: 0.7px solid ${Colors.LIGHT_GRAY1};
+        box-sizing: border-box;
+        box-shadow: inset 0px 1px 1px rgba(16, 22, 26, 0.2);
+    }
+`;
+
+export const DeleteFieldButton = styled(Button)`
+    border: 0.05em solid ${Colors.LIGHT_GRAY1} !important;
+    box-sizing: border-box;
+    box-shadow: inset 0px 1px 1px rgba(16, 22, 26, 0.2) !important;
+    margin-left: 5px;
+
+    span > svg:not([fill]) {
+        width: 13px;
+        height: 13px;
+        fill: ${Colors.GRAY1};
     }
 `;

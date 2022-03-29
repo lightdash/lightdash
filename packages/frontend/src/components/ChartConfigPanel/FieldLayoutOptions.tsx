@@ -1,62 +1,155 @@
-import { Button, ButtonGroup, Icon } from '@blueprintjs/core';
+import { Button, ButtonGroup } from '@blueprintjs/core';
+import { Field, getItemId, TableCalculation } from 'common';
+import React, { FC, useMemo } from 'react';
+import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
+import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
-    Field,
-    getItemColor,
-    getItemIcon,
-    isField,
-    TableCalculation,
-} from 'common';
-import React, { FC } from 'react';
-import { GridFieldLabel } from './ChartConfigPanel.styles';
+    AxisFieldDropdown,
+    AxisGroup,
+    AxisTitle,
+    DeleteFieldButton,
+    GridLabel,
+} from './ChartConfigPanel.styles';
 
 type Props = {
-    item: Field | TableCalculation;
-    isXActive?: boolean;
-    isYActive?: boolean;
-    isGroupActive?: boolean;
-    onXClick: (isActive: boolean) => void;
-    onYClick: (isActive: boolean) => void;
-    onGroupClick: (isActive: boolean) => void;
+    items: (Field | TableCalculation)[];
 };
 
-const FieldLayoutOptions: FC<Props> = ({
-    item,
-    isXActive,
-    isGroupActive,
-    onGroupClick,
-    onXClick,
-    onYClick,
-    isYActive,
-}) => {
+const FieldLayoutOptions: FC<Props> = ({ items }) => {
+    const {
+        cartesianConfig: {
+            dirtyLayout,
+            setXField,
+            addSingleSeries,
+            removeSingleSeries,
+            updateYField,
+            validCartesianConfig,
+            setStacking,
+            isStacked,
+        },
+        pivotDimensions,
+        setPivotDimensions,
+    } = useVisualizationContext();
+    const pivotDimension = pivotDimensions?.[0];
+
+    // X axis logic
+    const xAxisField = items.find(
+        (item) => getItemId(item) === dirtyLayout?.xField,
+    );
+
+    // Y axis logic
+    const yFields = dirtyLayout?.yField || [];
+
+    const yActiveField = (field: string) => {
+        return items.find((item) => field.includes(item.name));
+    };
+
+    const availableYFields = useMemo(() => {
+        return items.filter(
+            (item) => !dirtyLayout?.yField?.includes(getItemId(item)),
+        );
+    }, [dirtyLayout, items]);
+
+    // Group series logic
+    const groupSelectedField = items.find(
+        (item) => getItemId(item) === pivotDimension,
+    );
+
     return (
         <>
-            <GridFieldLabel>
-                <Icon icon={getItemIcon(item)} color={getItemColor(item)} />
-                <span>
-                    {isField(item) ? `${item.tableLabel} ` : ''}
-                    <b>{isField(item) ? item.label : item.displayName}</b>
-                </span>
-            </GridFieldLabel>
-            <ButtonGroup>
-                <Button
-                    intent={isXActive ? 'primary' : 'none'}
-                    onClick={() => onXClick(!isXActive)}
-                >
-                    x
-                </Button>
-                <Button
-                    intent={isYActive ? 'primary' : 'none'}
-                    onClick={() => onYClick(!isYActive)}
-                >
-                    y
-                </Button>
-                <Button
-                    intent={isGroupActive ? 'primary' : 'none'}
-                    onClick={() => onGroupClick(!isGroupActive)}
-                >
-                    group
-                </Button>
-            </ButtonGroup>
+            <AxisGroup>
+                <AxisTitle>{`${
+                    validCartesianConfig?.layout.flipAxes ? 'Y' : 'X'
+                } axis field`}</AxisTitle>
+                <AxisFieldDropdown>
+                    <FieldAutoComplete
+                        fields={items}
+                        activeField={xAxisField}
+                        onChange={(item) => {
+                            setXField(getItemId(item));
+                        }}
+                    />
+                </AxisFieldDropdown>
+            </AxisGroup>
+            <AxisGroup>
+                <AxisTitle>
+                    {`${
+                        validCartesianConfig?.layout.flipAxes ? 'X' : 'Y'
+                    } axis field`}
+                </AxisTitle>
+
+                {yFields.map((field, index) => (
+                    <AxisFieldDropdown key={`${field}-y-axis`}>
+                        <FieldAutoComplete
+                            fields={availableYFields}
+                            activeField={yActiveField(field)}
+                            onChange={(item) => {
+                                updateYField(index, getItemId(item));
+                            }}
+                        />
+                        {yFields?.length !== 1 && (
+                            <DeleteFieldButton
+                                minimal
+                                icon="cross"
+                                onClick={() => {
+                                    removeSingleSeries(index);
+                                }}
+                            />
+                        )}
+                    </AxisFieldDropdown>
+                ))}
+                {availableYFields.length > 0 && (
+                    <Button
+                        minimal
+                        intent="primary"
+                        onClick={() =>
+                            addSingleSeries(getItemId(availableYFields[0]))
+                        }
+                    >
+                        + Add
+                    </Button>
+                )}
+            </AxisGroup>
+            <AxisGroup>
+                <AxisTitle>Group</AxisTitle>
+                <AxisFieldDropdown>
+                    <FieldAutoComplete
+                        fields={items}
+                        activeField={groupSelectedField}
+                        onChange={(item) => {
+                            setPivotDimensions([getItemId(item)]);
+                        }}
+                    />
+                    <DeleteFieldButton
+                        minimal
+                        icon="cross"
+                        onClick={() => {
+                            setPivotDimensions(undefined);
+                        }}
+                    />
+                </AxisFieldDropdown>
+            </AxisGroup>
+            <AxisGroup>
+                {pivotDimension && (
+                    <>
+                        <GridLabel>Stacking</GridLabel>
+                        <ButtonGroup fill>
+                            <Button
+                                onClick={() => setStacking(false)}
+                                active={!isStacked}
+                            >
+                                No stacking
+                            </Button>
+                            <Button
+                                onClick={() => setStacking(true)}
+                                active={isStacked}
+                            >
+                                Stack
+                            </Button>
+                        </ButtonGroup>
+                    </>
+                )}
+            </AxisGroup>
         </>
     );
 };

@@ -1,4 +1,4 @@
-import { Button, ButtonGroup, InputGroup, Tab, Tabs } from '@blueprintjs/core';
+import { InputGroup, Tab, Tabs } from '@blueprintjs/core';
 import {
     fieldId,
     getAxisName,
@@ -14,12 +14,7 @@ import {
 } from 'common';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import {
-    FieldsGrid,
-    GridLabel,
-    InputWrapper,
-    Wrapper,
-} from './ChartConfigPanel.styles';
+import { InputWrapper, Wrapper } from './ChartConfigPanel.styles';
 import FieldLayoutOptions from './FieldLayoutOptions';
 import BasicSeriesConfiguration from './Series/BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './Series/GroupedSeriesConfiguration';
@@ -31,20 +26,13 @@ const ChartConfigTabs: FC = () => {
         cartesianConfig: {
             dirtyLayout,
             dirtyEchartsConfig,
-            setXField,
-            addSingleSeries,
-            removeSingleSeries,
             updateSingleSeries,
-            setStacking,
-            isStacked,
             updateAllGroupedSeries,
             setXAxisName,
             setYAxisName,
         },
         pivotDimensions,
-        setPivotDimensions,
     } = useVisualizationContext();
-    const yFieldsKeys = dirtyLayout?.yField || [];
     const pivotDimension = pivotDimensions?.[0];
 
     const [tab, setTab] = useState<string | number>('layout');
@@ -115,71 +103,9 @@ const ChartConfigTabs: FC = () => {
                     id="layout"
                     title="Layout"
                     panel={
-                        <FieldsGrid>
-                            <GridLabel>Field</GridLabel>
-                            <GridLabel>Axis</GridLabel>
-                            {items.map((item) => {
-                                const itemId = getItemId(item);
-                                return (
-                                    <FieldLayoutOptions
-                                        key={getItemId(item)}
-                                        item={item}
-                                        isXActive={
-                                            xAxisField &&
-                                            getItemId(xAxisField) === itemId
-                                        }
-                                        isYActive={yFieldsKeys.includes(itemId)}
-                                        isGroupActive={
-                                            !!pivotDimension &&
-                                            pivotDimension === itemId
-                                        }
-                                        onXClick={(isActive) =>
-                                            setXField(
-                                                isActive ? itemId : undefined,
-                                            )
-                                        }
-                                        onYClick={(isActive) => {
-                                            if (isActive) {
-                                                addSingleSeries(itemId);
-                                            } else {
-                                                const index =
-                                                    yFieldsKeys.findIndex(
-                                                        (yField) =>
-                                                            yField === itemId,
-                                                    );
-                                                if (index !== undefined) {
-                                                    removeSingleSeries(index);
-                                                }
-                                            }
-                                        }}
-                                        onGroupClick={(isActive) =>
-                                            isActive
-                                                ? setPivotDimensions([itemId])
-                                                : setPivotDimensions(undefined)
-                                        }
-                                    />
-                                );
-                            })}
-                            {pivotDimension && (
-                                <>
-                                    <GridLabel>Stacking</GridLabel>
-                                    <ButtonGroup fill>
-                                        <Button
-                                            onClick={() => setStacking(false)}
-                                            active={!isStacked}
-                                        >
-                                            No stacking
-                                        </Button>
-                                        <Button
-                                            onClick={() => setStacking(true)}
-                                            active={isStacked}
-                                        >
-                                            Stack
-                                        </Button>
-                                    </ButtonGroup>
-                                </>
-                            )}
-                        </FieldsGrid>
+                        <>
+                            <FieldLayoutOptions items={items} />
+                        </>
                     }
                 />
                 <Tab
@@ -211,12 +137,16 @@ const ChartConfigTabs: FC = () => {
                     title="Axes"
                     panel={
                         <>
-                            <InputWrapper label="X-axis label">
+                            <InputWrapper
+                                label={`${
+                                    dirtyLayout?.flipAxes ? 'Y' : 'X'
+                                }-axis label`}
+                            >
                                 <InputGroup
                                     placeholder={
                                         xAxisField
                                             ? getItemLabel(xAxisField)
-                                            : 'Enter X-axis label'
+                                            : `Enter axis label`
                                     }
                                     defaultValue={
                                         dirtyEchartsConfig?.xAxis?.[0]?.name
@@ -227,7 +157,9 @@ const ChartConfigTabs: FC = () => {
                                 />
                             </InputWrapper>
                             <InputWrapper
-                                label={`Y-axis label (${
+                                label={`${
+                                    dirtyLayout?.flipAxes ? 'X' : 'Y'
+                                }-axis label (${
                                     dirtyLayout?.flipAxes ? 'bottom' : 'left'
                                 })`}
                             >
@@ -240,7 +172,7 @@ const ChartConfigTabs: FC = () => {
                                             axisIndex: 0,
                                             series: dirtyEchartsConfig?.series,
                                             items,
-                                        }) || 'Enter left Y-axis label'
+                                        }) || `Enter axis label`
                                     }
                                     defaultValue={
                                         dirtyEchartsConfig?.yAxis?.[0]?.name
@@ -251,7 +183,9 @@ const ChartConfigTabs: FC = () => {
                                 />
                             </InputWrapper>
                             <InputWrapper
-                                label={`Y-axis label (${
+                                label={`${
+                                    dirtyLayout?.flipAxes ? 'X' : 'Y'
+                                }-axis label (${
                                     dirtyLayout?.flipAxes ? 'top' : 'right'
                                 })`}
                             >
@@ -264,7 +198,7 @@ const ChartConfigTabs: FC = () => {
                                             axisIndex: 1,
                                             series: dirtyEchartsConfig?.series,
                                             items,
-                                        }) || 'Enter right Y-axis label'
+                                        }) || `Enter axis label`
                                     }
                                     defaultValue={
                                         dirtyEchartsConfig?.yAxis?.[1]?.name
