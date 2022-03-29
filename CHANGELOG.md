@@ -1,3 +1,10 @@
+# [0.43.0](https://github.com/lightdash/lightdash/compare/0.42.0...0.43.0) (2022-03-29)
+
+
+### Features
+
+* **charts:** support multiple chart types ([#1590](https://github.com/lightdash/lightdash/issues/1590)) ([80bccd4](https://github.com/lightdash/lightdash/commit/80bccd4dbfd5a3cf5c55c0868b95eaff12a2c95f))
+
 # [0.42.0](https://github.com/lightdash/lightdash/compare/0.41.0...0.42.0) (2022-03-29)
 
 
