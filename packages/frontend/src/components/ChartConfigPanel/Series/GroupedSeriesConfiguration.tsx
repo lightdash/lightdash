@@ -124,7 +124,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
 
                 const isChartTypeTheSameForAllSeries: boolean =
                     new Set(seriesGroup.map(({ type }) => type)).size === 1;
-                console.log({ length: layout?.yField?.length, index: i });
 
                 const hasDivider = layout?.yField?.length !== i + 1;
 
