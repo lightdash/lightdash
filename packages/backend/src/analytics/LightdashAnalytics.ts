@@ -195,6 +195,13 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
     };
 };
 
+export type ThemeCreated = BaseTrack & {
+    event: 'theme.created';
+    properties: {
+        colours: string[];
+    };
+};
+
 type ApiErrorEvent = BaseTrack & {
     event: 'api.error';
     userId?: string;
@@ -225,7 +232,8 @@ type Track =
     | ProjectTablesConfigurationEvent
     | TrackOrganizationEvent
     | LoginEvent
-    | IdentityLinkedEvent;
+    | IdentityLinkedEvent
+    | ThemeCreated;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {

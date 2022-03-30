@@ -7,15 +7,18 @@ import {
     OrganizationMemberProfileUpdate,
     OrganizationProject,
     SessionUser,
+    Theme,
 } from 'common';
 import { analytics } from '../../analytics/client';
 import { lightdashConfig } from '../../config/lightdashConfig';
+import { DbThemeIn } from '../../database/entities/themes';
 import { ForbiddenError, NotExistsError } from '../../errors';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { ThemeModel } from '../../models/ThemeModel';
 
 type OrganizationServiceDependencies = {
     organizationModel: OrganizationModel;
@@ -23,6 +26,7 @@ type OrganizationServiceDependencies = {
     onboardingModel: OnboardingModel;
     inviteLinkModel: InviteLinkModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
+    themeModel: ThemeModel;
 };
 
 export class OrganizationService {
@@ -36,18 +40,22 @@ export class OrganizationService {
 
     private readonly organizationMemberProfileModel: OrganizationMemberProfileModel;
 
+    private readonly themeModel: ThemeModel;
+
     constructor({
         organizationModel,
         projectModel,
         onboardingModel,
         inviteLinkModel,
         organizationMemberProfileModel,
+        themeModel,
     }: OrganizationServiceDependencies) {
         this.organizationModel = organizationModel;
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
         this.inviteLinkModel = inviteLinkModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
+        this.themeModel = themeModel;
     }
 
     async get(user: SessionUser): Promise<Organisation> {
@@ -168,5 +176,28 @@ export class OrganizationService {
             memberUserUuid,
             data,
         );
+    }
+
+    async getTheme(user: SessionUser): Promise<Theme> {
+        return this.themeModel.getThemeByOrganizationId(user.organizationUuid);
+    }
+
+    async createTheme(user: SessionUser, data: DbThemeIn): Promise<Theme> {
+        if (user.ability.cannot('create', 'Project')) {
+            // TODO Change permission
+            throw new ForbiddenError();
+        }
+
+        await this.themeModel.createTheme(user.organizationUuid, data.colours);
+
+        analytics.track({
+            event: 'theme.created',
+            userId: user.userUuid,
+            organizationId: user.organizationUuid,
+            properties: {
+                colours: data.colours,
+            },
+        });
+        return this.getTheme(user);
     }
 }

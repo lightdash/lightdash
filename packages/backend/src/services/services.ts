@@ -12,6 +12,7 @@ import {
     projectModel,
     savedChartModel,
     sessionModel,
+    themeModel,
     userModel,
 } from '../models/models';
 import { DashboardService } from './DashboardService/DashboardService';
@@ -40,6 +41,7 @@ export const organizationService = new OrganizationService({
     onboardingModel,
     inviteLinkModel,
     organizationMemberProfileModel,
+    themeModel,
 });
 
 export const projectService = new ProjectService({

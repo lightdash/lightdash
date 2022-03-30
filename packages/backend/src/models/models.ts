@@ -12,6 +12,7 @@ import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { SavedChartModel } from './SavedChartModel';
 import { SessionModel } from './SessionModel';
+import { ThemeModel } from './ThemeModel';
 import { UserModel } from './UserModel';
 
 export const encryptionService = new EncryptionService({ lightdashConfig });
@@ -36,3 +37,4 @@ export const passwordResetLinkModel = new PasswordResetLinkModel({
 export const organizationMemberProfileModel =
     new OrganizationMemberProfileModel({ database });
 export const savedChartModel = new SavedChartModel({ database });
+export const themeModel = new ThemeModel({ database });

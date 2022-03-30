@@ -655,6 +655,13 @@ export type Organisation = {
     allowedEmailDomains: string[];
 };
 
+export type Theme = {
+    themeId: number;
+    organizationUuid: string;
+    createdAt: Date;
+    colours: string[];
+};
+
 export type UpdateOrganisation = Partial<Organisation>;
 
 type ApiResults =

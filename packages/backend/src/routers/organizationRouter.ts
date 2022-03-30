@@ -208,3 +208,27 @@ organizationRouter.post(
         }
     },
 );
+
+organizationRouter.post('/theme', isAuthenticated, async (req, res, next) =>
+    organizationService
+        .createTheme(req.user!, req.body)
+        .then((result) => {
+            res.json({
+                status: 'ok',
+                result,
+            });
+        })
+        .catch(next),
+);
+
+organizationRouter.get('/theme', isAuthenticated, async (req, res, next) => {
+    organizationService
+        .getTheme(req.user!)
+        .then((result) =>
+            res.json({
+                status: 'ok',
+                result,
+            }),
+        )
+        .catch(next);
+});

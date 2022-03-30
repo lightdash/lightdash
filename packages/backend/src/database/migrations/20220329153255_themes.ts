@@ -4,7 +4,7 @@ export async function up(knex: Knex): Promise<void> {
     await knex.raw(`
 CREATE TABLE IF NOT EXISTS themes (
     theme_id integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    organization_id integer NOT NULL REFERENCES organizations (organization_id) ON DELETE CASCADE,
+    organization_uuid uuid UNIQUE NOT NULL REFERENCES organizations (organization_uuid) ON DELETE CASCADE,
     created_at timestamp without time zone NOT NULL DEFAULT NOW(),
     colours TEXT []
 );
