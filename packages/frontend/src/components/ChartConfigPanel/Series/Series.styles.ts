@@ -100,7 +100,7 @@ export const SeriesExtraInputs = styled.div`
 
 export const SeriesOptionsWrapper = styled(Collapse)<{ $isGrouped?: boolean }>`
     ${GridTemplate}
-
+    color: red;
     .bp3-collapse-body {
         grid-column: 2 !important;
     }
@@ -115,10 +115,10 @@ export const SeriesOptionsWrapper = styled(Collapse)<{ $isGrouped?: boolean }>`
 export const SeriesExtraInputWrapper = styled(FormGroup)`
     margin: 0;
     & label.bp3-label {
-        font-weight: 500;
+        font-weight: 600;
         display: inline-flex;
         gap: 0.214em;
-        color: ${Colors.GRAY3};
+        color: ${Colors.GRAY1};
         font-size: 0.857em;
     }
 `;
