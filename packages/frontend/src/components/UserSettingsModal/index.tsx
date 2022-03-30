@@ -4,6 +4,7 @@ import useLocationChange from '../../hooks/useLocationChange';
 import { useApp } from '../../providers/AppProvider';
 import { TrackPage } from '../../providers/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../types/Events';
+import AppearancePanel from './AppearancePanel';
 import InvitesPanel from './InvitesPanel';
 import OrganisationPanel from './OrganisationPanel';
 import PasswordPanel from './PasswordPanel';
@@ -161,6 +162,23 @@ const UserSettingsModal: FC<Props> = ({
                             }
                         />
                     )}
+                    {health.data &&
+                        !health.data.needsProject &&
+                        user.data?.ability?.can('manage', 'Project') && (
+                            <Tab
+                                id="appearance"
+                                title="Appearance"
+                                panel={
+                                    <TrackPage
+                                        name={PageName.APPEARANCE}
+                                        type={PageType.MODAL}
+                                        category={CategoryName.SETTINGS}
+                                    >
+                                        <AppearancePanel />
+                                    </TrackPage>
+                                }
+                            />
+                        )}
                     <Tabs.Expander />
                 </Tabs>
             </div>
