@@ -1,11 +1,13 @@
-import { Button, Collapse, HTMLSelect, InputGroup } from '@blueprintjs/core';
+import { Button, InputGroup } from '@blueprintjs/core';
 import { CartesianChartLayout, CartesianSeriesType, Series } from 'common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import {
     SeriesExtraInputs,
     SeriesExtraInputWrapper,
+    SeriesExtraSelect,
     SeriesMainInputs,
+    SeriesOptionsWrapper,
     SeriesWrapper,
 } from './Series.styles';
 import SeriesColorPicker from './SeriesColorPicker';
@@ -16,6 +18,7 @@ type Props = {
     layout?: CartesianChartLayout;
     series: Series;
     fallbackColor?: string;
+    isGrouped?: boolean;
     updateSingleSeries: (updatedSeries: Series) => void;
 };
 
@@ -26,11 +29,12 @@ const SingleSeriesConfiguration: FC<Props> = ({
     series,
     fallbackColor,
     updateSingleSeries,
+    isGrouped,
 }) => {
     const [isOpen, toggleIsOpen] = useToggle(false);
     return (
         <SeriesWrapper>
-            <SeriesMainInputs>
+            <SeriesMainInputs $isGrouped={isGrouped}>
                 <SeriesColorPicker
                     color={series.color || fallbackColor}
                     onChange={(color) => {
@@ -58,10 +62,10 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     />
                 )}
             </SeriesMainInputs>
-            <Collapse isOpen={!isCollapsable || isOpen}>
+            <SeriesOptionsWrapper isOpen={!isCollapsable || isOpen}>
                 <SeriesExtraInputs>
                     <SeriesExtraInputWrapper label="Chart type">
-                        <HTMLSelect
+                        <SeriesExtraSelect
                             fill
                             value={series.type}
                             options={[
@@ -87,7 +91,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
                     </SeriesExtraInputWrapper>
                     <SeriesExtraInputWrapper label="Axis">
-                        <HTMLSelect
+                        <SeriesExtraSelect
                             fill
                             value={series.yAxisIndex}
                             options={[
@@ -109,7 +113,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
                     </SeriesExtraInputWrapper>
                     <SeriesExtraInputWrapper label="Value labels">
-                        <HTMLSelect
+                        <SeriesExtraSelect
                             fill
                             value={series.label?.position || 'hidden'}
                             options={[
@@ -135,9 +139,13 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
                     </SeriesExtraInputWrapper>
                 </SeriesExtraInputs>
-            </Collapse>
+            </SeriesOptionsWrapper>
         </SeriesWrapper>
     );
+};
+
+SingleSeriesConfiguration.defaultProps = {
+    isGrouped: false,
 };
 
 export default SingleSeriesConfiguration;

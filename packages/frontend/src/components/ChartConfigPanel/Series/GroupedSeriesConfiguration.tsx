@@ -1,4 +1,4 @@
-import { Colors, HTMLSelect } from '@blueprintjs/core';
+import { Colors } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     CartesianSeriesType,
@@ -14,11 +14,14 @@ import {
 import React, { FC, useMemo } from 'react';
 import { getDimensionFormatter } from '../../../utils/resultFormatter';
 import {
+    GroupedSeriesConfigWrapper,
     GroupSeriesBlock,
     GroupSeriesInputs,
     GroupSeriesWrapper,
     SeriesBlock,
+    SeriesDivider,
     SeriesExtraInputWrapper,
+    SeriesExtraSelect,
     SeriesTitle,
 } from './Series.styles';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
@@ -92,7 +95,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     );
     return (
         <>
-            {Object.entries(groupedSeries).map(([fieldKey, seriesGroup]) => {
+            {Object.entries(groupedSeries).map(([fieldKey, seriesGroup], i) => {
                 const field = items.find(
                     (item) => getItemId(item) === fieldKey,
                 );
@@ -122,140 +125,150 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                 const isChartTypeTheSameForAllSeries: boolean =
                     new Set(seriesGroup.map(({ type }) => type)).size === 1;
 
+                const hasDivider = layout?.yField?.length !== i + 1;
+
                 return (
-                    <GroupSeriesBlock key={fieldKey}>
-                        <SeriesTitle>
-                            {getItemLabel(field)} (grouped)
-                        </SeriesTitle>
-                        <GroupSeriesInputs>
-                            <SeriesExtraInputWrapper label="Chart type">
-                                <HTMLSelect
-                                    fill
-                                    value={
-                                        isChartTypeTheSameForAllSeries
-                                            ? seriesGroup[0].type
-                                            : 'mixed'
-                                    }
-                                    options={
-                                        isChartTypeTheSameForAllSeries
-                                            ? CHART_TYPE_OPTIONS
-                                            : [
-                                                  ...CHART_TYPE_OPTIONS,
-                                                  {
-                                                      value: 'mixed',
-                                                      label: 'Mixed',
-                                                  },
-                                              ]
-                                    }
-                                    onChange={(e) => {
-                                        updateAllGroupedSeries(fieldKey, {
-                                            type: e.target
-                                                .value as Series['type'],
-                                        });
-                                    }}
-                                />
-                            </SeriesExtraInputWrapper>
-                            <SeriesExtraInputWrapper label="Axis">
-                                <HTMLSelect
-                                    fill
-                                    value={
-                                        isAxisTheSameForAllSeries
-                                            ? seriesGroup[0].yAxisIndex
-                                            : 'mixed'
-                                    }
-                                    options={
-                                        isAxisTheSameForAllSeries
-                                            ? layout?.flipAxes
-                                                ? FLIPPED_AXIS_OPTIONS
-                                                : AXIS_OPTIONS
-                                            : [
-                                                  ...(layout?.flipAxes
-                                                      ? FLIPPED_AXIS_OPTIONS
-                                                      : AXIS_OPTIONS),
-                                                  {
-                                                      value: 'mixed',
-                                                      label: 'Mixed',
-                                                  },
-                                              ]
-                                    }
-                                    onChange={(e) => {
-                                        updateAllGroupedSeries(fieldKey, {
-                                            yAxisIndex: parseInt(
-                                                e.target.value,
-                                                10,
-                                            ),
-                                        });
-                                    }}
-                                />
-                            </SeriesExtraInputWrapper>
-                            <SeriesExtraInputWrapper label="Value labels">
-                                <HTMLSelect
-                                    fill
-                                    value={
-                                        isLabelTheSameForAllSeries
-                                            ? seriesGroup[0].label?.position ||
-                                              'hidden'
-                                            : 'mixed'
-                                    }
-                                    options={
-                                        isLabelTheSameForAllSeries
-                                            ? VALUE_LABELS_OPTIONS
-                                            : [
-                                                  ...VALUE_LABELS_OPTIONS,
-                                                  {
-                                                      value: 'mixed',
-                                                      label: 'Mixed',
-                                                  },
-                                              ]
-                                    }
-                                    onChange={(e) => {
-                                        const option = e.target.value;
-                                        updateAllGroupedSeries(fieldKey, {
-                                            label:
-                                                option === 'hidden'
-                                                    ? { show: false }
-                                                    : {
-                                                          show: true,
-                                                          position:
-                                                              option as any,
-                                                      },
-                                        });
-                                    }}
-                                />
-                            </SeriesExtraInputWrapper>
-                        </GroupSeriesInputs>
-                        <GroupSeriesWrapper>
-                            {seriesGroup?.map((singleSeries) => {
-                                const formattedValue = getFormatterValue(
-                                    singleSeries.encode.yRef.pivotValues![0]
-                                        .value,
-                                    singleSeries.encode.yRef.pivotValues![0]
-                                        .field,
-                                    items,
-                                );
-                                return (
-                                    <SingleSeriesConfiguration
-                                        key={getSeriesId(singleSeries)}
-                                        isCollapsable
-                                        layout={layout}
-                                        series={singleSeries}
-                                        placeholderName={
-                                            layout?.yField &&
-                                            layout.yField.length > 1
-                                                ? `[${formattedValue}] ${getItemLabel(
-                                                      field,
-                                                  )}`
-                                                : formattedValue
+                    <>
+                        <GroupSeriesBlock key={fieldKey}>
+                            <SeriesTitle>
+                                {getItemLabel(field)} (grouped)
+                            </SeriesTitle>
+                            <GroupSeriesInputs>
+                                <SeriesExtraInputWrapper label="Chart type">
+                                    <SeriesExtraSelect
+                                        fill
+                                        value={
+                                            isChartTypeTheSameForAllSeries
+                                                ? seriesGroup[0].type
+                                                : 'mixed'
                                         }
-                                        fallbackColor={getSeriesColor(
-                                            getSeriesId(singleSeries),
-                                        )}
-                                        updateSingleSeries={updateSingleSeries}
+                                        options={
+                                            isChartTypeTheSameForAllSeries
+                                                ? CHART_TYPE_OPTIONS
+                                                : [
+                                                      ...CHART_TYPE_OPTIONS,
+                                                      {
+                                                          value: 'mixed',
+                                                          label: 'Mixed',
+                                                      },
+                                                  ]
+                                        }
+                                        onChange={(e) => {
+                                            updateAllGroupedSeries(fieldKey, {
+                                                type: e.target
+                                                    .value as Series['type'],
+                                            });
+                                        }}
                                     />
-                                );
-                            })}
-                        </GroupSeriesWrapper>
-                    </GroupSeriesBlock>
+                                </SeriesExtraInputWrapper>
+                                <SeriesExtraInputWrapper label="Axis">
+                                    <SeriesExtraSelect
+                                        fill
+                                        value={
+                                            isAxisTheSameForAllSeries
+                                                ? seriesGroup[0].yAxisIndex
+                                                : 'mixed'
+                                        }
+                                        options={
+                                            isAxisTheSameForAllSeries
+                                                ? layout?.flipAxes
+                                                    ? FLIPPED_AXIS_OPTIONS
+                                                    : AXIS_OPTIONS
+                                                : [
+                                                      ...(layout?.flipAxes
+                                                          ? FLIPPED_AXIS_OPTIONS
+                                                          : AXIS_OPTIONS),
+                                                      {
+                                                          value: 'mixed',
+                                                          label: 'Mixed',
+                                                      },
+                                                  ]
+                                        }
+                                        onChange={(e) => {
+                                            updateAllGroupedSeries(fieldKey, {
+                                                yAxisIndex: parseInt(
+                                                    e.target.value,
+                                                    10,
+                                                ),
+                                            });
+                                        }}
+                                    />
+                                </SeriesExtraInputWrapper>
+                                <SeriesExtraInputWrapper label="Value labels">
+                                    <SeriesExtraSelect
+                                        fill
+                                        value={
+                                            isLabelTheSameForAllSeries
+                                                ? seriesGroup[0].label
+                                                      ?.position || 'hidden'
+                                                : 'mixed'
+                                        }
+                                        options={
+                                            isLabelTheSameForAllSeries
+                                                ? VALUE_LABELS_OPTIONS
+                                                : [
+                                                      ...VALUE_LABELS_OPTIONS,
+                                                      {
+                                                          value: 'mixed',
+                                                          label: 'Mixed',
+                                                      },
+                                                  ]
+                                        }
+                                        onChange={(e) => {
+                                            const option = e.target.value;
+                                            updateAllGroupedSeries(fieldKey, {
+                                                label:
+                                                    option === 'hidden'
+                                                        ? { show: false }
+                                                        : {
+                                                              show: true,
+                                                              position:
+                                                                  option as any,
+                                                          },
+                                            });
+                                        }}
+                                    />
+                                </SeriesExtraInputWrapper>
+                            </GroupSeriesInputs>
+                            <GroupSeriesWrapper>
+                                {seriesGroup?.map((singleSeries) => {
+                                    const formattedValue = getFormatterValue(
+                                        singleSeries.encode.yRef.pivotValues![0]
+                                            .value,
+                                        singleSeries.encode.yRef.pivotValues![0]
+                                            .field,
+                                        items,
+                                    );
+                                    return (
+                                        <GroupedSeriesConfigWrapper>
+                                            <SingleSeriesConfiguration
+                                                key={getSeriesId(singleSeries)}
+                                                isCollapsable
+                                                layout={layout}
+                                                series={singleSeries}
+                                                placeholderName={
+                                                    layout?.yField &&
+                                                    layout.yField.length > 1
+                                                        ? `[${formattedValue}] ${getItemLabel(
+                                                              field,
+                                                          )}`
+                                                        : formattedValue
+                                                }
+                                                fallbackColor={getSeriesColor(
+                                                    getSeriesId(singleSeries),
+                                                )}
+                                                updateSingleSeries={
+                                                    updateSingleSeries
+                                                }
+                                                isGrouped
+                                            />
+                                        </GroupedSeriesConfigWrapper>
+                                    );
+                                })}
+                            </GroupSeriesWrapper>
+                        </GroupSeriesBlock>
+                        {hasDivider && <SeriesDivider />}
+                    </>
                 );
             })}
         </>

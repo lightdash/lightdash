@@ -1,7 +1,8 @@
-import { Button, Colors, FormGroup } from '@blueprintjs/core';
+import { Button, ButtonGroup, Colors, FormGroup } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const InputWrapper = styled(FormGroup)`
+    margin: 1.357em 0 0;
     & label.bp3-label {
         font-weight: 500;
         display: inline-flex;
@@ -12,7 +13,7 @@ export const InputWrapper = styled(FormGroup)`
 export const Wrapper = styled.div`
     max-width: 28.571em;
     min-width: 25em;
-    padding: 1.429em;
+    padding: 1.429em 1.429em 2.143em;
 `;
 
 export const FieldsGrid = styled.div`
@@ -37,7 +38,7 @@ export const GridFieldLabel = styled.span`
 `;
 
 export const AxisGroup = styled.div`
-    padding-bottom: 1.286em;
+    margin-top: 1.286em;
 `;
 export const AxisTitleWrapper = styled.div`
     display: flex;
@@ -74,4 +75,21 @@ export const DeleteFieldButton = styled(Button)`
         height: 13px;
         fill: ${Colors.GRAY1};
     }
+`;
+
+export const StackingWrapper = styled(ButtonGroup)`
+    padding: 0.357em 0;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+
+    .bp3-active {
+        background: #4b86be !important;
+        color: ${Colors.WHITE};
+    }
+`;
+
+export const StackButton = styled(Button)`
+    background-color: #fcfdfe !important;
+    border: 0.5px solid #cdced0;
+    box-shadow: none !important;
 `;
