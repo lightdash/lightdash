@@ -653,6 +653,7 @@ export type OnboardingStatus = IncompleteOnboarding | CompleteOnboarding;
 export type Organisation = {
     name: string;
     allowedEmailDomains: string[];
+    chartColors?: string[];
 };
 
 export type UpdateOrganisation = Partial<Organisation>;

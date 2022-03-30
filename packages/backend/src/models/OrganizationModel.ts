@@ -17,6 +17,7 @@ export class OrganizationModel {
         return {
             name: data.organization_name,
             allowedEmailDomains: data.allowed_email_domains,
+            chartColors: data.chart_colors,
         };
     }
 
@@ -49,6 +50,7 @@ export class OrganizationModel {
             .update({
                 organization_name: data.name,
                 allowed_email_domains: JSON.stringify(data.allowedEmailDomains),
+                chart_colors: data.chartColors,
             })
             .returning('*');
         return OrganizationModel.mapDBObjectToOrganisation(org);
