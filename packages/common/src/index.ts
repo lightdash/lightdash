@@ -1208,17 +1208,13 @@ export const getResultValues = (
     rows: ResultRow[],
     onlyRaw: boolean = false,
 ): { [col: string]: any }[] =>
-    rows.map((row: ResultRow) => {
-        const newRow: { [col: string]: any } = {};
-        Object.keys(row).reduce((acc, key) => {
+    rows.map((row: ResultRow) => Object.keys(row).reduce((acc, key) => {
             const value: string = onlyRaw
                 ? row[key]?.value?.raw
                 : row[key]?.value?.formatted || row[key]?.value?.raw;
 
             return { ...acc, [key]: value };
-        }, {});
-        return newRow;
-    });
+        }, {}));
 
 export const getAxisName = ({
     isAxisTheSameForAllSeries,
