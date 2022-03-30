@@ -134,13 +134,15 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                             setPivotDimensions([getItemId(item)]);
                         }}
                     />
-                    <DeleteFieldButton
-                        minimal
-                        icon="cross"
-                        onClick={() => {
-                            setPivotDimensions(undefined);
-                        }}
-                    />
+                    {groupSelectedField && (
+                        <DeleteFieldButton
+                            minimal
+                            icon="cross"
+                            onClick={() => {
+                                setPivotDimensions(undefined);
+                            }}
+                        />
+                    )}
                 </AxisFieldDropdown>
             </AxisGroup>
             {pivotDimension && (
