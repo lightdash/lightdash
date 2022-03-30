@@ -57,7 +57,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                         <SingleSeriesConfiguration
                             layout={layout}
                             series={series}
-                            placeholderName={getItemLabel(field)}
+                            seriesLabel={getItemLabel(field)}
                             fallbackColor={getSeriesColor(getSeriesId(series))}
                             updateSingleSeries={updateSingleSeries}
                         />

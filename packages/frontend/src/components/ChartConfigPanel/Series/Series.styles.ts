@@ -94,16 +94,22 @@ export const SeriesExtraInputs = styled.div`
     display: flex;
     flex: 1;
     gap: 0.714em;
-    margin-top: 0.714em;
+    margin-top: 0.357em;
     justify-content: space-between;
 `;
 
-export const SeriesOptionsWrapper = styled(Collapse)`
+export const SeriesOptionsWrapper = styled(Collapse)<{ $isGrouped?: boolean }>`
     ${GridTemplate}
 
     .bp3-collapse-body {
         grid-column: 2 !important;
     }
+
+    ${({ $isGrouped }) =>
+        $isGrouped &&
+        `
+     gap: 0.357em;
+  `}
 `;
 
 export const SeriesExtraInputWrapper = styled(FormGroup)`

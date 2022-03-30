@@ -136,7 +136,7 @@ const ChartConfigTabs: FC = () => {
                             <InputWrapper
                                 label={`${
                                     dirtyLayout?.flipAxes ? 'Y' : 'X'
-                                }-axis label`}
+                                } axis label`}
                             >
                                 <InputGroup
                                     placeholder="Enter axis label"
@@ -152,7 +152,7 @@ const ChartConfigTabs: FC = () => {
                             <InputWrapper
                                 label={`${
                                     dirtyLayout?.flipAxes ? 'X' : 'Y'
-                                }-axis label (${
+                                } axis label (${
                                     dirtyLayout?.flipAxes ? 'bottom' : 'left'
                                 })`}
                             >
@@ -177,7 +177,7 @@ const ChartConfigTabs: FC = () => {
                             <InputWrapper
                                 label={`${
                                     dirtyLayout?.flipAxes ? 'X' : 'Y'
-                                }-axis label (${
+                                } axis label (${
                                     dirtyLayout?.flipAxes ? 'top' : 'right'
                                 })`}
                             >

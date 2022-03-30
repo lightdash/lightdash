@@ -14,7 +14,7 @@ import SeriesColorPicker from './SeriesColorPicker';
 
 type Props = {
     isCollapsable?: boolean;
-    placeholderName: string;
+    seriesLabel: string;
     layout?: CartesianChartLayout;
     series: Series;
     fallbackColor?: string;
@@ -25,7 +25,7 @@ type Props = {
 const SingleSeriesConfiguration: FC<Props> = ({
     layout,
     isCollapsable,
-    placeholderName,
+    seriesLabel,
     series,
     fallbackColor,
     updateSingleSeries,
@@ -46,8 +46,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                 />
                 <InputGroup
                     fill
-                    placeholder={placeholderName}
-                    defaultValue={series.name}
+                    defaultValue={series.name || seriesLabel}
                     onBlur={(e) => {
                         updateSingleSeries({
                             ...series,
@@ -62,9 +61,12 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     />
                 )}
             </SeriesMainInputs>
-            <SeriesOptionsWrapper isOpen={!isCollapsable || isOpen}>
+            <SeriesOptionsWrapper
+                isOpen={!isCollapsable || isOpen}
+                $isGrouped={isGrouped}
+            >
                 <SeriesExtraInputs>
-                    <SeriesExtraInputWrapper label="Chart type">
+                    <SeriesExtraInputWrapper label={!isGrouped && 'Chart type'}>
                         <SeriesExtraSelect
                             fill
                             value={series.type}
@@ -90,7 +92,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             }}
                         />
                     </SeriesExtraInputWrapper>
-                    <SeriesExtraInputWrapper label="Axis">
+                    <SeriesExtraInputWrapper label={!isGrouped && 'Axis'}>
                         <SeriesExtraSelect
                             fill
                             value={series.yAxisIndex}
@@ -112,7 +114,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             }}
                         />
                     </SeriesExtraInputWrapper>
-                    <SeriesExtraInputWrapper label="Value labels">
+                    <SeriesExtraInputWrapper
+                        label={!isGrouped && 'Value labels'}
+                    >
                         <SeriesExtraSelect
                             fill
                             value={series.label?.position || 'hidden'}
