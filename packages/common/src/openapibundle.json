@@ -1186,6 +1186,74 @@
                     }
                 }
             }
+        },
+        "/orgs/theme": {
+            "post": {
+                "summary": "Create new organization theme",
+                "tags": ["organization"],
+                "operationId": "createOrganizationTheme",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successfully created theme",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "result": {
+                                                    "$ref": "#/components/schemas/Theme"
+                                                }
+                                            },
+                                            "required": ["result"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            },
+            "get": {
+                "summary": "Get organization theme",
+                "tags": ["organization"],
+                "operationId": "getOrganizationTheme",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successfully get theme",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "result": {
+                                                    "$ref": "#/components/schemas/Theme"
+                                                }
+                                            },
+                                            "required": ["result"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
         }
     },
     "security": [
@@ -1928,6 +1996,21 @@
                     "chartConfig",
                     "tableConfig"
                 ]
+            },
+            "Theme": {
+                "type": "object",
+                "properties": {
+                    "themeId": {
+                        "type": "string"
+                    },
+                    "colours": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": ["themeId", "colours"]
             }
         },
         "responses": {

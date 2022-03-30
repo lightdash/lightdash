@@ -1,0 +1,68 @@
+{
+    "post": {
+        "summary": "Create new organization theme",
+        "tags": ["organization"],
+        "operationId": "createOrganizationTheme",
+        "parameters": [],
+        "responses": {
+            "200": {
+                "description": "Successfully created theme",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "../schemas/Success.json"
+                                },
+                                {
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "../schemas/Theme.json"
+                                        }
+                                    },
+                                    "required": ["result"]
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "default": {
+                "$ref": "../responses/ErrorResponse.json"
+            }
+        }
+    },
+    "get": {
+        "summary": "Get organization theme",
+        "tags": ["organization"],
+        "operationId": "getOrganizationTheme",
+        "parameters": [],
+        "responses": {
+            "200": {
+                "description": "Successfully get theme",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "../schemas/Success.json"
+                                },
+                                {
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "../schemas/Theme.json"
+                                        }
+                                    },
+                                    "required": ["result"]
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "default": {
+                "$ref": "../responses/ErrorResponse.json"
+            }
+        }
+    }
+}

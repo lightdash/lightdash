@@ -81,6 +81,9 @@
         },
         "/saved/{savedChartUuid}/version": {
             "$ref": "./paths/savedChartVersions.json"
+        },
+        "/orgs/theme": {
+            "$ref": "./paths/theme.json"
         }
     },
     "security": [

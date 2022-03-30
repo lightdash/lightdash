@@ -1,0 +1,16 @@
+{
+    "type": "object",
+    "properties": {
+        "themeId": {
+            "type": "string"
+        },
+        "colours": {
+            "type": "array",
+
+            "items": {
+                "type": "string"
+            }
+        }
+    },
+    "required": ["themeId", "colours"]
+}

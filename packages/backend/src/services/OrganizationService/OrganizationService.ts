@@ -11,7 +11,6 @@ import {
 } from 'common';
 import { analytics } from '../../analytics/client';
 import { lightdashConfig } from '../../config/lightdashConfig';
-import { DbThemeIn } from '../../database/entities/themes';
 import { ForbiddenError, NotExistsError } from '../../errors';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -182,7 +181,10 @@ export class OrganizationService {
         return this.themeModel.getThemeByOrganizationId(user.organizationUuid);
     }
 
-    async createTheme(user: SessionUser, data: DbThemeIn): Promise<Theme> {
+    async createTheme(
+        user: SessionUser,
+        data: { colours: string[] },
+    ): Promise<Theme> {
         if (user.ability.cannot('create', 'Project')) {
             // TODO Change permission
             throw new ForbiddenError();
