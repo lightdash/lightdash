@@ -13,6 +13,7 @@ import {
     TableCalculation,
 } from 'common';
 import React, { FC, useCallback, useMemo, useState } from 'react';
+import { ActiveSeriesProvider } from '../../providers/ActiveSeries';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { InputWrapper, Wrapper } from './ChartConfigPanel.styles';
 import FieldLayoutOptions from './FieldLayoutOptions';
@@ -109,14 +110,18 @@ const ChartConfigTabs: FC = () => {
                     title="Series"
                     panel={
                         pivotDimension ? (
-                            <GroupedSeriesConfiguration
-                                items={items}
-                                layout={dirtyLayout}
-                                series={dirtyEchartsConfig?.series}
-                                getSeriesColor={getSeriesColor}
-                                updateSingleSeries={updateSingleSeries}
-                                updateAllGroupedSeries={updateAllGroupedSeries}
-                            />
+                            <ActiveSeriesProvider>
+                                <GroupedSeriesConfiguration
+                                    items={items}
+                                    layout={dirtyLayout}
+                                    series={dirtyEchartsConfig?.series}
+                                    getSeriesColor={getSeriesColor}
+                                    updateSingleSeries={updateSingleSeries}
+                                    updateAllGroupedSeries={
+                                        updateAllGroupedSeries
+                                    }
+                                />
+                            </ActiveSeriesProvider>
                         ) : (
                             <BasicSeriesConfiguration
                                 items={items}
