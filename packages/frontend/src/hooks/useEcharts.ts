@@ -185,8 +185,8 @@ export const getEchartsSeries = (
                         {
                             name: yFieldHash,
                             displayName:
-                                cartesianChart.eChartsConfig.series &&
-                                cartesianChart.eChartsConfig.series.length > 1
+                                cartesianChart.layout.yField &&
+                                cartesianChart.layout.yField.length > 1
                                     ? `[${value}] ${getLabelFromField(
                                           explore,
                                           tableCalculations,
@@ -355,7 +355,7 @@ const getEchartAxis = ({
                           items,
                           series: validCartesianConfig.eChartsConfig.series,
                       })
-                    : xAxisConfiguration?.[0]?.name,
+                    : undefined,
                 nameLocation: 'center',
                 nameGap: 30,
                 nameTextStyle: {

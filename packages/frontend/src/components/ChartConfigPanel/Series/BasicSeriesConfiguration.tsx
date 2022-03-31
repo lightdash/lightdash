@@ -9,7 +9,7 @@ import {
     TableCalculation,
 } from 'common';
 import React, { FC } from 'react';
-import { SeriesBlock, SeriesTitle } from './Series.styles';
+import { SeriesBlock, SeriesDivider, SeriesTitle } from './Series.styles';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
 type BasicSeriesConfigurationProps = {
@@ -29,7 +29,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
 }) => {
     return (
         <>
-            {allSeries?.map((series) => {
+            {allSeries?.map((series, i) => {
                 const field = items.find(
                     (item) => getItemId(item) === series.encode.yRef.field,
                 );
@@ -48,6 +48,9 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                         </SeriesBlock>
                     );
                 }
+
+                const hasDivider = allSeries.length !== i + 1;
+
                 return (
                     <SeriesBlock key={getSeriesId(series)}>
                         <SeriesTitle>{getItemLabel(field)}</SeriesTitle>
@@ -56,31 +59,9 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                             series={series}
                             placeholderName={getItemLabel(field)}
                             fallbackColor={getSeriesColor(getSeriesId(series))}
-                            onColorChange={(color) => {
-                                updateSingleSeries({
-                                    ...series,
-                                    color,
-                                });
-                            }}
-                            onNameChange={(name) =>
-                                updateSingleSeries({
-                                    ...series,
-                                    name,
-                                })
-                            }
-                            onLabelChange={(label) => {
-                                updateSingleSeries({
-                                    ...series,
-                                    label,
-                                });
-                            }}
-                            onYAxisChange={(yAxisIndex) => {
-                                updateSingleSeries({
-                                    ...series,
-                                    yAxisIndex,
-                                });
-                            }}
+                            updateSingleSeries={updateSingleSeries}
                         />
+                        {hasDivider && <SeriesDivider />}
                     </SeriesBlock>
                 );
             })}

@@ -1,3 +1,38 @@
+## [0.43.3](https://github.com/lightdash/lightdash/compare/0.43.2...0.43.3) (2022-03-29)
+
+
+### Bug Fixes
+
+* **charts:** load saved pivoted charts ([#1611](https://github.com/lightdash/lightdash/issues/1611)) ([fdf642c](https://github.com/lightdash/lightdash/commit/fdf642c9d51cbf814dd12a8b033597e95bd1865d))
+
+## [0.43.2](https://github.com/lightdash/lightdash/compare/0.43.1...0.43.2) (2022-03-29)
+
+
+### Bug Fixes
+
+* **charts:** default label for single grouped metric ([#1605](https://github.com/lightdash/lightdash/issues/1605)) ([7357423](https://github.com/lightdash/lightdash/commit/73574235812b88e81567de0118affdb5ce0e102b))
+
+## [0.43.1](https://github.com/lightdash/lightdash/compare/0.43.0...0.43.1) (2022-03-29)
+
+
+### Bug Fixes
+
+* **charts:** top axis name ([#1603](https://github.com/lightdash/lightdash/issues/1603)) ([26a15d2](https://github.com/lightdash/lightdash/commit/26a15d2bcc6ca5518d1519e535e32ccabaad5a1a))
+
+# [0.43.0](https://github.com/lightdash/lightdash/compare/0.42.0...0.43.0) (2022-03-29)
+
+
+### Features
+
+* **charts:** support multiple chart types ([#1590](https://github.com/lightdash/lightdash/issues/1590)) ([80bccd4](https://github.com/lightdash/lightdash/commit/80bccd4dbfd5a3cf5c55c0868b95eaff12a2c95f))
+
+# [0.42.0](https://github.com/lightdash/lightdash/compare/0.41.0...0.42.0) (2022-03-29)
+
+
+### Features
+
+* **charts:** replace chart configuration buttons with autocomplete fields ([#1576](https://github.com/lightdash/lightdash/issues/1576)) ([31aac30](https://github.com/lightdash/lightdash/commit/31aac30c9cfe64b5319403e047b966a13d54a7d0))
+
 # [0.41.0](https://github.com/lightdash/lightdash/compare/0.40.0...0.41.0) (2022-03-28)
 
 
