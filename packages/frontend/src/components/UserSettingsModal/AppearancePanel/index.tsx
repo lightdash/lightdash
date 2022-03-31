@@ -65,7 +65,6 @@ const AppearancePanel: FC = () => {
             });
     };
 
-    //TODO add form
     return (
         <AppearancePanelWrapper>
             <Title>Default chart colours</Title>
@@ -77,12 +76,6 @@ const AppearancePanel: FC = () => {
                         onChange={(colorChange) => {
                             colors[index] = colorChange;
                             setColors([...colors]);
-                            console.log(
-                                'color change',
-                                index,
-                                colorChange,
-                                colors,
-                            );
                         }}
                     />
                 ))}
