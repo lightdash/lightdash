@@ -1,3 +1,10 @@
+# [0.45.0](https://github.com/lightdash/lightdash/compare/0.44.0...0.45.0) (2022-03-31)
+
+
+### Features
+
+* colour palette org frontend ([#1627](https://github.com/lightdash/lightdash/issues/1627)) ([5a5b366](https://github.com/lightdash/lightdash/commit/5a5b3662976bf9860e86cba7b901cee97013ea69))
+
 # [0.44.0](https://github.com/lightdash/lightdash/compare/0.43.3...0.44.0) (2022-03-31)
 
 
