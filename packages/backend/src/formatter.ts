@@ -1,6 +1,7 @@
 import { Explore, fieldId as getFieldId, getFields, ResultRow } from 'common';
 
-function formatValue(format: string, value: any): any {
+function formatValue<T>(format: string, value: T): string | T {
+    if (value === undefined) return value;
     switch (format) {
         case 'km':
         case 'mi':
@@ -8,9 +9,13 @@ function formatValue(format: string, value: any): any {
         case 'usd':
             return `$${value}`;
         case 'gbp':
-            return `${value}£`;
+            return `£${value}`;
         case 'percent':
-            return `${parseFloat(value) * 100} %`;
+            if (Number.isNaN(value as any)) {
+                return value;
+            } 
+                return `${parseFloat(value as any) * 100}%`;
+            
         case '': // no format
             return value;
         default:
@@ -37,7 +42,8 @@ export function formatRows(
         return fieldMap[columnName] || '';
     }
 
-    return rows.map((row) => Object.keys(row).reduce((acc, columnName) => {
+    return rows.map((row) =>
+        Object.keys(row).reduce((acc, columnName) => {
             const col = row[columnName];
 
             const format = getFormat(columnName);
@@ -52,5 +58,6 @@ export function formatRows(
                     },
                 },
             };
-        }, {}));
+        }, {}),
+    );
 }

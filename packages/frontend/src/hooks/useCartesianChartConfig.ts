@@ -207,9 +207,7 @@ const useCartesianChartConfig = (
             if (pivotKey) {
                 const uniquePivotValues: string[] = Array.from(
                     new Set(
-                        resultsData?.rows.map(
-                            (row) => row[pivotKey].value?.raw,
-                        ),
+                        resultsData?.rows.map((row) => row[pivotKey].value.raw),
                     ),
                 );
                 expectedSeriesMap = (dirtyLayout.yField || []).reduce<
