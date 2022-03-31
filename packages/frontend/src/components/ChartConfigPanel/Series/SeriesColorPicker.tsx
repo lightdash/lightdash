@@ -4,6 +4,7 @@ import { ECHARTS_DEFAULT_COLORS } from 'common';
 import React, { FC } from 'react';
 import { BlockPicker, ColorResult } from 'react-color';
 import { useToggle } from 'react-use';
+import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { ColorButton, ColorButtonInner } from './Series.styles';
 
 type Props = {
@@ -13,13 +14,16 @@ type Props = {
 
 const SeriesColorPicker: FC<Props> = ({ color, onChange }) => {
     const [isOpen, toggle] = useToggle(false);
+    const { isLoading: isOrgLoading, data } = useOrganisation();
+
+    const colors = data?.chartColors || ECHARTS_DEFAULT_COLORS;
     return (
         <Popover2
             isOpen={isOpen}
             content={
                 <BlockPicker
                     color={color}
-                    colors={ECHARTS_DEFAULT_COLORS}
+                    colors={colors}
                     onChange={(result: ColorResult) => {
                         onChange(result.hex);
                         toggle(false);
