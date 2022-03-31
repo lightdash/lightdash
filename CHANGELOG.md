@@ -1,3 +1,10 @@
+## [0.45.1](https://github.com/lightdash/lightdash/compare/0.45.0...0.45.1) (2022-03-31)
+
+
+### Bug Fixes
+
+* fix series color picker on charts ([#1633](https://github.com/lightdash/lightdash/issues/1633)) ([faa4864](https://github.com/lightdash/lightdash/commit/faa486499137e5bbca815830947873d2f2bb107b))
+
 # [0.45.0](https://github.com/lightdash/lightdash/compare/0.44.0...0.45.0) (2022-03-31)
 
 
