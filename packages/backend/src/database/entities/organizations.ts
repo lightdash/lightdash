@@ -6,7 +6,7 @@ export type DbOrganization = {
     organization_name: string;
     allowed_email_domains: any; // jsonb
     created_at: Date;
-    chart_colors: string[] | undefined;
+    chart_colors?: string[];
 };
 
 export type DbOrganizationIn = Pick<DbOrganization, 'organization_name'>;
