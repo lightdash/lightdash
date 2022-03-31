@@ -13,11 +13,12 @@ export const ColorPalette = styled.div`
 `;
 
 export const AppearanceColorWrapper = styled.div`
-    margin: 10px 5px;
+    margin: 0.625em 0.313em;
 `;
-export const ColorLabel = styled.div`
+export const ColorLabel = styled.input`
     background-color: white;
-    padding: 5px;
+    padding: 0.313em;
     border: 1px solid lightgray;
     border-radius: 0 5px 5px 0px;
+    width: 5em;
 `;

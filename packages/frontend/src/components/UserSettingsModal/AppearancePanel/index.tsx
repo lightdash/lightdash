@@ -1,8 +1,8 @@
 import { Button, Intent } from '@blueprintjs/core';
 import { ECHARTS_DEFAULT_COLORS } from 'common';
-import React, { FC, useEffect, useState } from 'react';
-import { useApp } from '../../../providers/AppProvider';
-import { useTracking } from '../../../providers/TrackingProvider';
+import React, { FC, useState } from 'react';
+import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
+import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';
 import SeriesColorPicker from '../../ChartConfigPanel/Series/SeriesColorPicker';
 import {
     AppearanceColorWrapper,
@@ -12,34 +12,58 @@ import {
     Title,
 } from './AppearancePanel.styles';
 
-const AppearanceColor: FC<{
+interface AppearanceColorProps {
     color: string;
     index: number;
     onChange: (value: string) => void;
-}> = ({ color, index, onChange }) => {
+}
+
+const AppearanceColor: FC<AppearanceColorProps> = ({
+    color,
+    index,
+    onChange,
+}) => {
+    let [newColor, setNewColor] = useState<string>(color);
+
     return (
         <AppearanceColorWrapper>
             <p>Color {index + 1}</p>
             <div style={{ display: 'flex' }}>
-                <SeriesColorPicker color={color} onChange={onChange} />
-                <ColorLabel>{color}</ColorLabel>
+                <SeriesColorPicker
+                    color={color}
+                    onChange={(c) => {
+                        onChange(c);
+                        setNewColor(c);
+                    }}
+                />
+                <ColorLabel
+                    value={newColor}
+                    onChange={(e) => {
+                        onChange(e.target.value);
+                        setNewColor(e.target.value);
+                    }}
+                />
             </div>
         </AppearanceColorWrapper>
     );
 };
 const AppearancePanel: FC = () => {
-    const { track } = useTracking();
-    const { showToastSuccess } = useApp();
+    const { isLoading: isOrgLoading, data } = useOrganisation();
+
+    const updateMutation = useOrganisationUpdateMutation();
+    const isLoading = updateMutation.isLoading || isOrgLoading;
 
     let [colors, setColors] = useState<string[]>(
-        ECHARTS_DEFAULT_COLORS.slice(0, 8),
-    ); //[...Array(8).keys()];
-    console.log('colors', colors);
+        data?.chartColors || ECHARTS_DEFAULT_COLORS.slice(0, 8),
+    );
 
-    // FIXME This should trigger a render if colors change ???
-    useEffect(() => {
-        setColors(colors);
-    }, [colors]);
+    const update = () => {
+        if (data)
+            updateMutation.mutate({
+                ...data,
+                chartColors: colors,
+            });
+    };
 
     //TODO add form
     return (
@@ -52,7 +76,7 @@ const AppearancePanel: FC = () => {
                         index={index}
                         onChange={(colorChange) => {
                             colors[index] = colorChange;
-                            setColors(colors);
+                            setColors([...colors]);
                             console.log(
                                 'color change',
                                 index,
@@ -68,8 +92,8 @@ const AppearancePanel: FC = () => {
                 style={{ alignSelf: 'flex-end', marginTop: 20 }}
                 intent={Intent.PRIMARY}
                 text="Update"
-                loading={false}
-                type="submit"
+                loading={isLoading}
+                onClick={update}
             />
         </AppearancePanelWrapper>
     );
