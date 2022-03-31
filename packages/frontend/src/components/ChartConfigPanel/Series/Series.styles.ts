@@ -111,7 +111,7 @@ export const SeriesOptionsWrapper = styled(Collapse)<{
     $isSingle?: boolean;
 }>`
     ${GridTemplate}
-    color: red;
+
     .bp3-collapse-body {
         grid-column: 2 !important;
     }
