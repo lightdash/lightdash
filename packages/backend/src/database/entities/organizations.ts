@@ -6,11 +6,15 @@ export type DbOrganization = {
     organization_name: string;
     allowed_email_domains: any; // jsonb
     created_at: Date;
+    chart_colors?: string[];
 };
 
 export type DbOrganizationIn = Pick<DbOrganization, 'organization_name'>;
 export type DbOrganizationUpdate = Partial<
-    Pick<DbOrganization, 'organization_name' | 'allowed_email_domains'>
+    Pick<
+        DbOrganization,
+        'organization_name' | 'allowed_email_domains' | 'chart_colors'
+    >
 >;
 
 export type OrganizationTable = Knex.CompositeTableType<
