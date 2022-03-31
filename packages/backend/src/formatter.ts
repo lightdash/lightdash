@@ -13,9 +13,9 @@ function formatValue<T>(format: string, value: T): string | T {
         case 'percent':
             if (Number.isNaN(value as any)) {
                 return value;
-            } 
-                return `${parseFloat(value as any) * 100}%`;
-            
+            }
+            return `${parseFloat(value as any) * 100}%`;
+
         case '': // no format
             return value;
         default:
