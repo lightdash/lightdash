@@ -1,11 +1,13 @@
-import { Button, Collapse, HTMLSelect, InputGroup } from '@blueprintjs/core';
-import { CartesianChartLayout, Series } from 'common';
+import { Button, InputGroup } from '@blueprintjs/core';
+import { CartesianChartLayout, CartesianSeriesType, Series } from 'common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import {
     SeriesExtraInputs,
     SeriesExtraInputWrapper,
+    SeriesExtraSelect,
     SeriesMainInputs,
+    SeriesOptionsWrapper,
     SeriesWrapper,
 } from './Series.styles';
 import SeriesColorPicker from './SeriesColorPicker';
@@ -16,10 +18,8 @@ type Props = {
     layout?: CartesianChartLayout;
     series: Series;
     fallbackColor?: string;
-    onColorChange: (color: string) => void;
-    onNameChange: (name: string | undefined) => void;
-    onLabelChange: (label: Series['label']) => void;
-    onYAxisChange: (yAxisIndex: number) => void;
+    isGrouped?: boolean;
+    updateSingleSeries: (updatedSeries: Series) => void;
 };
 
 const SingleSeriesConfiguration: FC<Props> = ({
@@ -28,24 +28,32 @@ const SingleSeriesConfiguration: FC<Props> = ({
     placeholderName,
     series,
     fallbackColor,
-    onColorChange,
-    onNameChange,
-    onLabelChange,
-    onYAxisChange,
+    updateSingleSeries,
+    isGrouped,
 }) => {
     const [isOpen, toggleIsOpen] = useToggle(false);
     return (
         <SeriesWrapper>
-            <SeriesMainInputs>
+            <SeriesMainInputs $isGrouped={isGrouped}>
                 <SeriesColorPicker
                     color={series.color || fallbackColor}
-                    onChange={onColorChange}
+                    onChange={(color) => {
+                        updateSingleSeries({
+                            ...series,
+                            color,
+                        });
+                    }}
                 />
                 <InputGroup
                     fill
                     placeholder={placeholderName}
                     defaultValue={series.name}
-                    onBlur={(e) => onNameChange(e.currentTarget.value)}
+                    onBlur={(e) => {
+                        updateSingleSeries({
+                            ...series,
+                            name: e.currentTarget.value,
+                        });
+                    }}
                 />
                 {isCollapsable && (
                     <Button
@@ -54,10 +62,36 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     />
                 )}
             </SeriesMainInputs>
-            <Collapse isOpen={!isCollapsable || isOpen}>
+            <SeriesOptionsWrapper isOpen={!isCollapsable || isOpen}>
                 <SeriesExtraInputs>
+                    <SeriesExtraInputWrapper label="Chart type">
+                        <SeriesExtraSelect
+                            fill
+                            value={series.type}
+                            options={[
+                                {
+                                    value: CartesianSeriesType.BAR,
+                                    label: 'Bar',
+                                },
+                                {
+                                    value: CartesianSeriesType.LINE,
+                                    label: 'Line',
+                                },
+                                {
+                                    value: CartesianSeriesType.SCATTER,
+                                    label: 'Scatter',
+                                },
+                            ]}
+                            onChange={(e) => {
+                                updateSingleSeries({
+                                    ...series,
+                                    type: e.target.value as CartesianSeriesType,
+                                });
+                            }}
+                        />
+                    </SeriesExtraInputWrapper>
                     <SeriesExtraInputWrapper label="Axis">
-                        <HTMLSelect
+                        <SeriesExtraSelect
                             fill
                             value={series.yAxisIndex}
                             options={[
@@ -71,12 +105,15 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 },
                             ]}
                             onChange={(e) => {
-                                onYAxisChange(parseInt(e.target.value, 10));
+                                updateSingleSeries({
+                                    ...series,
+                                    yAxisIndex: parseInt(e.target.value, 10),
+                                });
                             }}
                         />
                     </SeriesExtraInputWrapper>
                     <SeriesExtraInputWrapper label="Value labels">
-                        <HTMLSelect
+                        <SeriesExtraSelect
                             fill
                             value={series.label?.position || 'hidden'}
                             options={[
@@ -88,21 +125,27 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             ]}
                             onChange={(e) => {
                                 const option = e.target.value;
-                                onLabelChange(
-                                    option === 'hidden'
-                                        ? { show: false }
-                                        : {
-                                              show: true,
-                                              position: option as any,
-                                          },
-                                );
+                                updateSingleSeries({
+                                    ...series,
+                                    label:
+                                        option === 'hidden'
+                                            ? { show: false }
+                                            : {
+                                                  show: true,
+                                                  position: option as any,
+                                              },
+                                });
                             }}
                         />
                     </SeriesExtraInputWrapper>
                 </SeriesExtraInputs>
-            </Collapse>
+            </SeriesOptionsWrapper>
         </SeriesWrapper>
     );
+};
+
+SingleSeriesConfiguration.defaultProps = {
+    isGrouped: false,
 };
 
 export default SingleSeriesConfiguration;

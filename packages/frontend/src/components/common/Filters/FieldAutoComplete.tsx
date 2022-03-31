@@ -48,6 +48,7 @@ type Props = {
     disabled?: boolean;
     autoFocus?: boolean;
     activeField?: Item;
+    placeholder?: string;
     fields: Array<Item>;
     onChange: (value: Item) => void;
     onClosed?: () => void;
@@ -60,6 +61,7 @@ const FieldAutoComplete: FC<Props> = ({
     fields,
     onChange,
     onClosed,
+    placeholder,
 }) => (
     <>
         <AutocompleteMaxHeight />
@@ -68,7 +70,7 @@ const FieldAutoComplete: FC<Props> = ({
             disabled={disabled}
             inputProps={{
                 autoFocus,
-                placeholder: 'Search field...',
+                placeholder: placeholder || 'Search field...',
                 leftIcon: activeField && (
                     <Icon
                         icon={getItemIcon(activeField)}

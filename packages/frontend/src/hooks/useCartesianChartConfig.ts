@@ -88,6 +88,15 @@ const useCartesianChartConfig = (
         }));
     }, []);
 
+    const updateYField = useCallback((index: number, type: string) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            yField: prev?.yField?.map((field, i) => {
+                return i === index ? type : field;
+            }),
+        }));
+    }, []);
+
     const setType = useCallback((type: Series['type'], flipAxes: boolean) => {
         setChartType(type);
         setDirtyLayout((prev) => ({
@@ -105,6 +114,14 @@ const useCartesianChartConfig = (
                 },
         );
     }, []);
+
+    const setFlipAxis = useCallback((flipAxes: boolean) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            flipAxes,
+        }));
+    }, []);
+
     const updateAllGroupedSeries = useCallback(
         (fieldKey: string, updateSeries: Partial<Series>) =>
             setDirtyEchartsConfig(
@@ -202,15 +219,11 @@ const useCartesianChartConfig = (
 
     // Generate expected series
     useEffect(() => {
-        if (isCompleteLayout(dirtyLayout)) {
+        if (isCompleteLayout(dirtyLayout) && resultsData) {
             let expectedSeriesMap: Record<string, Series>;
             if (pivotKey) {
                 const uniquePivotValues: string[] = Array.from(
-                    new Set(
-                        resultsData?.rows.map(
-                            (row) => row[pivotKey].value?.raw,
-                        ),
-                    ),
+                    new Set(resultsData.rows.map((row) => row[pivotKey].value?.raw)),
                 );
                 expectedSeriesMap = (dirtyLayout.yField || []).reduce<
                     Record<string, Series>
@@ -309,6 +322,8 @@ const useCartesianChartConfig = (
         updateSingleSeries,
         removeSingleSeries,
         updateAllGroupedSeries,
+        updateYField,
+        setFlipAxis,
     };
 };
 
