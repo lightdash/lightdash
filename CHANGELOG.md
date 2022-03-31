@@ -1,3 +1,10 @@
+# [0.44.0](https://github.com/lightdash/lightdash/compare/0.43.3...0.44.0) (2022-03-31)
+
+
+### Features
+
+* add colour palette on organization settings ([#1621](https://github.com/lightdash/lightdash/issues/1621)) ([442e8cf](https://github.com/lightdash/lightdash/commit/442e8cfe2fcb9dc5d134c6b76c2337eb06c47dc7))
+
 ## [0.43.3](https://github.com/lightdash/lightdash/compare/0.43.2...0.43.3) (2022-03-29)
 
 
