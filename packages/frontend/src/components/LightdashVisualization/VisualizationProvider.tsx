@@ -80,10 +80,9 @@ export const VisualizationProvider: FC<Props> = ({
         validCartesianConfig.eChartsConfig.series =
             validCartesianConfig.eChartsConfig.series?.map((serie, index) => ({
                 ...serie,
-                color:
-                    data && data.chartColors
-                        ? data.chartColors[index]
-                        : undefined,
+                color: serie.color
+                    ? serie.color
+                    : data.chartColors && data.chartColors[index],
             }));
     }
 
