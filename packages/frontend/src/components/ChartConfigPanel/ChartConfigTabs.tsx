@@ -123,13 +123,15 @@ const ChartConfigTabs: FC = () => {
                                 />
                             </ActiveSeriesProvider>
                         ) : (
-                            <BasicSeriesConfiguration
-                                items={items}
-                                layout={dirtyLayout}
-                                series={dirtyEchartsConfig?.series}
-                                getSeriesColor={getSeriesColor}
-                                updateSingleSeries={updateSingleSeries}
-                            />
+                            <ActiveSeriesProvider>
+                                <BasicSeriesConfiguration
+                                    items={items}
+                                    layout={dirtyLayout}
+                                    series={dirtyEchartsConfig?.series}
+                                    getSeriesColor={getSeriesColor}
+                                    updateSingleSeries={updateSingleSeries}
+                                />
+                            </ActiveSeriesProvider>
                         )
                     }
                 />

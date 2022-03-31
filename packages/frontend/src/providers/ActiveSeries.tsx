@@ -1,3 +1,4 @@
+import { Series } from 'common';
 import React, {
     createContext,
     Dispatch,
@@ -6,15 +7,19 @@ import React, {
     useState,
 } from 'react';
 
+interface ActiveSeries extends Series {
+    isOpen?: boolean;
+}
+
 type ActiveSeriesContext = {
-    isSeriesActive: boolean;
-    setIsSeriesActive: Dispatch<SetStateAction<boolean>>;
+    isSeriesActive: ActiveSeries[];
+    setIsSeriesActive: Dispatch<SetStateAction<ActiveSeries[]>>;
 };
 
 const Context = createContext<ActiveSeriesContext | undefined>(undefined);
 
 export const ActiveSeriesProvider: React.FC = ({ children }) => {
-    const [isSeriesActive, setIsSeriesActive] = useState<boolean>(false);
+    const [isSeriesActive, setIsSeriesActive] = useState<ActiveSeries[]>([]);
     return (
         <Context.Provider
             value={{

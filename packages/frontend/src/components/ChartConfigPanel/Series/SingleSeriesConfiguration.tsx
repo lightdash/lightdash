@@ -2,6 +2,7 @@ import { Button, InputGroup } from '@blueprintjs/core';
 import { CartesianChartLayout, CartesianSeriesType, Series } from 'common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
+import { useActiveSeries } from '../../../providers/ActiveSeries';
 import {
     SeriesExtraInputs,
     SeriesExtraInputWrapper,
@@ -34,6 +35,31 @@ const SingleSeriesConfiguration: FC<Props> = ({
     isSingle,
 }) => {
     const [isOpen, toggleIsOpen] = useToggle(false);
+    const { isSeriesActive, setIsSeriesActive } = useActiveSeries();
+
+    const toggleOpenSeries = () => {
+        const hasActiveSeries = isSeriesActive.findIndex((item) => {
+            return item.isOpen === true;
+        });
+
+        const itemToBeToggled = isSeriesActive.findIndex((item) => {
+            return item === series;
+        });
+
+        if (hasActiveSeries >= 0) {
+            isSeriesActive[hasActiveSeries].isOpen = false;
+            setIsSeriesActive(isSeriesActive);
+            console.log(isSeriesActive);
+        }
+        if (itemToBeToggled >= 0) {
+            isSeriesActive[hasActiveSeries].isOpen = true;
+            setIsSeriesActive(isSeriesActive);
+            console.log(isSeriesActive);
+        }
+    };
+
+    console.log('aqui', isSeriesActive);
+
     return (
         <SeriesWrapper $isSingle={isSingle}>
             <SeriesMainInputs $isGrouped={isGrouped}>
@@ -61,7 +87,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                 {isCollapsable && (
                     <Button
                         icon={isOpen ? 'caret-up' : 'caret-down'}
-                        onClick={toggleIsOpen}
+                        onClick={() => toggleOpenSeries()}
                     />
                 )}
             </SeriesMainInputs>

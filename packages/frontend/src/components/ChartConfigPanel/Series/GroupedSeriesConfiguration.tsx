@@ -12,6 +12,7 @@ import {
     TableCalculation,
 } from 'common';
 import React, { FC, useMemo } from 'react';
+import { useActiveSeries } from '../../../providers/ActiveSeries';
 import { getDimensionFormatter } from '../../../utils/resultFormatter';
 import {
     GroupedSeriesConfigWrapper,
@@ -63,9 +64,13 @@ const getFormatterValue = (
     return fieldFormatter?.({ value: value }) ?? `${value}`;
 };
 
+interface ActiveSeries extends Series {
+    isOpen?: boolean;
+}
+
 type GroupedSeriesConfigurationProps = {
     layout?: CartesianChartLayout;
-    series?: Series[];
+    series?: ActiveSeries[];
     items: Array<Field | TableCalculation>;
     getSeriesColor: (key: string) => string | undefined;
     updateAllGroupedSeries: (fieldKey: string, series: Partial<Series>) => void;
@@ -80,9 +85,10 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     updateSingleSeries,
     updateAllGroupedSeries,
 }) => {
+    const { isSeriesActive, setIsSeriesActive } = useActiveSeries();
     const groupedSeries = useMemo(
         () =>
-            (series || []).reduce<Record<string, Series[]>>(
+            (series || []).reduce<Record<string, ActiveSeries[]>>(
                 (hash, obj) => ({
                     ...hash,
                     [obj.encode.yRef.field]: (
@@ -96,6 +102,11 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     return (
         <>
             {Object.entries(groupedSeries).map(([fieldKey, seriesGroup], i) => {
+                seriesGroup.forEach((item) => {
+                    item.isOpen = true;
+                });
+                setIsSeriesActive(seriesGroup);
+
                 const field = items.find(
                     (item) => getItemId(item) === fieldKey,
                 );
@@ -231,7 +242,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                 </SeriesExtraInputWrapper>
                             </GroupSeriesInputs>
                             <GroupSeriesWrapper>
-                                {seriesGroup?.map((singleSeries) => {
+                                {isSeriesActive?.map((singleSeries) => {
                                     const formattedValue = getFormatterValue(
                                         singleSeries.encode.yRef.pivotValues![0]
                                             .value,
