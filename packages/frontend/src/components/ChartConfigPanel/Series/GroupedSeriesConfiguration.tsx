@@ -99,11 +99,14 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
             ) || {},
         [series],
     );
+
+    console.log('grouped', isSeriesActive);
+
     return (
         <>
             {Object.entries(groupedSeries).map(([fieldKey, seriesGroup], i) => {
                 seriesGroup.forEach((item) => {
-                    item.isOpen = true;
+                    item.isOpen = false;
                 });
                 setIsSeriesActive(seriesGroup);
 

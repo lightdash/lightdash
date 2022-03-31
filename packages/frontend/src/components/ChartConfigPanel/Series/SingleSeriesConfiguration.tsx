@@ -36,24 +36,27 @@ const SingleSeriesConfiguration: FC<Props> = ({
 }) => {
     const [isOpen, toggleIsOpen] = useToggle(false);
     const { isSeriesActive, setIsSeriesActive } = useActiveSeries();
-
+    const itemToBeToggled = isSeriesActive.findIndex((item) => {
+        return item === series;
+    });
     const toggleOpenSeries = () => {
         const hasActiveSeries = isSeriesActive.findIndex((item) => {
             return item.isOpen === true;
         });
 
-        const itemToBeToggled = isSeriesActive.findIndex((item) => {
-            return item === series;
-        });
+        console.log({ hasActiveSeries, itemToBeToggled });
 
         if (hasActiveSeries >= 0) {
+            console.log('hasActive');
             isSeriesActive[hasActiveSeries].isOpen = false;
             setIsSeriesActive(isSeriesActive);
             console.log(isSeriesActive);
         }
         if (itemToBeToggled >= 0) {
-            isSeriesActive[hasActiveSeries].isOpen = true;
+            console.log('toggle happening', isSeriesActive[itemToBeToggled]);
+            isSeriesActive[itemToBeToggled].isOpen = true;
             setIsSeriesActive(isSeriesActive);
+
             console.log(isSeriesActive);
         }
     };
@@ -86,13 +89,19 @@ const SingleSeriesConfiguration: FC<Props> = ({
                 )}
                 {isCollapsable && (
                     <Button
-                        icon={isOpen ? 'caret-up' : 'caret-down'}
+                        icon={
+                            isSeriesActive[itemToBeToggled].isOpen
+                                ? 'caret-up'
+                                : 'caret-down'
+                        }
                         onClick={() => toggleOpenSeries()}
                     />
                 )}
             </SeriesMainInputs>
             <SeriesOptionsWrapper
-                isOpen={!isCollapsable || isOpen}
+                isOpen={
+                    !isCollapsable || isSeriesActive[itemToBeToggled].isOpen
+                }
                 $isGrouped={isGrouped}
                 $isSingle={isSingle}
             >
