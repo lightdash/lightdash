@@ -17,6 +17,7 @@ type Props = {
     seriesLabel: string;
     layout?: CartesianChartLayout;
     series: Series;
+    isSingle?: boolean;
     fallbackColor?: string;
     isGrouped?: boolean;
     updateSingleSeries: (updatedSeries: Series) => void;
@@ -30,10 +31,11 @@ const SingleSeriesConfiguration: FC<Props> = ({
     fallbackColor,
     updateSingleSeries,
     isGrouped,
+    isSingle,
 }) => {
     const [isOpen, toggleIsOpen] = useToggle(false);
     return (
-        <SeriesWrapper>
+        <SeriesWrapper $isSingle={isSingle}>
             <SeriesMainInputs $isGrouped={isGrouped}>
                 <SeriesColorPicker
                     color={series.color || fallbackColor}
@@ -44,16 +46,18 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         });
                     }}
                 />
-                <InputGroup
-                    fill
-                    defaultValue={series.name || seriesLabel}
-                    onBlur={(e) => {
-                        updateSingleSeries({
-                            ...series,
-                            name: e.currentTarget.value,
-                        });
-                    }}
-                />
+                {!isSingle && (
+                    <InputGroup
+                        fill
+                        defaultValue={series.name || seriesLabel}
+                        onBlur={(e) => {
+                            updateSingleSeries({
+                                ...series,
+                                name: e.currentTarget.value,
+                            });
+                        }}
+                    />
+                )}
                 {isCollapsable && (
                     <Button
                         icon={isOpen ? 'caret-up' : 'caret-down'}
@@ -64,6 +68,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
             <SeriesOptionsWrapper
                 isOpen={!isCollapsable || isOpen}
                 $isGrouped={isGrouped}
+                $isSingle={isSingle}
             >
                 <SeriesExtraInputs>
                     <SeriesExtraInputWrapper label={!isGrouped && 'Chart type'}>
