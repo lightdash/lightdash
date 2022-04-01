@@ -484,6 +484,13 @@ const useEcharts = () => {
             source: plotData,
         },
         tooltip: getEchartsTooltipConfig(series[0].type),
+        grid: {
+            containLabel: true,
+            left: '5%', // small padding
+            right: '5%', // small padding
+            top: 70, // pixels from top (makes room for legend)
+            bottom: 30, // pixels from bottom (makes room for x-axis)
+        },
     };
 };
 
