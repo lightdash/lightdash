@@ -18,7 +18,6 @@ import {
     hashFieldReference,
     isField,
     MetricType,
-    Organisation,
     Series,
     TableCalculation,
 } from 'common';
@@ -142,7 +141,6 @@ export const getEchartsSeries = (
     originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,
     pivotKey: string | undefined,
-    organisationData?: Organisation,
 ): EChartSeries[] => {
     if (pivotKey) {
         return (cartesianChart.eChartsConfig.series || []).map<EChartSeries>(
@@ -205,10 +203,6 @@ export const getEchartsSeries = (
                             explore,
                         ),
                     },
-                    color: series.color
-                        ? series.color
-                        : organisationData?.chartColors &&
-                          organisationData.chartColors[index],
                 };
             },
         );
@@ -260,10 +254,6 @@ export const getEchartsSeries = (
                     tooltip: {
                         valueFormatter: valueFormatter(xField, yField, explore),
                     },
-                    color: series.color
-                        ? series.color
-                        : organisationData?.chartColors &&
-                          organisationData.chartColors[index],
                 },
             ];
         }, []);
@@ -449,7 +439,6 @@ const useEcharts = () => {
             originalData,
             validCartesianConfig,
             pivotDimensions?.[0],
-            organisationData,
         );
     }, [
         explore,
@@ -498,6 +487,9 @@ const useEcharts = () => {
             source: plotData,
         },
         tooltip: getEchartsTooltipConfig(series[0].type),
+        ...(organisationData?.chartColors && {
+            color: organisationData?.chartColors,
+        }),
     };
 };
 
