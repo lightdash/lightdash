@@ -372,6 +372,23 @@ export class ProjectService {
                         }
                         return acc;
                     }, 0),
+                    formattedFieldsCount: explores.reduce<number>(
+                        (acc, explore) => {
+                            if (!isExploreError(explore)) {
+                                return (
+                                    acc +
+                                    getMetrics(explore).filter(
+                                        ({ format }) => format !== undefined,
+                                    ).length +
+                                    getDimensions(explore).filter(
+                                        ({ format }) => format !== undefined,
+                                    ).length
+                                );
+                            }
+                            return acc;
+                        },
+                        0,
+                    ),
                 },
             });
             return explores;
