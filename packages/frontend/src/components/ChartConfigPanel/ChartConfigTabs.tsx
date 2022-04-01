@@ -13,6 +13,7 @@ import {
     TableCalculation,
 } from 'common';
 import React, { FC, useCallback, useMemo, useState } from 'react';
+import { useOrganisation } from '../../hooks/organisation/useOrganisation';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { InputWrapper, Wrapper } from './ChartConfigPanel.styles';
 import FieldLayoutOptions from './FieldLayoutOptions';
@@ -64,13 +65,16 @@ const ChartConfigTabs: FC = () => {
         (item) => getItemId(item) === dirtyLayout?.xField,
     );
 
+    const { data: orgData } = useOrganisation();
     const fallbackSeriesColours = useMemo(() => {
         return (dirtyEchartsConfig?.series || [])
             .filter(({ color }) => !color)
             .reduce<Record<string, string>>(
                 (sum, series, index) => ({
                     ...sum,
-                    [getSeriesId(series)]: getDefaultSeriesColor(index),
+                    [getSeriesId(series)]:
+                        (orgData?.chartColors && orgData?.chartColors[index]) ||
+                        getDefaultSeriesColor(index),
                 }),
                 {},
             );
@@ -78,6 +82,7 @@ const ChartConfigTabs: FC = () => {
 
     const getSeriesColor = useCallback(
         (seriesId: string) => {
+            console.log('seriesId ', seriesId);
             return fallbackSeriesColours[seriesId];
         },
         [fallbackSeriesColours],

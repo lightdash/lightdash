@@ -18,12 +18,14 @@ import {
     hashFieldReference,
     isField,
     MetricType,
+    Organisation,
     Series,
     TableCalculation,
 } from 'common';
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../components/LightdashVisualization/VisualizationProvider';
 import { getDimensionFormatter } from '../utils/resultFormatter';
+import { useOrganisation } from './organisation/useOrganisation';
 
 const getLabelFromField = (
     explore: Explore,
@@ -140,10 +142,11 @@ export const getEchartsSeries = (
     originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,
     pivotKey: string | undefined,
+    organisationData?: Organisation,
 ): EChartSeries[] => {
     if (pivotKey) {
         return (cartesianChart.eChartsConfig.series || []).map<EChartSeries>(
-            (series) => {
+            (series, index) => {
                 const { flipAxes } = cartesianChart.layout;
                 const xFieldHash = hashFieldReference(series.encode.xRef);
                 const yFieldHash = hashFieldReference(series.encode.yRef);
@@ -202,13 +205,17 @@ export const getEchartsSeries = (
                             explore,
                         ),
                     },
+                    color: series.color
+                        ? series.color
+                        : organisationData?.chartColors &&
+                          organisationData.chartColors[index],
                 };
             },
         );
     } else {
         return (cartesianChart.eChartsConfig.series || []).reduce<
             EChartSeries[]
-        >((sum, series) => {
+        >((sum, series, index) => {
             const { flipAxes } = cartesianChart.layout;
             const xField = hashFieldReference(series.encode.xRef);
             const yField = hashFieldReference(series.encode.yRef);
@@ -253,6 +260,10 @@ export const getEchartsSeries = (
                     tooltip: {
                         valueFormatter: valueFormatter(xField, yField, explore),
                     },
+                    color: series.color
+                        ? series.color
+                        : organisationData?.chartColors &&
+                          organisationData.chartColors[index],
                 },
             ];
         }, []);
@@ -425,6 +436,8 @@ const useEcharts = () => {
         resultsData,
     } = useVisualizationContext();
 
+    const { data: organisationData } = useOrganisation();
+
     const series = useMemo(() => {
         if (!explore || !validCartesianConfig || !resultsData) {
             return [];
@@ -436,6 +449,7 @@ const useEcharts = () => {
             originalData,
             validCartesianConfig,
             pivotDimensions?.[0],
+            organisationData,
         );
     }, [
         explore,
