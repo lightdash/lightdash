@@ -391,7 +391,7 @@ const getEchartAxis = ({
             {
                 type: yAxisType,
                 name: validCartesianConfig.layout.flipAxes
-                    ? yAxisConfiguration?.[0]?.name
+                    ? yAxisConfiguration?.[1]?.name
                     : getAxisName({
                           isAxisTheSameForAllSeries,
                           selectedAxisIndex,
