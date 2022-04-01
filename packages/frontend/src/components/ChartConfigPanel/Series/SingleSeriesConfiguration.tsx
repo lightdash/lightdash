@@ -1,7 +1,6 @@
 import { Button, InputGroup } from '@blueprintjs/core';
 import { CartesianChartLayout, CartesianSeriesType, Series } from 'common';
 import React, { FC } from 'react';
-import { useToggle } from 'react-use';
 import { useActiveSeries } from '../../../providers/ActiveSeries';
 import {
     SeriesExtraInputs,
@@ -13,11 +12,15 @@ import {
 } from './Series.styles';
 import SeriesColorPicker from './SeriesColorPicker';
 
+interface ActiveSeries extends Series {
+    isOpen?: boolean;
+}
+
 type Props = {
     isCollapsable?: boolean;
     seriesLabel: string;
     layout?: CartesianChartLayout;
-    series: Series;
+    series: ActiveSeries;
     isSingle?: boolean;
     fallbackColor?: string;
     isGrouped?: boolean;
@@ -34,34 +37,32 @@ const SingleSeriesConfiguration: FC<Props> = ({
     isGrouped,
     isSingle,
 }) => {
-    const [isOpen, toggleIsOpen] = useToggle(false);
     const { isSeriesActive, setIsSeriesActive } = useActiveSeries();
-    const itemToBeToggled = isSeriesActive.findIndex((item) => {
-        return item === series;
-    });
+
+    console.log('isSeries opened', series.isOpen);
+
     const toggleOpenSeries = () => {
         const hasActiveSeries = isSeriesActive.findIndex((item) => {
             return item.isOpen === true;
+        });
+        const itemToBeToggled = isSeriesActive.findIndex((item) => {
+            return item === series;
         });
 
         console.log({ hasActiveSeries, itemToBeToggled });
 
         if (hasActiveSeries >= 0) {
-            console.log('hasActive');
             isSeriesActive[hasActiveSeries].isOpen = false;
             setIsSeriesActive(isSeriesActive);
-            console.log(isSeriesActive);
         }
         if (itemToBeToggled >= 0) {
-            console.log('toggle happening', isSeriesActive[itemToBeToggled]);
             isSeriesActive[itemToBeToggled].isOpen = true;
             setIsSeriesActive(isSeriesActive);
-
-            console.log(isSeriesActive);
         }
     };
 
     console.log('aqui', isSeriesActive);
+    console.log('series', series);
 
     return (
         <SeriesWrapper $isSingle={isSingle}>
@@ -89,19 +90,13 @@ const SingleSeriesConfiguration: FC<Props> = ({
                 )}
                 {isCollapsable && (
                     <Button
-                        icon={
-                            isSeriesActive[itemToBeToggled].isOpen
-                                ? 'caret-up'
-                                : 'caret-down'
-                        }
+                        icon={series.isOpen ? 'caret-up' : 'caret-down'}
                         onClick={() => toggleOpenSeries()}
                     />
                 )}
             </SeriesMainInputs>
             <SeriesOptionsWrapper
-                isOpen={
-                    !isCollapsable || isSeriesActive[itemToBeToggled].isOpen
-                }
+                isOpen={!isCollapsable || series.isOpen}
                 $isGrouped={isGrouped}
                 $isSingle={isSingle}
             >

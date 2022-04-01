@@ -254,9 +254,11 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                         items,
                                     );
                                     return (
-                                        <GroupedSeriesConfigWrapper>
+                                        <GroupedSeriesConfigWrapper
+                                            key={getSeriesId(singleSeries)}
+                                        >
                                             <SingleSeriesConfiguration
-                                                key={getSeriesId(singleSeries)}
+                                                // key={getSeriesId(singleSeries)}
                                                 isCollapsable
                                                 layout={layout}
                                                 series={singleSeries}

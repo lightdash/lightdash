@@ -109,30 +109,30 @@ const ChartConfigTabs: FC = () => {
                     id="series"
                     title="Series"
                     panel={
-                        pivotDimension ? (
+                        <>
                             <ActiveSeriesProvider>
-                                <GroupedSeriesConfiguration
-                                    items={items}
-                                    layout={dirtyLayout}
-                                    series={dirtyEchartsConfig?.series}
-                                    getSeriesColor={getSeriesColor}
-                                    updateSingleSeries={updateSingleSeries}
-                                    updateAllGroupedSeries={
-                                        updateAllGroupedSeries
-                                    }
-                                />
+                                {pivotDimension ? (
+                                    <GroupedSeriesConfiguration
+                                        items={items}
+                                        layout={dirtyLayout}
+                                        series={dirtyEchartsConfig?.series}
+                                        getSeriesColor={getSeriesColor}
+                                        updateSingleSeries={updateSingleSeries}
+                                        updateAllGroupedSeries={
+                                            updateAllGroupedSeries
+                                        }
+                                    />
+                                ) : (
+                                    <BasicSeriesConfiguration
+                                        items={items}
+                                        layout={dirtyLayout}
+                                        series={dirtyEchartsConfig?.series}
+                                        getSeriesColor={getSeriesColor}
+                                        updateSingleSeries={updateSingleSeries}
+                                    />
+                                )}
                             </ActiveSeriesProvider>
-                        ) : (
-                            <ActiveSeriesProvider>
-                                <BasicSeriesConfiguration
-                                    items={items}
-                                    layout={dirtyLayout}
-                                    series={dirtyEchartsConfig?.series}
-                                    getSeriesColor={getSeriesColor}
-                                    updateSingleSeries={updateSingleSeries}
-                                />
-                            </ActiveSeriesProvider>
-                        )
+                        </>
                     }
                 />
                 <Tab
