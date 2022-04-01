@@ -27,7 +27,7 @@ const AppearanceColor: FC<AppearanceColorProps> = ({
 
     return (
         <AppearanceColorWrapper>
-            <p>Color {index + 1}</p>
+            <p>Colour {index + 1}</p>
             <div style={{ display: 'flex' }}>
                 <SeriesColorPicker
                     color={color}
