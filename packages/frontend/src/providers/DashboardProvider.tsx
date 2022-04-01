@@ -2,6 +2,7 @@ import {
     Dashboard,
     DashboardFilterRule,
     DashboardFilters,
+    DashboardTileTypes,
     fieldId,
 } from 'common';
 import React, {
@@ -29,6 +30,8 @@ const emptyFilters: DashboardFilters = {
 type DashboardContext = {
     dashboard: Dashboard | undefined;
     fieldsWithSuggestions: FieldsWithSuggestions;
+    dashboardTiles: DashboardTileTypes | [];
+    setDashboardTiles: Dispatch<SetStateAction<DashboardTileTypes | []>>;
     dashboardFilters: DashboardFilters;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     addDimensionDashboardFilter: (filter: DashboardFilterRule) => void;
@@ -51,8 +54,13 @@ export const DashboardProvider: React.FC = ({ children }) => {
     }>();
 
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
-    const { data: filterableFields } =
-        useAvailableDashboardFilterTargets(dashboard);
+    const [dashboardTiles, setDashboardTiles] = useState<
+        DashboardTileTypes | []
+    >([]);
+    const { data: filterableFields } = useAvailableDashboardFilterTargets(
+        dashboard,
+        dashboardTiles,
+    );
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
     const [dashboardFilters, setDashboardFilters] =
@@ -177,6 +185,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const value = {
         dashboard,
         fieldsWithSuggestions,
+        dashboardTiles,
+        setDashboardTiles,
         dashboardFilters,
         addDimensionDashboardFilter,
         updateDimensionDashboardFilter,

@@ -14,9 +14,10 @@ const ActiveFilters: FC = () => {
         dashboardFilters,
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
+        dashboardTiles,
     } = useDashboardContext();
     const { isLoading, data: filterableFields } =
-        useAvailableDashboardFilterTargets(dashboard);
+        useAvailableDashboardFilterTargets(dashboard, dashboardTiles);
 
     return (
         <TagsWrapper>
@@ -26,7 +27,12 @@ const ActiveFilters: FC = () => {
                 );
                 if (!activeField) {
                     return (
-                        <span style={{ width: '100%', color: Colors.GRAY1 }}>
+                        <span
+                            style={{
+                                width: '100%',
+                                color: Colors.GRAY1,
+                            }}
+                        >
                             Tried to reference field with unknown id:{' '}
                             {item.target.fieldId}
                         </span>

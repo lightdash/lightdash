@@ -18,10 +18,14 @@ interface Props {
 
 const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const { dashboard, fieldsWithSuggestions, dashboardFilters } =
-        useDashboardContext();
+    const {
+        dashboard,
+        fieldsWithSuggestions,
+        dashboardFilters,
+        dashboardTiles,
+    } = useDashboardContext();
     const { isLoading, data: filterableFields } =
-        useAvailableDashboardFilterTargets(dashboard);
+        useAvailableDashboardFilterTargets(dashboard, dashboardTiles);
     const hasTiles = dashboard && dashboard.tiles.length >= 1;
 
     return (
