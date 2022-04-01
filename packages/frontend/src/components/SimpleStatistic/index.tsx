@@ -11,7 +11,11 @@ import {
 } from './SimpleStatistics.styles';
 
 const SimpleStatistic: FC = () => {
-    const { resultsData, explore } = useVisualizationContext();
+    const {
+        cartesianConfig: { dirtyEchartsConfig },
+        resultsData,
+        explore,
+    } = useVisualizationContext();
     const fieldId = resultsData?.metricQuery.metrics[0];
     let label: string | undefined;
     if (fieldId) {
@@ -23,12 +27,16 @@ const SimpleStatistic: FC = () => {
 
     const bigNumber = bigNumberConfig(resultsData);
     const validData = bigNumber && resultsData?.rows.length && label;
+    const validLabel = dirtyEchartsConfig?.xAxis
+        ? dirtyEchartsConfig?.xAxis[0].name
+        : label;
+
     return (
         <>
             {validData ? (
                 <SimpleStatisticsWrapper>
                     <BigNumberContainer>
-                        {label && <BigNumberLabel>{label}</BigNumberLabel>}
+                        {label && <BigNumberLabel>{validLabel}</BigNumberLabel>}
                         <BigNumber>{bigNumber}</BigNumber>
                     </BigNumberContainer>
                 </SimpleStatisticsWrapper>
