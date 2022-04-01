@@ -246,7 +246,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                                 isCollapsable
                                                 layout={layout}
                                                 series={singleSeries}
-                                                placeholderName={
+                                                seriesLabel={
                                                     layout?.yField &&
                                                     layout.yField.length > 1
                                                         ? `[${formattedValue}] ${getItemLabel(

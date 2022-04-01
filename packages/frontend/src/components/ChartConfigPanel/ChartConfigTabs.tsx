@@ -139,13 +139,10 @@ const ChartConfigTabs: FC = () => {
                                 }-axis label`}
                             >
                                 <InputGroup
-                                    placeholder={
-                                        xAxisField
-                                            ? getItemLabel(xAxisField)
-                                            : `Enter axis label`
-                                    }
+                                    placeholder="Enter axis label"
                                     defaultValue={
-                                        dirtyEchartsConfig?.xAxis?.[0]?.name
+                                        dirtyEchartsConfig?.xAxis?.[0]?.name ||
+                                        (xAxisField && getItemLabel(xAxisField))
                                     }
                                     onBlur={(e) =>
                                         setXAxisName(e.currentTarget.value)
@@ -160,7 +157,9 @@ const ChartConfigTabs: FC = () => {
                                 })`}
                             >
                                 <InputGroup
-                                    placeholder={
+                                    placeholder="Enter axis label"
+                                    defaultValue={
+                                        dirtyEchartsConfig?.yAxis?.[0]?.name ||
                                         getAxisName({
                                             isAxisTheSameForAllSeries,
                                             selectedAxisIndex,
@@ -168,10 +167,7 @@ const ChartConfigTabs: FC = () => {
                                             axisIndex: 0,
                                             series: dirtyEchartsConfig?.series,
                                             items,
-                                        }) || `Enter axis label`
-                                    }
-                                    defaultValue={
-                                        dirtyEchartsConfig?.yAxis?.[0]?.name
+                                        })
                                     }
                                     onBlur={(e) =>
                                         setYAxisName(0, e.currentTarget.value)
@@ -186,7 +182,9 @@ const ChartConfigTabs: FC = () => {
                                 })`}
                             >
                                 <InputGroup
-                                    placeholder={
+                                    placeholder="Enter axis label"
+                                    defaultValue={
+                                        dirtyEchartsConfig?.yAxis?.[1]?.name ||
                                         getAxisName({
                                             isAxisTheSameForAllSeries,
                                             selectedAxisIndex,
@@ -194,10 +192,7 @@ const ChartConfigTabs: FC = () => {
                                             axisIndex: 1,
                                             series: dirtyEchartsConfig?.series,
                                             items,
-                                        }) || `Enter axis label`
-                                    }
-                                    defaultValue={
-                                        dirtyEchartsConfig?.yAxis?.[1]?.name
+                                        })
                                     }
                                     onBlur={(e) =>
                                         setYAxisName(1, e.currentTarget.value)

@@ -14,9 +14,10 @@ import SeriesColorPicker from './SeriesColorPicker';
 
 type Props = {
     isCollapsable?: boolean;
-    placeholderName: string;
+    seriesLabel: string;
     layout?: CartesianChartLayout;
     series: Series;
+    isSingle?: boolean;
     fallbackColor?: string;
     isGrouped?: boolean;
     updateSingleSeries: (updatedSeries: Series) => void;
@@ -25,15 +26,16 @@ type Props = {
 const SingleSeriesConfiguration: FC<Props> = ({
     layout,
     isCollapsable,
-    placeholderName,
+    seriesLabel,
     series,
     fallbackColor,
     updateSingleSeries,
     isGrouped,
+    isSingle,
 }) => {
     const [isOpen, toggleIsOpen] = useToggle(false);
     return (
-        <SeriesWrapper>
+        <SeriesWrapper $isSingle={isSingle}>
             <SeriesMainInputs $isGrouped={isGrouped}>
                 <SeriesColorPicker
                     color={series.color || fallbackColor}
@@ -44,17 +46,18 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         });
                     }}
                 />
-                <InputGroup
-                    fill
-                    placeholder={placeholderName}
-                    defaultValue={series.name}
-                    onBlur={(e) => {
-                        updateSingleSeries({
-                            ...series,
-                            name: e.currentTarget.value,
-                        });
-                    }}
-                />
+                {!isSingle && (
+                    <InputGroup
+                        fill
+                        defaultValue={series.name || seriesLabel}
+                        onBlur={(e) => {
+                            updateSingleSeries({
+                                ...series,
+                                name: e.currentTarget.value,
+                            });
+                        }}
+                    />
+                )}
                 {isCollapsable && (
                     <Button
                         icon={isOpen ? 'caret-up' : 'caret-down'}
@@ -62,9 +65,13 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     />
                 )}
             </SeriesMainInputs>
-            <SeriesOptionsWrapper isOpen={!isCollapsable || isOpen}>
+            <SeriesOptionsWrapper
+                isOpen={!isCollapsable || isOpen}
+                $isGrouped={isGrouped}
+                $isSingle={isSingle}
+            >
                 <SeriesExtraInputs>
-                    <SeriesExtraInputWrapper label="Chart type">
+                    <SeriesExtraInputWrapper label={!isGrouped && 'Chart type'}>
                         <SeriesExtraSelect
                             fill
                             value={series.type}
@@ -90,7 +97,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             }}
                         />
                     </SeriesExtraInputWrapper>
-                    <SeriesExtraInputWrapper label="Axis">
+                    <SeriesExtraInputWrapper label={!isGrouped && 'Axis'}>
                         <SeriesExtraSelect
                             fill
                             value={series.yAxisIndex}
@@ -112,7 +119,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             }}
                         />
                     </SeriesExtraInputWrapper>
-                    <SeriesExtraInputWrapper label="Value labels">
+                    <SeriesExtraInputWrapper
+                        label={!isGrouped && 'Value labels'}
+                    >
                         <SeriesExtraSelect
                             fill
                             value={series.label?.position || 'hidden'}
