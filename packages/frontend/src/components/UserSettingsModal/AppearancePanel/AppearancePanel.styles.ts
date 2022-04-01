@@ -10,10 +10,12 @@ export const Title = styled.div``;
 export const ColorPalette = styled.div`
     display: flex;
     flex-wrap: wrap;
+    margin-top: 2em;
 `;
 
 export const AppearanceColorWrapper = styled.div`
-    margin: 0.625em 0.313em;
+    margin: 0 0.8em 1.5em 0;
+    line-height: 0.5em;
 `;
 export const ColorLabel = styled.input`
     background-color: white;
