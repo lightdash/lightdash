@@ -1,3 +1,10 @@
+## [0.46.3](https://github.com/lightdash/lightdash/compare/0.46.2...0.46.3) (2022-04-01)
+
+
+### Bug Fixes
+
+* remove double label from horizontal charts ([#1640](https://github.com/lightdash/lightdash/issues/1640)) ([6581b49](https://github.com/lightdash/lightdash/commit/6581b49d32560ddfca0c7196bac2cb346696d63c))
+
 ## [0.46.2](https://github.com/lightdash/lightdash/compare/0.46.1...0.46.2) (2022-04-01)
 
 
