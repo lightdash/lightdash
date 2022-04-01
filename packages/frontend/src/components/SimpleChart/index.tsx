@@ -1,7 +1,6 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import EChartsReact from 'echarts-for-react';
 import React, { FC, useCallback, useEffect } from 'react';
-import { useOrganisation } from '../../hooks/organisation/useOrganisation';
 import useEcharts from '../../hooks/useEcharts';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
@@ -64,7 +63,6 @@ const SimpleChart: FC = () => {
         useVisualizationContext();
 
     const eChartsOptions = useEcharts();
-    const { data: orgData } = useOrganisation();
     useEffect(() => {
         const listener = () => {
             const eCharts = chartRef.current?.getEchartsInstance();
@@ -94,7 +92,6 @@ const SimpleChart: FC = () => {
     if (isLoading) return <LoadingChart />;
     if (!eChartsOptions) return <EmptyChart />;
 
-    console.log('chart options', eChartsOptions);
     return (
         <div style={{ padding: 10, height: '100%' }}>
             <EChartsReact
