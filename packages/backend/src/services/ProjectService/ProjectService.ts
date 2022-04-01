@@ -8,6 +8,7 @@ import {
     ExploreError,
     FilterableField,
     getDimensions,
+    getFields,
     getMetrics,
     hasIntersection,
     isExploreError,
@@ -375,12 +376,17 @@ export class ProjectService {
                     formattedFieldsCount: explores.reduce<number>(
                         (acc, explore) => {
                             if (!isExploreError(explore)) {
+                                const filteredExplore = {
+                                    ...explore,
+                                    tables: {
+                                        [explore.name]:
+                                            explore.tables[explore.name],
+                                    },
+                                };
+
                                 return (
                                     acc +
-                                    getMetrics(explore).filter(
-                                        ({ format }) => format !== undefined,
-                                    ).length +
-                                    getDimensions(explore).filter(
+                                    getFields(filteredExplore).filter(
                                         ({ format }) => format !== undefined,
                                     ).length
                                 );
