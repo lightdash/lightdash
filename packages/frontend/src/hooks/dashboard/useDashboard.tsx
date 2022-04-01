@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
     ApiError,
     CreateDashboard,
@@ -54,10 +53,10 @@ export const getChartAvailableFilters = async (savedChartUuid: string) =>
 
 export const useAvailableDashboardFilterTargets = (
     dashboard: Dashboard | undefined,
-    availableTiles: any,
+    availableTiles: Dashboard['tiles'],
 ): { isLoading: boolean; data: FilterableField[] } => {
     const availableTilesToFilter =
-        dashboard.tiles.length != 0 ? dashboard.tiles : availableTiles;
+        dashboard?.tiles.length != 0 ? dashboard?.tiles : availableTiles;
     const queries = useMemo(() => {
         const savedChartUuids = (availableTilesToFilter || [])
             .map((tile) =>

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Spinner } from '@blueprintjs/core';
 import { Dashboard as IDashboard, DashboardTileTypes } from 'common';
 import React, {
