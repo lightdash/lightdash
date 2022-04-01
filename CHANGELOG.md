@@ -1,3 +1,10 @@
+## [0.46.4](https://github.com/lightdash/lightdash/compare/0.46.3...0.46.4) (2022-04-01)
+
+
+### Bug Fixes
+
+* fix design ([#1644](https://github.com/lightdash/lightdash/issues/1644)) ([e72823f](https://github.com/lightdash/lightdash/commit/e72823fbba0c04b11742702cd2de0271af093c02))
+
 ## [0.46.3](https://github.com/lightdash/lightdash/compare/0.46.2...0.46.3) (2022-04-01)
 
 
