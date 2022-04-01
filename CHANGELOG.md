@@ -1,3 +1,10 @@
+# [0.46.0](https://github.com/lightdash/lightdash/compare/0.45.1...0.46.0) (2022-04-01)
+
+
+### Features
+
+* format metrics dimensions ([#1588](https://github.com/lightdash/lightdash/issues/1588)) ([8b1578d](https://github.com/lightdash/lightdash/commit/8b1578d6046ea42cd5c665d9d43bdc694ab015db))
+
 ## [0.45.1](https://github.com/lightdash/lightdash/compare/0.45.0...0.45.1) (2022-03-31)
 
 
