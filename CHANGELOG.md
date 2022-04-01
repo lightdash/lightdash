@@ -1,3 +1,10 @@
+## [0.46.5](https://github.com/lightdash/lightdash/compare/0.46.4...0.46.5) (2022-04-01)
+
+
+### Bug Fixes
+
+* do not close color picker on change ([#1646](https://github.com/lightdash/lightdash/issues/1646)) ([e3470a2](https://github.com/lightdash/lightdash/commit/e3470a282dc0be8c2e95c9ecaf9dc34b650f3e00))
+
 ## [0.46.4](https://github.com/lightdash/lightdash/compare/0.46.3...0.46.4) (2022-04-01)
 
 
