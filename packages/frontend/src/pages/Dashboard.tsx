@@ -77,7 +77,7 @@ const Dashboard = () => {
         reset,
         isLoading: isSaving,
     } = useUpdateDashboard(dashboardUuid);
-    //const [dashboardTiles, setDashboardTiles] = useState<IDashboard['tiles']>([]);
+
     const layouts = useMemo(
         () => ({
             lg: dashboardTiles.map<Layout>((tile) => ({
