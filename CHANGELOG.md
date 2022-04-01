@@ -1,3 +1,31 @@
+## [0.46.3](https://github.com/lightdash/lightdash/compare/0.46.2...0.46.3) (2022-04-01)
+
+
+### Bug Fixes
+
+* remove double label from horizontal charts ([#1640](https://github.com/lightdash/lightdash/issues/1640)) ([6581b49](https://github.com/lightdash/lightdash/commit/6581b49d32560ddfca0c7196bac2cb346696d63c))
+
+## [0.46.2](https://github.com/lightdash/lightdash/compare/0.46.1...0.46.2) (2022-04-01)
+
+
+### Bug Fixes
+
+* missing functionality chart configs ([#1628](https://github.com/lightdash/lightdash/issues/1628)) ([5d12445](https://github.com/lightdash/lightdash/commit/5d12445781039758c9ee42fb9a8dd2c1e3515bc8))
+
+## [0.46.1](https://github.com/lightdash/lightdash/compare/0.46.0...0.46.1) (2022-04-01)
+
+
+### Bug Fixes
+
+* show whole tick label on charts (no truncate) ([#1643](https://github.com/lightdash/lightdash/issues/1643)) ([51375be](https://github.com/lightdash/lightdash/commit/51375be5cdfaf7b36d0d6c609ce60bbde729d88f)), closes [#1622](https://github.com/lightdash/lightdash/issues/1622)
+
+# [0.46.0](https://github.com/lightdash/lightdash/compare/0.45.1...0.46.0) (2022-04-01)
+
+
+### Features
+
+* format metrics dimensions ([#1588](https://github.com/lightdash/lightdash/issues/1588)) ([8b1578d](https://github.com/lightdash/lightdash/commit/8b1578d6046ea42cd5c665d9d43bdc694ab015db))
+
 ## [0.45.1](https://github.com/lightdash/lightdash/compare/0.45.0...0.45.1) (2022-03-31)
 
 

@@ -18,6 +18,7 @@ import {
     DimensionType,
     fieldId,
     getDefaultChartTileSize,
+    getResultValues,
     getVisibleFields,
     isFilterableField,
 } from 'common';
@@ -148,16 +149,18 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             const currentSuggestions =
                                 prev[fieldId(field)]?.suggestions || [];
                             const newSuggestions: string[] =
-                                queryResults.data?.rows.reduce<string[]>(
-                                    (acc, row) => {
+                                (queryResults.data &&
+                                    getResultValues(
+                                        queryResults.data.rows,
+                                        true,
+                                    ).reduce<string[]>((acc, row) => {
                                         const value = row[fieldId(field)];
                                         if (typeof value === 'string') {
                                             return [...acc, value];
                                         }
                                         return acc;
-                                    },
-                                    [],
-                                ) || [];
+                                    }, [])) ||
+                                [];
                             suggestions = Array.from(
                                 new Set([
                                     ...currentSuggestions,
@@ -445,7 +448,10 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             <AddColumnButton />
                             <DownloadCsvButton
                                 fileName={tableName}
-                                rows={queryResults.data?.rows}
+                                rows={
+                                    queryResults.data &&
+                                    getResultValues(queryResults.data.rows)
+                                }
                             />
                         </div>
                     )}

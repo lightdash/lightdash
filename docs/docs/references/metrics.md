@@ -151,6 +151,7 @@ Here are all of the properties you can customize:
 | [sql](#using-custom-sql-in-aggregate-metrics)       | No       | string                | Custom SQL used to define the metric.                                                 |
 | hidden                                              | No       | boolean               | If set to `true`, the metric is hidden from Lightdash. By default, this is set to `false` if you don't include this property. |
 | round          | No       | number               | Rounds a number to a specified number of digits  |
+| format          | No       | string               | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']`  |
 
 ## Metric types:
 

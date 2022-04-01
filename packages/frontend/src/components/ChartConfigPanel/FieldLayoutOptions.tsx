@@ -67,7 +67,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                     <AxisTitle>
                         {`${
                             validCartesianConfig?.layout.flipAxes ? 'Y' : 'X'
-                        } axis field`}
+                        }-axis`}
                     </AxisTitle>
                     <SimpleButton
                         text="Flip axes"
@@ -88,7 +88,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                 <AxisTitle>
                     {`${
                         validCartesianConfig?.layout.flipAxes ? 'X' : 'Y'
-                    } axis field`}
+                    }-axis`}
                 </AxisTitle>
 
                 {yFields.map((field, index) => (
@@ -134,13 +134,15 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                             setPivotDimensions([getItemId(item)]);
                         }}
                     />
-                    <DeleteFieldButton
-                        minimal
-                        icon="cross"
-                        onClick={() => {
-                            setPivotDimensions(undefined);
-                        }}
-                    />
+                    {groupSelectedField && (
+                        <DeleteFieldButton
+                            minimal
+                            icon="cross"
+                            onClick={() => {
+                                setPivotDimensions(undefined);
+                            }}
+                        />
+                    )}
                 </AxisFieldDropdown>
             </AxisGroup>
             {pivotDimension && (

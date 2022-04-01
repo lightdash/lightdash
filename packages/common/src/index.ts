@@ -499,6 +499,7 @@ type DbtColumnLightdashDimension = {
     time_intervals?: string | string[];
     hidden?: boolean;
     round?: number;
+    format?: string;
 };
 
 export type DbtColumnLightdashMetric = {
@@ -508,11 +509,20 @@ export type DbtColumnLightdashMetric = {
     sql?: string;
     hidden?: boolean;
     round?: number;
+    format?: string;
 };
 
+export type ResultRow = {
+    [col: string]: {
+        value: {
+            raw: any;
+            formatted: any;
+        };
+    };
+};
 export type ApiQueryResults = {
     metricQuery: MetricQuery;
-    rows: { [col: string]: any }[];
+    rows: ResultRow[];
 };
 
 export type ApiSqlQueryResults = {
@@ -1194,6 +1204,20 @@ export const getItemColor = (item: Field | TableCalculation) => {
     }
     return '#0A6640';
 };
+
+export const getResultValues = (
+    rows: ResultRow[],
+    onlyRaw: boolean = false,
+): { [col: string]: any }[] =>
+    rows.map((row: ResultRow) =>
+        Object.keys(row).reduce((acc, key) => {
+            const value: string = onlyRaw
+                ? row[key]?.value?.raw
+                : row[key]?.value?.formatted || row[key]?.value?.raw;
+
+            return { ...acc, [key]: value };
+        }, {}),
+    );
 
 export const getAxisName = ({
     isAxisTheSameForAllSeries,

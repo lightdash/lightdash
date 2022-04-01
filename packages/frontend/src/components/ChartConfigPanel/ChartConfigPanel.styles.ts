@@ -4,15 +4,16 @@ import styled from 'styled-components';
 export const InputWrapper = styled(FormGroup)`
     margin: 1.357em 0 0;
     & label.bp3-label {
-        font-weight: 500;
         display: inline-flex;
         gap: 0.214em;
+        color: ${Colors.DARK_GRAY1};
+        font-weight: 600;
     }
 `;
 
 export const Wrapper = styled.div`
     max-width: 28.571em;
-    min-width: 25em;
+    width: 25em;
     padding: 1.429em 1.429em 2.143em;
 `;
 
@@ -40,17 +41,20 @@ export const GridFieldLabel = styled.span`
 export const AxisGroup = styled.div`
     margin-top: 1.286em;
 `;
+
 export const AxisTitleWrapper = styled.div`
     display: flex;
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
 `;
+
 export const AxisTitle = styled.p`
     color: ${Colors.DARK_GRAY1};
     margin: 0;
     font-weight: 600;
 `;
+
 export const AxisFieldDropdown = styled.div`
     display: flex;
     flex-direction: row;

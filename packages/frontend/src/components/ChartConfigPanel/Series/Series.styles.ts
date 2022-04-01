@@ -60,12 +60,21 @@ export const SeriesBlock = styled.div`
     flex-direction: column;
 `;
 
-export const SeriesWrapper = styled.div`
+export const SeriesWrapper = styled.div<{ $isSingle?: boolean }>`
     ${FlexTemplate}
 
     &:last-child {
         margin-bottom: 0;
     }
+
+    ${({ $isSingle }) =>
+        $isSingle &&
+        `
+        display: grid;
+        grid-template-columns: 2.143em auto;
+        column-gap: 0.714em;
+        align-items: end;
+  `}
 `;
 
 export const SeriesTitle = styled.p`
@@ -80,9 +89,8 @@ export const SeriesMainInputs = styled.div<{ $isGrouped?: boolean }>`
     ${({ $isGrouped }) =>
         $isGrouped &&
         `
-     grid-template-columns: 2.143em auto 2.143em;
-     column-gap: 0.357em;
-     
+        grid-template-columns: 2.143em auto 2.143em;
+        column-gap: 0.357em;
   `}
 `;
 
@@ -94,25 +102,40 @@ export const SeriesExtraInputs = styled.div`
     display: flex;
     flex: 1;
     gap: 0.714em;
-    margin-top: 0.714em;
+    margin-top: 0.357em;
     justify-content: space-between;
 `;
 
-export const SeriesOptionsWrapper = styled(Collapse)`
+export const SeriesOptionsWrapper = styled(Collapse)<{
+    $isGrouped?: boolean;
+    $isSingle?: boolean;
+}>`
     ${GridTemplate}
 
     .bp3-collapse-body {
         grid-column: 2 !important;
     }
-`;
 
+    ${({ $isGrouped }) =>
+        $isGrouped &&
+        `
+        gap: 0.357em;
+  `}
+
+    ${({ $isSingle }) =>
+        $isSingle &&
+        `
+        display: grid;
+        grid-template-columns: auto;
+  `}
+`;
 export const SeriesExtraInputWrapper = styled(FormGroup)`
     margin: 0;
     & label.bp3-label {
-        font-weight: 500;
+        font-weight: 600;
         display: inline-flex;
         gap: 0.214em;
-        color: ${Colors.GRAY3};
+        color: ${Colors.GRAY1};
         font-size: 0.857em;
     }
 `;
