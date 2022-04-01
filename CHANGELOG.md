@@ -1,3 +1,10 @@
+## [0.46.1](https://github.com/lightdash/lightdash/compare/0.46.0...0.46.1) (2022-04-01)
+
+
+### Bug Fixes
+
+* show whole tick label on charts (no truncate) ([#1643](https://github.com/lightdash/lightdash/issues/1643)) ([51375be](https://github.com/lightdash/lightdash/commit/51375be5cdfaf7b36d0d6c609ce60bbde729d88f)), closes [#1622](https://github.com/lightdash/lightdash/issues/1622)
+
 # [0.46.0](https://github.com/lightdash/lightdash/compare/0.45.1...0.46.0) (2022-04-01)
 
 
