@@ -162,7 +162,7 @@ type ProjectCompiledEvent = BaseTrack & {
         metricsCount: number;
         packagesCount?: number;
         roundCount?: number;
-        formatCount?: number;
+        formattedFieldsCount?: number;
     };
 };
 
