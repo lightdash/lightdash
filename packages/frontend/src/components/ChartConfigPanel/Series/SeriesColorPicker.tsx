@@ -26,7 +26,6 @@ const SeriesColorPicker: FC<Props> = ({ color, onChange }) => {
                     colors={colors}
                     onChange={(result: ColorResult) => {
                         onChange(result.hex);
-                        toggle(false);
                     }}
                 />
             }
