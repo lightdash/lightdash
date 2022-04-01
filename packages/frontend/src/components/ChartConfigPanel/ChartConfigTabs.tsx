@@ -82,7 +82,6 @@ const ChartConfigTabs: FC = () => {
 
     const getSeriesColor = useCallback(
         (seriesId: string) => {
-            console.log('seriesId ', seriesId);
             return fallbackSeriesColours[seriesId];
         },
         [fallbackSeriesColours],
