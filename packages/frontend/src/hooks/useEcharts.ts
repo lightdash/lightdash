@@ -144,7 +144,7 @@ export const getEchartsSeries = (
 ): EChartSeries[] => {
     if (pivotKey) {
         return (cartesianChart.eChartsConfig.series || []).map<EChartSeries>(
-            (series, index) => {
+            (series) => {
                 const { flipAxes } = cartesianChart.layout;
                 const xFieldHash = hashFieldReference(series.encode.xRef);
                 const yFieldHash = hashFieldReference(series.encode.yRef);
@@ -209,7 +209,7 @@ export const getEchartsSeries = (
     } else {
         return (cartesianChart.eChartsConfig.series || []).reduce<
             EChartSeries[]
-        >((sum, series, index) => {
+        >((sum, series) => {
             const { flipAxes } = cartesianChart.layout;
             const xField = hashFieldReference(series.encode.xRef);
             const yField = hashFieldReference(series.encode.yRef);
