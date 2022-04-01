@@ -1,4 +1,5 @@
 import { Colors } from '@blueprintjs/core';
+import { getResultValues } from 'common';
 import React from 'react';
 import { useColumns } from '../../hooks/useColumns';
 import { useExplore } from '../../hooks/useExplore';
@@ -31,6 +32,7 @@ export const ExplorerResults = () => {
         () => (queryResults.status === 'success' ? queryResults.data.rows : []),
         [queryResults.status, queryResults.data],
     );
+    const formattedData = getResultValues(safeData);
 
     if (!activeTableName) return <NoTableSelected />;
 
@@ -69,7 +71,7 @@ export const ExplorerResults = () => {
 
     return (
         <Table
-            data={safeData}
+            data={formattedData}
             dataColumns={dataColumns}
             loading={queryResults.isLoading}
             idle={queryResults.isIdle}

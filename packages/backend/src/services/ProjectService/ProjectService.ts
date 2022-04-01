@@ -29,6 +29,7 @@ import {
     MissingWarehouseCredentialsError,
     NotExistsError,
 } from '../../errors';
+import { formatRows } from '../../formatter';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -288,10 +289,14 @@ export class ProjectService {
                 tableCalculationsCount: metricQuery.tableCalculations.length,
             },
         });
+        const explore = await this.getExplore(user, projectUuid, exploreName);
         const adapter = await this.getAdapter(projectUuid);
         const rows = await adapter.runQuery(query);
+
+        const formattedRows = formatRows(rows, explore);
+
         return {
-            rows,
+            rows: formattedRows,
             metricQuery,
         };
     }
