@@ -80,9 +80,9 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     updateSingleSeries,
     updateAllGroupedSeries,
 }) => {
-    const [openSeriesId, setOpenSeriesId] = React.useState<string | undefined>(
-        undefined,
-    );
+    const [openSeriesId, setOpenSeriesId] = React.useState<
+        string | undefined
+    >();
     const groupedSeries = useMemo(
         () =>
             (series || []).reduce<Record<string, Series[]>>(

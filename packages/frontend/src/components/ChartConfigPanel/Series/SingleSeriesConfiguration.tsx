@@ -20,8 +20,8 @@ type Props = {
     fallbackColor?: string;
     isGrouped?: boolean;
     updateSingleSeries: (updatedSeries: Series) => void;
-    isOpen: boolean;
-    toggleIsOpen: () => void;
+    isOpen?: boolean;
+    toggleIsOpen?: () => void;
 };
 
 const SingleSeriesConfiguration: FC<Props> = ({
