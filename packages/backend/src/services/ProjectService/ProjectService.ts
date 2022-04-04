@@ -31,6 +31,7 @@ import {
     NotExistsError,
 } from '../../errors';
 import { formatRows } from '../../formatter';
+import Logger from '../../logger';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -375,20 +376,29 @@ export class ProjectService {
                     }, 0),
                     formattedFieldsCount: explores.reduce<number>(
                         (acc, explore) => {
-                            if (!isExploreError(explore)) {
-                                const filteredExplore = {
-                                    ...explore,
-                                    tables: {
-                                        [explore.name]:
-                                            explore.tables[explore.name],
-                                    },
-                                };
+                            try {
+                                if (!isExploreError(explore)) {
+                                    const filteredExplore = {
+                                        ...explore,
+                                        tables: {
+                                            [explore.baseTable]:
+                                                explore.tables[
+                                                    explore.baseTable
+                                                ],
+                                        },
+                                    };
 
-                                return (
-                                    acc +
-                                    getFields(filteredExplore).filter(
-                                        ({ format }) => format !== undefined,
-                                    ).length
+                                    return (
+                                        acc +
+                                        getFields(filteredExplore).filter(
+                                            ({ format }) =>
+                                                format !== undefined,
+                                        ).length
+                                    );
+                                }
+                            } catch (e) {
+                                Logger.error(
+                                    `Unable to reduce formattedFieldsCount. ${e}`,
                                 );
                             }
                             return acc;
