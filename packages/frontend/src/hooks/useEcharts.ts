@@ -26,7 +26,6 @@ import {
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../components/LightdashVisualization/VisualizationProvider';
 import { getDimensionFormatter } from '../utils/resultFormatter';
-import { useOrganisation } from './organisation/useOrganisation';
 
 const getLabelFromField = (
     explore: Explore,
@@ -139,7 +138,6 @@ const valueFormatter =
 
 const formatter = (format: string, field: string, data: any) => {
     const value: any = data?.value?.[field] || data;
-    console.log('format', format, field, value, data);
     return formatValue(format, value);
 };
 
@@ -472,9 +470,6 @@ const useEcharts = () => {
 
     const formats = explore ? getFormats(explore) : undefined;
 
-    const { data: organisationData } = useOrganisation();
-
-
     const series = useMemo(() => {
         if (!explore || !validCartesianConfig || !resultsData) {
             return [];
@@ -545,9 +540,6 @@ const useEcharts = () => {
             top: 70, // pixels from top (makes room for legend)
             bottom: 30, // pixels from bottom (makes room for x-axis)
         },
-        ...(organisationData?.chartColors && {
-            color: organisationData?.chartColors,
-        }),
     };
 };
 
