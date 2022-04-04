@@ -8,11 +8,13 @@ import {
     Field,
     fieldId,
     findFieldByIdInExplore,
+    formatValue,
     friendlyName,
     getAxisName,
     getDimensions,
     getFieldLabel,
     getFields,
+    getFormats,
     getItemId,
     getItemLabel,
     hashFieldReference,
@@ -134,12 +136,19 @@ const valueFormatter =
         return getFormatterValue(rawValue, yField, getDimensions(explore));
     };
 
+const formatter = (format: string, field: string, data: any) => {
+    const value: any = data?.value?.[field] || data;
+    console.log('format', format, field, value, data);
+    return formatValue(format, value);
+};
+
 export const getEchartsSeries = (
     explore: Explore,
     tableCalculations: TableCalculation[],
     originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,
     pivotKey: string | undefined,
+    formats: Record<string, string | undefined> | undefined,
 ): EChartSeries[] => {
     if (pivotKey) {
         return (cartesianChart.eChartsConfig.series || []).map<EChartSeries>(
@@ -253,6 +262,19 @@ export const getEchartsSeries = (
                     tooltip: {
                         valueFormatter: valueFormatter(xField, yField, explore),
                     },
+
+                    ...(series.label?.show &&
+                        formats && {
+                            label: {
+                                ...series.label,
+                                formatter: (value: any) =>
+                                    formatter(
+                                        formats[yField] || '',
+                                        yField,
+                                        value,
+                                    ),
+                            },
+                        }),
                 },
             ];
         }, []);
@@ -263,10 +285,12 @@ const getEchartAxis = ({
     items,
     validCartesianConfig,
     series,
+    formats,
 }: {
     validCartesianConfig: CartesianChart;
     items: Array<Field | TableCalculation>;
     series: EChartSeries[];
+    formats: Record<string, string | undefined> | undefined;
 }) => {
     const xAxisItem = items.find(
         (item) =>
@@ -321,6 +345,24 @@ const getEchartAxis = ({
         ? validCartesianConfig.eChartsConfig?.xAxis
         : validCartesianConfig.eChartsConfig?.yAxis;
 
+    const getAxisFormatter = (
+        axisItem: Field | TableCalculation | undefined,
+    ) => {
+        return (
+            axisItem &&
+            getItemId(axisItem) &&
+            formats?.[getItemId(axisItem)] && {
+                axisLabel: {
+                    formatter: (value: any) => {
+                        const field = getItemId(axisItem);
+                        console.log('field', field);
+                        return formatter(formats?.[field] || '', field, value);
+                    },
+                },
+            }
+        );
+    };
+
     return {
         xAxis: [
             {
@@ -342,7 +384,7 @@ const getEchartAxis = ({
                 nameTextStyle: {
                     fontWeight: 'bold',
                 },
-                axisLabel: { formatter: '{value}X€' },
+                ...getAxisFormatter(xAxisItem),
             },
             {
                 type: xAxisType,
@@ -388,7 +430,7 @@ const getEchartAxis = ({
                 },
                 nameLocation: 'end',
                 nameGap: 30,
-                axisLabel: { formatter: '{value}Y€' },
+                ...getAxisFormatter(yAxisItem),
             },
             {
                 type: yAxisType,
@@ -427,6 +469,8 @@ const useEcharts = () => {
         resultsData,
     } = useVisualizationContext();
 
+    const formats = explore ? getFormats(explore) : undefined;
+
     const series = useMemo(() => {
         if (!explore || !validCartesianConfig || !resultsData) {
             return [];
@@ -438,6 +482,7 @@ const useEcharts = () => {
             originalData,
             validCartesianConfig,
             pivotDimensions?.[0],
+            formats,
         );
     }, [
         explore,
@@ -462,7 +507,7 @@ const useEcharts = () => {
             return { xAxis: [], yAxis: [] };
         }
 
-        return getEchartAxis({ items, series, validCartesianConfig });
+        return getEchartAxis({ items, series, validCartesianConfig, formats });
     }, [items, series, validCartesianConfig]);
 
     if (

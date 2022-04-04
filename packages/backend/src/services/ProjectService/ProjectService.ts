@@ -7,6 +7,7 @@ import {
     Explore,
     ExploreError,
     FilterableField,
+    formatRows,
     getDimensions,
     getMetrics,
     hasIntersection,
@@ -29,7 +30,6 @@ import {
     MissingWarehouseCredentialsError,
     NotExistsError,
 } from '../../errors';
-import { formatRows } from '../../formatter';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';

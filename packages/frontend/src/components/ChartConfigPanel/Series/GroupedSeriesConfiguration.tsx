@@ -222,6 +222,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                                         ? { show: false }
                                                         : {
                                                               show: true,
+
                                                               position:
                                                                   option as any,
                                                           },
