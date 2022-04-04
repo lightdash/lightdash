@@ -1,3 +1,10 @@
+## [0.46.6](https://github.com/lightdash/lightdash/compare/0.46.5...0.46.6) (2022-04-04)
+
+
+### Bug Fixes
+
+* use echart color config ([#1639](https://github.com/lightdash/lightdash/issues/1639)) ([1869e47](https://github.com/lightdash/lightdash/commit/1869e47e194527fa5982d390cdc266df9277d2f7))
+
 ## [0.46.5](https://github.com/lightdash/lightdash/compare/0.46.4...0.46.5) (2022-04-01)
 
 
