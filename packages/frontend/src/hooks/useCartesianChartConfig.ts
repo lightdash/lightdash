@@ -2,18 +2,21 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
+    CompleteCartesianChartLayout,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
     Series,
 } from 'common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import usePivotDimensions from './usePivotDimensions';
 
 const useCartesianChartConfig = (
     chartConfigs: CartesianChart | undefined,
     pivotKey: string | undefined,
     resultsData: ApiQueryResults | undefined,
 ) => {
+    // let pivotKey = defaultPivotKey
     const [dirtyChartType, setChartType] = useState<CartesianSeriesType>(
         chartConfigs?.eChartsConfig.series?.[0]?.type ||
             CartesianSeriesType.BAR,
@@ -185,8 +188,66 @@ const useCartesianChartConfig = (
         ];
     }, [resultsData]);
 
+    const { setPivotDimensions } = usePivotDimensions(
+        availableDimensions,
+        resultsData,
+    );
     // Set fallout layout values
+    // https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6
     useEffect(() => {
+        const setAxes = (
+            prev: Partial<Partial<CompleteCartesianChartLayout>> | undefined,
+            xField: string,
+            yField: string[],
+        ) => {
+            const validYFields = prev?.yField
+                ? prev.yField.filter((y) => availableFields.includes(y))
+                : [];
+            return {
+                ...prev,
+                xField:
+                    prev?.xField && availableFields.includes(prev?.xField)
+                        ? prev?.xField
+                        : xField,
+                yField: validYFields.length > 0 ? validYFields : yField,
+            };
+        };
+        // one metric , one dimension
+        if (availableMetrics.length == 1 && availableDimensions.length == 1) {
+            setDirtyLayout((prev) => {
+                return setAxes(prev, availableMetrics[0], [
+                    availableDimensions[0],
+                ]);
+            });
+        }
+
+        // one metric, two dimensions
+        if (availableMetrics.length == 1 && availableDimensions.length == 2) {
+            setDirtyLayout((prev) => {
+                return setAxes(prev, availableDimensions[0], [
+                    availableMetrics[0],
+                ]);
+            });
+            // FIXME , this pivot does not work
+            setPivotDimensions([availableDimensions[1]]);
+        }
+
+        // two metrics, one dimension
+        if (availableMetrics.length == 2 && availableDimensions.length == 1) {
+            setDirtyLayout((prev) => {
+                return setAxes(prev, availableDimensions[0], availableMetrics);
+            });
+        }
+
+        // TODO two metrics (or 1 table calc), two dimensions
+        /* Dimension1 on X-axis
+            Dimension2 as group
+
+            Metric 1 on Y-axis (grouped)
+            Metric 2 on Y-axis (grouped)
+        */
+
+        // else , default behaviour
         if (availableFields.length > 1) {
             setDirtyLayout((prev) => {
                 const fallbackXField =
