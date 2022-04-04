@@ -342,6 +342,7 @@ const getEchartAxis = ({
                 nameTextStyle: {
                     fontWeight: 'bold',
                 },
+                axisLabel: { formatter: '{value}X€' },
             },
             {
                 type: xAxisType,
@@ -387,6 +388,7 @@ const getEchartAxis = ({
                 },
                 nameLocation: 'end',
                 nameGap: 30,
+                axisLabel: { formatter: '{value}Y€' },
             },
             {
                 type: yAxisType,
@@ -471,7 +473,10 @@ const useEcharts = () => {
     ) {
         return undefined;
     }
+    console.log('axis.xAxis', axis.xAxis);
+    console.log('axis.yAxis', axis.yAxis);
 
+    console.log('series', series);
     return {
         xAxis: axis.xAxis,
         yAxis: axis.yAxis,
