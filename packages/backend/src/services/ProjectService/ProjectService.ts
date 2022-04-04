@@ -8,6 +8,7 @@ import {
     ExploreError,
     FilterableField,
     getDimensions,
+    getFields,
     getMetrics,
     hasIntersection,
     isExploreError,
@@ -30,6 +31,7 @@ import {
     NotExistsError,
 } from '../../errors';
 import { formatRows } from '../../formatter';
+import Logger from '../../logger';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -372,6 +374,37 @@ export class ProjectService {
                         }
                         return acc;
                     }, 0),
+                    formattedFieldsCount: explores.reduce<number>(
+                        (acc, explore) => {
+                            try {
+                                if (!isExploreError(explore)) {
+                                    const filteredExplore = {
+                                        ...explore,
+                                        tables: {
+                                            [explore.baseTable]:
+                                                explore.tables[
+                                                    explore.baseTable
+                                                ],
+                                        },
+                                    };
+
+                                    return (
+                                        acc +
+                                        getFields(filteredExplore).filter(
+                                            ({ format }) =>
+                                                format !== undefined,
+                                        ).length
+                                    );
+                                }
+                            } catch (e) {
+                                Logger.error(
+                                    `Unable to reduce formattedFieldsCount. ${e}`,
+                                );
+                            }
+                            return acc;
+                        },
+                        0,
+                    ),
                 },
             });
             return explores;
