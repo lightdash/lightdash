@@ -16,7 +16,6 @@ const useCartesianChartConfig = (
     pivotKey: string | undefined,
     resultsData: ApiQueryResults | undefined,
 ) => {
-    // let pivotKey = defaultPivotKey
     const [dirtyChartType, setChartType] = useState<CartesianSeriesType>(
         chartConfigs?.eChartsConfig.series?.[0]?.type ||
             CartesianSeriesType.BAR,
