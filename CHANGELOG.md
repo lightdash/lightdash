@@ -1,3 +1,10 @@
+# [0.47.0](https://github.com/lightdash/lightdash/compare/0.46.6...0.47.0) (2022-04-04)
+
+
+### Features
+
+* add analytics for formatted fields ([#1645](https://github.com/lightdash/lightdash/issues/1645)) ([bbcd0ba](https://github.com/lightdash/lightdash/commit/bbcd0ba6c368fda0a4518c53bb270d3dba5a6a2b))
+
 ## [0.46.6](https://github.com/lightdash/lightdash/compare/0.46.5...0.46.6) (2022-04-04)
 
 
