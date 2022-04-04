@@ -1,3 +1,10 @@
+## [0.47.1](https://github.com/lightdash/lightdash/compare/0.47.0...0.47.1) (2022-04-04)
+
+
+### Bug Fixes
+
+* automatically collapse series UI when expanding another ([#1656](https://github.com/lightdash/lightdash/issues/1656)) ([d1b4783](https://github.com/lightdash/lightdash/commit/d1b4783560484d5f5ef5eec1ca03042d20722cb6))
+
 # [0.47.0](https://github.com/lightdash/lightdash/compare/0.46.6...0.47.0) (2022-04-04)
 
 
