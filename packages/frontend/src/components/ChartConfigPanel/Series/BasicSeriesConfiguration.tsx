@@ -27,6 +27,9 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     getSeriesColor,
     updateSingleSeries,
 }) => {
+    const [openSeriesId, setOpenSeriesId] = React.useState<string | undefined>(
+        undefined,
+    );
     return (
         <>
             {allSeries?.map((series, i) => {
@@ -61,6 +64,14 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                             seriesLabel={getItemLabel(field)}
                             fallbackColor={getSeriesColor(getSeriesId(series))}
                             updateSingleSeries={updateSingleSeries}
+                            isOpen={openSeriesId === getSeriesId(series)}
+                            toggleIsOpen={() =>
+                                setOpenSeriesId(
+                                    openSeriesId === getSeriesId(series)
+                                        ? undefined
+                                        : getSeriesId(series),
+                                )
+                            }
                         />
                         {hasDivider && <SeriesDivider />}
                     </SeriesBlock>

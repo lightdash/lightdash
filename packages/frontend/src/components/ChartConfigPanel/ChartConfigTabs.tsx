@@ -78,7 +78,7 @@ const ChartConfigTabs: FC = () => {
                 }),
                 {},
             );
-    }, [dirtyEchartsConfig]);
+    }, [dirtyEchartsConfig, orgData]);
 
     const getSeriesColor = useCallback(
         (seriesId: string) => {

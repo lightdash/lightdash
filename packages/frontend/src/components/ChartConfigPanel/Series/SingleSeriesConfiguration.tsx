@@ -1,7 +1,6 @@
 import { Button, InputGroup } from '@blueprintjs/core';
 import { CartesianChartLayout, CartesianSeriesType, Series } from 'common';
 import React, { FC } from 'react';
-import { useToggle } from 'react-use';
 import {
     SeriesExtraInputs,
     SeriesExtraInputWrapper,
@@ -21,6 +20,8 @@ type Props = {
     fallbackColor?: string;
     isGrouped?: boolean;
     updateSingleSeries: (updatedSeries: Series) => void;
+    isOpen: boolean;
+    toggleIsOpen: () => void;
 };
 
 const SingleSeriesConfiguration: FC<Props> = ({
@@ -32,8 +33,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
     updateSingleSeries,
     isGrouped,
     isSingle,
+    isOpen,
+    toggleIsOpen,
 }) => {
-    const [isOpen, toggleIsOpen] = useToggle(false);
     return (
         <SeriesWrapper $isSingle={isSingle}>
             <SeriesMainInputs $isGrouped={isGrouped}>
