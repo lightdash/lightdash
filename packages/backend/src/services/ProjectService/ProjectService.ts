@@ -9,6 +9,7 @@ import {
     FilterableField,
     formatRows,
     getDimensions,
+    getFields,
     getMetrics,
     hasIntersection,
     isExploreError,
@@ -372,6 +373,37 @@ export class ProjectService {
                         }
                         return acc;
                     }, 0),
+                    formattedFieldsCount: explores.reduce<number>(
+                        (acc, explore) => {
+                            try {
+                                if (!isExploreError(explore)) {
+                                    const filteredExplore = {
+                                        ...explore,
+                                        tables: {
+                                            [explore.baseTable]:
+                                                explore.tables[
+                                                    explore.baseTable
+                                                ],
+                                        },
+                                    };
+
+                                    return (
+                                        acc +
+                                        getFields(filteredExplore).filter(
+                                            ({ format }) =>
+                                                format !== undefined,
+                                        ).length
+                                    );
+                                }
+                            } catch (e) {
+                                Logger.error(
+                                    `Unable to reduce formattedFieldsCount. ${e}`,
+                                );
+                            }
+                            return acc;
+                        },
+                        0,
+                    ),
                 },
             });
             return explores;

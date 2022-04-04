@@ -9,7 +9,6 @@ import React, {
     useEffect,
     useRef,
 } from 'react';
-import { useOrganisation } from '../../hooks/organisation/useOrganisation';
 import useCartesianChartConfig from '../../hooks/useCartesianChartConfig';
 import { useExplore } from '../../hooks/useExplore';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
@@ -72,19 +71,6 @@ export const VisualizationProvider: FC<Props> = ({
         resultsData,
     );
     const { validCartesianConfig } = cartesianConfig;
-
-    // Use default colors from org
-    const { isLoading: isOrgLoading, data } = useOrganisation();
-
-    if (data?.chartColors && validCartesianConfig) {
-        validCartesianConfig.eChartsConfig.series =
-            validCartesianConfig.eChartsConfig.series?.map((serie, index) => ({
-                ...serie,
-                color: serie.color
-                    ? serie.color
-                    : data.chartColors && data.chartColors[index],
-            }));
-    }
 
     const plotData = usePlottedData(
         explore,
