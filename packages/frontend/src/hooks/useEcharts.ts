@@ -354,7 +354,6 @@ const getEchartAxis = ({
                 axisLabel: {
                     formatter: (value: any) => {
                         const field = getItemId(axisItem);
-                        console.log('field', field);
                         return formatter(formats?.[field] || '', field, value);
                     },
                 },
@@ -517,10 +516,7 @@ const useEcharts = () => {
     ) {
         return undefined;
     }
-    console.log('axis.xAxis', axis.xAxis);
-    console.log('axis.yAxis', axis.yAxis);
 
-    console.log('series', series);
     return {
         xAxis: axis.xAxis,
         yAxis: axis.yAxis,

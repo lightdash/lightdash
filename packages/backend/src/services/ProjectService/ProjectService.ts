@@ -31,6 +31,7 @@ import {
     MissingWarehouseCredentialsError,
     NotExistsError,
 } from '../../errors';
+import Logger from '../../logger';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
