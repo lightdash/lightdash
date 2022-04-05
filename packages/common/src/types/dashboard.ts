@@ -67,6 +67,7 @@ export type CreateDashboard = {
 };
 
 export type Dashboard = {
+    projectUuid: string;
     uuid: string;
     name: string;
     description?: string;
@@ -79,7 +80,7 @@ export type Dashboard = {
 
 export type DashboardBasicDetails = Pick<
     Dashboard,
-    'uuid' | 'name' | 'description' | 'updatedAt'
+    'uuid' | 'name' | 'description' | 'updatedAt' | 'projectUuid'
 >;
 
 export type DashboardUnversionedFields = Pick<

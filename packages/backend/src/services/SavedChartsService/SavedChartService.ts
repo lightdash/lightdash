@@ -32,6 +32,7 @@ export class SavedChartService {
         savedChart: SavedChart,
     ): CreateSavedChartOrVersionEvent['properties'] {
         return {
+            projectId: savedChart.projectUuid,
             savedQueryId: savedChart.uuid,
             dimensionsCount: savedChart.metricQuery.dimensions.length,
             metricsCount: savedChart.metricQuery.metrics.length,
@@ -80,7 +81,6 @@ export class SavedChartService {
         analytics.track({
             event: 'saved_chart_version.created',
             userId: user.userUuid,
-            organizationId: user.organizationUuid,
             properties: SavedChartService.getCreateEventProperties(savedChart),
         });
         return savedChart;
@@ -101,8 +101,8 @@ export class SavedChartService {
         analytics.track({
             event: 'saved_chart.updated',
             userId: user.userUuid,
-            organizationId: user.organizationUuid,
             properties: {
+                projectId: savedChart.projectUuid,
                 savedQueryId: savedChartUuid,
             },
         });
@@ -113,13 +113,13 @@ export class SavedChartService {
         if (user.ability.cannot('delete', 'SavedChart')) {
             throw new ForbiddenError();
         }
-        await this.savedChartModel.delete(savedChartUuid);
+        const deletedChart = await this.savedChartModel.delete(savedChartUuid);
         analytics.track({
             event: 'saved_chart.deleted',
             userId: user.userUuid,
-            organizationId: user.organizationUuid,
             properties: {
-                savedQueryId: savedChartUuid,
+                savedQueryId: deletedChart.uuid,
+                projectId: deletedChart.projectUuid,
             },
         });
     }
@@ -142,8 +142,6 @@ export class SavedChartService {
         );
         analytics.track({
             event: 'saved_chart.created',
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
             userId: user.userUuid,
             properties:
                 SavedChartService.getCreateEventProperties(newSavedChart),

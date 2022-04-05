@@ -19,7 +19,10 @@ import {
     DashboardVersionTable,
     DashboardViewsTableName,
 } from '../../database/entities/dashboards';
-import { ProjectTableName } from '../../database/entities/projects';
+import {
+    ProjectTable,
+    ProjectTableName,
+} from '../../database/entities/projects';
 import {
     SavedChartsTableName,
     SavedChartTable,
@@ -32,13 +35,15 @@ export type GetDashboardQuery = Pick<
     DashboardTable['base'],
     'dashboard_id' | 'dashboard_uuid' | 'name' | 'description'
 > &
-    Pick<DashboardVersionTable['base'], 'dashboard_version_id' | 'created_at'>;
+    Pick<DashboardVersionTable['base'], 'dashboard_version_id' | 'created_at'> &
+    Pick<ProjectTable['base'], 'project_uuid'>;
 
 export type GetDashboardDetailsQuery = Pick<
     DashboardTable['base'],
     'dashboard_uuid' | 'name' | 'description'
 > &
-    Pick<DashboardVersionTable['base'], 'created_at'>;
+    Pick<DashboardVersionTable['base'], 'created_at'> &
+    Pick<ProjectTable['base'], 'project_uuid'>;
 export type GetChartTileQuery = Pick<
     DashboardTileChartTable['base'],
     'dashboard_tile_uuid'
@@ -176,6 +181,7 @@ export class DashboardModel {
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 `${DashboardVersionsTableName}.created_at`,
+                `${ProjectTableName}.project_uuid`,
             ])
             .orderBy([
                 {
@@ -189,11 +195,18 @@ export class DashboardModel {
             .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
             .where('project_uuid', projectUuid);
         return dashboards.map(
-            ({ name, description, dashboard_uuid, created_at }) => ({
+            ({
+                name,
+                description,
+                dashboard_uuid,
+                created_at,
+                project_uuid,
+            }) => ({
                 name,
                 description,
                 uuid: dashboard_uuid,
                 updatedAt: created_at,
+                projectUuid: project_uuid,
             }),
         );
     }
@@ -205,7 +218,18 @@ export class DashboardModel {
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardVersionsTableName}.dashboard_id`,
             )
+            .leftJoin(
+                SpaceTableName,
+                `${DashboardsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
             .select<GetDashboardQuery[]>([
+                `${ProjectTableName}.project_uuid`,
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.name`,
@@ -300,6 +324,7 @@ export class DashboardModel {
             );
 
         return {
+            projectUuid: dashboard.project_uuid,
             uuid: dashboard.dashboard_uuid,
             name: dashboard.name,
             description: dashboard.description,
@@ -406,16 +431,19 @@ export class DashboardModel {
     async update(
         dashboardUuid: string,
         dashboard: DashboardUnversionedFields,
-    ): Promise<void> {
+    ): Promise<Dashboard> {
         await this.database(DashboardsTableName)
             .update(dashboard)
             .where('dashboard_uuid', dashboardUuid);
+        return this.getById(dashboardUuid);
     }
 
-    async delete(dashboardUuid: string): Promise<void> {
+    async delete(dashboardUuid: string): Promise<Dashboard> {
+        const dashboard = await this.getById(dashboardUuid);
         await this.database(DashboardsTableName)
             .where('dashboard_uuid', dashboardUuid)
             .delete();
+        return dashboard;
     }
 
     async addVersion(
