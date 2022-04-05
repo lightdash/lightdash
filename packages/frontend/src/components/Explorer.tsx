@@ -25,7 +25,7 @@ import {
     isFilterableField,
 } from 'common';
 import React, { FC, useEffect, useState } from 'react';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
@@ -71,7 +71,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const updateSavedChart = useUpdateMutation(savedQueryUuid);
     const { mutate: deleteData, isLoading: isDeleting } = useDeleteMutation();
-    const history = useHistory();
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
         useState<boolean>(false);
