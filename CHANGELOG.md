@@ -1,3 +1,10 @@
+# [0.49.0](https://github.com/lightdash/lightdash/compare/0.48.0...0.49.0) (2022-04-05)
+
+
+### Features
+
+* add hide series on chart config ([#1681](https://github.com/lightdash/lightdash/issues/1681)) ([e4ab8ee](https://github.com/lightdash/lightdash/commit/e4ab8ee95fb5eda9db5413b84b85f1e8005b0878))
+
 # [0.48.0](https://github.com/lightdash/lightdash/compare/0.47.1...0.48.0) (2022-04-05)
 
 
