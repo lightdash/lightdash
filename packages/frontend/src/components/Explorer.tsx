@@ -131,7 +131,9 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                   : undefined,
               chartConfig: {
                   type: activeVizTab,
-                  config: [ChartType.TABLE].includes(activeVizTab)
+                  config: [ChartType.TABLE, ChartType.BIG_NUMBER].includes(
+                      activeVizTab,
+                  )
                       ? undefined
                       : validChartConfig || { series: [] },
               },

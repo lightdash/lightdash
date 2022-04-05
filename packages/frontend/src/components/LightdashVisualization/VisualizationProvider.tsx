@@ -1,6 +1,5 @@
 import {
     ApiQueryResults,
-    BigNumber,
     CartesianChart,
     ChartConfig,
     ChartType,
@@ -31,6 +30,7 @@ type VisualizationContext = {
     explore: Explore | undefined;
     originalData: ApiQueryResults['rows'];
     plotData: ApiQueryResults['rows'];
+    bigNumber: number | string;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
@@ -42,7 +42,7 @@ const Context = createContext<VisualizationContext | undefined>(undefined);
 
 type Props = {
     chartType: ChartType;
-    chartConfigs: CartesianChart | BigNumber | undefined;
+    chartConfigs: ChartConfig['config'];
     pivotDimensions: string[] | undefined;
     tableName: string | undefined;
     resultsData: ApiQueryResults | undefined;
@@ -73,15 +73,13 @@ export const VisualizationProvider: FC<Props> = ({
         pivotDimensions,
         resultsData,
     );
-    const bigNumberConfig = useBigNumberConfig(resultsData);
+    const { bigNumber } = useBigNumberConfig(resultsData);
 
     const cartesianConfig = useCartesianChartConfig(
         chartConfigs as CartesianChart,
         validPivotDimensions?.[0],
         resultsData,
     );
-
-    console.log({ cartesianConfig });
 
     const { validCartesianConfig } = cartesianConfig;
 
@@ -118,6 +116,7 @@ export const VisualizationProvider: FC<Props> = ({
                 originalData: resultsData?.rows || [],
                 plotData,
                 resultsData,
+                bigNumber,
                 isLoading,
                 onSeriesContextMenu,
                 setChartType,
