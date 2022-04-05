@@ -197,6 +197,12 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         }
     }, [data]);
 
+    const hasUnsavedChanges = (): boolean => {
+        return (
+            JSON.stringify(data?.chartConfig) ===
+            JSON.stringify(queryData?.chartConfig)
+        );
+    };
     return (
         <>
             <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
@@ -336,8 +342,14 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                 <ChartDownloadMenu />
                                 <ButtonGroup>
                                     <Button
-                                        text="Save chart"
-                                        disabled={!tableName}
+                                        text={
+                                            savedQueryUuid
+                                                ? 'Save changes'
+                                                : 'Save chart'
+                                        }
+                                        disabled={
+                                            !tableName || hasUnsavedChanges()
+                                        }
                                         onClick={
                                             savedQueryUuid
                                                 ? handleSavedQueryUpdate
