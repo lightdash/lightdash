@@ -62,7 +62,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             }}
                         />
                         <Button
-                            icon={series.hidden ? 'eye-off' : 'eye-open'}
+                            icon={series.hidden ? 'eye-open' : 'eye-off'}
                             onClick={() => {
                                 updateSingleSeries({
                                     ...series,
