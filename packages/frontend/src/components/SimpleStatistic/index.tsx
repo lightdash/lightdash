@@ -1,7 +1,7 @@
 import { NonIdealState } from '@blueprintjs/core';
 import { findFieldByIdInExplore, friendlyName, getFieldLabel } from 'common';
 import React, { FC } from 'react';
-import bigNumberConfig from '../../utils/bigNumberConfig';
+import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
     BigNumber,
@@ -9,7 +9,6 @@ import {
     BigNumberLabel,
     SimpleStatisticsWrapper,
 } from './SimpleStatistics.styles';
-import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 
 const SimpleStatistic: FC = () => {
     const {
@@ -18,8 +17,7 @@ const SimpleStatistic: FC = () => {
         explore,
     } = useVisualizationContext();
 
-    const { bigNumberValue } = useBigNumberConfig(resultsData);
-    console.log(bigNumberValue);
+    const { bigNumber } = useBigNumberConfig(resultsData);
 
     const fieldId = resultsData?.metricQuery.metrics[0];
 
@@ -31,9 +29,6 @@ const SimpleStatistic: FC = () => {
             : undefined;
         label = field ? getFieldLabel(field) : friendlyName(fieldId);
     }
-
-    const bigNumber = bigNumberConfig(resultsData);
-    console.log(resultsData);
 
     const validData = bigNumber && resultsData?.rows.length && label;
     const validLabel = dirtyEchartsConfig?.yAxis?.[0]?.name

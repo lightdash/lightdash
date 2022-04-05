@@ -1,32 +1,16 @@
-import {
-    ApiQueryResults,
-    BigNumber,
-    CartesianChart,
-    CartesianSeriesType,
-    getSeriesId,
-    isCompleteEchartsConfig,
-    isCompleteLayout,
-    Series,
-} from 'common';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ApiQueryResults } from 'common';
+import { useState } from 'react';
 
 const useBigNumberConfig = (
-    bigNumberConfig: BigNumber | undefined,
+    //  bigNumberConfig: BigNumber | undefined,
     data: ApiQueryResults | undefined,
 ) => {
+    const metric = data?.metricQuery.metrics[0];
+    const bigNumberValue = metric && data?.rows?.[0][metric].value.formatted;
 
-       if (!data || !data.rows.length) return null;
-      
-
-       const metric: string = data.metricQuery.metrics[0];
-       const bigNumberValue: number | string = data.rows[0][metric].value.formatted;
-
-       const [bigNumber, setBigNumber] = useState<string | number>(
-           bigNumberValue,
-       );
-    const [bigNumberConfigLabel, setBigNumberConfigLabel] = useState<
-        BigNumber?.label | undefined
-    >(bigNumberConfig);
+    const [bigNumber, setBigNumber] = useState<string | number>(bigNumberValue);
+    // const [bigNumberConfigLabel, setBigNumberConfigLabel] =
+    //     (useState < BigNumber?.label) | (undefined > bigNumberConfig);
 
     // const [dirtyLayout, setDirtyLayout] = useState<BigNumber>(
     //     bigNumberConfig?.label,
@@ -51,8 +35,8 @@ const useBigNumberConfig = (
     // }, []);
 
     return {
-        bigNumberConfig,
-        setBigNumberConfigLabel,
+        // bigNumberConfig,
+        // setBigNumberConfigLabel,
         bigNumber,
         setBigNumber,
     };
