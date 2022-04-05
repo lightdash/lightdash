@@ -8,14 +8,14 @@ export enum ChartType {
 
 export type BigNumber = {
     label: string;
-}
+};
 
-type BigNumberConfig = {
+export type BigNumberConfig = {
     type: ChartType.BIG_NUMBER;
     config: BigNumber;
 };
 
-export type TableChartConfig = {
+type TableChartConfig = {
     type: ChartType.TABLE;
     config: undefined;
 };

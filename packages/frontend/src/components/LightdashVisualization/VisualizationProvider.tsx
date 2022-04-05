@@ -73,7 +73,7 @@ export const VisualizationProvider: FC<Props> = ({
         pivotDimensions,
         resultsData,
     );
-    const { bigNumber } = useBigNumberConfig(resultsData);
+    const { bigNumber } = useBigNumberConfig();
 
     const cartesianConfig = useCartesianChartConfig(
         chartConfigs as CartesianChart,

@@ -1,14 +1,40 @@
-import { ApiQueryResults } from 'common';
-import { useState } from 'react';
+import {
+    ApiQueryResults,
+    findFieldByIdInExplore,
+    friendlyName,
+    getFieldLabel,
+} from 'common';
+import { useState, useEffect } from 'react';
+import { useVisualizationContext } from '../components/LightdashVisualization/VisualizationProvider';
 
 const useBigNumberConfig = (
     //  bigNumberConfig: BigNumber | undefined,
-    data: ApiQueryResults | undefined,
 ) => {
-    const metric = data?.metricQuery.metrics[0];
-    const bigNumberValue = metric && data?.rows?.[0][metric].value.formatted;
+    const { resultsData, explore } = useVisualizationContext();
 
-    const [bigNumber, setBigNumber] = useState<string | number>(bigNumberValue);
+    const metric = resultsData?.metricQuery.metrics[0];
+    const bigNumberValue =
+        metric && resultsData?.rows?.[0][metric].value.formatted;
+
+    const fieldId = resultsData?.metricQuery.metrics[0];
+
+    useEffect(() => {
+        if (resultsData) {
+            setBigNumber(bigNumberValue);
+        }
+
+        if (fieldId) {
+            const field = explore
+                ? findFieldByIdInExplore(explore, fieldId)
+                : undefined;
+            const label = field ? getFieldLabel(field) : friendlyName(fieldId);
+            setBigNumberLabel(label);
+        }
+    }, [resultsData]);
+
+    const [bigNumber, setBigNumber] = useState<string | number>('');
+    const [bigNumberLabel, setBigNumberLabel] = useState<string>('');
+
     // const [bigNumberConfigLabel, setBigNumberConfigLabel] =
     //     (useState < BigNumber?.label) | (undefined > bigNumberConfig);
 
@@ -39,6 +65,8 @@ const useBigNumberConfig = (
         // setBigNumberConfigLabel,
         bigNumber,
         setBigNumber,
+        bigNumberLabel,
+        setBigNumberLabel,
     };
 };
 

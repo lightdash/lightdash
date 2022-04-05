@@ -14,26 +14,14 @@ const SimpleStatistic: FC = () => {
     const {
         cartesianConfig: { dirtyEchartsConfig },
         resultsData,
-        explore,
     } = useVisualizationContext();
 
-    const { bigNumber } = useBigNumberConfig(resultsData);
+    const { bigNumber, bigNumberLabel } = useBigNumberConfig();
 
-    const fieldId = resultsData?.metricQuery.metrics[0];
-
-    let label: string | undefined;
-
-    if (fieldId) {
-        const field = explore
-            ? findFieldByIdInExplore(explore, fieldId)
-            : undefined;
-        label = field ? getFieldLabel(field) : friendlyName(fieldId);
-    }
-
-    const validData = bigNumber && resultsData?.rows.length && label;
+    const validData = bigNumber && resultsData?.rows.length && bigNumberLabel;
     const validLabel = dirtyEchartsConfig?.yAxis?.[0]?.name
         ? dirtyEchartsConfig?.yAxis?.[0]?.name
-        : label;
+        : bigNumberLabel;
 
     return (
         <>
