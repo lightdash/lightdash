@@ -7,6 +7,7 @@ import {
     Explore,
     ExploreError,
     FilterableField,
+    formatRows,
     getDimensions,
     getFields,
     getMetrics,
@@ -30,7 +31,6 @@ import {
     MissingWarehouseCredentialsError,
     NotExistsError,
 } from '../../errors';
-import { formatRows } from '../../formatter';
 import Logger from '../../logger';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
