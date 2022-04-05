@@ -214,7 +214,7 @@ const useCartesianChartConfig = (
         setVisualizationChartType(ChartType.CARTESIAN); // reset table
 
         // one metric , one dimension
-        if (availableMetrics.length == 1 && availableDimensions.length == 1) {
+        if (availableMetrics.length === 1 && availableDimensions.length === 1) {
             setDirtyLayout((prev) => {
                 return setAxes(prev, availableMetrics[0], [
                     availableDimensions[0],
@@ -223,7 +223,7 @@ const useCartesianChartConfig = (
         }
 
         // one metric, two dimensions
-        if (availableMetrics.length == 1 && availableDimensions.length == 2) {
+        if (availableMetrics.length === 1 && availableDimensions.length === 2) {
             setDirtyLayout((prev) => {
                 return setAxes(prev, availableDimensions[0], [
                     availableMetrics[0],
@@ -233,7 +233,7 @@ const useCartesianChartConfig = (
         }
 
         // two metrics, one dimension
-        if (availableMetrics.length == 2 && availableDimensions.length == 1) {
+        if (availableMetrics.length === 2 && availableDimensions.length === 1) {
             setDirtyLayout((prev) => {
                 return setAxes(prev, availableDimensions[0], availableMetrics);
             });
@@ -254,16 +254,19 @@ const useCartesianChartConfig = (
         }
 
         // 2+ metrics with no dimensions
-        if (availableMetrics.length >= 2 && availableDimensions.length == 0) {
+        if (availableMetrics.length >= 2 && availableDimensions.length === 0) {
             setDirtyLayout((prev) => {
                 return setAxes(prev, availableMetrics[0], [
                     availableMetrics[1],
                 ]);
             });
+            setVisualizationChartType(ChartType.CARTESIAN);
+
+            setType(CartesianSeriesType.SCATTER, false);
         }
 
         // 2+ dimensions with no metrics
-        if (availableMetrics.length == 0 && availableDimensions.length >= 2) {
+        if (availableMetrics.length === 0 && availableDimensions.length >= 2) {
             setDirtyLayout((prev) => {
                 return setAxes(prev, availableDimensions[0], [
                     availableDimensions[1],
