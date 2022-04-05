@@ -16,6 +16,7 @@ import {
     DashboardVersionTable,
     DashboardViewTable,
 } from '../../database/entities/dashboards';
+import { ProjectTable } from '../../database/entities/projects';
 import { SavedChartTable } from '../../database/entities/savedCharts';
 import { SpaceTable } from '../../database/entities/spaces';
 import { GetChartTileQuery, GetDashboardQuery } from './DashboardModel';
@@ -102,6 +103,13 @@ export const updateDashboard: DashboardUnversionedFields = {
 };
 
 // Select mocks
+export const projectEntry: Pick<
+    ProjectTable['base'],
+    'project_id' | 'project_uuid'
+> = {
+    project_uuid: 'project_uuid',
+    project_id: 0,
+};
 
 export const spaceEntry: SpaceTable['base'] = {
     space_id: 0,
@@ -145,6 +153,7 @@ export const dashboardViewEntry: DashboardViewTable['base'] = {
 };
 
 export const dashboardWithVersionEntry: GetDashboardQuery = {
+    project_uuid: projectEntry.project_uuid,
     dashboard_id: dashboardEntry.dashboard_id,
     dashboard_uuid: dashboardEntry.dashboard_uuid,
     name: dashboardEntry.name,
@@ -190,6 +199,7 @@ export const dashboardChartTileEntry: GetChartTileQuery = {
 // Expected returns
 
 export const expectedDashboard: Dashboard = {
+    projectUuid: projectEntry.project_uuid,
     uuid: dashboardEntry.dashboard_uuid,
     name: dashboardEntry.name,
     description: dashboardEntry.description,
@@ -239,6 +249,7 @@ export const expectedDashboard: Dashboard = {
 
 export const expectedAllDashboards: DashboardBasicDetails[] = [
     {
+        projectUuid: projectEntry.project_uuid,
         uuid: dashboardEntry.dashboard_uuid,
         name: dashboardEntry.name,
         description: dashboardEntry.description,

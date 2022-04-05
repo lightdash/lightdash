@@ -37,6 +37,7 @@ export const space: SpaceTable['base'] = {
 };
 
 export const dashboard: Dashboard = {
+    projectUuid: 'projectUuid',
     uuid: 'uuid',
     name: 'name',
     description: 'description',
@@ -62,6 +63,7 @@ export const dashboard: Dashboard = {
 
 export const dashboardsDetails: DashboardBasicDetails[] = [
     {
+        projectUuid: dashboard.projectUuid,
         uuid: dashboard.uuid,
         name: dashboard.name,
         description: dashboard.description,

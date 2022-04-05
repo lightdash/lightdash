@@ -73,7 +73,6 @@ export class OrganizationService {
         analytics.track({
             userId: userUuid,
             event: 'organization.updated',
-            organizationId: organizationUuid,
             properties: {
                 type:
                     lightdashConfig.mode === LightdashMode.CLOUD_BETA

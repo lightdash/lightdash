@@ -34,9 +34,9 @@ jest.mock('../../models/models', () => ({
 
         create: jest.fn(async () => dashboard),
 
-        update: jest.fn(),
+        update: jest.fn(async () => dashboard),
 
-        delete: jest.fn(),
+        delete: jest.fn(async () => dashboard),
 
         addVersion: jest.fn(async () => dashboard),
     },
