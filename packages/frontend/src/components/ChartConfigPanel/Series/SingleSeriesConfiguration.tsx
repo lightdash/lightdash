@@ -49,27 +49,30 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     }}
                 />
                 {!isSingle && (
-                    <InputGroup
-                        fill
-                        disabled={series.hidden}
-                        defaultValue={series.name || seriesLabel}
-                        onBlur={(e) => {
-                            updateSingleSeries({
-                                ...series,
-                                name: e.currentTarget.value,
-                            });
-                        }}
-                    />
+                    <>
+                        <InputGroup
+                            fill
+                            disabled={series.hidden}
+                            defaultValue={series.name || seriesLabel}
+                            onBlur={(e) => {
+                                updateSingleSeries({
+                                    ...series,
+                                    name: e.currentTarget.value,
+                                });
+                            }}
+                        />
+                        <Button
+                            icon={series.hidden ? 'eye-off' : 'eye-open'}
+                            onClick={() => {
+                                updateSingleSeries({
+                                    ...series,
+                                    hidden: !series.hidden,
+                                });
+                            }}
+                        />
+                    </>
                 )}
-                <Button
-                    icon={series.hidden ? 'eye-off' : 'eye-open'}
-                    onClick={() => {
-                        updateSingleSeries({
-                            ...series,
-                            hidden: !series.hidden,
-                        });
-                    }}
-                />
+
                 {isCollapsable && (
                     <Button
                         disabled={series.hidden}
