@@ -1,3 +1,10 @@
+# [0.50.0](https://github.com/lightdash/lightdash/compare/0.49.1...0.50.0) (2022-04-05)
+
+
+### Features
+
+* formatted labels on charts ([#1666](https://github.com/lightdash/lightdash/issues/1666)) ([d9946f7](https://github.com/lightdash/lightdash/commit/d9946f7509f2023ffed431bf8916ae600385727e))
+
 ## [0.49.1](https://github.com/lightdash/lightdash/compare/0.49.0...0.49.1) (2022-04-05)
 
 
