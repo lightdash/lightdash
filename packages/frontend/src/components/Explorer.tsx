@@ -2,7 +2,9 @@ import {
     Button,
     ButtonGroup,
     Card,
+    Classes,
     Collapse,
+    Dialog,
     H5,
     Menu,
     MenuItem,
@@ -23,12 +25,13 @@ import {
     isFilterableField,
 } from 'common';
 import React, { FC, useEffect, useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
 import {
     useAddVersionMutation,
+    useDeleteMutation,
     useSavedQuery,
     useUpdateMutation,
 } from '../hooks/useSavedQuery';
@@ -67,6 +70,8 @@ interface Props {
 export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const updateSavedChart = useUpdateMutation(savedQueryUuid);
+    const { mutate: deleteData, isLoading: isDeleting } = useDeleteMutation();
+    const history = useHistory();
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
         useState<boolean>(false);
@@ -136,6 +141,8 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
               },
           } as CreateSavedChartVersion)
         : undefined;
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [deletedUuid, setDeletedUuid] = useState('');
 
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
@@ -218,7 +225,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             marginRight: 10,
                         }}
                     >
-                        {chartName && (
+                        {chartName && savedQueryUuid != deletedUuid && (
                             <EditableHeader
                                 value={chartName}
                                 isDisabled={updateSavedChart.isLoading}
@@ -339,54 +346,66 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                         text="Save chart"
                                         disabled={!tableName}
                                         onClick={
-                                            savedQueryUuid
+                                            savedQueryUuid &&
+                                            deletedUuid != savedQueryUuid
                                                 ? handleSavedQueryUpdate
                                                 : () =>
                                                       setIsQueryModalOpen(true)
                                         }
                                     />
-                                    {savedQueryUuid && (
-                                        <Popover2
-                                            placement="bottom"
-                                            disabled={!tableName}
-                                            content={
-                                                <Menu>
-                                                    <MenuItem
-                                                        icon="add"
-                                                        text="Save chart as"
-                                                        onClick={() =>
-                                                            setIsQueryModalOpen(
-                                                                true,
-                                                            )
-                                                        }
-                                                    />
-                                                    <MenuItem
-                                                        icon="circle-arrow-right"
-                                                        text="Add chart to an existing dashboard"
-                                                        onClick={() =>
-                                                            setIsAddToDashboardModalOpen(
-                                                                true,
-                                                            )
-                                                        }
-                                                    />
-                                                    <MenuItem
-                                                        icon="control"
-                                                        text="Create dashboard with chart"
-                                                        onClick={() =>
-                                                            setIsAddToNewDashboardModalOpen(
-                                                                true,
-                                                            )
-                                                        }
-                                                    />
-                                                </Menu>
-                                            }
-                                        >
-                                            <Button
-                                                icon="more"
+                                    {savedQueryUuid &&
+                                        deletedUuid != savedQueryUuid && (
+                                            <Popover2
+                                                placement="bottom"
                                                 disabled={!tableName}
-                                            />
-                                        </Popover2>
-                                    )}
+                                                content={
+                                                    <Menu>
+                                                        <MenuItem
+                                                            icon="add"
+                                                            text="Save chart as"
+                                                            onClick={() =>
+                                                                setIsQueryModalOpen(
+                                                                    true,
+                                                                )
+                                                            }
+                                                        />
+                                                        <MenuItem
+                                                            icon="circle-arrow-right"
+                                                            text="Add chart to an existing dashboard"
+                                                            onClick={() =>
+                                                                setIsAddToDashboardModalOpen(
+                                                                    true,
+                                                                )
+                                                            }
+                                                        />
+                                                        <MenuItem
+                                                            icon="control"
+                                                            text="Create dashboard with chart"
+                                                            onClick={() =>
+                                                                setIsAddToNewDashboardModalOpen(
+                                                                    true,
+                                                                )
+                                                            }
+                                                        />
+                                                        <MenuItem
+                                                            icon="delete"
+                                                            text="Delete chart"
+                                                            intent="danger"
+                                                            onClick={() => {
+                                                                setIsDeleteDialogOpen(
+                                                                    true,
+                                                                );
+                                                            }}
+                                                        />
+                                                    </Menu>
+                                                }
+                                            >
+                                                <Button
+                                                    icon="more"
+                                                    disabled={!tableName}
+                                                />
+                                            </Popover2>
+                                        )}
                                 </ButtonGroup>
                             </div>
                         )}
@@ -515,6 +534,42 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     onClose={() => setIsAddToDashboardModalOpen(false)}
                 />
             )}
+            <Dialog
+                isOpen={isDeleteDialogOpen}
+                icon="delete"
+                onClose={() =>
+                    !isDeleting ? setIsDeleteDialogOpen(false) : undefined
+                }
+                title={'Delete'}
+            >
+                <div className={Classes.DIALOG_BODY}>
+                    <p>Are you sure you want to delete this chart ?</p>
+                </div>
+                <div className={Classes.DIALOG_FOOTER}>
+                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+                        <Button
+                            disabled={isDeleting}
+                            onClick={() => setIsDeleteDialogOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={isDeleting}
+                            intent="danger"
+                            onClick={() => {
+                                if (savedQueryUuid) {
+                                    deleteData(savedQueryUuid);
+                                    setDeletedUuid(savedQueryUuid);
+                                }
+
+                                setIsDeleteDialogOpen(false);
+                            }}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                </div>
+            </Dialog>
         </>
     );
 };
