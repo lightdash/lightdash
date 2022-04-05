@@ -157,11 +157,12 @@ const ChartConfigTabs: FC = () => {
                         }
                     />
                 )}
-                {!isBigNumber ? (
-                    <Tab
-                        id="axes"
-                        title="Axes"
-                        panel={
+
+                <Tab
+                    id="axes"
+                    title="Axes"
+                    panel={
+                        !isBigNumber ? (
                             <>
                                 <InputWrapper
                                     label={`${
@@ -244,21 +245,15 @@ const ChartConfigTabs: FC = () => {
                                     />
                                 </InputWrapper>
                             </>
-                        }
-                    />
-                ) : (
-                    <Tab
-                        id="axes"
-                        title="Axes"
-                        panel={
+                        ) : (
                             <BigNumberAxesTab
                                 bigNumberConfig={dirtyEchartsConfig}
                                 bigNumberLabel={yAxisLabel}
                                 setName={setYAxisName}
                             />
-                        }
-                    />
-                )}
+                        )
+                    }
+                />
             </Tabs>
         </Wrapper>
     );
