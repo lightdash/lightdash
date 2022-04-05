@@ -59,8 +59,13 @@ const Dashboard = () => {
         dashboardUuid: string;
         mode?: string;
     }>();
-    const { dashboardFilters, haveFiltersChanged, setHaveFiltersChanged } =
-        useDashboardContext();
+    const {
+        dashboardFilters,
+        haveFiltersChanged,
+        setHaveFiltersChanged,
+        dashboardTiles,
+        setDashboardTiles,
+    } = useDashboardContext();
 
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
@@ -72,7 +77,7 @@ const Dashboard = () => {
         reset,
         isLoading: isSaving,
     } = useUpdateDashboard(dashboardUuid);
-    const [dashboardTiles, setTiles] = useState<IDashboard['tiles']>([]);
+
     const layouts = useMemo(
         () => ({
             lg: dashboardTiles.map<Layout>((tile) => ({
@@ -90,7 +95,7 @@ const Dashboard = () => {
 
     useEffect(() => {
         if (dashboard?.tiles) {
-            setTiles(dashboard.tiles);
+            setDashboardTiles(dashboard.tiles);
         }
     }, [dashboard]);
 
@@ -113,7 +118,7 @@ const Dashboard = () => {
     ]);
 
     const updateTiles = useCallback((layout: Layout[]) => {
-        setTiles((currentDashboardTiles) =>
+        setDashboardTiles((currentDashboardTiles) =>
             currentDashboardTiles.map((tile) => {
                 const layoutTile = layout.find(({ i }) => i === tile.uuid);
                 if (
@@ -138,10 +143,13 @@ const Dashboard = () => {
     }, []);
     const onAddTile = useCallback((tile: IDashboard['tiles'][number]) => {
         setHasTilesChanged(true);
-        setTiles((currentDashboardTiles) => [...currentDashboardTiles, tile]);
+        setDashboardTiles((currentDashboardTiles) => [
+            ...currentDashboardTiles,
+            tile,
+        ]);
     }, []);
     const onDelete = useCallback((tile: IDashboard['tiles'][number]) => {
-        setTiles((currentDashboardTiles) =>
+        setDashboardTiles((currentDashboardTiles) =>
             currentDashboardTiles.filter(
                 (filteredTile) => filteredTile.uuid !== tile.uuid,
             ),
@@ -149,7 +157,7 @@ const Dashboard = () => {
         setHasTilesChanged(true);
     }, []);
     const onEdit = useCallback((updatedTile: IDashboard['tiles'][number]) => {
-        setTiles((currentDashboardTiles) =>
+        setDashboardTiles((currentDashboardTiles) =>
             currentDashboardTiles.map((tile) =>
                 tile.uuid === updatedTile.uuid ? updatedTile : tile,
             ),
@@ -157,7 +165,7 @@ const Dashboard = () => {
         setHasTilesChanged(true);
     }, []);
     const onCancel = useCallback(() => {
-        setTiles(dashboard?.tiles || []);
+        setDashboardTiles(dashboard?.tiles || []);
         setHasTilesChanged(false);
         history.push(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
