@@ -17,7 +17,9 @@ const SimpleStatistic: FC = () => {
         explore,
     } = useVisualizationContext();
     const fieldId = resultsData?.metricQuery.metrics[0];
+
     let label: string | undefined;
+
     if (fieldId) {
         const field = explore
             ? findFieldByIdInExplore(explore, fieldId)
@@ -37,7 +39,7 @@ const SimpleStatistic: FC = () => {
                 <SimpleStatisticsWrapper>
                     <BigNumberContainer>
                         <BigNumber>{bigNumber}</BigNumber>
-                        {label && <BigNumberLabel>{validLabel}</BigNumberLabel>}
+                        <BigNumberLabel>{validLabel || label}</BigNumberLabel>
                     </BigNumberContainer>
                 </SimpleStatisticsWrapper>
             ) : (

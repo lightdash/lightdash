@@ -2,6 +2,7 @@ import { InputGroup } from '@blueprintjs/core';
 import {
     CompiledDimension,
     CompleteEChartsConfig,
+    friendlyName,
     getItemLabel,
     Metric,
     TableCalculation,
@@ -19,18 +20,24 @@ const BigNumberAxesTab: FC<Props> = ({
     bigNumberConfig,
     bigNumberLabel,
     setName,
-}) => (
-    <>
-        <InputWrapper label="Label">
-            <InputGroup
-                placeholder="Enter label"
-                defaultValue={
-                    bigNumberConfig?.xAxis?.[0]?.name ||
-                    (bigNumberLabel && getItemLabel(bigNumberLabel))
-                }
-                onBlur={(e) => setName(e.currentTarget.value)}
-            />
-        </InputWrapper>
-    </>
-);
+}) => {
+    const defaultValue =
+        bigNumberConfig?.series?.[0] &&
+        friendlyName(bigNumberConfig?.series?.[0]?.encode.yRef.field);
+
+    return (
+        <>
+            <InputWrapper label="Label">
+                <InputGroup
+                    placeholder="Enter label"
+                    defaultValue={
+                        defaultValue ||
+                        (bigNumberLabel && getItemLabel(bigNumberLabel))
+                    }
+                    onBlur={(e) => setName(e.currentTarget.value)}
+                />
+            </InputWrapper>
+        </>
+    );
+};
 export default BigNumberAxesTab;
