@@ -1,4 +1,11 @@
-import { ApiQueryResults, ChartConfig, ChartType, Explore } from 'common';
+import {
+    ApiQueryResults,
+    CartesianChart,
+    ChartConfig,
+    ChartType,
+    Explore,
+    BigNumber,
+} from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, {
     createContext,
@@ -14,6 +21,8 @@ import { useExplore } from '../../hooks/useExplore';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import usePlottedData from '../../hooks/usePlottedData';
 import { EchartSeriesClickEvent } from '../SimpleChart';
+import useBigNumberConfig from '../../hooks/useBigNumberConfig';
+import bigNumberConfig from '../../utils/bigNumberConfig';
 
 type VisualizationContext = {
     chartRef: RefObject<EChartsReact>;
@@ -34,7 +43,7 @@ const Context = createContext<VisualizationContext | undefined>(undefined);
 
 type Props = {
     chartType: ChartType;
-    chartConfigs: ChartConfig['config'];
+    chartConfigs: CartesianChart | BigNumber | undefined;
     pivotDimensions: string[] | undefined;
     tableName: string | undefined;
     resultsData: ApiQueryResults | undefined;
@@ -65,11 +74,18 @@ export const VisualizationProvider: FC<Props> = ({
         pivotDimensions,
         resultsData,
     );
-    const cartesianConfig = useCartesianChartConfig(
-        chartConfigs,
-        validPivotDimensions?.[0],
-        resultsData,
-    );
+    const cartesianConfig =
+        chartType === 'big_number'
+            ? useBigNumberConfig(chartConfigs as BigNumber, resultsData)
+            : useCartesianChartConfig(
+                  chartConfigs as CartesianChart,
+                  validPivotDimensions?.[0],
+                  resultsData,
+              );
+
+              console.log({cartesianConfig});
+              
+
     const { validCartesianConfig } = cartesianConfig;
 
     const plotData = usePlottedData(

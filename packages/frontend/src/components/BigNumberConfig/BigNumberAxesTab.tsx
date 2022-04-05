@@ -1,7 +1,7 @@
 import { InputGroup } from '@blueprintjs/core';
 import { CompleteEChartsConfig, friendlyName } from 'common';
 import React, { FC } from 'react';
-import { InputWrapper } from './ChartConfigPanel.styles';
+import { InputWrapper } from '../ChartConfigPanel/ChartConfigPanel.styles';
 
 interface Props {
     bigNumberConfig: Partial<Partial<CompleteEChartsConfig>> | undefined;

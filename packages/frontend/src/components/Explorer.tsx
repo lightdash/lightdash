@@ -42,6 +42,7 @@ import { useExplorer } from '../providers/ExplorerProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import AddColumnButton from './AddColumnButton';
+import BigNumberConfigPanel from './BigNumberConfig';
 import ChartConfigPanel from './ChartConfigPanel';
 import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
@@ -363,7 +364,11 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                 }}
                             >
                                 <VisualizationCardOptions />
-                                <ChartConfigPanel />
+                                {ChartType.BIG_NUMBER ? (
+                                    <BigNumberConfigPanel />
+                                ) : (
+                                    <ChartConfigPanel />
+                                )}
                                 <ChartDownloadMenu />
                                 <ButtonGroup>
                                     <Button

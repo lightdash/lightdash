@@ -9,6 +9,7 @@ import {
     BigNumberLabel,
     SimpleStatisticsWrapper,
 } from './SimpleStatistics.styles';
+import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 
 const SimpleStatistic: FC = () => {
     const {
@@ -16,6 +17,10 @@ const SimpleStatistic: FC = () => {
         resultsData,
         explore,
     } = useVisualizationContext();
+
+    const { bigNumberValue } = useBigNumberConfig(resultsData);
+    console.log(bigNumberValue);
+
     const fieldId = resultsData?.metricQuery.metrics[0];
 
     let label: string | undefined;
@@ -28,6 +33,8 @@ const SimpleStatistic: FC = () => {
     }
 
     const bigNumber = bigNumberConfig(resultsData);
+    console.log(resultsData);
+
     const validData = bigNumber && resultsData?.rows.length && label;
     const validLabel = dirtyEchartsConfig?.yAxis?.[0]?.name
         ? dirtyEchartsConfig?.yAxis?.[0]?.name
