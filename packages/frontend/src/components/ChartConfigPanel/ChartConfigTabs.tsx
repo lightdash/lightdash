@@ -106,6 +106,15 @@ const ChartConfigTabs: FC = () => {
         selectedAxisInSeries.length === 1;
     const selectedAxisIndex = selectedAxisInSeries[0] || 0;
 
+    const yAxisLabel = getAxisName({
+        isAxisTheSameForAllSeries,
+        selectedAxisIndex,
+        axisReference: 'yRef',
+        axisIndex: 0,
+        series: dirtyEchartsConfig?.series,
+        items,
+    });
+
     return (
         <Wrapper>
             <Tabs
@@ -113,132 +122,130 @@ const ChartConfigTabs: FC = () => {
                 selectedTabId={tab}
                 renderActiveTabPanelOnly
             >
+                {!isBigNumber && (
+                    <Tab
+                        id="layout"
+                        title="Layout"
+                        panel={<FieldLayoutOptions items={items} />}
+                    />
+                )}
+                {!isBigNumber && (
+                    <Tab
+                        id="series"
+                        title="Series"
+                        panel={
+                            pivotDimension ? (
+                                <GroupedSeriesConfiguration
+                                    items={items}
+                                    layout={dirtyLayout}
+                                    series={dirtyEchartsConfig?.series}
+                                    getSeriesColor={getSeriesColor}
+                                    updateSingleSeries={updateSingleSeries}
+                                    updateAllGroupedSeries={
+                                        updateAllGroupedSeries
+                                    }
+                                />
+                            ) : (
+                                <BasicSeriesConfiguration
+                                    items={items}
+                                    layout={dirtyLayout}
+                                    series={dirtyEchartsConfig?.series}
+                                    getSeriesColor={getSeriesColor}
+                                    updateSingleSeries={updateSingleSeries}
+                                />
+                            )
+                        }
+                    />
+                )}
                 {!isBigNumber ? (
-                    <>
-                        <Tab
-                            id="layout"
-                            title="Layout"
-                            panel={<FieldLayoutOptions items={items} />}
-                        />
-                        <Tab
-                            id="series"
-                            title="Series"
-                            panel={
-                                pivotDimension ? (
-                                    <GroupedSeriesConfiguration
-                                        items={items}
-                                        layout={dirtyLayout}
-                                        series={dirtyEchartsConfig?.series}
-                                        getSeriesColor={getSeriesColor}
-                                        updateSingleSeries={updateSingleSeries}
-                                        updateAllGroupedSeries={
-                                            updateAllGroupedSeries
+                    <Tab
+                        id="axes"
+                        title="Axes"
+                        panel={
+                            <>
+                                <InputWrapper
+                                    label={`${
+                                        dirtyLayout?.flipAxes ? 'Y' : 'X'
+                                    }-axis label`}
+                                >
+                                    <InputGroup
+                                        placeholder="Enter axis label"
+                                        defaultValue={
+                                            dirtyEchartsConfig?.xAxis?.[0]
+                                                ?.name ||
+                                            (xAxisField &&
+                                                getItemLabel(xAxisField))
+                                        }
+                                        onBlur={(e) =>
+                                            setXAxisName(e.currentTarget.value)
                                         }
                                     />
-                                ) : (
-                                    <BasicSeriesConfiguration
-                                        items={items}
-                                        layout={dirtyLayout}
-                                        series={dirtyEchartsConfig?.series}
-                                        getSeriesColor={getSeriesColor}
-                                        updateSingleSeries={updateSingleSeries}
+                                </InputWrapper>
+
+                                <InputWrapper
+                                    label={`${
+                                        dirtyLayout?.flipAxes ? 'X' : 'Y'
+                                    }-axis label (${
+                                        dirtyLayout?.flipAxes
+                                            ? 'bottom'
+                                            : 'left'
+                                    })`}
+                                >
+                                    <InputGroup
+                                        placeholder="Enter axis label"
+                                        defaultValue={
+                                            dirtyEchartsConfig?.yAxis?.[0]
+                                                ?.name ||
+                                            getAxisName({
+                                                isAxisTheSameForAllSeries,
+                                                selectedAxisIndex,
+                                                axisReference: 'yRef',
+                                                axisIndex: 0,
+                                                series: dirtyEchartsConfig?.series,
+                                                items,
+                                            })
+                                        }
+                                        onBlur={(e) =>
+                                            setYAxisName(
+                                                0,
+                                                e.currentTarget.value,
+                                            )
+                                        }
                                     />
-                                )
-                            }
-                        />
-                        <Tab
-                            id="axes"
-                            title="Axes"
-                            panel={
-                                <>
-                                    <InputWrapper
-                                        label={`${
-                                            dirtyLayout?.flipAxes ? 'Y' : 'X'
-                                        }-axis label`}
-                                    >
-                                        <InputGroup
-                                            placeholder="Enter axis label"
-                                            defaultValue={
-                                                dirtyEchartsConfig?.xAxis?.[0]
-                                                    ?.name ||
-                                                (xAxisField &&
-                                                    getItemLabel(xAxisField))
-                                            }
-                                            onBlur={(e) =>
-                                                setXAxisName(
-                                                    e.currentTarget.value,
-                                                )
-                                            }
-                                        />
-                                    </InputWrapper>
+                                </InputWrapper>
 
-                                    <InputWrapper
-                                        label={`${
-                                            dirtyLayout?.flipAxes ? 'X' : 'Y'
-                                        }-axis label (${
-                                            dirtyLayout?.flipAxes
-                                                ? 'bottom'
-                                                : 'left'
-                                        })`}
-                                    >
-                                        <InputGroup
-                                            placeholder="Enter axis label"
-                                            defaultValue={
-                                                dirtyEchartsConfig?.yAxis?.[0]
-                                                    ?.name ||
-                                                getAxisName({
-                                                    isAxisTheSameForAllSeries,
-                                                    selectedAxisIndex,
-                                                    axisReference: 'yRef',
-                                                    axisIndex: 0,
-                                                    series: dirtyEchartsConfig?.series,
-                                                    items,
-                                                })
-                                            }
-                                            onBlur={(e) =>
-                                                setYAxisName(
-                                                    0,
-                                                    e.currentTarget.value,
-                                                )
-                                            }
-                                        />
-                                    </InputWrapper>
-
-                                    <InputWrapper
-                                        label={`${
-                                            dirtyLayout?.flipAxes ? 'X' : 'Y'
-                                        }-axis label (${
-                                            dirtyLayout?.flipAxes
-                                                ? 'top'
-                                                : 'right'
-                                        })`}
-                                    >
-                                        <InputGroup
-                                            placeholder="Enter axis label"
-                                            defaultValue={
-                                                dirtyEchartsConfig?.yAxis?.[1]
-                                                    ?.name ||
-                                                getAxisName({
-                                                    isAxisTheSameForAllSeries,
-                                                    selectedAxisIndex,
-                                                    axisReference: 'yRef',
-                                                    axisIndex: 1,
-                                                    series: dirtyEchartsConfig?.series,
-                                                    items,
-                                                })
-                                            }
-                                            onBlur={(e) =>
-                                                setYAxisName(
-                                                    1,
-                                                    e.currentTarget.value,
-                                                )
-                                            }
-                                        />
-                                    </InputWrapper>
-                                </>
-                            }
-                        />
-                    </>
+                                <InputWrapper
+                                    label={`${
+                                        dirtyLayout?.flipAxes ? 'X' : 'Y'
+                                    }-axis label (${
+                                        dirtyLayout?.flipAxes ? 'top' : 'right'
+                                    })`}
+                                >
+                                    <InputGroup
+                                        placeholder="Enter axis label"
+                                        defaultValue={
+                                            dirtyEchartsConfig?.yAxis?.[1]
+                                                ?.name ||
+                                            getAxisName({
+                                                isAxisTheSameForAllSeries,
+                                                selectedAxisIndex,
+                                                axisReference: 'yRef',
+                                                axisIndex: 1,
+                                                series: dirtyEchartsConfig?.series,
+                                                items,
+                                            })
+                                        }
+                                        onBlur={(e) =>
+                                            setYAxisName(
+                                                1,
+                                                e.currentTarget.value,
+                                            )
+                                        }
+                                    />
+                                </InputWrapper>
+                            </>
+                        }
+                    />
                 ) : (
                     <Tab
                         id="axes"
@@ -246,7 +253,7 @@ const ChartConfigTabs: FC = () => {
                         panel={
                             <BigNumberAxesTab
                                 bigNumberConfig={dirtyEchartsConfig}
-                                bigNumberLabel={xAxisField}
+                                bigNumberLabel={yAxisLabel}
                                 setName={setXAxisName}
                             />
                         }
