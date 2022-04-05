@@ -49,30 +49,29 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     }}
                 />
                 {!isSingle && (
-                    <>
-                        <InputGroup
-                            fill
-                            disabled={series.hidden}
-                            defaultValue={series.name || seriesLabel}
-                            onBlur={(e) => {
-                                updateSingleSeries({
-                                    ...series,
-                                    name: e.currentTarget.value,
-                                });
-                            }}
-                        />
-                        <Button
-                            icon={series.hidden ? 'eye-open' : 'eye-off'}
-                            onClick={() => {
-                                updateSingleSeries({
-                                    ...series,
-                                    hidden: !series.hidden,
-                                });
-                            }}
-                        />
-                    </>
+                    <InputGroup
+                        fill
+                        disabled={series.hidden}
+                        defaultValue={series.name || seriesLabel}
+                        onBlur={(e) => {
+                            updateSingleSeries({
+                                ...series,
+                                name: e.currentTarget.value,
+                            });
+                        }}
+                    />
                 )}
-
+                {isGrouped && (
+                    <Button
+                        icon={series.hidden ? 'eye-open' : 'eye-off'}
+                        onClick={() => {
+                            updateSingleSeries({
+                                ...series,
+                                hidden: !series.hidden,
+                            });
+                        }}
+                    />
+                )}
                 {isCollapsable && (
                     <Button
                         disabled={series.hidden}
