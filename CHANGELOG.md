@@ -1,3 +1,10 @@
+## [0.49.1](https://github.com/lightdash/lightdash/compare/0.49.0...0.49.1) (2022-04-05)
+
+
+### Bug Fixes
+
+* dashboard cross filtering cause an error ([#1647](https://github.com/lightdash/lightdash/issues/1647)) ([5910041](https://github.com/lightdash/lightdash/commit/5910041a92874fd5173bcc89c3211d5564a66979))
+
 # [0.49.0](https://github.com/lightdash/lightdash/compare/0.48.0...0.49.0) (2022-04-05)
 
 
