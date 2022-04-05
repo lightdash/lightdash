@@ -1,3 +1,10 @@
+# [0.48.0](https://github.com/lightdash/lightdash/compare/0.47.1...0.48.0) (2022-04-05)
+
+
+### Features
+
+* save changes button on charts + disabled button ([#1682](https://github.com/lightdash/lightdash/issues/1682)) ([9c29567](https://github.com/lightdash/lightdash/commit/9c295671d6aad8c86678740bff6e48b3be1691da))
+
 ## [0.47.1](https://github.com/lightdash/lightdash/compare/0.47.0...0.47.1) (2022-04-04)
 
 
