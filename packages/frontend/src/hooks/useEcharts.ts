@@ -137,11 +137,6 @@ const valueFormatter =
         return getFormatterValue(rawValue, yField, getDimensions(explore));
     };
 
-const formatter = (format: string, field: string, data: any) => {
-    const value: any = data?.value?.[field] || data;
-    return formatValue(format, value);
-};
-
 export const getEchartsSeries = (
     explore: Explore,
     tableCalculations: TableCalculation[],
@@ -268,10 +263,9 @@ export const getEchartsSeries = (
                             label: {
                                 ...series.label,
                                 formatter: (value: any) =>
-                                    formatter(
+                                    formatValue(
                                         formats[yField] || '',
-                                        yField,
-                                        value,
+                                        value?.value?.[yField],
                                     ),
                             },
                         }),
@@ -355,7 +349,7 @@ const getEchartAxis = ({
                 axisLabel: {
                     formatter: (value: any) => {
                         const field = getItemId(axisItem);
-                        return formatter(formats?.[field] || '', field, value);
+                        return formatValue(formats?.[field] || '', value);
                     },
                 },
             }
