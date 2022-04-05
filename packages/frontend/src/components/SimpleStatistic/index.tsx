@@ -36,8 +36,8 @@ const SimpleStatistic: FC = () => {
             {validData ? (
                 <SimpleStatisticsWrapper>
                     <BigNumberContainer>
-                        {label && <BigNumberLabel>{validLabel}</BigNumberLabel>}
                         <BigNumber>{bigNumber}</BigNumber>
+                        {label && <BigNumberLabel>{validLabel}</BigNumberLabel>}
                     </BigNumberContainer>
                 </SimpleStatisticsWrapper>
             ) : (
