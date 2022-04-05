@@ -51,6 +51,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                 {!isSingle && (
                     <InputGroup
                         fill
+                        disabled={series.hidden}
                         defaultValue={series.name || seriesLabel}
                         onBlur={(e) => {
                             updateSingleSeries({
@@ -60,8 +61,18 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         }}
                     />
                 )}
+                <Button
+                    icon={series.hidden ? 'eye-off' : 'eye-open'}
+                    onClick={() => {
+                        updateSingleSeries({
+                            ...series,
+                            hidden: !series.hidden,
+                        });
+                    }}
+                />
                 {isCollapsable && (
                     <Button
+                        disabled={series.hidden}
                         icon={isOpen ? 'caret-up' : 'caret-down'}
                         onClick={toggleIsOpen}
                     />
