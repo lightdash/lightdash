@@ -1,3 +1,4 @@
+import { Intent } from '@blueprintjs/core';
 import { CreateSavedChartVersion, SpaceQuery } from 'common';
 import React, { FC } from 'react';
 import { useCreateMutation } from '../../hooks/useSavedQuery';
@@ -18,7 +19,15 @@ interface CreateSavedQueryModalProps {
 
 const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = (props) => {
     const useCreate = useCreateMutation();
-    return <CreateActionModal useCreate={useCreate} {...props} />;
+    return (
+        <CreateActionModal
+            useCreate={useCreate}
+            confirmButtonIntent={Intent.SUCCESS}
+            confirmButtonLabel="Save"
+            title="Save chart"
+            {...props}
+        />
+    );
 };
 
 export default CreateSavedQueryModal;
