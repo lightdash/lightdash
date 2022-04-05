@@ -6,7 +6,7 @@ import { InputWrapper } from './ChartConfigPanel.styles';
 interface Props {
     bigNumberConfig: Partial<Partial<CompleteEChartsConfig>> | undefined;
     bigNumberLabel: string | undefined;
-    setName: (name: string) => void;
+    setName: (index: number, name: string) => void;
 }
 
 const BigNumberAxesTab: FC<Props> = ({
@@ -24,7 +24,7 @@ const BigNumberAxesTab: FC<Props> = ({
                 <InputGroup
                     placeholder="Enter label"
                     defaultValue={defaultValue || bigNumberLabel}
-                    onBlur={(e) => setName(e.currentTarget.value)}
+                    onBlur={(e) => setName(0, e.currentTarget.value)}
                 />
             </InputWrapper>
         </>

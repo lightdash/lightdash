@@ -254,7 +254,7 @@ const ChartConfigTabs: FC = () => {
                             <BigNumberAxesTab
                                 bigNumberConfig={dirtyEchartsConfig}
                                 bigNumberLabel={yAxisLabel}
-                                setName={setXAxisName}
+                                setName={setYAxisName}
                             />
                         }
                     />

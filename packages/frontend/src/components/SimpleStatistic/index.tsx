@@ -29,8 +29,8 @@ const SimpleStatistic: FC = () => {
 
     const bigNumber = bigNumberConfig(resultsData);
     const validData = bigNumber && resultsData?.rows.length && label;
-    const validLabel = dirtyEchartsConfig?.xAxis
-        ? dirtyEchartsConfig?.xAxis[0].name
+    const validLabel = dirtyEchartsConfig?.yAxis?.[0]?.name
+        ? dirtyEchartsConfig?.yAxis?.[0]?.name
         : label;
 
     return (
