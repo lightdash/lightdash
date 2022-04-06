@@ -113,6 +113,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [activeVizTab, setActiveVizTab] = useState<ChartType>(
         ChartType.CARTESIAN,
     );
+
     const [pivotDimensions, setPivotDimensions] = useState<string[]>();
     const queryData: CreateSavedChartVersion | undefined = tableName
         ? ({
@@ -367,7 +368,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                 }}
                             >
                                 <VisualizationCardOptions />
-                                {ChartType.BIG_NUMBER ? (
+                                {activeVizTab === ChartType.BIG_NUMBER ? (
                                     <BigNumberConfigPanel />
                                 ) : (
                                     <ChartConfigPanel />
