@@ -9,7 +9,7 @@ import {
 } from 'common';
 import { analytics } from '../../analytics/client';
 import { CreateSavedChartOrVersionEvent } from '../../analytics/LightdashAnalytics';
-import { ForbiddenError, NotExistsError } from '../../errors';
+import { ForbiddenError } from '../../errors';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 
@@ -149,20 +149,5 @@ export class SavedChartService {
                 SavedChartService.getCreateEventProperties(newSavedChart),
         });
         return newSavedChart;
-    }
-
-    async hasSavedCharts(user: SessionUser): Promise<boolean> {
-        const { organizationUuid } = user;
-        if (organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
-        }
-        const project = await this.projectModel.getDefaultProject(
-            organizationUuid,
-        );
-        const spaces = await this.savedChartModel.getAllSpaces(
-            project.projectUuid,
-        );
-
-        return spaces.some((space) => space.queries.length > 0);
     }
 }

@@ -315,3 +315,22 @@ projectRouter.patch(
         }
     },
 );
+
+projectRouter.get(
+    '/hasSavedCharts',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results = await projectService.hasSavedCharts(
+                req.user!,
+                req.params.projectUuid,
+            );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
