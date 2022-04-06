@@ -571,10 +571,9 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                 <div className={Classes.DIALOG_BODY}>
                     <p>Are you sure you want to delete this chart ?</p>
 
-                    {relatedDashboards && (
+                    {relatedDashboards && relatedDashboards.length > 0 && (
                         <>
                             <b>
-                                {' '}
                                 This action will affect{' '}
                                 {relatedDashboards.length} dashboards:
                             </b>
