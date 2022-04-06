@@ -3,12 +3,15 @@ import { useQuery } from 'react-query';
 import { lightdashApi } from '../../api';
 import useQueryError from '../useQueryError';
 
-const getDashboards = async (projectUuid: string) =>
-    lightdashApi<DashboardBasicDetails[]>({
-        url: `/projects/${projectUuid}/dashboards`,
+export const getDashboards = async (projectUuid: string, chartId?: string) => {
+    const queryChartId: string = chartId ? `?chartUuid=${chartId}` : '';
+
+    return lightdashApi<DashboardBasicDetails[]>({
+        url: `/projects/${projectUuid}/dashboards${queryChartId}`,
         method: 'GET',
         body: undefined,
     });
+};
 
 export const useDashboards = (projectUuid: string) => {
     const setErrorResponse = useQueryError();

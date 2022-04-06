@@ -16,6 +16,7 @@ import {
     ChartType,
     countTotalFilterRules,
     CreateSavedChartVersion,
+    DashboardBasicDetails,
     DashboardTileTypes,
     DimensionType,
     fieldId,
@@ -27,6 +28,7 @@ import {
 import React, { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
+import { getDashboards } from '../hooks/dashboard/useDashboards';
 import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
 import {
@@ -97,7 +99,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const { data } = useSavedQuery({ id: savedQueryUuid });
     const [validChartConfig, setValidChartConfig] =
         useState<ChartConfig['config']>();
-
     const update = useAddVersionMutation();
     const history = useHistory();
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false);
@@ -140,7 +141,11 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
               },
           } as CreateSavedChartVersion)
         : undefined;
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
+        useState<boolean>(false);
+    const [relatedDashboards, setRelatedDashboards] = useState<
+        DashboardBasicDetails[]
+    >([]);
 
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
@@ -400,8 +405,21 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                                         text="Delete chart"
                                                         intent="danger"
                                                         onClick={() => {
-                                                            setIsDeleteDialogOpen(
-                                                                true,
+                                                            getDashboards(
+                                                                projectUuid,
+                                                                savedQueryUuid,
+                                                            ).then(
+                                                                (
+                                                                    dashboards,
+                                                                ) => {
+                                                                    setRelatedDashboards(
+                                                                        dashboards,
+                                                                    );
+
+                                                                    setIsDeleteDialogOpen(
+                                                                        true,
+                                                                    );
+                                                                },
                                                             );
                                                         }}
                                                     />
@@ -552,6 +570,21 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             >
                 <div className={Classes.DIALOG_BODY}>
                     <p>Are you sure you want to delete this chart ?</p>
+
+                    {relatedDashboards && (
+                        <>
+                            <b>
+                                {' '}
+                                This action will affect{' '}
+                                {relatedDashboards.length} dashboards:
+                            </b>
+                            <ul>
+                                {relatedDashboards.map((dashboard) => {
+                                    return <li>{dashboard.name}</li>;
+                                })}
+                            </ul>
+                        </>
+                    )}
                 </div>
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>
