@@ -5,9 +5,9 @@ import { useVisualizationContext } from '../LightdashVisualization/Visualization
 import { InputWrapper } from './BigNumberConfig.styles';
 
 export const BigNumberConfigPanel: React.FC = () => {
-    const { bigNumberLabel } = useVisualizationContext();
-
+    const { bigNumberLabel, setBigNumberLabel } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
+
     return (
         <Popover2
             content={
@@ -15,7 +15,7 @@ export const BigNumberConfigPanel: React.FC = () => {
                     <InputGroup
                         placeholder="Enter label"
                         defaultValue={bigNumberLabel}
-                        // onBlur={(e) => setName(0, e.currentTarget.value)}
+                        onBlur={(e) => setBigNumberLabel(e.currentTarget.value)}
                     />
                 </InputWrapper>
             }

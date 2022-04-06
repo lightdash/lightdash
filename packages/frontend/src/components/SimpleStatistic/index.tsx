@@ -23,7 +23,7 @@ const SimpleStatistic: FC = () => {
                 <SimpleStatisticsWrapper>
                     <BigNumberContainer>
                         <BigNumber>{bigNumber}</BigNumber>
-                        <BigNumberLabel>{'test'}</BigNumberLabel>
+                        <BigNumberLabel>{bigNumberLabel}</BigNumberLabel>
                     </BigNumberContainer>
                 </SimpleStatisticsWrapper>
             ) : (
