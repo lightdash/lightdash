@@ -2,7 +2,9 @@ import {
     Button,
     ButtonGroup,
     Card,
+    Classes,
     Collapse,
+    Dialog,
     H5,
     Menu,
     MenuItem,
@@ -23,12 +25,13 @@ import {
     isFilterableField,
 } from 'common';
 import { FC, useEffect, useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
 import {
     useAddVersionMutation,
+    useDeleteMutation,
     useSavedQuery,
     useUpdateMutation,
 } from '../hooks/useSavedQuery';
@@ -66,6 +69,7 @@ interface Props {
 export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const updateSavedChart = useUpdateMutation(savedQueryUuid);
+    const { mutate: deleteData, isLoading: isDeleting } = useDeleteMutation();
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
         useState<boolean>(false);
@@ -94,7 +98,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         useState<ChartConfig['config']>();
 
     const update = useAddVersionMutation();
-
+    const history = useHistory();
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false);
     const [resultsIsOpen, setResultsIsOpen] = useState<boolean>(true);
     const [sqlIsOpen, setSqlIsOpen] = useState<boolean>(false);
@@ -135,6 +139,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
               },
           } as CreateSavedChartVersion)
         : undefined;
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
@@ -196,6 +201,12 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         }
     }, [data]);
 
+    const hasUnsavedChanges = (): boolean => {
+        return (
+            JSON.stringify(data?.chartConfig) ===
+            JSON.stringify(queryData?.chartConfig)
+        );
+    };
     return (
         <>
             <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
@@ -335,8 +346,14 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                 <ChartDownloadMenu />
                                 <ButtonGroup>
                                     <Button
-                                        text="Save chart"
-                                        disabled={!tableName}
+                                        text={
+                                            savedQueryUuid
+                                                ? 'Save changes'
+                                                : 'Save chart'
+                                        }
+                                        disabled={
+                                            !tableName || hasUnsavedChanges()
+                                        }
                                         onClick={
                                             savedQueryUuid
                                                 ? handleSavedQueryUpdate
@@ -376,6 +393,16 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                                                 true,
                                                             )
                                                         }
+                                                    />
+                                                    <MenuItem
+                                                        icon="delete"
+                                                        text="Delete chart"
+                                                        intent="danger"
+                                                        onClick={() => {
+                                                            setIsDeleteDialogOpen(
+                                                                true,
+                                                            );
+                                                        }}
                                                     />
                                                 </Menu>
                                             }
@@ -513,6 +540,57 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     onClose={() => setIsAddToDashboardModalOpen(false)}
                 />
             )}
+            <Dialog
+                isOpen={isDeleteDialogOpen}
+                icon="delete"
+                onClose={() =>
+                    !isDeleting ? setIsDeleteDialogOpen(false) : undefined
+                }
+                title={'Delete'}
+            >
+                <div className={Classes.DIALOG_BODY}>
+                    <p>Are you sure you want to delete this chart ?</p>
+                </div>
+                <div className={Classes.DIALOG_FOOTER}>
+                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+                        <Button
+                            disabled={isDeleting}
+                            onClick={() => setIsDeleteDialogOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={isDeleting}
+                            intent="danger"
+                            onClick={() => {
+                                /*
+                                Check the location of `goBack` after deleting a chart
+                                if we land on an unsaved chart, 
+                                we go back further into an empty explore
+                                */
+                                history.listen((loc, action) => {
+                                    if (action === 'POP') {
+                                        if (loc.pathname.includes('/tables/')) {
+                                            history.push(
+                                                `/projects/${projectUuid}/tables`,
+                                            );
+                                        }
+                                    }
+                                });
+
+                                if (savedQueryUuid) {
+                                    deleteData(savedQueryUuid);
+                                    history.goBack();
+                                }
+
+                                setIsDeleteDialogOpen(false);
+                            }}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                </div>
+            </Dialog>
         </>
     );
 };

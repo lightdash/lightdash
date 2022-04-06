@@ -43,6 +43,7 @@ export type Series = {
         show?: boolean;
         position?: 'left' | 'top' | 'right' | 'bottom';
     };
+    hidden?: boolean;
 };
 
 export type CompleteEChartsConfig = {

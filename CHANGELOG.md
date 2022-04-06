@@ -1,3 +1,38 @@
+# [0.51.0](https://github.com/lightdash/lightdash/compare/0.50.0...0.51.0) (2022-04-06)
+
+
+### Features
+
+* delete charts on explore ([#1686](https://github.com/lightdash/lightdash/issues/1686)) ([d763436](https://github.com/lightdash/lightdash/commit/d763436a4170daa9ed4ca66f611972eab8200300))
+
+# [0.50.0](https://github.com/lightdash/lightdash/compare/0.49.1...0.50.0) (2022-04-05)
+
+
+### Features
+
+* formatted labels on charts ([#1666](https://github.com/lightdash/lightdash/issues/1666)) ([d9946f7](https://github.com/lightdash/lightdash/commit/d9946f7509f2023ffed431bf8916ae600385727e))
+
+## [0.49.1](https://github.com/lightdash/lightdash/compare/0.49.0...0.49.1) (2022-04-05)
+
+
+### Bug Fixes
+
+* dashboard cross filtering cause an error ([#1647](https://github.com/lightdash/lightdash/issues/1647)) ([5910041](https://github.com/lightdash/lightdash/commit/5910041a92874fd5173bcc89c3211d5564a66979))
+
+# [0.49.0](https://github.com/lightdash/lightdash/compare/0.48.0...0.49.0) (2022-04-05)
+
+
+### Features
+
+* add hide series on chart config ([#1681](https://github.com/lightdash/lightdash/issues/1681)) ([e4ab8ee](https://github.com/lightdash/lightdash/commit/e4ab8ee95fb5eda9db5413b84b85f1e8005b0878))
+
+# [0.48.0](https://github.com/lightdash/lightdash/compare/0.47.1...0.48.0) (2022-04-05)
+
+
+### Features
+
+* save changes button on charts + disabled button ([#1682](https://github.com/lightdash/lightdash/issues/1682)) ([9c29567](https://github.com/lightdash/lightdash/commit/9c295671d6aad8c86678740bff6e48b3be1691da))
+
 ## [0.47.1](https://github.com/lightdash/lightdash/compare/0.47.0...0.47.1) (2022-04-04)
 
 

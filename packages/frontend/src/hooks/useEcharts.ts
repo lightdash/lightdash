@@ -8,11 +8,13 @@ import {
     Field,
     fieldId,
     findFieldByIdInExplore,
+    formatValue,
     friendlyName,
     getAxisName,
     getDimensions,
     getFieldLabel,
     getFields,
+    getFormats,
     getItemId,
     getItemLabel,
     hashFieldReference,
@@ -141,10 +143,12 @@ export const getEchartsSeries = (
     originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,
     pivotKey: string | undefined,
+    formats: Record<string, string | undefined> | undefined,
 ): EChartSeries[] => {
     if (pivotKey) {
-        return (cartesianChart.eChartsConfig.series || []).map<EChartSeries>(
-            (series) => {
+        return (cartesianChart.eChartsConfig.series || [])
+            .filter((s) => !s.hidden)
+            .map<EChartSeries>((series) => {
                 const { flipAxes } = cartesianChart.layout;
                 const xFieldHash = hashFieldReference(series.encode.xRef);
                 const yFieldHash = hashFieldReference(series.encode.yRef);
@@ -157,6 +161,7 @@ export const getEchartsSeries = (
                     pivotKey,
                     getDimensions(explore),
                 );
+
                 return {
                     ...series,
                     emphasis: {
@@ -204,8 +209,7 @@ export const getEchartsSeries = (
                         ),
                     },
                 };
-            },
-        );
+            });
     } else {
         return (cartesianChart.eChartsConfig.series || []).reduce<
             EChartSeries[]
@@ -254,6 +258,18 @@ export const getEchartsSeries = (
                     tooltip: {
                         valueFormatter: valueFormatter(xField, yField, explore),
                     },
+
+                    ...(series.label?.show &&
+                        formats && {
+                            label: {
+                                ...series.label,
+                                formatter: (value: any) =>
+                                    formatValue(
+                                        formats[yField] || '',
+                                        value?.value?.[yField],
+                                    ),
+                            },
+                        }),
                 },
             ];
         }, []);
@@ -264,10 +280,12 @@ const getEchartAxis = ({
     items,
     validCartesianConfig,
     series,
+    formats,
 }: {
     validCartesianConfig: CartesianChart;
     items: Array<Field | TableCalculation>;
     series: EChartSeries[];
+    formats: Record<string, string | undefined> | undefined;
 }) => {
     const xAxisItem = items.find(
         (item) =>
@@ -322,6 +340,23 @@ const getEchartAxis = ({
         ? validCartesianConfig.eChartsConfig?.xAxis
         : validCartesianConfig.eChartsConfig?.yAxis;
 
+    const getAxisFormatter = (
+        axisItem: Field | TableCalculation | undefined,
+    ) => {
+        return (
+            axisItem &&
+            getItemId(axisItem) &&
+            formats?.[getItemId(axisItem)] && {
+                axisLabel: {
+                    formatter: (value: any) => {
+                        const field = getItemId(axisItem);
+                        return formatValue(formats?.[field] || '', value);
+                    },
+                },
+            }
+        );
+    };
+
     return {
         xAxis: [
             {
@@ -343,6 +378,7 @@ const getEchartAxis = ({
                 nameTextStyle: {
                     fontWeight: 'bold',
                 },
+                ...getAxisFormatter(xAxisItem),
             },
             {
                 type: xAxisType,
@@ -388,6 +424,7 @@ const getEchartAxis = ({
                 },
                 nameLocation: 'end',
                 nameGap: 30,
+                ...getAxisFormatter(yAxisItem),
             },
             {
                 type: yAxisType,
@@ -426,6 +463,7 @@ const useEcharts = () => {
         resultsData,
     } = useVisualizationContext();
 
+    const formats = explore ? getFormats(explore) : undefined;
     const { data: organisationData } = useOrganisation();
 
     const series = useMemo(() => {
@@ -439,6 +477,7 @@ const useEcharts = () => {
             originalData,
             validCartesianConfig,
             pivotDimensions?.[0],
+            formats,
         );
     }, [
         explore,
@@ -463,7 +502,7 @@ const useEcharts = () => {
             return { xAxis: [], yAxis: [] };
         }
 
-        return getEchartAxis({ items, series, validCartesianConfig });
+        return getEchartAxis({ items, series, validCartesianConfig, formats });
     }, [items, series, validCartesianConfig]);
 
     if (

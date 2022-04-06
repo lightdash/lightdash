@@ -29,6 +29,8 @@ const emptyFilters: DashboardFilters = {
 type DashboardContext = {
     dashboard: Dashboard | undefined;
     fieldsWithSuggestions: FieldsWithSuggestions;
+    dashboardTiles: Dashboard['tiles'] | [];
+    setDashboardTiles: Dispatch<SetStateAction<Dashboard['tiles'] | []>>;
     dashboardFilters: DashboardFilters;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     addDimensionDashboardFilter: (filter: DashboardFilterRule) => void;
@@ -51,8 +53,13 @@ export const DashboardProvider: React.FC = ({ children }) => {
     }>();
 
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
-    const { data: filterableFields } =
-        useAvailableDashboardFilterTargets(dashboard);
+    const [dashboardTiles, setDashboardTiles] = useState<
+        Dashboard['tiles'] | []
+    >([]);
+    const { data: filterableFields } = useAvailableDashboardFilterTargets(
+        dashboard,
+        dashboardTiles,
+    );
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
     const [dashboardFilters, setDashboardFilters] =
@@ -177,6 +184,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const value = {
         dashboard,
         fieldsWithSuggestions,
+        dashboardTiles,
+        setDashboardTiles,
         dashboardFilters,
         addDimensionDashboardFilter,
         updateDimensionDashboardFilter,
