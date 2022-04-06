@@ -80,11 +80,8 @@ export const VisualizationProvider: FC<Props> = ({
         resultsData,
     );
 
-    // const isChart = (value: ChartConfig['type'] | undefined) =>
-    //     value === ChartTypchartType === chartConfigs?.typee.CARTESIAN;
     const chartTypeConfig =
         chartType === chartConfigs?.type ? chartConfigs.config : undefined;
-    console.log(chartType === chartConfigs?.type);
 
     const {
         bigNumber,
@@ -94,8 +91,6 @@ export const VisualizationProvider: FC<Props> = ({
         setBigNumberConfig,
     } = useBigNumberConfig(chartTypeConfig as BigNumber, resultsData, explore);
 
-    console.log({ chartTypeConfig });
-
     const cartesianConfig = useCartesianChartConfig(
         chartTypeConfig as CartesianChart,
         validPivotDimensions?.[0],
@@ -103,7 +98,6 @@ export const VisualizationProvider: FC<Props> = ({
     );
 
     const { validCartesianConfig } = cartesianConfig;
-    console.log({ validCartesianConfig });
 
     const plotData = usePlottedData(
         explore,

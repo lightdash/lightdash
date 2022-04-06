@@ -213,7 +213,7 @@ const DashboardChartTile: FC<Props> = (props) => {
             if (field && isFilterableField(field)) {
                 const filterRuleLabels = getFilterRuleLabel(filterRule, field);
                 return (
-                    <Tooltip>
+                    <Tooltip key={field.name}>
                         {filterRuleLabels.field}: {filterRuleLabels.operator}{' '}
                         <FilterValues>{filterRuleLabels.value}</FilterValues>
                     </Tooltip>

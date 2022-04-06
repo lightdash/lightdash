@@ -42,36 +42,8 @@ const useBigNumberConfig = (
             setBigNumberConfig(bigNumberConfigData);
         }
     }, [resultsData]);
-    console.log({ bigNumberConfigData });
-
-    // const [bigNumberConfigLabel, setBigNumberConfigLabel] =
-    //     (useState < BigNumber?.label) | (undefined > bigNumberConfig);
-
-    // const [dirtyLayout, setDirtyLayout] = useState<BigNumber>(
-    //     bigNumberConfig?.label,
-    // );
-
-    // useEffect(() => {
-    //     setBigNumberConfigLabel(bigNumberConfig);
-    // }, [bigNumber]);
-
-    // const setBigNumberLabel = useCallback((label: string | undefined) => {
-    //     setDirtyLayout((prev) => ({
-    //         ...prev,
-    //         label,
-    //     }));
-    // }, []);
-
-    // const updateYField = useCallback((label: string) => {
-    //     setDirtyLayout((prev) => ({
-    //         ...prev,
-    //         label: prev?.label || label,
-    //     }));
-    // }, []);
 
     return {
-        // bigNumberConfig,
-        // setBigNumberConfigLabel,
         bigNumber,
         setBigNumber,
         bigNumberLabel,
