@@ -553,6 +553,21 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             disabled={isDeleting}
                             intent="danger"
                             onClick={() => {
+                                /*
+                                Check the location of `goBack` after deleting a chart
+                                if we land on an unsaved chart, 
+                                we go back further into an empty explore
+                                */
+                                history.listen((loc, action) => {
+                                    if (action === 'POP') {
+                                        if (loc.pathname.includes('/tables/')) {
+                                            history.push(
+                                                `/projects/${projectUuid}/tables`,
+                                            );
+                                        }
+                                    }
+                                });
+
                                 if (savedQueryUuid) {
                                     deleteData(savedQueryUuid);
                                     history.goBack();
