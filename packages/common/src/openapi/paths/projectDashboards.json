@@ -71,9 +71,10 @@
             },
             {
                 "in": "query",
-                "name": "chartId",
+                "name": "chartUuid",
                 "schema": {
-                    "type": "number"
+                    "type": "string",
+                    "format": "uuid"
                 },
                 "required": false
             }
