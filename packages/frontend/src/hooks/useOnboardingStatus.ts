@@ -1,4 +1,4 @@
-import { ApiError, OnboardingStatus } from 'common';
+import { ApiError, OnboardingStatus, ProjectSavedChartStatus } from 'common';
 import { useMutation, useQuery } from 'react-query';
 import { lightdashApi } from '../api';
 
@@ -27,4 +27,19 @@ const setOnboardingShownSuccess = async () =>
 export const useOnboardingShownSuccess = () =>
     useMutation<void, ApiError, void>(setOnboardingShownSuccess, {
         mutationKey: ['onboarding_shown_success'],
+    });
+
+const getProjectSavedChartStatus = async (projectUuid: string) =>
+    lightdashApi<ProjectSavedChartStatus>({
+        url: `/project/${projectUuid}/hasSavedCharts`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useProjectSavedChartStatus = (projectUuid: string) =>
+    useQuery<ProjectSavedChartStatus, ApiError>({
+        queryKey: [projectUuid, 'project-saved-chart-status'],
+        queryFn: () => getProjectSavedChartStatus(projectUuid),
+        retry: false,
+        refetchOnMount: true,
     });

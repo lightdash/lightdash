@@ -85,13 +85,6 @@ export class OrganizationService {
         });
     }
 
-    async hasInvitedUser(user: SessionUser): Promise<boolean> {
-        return (
-            (await this.inviteLinkModel.hasActiveInvites()) ||
-            (await this.getUsers(user)).length > 1
-        );
-    }
-
     async getUsers(user: SessionUser): Promise<OrganizationMemberProfile[]> {
         const { organizationUuid } = user;
         if (user.ability.cannot('view', 'OrganizationMemberProfile')) {

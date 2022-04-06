@@ -40,11 +40,6 @@ export class InviteLinkModel {
         return crypto.createHash('sha256').update(s).digest('hex');
     }
 
-    async hasActiveInvites(): Promise<boolean> {
-        const invites = await this.database('invite_links').limit(1);
-        return invites.length > 0;
-    }
-
     async deleteByCode(inviteCode: string) {
         const inviteCodeHash = InviteLinkModel._hash(inviteCode);
         await this.database('invite_links')

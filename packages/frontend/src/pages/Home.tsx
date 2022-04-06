@@ -6,7 +6,10 @@ import { OpenChatButton } from '../components/common/ChatBubble/OpenChatButton';
 import Page from '../components/common/Page/Page';
 import LandingPanel from '../components/Home/LandingPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
-import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
+import {
+    useOnboardingStatus,
+    useProjectSavedChartStatus,
+} from '../hooks/useOnboardingStatus';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 
@@ -15,8 +18,10 @@ const Home: FC = () => {
     const selectedProjectUuid = params.projectUuid;
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
-    const isLoading = onboarding.isLoading || project.isLoading;
-    const error = onboarding.error || project.error;
+    const savedChartStatus = useProjectSavedChartStatus(selectedProjectUuid);
+    const isLoading =
+        onboarding.isLoading || project.isLoading || savedChartStatus.isLoading;
+    const error = onboarding.error || project.error || savedChartStatus.error;
     const { user } = useApp();
     useUnmount(() => onboarding.remove());
 
@@ -58,7 +63,7 @@ const Home: FC = () => {
             ) : (
                 <LandingPanel
                     hasSavedChart={
-                        onboarding.data.isComplete || onboarding.data.savedChart
+                        onboarding.data.isComplete || !!savedChartStatus.data
                     }
                     userName={user.data?.firstName}
                     projectUuid={project.data.projectUuid}

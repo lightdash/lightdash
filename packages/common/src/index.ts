@@ -642,23 +642,14 @@ export type OnbordingRecord = {
     shownSuccessAt: Date | null;
 };
 
-export type IncompleteOnboarding = {
-    isComplete: false;
-    connectedProject: boolean;
-    definedMetric: boolean;
+export type OnboardingStatus = {
+    isComplete: boolean;
     ranQuery: boolean;
-    savedChart: boolean;
-    invitedUser: boolean;
 };
 
-export type CompleteOnboarding = {
-    isComplete: true;
-    showSuccess: boolean;
-};
+export type ProjectSavedChartStatus = boolean;
 
 export type ApiFlashResults = Record<string, string[]>;
-
-export type OnboardingStatus = IncompleteOnboarding | CompleteOnboarding;
 
 export type Organisation = {
     name: string;
@@ -695,7 +686,8 @@ type ApiResults =
     | DeleteOpenIdentity
     | ApiFlashResults
     | OpenIdIdentitySummary[]
-    | FilterableField[];
+    | FilterableField[]
+    | ProjectSavedChartStatus;
 
 export type ApiResponse = {
     status: 'ok';
