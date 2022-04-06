@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { Button } from '@blueprintjs/core';
 import { Field, getItemId, TableCalculation } from 'common';
 import React, { FC, useMemo } from 'react';

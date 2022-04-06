@@ -1,5 +1,6 @@
 import {
     ApiQueryResults,
+    BigNumber,
     Explore,
     findFieldByIdInExplore,
     friendlyName,
@@ -8,7 +9,7 @@ import {
 import { useEffect, useState } from 'react';
 
 const useBigNumberConfig = (
-    //  bigNumberConfig: BigNumber | undefined,
+    bigNumberConfigData: BigNumber | undefined,
     resultsData: ApiQueryResults | undefined,
     explore: Explore | undefined,
 ) => {
@@ -20,6 +21,9 @@ const useBigNumberConfig = (
 
     const [bigNumber, setBigNumber] = useState<string | number>('');
     const [bigNumberLabel, setBigNumberLabel] = useState<string>('');
+    const [bigNumberConfig, setBigNumberConfig] = useState<
+        BigNumber | undefined
+    >();
 
     useEffect(() => {
         if (resultsData) {
@@ -33,7 +37,12 @@ const useBigNumberConfig = (
             const label = field ? getFieldLabel(field) : friendlyName(fieldId);
             setBigNumberLabel(label);
         }
+
+        if (bigNumberConfigData) {
+            setBigNumberConfig(bigNumberConfigData);
+        }
     }, [resultsData]);
+    console.log({ bigNumberConfigData });
 
     // const [bigNumberConfigLabel, setBigNumberConfigLabel] =
     //     (useState < BigNumber?.label) | (undefined > bigNumberConfig);
@@ -67,6 +76,8 @@ const useBigNumberConfig = (
         setBigNumber,
         bigNumberLabel,
         setBigNumberLabel,
+        bigNumberConfig,
+        setBigNumberConfig,
     };
 };
 

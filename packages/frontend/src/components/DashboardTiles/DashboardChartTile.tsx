@@ -1,7 +1,6 @@
 import { Menu, MenuItem, NonIdealState, Portal } from '@blueprintjs/core';
 import { Popover2, Popover2TargetProps, Tooltip2 } from '@blueprintjs/popover2';
 import {
-    CartesianChart,
     DashboardChartTile as IDashboardChartTile,
     DashboardFilterRule,
     DashboardFilters,
@@ -62,7 +61,7 @@ const ValidDashboardChartTile: FC<{
     return (
         <VisualizationProvider
             chartType={data.chartConfig.type}
-            chartConfigs={data?.chartConfig?.config as CartesianChart}
+            chartConfigs={data?.chartConfig?.config}
             pivotDimensions={data.pivotConfig?.columns}
             resultsData={resultData}
             tableName={data.tableName}

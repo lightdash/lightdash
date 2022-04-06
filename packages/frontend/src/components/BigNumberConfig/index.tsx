@@ -2,14 +2,12 @@ import { Button, InputGroup } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { ChartType } from 'common';
 import React, { useState } from 'react';
-import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { InputWrapper } from './BigNumberConfig.styles';
 
 export const BigNumberConfigPanel: React.FC = () => {
-    const { chartType, plotData, resultsData, explore } =
-        useVisualizationContext();
-    const { bigNumberLabel } = useBigNumberConfig(resultsData, explore);
+    const { chartType, plotData, bigNumberLabel } = useVisualizationContext();
+
     const disabled = !plotData || chartType === ChartType.TABLE;
 
     const [isOpen, setIsOpen] = useState(false);
