@@ -1,3 +1,10 @@
+# [0.51.0](https://github.com/lightdash/lightdash/compare/0.50.0...0.51.0) (2022-04-06)
+
+
+### Features
+
+* delete charts on explore ([#1686](https://github.com/lightdash/lightdash/issues/1686)) ([d763436](https://github.com/lightdash/lightdash/commit/d763436a4170daa9ed4ca66f611972eab8200300))
+
 # [0.50.0](https://github.com/lightdash/lightdash/compare/0.49.1...0.50.0) (2022-04-05)
 
 
