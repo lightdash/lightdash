@@ -216,8 +216,8 @@ const useCartesianChartConfig = (
         // one metric , one dimension
         if (availableMetrics.length === 1 && availableDimensions.length === 1) {
             setDirtyLayout((prev) => {
-                return setAxes(prev, availableMetrics[0], [
-                    availableDimensions[0],
+                return setAxes(prev, availableDimensions[0], [
+                    availableMetrics[0],
                 ]);
             });
         }
