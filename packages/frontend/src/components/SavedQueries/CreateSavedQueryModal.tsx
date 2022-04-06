@@ -56,7 +56,7 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
 
                             if (onClose) onClose();
                         }}
-                        disabled={isCreating}
+                        disabled={isCreating || !name}
                     />
                 </div>
             </div>
