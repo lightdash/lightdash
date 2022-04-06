@@ -68,6 +68,14 @@
                     "format": "uuid"
                 },
                 "required": true
+            },
+            {
+                "in": "query",
+                "name": "chartId",
+                "schema": {
+                    "type": "number"
+                },
+                "required": false
             }
         ],
         "responses": {
