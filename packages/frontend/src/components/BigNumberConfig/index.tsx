@@ -7,8 +7,9 @@ import { useVisualizationContext } from '../LightdashVisualization/Visualization
 import { InputWrapper } from './BigNumberConfig.styles';
 
 export const BigNumberConfigPanel: React.FC = () => {
-    const { chartType, plotData } = useVisualizationContext();
-    const { bigNumberLabel } = useBigNumberConfig();
+    const { chartType, plotData, resultsData, explore } =
+        useVisualizationContext();
+    const { bigNumberLabel } = useBigNumberConfig(resultsData, explore);
     const disabled = !plotData || chartType === ChartType.TABLE;
 
     const [isOpen, setIsOpen] = useState(false);

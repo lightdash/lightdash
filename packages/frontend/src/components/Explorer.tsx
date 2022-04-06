@@ -12,6 +12,7 @@ import {
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import {
+    CartesianChart,
     ChartConfig,
     ChartType,
     countTotalFilterRules,
@@ -323,7 +324,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
 
             <Card style={{ padding: 5, overflowY: 'scroll' }} elevation={1}>
                 <VisualizationProvider
-                    chartConfigs={data?.chartConfig.config}
+                    chartConfigs={data?.chartConfig.config as CartesianChart}
                     chartType={activeVizTab}
                     pivotDimensions={data?.pivotConfig?.columns}
                     tableName={tableName}

@@ -1,5 +1,4 @@
 import { NonIdealState } from '@blueprintjs/core';
-import { findFieldByIdInExplore, friendlyName, getFieldLabel } from 'common';
 import React, { FC } from 'react';
 import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -14,9 +13,13 @@ const SimpleStatistic: FC = () => {
     const {
         cartesianConfig: { dirtyEchartsConfig },
         resultsData,
+        explore,
     } = useVisualizationContext();
 
-    const { bigNumber, bigNumberLabel } = useBigNumberConfig();
+    const { bigNumber, bigNumberLabel } = useBigNumberConfig(
+        resultsData,
+        explore,
+    );
 
     const validData = bigNumber && resultsData?.rows.length && bigNumberLabel;
     const validLabel = dirtyEchartsConfig?.yAxis?.[0]?.name

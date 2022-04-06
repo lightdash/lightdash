@@ -108,7 +108,6 @@ const ChartConfigTabs: FC = () => {
                     title="Layout"
                     panel={<FieldLayoutOptions items={items} />}
                 />
-
                 <Tab
                     id="series"
                     title="Series"
@@ -154,7 +153,6 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
-
                             <InputWrapper
                                 label={`${
                                     dirtyLayout?.flipAxes ? 'X' : 'Y'
@@ -180,7 +178,6 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
-
                             <InputWrapper
                                 label={`${
                                     dirtyLayout?.flipAxes ? 'X' : 'Y'

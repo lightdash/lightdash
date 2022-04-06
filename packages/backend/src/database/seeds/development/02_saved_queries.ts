@@ -92,7 +92,9 @@ export async function seed(knex: Knex): Promise<void> {
         },
         chartConfig: {
             type: ChartType.BIG_NUMBER,
-            config: undefined,
+            config: {
+                label: 'Payments total revenue',
+            },
         },
         tableConfig: {
             columnOrder: [

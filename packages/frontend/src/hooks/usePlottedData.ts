@@ -1,6 +1,6 @@
 import {
     ApiQueryResults,
-    ChartConfig,
+    CartesianChart,
     Explore,
     getResultValues,
     hashFieldReference,
@@ -36,7 +36,7 @@ export const getPivotedData = (
 
 const usePlottedData = (
     explore: Explore | undefined,
-    chartConfig: ChartConfig['config'],
+    chartConfig: CartesianChart,
     resultsData: ApiQueryResults | undefined,
     pivotDimensions: string[] | undefined,
 ): ApiQueryResults['rows'] => {
