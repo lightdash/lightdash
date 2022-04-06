@@ -105,6 +105,7 @@ export const VisualizationProvider: FC<Props> = ({
         resultsData,
         validPivotDimensions,
     );
+    console.log({ validCartesianConfig, plotData });
 
     const setChartType = useCallback(
         (value: ChartType) => {

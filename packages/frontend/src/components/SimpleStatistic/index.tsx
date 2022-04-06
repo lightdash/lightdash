@@ -13,9 +13,6 @@ const SimpleStatistic: FC = () => {
         useVisualizationContext();
 
     const validData = bigNumber && resultsData?.rows.length && bigNumberLabel;
-    // const validLabel = dirtyEchartsConfig?.yAxis?.[0]?.name
-    //     ? dirtyEchartsConfig?.yAxis?.[0]?.name
-    //     : bigNumberLabel;
 
     return (
         <>

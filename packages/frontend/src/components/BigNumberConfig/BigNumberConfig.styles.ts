@@ -1,8 +1,11 @@
-import { Colors, FormGroup } from "@blueprintjs/core";
-import styled from "styled-components";
+import { Colors, FormGroup } from '@blueprintjs/core';
+import styled from 'styled-components';
 
 export const InputWrapper = styled(FormGroup)`
-    margin: 1.357em 0 0;
+    max-width: 28.571em;
+    width: 25em;
+    padding: 1.429em 1.429em;
+    margin: 0;
     & label.bp3-label {
         display: inline-flex;
         gap: 0.214em;
