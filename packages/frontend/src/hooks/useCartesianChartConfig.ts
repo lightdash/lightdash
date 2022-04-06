@@ -10,7 +10,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const useCartesianChartConfig = (
-    chartConfigs: CartesianChart | undefined,
+    chartConfigs: CartesianChart,
     pivotKey: string | undefined,
     resultsData: ApiQueryResults | undefined,
 ) => {

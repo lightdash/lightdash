@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { Button, IconName } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { CartesianSeriesType, ChartType } from 'common';

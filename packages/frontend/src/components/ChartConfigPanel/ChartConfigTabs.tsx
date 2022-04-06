@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { InputGroup, Tab, Tabs } from '@blueprintjs/core';
 import {
     fieldId,

@@ -12,7 +12,6 @@ import {
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import {
-    BigNumber,
     ChartConfig,
     ChartType,
     countTotalFilterRules,
@@ -99,9 +98,8 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const explore = useExplore(tableName);
     const queryResults = useQueryResults();
     const { data } = useSavedQuery({ id: savedQueryUuid });
-    const [validChartConfig, setValidChartConfig] = useState<
-        ChartConfig['config'] | BigNumber
-    >();
+    const [validChartConfig, setValidChartConfig] =
+        useState<ChartConfig['config']>();
 
     const update = useAddVersionMutation();
     const history = useHistory();
@@ -327,7 +325,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
 
             <Card style={{ padding: 5, overflowY: 'scroll' }} elevation={1}>
                 <VisualizationProvider
-                    chartConfigs={data.chartConfig.config}
+                    chartConfigs={data?.chartConfig}
                     chartType={activeVizTab}
                     pivotDimensions={data?.pivotConfig?.columns}
                     tableName={tableName}

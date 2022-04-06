@@ -36,7 +36,7 @@ export const getPivotedData = (
 
 const usePlottedData = (
     explore: Explore | undefined,
-    chartConfig: CartesianChart,
+    chartConfig: CartesianChart | undefined,
     resultsData: ApiQueryResults | undefined,
     pivotDimensions: string[] | undefined,
 ): ApiQueryResults['rows'] => {

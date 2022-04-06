@@ -1,9 +1,18 @@
-import { ApiQueryResults, ChartConfig, ChartType, Explore } from 'common';
+import {
+    ApiQueryResults,
+    BigNumber,
+    CartesianChart,
+    ChartConfig,
+    ChartType,
+    Explore,
+} from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, {
     createContext,
+    Dispatch,
     FC,
     RefObject,
+    SetStateAction,
     useCallback,
     useContext,
     useEffect,
@@ -19,18 +28,16 @@ import { EchartSeriesClickEvent } from '../SimpleChart';
 type VisualizationContext = {
     chartRef: RefObject<EChartsReact>;
     chartType: ChartType;
-    cartesianConfig: ReturnType<
-        typeof useCartesianChartConfig | typeof useBigNumberConfig
-    >;
+    cartesianConfig: ReturnType<typeof useCartesianChartConfig>;
     pivotDimensions: string[] | undefined;
     explore: Explore | undefined;
     originalData: ApiQueryResults['rows'];
     plotData: ApiQueryResults['rows'];
-    // bigNumber: number | string;
-    // bigNumberLabel: string | undefined;
-    // setBigNumberLabel: Dispatch<SetStateAction<string>>;
-    // bigNumberConfig: BigNumber | undefined;
-    // setBigNumberConfig: Dispatch<SetStateAction<BigNumber | undefined>>;
+    bigNumber: number | string;
+    bigNumberLabel: string | undefined;
+    setBigNumberLabel: Dispatch<SetStateAction<string>>;
+    bigNumberConfig: BigNumber | undefined;
+    setBigNumberConfig: Dispatch<SetStateAction<BigNumber | undefined>>;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
@@ -42,7 +49,7 @@ const Context = createContext<VisualizationContext | undefined>(undefined);
 
 type Props = {
     chartType: ChartType;
-    chartConfigs: ChartConfig['config'];
+    chartConfigs: ChartConfig | undefined;
     pivotDimensions: string[] | undefined;
     tableName: string | undefined;
     resultsData: ApiQueryResults | undefined;
@@ -74,20 +81,23 @@ export const VisualizationProvider: FC<Props> = ({
     );
 
     // const isChart = (value: ChartConfig['type'] | undefined) =>
-    //     value === ChartType.CARTESIAN;
+    //     value === ChartTypchartType === chartConfigs?.typee.CARTESIAN;
+    const chartTypeConfig =
+        chartType === chartConfigs?.type ? chartConfigs.config : undefined;
+    console.log(chartType === chartConfigs?.type);
 
-    //console.log({ isChart });
+    const {
+        bigNumber,
+        bigNumberLabel,
+        setBigNumberLabel,
+        bigNumberConfig,
+        setBigNumberConfig,
+    } = useBigNumberConfig(chartTypeConfig as BigNumber, resultsData, explore);
 
-    // const {
-    //     bigNumber,
-    //     bigNumberLabel,
-    //     setBigNumberLabel,
-    //     bigNumberConfig,
-    //     setBigNumberConfig,
-    // } = useBigNumberConfig(chartConfigs, resultsData, explore);
+    console.log({ chartTypeConfig });
 
     const cartesianConfig = useCartesianChartConfig(
-        chartConfigs,
+        chartTypeConfig as CartesianChart,
         validPivotDimensions?.[0],
         resultsData,
     );
@@ -128,11 +138,11 @@ export const VisualizationProvider: FC<Props> = ({
                 originalData: resultsData?.rows || [],
                 plotData,
                 resultsData,
-                // bigNumber,
-                // bigNumberLabel,
-                // setBigNumberLabel,
-                // bigNumberConfig,
-                // setBigNumberConfig,
+                bigNumber,
+                bigNumberLabel,
+                setBigNumberLabel,
+                bigNumberConfig,
+                setBigNumberConfig,
                 isLoading,
                 onSeriesContextMenu,
                 setChartType,
