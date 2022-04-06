@@ -31,7 +31,7 @@ export const useOnboardingShownSuccess = () =>
 
 const getProjectSavedChartStatus = async (projectUuid: string) =>
     lightdashApi<ProjectSavedChartStatus>({
-        url: `/project/${projectUuid}/hasSavedCharts`,
+        url: `/projects/${projectUuid}/hasSavedCharts`,
         method: 'GET',
         body: undefined,
     });

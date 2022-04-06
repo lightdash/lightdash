@@ -55,16 +55,14 @@ const Home: FC = () => {
 
     return (
         <Page>
-            {!onboarding.data.isComplete && !onboarding.data.ranQuery ? (
+            {!onboarding.data.ranQuery ? (
                 <OnboardingPanel
                     projectUuid={project.data.projectUuid}
                     userName={user.data?.firstName}
                 />
             ) : (
                 <LandingPanel
-                    hasSavedChart={
-                        onboarding.data.isComplete || !!savedChartStatus.data
-                    }
+                    hasSavedChart={!!savedChartStatus.data}
                     userName={user.data?.firstName}
                     projectUuid={project.data.projectUuid}
                 />

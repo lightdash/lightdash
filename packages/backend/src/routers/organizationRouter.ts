@@ -1,3 +1,4 @@
+import { OnboardingStatus } from 'common';
 import express from 'express';
 import {
     isAuthenticated,
@@ -136,9 +137,9 @@ organizationRouter.get(
             const onboarding = await organizationService.getOnboarding(
                 req.user!,
             );
-            const results = {
+            const results: OnboardingStatus = {
                 isComplete: !!onboarding.shownSuccessAt,
-                runQuery: !!onboarding.ranQueryAt,
+                ranQuery: !!onboarding.ranQueryAt,
             };
             res.json({
                 status: 'ok',
