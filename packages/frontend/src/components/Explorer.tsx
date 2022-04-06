@@ -575,7 +575,8 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         <>
                             <b>
                                 This action will affect{' '}
-                                {relatedDashboards.length} dashboards:
+                                {relatedDashboards.length} dashboard
+                                {relatedDashboards.length > 1 ? 's' : ''}:
                             </b>
                             <ul>
                                 {relatedDashboards.map((dashboard) => {
