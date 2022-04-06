@@ -13,7 +13,6 @@ import {
 import { Popover2 } from '@blueprintjs/popover2';
 import {
     BigNumber,
-    CartesianChart,
     ChartConfig,
     ChartType,
     countTotalFilterRules,
@@ -136,7 +135,9 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                   : undefined,
               chartConfig: {
                   type: activeVizTab,
-                  config: [ChartType.TABLE].includes(activeVizTab)
+                  config: [ChartType.TABLE, ChartType.BIG_NUMBER].includes(
+                      activeVizTab,
+                  )
                       ? undefined
                       : validChartConfig || { series: [] },
               },
@@ -210,7 +211,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             setActiveVizTab(data.chartConfig.type);
         }
     }, [data]);
-    console.log({ data });
 
     const hasUnsavedChanges = (): boolean => {
         const filterData = (
@@ -327,7 +327,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
 
             <Card style={{ padding: 5, overflowY: 'scroll' }} elevation={1}>
                 <VisualizationProvider
-                    chartConfigs={data?.chartConfig.config as CartesianChart}
+                    chartConfigs={data.chartConfig.config}
                     chartType={activeVizTab}
                     pivotDimensions={data?.pivotConfig?.columns}
                     tableName={tableName}

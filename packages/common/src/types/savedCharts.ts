@@ -7,7 +7,7 @@ export enum ChartType {
 }
 
 export type BigNumber = {
-    label?: string | undefined;
+    label?: string;
 };
 
 export type BigNumberConfig = {
