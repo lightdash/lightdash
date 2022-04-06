@@ -1,3 +1,10 @@
+## [0.51.1](https://github.com/lightdash/lightdash/compare/0.51.0...0.51.1) (2022-04-06)
+
+
+### Bug Fixes
+
+* support multiple projects during onboarding ([#1692](https://github.com/lightdash/lightdash/issues/1692)) ([b1c658d](https://github.com/lightdash/lightdash/commit/b1c658d43d2db06639997f45a38f336ca338a069))
+
 # [0.51.0](https://github.com/lightdash/lightdash/compare/0.50.0...0.51.0) (2022-04-06)
 
 
