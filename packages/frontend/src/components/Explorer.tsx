@@ -115,6 +115,17 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     );
 
     const [pivotDimensions, setPivotDimensions] = useState<string[]>();
+
+    const validConfig = () => {
+        switch (activeVizTab) {
+            case ChartType.TABLE:
+                return undefined;
+            case ChartType.BIG_NUMBER:
+                return validChartConfig;
+            default:
+                return validChartConfig || { series: [] };
+        }
+    };
     const queryData: CreateSavedChartVersion | undefined = tableName
         ? ({
               tableName,
@@ -133,9 +144,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                   : undefined,
               chartConfig: {
                   type: activeVizTab,
-                  config: [ChartType.TABLE].includes(activeVizTab)
-                      ? undefined
-                      : validChartConfig || { series: [] },
+                  config: validConfig(),
               },
               tableConfig: {
                   columnOrder,

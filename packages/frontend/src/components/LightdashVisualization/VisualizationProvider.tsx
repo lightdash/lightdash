@@ -86,9 +86,7 @@ export const VisualizationProvider: FC<Props> = ({
         bigNumberLabel,
         setBigNumberLabel,
         validBigNumberConfig,
-    } = useBigNumberConfig(chartTypeConfig as BigNumber, resultsData, explore);
-
-    console.log({ chartTypeConfig, validBigNumberConfig });
+    } = useBigNumberConfig(chartTypeConfig as BigNumber, resultsData);
 
     const cartesianConfig = useCartesianChartConfig(
         chartTypeConfig as CartesianChart,
