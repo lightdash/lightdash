@@ -36,7 +36,8 @@ type GenericEvent = {
         | EventName.UPDATE_PROJECT_BUTTON_CLICKED
         | EventName.UPDATE_TABLE_CALCULATION_BUTTON_CLICKED
         | EventName.CREATE_TABLE_CALCULATION_BUTTON_CLICKED
-        | EventName.ADD_FILTER_CLICKED;
+        | EventName.ADD_FILTER_CLICKED
+        | EventName.APPEARANCE_DEFAULT_CHART_COLORS_UPDATE;
     properties?: {};
 };
 
