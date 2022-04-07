@@ -81,6 +81,7 @@ export class OrganizationService {
                         : 'self-hosted',
                 organizationId: organizationUuid,
                 organizationName: org.name,
+                defaultColourPaletteUpdated: data.chartColors !== undefined,
             },
         });
     }
