@@ -35,11 +35,11 @@ type VisualizationContext = {
     plotData: ApiQueryResults['rows'];
     bigNumber: number | string;
     bigNumberLabel: string | undefined;
-    setBigNumberLabel: Dispatch<SetStateAction<string>>;
     bigNumberConfig: BigNumber | undefined;
     setBigNumberConfig: Dispatch<SetStateAction<BigNumber | undefined>>;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
+    setBigNumberLabel: (name: string | undefined) => void;
     onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
     setChartType: (value: ChartType) => void;
     setPivotDimensions: (value: string[] | undefined) => void;

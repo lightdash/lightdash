@@ -6,7 +6,7 @@ import {
     friendlyName,
     getFieldLabel,
 } from 'common';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 const useBigNumberConfig = (
     bigNumberConfigData: BigNumber | undefined,
@@ -20,7 +20,9 @@ const useBigNumberConfig = (
     const fieldId = resultsData?.metricQuery.metrics[0];
 
     const [bigNumber, setBigNumber] = useState<string | number>('');
-    const [bigNumberLabel, setBigNumberLabel] = useState<string>('');
+    const [bigNumberLabel, setBigNumberName] = useState<
+        BigNumber['label'] | undefined
+    >(bigNumberConfigData?.label);
     const [bigNumberConfig, setBigNumberConfig] = useState<
         BigNumber | undefined
     >();
@@ -35,13 +37,17 @@ const useBigNumberConfig = (
                 ? findFieldByIdInExplore(explore, fieldId)
                 : undefined;
             const label = field ? getFieldLabel(field) : friendlyName(fieldId);
-            setBigNumberLabel(label);
+            setBigNumberName(label);
         }
 
         if (bigNumberConfigData) {
             setBigNumberConfig(bigNumberConfigData);
         }
     }, [resultsData]);
+
+    const setBigNumberLabel = useCallback((name: string | undefined) => {
+        setBigNumberName((prev) => name || prev);
+    }, []);
 
     return {
         bigNumber,
