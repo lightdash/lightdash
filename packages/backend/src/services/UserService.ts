@@ -114,7 +114,6 @@ export class UserService {
         );
         identifyUser(user);
         analytics.track({
-            organizationId: user.organizationUuid,
             event: 'user.created',
             userId: user.userUuid,
             properties: {
@@ -151,7 +150,6 @@ export class UserService {
 
         await this.userModel.delete(userUuidToDelete);
         analytics.track({
-            organizationId: user.organizationUuid,
             event: 'user.deleted',
             userId: user.userUuid,
             properties: {
@@ -179,7 +177,6 @@ export class UserService {
             organizationUuid,
         );
         analytics.track({
-            organizationId: organizationUuid,
             userId: user.userUuid,
             event: 'invite_link.created',
         });
@@ -196,7 +193,6 @@ export class UserService {
         }
         await this.inviteLinkModel.deleteByOrganization(organizationUuid);
         analytics.track({
-            organizationId: organizationUuid,
             userId: user.userUuid,
             event: 'invite_link.all_revoked',
         });
@@ -219,7 +215,6 @@ export class UserService {
             );
             identifyUser(loginUser);
             analytics.track({
-                organizationId: loginUser.organizationUuid,
                 userId: loginUser.userUuid,
                 event: 'user.logged_in',
                 properties: {
@@ -246,7 +241,6 @@ export class UserService {
                 email: openIdUser.openId.email,
             });
             analytics.track({
-                organizationId: sessionUser.organizationUuid,
                 userId: sessionUser.userUuid,
                 event: 'user.identity_linked',
                 properties: {
@@ -293,7 +287,6 @@ export class UserService {
             analytics.track({
                 userId: user.userUuid,
                 event: 'organization.updated',
-                organizationId: user.organizationUuid,
                 properties: {
                     type:
                         lightdashConfig.mode === LightdashMode.CLOUD_BETA
@@ -316,7 +309,6 @@ export class UserService {
 
         identifyUser(completeUser);
         analytics.track({
-            organizationId: completeUser.organizationUuid,
             event: 'user.updated',
             userId: completeUser.userUuid,
             properties: {
@@ -358,7 +350,6 @@ export class UserService {
             openIdentity.email,
         );
         analytics.track({
-            organizationId: user.organizationUuid,
             userId: user.userUuid,
             event: 'user.identity_removed',
             properties: {
@@ -398,7 +389,6 @@ export class UserService {
             );
             identifyUser(user);
             analytics.track({
-                organizationId: user.organizationUuid,
                 userId: user.userUuid,
                 event: 'user.logged_in',
                 properties: {
@@ -437,7 +427,6 @@ export class UserService {
         await updatePassword(userId, data.newPassword);
         analytics.track({
             userId: user.userUuid,
-            organizationId: user.organizationUuid,
             event: 'password.updated',
         });
     }
@@ -454,7 +443,6 @@ export class UserService {
         identifyUser(updatedUser);
         analytics.track({
             userId: updatedUser.userUuid,
-            organizationId: updatedUser.organizationUuid,
             event: 'user.updated',
             properties: updatedUser,
         });
@@ -478,7 +466,6 @@ export class UserService {
         });
         analytics.track({
             event: 'user.created',
-            organizationId: user.organizationUuid,
             userId: user.userUuid,
             properties: {
                 userConnectionType: isOpenIdUser(createUser)
@@ -489,7 +476,6 @@ export class UserService {
         analytics.track({
             event: 'organization.created',
             userId: user.userUuid,
-            organizationId: user.organizationUuid,
             properties: {
                 type:
                     lightdashConfig.mode === LightdashMode.CLOUD_BETA
@@ -501,7 +487,6 @@ export class UserService {
         });
         if (isOpenIdUser(createUser)) {
             analytics.track({
-                organizationId: user.organizationUuid,
                 userId: user.userUuid,
                 event: 'user.identity_linked',
                 properties: {
@@ -535,7 +520,6 @@ export class UserService {
                 data.email,
             );
             analytics.track({
-                organizationId: user.organizationUuid,
                 userId: user.userUuid,
                 event: 'password_reset_link.created',
             });
@@ -556,7 +540,6 @@ export class UserService {
             );
             await this.passwordResetLinkModel.deleteByCode(link.code);
             analytics.track({
-                organizationId: user.organizationUuid,
                 userId: user.userUuid,
                 event: 'password_reset_link.used',
             });

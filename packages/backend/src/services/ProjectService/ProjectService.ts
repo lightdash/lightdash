@@ -117,12 +117,13 @@ export class ProjectService {
         analytics.track({
             event: 'project.created',
             userId: user.userUuid,
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
             properties: {
+                projectName: data.name,
                 projectId: projectUuid,
                 projectType: data.dbtConnection.type,
                 warehouseConnectionType: data.warehouseConnection.type,
+                organizationId: user.organizationUuid,
+                dbtConnectionType: data.dbtConnection.type,
             },
         });
         this.projectLoading[projectUuid] = false;
@@ -156,13 +157,14 @@ export class ProjectService {
         analytics.track({
             event: 'project.updated',
             userId: user.userUuid,
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
             properties: {
+                projectName: updatedProject.name,
                 projectId: projectUuid,
                 projectType: updatedProject.dbtConnection.type,
                 warehouseConnectionType:
                     updatedProject.warehouseConnection.type,
+                organizationId: user.organizationUuid,
+                dbtConnectionType: data.dbtConnection.type,
             },
         });
         this.projectLoading[projectUuid] = false;
@@ -197,8 +199,6 @@ export class ProjectService {
         analytics.track({
             event: 'project.deleted',
             userId: user.userUuid,
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
             properties: {
                 projectId: projectUuid,
             },
@@ -278,11 +278,10 @@ export class ProjectService {
         }
 
         await analytics.track({
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
             userId: user.userUuid,
             event: 'query.executed',
             properties: {
+                projectId: projectUuid,
                 hasExampleMetric,
                 dimensionsCount: metricQuery.dimensions.length,
                 metricsCount: metricQuery.metrics.length,
@@ -309,10 +308,11 @@ export class ProjectService {
         sql: string,
     ): Promise<ApiSqlQueryResults> {
         await analytics.track({
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
             userId: user.userUuid,
             event: 'sql.executed',
+            properties: {
+                projectId: projectUuid,
+            },
         });
         const adapter = await this.getAdapter(projectUuid);
         const rows = await adapter.runQuery(sql);
@@ -338,9 +338,8 @@ export class ProjectService {
             analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,
-                organizationId: user.organizationUuid,
-                projectId: projectUuid,
                 properties: {
+                    projectId: projectUuid,
                     projectType: project.dbtConnection.type,
                     warehouseType: project.warehouseConnection?.type,
                     modelsCount: explores.length,
@@ -413,9 +412,8 @@ export class ProjectService {
             analytics.track({
                 event: 'project.error',
                 userId: user.userUuid,
-                projectId: projectUuid,
-                organizationId: user.organizationUuid,
                 properties: {
+                    projectId: projectUuid,
                     name: errorResponse.name,
                     statusCode: errorResponse.statusCode,
                     projectType: project.dbtConnection.type,
@@ -538,8 +536,6 @@ export class ProjectService {
         analytics.track({
             event: 'project_tables_configuration.updated',
             userId: user.userUuid,
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
             properties: {
                 projectId: projectUuid,
                 project_table_selection_type: data.tableSelection.type,
