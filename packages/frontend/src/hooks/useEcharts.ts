@@ -208,6 +208,17 @@ export const getEchartsSeries = (
                             explore,
                         ),
                     },
+                    ...(series.label?.show &&
+                        formats && {
+                            label: {
+                                ...series.label,
+                                formatter: (val: any) =>
+                                    formatValue(
+                                        formats[series.encode.yRef.field] || '',
+                                        val?.value?.[yFieldHash],
+                                    ),
+                            },
+                        }),
                 };
             });
     } else {
