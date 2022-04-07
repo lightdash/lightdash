@@ -87,6 +87,7 @@ type TrackOrganizationEvent = BaseTrack & {
         type: string;
         organizationId: string;
         organizationName: string;
+        defaultColourPaletteUpdated?: boolean;
     };
 };
 
