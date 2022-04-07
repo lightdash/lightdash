@@ -15,7 +15,7 @@ const useCartesianChartConfig = (
     resultsData: ApiQueryResults | undefined,
 ) => {
     const [dirtyChartType, setChartType] = useState<CartesianSeriesType>(
-        chartConfigs?.eChartsConfig.series?.[0]?.type ||
+        chartConfigs?.eChartsConfig?.series?.[0]?.type ||
             CartesianSeriesType.BAR,
     );
     const [dirtyLayout, setDirtyLayout] = useState<
@@ -31,7 +31,7 @@ const useCartesianChartConfig = (
 
     useEffect(() => {
         setChartType(
-            chartConfigs?.eChartsConfig.series?.[0]?.type ||
+            chartConfigs?.eChartsConfig?.series?.[0]?.type ||
                 CartesianSeriesType.BAR,
         );
         setDirtyLayout(chartConfigs?.layout);
