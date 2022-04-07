@@ -577,7 +577,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     {relatedDashboards && relatedDashboards.length > 0 && (
                         <>
                             <b>
-                                This action will affect{' '}
+                                This action will remove a chart tile from{' '}
                                 {relatedDashboards.length} dashboard
                                 {relatedDashboards.length > 1 ? 's' : ''}:
                             </b>
