@@ -133,9 +133,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                   : undefined,
               chartConfig: {
                   type: activeVizTab,
-                  config: [ChartType.TABLE, ChartType.BIG_NUMBER].includes(
-                      activeVizTab,
-                  )
+                  config: [ChartType.TABLE].includes(activeVizTab)
                       ? undefined
                       : validChartConfig || { series: [] },
               },
@@ -332,6 +330,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     resultsData={queryResults.data}
                     isLoading={queryResults.isLoading}
                     onChartConfigChange={setValidChartConfig}
+                    onBigNumberLabelChange={setValidChartConfig}
                     onChartTypeChange={setActiveVizTab}
                     onPivotDimensionsChange={setPivotDimensions}
                 >

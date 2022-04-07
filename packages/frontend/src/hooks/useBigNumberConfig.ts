@@ -6,7 +6,7 @@ import {
     friendlyName,
     getFieldLabel,
 } from 'common';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const useBigNumberConfig = (
     bigNumberConfigData: BigNumber | undefined,
@@ -42,11 +42,22 @@ const useBigNumberConfig = (
         setBigNumberName((prev) => name || prev);
     }, []);
 
+    const validBigNumberConfig: BigNumber | undefined = useMemo(
+        () =>
+            bigNumberLabel
+                ? {
+                      label: bigNumberLabel,
+                  }
+                : undefined,
+        [bigNumberLabel],
+    );
+
     return {
         bigNumber,
         setBigNumber,
         bigNumberLabel,
         setBigNumberLabel,
+        validBigNumberConfig,
     };
 };
 

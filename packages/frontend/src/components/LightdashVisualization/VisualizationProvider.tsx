@@ -51,6 +51,7 @@ type Props = {
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
+    onBigNumberLabelChange?: (value: ChartConfig['config']) => void;
     onChartConfigChange?: (value: ChartConfig['config']) => void;
     onChartTypeChange?: (value: ChartType) => void;
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
@@ -65,6 +66,7 @@ export const VisualizationProvider: FC<Props> = ({
     isLoading,
     onSeriesContextMenu,
     onChartConfigChange,
+    onBigNumberLabelChange,
     onChartTypeChange,
     onPivotDimensionsChange,
     children,
@@ -79,11 +81,14 @@ export const VisualizationProvider: FC<Props> = ({
     const chartTypeConfig =
         chartType === chartConfigs?.type ? chartConfigs.config : undefined;
 
-    const { bigNumber, bigNumberLabel, setBigNumberLabel } = useBigNumberConfig(
-        chartTypeConfig as BigNumber,
-        resultsData,
-        explore,
-    );
+    const {
+        bigNumber,
+        bigNumberLabel,
+        setBigNumberLabel,
+        validBigNumberConfig,
+    } = useBigNumberConfig(chartTypeConfig as BigNumber, resultsData, explore);
+
+    console.log({ chartTypeConfig, validBigNumberConfig });
 
     const cartesianConfig = useCartesianChartConfig(
         chartTypeConfig as CartesianChart,
@@ -99,7 +104,6 @@ export const VisualizationProvider: FC<Props> = ({
         resultsData,
         validPivotDimensions,
     );
-    console.log({ validCartesianConfig, plotData });
 
     const setChartType = useCallback(
         (value: ChartType) => {
@@ -115,6 +119,14 @@ export const VisualizationProvider: FC<Props> = ({
     useEffect(() => {
         onPivotDimensionsChange?.(validPivotDimensions);
     }, [validPivotDimensions, onPivotDimensionsChange]);
+
+    useEffect(() => {
+        onPivotDimensionsChange?.(validPivotDimensions);
+    }, [validPivotDimensions, onPivotDimensionsChange]);
+
+    useEffect(() => {
+        onBigNumberLabelChange?.(validBigNumberConfig);
+    }, [validBigNumberConfig, onBigNumberLabelChange]);
 
     return (
         <Context.Provider
