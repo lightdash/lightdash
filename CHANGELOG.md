@@ -1,3 +1,10 @@
+## [0.54.2](https://github.com/lightdash/lightdash/compare/0.54.1...0.54.2) (2022-04-07)
+
+
+### Bug Fixes
+
+* allow saving changes when filters or table config happens ([#1704](https://github.com/lightdash/lightdash/issues/1704)) ([1ab4d52](https://github.com/lightdash/lightdash/commit/1ab4d522d47503af99b68a2e2aa08e712f28e964))
+
 ## [0.54.1](https://github.com/lightdash/lightdash/compare/0.54.0...0.54.1) (2022-04-07)
 
 
