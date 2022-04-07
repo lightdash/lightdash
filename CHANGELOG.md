@@ -1,3 +1,10 @@
+# [0.52.0](https://github.com/lightdash/lightdash/compare/0.51.1...0.52.0) (2022-04-07)
+
+
+### Features
+
+* analytics event for updating the default chart colours ([#1697](https://github.com/lightdash/lightdash/issues/1697)) ([c3ff0d6](https://github.com/lightdash/lightdash/commit/c3ff0d6c646402055c46cfdd6ccbf2f7cb3bd441))
+
 ## [0.51.1](https://github.com/lightdash/lightdash/compare/0.51.0...0.51.1) (2022-04-06)
 
 
