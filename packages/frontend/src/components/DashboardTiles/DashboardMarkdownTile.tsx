@@ -5,7 +5,7 @@ import TileBase from './TileBase/index';
 
 type Props = Pick<
     React.ComponentProps<typeof TileBase>,
-    'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
+    'tile' | 'onEdit' | 'onDelete' | 'isEditMode' | 'onDuplicate'
 > & { tile: DashboardMarkdownTile };
 
 const MarkdownTile: FC<Props> = (props) => {

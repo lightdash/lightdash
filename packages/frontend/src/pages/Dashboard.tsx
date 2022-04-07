@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useHistory, useParams } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import Page from '../components/common/Page/Page';
 import DashboardFilter from '../components/DashboardFilter';
@@ -32,7 +33,7 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 const GridTile: FC<
     Pick<
         React.ComponentProps<typeof TileBase>,
-        'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
+        'tile' | 'onEdit' | 'onDelete' | 'isEditMode' | 'onDuplicate'
     >
 > = memo((props) => {
     const { tile } = props;
@@ -164,6 +165,15 @@ const Dashboard = () => {
         );
         setHasTilesChanged(true);
     }, []);
+
+    const onDuplicate = useCallback((tile: IDashboard['tiles'][number]) => {
+        const tileDuplicate = { ...tile, uuid: uuidv4() };
+        setHasTilesChanged(true);
+        setDashboardTiles((currentDashboardTiles) => [
+            ...currentDashboardTiles,
+            tileDuplicate,
+        ]);
+    }, []);
     const onCancel = useCallback(() => {
         setDashboardTiles(dashboard?.tiles || []);
         setHasTilesChanged(false);
@@ -276,6 +286,7 @@ const Dashboard = () => {
                                     tile={tile}
                                     onDelete={onDelete}
                                     onEdit={onEdit}
+                                    onDuplicate={onDuplicate}
                                 />
                             </TrackSection>
                         </div>
