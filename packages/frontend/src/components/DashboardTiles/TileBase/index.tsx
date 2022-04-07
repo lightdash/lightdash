@@ -27,6 +27,7 @@ type Props<T> = {
     extraMenuItems?: React.ReactNode;
     onDelete: (tile: T) => void;
     onEdit: (tile: T) => void;
+    onDuplicate: (tile: T) => void;
     children: ReactNode;
     isChart?: boolean;
     extraHeaderElement?: React.ReactNode;
@@ -40,6 +41,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     extraMenuItems,
     onDelete,
     onEdit,
+    onDuplicate,
     children,
     isChart,
     extraHeaderElement,
@@ -68,6 +70,12 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                             icon="edit"
                                             text="Edit tile"
                                             onClick={() => setIsEditing(true)}
+                                        />
+                                        <MenuDivider />
+                                        <MenuItem
+                                            icon="duplicate"
+                                            text="Duplicate"
+                                            onClick={() => onDuplicate(tile)}
                                         />
                                         <MenuDivider />
                                         <MenuItem
