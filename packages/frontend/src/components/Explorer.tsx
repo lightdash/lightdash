@@ -569,7 +569,10 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                 title={'Delete'}
             >
                 <div className={Classes.DIALOG_BODY}>
-                    <p>Are you sure you want to delete this chart ?</p>
+                    <p>
+                        Are you sure you want to delete the chart{' '}
+                        <b>"{chartName}"</b> ?
+                    </p>
 
                     {relatedDashboards && relatedDashboards.length > 0 && (
                         <>
