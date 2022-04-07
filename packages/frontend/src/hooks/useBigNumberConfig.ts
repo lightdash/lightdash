@@ -6,18 +6,13 @@ const useBigNumberConfig = (
     resultsData: ApiQueryResults | undefined,
 ) => {
     const metric = resultsData?.metricQuery.metrics[0];
-    const bigNumberValue =
-        metric && resultsData?.rows?.[0][metric].value.formatted;
+    const bigNumber = metric && resultsData?.rows?.[0][metric].value.formatted;
 
-    const [bigNumber, setBigNumber] = useState<string | number>('');
     const [bigNumberLabel, setBigNumberName] = useState<
         BigNumber['label'] | undefined
     >(bigNumberConfigData?.label);
 
     useEffect(() => {
-        if (resultsData) {
-            setBigNumber(bigNumberValue);
-        }
         setBigNumberName(bigNumberConfigData?.label);
     }, [resultsData]);
 
@@ -37,7 +32,6 @@ const useBigNumberConfig = (
 
     return {
         bigNumber,
-        setBigNumber,
         bigNumberLabel,
         setBigNumberLabel,
         validBigNumberConfig,

@@ -12,7 +12,7 @@ export type BigNumber = {
 
 export type BigNumberConfig = {
     type: ChartType.BIG_NUMBER;
-    config: BigNumber;
+    config?: BigNumber;
 };
 
 type TableChartConfig = {
