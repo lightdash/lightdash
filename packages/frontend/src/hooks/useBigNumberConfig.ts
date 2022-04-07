@@ -1,19 +1,36 @@
-import { ApiQueryResults, BigNumber } from 'common';
+import {
+    ApiQueryResults,
+    BigNumber,
+    Explore,
+    findFieldByIdInExplore,
+    friendlyName,
+    getFieldLabel,
+} from 'common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const useBigNumberConfig = (
     bigNumberConfigData: BigNumber | undefined,
     resultsData: ApiQueryResults | undefined,
+    explore: Explore | undefined,
 ) => {
     const metric = resultsData?.metricQuery.metrics[0];
     const bigNumber = metric && resultsData?.rows?.[0][metric].value.formatted;
 
+    const fieldId = resultsData?.metricQuery.metrics[0];
+    const field =
+        explore && fieldId
+            ? findFieldByIdInExplore(explore, fieldId)
+            : undefined;
+    const label = field
+        ? getFieldLabel(field)
+        : fieldId && friendlyName(fieldId);
+
     const [bigNumberLabel, setBigNumberName] = useState<
         BigNumber['label'] | undefined
-    >(bigNumberConfigData?.label);
+    >(bigNumberConfigData?.label || label);
 
     useEffect(() => {
-        setBigNumberName(bigNumberConfigData?.label);
+        setBigNumberName(bigNumberConfigData?.label || label);
     }, [resultsData]);
 
     const setBigNumberLabel = useCallback((name: string | undefined) => {
