@@ -566,7 +566,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                 onClose={() =>
                     !isDeleting ? setIsDeleteDialogOpen(false) : undefined
                 }
-                title={'Delete'}
+                title={'Delete chart'}
             >
                 <div className={Classes.DIALOG_BODY}>
                     <p>
