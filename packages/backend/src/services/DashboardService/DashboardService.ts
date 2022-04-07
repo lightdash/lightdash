@@ -51,8 +51,9 @@ export class DashboardService {
     async getAllByProject(
         user: SessionUser,
         projectUuid: string,
+        chartUuid?: string,
     ): Promise<DashboardBasicDetails[]> {
-        return this.dashboardModel.getAllByProject(projectUuid);
+        return this.dashboardModel.getAllByProject(projectUuid, chartUuid);
     }
 
     async getById(

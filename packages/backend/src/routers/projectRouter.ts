@@ -209,8 +209,12 @@ projectRouter.get('/spaces', isAuthenticated, async (req, res, next) => {
 });
 
 projectRouter.get('/dashboards', isAuthenticated, async (req, res, next) => {
+    const chartUuid: string | undefined =
+        typeof req.query.chartUuid === 'string'
+            ? req.query.chartUuid.toString()
+            : undefined;
     dashboardService
-        .getAllByProject(req.user!, req.params.projectUuid)
+        .getAllByProject(req.user!, req.params.projectUuid, chartUuid)
         .then((results) => {
             res.json({
                 status: 'ok',

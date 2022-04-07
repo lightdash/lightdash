@@ -154,6 +154,7 @@ export class DashboardModel {
 
     async getAllByProject(
         projectUuid: string,
+        chartUuid?: string,
     ): Promise<DashboardBasicDetails[]> {
         const dashboards = await this.database(DashboardsTableName)
             .leftJoin(
@@ -165,6 +166,22 @@ export class DashboardModel {
                 SpaceTableName,
                 `${DashboardsTableName}.space_id`,
                 `${SpaceTableName}.space_id`,
+            )
+            .leftJoin(
+                DashboardTilesTableName,
+                `${DashboardTilesTableName}.dashboard_version_id`,
+                `${DashboardVersionsTableName}.dashboard_version_id`,
+            )
+
+            .leftJoin(
+                DashboardTileChartTableName,
+                `${DashboardTileChartTableName}.dashboard_tile_uuid`,
+                `${DashboardTilesTableName}.dashboard_tile_uuid`,
+            )
+            .leftJoin(
+                `saved_queries`,
+                `saved_queries.saved_query_id`,
+                `${DashboardTileChartTableName}.saved_chart_id`,
             )
             .innerJoin(
                 ProjectTableName,
@@ -187,7 +204,12 @@ export class DashboardModel {
                 },
             ])
             .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
-            .where('project_uuid', projectUuid);
+            .where('project_uuid', projectUuid)
+            .andWhere((qb) => {
+                if (chartUuid)
+                    qb.andWhere(`saved_queries.saved_query_uuid`, chartUuid);
+            });
+
         return dashboards.map(
             ({ name, description, dashboard_uuid, created_at }) => ({
                 name,
