@@ -177,9 +177,44 @@ const Dashboard = () => {
         setDashboardName(name);
     };
 
+    //const cb = React.useRef();
+
+    useEffect(() => {
+        console.log('loading window listener');
+        window.addEventListener('unload', () => {
+            alert('unload');
+            return 'unload';
+        });
+        window.addEventListener('beforeunload', () => {
+            //this.onUnload();
+            alert('beforeunload');
+            return 'You have unsaved changes!';
+        });
+        return () => {
+            window.removeEventListener('beforeunload', () => {});
+        };
+    }, []);
+
     if (dashboard === undefined) {
         return <Spinner />;
     }
+
+    /*
+<Prompt
+      when={true }
+      message={(location, action) => {
+          console.log('location' , location) 
+          console.log('action ', action )
+          return `ask`
+       //return true 
+       // return location.pathname.startsWith("/app")
+         // ? true
+        //  : `Are you sure you want to go to ${location.pathname}?`
+        }}
+        />
+        */
+    //TODO capture navigation,
+    // if there are unsaved changes, throw a warnin f
     return (
         <>
             <DashboardHeader
