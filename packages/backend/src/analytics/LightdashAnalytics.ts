@@ -137,9 +137,12 @@ type ProjectEvent = BaseTrack & {
     event: 'project.updated' | 'project.created';
     userId: string;
     properties: {
+        projectName: string;
         projectId: string;
         projectType: ProjectType;
         warehouseConnectionType: WarehouseTypes;
+        organizationId: string;
+        dbtConnectionType: ProjectType;
     };
 };
 

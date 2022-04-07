@@ -118,9 +118,12 @@ export class ProjectService {
             event: 'project.created',
             userId: user.userUuid,
             properties: {
+                projectName: data.name,
                 projectId: projectUuid,
                 projectType: data.dbtConnection.type,
                 warehouseConnectionType: data.warehouseConnection.type,
+                organizationId: user.organizationUuid,
+                dbtConnectionType: data.dbtConnection.type,
             },
         });
         this.projectLoading[projectUuid] = false;
@@ -155,10 +158,13 @@ export class ProjectService {
             event: 'project.updated',
             userId: user.userUuid,
             properties: {
+                projectName: updatedProject.name,
                 projectId: projectUuid,
                 projectType: updatedProject.dbtConnection.type,
                 warehouseConnectionType:
                     updatedProject.warehouseConnection.type,
+                organizationId: user.organizationUuid,
+                dbtConnectionType: data.dbtConnection.type,
             },
         });
         this.projectLoading[projectUuid] = false;
