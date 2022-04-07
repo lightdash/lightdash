@@ -1,3 +1,10 @@
+# [0.53.0](https://github.com/lightdash/lightdash/compare/0.52.0...0.53.0) (2022-04-07)
+
+
+### Features
+
+* confirm user wants to delete chart with linked dashboards ([#1691](https://github.com/lightdash/lightdash/issues/1691)) ([455c5dc](https://github.com/lightdash/lightdash/commit/455c5dc2af377385c708aee1b693e83ea30ee366))
+
 # [0.52.0](https://github.com/lightdash/lightdash/compare/0.51.1...0.52.0) (2022-04-07)
 
 
