@@ -25,7 +25,7 @@ import {
     getVisibleFields,
     isFilterableField,
 } from 'common';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import { getDashboards } from '../hooks/dashboard/useDashboards';
@@ -63,7 +63,6 @@ import AddTilesToDashboardModal from './SavedDashboards/AddTilesToDashboardModal
 import CreateSavedDashboardModal from './SavedDashboards/CreateSavedDashboardModal';
 import DashboardForm from './SavedDashboards/DashboardForm';
 import CreateSavedQueryModal from './SavedQueries/CreateSavedQueryModal';
-import SavedQueryForm from './SavedQueries/SavedQueryForm';
 
 interface Props {
     savedQueryUuid?: string;
@@ -533,7 +532,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     isOpen={isQueryModalOpen}
                     savedData={queryData}
                     onClose={() => setIsQueryModalOpen(false)}
-                    ModalContent={SavedQueryForm}
                 />
             )}
             {data && (
