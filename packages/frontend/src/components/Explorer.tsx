@@ -24,6 +24,7 @@ import {
     getResultValues,
     getVisibleFields,
     isFilterableField,
+    SavedChart,
 } from 'common';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
@@ -207,9 +208,26 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     }, [data]);
 
     const hasUnsavedChanges = (): boolean => {
+        const filterData = (
+            d: SavedChart | CreateSavedChartVersion | undefined,
+        ) => {
+            return {
+                //chartConfig
+                chartConfig: d?.chartConfig,
+                //metricQuery
+                dimensions: d?.metricQuery.dimensions,
+                metrics: d?.metricQuery.metrics,
+                filters: d?.metricQuery.filters,
+                sorts: d?.metricQuery.sorts,
+                limit: d?.metricQuery.limit,
+                tableCalculations: d?.metricQuery.tableCalculations,
+                //tableConfig
+                tableConfig: d?.tableConfig,
+            };
+        };
         return (
-            JSON.stringify(data?.chartConfig) ===
-            JSON.stringify(queryData?.chartConfig)
+            JSON.stringify(filterData(data)) ===
+            JSON.stringify(filterData(queryData))
         );
     };
     return (
