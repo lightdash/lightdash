@@ -67,5 +67,5 @@ export enum EventName {
     SETUP_STEP_CLICKED = 'setup_step.click',
     FORM_STATE_CHANGED = 'form-state.changed',
     ADD_FILTER_CLICKED = 'add_filter.click',
-    APPEARANCE_DEFAULT_CHART_COLORS_UPDATE = 'appearance_default_chart_colours_update.click',
+    APPEARANCE_DEFAULT_CHART_COLORS_UPDATE = 'lightdash_server_appearance_default_chart_colours_update.click',
 }
