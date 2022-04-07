@@ -59,12 +59,17 @@ describe('DashboardService', () => {
         expect(dashboardModel.getById).toHaveBeenCalledWith(dashboard.uuid);
     });
     test('should get all dashboard by project uuid', async () => {
-        const result = await service.getAllByProject(user, projectUuid);
+        const result = await service.getAllByProject(
+            user,
+            projectUuid,
+            undefined,
+        );
 
         expect(result).toEqual(dashboardsDetails);
         expect(dashboardModel.getAllByProject).toHaveBeenCalledTimes(1);
         expect(dashboardModel.getAllByProject).toHaveBeenCalledWith(
             projectUuid,
+            undefined,
         );
     });
     test('should create dashboard', async () => {
