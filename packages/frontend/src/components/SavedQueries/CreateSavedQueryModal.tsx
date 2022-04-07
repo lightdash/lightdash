@@ -28,38 +28,41 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
 
     return (
         <Dialog isOpen={isOpen} onClose={onClose} lazy title="Save chart">
-            {' '}
-            <div className={Classes.DIALOG_BODY}>
-                <FormGroup
-                    label="Enter a memorable name for your chart"
-                    labelFor="chart-name"
-                    style={{ fontWeight: 'bold' }}
-                >
-                    <InputGroup
-                        id="chart-name"
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="eg. How many weekly active users do we have?"
-                    />
-                </FormGroup>
-            </div>
-            <div className={Classes.DIALOG_FOOTER}>
-                <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                    <Button onClick={onClose}>Cancel</Button>
-                    <Button
-                        data-cy="submit-base-modal"
-                        intent={Intent.SUCCESS}
-                        text="Save"
-                        onClick={() => {
-                            mutate({ ...savedData, name });
-
-                            if (onClose) onClose();
-                        }}
-                        disabled={isCreating || !name}
-                    />
+            <form>
+                <div className={Classes.DIALOG_BODY}>
+                    <FormGroup
+                        label="Enter a memorable name for your chart"
+                        labelFor="chart-name"
+                        style={{ fontWeight: 'bold' }}
+                    >
+                        <InputGroup
+                            id="chart-name"
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="eg. How many weekly active users do we have?"
+                        />
+                    </FormGroup>
                 </div>
-            </div>
+                <div className={Classes.DIALOG_FOOTER}>
+                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+                        <Button onClick={onClose}>Cancel</Button>
+                        <Button
+                            data-cy="submit-base-modal"
+                            intent={Intent.SUCCESS}
+                            text="Save"
+                            type="submit"
+                            onClick={(e) => {
+                                mutate({ ...savedData, name });
+
+                                if (onClose) onClose();
+                                e.preventDefault();
+                            }}
+                            disabled={isCreating || !name}
+                        />
+                    </div>
+                </div>
+            </form>
         </Dialog>
     );
 };
