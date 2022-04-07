@@ -1,3 +1,10 @@
+## [0.54.1](https://github.com/lightdash/lightdash/compare/0.54.0...0.54.1) (2022-04-07)
+
+
+### Bug Fixes
+
+* fix format on echarts with pivot ([#1702](https://github.com/lightdash/lightdash/issues/1702)) ([2554b1a](https://github.com/lightdash/lightdash/commit/2554b1af25bb2c64bb6e708655bc1118edb1e211))
+
 # [0.54.0](https://github.com/lightdash/lightdash/compare/0.53.0...0.54.0) (2022-04-07)
 
 
