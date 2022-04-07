@@ -23,9 +23,6 @@ const useBigNumberConfig = (
     const [bigNumberLabel, setBigNumberName] = useState<
         BigNumber['label'] | undefined
     >(bigNumberConfigData?.label);
-    const [bigNumberConfig, setBigNumberConfig] = useState<
-        BigNumber | undefined
-    >();
 
     useEffect(() => {
         if (resultsData) {
@@ -39,10 +36,6 @@ const useBigNumberConfig = (
             const label = field ? getFieldLabel(field) : friendlyName(fieldId);
             setBigNumberName(label);
         }
-
-        if (bigNumberConfigData) {
-            setBigNumberConfig(bigNumberConfigData);
-        }
     }, [resultsData]);
 
     const setBigNumberLabel = useCallback((name: string | undefined) => {
@@ -54,8 +47,6 @@ const useBigNumberConfig = (
         setBigNumber,
         bigNumberLabel,
         setBigNumberLabel,
-        bigNumberConfig,
-        setBigNumberConfig,
     };
 };
 

@@ -9,10 +9,8 @@ import {
 import EChartsReact from 'echarts-for-react';
 import React, {
     createContext,
-    Dispatch,
     FC,
     RefObject,
-    SetStateAction,
     useCallback,
     useContext,
     useEffect,
@@ -35,8 +33,6 @@ type VisualizationContext = {
     plotData: ApiQueryResults['rows'];
     bigNumber: number | string;
     bigNumberLabel: string | undefined;
-    bigNumberConfig: BigNumber | undefined;
-    setBigNumberConfig: Dispatch<SetStateAction<BigNumber | undefined>>;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     setBigNumberLabel: (name: string | undefined) => void;
@@ -83,13 +79,11 @@ export const VisualizationProvider: FC<Props> = ({
     const chartTypeConfig =
         chartType === chartConfigs?.type ? chartConfigs.config : undefined;
 
-    const {
-        bigNumber,
-        bigNumberLabel,
-        setBigNumberLabel,
-        bigNumberConfig,
-        setBigNumberConfig,
-    } = useBigNumberConfig(chartTypeConfig as BigNumber, resultsData, explore);
+    const { bigNumber, bigNumberLabel, setBigNumberLabel } = useBigNumberConfig(
+        chartTypeConfig as BigNumber,
+        resultsData,
+        explore,
+    );
 
     const cartesianConfig = useCartesianChartConfig(
         chartTypeConfig as CartesianChart,
@@ -136,8 +130,6 @@ export const VisualizationProvider: FC<Props> = ({
                 bigNumber,
                 bigNumberLabel,
                 setBigNumberLabel,
-                bigNumberConfig,
-                setBigNumberConfig,
                 isLoading,
                 onSeriesContextMenu,
                 setChartType,
