@@ -1,3 +1,10 @@
+# [0.54.0](https://github.com/lightdash/lightdash/compare/0.53.0...0.54.0) (2022-04-07)
+
+
+### Features
+
+* add project uuid to analytics events ([#1683](https://github.com/lightdash/lightdash/issues/1683)) ([89b0d84](https://github.com/lightdash/lightdash/commit/89b0d846ca49679559728b7dce41441581f4fe84))
+
 # [0.53.0](https://github.com/lightdash/lightdash/compare/0.52.0...0.53.0) (2022-04-07)
 
 
