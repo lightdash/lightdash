@@ -9,7 +9,7 @@ import React, {
     useState,
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
-import { useHistory, useParams } from 'react-router-dom';
+import { Prompt, useHistory, useParams } from 'react-router-dom';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import Page from '../components/common/Page/Page';
 import DashboardFilter from '../components/DashboardFilter';
@@ -177,46 +177,37 @@ const Dashboard = () => {
         setDashboardName(name);
     };
 
-    //const cb = React.useRef();
-
-    useEffect(() => {
-        console.log('loading window listener');
-        window.addEventListener('unload', () => {
-            alert('unload');
-            return 'unload';
-        });
-        window.addEventListener('beforeunload', () => {
-            //this.onUnload();
-            alert('beforeunload');
-            return 'You have unsaved changes!';
-        });
-        return () => {
-            window.removeEventListener('beforeunload', () => {});
-        };
-    }, []);
+    // Capture refresh with unsaved changes
+    window.addEventListener('beforeunload', (event) => {
+        if (hasTilesChanged || haveFiltersChanged) {
+            const message =
+                'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
+            event.returnValue = message;
+            return message;
+        }
+    });
 
     if (dashboard === undefined) {
         return <Spinner />;
     }
 
-    /*
-<Prompt
-      when={true }
-      message={(location, action) => {
-          console.log('location' , location) 
-          console.log('action ', action )
-          return `ask`
-       //return true 
-       // return location.pathname.startsWith("/app")
-         // ? true
-        //  : `Are you sure you want to go to ${location.pathname}?`
-        }}
-        />
-        */
-    //TODO capture navigation,
-    // if there are unsaved changes, throw a warnin f
     return (
         <>
+            <Prompt
+                when={hasTilesChanged || haveFiltersChanged}
+                message={(location) => {
+                    if (
+                        location.pathname.includes(
+                            `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                        )
+                    ) {
+                        // Do nothing, we are still in the dashboard
+                        return true;
+                    } else {
+                        return 'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
+                    }
+                }}
+            />
             <DashboardHeader
                 dashboardName={dashboard.name}
                 isEditMode={isEditMode}
