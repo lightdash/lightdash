@@ -1,10 +1,8 @@
 import { Button, Intent } from '@blueprintjs/core';
 import { ECHARTS_DEFAULT_COLORS } from 'common';
-import { FC, useState } from 'react';
+import React, { FC, useState } from 'react';
 import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';
-import { useTracking } from '../../../providers/TrackingProvider';
-import { EventName } from '../../../types/Events';
 import SeriesColorPicker from '../../ChartConfigPanel/Series/SeriesColorPicker';
 import {
     AppearanceColorWrapper,
@@ -54,23 +52,17 @@ const AppearancePanel: FC = () => {
 
     const updateMutation = useOrganisationUpdateMutation();
     const isLoading = updateMutation.isLoading || isOrgLoading;
-    const { track } = useTracking();
 
     let [colors, setColors] = useState<string[]>(
         data?.chartColors || ECHARTS_DEFAULT_COLORS.slice(0, 8),
     );
 
     const update = () => {
-        if (data) {
+        if (data)
             updateMutation.mutate({
                 ...data,
                 chartColors: colors,
             });
-
-            track({
-                name: EventName.APPEARANCE_DEFAULT_CHART_COLORS_UPDATE,
-            });
-        }
     };
 
     return (
