@@ -8,42 +8,53 @@ Filters appear at the top of an explore and allow users to change the data being
 
 ---
 
-## Adding filters to your explore
+## Using filters
 
-To filter the data that you're exploring, simply click on the `filters` toggle in Lightdash and click `add dimension to filter`.
+To learn more about how to use filters in Explores, check out [this guide on limiting data using filters](docs.lightdash.com/guides/limiting-data-using-filters).
 
-![screenshot-filters-view](assets/screenshot-filters-view.png)
+## Filter types
 
-:::info
+### Numeric filters
 
-At the moment, we only support filters on dimensions (not on metrics)!
+| Filter          | logic                                                                           |
+| --------------- | ------------------------------------------------------------------------------- |
+| is null         | Only pulls in rows where the values are null for the field selected.            |
+| is not null     | Only pulls in rows where the values are not null for the field selected.        |
+| is equal to     | Only pulls in rows where the values are equal to the values listed.             |
+| is not equal to | Only pulls in rows where the values are not equal to the values listed.         |
+| is less than    | Only pulls in rows where the values for the field selected are strictly less than the value listed.    |
+| is greater than | Only pulls in rows where the values for the field selectedare strictly greater than the value listed. |
 
-:::
+### String filters
 
-Select the dimension you would like to filter from the drop-down list, then select the filtering options.
+| Filter          | logic                                                                           |
+| --------------- | ------------------------------------------------------------------------------- |
+| is null         | Only pulls in rows where the values are null for the field selected.            |
+| is not null     | Only pulls in rows where the values are not null for the field selected.        |
+| is equal to     | Only pulls in rows where the values are equal to the values listed.             |
+| is not equal to | Only pulls in rows where the values are not equal to the values listed.         |
+| starts with     | Only pulls in rows where the values for the field selected start with characters you've entered. |
+| includes        | Only pulls in rows where the values for the field selected includes the characters you've entered. |
+| ends with       | Only pulls in rows where the values for the field selected end with the characters you've entered. |
 
-![screenshot-filters-example](assets/screenshot-filters-example.png)
+### Boolean filters
 
-## You can add more conditions to your filter by selecting the '+' symbol on the right
+| Filter          | logic                                                                           |
+| --------------- | ------------------------------------------------------------------------------- |
+| is null         | Only pulls in rows where the values are null for the field selected.            |
+| is not null     | Only pulls in rows where the values are not null for the field selected.        |
+| is equal to     | Only pulls in rows where the values are equal to the values listed.             |
 
-![screenshot-add-filters](assets/screenshot-add-filters.png)
+### Date filters
 
-:::info
-These multiple filters are joined together using AND, so, the example above would give us compiled SQL that looks like:
-```
-WHERE (
-  (users.days_since_activated) > 5
-  AND (users.days_since_activated)...
-```
-
-## If you want to include multiple values in your filter, just hit `enter` between each value entry in your list
-
-![screenshot-multiple-values-filter](assets/screenshot-multiple-values-filter.png)
-
-The listed values are separated by an OR statement in the compiled SQL. E.g. the above would give us:
-```
-WHERE (
-  (users.days_since_activated) > 5
-   AND (users.days_since_activated) IN (1,2,3)
-)
-```
+| Filter          | logic                                                                           |
+| --------------- | ------------------------------------------------------------------------------- |
+| is null         | Only pulls in rows where the values are null for the field selected.            |
+| is not null     | Only pulls in rows where the values are not null for the field selected.        |
+| is equal to     | Only pulls in rows where the values are equal to the values listed.             |
+| is not equal to | Only pulls in rows where the values are not equal to the values listed.         |
+| in the last     | Only pulls in rows where the dates for the field selected are within the dynamic date range you selected.  |
+| is before        | Only pulls in rows where the dates for the field selected are strictly before the date you entered. |
+| is on or before       | Only pulls in rows where the dates for the field selected are on or before the date you entered. |
+| is after        | Only pulls in rows where the dates for the field selected are strictly after the date you entered. |
+| is on or after       | Only pulls in rows where the dates for the field selected are on or after the date you entered. |
