@@ -27,7 +27,7 @@ import {
     SavedChart,
 } from 'common';
 import { FC, useEffect, useState } from 'react';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import { Link, useHistory, useLocation, useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import { getDashboards } from '../hooks/dashboard/useDashboards';
 import { useExplore } from '../hooks/useExplore';
@@ -614,7 +614,16 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             </b>
                             <ul>
                                 {relatedDashboards.map((dashboard) => {
-                                    return <li>{dashboard.name}</li>;
+                                    return (
+                                        <li>
+                                            <Link
+                                                target="_blank"
+                                                to={`/projects/${projectUuid}/dashboards/${dashboard.uuid}`}
+                                            >
+                                                {dashboard.name}
+                                            </Link>
+                                        </li>
+                                    );
                                 })}
                             </ul>
                         </>
