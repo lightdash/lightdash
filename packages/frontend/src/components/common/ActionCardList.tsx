@@ -3,9 +3,9 @@ import { ApiError } from 'common';
 import React, { useState } from 'react';
 import { UseMutationResult } from 'react-query';
 import styled from 'styled-components';
+import { DeleteDashboardModal } from '../SavedDashboards/DeleteDashboardModal';
 import ActionCard from './ActionCard';
 import { ActionModalProps, ActionTypeModal } from './modal/ActionModal';
-import DeleteActionModal from './modal/DeleteActionModal';
 import UpdateActionModal from './modal/UpdateActionModal';
 
 type ActionCardListProps<T extends { uuid: string; name: string }> = {
@@ -76,13 +76,14 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
                     ModalContent={ModalContent}
                 />
             )}
-            {actionState.actionType === ActionTypeModal.DELETE && (
-                <DeleteActionModal
-                    useActionModalState={[actionState, setActionState]}
-                    useDelete={useDelete}
-                    ModalContent={ModalContent}
-                />
-            )}
+            {actionState.actionType === ActionTypeModal.DELETE &&
+                actionState.data && (
+                    <DeleteDashboardModal
+                        refresh={new Date().getTime()}
+                        uuid={actionState.data.uuid}
+                        name={actionState.data.name}
+                    />
+                )}
 
             {dataList.length <= 0 && (
                 <div style={{ padding: '50px 0' }}>
