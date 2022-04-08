@@ -126,5 +126,6 @@ ENV SITE_URL=$RENDER_EXTERNAL_URL
 COPY ./examples/full-jaffle-shop-demo/dbt /usr/app/dbt
 COPY ./examples/full-jaffle-shop-demo/profiles /usr/app/profiles
 COPY ./examples/full-jaffle-shop-demo/entrypoint.sh /usr/bin/entrypoint.sh
-ENTRYPOINT ["/usr/bin/entrypoint.sh"]
+COPY ./examples/full-jaffle-shop-demo/renderDeployHook.sh /usr/bin/renderDeployHook.sh
+
 CMD ["yarn", "start"]
