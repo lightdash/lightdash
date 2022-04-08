@@ -215,25 +215,7 @@ const Dashboard = () => {
     if (dashboard === undefined) {
         return <Spinner />;
     }
-    /*
- <Prompt
-                when={hasTilesChanged || haveFiltersChanged}
-                message={(location) => {
-                    
-                    if (
-                        location.pathname.includes(
-                            `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
-                        )
-                    ) {
-                    setIsSaveWarningModalOpen(true)
-                    setBlockedNavigationLocation(location.pathname)
-                    return false; // blocks navigation
-                //}
-                return true 
-            }}
-        />
 
-*/
     return (
         <>
             <Alert
