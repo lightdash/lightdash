@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { UseMutationResult } from 'react-query';
 import styled from 'styled-components';
 import { DeleteDashboardModal } from '../SavedDashboards/DeleteDashboardModal';
+import AddTilesToDashboardModal from '../SavedDashboards/AddTilesToDashboardModal';
 import ActionCard from './ActionCard';
 import { ActionModalProps, ActionTypeModal } from './modal/ActionModal';
 import UpdateActionModal from './modal/UpdateActionModal';
@@ -94,6 +95,10 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
                         name={actionState.data.name}
                     />
                 )}
+          
+            {actionState.actionType === ActionTypeModal.ADD_TO_DASHBOARD && (
+                <AddTilesToDashboardModal savedChart={actionState.data} />
+            )}
 
             {dataList.length <= 0 && (
                 <div style={{ padding: '50px 0' }}>
