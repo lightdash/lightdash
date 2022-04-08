@@ -130,10 +130,11 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         ? ({
               tableName,
               metricQuery: {
+                  // order of fields is important for the hasUnsavedChanges method
                   dimensions,
                   metrics,
-                  sorts,
                   filters,
+                  sorts,
                   limit,
                   tableCalculations: tableCalculations.filter((t) =>
                       selectedTableCalculations.includes(t.name),
@@ -222,19 +223,12 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             d: SavedChart | CreateSavedChartVersion | undefined,
         ) => {
             return {
-                //chartConfig
                 chartConfig: d?.chartConfig,
-                //metricQuery
-                dimensions: d?.metricQuery.dimensions,
-                metrics: d?.metricQuery.metrics,
-                filters: d?.metricQuery.filters,
-                sorts: d?.metricQuery.sorts,
-                limit: d?.metricQuery.limit,
-                tableCalculations: d?.metricQuery.tableCalculations,
-                //tableConfig
+                metricQuery: d?.metricQuery,
                 tableConfig: d?.tableConfig,
             };
         };
+
         return (
             JSON.stringify(filterData(data)) ===
             JSON.stringify(filterData(queryData))
