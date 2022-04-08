@@ -1,3 +1,10 @@
+## [0.57.1](https://github.com/lightdash/lightdash/compare/0.57.0...0.57.1) (2022-04-08)
+
+
+### Bug Fixes
+
+* replace history on enter dashboard edit mode ([#1723](https://github.com/lightdash/lightdash/issues/1723)) ([7e92bba](https://github.com/lightdash/lightdash/commit/7e92bba633652ea84355c75524cfbafe6144064b))
+
 # [0.57.0](https://github.com/lightdash/lightdash/compare/0.56.0...0.57.0) (2022-04-08)
 
 
