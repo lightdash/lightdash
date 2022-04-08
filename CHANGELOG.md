@@ -1,3 +1,11 @@
+# [0.57.0](https://github.com/lightdash/lightdash/compare/0.56.0...0.57.0) (2022-04-08)
+
+
+### Features
+
+* add chart config to update big number label ([#1648](https://github.com/lightdash/lightdash/issues/1648)) ([cb06d13](https://github.com/lightdash/lightdash/commit/cb06d134e7462eda990ea0da2234457ff2b37f4d))
+* link to dashboard on remove popup ([#1713](https://github.com/lightdash/lightdash/issues/1713)) ([889f317](https://github.com/lightdash/lightdash/commit/889f317ecbbcc2359b15f7d24eca44e27067ff61))
+
 # [0.56.0](https://github.com/lightdash/lightdash/compare/0.55.1...0.56.0) (2022-04-08)
 
 
