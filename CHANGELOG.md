@@ -1,3 +1,10 @@
+## [0.55.1](https://github.com/lightdash/lightdash/compare/0.55.0...0.55.1) (2022-04-08)
+
+
+### Bug Fixes
+
+* make sql autocomplete box wider ([#1718](https://github.com/lightdash/lightdash/issues/1718)) ([4999fcb](https://github.com/lightdash/lightdash/commit/4999fcbe83e2810ef780d669a26852164a5699a2))
+
 # [0.55.0](https://github.com/lightdash/lightdash/compare/0.54.2...0.55.0) (2022-04-08)
 
 
