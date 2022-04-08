@@ -1,3 +1,10 @@
+# [0.56.0](https://github.com/lightdash/lightdash/compare/0.55.1...0.56.0) (2022-04-08)
+
+
+### Features
+
+* warn leaving dashboards ([#1700](https://github.com/lightdash/lightdash/issues/1700)) ([0cb35bd](https://github.com/lightdash/lightdash/commit/0cb35bd093f826292f21bc2d872632db34bb02eb))
+
 ## [0.55.1](https://github.com/lightdash/lightdash/compare/0.55.0...0.55.1) (2022-04-08)
 
 
