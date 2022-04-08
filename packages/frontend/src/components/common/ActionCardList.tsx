@@ -97,7 +97,12 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
                 )}
           
             {actionState.actionType === ActionTypeModal.ADD_TO_DASHBOARD && (
-                <AddTilesToDashboardModal savedChart={actionState.data} />
+                <AddTilesToDashboardModal
+                    savedChart={actionState.data}
+                    onClose={() =>
+                        setActionState({ actionType: ActionTypeModal.CLOSE })
+                    }
+                />
             )}
 
             {dataList.length <= 0 && (
