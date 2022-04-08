@@ -13,10 +13,17 @@ const useBigNumberConfig = (
     resultsData: ApiQueryResults | undefined,
     explore: Explore | undefined,
 ) => {
-    const metric = resultsData?.metricQuery.metrics[0];
-    const bigNumber = metric && resultsData?.rows?.[0][metric].value.formatted;
+    const featuredData =
+        resultsData?.metricQuery.metrics[0] ||
+        resultsData?.metricQuery.dimensions[0];
+    const featured =
+        featuredData && resultsData?.rows?.[0][featuredData].value.formatted;
+    const bigNumber =
+        typeof featured === 'string' ? friendlyName(featured) : featured;
 
-    const fieldId = resultsData?.metricQuery.metrics[0];
+    const fieldId =
+        resultsData?.metricQuery.metrics[0] ||
+        resultsData?.metricQuery.dimensions[0];
     const field =
         explore && fieldId
             ? findFieldByIdInExplore(explore, fieldId)
