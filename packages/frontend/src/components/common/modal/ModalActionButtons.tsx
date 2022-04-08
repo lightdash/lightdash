@@ -69,6 +69,11 @@ const ModalActionButtons = ({
                         }}
                     />
                     <MenuItem
+                        icon="insert"
+                        text="Add to Dashboard"
+                        onClick={() => setIsAddToDashboardModalOpen(true)}
+                    />
+                    <MenuItem
                         role="button"
                         icon="delete"
                         text="Delete"

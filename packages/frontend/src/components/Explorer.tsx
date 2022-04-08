@@ -410,7 +410,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                                         text={
                                                             hasUnsavedChanges()
                                                                 ? 'Duplicate'
-                                                                : 'Save chart as'
+                                                                : 'Save as new chart'
                                                         }
                                                         onClick={() => {
                                                             if (
