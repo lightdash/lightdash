@@ -1,4 +1,4 @@
-import { Spinner } from '@blueprintjs/core';
+import { Alert, Intent, Spinner } from '@blueprintjs/core';
 import { Dashboard as IDashboard, DashboardTileTypes } from 'common';
 import React, {
     FC,
@@ -9,7 +9,7 @@ import React, {
     useState,
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
-import { Prompt, useHistory, useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import Page from '../components/common/Page/Page';
 import DashboardFilter from '../components/DashboardFilter';
@@ -177,6 +177,11 @@ const Dashboard = () => {
         setDashboardName(name);
     };
 
+    const [isSaveWarningModalOpen, setIsSaveWarningModalOpen] =
+        useState<boolean>(false);
+    const [blockedNavigationLocation, setBlockedNavigationLocation] =
+        useState<string>();
+
     // Capture refresh with unsaved changes
     window.addEventListener('beforeunload', (event) => {
         if (hasTilesChanged || haveFiltersChanged) {
@@ -187,27 +192,68 @@ const Dashboard = () => {
         }
     });
 
+    useEffect(() => {
+        history.block((prompt) => {
+            if (
+                (hasTilesChanged || haveFiltersChanged) &&
+                !prompt.pathname.includes(
+                    `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                )
+            ) {
+                setBlockedNavigationLocation(prompt.pathname);
+                setIsSaveWarningModalOpen(true);
+                return false; //blocks history
+            }
+            return undefined; // allow history
+        });
+
+        return () => {
+            history.block(() => {});
+        };
+    }, [history, hasTilesChanged, haveFiltersChanged]);
+
     if (dashboard === undefined) {
         return <Spinner />;
     }
-
-    return (
-        <>
-            <Prompt
+    /*
+ <Prompt
                 when={hasTilesChanged || haveFiltersChanged}
                 message={(location) => {
+                    
                     if (
                         location.pathname.includes(
                             `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
                         )
                     ) {
-                        // Do nothing, we are still in the dashboard
-                        return true;
-                    } else {
-                        return 'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
-                    }
+                    setIsSaveWarningModalOpen(true)
+                    setBlockedNavigationLocation(location.pathname)
+                    return false; // blocks navigation
+                //}
+                return true 
+            }}
+        />
+
+*/
+    return (
+        <>
+            <Alert
+                isOpen={isSaveWarningModalOpen}
+                cancelButtonText="Stay"
+                confirmButtonText="Leave"
+                intent={Intent.DANGER}
+                icon="warning-sign"
+                onCancel={() => setIsSaveWarningModalOpen(false)}
+                onConfirm={() => {
+                    history.block(() => {});
+                    if (blockedNavigationLocation)
+                        history.push(blockedNavigationLocation);
                 }}
-            />
+            >
+                <p>
+                    You have unsaved changes to your dashboard! Are you sure you
+                    want to leave without saving?{' '}
+                </p>
+            </Alert>
             <DashboardHeader
                 dashboardName={dashboard.name}
                 isEditMode={isEditMode}
