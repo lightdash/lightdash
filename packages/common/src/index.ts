@@ -1252,7 +1252,7 @@ export function formatValue<T>(format: string, value: T): string | T {
         case 'gbp':
             return `£${value}`;
         case 'eur':
-            return `${value}€`;
+            return `€${value}`;
         case 'percent':
             if (Number.isNaN(value as any)) {
                 return value;
