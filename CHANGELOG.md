@@ -1,3 +1,10 @@
+# [0.55.0](https://github.com/lightdash/lightdash/compare/0.54.2...0.55.0) (2022-04-08)
+
+
+### Features
+
+* add eur to formatter ([#1714](https://github.com/lightdash/lightdash/issues/1714)) ([f565ff5](https://github.com/lightdash/lightdash/commit/f565ff50e696422d5e53f330b3f93ad540784655))
+
 ## [0.54.2](https://github.com/lightdash/lightdash/compare/0.54.1...0.54.2) (2022-04-07)
 
 
