@@ -62,7 +62,6 @@ import { RefreshServerButton } from './RefreshServerButton';
 import { RenderedSql } from './RenderedSql';
 import AddTilesToDashboardModal from './SavedDashboards/AddTilesToDashboardModal';
 import CreateSavedDashboardModal from './SavedDashboards/CreateSavedDashboardModal';
-import DashboardForm from './SavedDashboards/DashboardForm';
 import CreateSavedQueryModal from './SavedQueries/CreateSavedQueryModal';
 
 interface Props {
@@ -567,7 +566,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     ]}
                     showRedirectButton
                     onClose={() => setIsAddToNewDashboardModalOpen(false)}
-                    ModalContent={DashboardForm}
                 />
             )}
             {data && isAddToDashboardModalOpen && (
