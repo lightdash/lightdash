@@ -2,6 +2,7 @@ import { SpaceQuery } from 'common';
 import React from 'react';
 import {
     useDeleteMutation,
+    useDuplicateMutation,
     useUpdateMutation,
 } from '../../hooks/useSavedQuery';
 import ActionCardList from '../common/ActionCardList';
@@ -20,6 +21,7 @@ const SavedQueriesContent = ({
         title="Saved charts"
         useUpdate={useUpdateMutation}
         useDelete={useDeleteMutation()}
+        useDuplicate={useDuplicateMutation}
         dataList={savedQueries}
         getURL={(savedQuery: SpaceQuery) => {
             const { uuid } = savedQuery;

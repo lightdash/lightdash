@@ -153,6 +153,37 @@ export const useCreateMutation = () => {
     );
 };
 
+export const useDuplicateMutation = () => {
+    const history = useHistory();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useApp();
+    return useMutation<SavedChart, ApiError, CreateSavedChart>(
+        (data) => createSavedQuery(projectUuid, data),
+        {
+            mutationKey: ['saved_query_create', projectUuid],
+            onSuccess: (data) => {
+                queryClient.setQueryData(['saved_query', data.uuid], data);
+                showToastSuccess({
+                    title: `Success! Chart was duplicated.`,
+                });
+                history.push({
+                    pathname: `/projects/${projectUuid}/saved?duplicateFrom=${data.uuid}`,
+                    state: {
+                        fromExplorer: true,
+                    },
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to duplicate chart`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};
+
 export const useAddVersionMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
