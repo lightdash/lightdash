@@ -1,4 +1,4 @@
-import { Button, Menu, MenuItem } from '@blueprintjs/core';
+import { Button, Divider, Menu, MenuItem } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { useDuplicateDashboardMutation } from '../../../hooks/dashboard/useDashboard';
@@ -68,11 +68,22 @@ const ModalActionButtons = ({
                             setIsOpen(false);
                         }}
                     />
-                    <MenuItem
-                        icon="insert"
-                        text="Add to Dashboard"
-                        onClick={() => setIsAddToDashboardModalOpen(true)}
-                    />
+                  {!isDashboardPage && (
+                            <MenuItem
+                                icon="insert"
+                                text="Add to Dashboard"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setIsOpen(false);
+                                    setActionState({
+                                        actionType:
+                                            ActionTypeModal.ADD_TO_DASHBOARD,
+                                        data,
+                                    });
+                                }}
+                            />
+                        )}
                     <MenuItem
                         role="button"
                         icon="delete"

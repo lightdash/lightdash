@@ -5,6 +5,7 @@ import {
     Classes,
     Collapse,
     Dialog,
+    Divider,
     H5,
     Menu,
     MenuItem,
@@ -436,10 +437,10 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                                             )
                                                         }
                                                     />
-
+                                                    <Divider />
                                                     <MenuItem
-                                                        icon="delete"
-                                                        text="Delete chart"
+                                                        icon="trash"
+                                                        text="Delete"
                                                         intent="danger"
                                                         onClick={() => {
                                                             getDashboards(

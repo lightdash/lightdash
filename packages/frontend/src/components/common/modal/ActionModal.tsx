@@ -7,6 +7,7 @@ import BaseModal from './BaseModal';
 export enum ActionTypeModal {
     CLOSE,
     UPDATE,
+    ADD_TO_DASHBOARD,
     DELETE,
 }
 
