@@ -14,6 +14,7 @@ type ActionCardListProps<T extends { uuid: string; name: string }> = {
     getURL: (data: T) => string;
     useDelete: UseMutationResult<undefined, ApiError, string>;
     useUpdate: (id: string) => UseMutationResult<any, ApiError, any>;
+    useDuplicate: (id: string) => UseMutationResult<any, ApiError, any>;
     ModalContent: (
         props: Pick<ActionModalProps<T>, 'useActionModalState' | 'isDisabled'>,
     ) => JSX.Element;
@@ -33,6 +34,7 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
     getURL,
     useDelete,
     useUpdate,
+    useDuplicate,
     ModalContent,
     title,
     headerAction,
@@ -44,6 +46,7 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
     }>({
         actionType: ActionTypeModal.CLOSE,
     });
+    console.log({ dataList });
 
     return (
         <ActionCardListWrapper>
