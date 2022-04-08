@@ -114,7 +114,10 @@ type TrackSavedChart = BaseTrack & {
 };
 
 export type CreateSavedChartOrVersionEvent = BaseTrack & {
-    event: 'saved_chart.created' | 'saved_chart_version.created';
+    event:
+        | 'saved_chart.created'
+        | 'saved_chart_version.created'
+        | 'saved_chart.duplicated';
     properties: {
         projectId: string;
         savedQueryId: string;
