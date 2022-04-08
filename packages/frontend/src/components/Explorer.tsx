@@ -42,6 +42,7 @@ import { useExplorer } from '../providers/ExplorerProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import AddColumnButton from './AddColumnButton';
+import BigNumberConfigPanel from './BigNumberConfig';
 import ChartConfigPanel from './ChartConfigPanel';
 import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
@@ -99,6 +100,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const { data } = useSavedQuery({ id: savedQueryUuid });
     const [validChartConfig, setValidChartConfig] =
         useState<ChartConfig['config']>();
+
     const update = useAddVersionMutation();
     const history = useHistory();
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false);
@@ -111,7 +113,19 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [activeVizTab, setActiveVizTab] = useState<ChartType>(
         ChartType.CARTESIAN,
     );
+
     const [pivotDimensions, setPivotDimensions] = useState<string[]>();
+
+    const validConfig = () => {
+        switch (activeVizTab) {
+            case ChartType.TABLE:
+                return undefined;
+            case ChartType.BIG_NUMBER:
+                return validChartConfig;
+            default:
+                return validChartConfig || { series: [] };
+        }
+    };
     const queryData: CreateSavedChartVersion | undefined = tableName
         ? ({
               tableName,
@@ -130,11 +144,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                   : undefined,
               chartConfig: {
                   type: activeVizTab,
-                  config: [ChartType.TABLE, ChartType.BIG_NUMBER].includes(
-                      activeVizTab,
-                  )
-                      ? undefined
-                      : validChartConfig || { series: [] },
+                  config: validConfig(),
               },
               tableConfig: {
                   columnOrder,
@@ -322,13 +332,14 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
 
             <Card style={{ padding: 5, overflowY: 'scroll' }} elevation={1}>
                 <VisualizationProvider
-                    chartConfigs={data?.chartConfig.config}
+                    chartConfigs={data?.chartConfig}
                     chartType={activeVizTab}
                     pivotDimensions={data?.pivotConfig?.columns}
                     tableName={tableName}
                     resultsData={queryResults.data}
                     isLoading={queryResults.isLoading}
                     onChartConfigChange={setValidChartConfig}
+                    onBigNumberLabelChange={setValidChartConfig}
                     onChartTypeChange={setActiveVizTab}
                     onPivotDimensionsChange={setPivotDimensions}
                 >
@@ -365,7 +376,11 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                 }}
                             >
                                 <VisualizationCardOptions />
-                                <ChartConfigPanel />
+                                {activeVizTab === ChartType.BIG_NUMBER ? (
+                                    <BigNumberConfigPanel />
+                                ) : (
+                                    <ChartConfigPanel />
+                                )}
                                 <ChartDownloadMenu />
                                 <ButtonGroup>
                                     <Button

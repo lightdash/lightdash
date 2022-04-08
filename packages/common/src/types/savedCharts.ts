@@ -6,9 +6,13 @@ export enum ChartType {
     BIG_NUMBER = 'big_number',
 }
 
-type BigNumberConfig = {
+export type BigNumber = {
+    label?: string;
+};
+
+export type BigNumberConfig = {
     type: ChartType.BIG_NUMBER;
-    config: undefined;
+    config?: BigNumber;
 };
 
 type TableChartConfig = {
