@@ -98,7 +98,7 @@ const DashboardHeader = ({
                         icon="edit"
                         text="Edit dashboard"
                         onClick={() => {
-                            history.push(
+                            history.replace(
                                 `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
                             );
                         }}
