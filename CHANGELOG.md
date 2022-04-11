@@ -1,3 +1,10 @@
+# [0.58.0](https://github.com/lightdash/lightdash/compare/0.57.2...0.58.0) (2022-04-11)
+
+
+### Features
+
+* duplicate chart endpoint ([#1720](https://github.com/lightdash/lightdash/issues/1720)) ([9f7ec18](https://github.com/lightdash/lightdash/commit/9f7ec18292150ac9feb80a42f98eee3a51ce25e7))
+
 ## [0.57.2](https://github.com/lightdash/lightdash/compare/0.57.1...0.57.2) (2022-04-11)
 
 
