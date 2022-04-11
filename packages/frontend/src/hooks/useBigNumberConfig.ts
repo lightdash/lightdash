@@ -16,8 +16,9 @@ const useBigNumberConfig = (
     const featuredData =
         resultsData?.metricQuery.metrics[0] ||
         resultsData?.metricQuery.dimensions[0];
+
     const featured =
-        featuredData && resultsData?.rows?.[0][featuredData].value.formatted;
+        featuredData && resultsData?.rows?.[0]?.[featuredData]?.value.formatted;
     const bigNumber =
         typeof featured === 'string' ? friendlyName(featured) : featured;
 
