@@ -184,15 +184,31 @@ projectRouter.post(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        savedChartsService
-            .create(req.user!, req.params.projectUuid, req.body)
-            .then((results) => {
-                res.json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next);
+        if (req.params.duplicateFrom) {
+            savedChartsService
+                .duplicate(
+                    req.user!,
+                    req.params.projectUuid,
+                    req.params.duplicateFrom,
+                )
+                .then((results) => {
+                    res.json({
+                        status: 'ok',
+                        results,
+                    });
+                })
+                .catch(next);
+        } else {
+            savedChartsService
+                .create(req.user!, req.params.projectUuid, req.body)
+                .then((results) => {
+                    res.json({
+                        status: 'ok',
+                        results,
+                    });
+                })
+                .catch(next);
+        }
     },
 );
 

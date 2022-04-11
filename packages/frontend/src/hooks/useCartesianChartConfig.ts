@@ -10,12 +10,12 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const useCartesianChartConfig = (
-    chartConfigs: CartesianChart | undefined,
+    chartConfigs: CartesianChart,
     pivotKey: string | undefined,
     resultsData: ApiQueryResults | undefined,
 ) => {
     const [dirtyChartType, setChartType] = useState<CartesianSeriesType>(
-        chartConfigs?.eChartsConfig.series?.[0]?.type ||
+        chartConfigs?.eChartsConfig?.series?.[0]?.type ||
             CartesianSeriesType.BAR,
     );
     const [dirtyLayout, setDirtyLayout] = useState<
@@ -31,7 +31,7 @@ const useCartesianChartConfig = (
 
     useEffect(() => {
         setChartType(
-            chartConfigs?.eChartsConfig.series?.[0]?.type ||
+            chartConfigs?.eChartsConfig?.series?.[0]?.type ||
                 CartesianSeriesType.BAR,
         );
         setDirtyLayout(chartConfigs?.layout);

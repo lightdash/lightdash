@@ -61,7 +61,7 @@ const ValidDashboardChartTile: FC<{
     return (
         <VisualizationProvider
             chartType={data.chartConfig.type}
-            chartConfigs={data.chartConfig.config}
+            chartConfigs={data?.chartConfig}
             pivotDimensions={data.pivotConfig?.columns}
             resultsData={resultData}
             tableName={data.tableName}
@@ -213,7 +213,7 @@ const DashboardChartTile: FC<Props> = (props) => {
             if (field && isFilterableField(field)) {
                 const filterRuleLabels = getFilterRuleLabel(filterRule, field);
                 return (
-                    <Tooltip>
+                    <Tooltip key={field.name}>
                         {filterRuleLabels.field}: {filterRuleLabels.operator}{' '}
                         <FilterValues>{filterRuleLabels.value}</FilterValues>
                     </Tooltip>

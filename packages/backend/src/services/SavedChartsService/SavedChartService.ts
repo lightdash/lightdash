@@ -148,4 +148,45 @@ export class SavedChartService {
         });
         return newSavedChart;
     }
+
+    async duplicate(
+        user: SessionUser,
+        projectUuid: string,
+        chartUuid: string,
+    ): Promise<SavedChart> {
+        if (user.ability.cannot('create', 'SavedChart')) {
+            throw new ForbiddenError();
+        }
+        const chart = await this.savedChartModel.get(chartUuid);
+        const duplicatedChart = {
+            ...chart,
+            name: `Copy of ${chart.name}`,
+        };
+        const newSavedChart = await this.savedChartModel.create(
+            projectUuid,
+            duplicatedChart,
+        );
+        const newSavedChartProperties =
+            SavedChartService.getCreateEventProperties(newSavedChart);
+
+        analytics.track({
+            event: 'saved_chart.created',
+            userId: user.userUuid,
+            properties: {
+                ...newSavedChartProperties,
+                duplicated: true,
+            },
+        });
+
+        analytics.track({
+            event: 'duplicated_chart_created',
+            userId: user.userUuid,
+            properties: {
+                ...newSavedChartProperties,
+                newSavedQueryId: newSavedChartProperties.savedQueryId,
+                duplicateOfSavedQueryId: chartUuid,
+            },
+        });
+        return newSavedChart;
+    }
 }

@@ -11,6 +11,7 @@ services:
     name: lightdash
     dockerContext: .
     dockerfilePath: dockerfile-prs
+    initialDeployHook: /usr/bin/renderDeployHook.sh
     envVars:
       - key: PGHOST
         fromDatabase:

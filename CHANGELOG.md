@@ -1,3 +1,67 @@
+# [0.59.0](https://github.com/lightdash/lightdash/compare/0.58.1...0.59.0) (2022-04-11)
+
+
+### Features
+
+* add-new-chart-to-dashboard ([#1729](https://github.com/lightdash/lightdash/issues/1729)) ([5bf0ec4](https://github.com/lightdash/lightdash/commit/5bf0ec451f7d008b3d07664dde720611caac8775))
+
+## [0.58.1](https://github.com/lightdash/lightdash/compare/0.58.0...0.58.1) (2022-04-11)
+
+
+### Bug Fixes
+
+* fix save changes disabled button for bigint and tables ([#1711](https://github.com/lightdash/lightdash/issues/1711)) ([6c88f6f](https://github.com/lightdash/lightdash/commit/6c88f6f6ebcb354ddf9fb6c69f2b85cab9e715a7))
+
+# [0.58.0](https://github.com/lightdash/lightdash/compare/0.57.2...0.58.0) (2022-04-11)
+
+
+### Features
+
+* duplicate chart endpoint ([#1720](https://github.com/lightdash/lightdash/issues/1720)) ([9f7ec18](https://github.com/lightdash/lightdash/commit/9f7ec18292150ac9feb80a42f98eee3a51ce25e7))
+
+## [0.57.2](https://github.com/lightdash/lightdash/compare/0.57.1...0.57.2) (2022-04-11)
+
+
+### Bug Fixes
+
+* fix dashboard crash filter ([#1733](https://github.com/lightdash/lightdash/issues/1733)) ([3d87ddf](https://github.com/lightdash/lightdash/commit/3d87ddf6c9ed39094c37f34eb5bd52dd9a30f3c0))
+
+## [0.57.1](https://github.com/lightdash/lightdash/compare/0.57.0...0.57.1) (2022-04-08)
+
+
+### Bug Fixes
+
+* replace history on enter dashboard edit mode ([#1723](https://github.com/lightdash/lightdash/issues/1723)) ([7e92bba](https://github.com/lightdash/lightdash/commit/7e92bba633652ea84355c75524cfbafe6144064b))
+
+# [0.57.0](https://github.com/lightdash/lightdash/compare/0.56.0...0.57.0) (2022-04-08)
+
+
+### Features
+
+* add chart config to update big number label ([#1648](https://github.com/lightdash/lightdash/issues/1648)) ([cb06d13](https://github.com/lightdash/lightdash/commit/cb06d134e7462eda990ea0da2234457ff2b37f4d))
+* link to dashboard on remove popup ([#1713](https://github.com/lightdash/lightdash/issues/1713)) ([889f317](https://github.com/lightdash/lightdash/commit/889f317ecbbcc2359b15f7d24eca44e27067ff61))
+
+# [0.56.0](https://github.com/lightdash/lightdash/compare/0.55.1...0.56.0) (2022-04-08)
+
+
+### Features
+
+* warn leaving dashboards ([#1700](https://github.com/lightdash/lightdash/issues/1700)) ([0cb35bd](https://github.com/lightdash/lightdash/commit/0cb35bd093f826292f21bc2d872632db34bb02eb))
+
+## [0.55.1](https://github.com/lightdash/lightdash/compare/0.55.0...0.55.1) (2022-04-08)
+
+
+### Bug Fixes
+
+* make sql autocomplete box wider ([#1718](https://github.com/lightdash/lightdash/issues/1718)) ([4999fcb](https://github.com/lightdash/lightdash/commit/4999fcbe83e2810ef780d669a26852164a5699a2))
+
+# [0.55.0](https://github.com/lightdash/lightdash/compare/0.54.2...0.55.0) (2022-04-08)
+
+
+### Features
+
+* add eur to formatter ([#1714](https://github.com/lightdash/lightdash/issues/1714)) ([f565ff5](https://github.com/lightdash/lightdash/commit/f565ff50e696422d5e53f330b3f93ad540784655))
+
 ## [0.54.2](https://github.com/lightdash/lightdash/compare/0.54.1...0.54.2) (2022-04-07)
 
 
