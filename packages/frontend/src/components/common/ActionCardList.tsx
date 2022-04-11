@@ -6,6 +6,7 @@ import styled from 'styled-components';
 import ActionCard from './ActionCard';
 import { ActionModalProps, ActionTypeModal } from './modal/ActionModal';
 import DeleteActionModal from './modal/DeleteActionModal';
+import DupplicateActionModal from './modal/DuplicateActionModal';
 import UpdateActionModal from './modal/UpdateActionModal';
 
 type ActionCardListProps<T extends { uuid: string; name: string }> = {
@@ -78,13 +79,13 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
                     ModalContent={ModalContent}
                 />
             )}
-            {/* {actionState.actionType === ActionTypeModal.DUPLICATE && (
+            {actionState.actionType === ActionTypeModal.DUPLICATE && (
                 <DupplicateActionModal
                     useActionModalState={[actionState, setActionState]}
                     useDuplicate={useDuplicate}
                     ModalContent={ModalContent}
                 />
-            )} */}
+            )}
             {actionState.actionType === ActionTypeModal.DELETE && (
                 <DeleteActionModal
                     useActionModalState={[actionState, setActionState]}

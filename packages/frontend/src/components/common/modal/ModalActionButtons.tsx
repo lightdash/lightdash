@@ -1,6 +1,11 @@
 import { Button, Menu, MenuItem } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import React, { Dispatch, SetStateAction, useState } from 'react';
+import { Dashboard as IDashboard } from 'common';
+import React, { Dispatch, SetStateAction, useCallback, useState } from 'react';
+import {
+    useDuplicateMutation,
+    useSavedQuery,
+} from '../../../hooks/useSavedQuery';
 import { ActionTypeModal } from './ActionModal';
 
 type ModalActionButtonsProps = {
@@ -17,6 +22,31 @@ const ModalActionButtons = ({
     setActionState,
 }: ModalActionButtonsProps) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [tileId, setTileId] = useState<string>('');
+    const { data: chartToDuplicate } = useSavedQuery({ id: tileId });
+
+    const { mutate: duplicateChart } = useDuplicateMutation(tileId);
+
+    const onDuplicate = useCallback(
+        (tile: IDashboard['tiles'][number]) => {
+            // @ts-ignore
+            setTileId(tile.properties && tile.properties.savedChartUuid);
+
+            if (chartToDuplicate) {
+                const {
+                    projectUuid: idToForget,
+                    uuid,
+                    updatedAt,
+                    ...chartDuplicate
+                } = chartToDuplicate;
+                duplicateChart({
+                    ...chartDuplicate,
+                    name: `${chartDuplicate.name} (copy)`,
+                });
+            }
+        },
+        [chartToDuplicate],
+    );
 
     return (
         <Popover2
@@ -36,6 +66,21 @@ const ModalActionButtons = ({
                             setIsOpen(false);
                             setActionState({
                                 actionType: ActionTypeModal.UPDATE,
+                                data,
+                            });
+                        }}
+                    />
+                    <MenuItem
+                        role="button"
+                        icon="duplicate"
+                        text="Duplicate"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('miraaa', e);
+                            // onDuplicate(e);
+                            setActionState({
+                                actionType: ActionTypeModal.DUPLICATE,
                                 data,
                             });
                         }}
