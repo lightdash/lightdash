@@ -35,7 +35,7 @@ WHERE (
 
 ### To learn about the types of filters we have available, check out the filters reference doc.
 
-Check out our [filters reference doc here](docs.lightdash.com/references/filters) to see a list of all available filters and their uses.
+Check out our [filters reference doc here](https://docs.lightdash.com/references/filters/) to see a list of all available filters and their uses.
 
 ## Adding filters in the Explore view
 
