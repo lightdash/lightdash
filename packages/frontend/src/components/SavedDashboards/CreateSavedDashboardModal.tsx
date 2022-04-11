@@ -34,11 +34,7 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = ({
         <Dialog isOpen={isOpen} onClose={onClose} lazy title="Create dashboard">
             <form>
                 <div className={Classes.DIALOG_BODY}>
-                    <FormGroup
-                        label="Name"
-                        labelFor="chart-name"
-                        style={{ fontWeight: 'bold' }}
-                    >
+                    <FormGroup label="Name" labelFor="chart-name">
                         <InputGroup
                             id="chart-name"
                             type="text"
