@@ -15,7 +15,7 @@ import {
     SavedChart,
 } from 'common';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useExplore } from '../../hooks/useExplore';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
@@ -88,6 +88,7 @@ type Props = Pick<
 
 const DashboardChartTile: FC<Props> = (props) => {
     const { track } = useTracking();
+    const history = useHistory();
     const {
         tile: {
             properties: { savedChartUuid },
@@ -249,12 +250,22 @@ const DashboardChartTile: FC<Props> = (props) => {
             title={savedQueryWithDashboardFilters?.name || ''}
             isLoading={isLoading}
             extraMenuItems={
-                savedChartUuid !== null && (
+                savedChartUuid !== null &&
+                savedQuery && (
                     <>
                         <MenuItem
                             icon="document-open"
                             text="Edit chart"
                             href={`/projects/${projectUuid}/saved/${savedChartUuid}`}
+                        />
+                        <MenuItem
+                            text="Explore from here"
+                            onClick={() => {
+                                history.push({
+                                    pathname: `/projects/${projectUuid}/tables/${savedQuery.tableName}`,
+                                    state: { initialQueryData: savedQuery },
+                                });
+                            }}
                         />
                     </>
                 )
