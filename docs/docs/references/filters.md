@@ -10,7 +10,7 @@ Filters appear at the top of an explore and allow users to change the data being
 
 ## Using filters
 
-To learn more about how to use filters in Explores, check out [this guide on limiting data using filters](docs.lightdash.com/guides/limiting-data-using-filters).
+To learn more about using filters, check out our docs on limiting data using filters.
 
 ## Filter types
 
