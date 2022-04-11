@@ -21,6 +21,7 @@ import {
     useUpdateDashboard,
 } from '../../hooks/dashboard/useDashboard';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
+import { CreateNewText } from './AddTilesToDashboardModal.styles';
 
 interface AddTilesToDashboardModalProps {
     isOpen: boolean;
@@ -86,7 +87,6 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                 id="select-dashboard"
                                 fill={true}
                                 value={selectedDashboard}
-                                style={{ marginBottom: 15 }}
                                 onChange={(e) =>
                                     setSelectedDashboard(e.currentTarget.value)
                                 }
@@ -99,24 +99,17 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                         : []
                                 }
                             />
-                            <div
-                                style={{ cursor: 'pointer' }}
+
+                            <CreateNewText
                                 onClick={() => setShowNewDashboardInput(true)}
                             >
-                                <b style={{ color: '#267dbf' }}>
-                                    {' '}
-                                    + Create new
-                                </b>
-                            </div>
+                                + Create new
+                            </CreateNewText>
                         </>
                     )}
 
                     {showNewDashboardInput && (
-                        <FormGroup
-                            label="Name"
-                            labelFor="chart-name"
-                            style={{ fontWeight: 'bold' }}
-                        >
+                        <FormGroup label="Name" labelFor="chart-name">
                             <InputGroup
                                 id="chart-name"
                                 type="text"
