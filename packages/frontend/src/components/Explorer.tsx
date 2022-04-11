@@ -17,10 +17,8 @@ import {
     countTotalFilterRules,
     CreateSavedChartVersion,
     DashboardBasicDetails,
-    DashboardTileTypes,
     DimensionType,
     fieldId,
-    getDefaultChartTileSize,
     getResultValues,
     getVisibleFields,
     isFilterableField,
@@ -28,7 +26,6 @@ import {
 } from 'common';
 import { FC, useEffect, useState } from 'react';
 import { Link, useHistory, useLocation, useParams } from 'react-router-dom';
-import { v4 as uuid4 } from 'uuid';
 import { getDashboards } from '../hooks/dashboard/useDashboards';
 import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
@@ -62,8 +59,6 @@ import { RefreshButton } from './RefreshButton';
 import { RefreshServerButton } from './RefreshServerButton';
 import { RenderedSql } from './RenderedSql';
 import AddTilesToDashboardModal from './SavedDashboards/AddTilesToDashboardModal';
-import CreateSavedDashboardModal from './SavedDashboards/CreateSavedDashboardModal';
-import DashboardForm from './SavedDashboards/DashboardForm';
 import CreateSavedQueryModal from './SavedQueries/CreateSavedQueryModal';
 
 interface Props {
@@ -76,8 +71,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const { mutate: deleteData, isLoading: isDeleting } = useDeleteMutation();
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
-        useState<boolean>(false);
-    const [isAddToNewDashboardModalOpen, setIsAddToNewDashboardModalOpen] =
         useState<boolean>(false);
     const location = useLocation<{ fromExplorer?: boolean } | undefined>();
     const {
@@ -409,23 +402,15 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                                         }
                                                     />
                                                     <MenuItem
-                                                        icon="circle-arrow-right"
-                                                        text="Add chart to an existing dashboard"
+                                                        icon="control"
+                                                        text="Add to dashboard"
                                                         onClick={() =>
                                                             setIsAddToDashboardModalOpen(
                                                                 true,
                                                             )
                                                         }
                                                     />
-                                                    <MenuItem
-                                                        icon="control"
-                                                        text="Create dashboard with chart"
-                                                        onClick={() =>
-                                                            setIsAddToNewDashboardModalOpen(
-                                                                true,
-                                                            )
-                                                        }
-                                                    />
+
                                                     <MenuItem
                                                         icon="delete"
                                                         text="Delete chart"
@@ -561,26 +546,10 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     onClose={() => setIsQueryModalOpen(false)}
                 />
             )}
+
             {data && (
-                <CreateSavedDashboardModal
-                    isOpen={isAddToNewDashboardModalOpen}
-                    tiles={[
-                        {
-                            uuid: uuid4(),
-                            type: DashboardTileTypes.SAVED_CHART,
-                            properties: {
-                                savedChartUuid: data.uuid,
-                            },
-                            ...getDefaultChartTileSize(activeVizTab),
-                        },
-                    ]}
-                    showRedirectButton
-                    onClose={() => setIsAddToNewDashboardModalOpen(false)}
-                    ModalContent={DashboardForm}
-                />
-            )}
-            {data && isAddToDashboardModalOpen && (
                 <AddTilesToDashboardModal
+                    isOpen={isAddToDashboardModalOpen}
                     savedChart={data}
                     onClose={() => setIsAddToDashboardModalOpen(false)}
                 />
