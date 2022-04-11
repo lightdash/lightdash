@@ -106,9 +106,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false);
     const [resultsIsOpen, setResultsIsOpen] = useState<boolean>(true);
     const [sqlIsOpen, setSqlIsOpen] = useState<boolean>(false);
-    const [vizIsOpen, setVizisOpen] = useState<boolean>(
-        !!savedQueryUuid && location.state?.fromExplorer !== undefined,
-    );
+    const [vizIsOpen, setVizisOpen] = useState<boolean>(!!savedQueryUuid);
     const totalActiveFilters: number = countTotalFilterRules(filters);
     const [activeVizTab, setActiveVizTab] = useState<ChartType>(
         ChartType.CARTESIAN,
