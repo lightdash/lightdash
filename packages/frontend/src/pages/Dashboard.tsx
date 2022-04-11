@@ -23,6 +23,7 @@ import {
     useDashboardQuery,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
+import { useDuplicateMutation, useSavedQuery } from '../hooks/useSavedQuery';
 import { useDashboardContext } from '../providers/DashboardProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import '../styles/react-grid.css';
@@ -71,13 +72,16 @@ const Dashboard = () => {
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
     const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
+    const [tileId, setTileId] = useState<string>('');
     const [dashboardName, setDashboardName] = useState<string>('');
+    const { data: chartToDuplicate } = useSavedQuery({ id: tileId });
     const {
         mutate,
         isSuccess,
         reset,
         isLoading: isSaving,
     } = useUpdateDashboard(dashboardUuid);
+    const { mutate: duplicateChart } = useDuplicateMutation(tileId);
 
     const layouts = useMemo(
         () => ({

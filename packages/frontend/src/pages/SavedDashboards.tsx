@@ -52,6 +52,7 @@ const SavedDashboards = () => {
                     const { uuid } = savedDashboard;
                     return `/projects/${projectUuid}/dashboards/${uuid}/view`;
                 }}
+                // @ts-ignore
                 ModalContent={DashboardForm}
                 headerAction={
                     <Button
