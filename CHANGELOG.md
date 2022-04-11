@@ -1,3 +1,10 @@
+## [0.57.2](https://github.com/lightdash/lightdash/compare/0.57.1...0.57.2) (2022-04-11)
+
+
+### Bug Fixes
+
+* fix dashboard crash filter ([#1733](https://github.com/lightdash/lightdash/issues/1733)) ([3d87ddf](https://github.com/lightdash/lightdash/commit/3d87ddf6c9ed39094c37f34eb5bd52dd9a30f3c0))
+
 ## [0.57.1](https://github.com/lightdash/lightdash/compare/0.57.0...0.57.1) (2022-04-08)
 
 
