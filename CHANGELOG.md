@@ -1,3 +1,10 @@
+## [0.58.1](https://github.com/lightdash/lightdash/compare/0.58.0...0.58.1) (2022-04-11)
+
+
+### Bug Fixes
+
+* fix save changes disabled button for bigint and tables ([#1711](https://github.com/lightdash/lightdash/issues/1711)) ([6c88f6f](https://github.com/lightdash/lightdash/commit/6c88f6f6ebcb354ddf9fb6c69f2b85cab9e715a7))
+
 # [0.58.0](https://github.com/lightdash/lightdash/compare/0.57.2...0.58.0) (2022-04-11)
 
 
