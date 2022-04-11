@@ -1,3 +1,10 @@
+# [0.59.0](https://github.com/lightdash/lightdash/compare/0.58.1...0.59.0) (2022-04-11)
+
+
+### Features
+
+* add-new-chart-to-dashboard ([#1729](https://github.com/lightdash/lightdash/issues/1729)) ([5bf0ec4](https://github.com/lightdash/lightdash/commit/5bf0ec451f7d008b3d07664dde720611caac8775))
+
 ## [0.58.1](https://github.com/lightdash/lightdash/compare/0.58.0...0.58.1) (2022-04-11)
 
 
