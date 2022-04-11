@@ -46,7 +46,6 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
     }>({
         actionType: ActionTypeModal.CLOSE,
     });
-    console.log({ dataList });
 
     return (
         <ActionCardListWrapper>
