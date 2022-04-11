@@ -1,36 +1,69 @@
-import { CreateDashboard, Dashboard, DashboardBasicDetails } from 'common';
-import React, { FC } from 'react';
+import {
+    Button,
+    Classes,
+    Dialog,
+    FormGroup,
+    InputGroup,
+    Intent,
+} from '@blueprintjs/core';
+import { Dashboard } from 'common';
+import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../hooks/dashboard/useDashboard';
-import { ActionModalProps } from '../common/modal/ActionModal';
-import CreateActionModal from '../common/modal/CreateActionModal';
 
 interface CreateSavedDashboardModalProps {
     isOpen: boolean;
-    ModalContent: (
-        props: Pick<
-            ActionModalProps<DashboardBasicDetails>,
-            'useActionModalState' | 'isDisabled'
-        >,
-    ) => JSX.Element;
+
     tiles?: Dashboard['tiles'];
     showRedirectButton?: boolean;
     onClose?: () => void;
 }
 
-const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = (
-    props,
-) => {
+const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = ({
+    isOpen,
+    tiles,
+    showRedirectButton,
+    onClose,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { tiles, showRedirectButton } = props;
     const useCreate = useCreateMutation(projectUuid, showRedirectButton);
+    const { mutate, isLoading: isCreating } = useCreate;
+    const [name, setName] = useState<string>('');
 
     return (
-        <CreateActionModal
-            useCreate={useCreate}
-            savedData={{ tiles: tiles || [] } as Partial<CreateDashboard>}
-            {...props}
-        />
+        <Dialog isOpen={isOpen} onClose={onClose} lazy title="Create dashboard">
+            <form>
+                <div className={Classes.DIALOG_BODY}>
+                    <FormGroup label="Name" labelFor="chart-name">
+                        <InputGroup
+                            id="chart-name"
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="eg. KPI dashboard"
+                        />
+                    </FormGroup>
+                </div>
+                <div className={Classes.DIALOG_FOOTER}>
+                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+                        <Button onClick={onClose}>Cancel</Button>
+                        <Button
+                            data-cy="submit-base-modal"
+                            intent={Intent.SUCCESS}
+                            text="Create"
+                            type="submit"
+                            onClick={(e) => {
+                                mutate({ tiles: tiles || [], name });
+
+                                if (onClose) onClose();
+                                e.preventDefault();
+                            }}
+                            disabled={isCreating || !name}
+                        />
+                    </div>
+                </div>
+            </form>
+        </Dialog>
     );
 };
 
