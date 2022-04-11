@@ -114,13 +114,32 @@ type TrackSavedChart = BaseTrack & {
 };
 
 export type CreateSavedChartOrVersionEvent = BaseTrack & {
-    event:
-        | 'saved_chart.created'
-        | 'saved_chart_version.created'
-        | 'saved_chart.duplicated';
+    event: 'saved_chart.created' | 'saved_chart_version.created';
     properties: {
         projectId: string;
         savedQueryId: string;
+        dimensionsCount: number;
+        metricsCount: number;
+        filtersCount: number;
+        sortsCount: number;
+        tableCalculationsCount: number;
+        pivotCount: number;
+        chartType: ChartType;
+        cartesian?: {
+            xAxisCount: number;
+            yAxisCount: number;
+            seriesCount: number;
+            seriesTypes: CartesianSeriesType[];
+        };
+        duplicated?: boolean;
+    };
+};
+
+export type DuplicatedChartCreatedEvent = BaseTrack & {
+    event: 'duplicated_chart_created';
+    properties: {
+        projectId: string;
+        newSavedQueryId: string;
         dimensionsCount: number;
         metricsCount: number;
         filtersCount: number;
@@ -247,7 +266,8 @@ type Track =
     | TrackOrganizationEvent
     | LoginEvent
     | IdentityLinkedEvent
-    | SqlExecutedEvent;
+    | SqlExecutedEvent
+    | DuplicatedChartCreatedEvent;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {

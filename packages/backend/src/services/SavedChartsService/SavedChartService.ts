@@ -166,11 +166,26 @@ export class SavedChartService {
             projectUuid,
             duplicatedChart,
         );
+        const newSavedChartProperties =
+            SavedChartService.getCreateEventProperties(newSavedChart);
+
         analytics.track({
-            event: 'saved_chart.duplicated',
+            event: 'saved_chart.created',
             userId: user.userUuid,
-            properties:
-                SavedChartService.getCreateEventProperties(newSavedChart),
+            properties: {
+                ...newSavedChartProperties,
+                duplicated: true,
+            },
+        });
+
+        analytics.track({
+            event: 'duplicated_chart_created',
+            userId: user.userUuid,
+            properties: {
+                ...newSavedChartProperties,
+                newSavedQueryId: newSavedChartProperties.savedQueryId,
+                duplicateOfSavedQueryId: chartUuid,
+            },
         });
         return newSavedChart;
     }
