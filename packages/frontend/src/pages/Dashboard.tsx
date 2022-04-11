@@ -23,6 +23,7 @@ import {
     useDashboardQuery,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
+import { useDuplicateMutation, useSavedQuery } from '../hooks/useSavedQuery';
 import { useDashboardContext } from '../providers/DashboardProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import '../styles/react-grid.css';
@@ -71,13 +72,16 @@ const Dashboard = () => {
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
     const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
+    const [tileId, setTileId] = useState<string>('');
     const [dashboardName, setDashboardName] = useState<string>('');
+    const { data: chartToDuplicate } = useSavedQuery({ id: tileId });
     const {
         mutate,
         isSuccess,
         reset,
         isLoading: isSaving,
     } = useUpdateDashboard(dashboardUuid);
+    const { mutate: duplicateChart } = useDuplicateMutation(tileId);
 
     const layouts = useMemo(
         () => ({
@@ -166,14 +170,35 @@ const Dashboard = () => {
         setHasTilesChanged(true);
     }, []);
 
-    const onDuplicate = useCallback((tile: IDashboard['tiles'][number]) => {
-        const tileDuplicate = { ...tile, uuid: uuidv4() };
-        setHasTilesChanged(true);
-        setDashboardTiles((currentDashboardTiles) => [
-            ...currentDashboardTiles,
-            tileDuplicate,
-        ]);
-    }, []);
+    const onDuplicate = useCallback(
+        (tile: IDashboard['tiles'][number]) => {
+            // @ts-ignore
+            setTileId(tile.properties && tile.properties.savedChartUuid);
+            setHasTilesChanged(true);
+            if (chartToDuplicate) {
+                const {
+                    projectUuid: idToForget,
+                    uuid,
+                    updatedAt,
+                    ...chartDuplicate
+                } = chartToDuplicate;
+                duplicateChart({
+                    ...chartDuplicate,
+                    name: `${chartDuplicate.name} (copy)`,
+                });
+                setDashboardTiles((currentDashboardTiles) => [
+                    ...currentDashboardTiles,
+                    {
+                        ...tile,
+                        uuid: uuidv4(),
+                        name: `${chartDuplicate.name} (copy)`,
+                    },
+                ]);
+            }
+        },
+        [chartToDuplicate],
+    );
+
     const onCancel = useCallback(() => {
         setDashboardTiles(dashboard?.tiles || []);
         setHasTilesChanged(false);

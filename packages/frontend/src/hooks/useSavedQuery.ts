@@ -20,6 +20,17 @@ const createSavedQuery = async (
         body: JSON.stringify(payload),
     });
 
+const duplicateSavedQuery = async (
+    projectUuid: string,
+    id: string,
+    payload: CreateSavedChart,
+): Promise<SavedChart> =>
+    lightdashApi<SavedChart>({
+        url: `/projects/${projectUuid}/saved?duplicateFrom=${id}`,
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+
 const deleteSavedQuery = async (id: string) =>
     lightdashApi<undefined>({
         url: `/saved/${id}`,
@@ -153,22 +164,25 @@ export const useCreateMutation = () => {
     );
 };
 
-export const useDuplicateMutation = () => {
+export const useDuplicateMutation = (id: string) => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
     return useMutation<SavedChart, ApiError, CreateSavedChart>(
-        (data) => createSavedQuery(projectUuid, data),
+        (data) => duplicateSavedQuery(projectUuid, id, data),
         {
             mutationKey: ['saved_query_create', projectUuid],
             onSuccess: (data) => {
-                queryClient.setQueryData(['saved_query', data.uuid], data);
+                queryClient.setQueryData(
+                    ['saved_query_create', data.uuid],
+                    data,
+                );
                 showToastSuccess({
                     title: `Success! Chart was duplicated.`,
                 });
                 history.push({
-                    pathname: `/projects/${projectUuid}/saved?duplicateFrom=${data.uuid}`,
+                    pathname: `/projects/${projectUuid}/saved/${data.uuid}`,
                     state: {
                         fromExplorer: true,
                     },
