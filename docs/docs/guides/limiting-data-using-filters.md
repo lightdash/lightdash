@@ -1,8 +1,8 @@
 # Limit the data in your query using Filters
 
-Filters appear at the top of an explore and allow users to change the data being pulled into the explore. For example, if I built a chart showing the revenue over time, but I wanted it to only have the revenue I made in France, I could add a filter for `country is equal to France`.
+Filters appear at the top of an explore or dashboard and allow users to change the data being pulled into your charts. For example, if I built a chart showing the revenue over time, but I wanted it to only have the revenue I made in France, I could add a filter for `country is equal to France`.
 
-You can [add filters to your charts individually in the Explore view](#adding-filters-in-the-explore-view), or [across all of your charts in your dashboard](#adding-filters-to-your-dashboard). Don't worry, we'll walk you through both and you'll be a filter pro in no time! 
+You can [add filters to your charts individually in the Explore view](#adding-filters-in-the-explore-view), or [across all of your charts in your dashboard](#adding-filters-to-your-dashboard). Don't worry, we'll walk you through both and you'll be a filter pro in no time!
 
 ## General filters tips
 
@@ -13,7 +13,8 @@ Here are some general tips about filters that apply to using them in both Explor
 ![add-filter](assets/add-filter.png)
 
 These multiple filters are joined together using AND, so, the example above would give us compiled SQL that looks like:
-```
+
+```sql
 WHERE (
   (users.days_since_activated) > 5
   AND (users.days_since_activated)...
@@ -24,20 +25,21 @@ WHERE (
 ![screenshot-multiple-values-filter](assets/screenshot-multiple-values-filter.png)
 
 The listed values are separated by an OR statement in the compiled SQL. E.g. the above would give us:
-```
+
+```sql
 WHERE (
   (users.days_since_activated) > 5
    AND (users.days_since_activated) IN (1,2,3)
 )
 ```
 
-### To learn about the types of filters we have available, check out the filters reference doc. 
+### To learn about the types of filters we have available, check out the filters reference doc.
 
-Check out our [filters reference doc here](docs.lightdash.com/references/filters) to see a list of all available filters and their uses. 
+Check out our [filters reference doc here](docs.lightdash.com/references/filters) to see a list of all available filters and their uses.
 
 ## Adding filters in the Explore view
 
-There are a couple of ways that you can add filters in the Explore view. 
+There are a couple of ways that you can add filters in the Explore view.
 
 ### Adding a filter from within the `Filters` tab
 
@@ -49,7 +51,7 @@ Select the field you would like to filter from the drop-down list, then select t
 
 ### Adding a filter from the sidebar
 
-It's easy to add filters directly from the list of fields in the sidebar. Just click on the `options` for a field, then click `add filter`. 
+It's easy to add filters directly from the list of fields in the sidebar. Just click on the `options` for a field, then click `add filter`.
 
 ![add-filter-sidebar](assets/add-filter-sidebar.png)
 
@@ -67,7 +69,7 @@ There are a couple of ways that you can add filters to your Dashboards.
 
 If you add a temporary filter to your dasboard, then only you will see the filters you've applied (you won't be changing the dashboard for everyone who comes to look at it). If you want to save the dashboard filters you're adding, then check out [adding saved filters to your dashboard](#adding-saved-filters-to-your-dashboard).
 
-There are two ways to add temporary filters to your dashboard. 
+There are two ways to add temporary filters to your dashboard.
 
 #### Adding temporary filters using the `add filters` button
 
