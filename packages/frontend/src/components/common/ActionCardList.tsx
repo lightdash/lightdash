@@ -96,6 +96,13 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
                         name={actionState.data.name}
                     />
                 )}
+                {actionState.actionType === ActionTypeModal.DUPLICATE && (
+                <DupplicateActionModal
+                    useActionModalState={[actionState, setActionState]}
+                    useDuplicate={useDuplicate}
+                    ModalContent={ModalContent}
+                />
+            )}
 
             {dataList.length <= 0 && (
                 <div style={{ padding: '50px 0' }}>
