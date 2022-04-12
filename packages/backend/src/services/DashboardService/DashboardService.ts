@@ -85,6 +85,47 @@ export class DashboardService {
         return this.getById(user, newDashboard.uuid);
     }
 
+    async duplicate(
+        user: SessionUser,
+        projectUuid: string,
+        dashboardUuid: string,
+    ): Promise<Dashboard> {
+        if (user.ability.cannot('create', 'Dashboard')) {
+            throw new ForbiddenError();
+        }
+        const space = await getSpace(database, projectUuid);
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        const duplicatedDashboard = {
+            ...dashboard,
+            name: `Copy of ${dashboard.name}`,
+        };
+        console.log('dup', duplicatedDashboard);
+        const newDashboard = await this.dashboardModel.create(
+            space.space_uuid,
+            duplicatedDashboard,
+        );
+
+        const dashboardProperties =
+            DashboardService.getCreateEventProperties(newDashboard);
+        analytics.track({
+            event: 'dashboard.created',
+            userId: user.userUuid,
+            properties: { ...dashboardProperties, duplicated: true },
+        });
+
+        analytics.track({
+            event: 'duplicated_dashboard_created',
+            userId: user.userUuid,
+            properties: {
+                ...dashboardProperties,
+                newDashboardId: newDashboard.uuid,
+                duplicateOfDashboardId: dashboard.uuid,
+            },
+        });
+        return this.getById(user, newDashboard.uuid);
+    }
+
     async update(
         user: SessionUser,
         dashboardUuid: string,

@@ -184,12 +184,12 @@ projectRouter.post(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        if (req.params.duplicateFrom) {
+        if (req.query.duplicateFrom) {
             savedChartsService
                 .duplicate(
                     req.user!,
                     req.params.projectUuid,
-                    req.params.duplicateFrom,
+                    req.query.duplicateFrom.toString(),
                 )
                 .then((results) => {
                     res.json({
@@ -245,15 +245,31 @@ projectRouter.post(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        dashboardService
-            .create(req.user!, req.params.projectUuid, req.body)
-            .then((results) => {
-                res.status(201).json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next);
+        if (req.query.duplicateFrom) {
+            dashboardService
+                .duplicate(
+                    req.user!,
+                    req.params.projectUuid,
+                    req.query.duplicateFrom.toString(),
+                )
+                .then((results) => {
+                    res.status(201).json({
+                        status: 'ok',
+                        results,
+                    });
+                })
+                .catch(next);
+        } else {
+            dashboardService
+                .create(req.user!, req.params.projectUuid, req.body)
+                .then((results) => {
+                    res.status(201).json({
+                        status: 'ok',
+                        results,
+                    });
+                })
+                .catch(next);
+        }
     },
 );
 

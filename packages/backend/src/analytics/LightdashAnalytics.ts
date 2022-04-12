@@ -140,6 +140,7 @@ export type DuplicatedChartCreatedEvent = BaseTrack & {
     properties: {
         projectId: string;
         newSavedQueryId: string;
+        duplicateOfSavedQueryId: string;
         dimensionsCount: number;
         metricsCount: number;
         filtersCount: number;
@@ -232,6 +233,21 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         chartTilesCount: number;
         markdownTilesCount: number;
         loomTilesCount: number;
+        duplicated?: boolean;
+    };
+};
+
+export type DuplicatedDashboardCreatedEvent = BaseTrack & {
+    event: 'duplicated_dashboard_created';
+    properties: {
+        projectId: string;
+        newDashboardId: string;
+        duplicateOfDashboardId: string;
+        filtersCount: number;
+        tilesCount: number;
+        chartTilesCount: number;
+        markdownTilesCount: number;
+        loomTilesCount: number;
     };
 };
 
@@ -267,7 +283,8 @@ type Track =
     | LoginEvent
     | IdentityLinkedEvent
     | SqlExecutedEvent
-    | DuplicatedChartCreatedEvent;
+    | DuplicatedChartCreatedEvent
+    | DuplicatedDashboardCreatedEvent;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {
