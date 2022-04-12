@@ -1258,7 +1258,7 @@ export function formatValue<T>(format: string, value: T): string | T {
                 return value;
             }
             // Fix rounding issue
-            return `${Number((parseFloat(value as any) * 100).toFixed(2))}%`;
+            return `${(parseFloat(value as any) * 100).toFixed(2)}%`;
 
         case '': // no format
             return value;
