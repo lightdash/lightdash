@@ -181,9 +181,16 @@ Some columns need a special format to convey what units they're in. For example,
 
 In Lightdash, you can use the `format` label to add units to your fields.
 
-### To add units to your dimensions, you just need to add `format` to their properties
+Here's an example of how different formats will affect your values:
 
-To see which format types are available for dimensions, [check the reference docs here.](https://docs.lightdash.com/references/dimensions#:~:text=number%20of%20digits-,format,-No)
+| Original value | Format value | How it will appear in Lightdash |
+| --------------- | ----------- | ------------------------------- |
+| 121.854         | 'gbp'       | £121.854                        |
+| 121.854         | 'usd'       | $121.9                           |
+
+You can see which format types are currently available for [dimensions](https://docs.lightdash.com/references/dimensions#:~:text=number%20of%20digits-,format,-No), and for [metrics.](https://docs.lightdash.com/references/metrics#:~:text=number%20of%20digits-,format,-No)
+
+### To add units to your dimensions, you just need to add `format` to their properties
 
 You can add a `format` to your dimensions this:
 
@@ -198,11 +205,9 @@ models:
           format: 'gbp'
 ```
 
-Check out [this doc](https://docs.lightdash.com/references/dimensions#dimension-configuration) to see all of the other properties you can customize for dimensions.
+To see which format types are available for dimensions, [check the reference docs here.](https://docs.lightdash.com/references/dimensions#:~:text=number%20of%20digits-,format,-No). Check out [this doc](https://docs.lightdash.com/references/dimensions#dimension-configuration) to see all of the other properties you can customize for dimensions.
 
 ### To add units to your metrics, you just need to add `format` to their properties
-
-To see which format types are available for metrics, [check the reference docs here.](https://docs.lightdash.com/references/metrics#:~:text=number%20of%20digits-,format,-No)
 
 You can add a `format` to your metrics this:
 
@@ -219,4 +224,5 @@ models:
             format: 'gbp'
 ```
 
+To see which format types are available for metrics, [check the reference docs here.](https://docs.lightdash.com/references/metrics#:~:text=number%20of%20digits-,format,-No)
 Check out [this doc](https://docs.lightdash.com/references/metrics#metric-configuration) to see all of the other properties you can customize for metrics.
