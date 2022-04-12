@@ -22,35 +22,16 @@ const HelpMenu: FC = () => {
         script.async = false;
         script.src = 'https://cdn.headwayapp.co/widget.js';
         document.head.appendChild(script);
-        var config = {
-            selector: '.headway-badge',
-            account: '7L3Bzx',
-        };
         script.onload = function () {
+            document
+                .querySelectorAll('.HW_badge_cont')
+                .forEach((b) => b.remove);
             //@ts-ignore
-            window.Headway.init(config);
+            window.Headway.init({
+                selector: '.headway-badge',
+                account: '7L3Bzx',
+            });
         };
-        /*
-<script>
-  // @see https://docs.headwayapp.co/widget for more configuration options.
-  var HW_config = {
-    selector: ".headway-badge", // CSS selector where to inject the badge
-    account:  "7L3Bzx"
-  }
-</script>
-<script async src="https://cdn.headwayapp.co/widget.js"></script>
-
-*/
-        /*  const script = document.createElement('script')
-        script.innerHTML = `
-  // @see https://docs.headwayapp.co/widget for more configuration options.
-  var HW_config = {
-    selector: ".CHANGE_THIS", // CSS selector where to inject the badge
-    account:  "7L3Bzx"
-  }
-<script async src="https://cdn.headwayapp.co/widget.js"></script>
-`
-        document.body.appendChild(script)*/
     }, []);
 
     const openChatWindow = () => {
@@ -123,7 +104,7 @@ const HelpMenu: FC = () => {
                 }
                 position={Position.BOTTOM_LEFT}
             >
-                <Button minimal icon="help" text="Help" />
+                <Button minimal icon="help" />
             </Popover2>
         </>
     );
