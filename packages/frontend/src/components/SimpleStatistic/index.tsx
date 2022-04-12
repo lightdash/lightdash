@@ -1,6 +1,7 @@
 import { NonIdealState } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { LoadingChart } from '../SimpleChart';
 import {
     BigNumber,
     BigNumberContainer,
@@ -9,10 +10,12 @@ import {
 } from './SimpleStatistics.styles';
 
 const SimpleStatistic: FC = () => {
-    const { resultsData, bigNumber, bigNumberLabel } =
+    const { resultsData, bigNumber, bigNumberLabel, isLoading } =
         useVisualizationContext();
 
     const validData = bigNumber && resultsData?.rows.length && bigNumberLabel;
+
+    if (isLoading) return <LoadingChart />;
 
     return (
         <>

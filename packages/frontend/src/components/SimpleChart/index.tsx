@@ -49,7 +49,7 @@ const EmptyChart = () => (
         />
     </div>
 );
-const LoadingChart = () => (
+export const LoadingChart = () => (
     <div style={{ padding: '50px 0' }}>
         <NonIdealState title="Loading chart" icon={<Spinner />} />
     </div>

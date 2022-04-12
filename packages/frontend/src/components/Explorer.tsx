@@ -92,7 +92,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     } = useExplorer();
     const explore = useExplore(tableName);
     const queryResults = useQueryResults();
-    const { data } = useSavedQuery({ id: savedQueryUuid });
+    const { data, isLoading } = useSavedQuery({ id: savedQueryUuid });
     const [validChartConfig, setValidChartConfig] =
         useState<ChartConfig['config']>();
 
@@ -101,9 +101,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false);
     const [resultsIsOpen, setResultsIsOpen] = useState<boolean>(true);
     const [sqlIsOpen, setSqlIsOpen] = useState<boolean>(false);
-    const [vizIsOpen, setVizisOpen] = useState<boolean>(
-        !!savedQueryUuid && location.state?.fromExplorer !== undefined,
-    );
+    const [vizIsOpen, setVizisOpen] = useState<boolean>(!!savedQueryUuid);
     const totalActiveFilters: number = countTotalFilterRules(filters);
     const [activeVizTab, setActiveVizTab] = useState<ChartType>(
         ChartType.CARTESIAN,
@@ -332,7 +330,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     pivotDimensions={data?.pivotConfig?.columns}
                     tableName={tableName}
                     resultsData={queryResults.data}
-                    isLoading={queryResults.isLoading}
+                    isLoading={queryResults.isLoading || isLoading}
                     onChartConfigChange={setValidChartConfig}
                     onBigNumberLabelChange={setValidChartConfig}
                     onChartTypeChange={setActiveVizTab}
