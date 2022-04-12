@@ -43,4 +43,6 @@ When you're happy with the layout, hit save.
 
 ![click save chart](./assets/click_save_chart.png)
 
-You can share your dashboard with anybody in your Lightdash organisation by copying the URL.
+You can share your dashboard with anybody in your Lightdash organisation by copying the URL. You can also see all of the saved dashboards in your project by clicking on `Browse` --> `Dashboards`.
+
+![browse dashboards](./assets/browse-dashboards.png)

@@ -129,16 +129,18 @@ version: 2
 models:
   - name: my_model
     columns:
-      - name: user_id
-        description: 'Unique identifier for a user."
+      - name: revenue
+        description: "Total estimated revenue in GBP based on forecasting done by the finance team."
         meta:
           metrics:
-            count_unique_user_id:
-              label: 'total user IDs'
-              type: count_distinct
-              description: "Count the unique number of user IDs"
-              sql: "IF(${user_id} = 'katie@lightdash.com', NULL, ${user_id})"
+            total_revenue:
+              label: 'Total revenue GBP'
+              type: SUM
+              description: "Total revenue in GBP"
+              sql: "IF(${revenue} IS NULL, 10, ${revenue})"
               hidden: false
+              round: 0
+              format: 'gbp'
 ```
 
 Here are all of the properties you can customize:

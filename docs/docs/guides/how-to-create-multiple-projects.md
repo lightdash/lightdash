@@ -39,3 +39,8 @@ Don't need a project anymore? That's okay - you can easily delete a project in t
 Only users with admin permissions can delete projects.
 
 :::
+
+## Things worth mentioning about multiple projects
+
+- All of the users in your organization can access all of the projects in your organization.
+- You can use multiple projects to configure a Lightdash development project. [Check out the tutorial on this here.](https://www.loom.com/share/4a89662373d949dabe36138072371533)

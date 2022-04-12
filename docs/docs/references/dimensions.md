@@ -36,14 +36,16 @@ version: 2
 models:
   - name: my_model
     columns:
-      - name: registered_user_email
-        description: 'Email address of a registered user."
+      - name: revenue_gbp_total_est
+        description: "Total estimated revenue in GBP based on forecasting done by the finance team."
         meta:
           dimension:
-            label: 'email' # this is the label you'll see in Lightdash
+            label: 'Total revenue' # this is the label you'll see in Lightdash
             description: 'My custom description'
-            sql: "IF(${registered_user_email} = 'katie@lightdash.com', NULL, ${registered_user_email})"
-            hidden: true
+            sql: "IF(${revenue_gbp_total_est} = NULL, 0, ${registered_user_email})"
+            hidden: false
+            round: 2
+            format: 'gbp'
 ```
 
 All the properties you can customize:
