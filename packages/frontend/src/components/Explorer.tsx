@@ -2,7 +2,9 @@ import {
     Button,
     ButtonGroup,
     Card,
+    Classes,
     Collapse,
+    Dialog,
     H5,
     Menu,
     MenuItem,
@@ -14,21 +16,22 @@ import {
     ChartType,
     countTotalFilterRules,
     CreateSavedChartVersion,
-    DashboardTileTypes,
+    DashboardBasicDetails,
     DimensionType,
     fieldId,
-    getDefaultChartTileSize,
     getResultValues,
     getVisibleFields,
     isFilterableField,
+    SavedChart,
 } from 'common';
-import React, { FC, useEffect, useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
-import { v4 as uuid4 } from 'uuid';
+import { FC, useEffect, useState } from 'react';
+import { Link, useHistory, useLocation, useParams } from 'react-router-dom';
+import { getDashboards } from '../hooks/dashboard/useDashboards';
 import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
 import {
     useAddVersionMutation,
+    useDeleteMutation,
     useSavedQuery,
     useUpdateMutation,
 } from '../hooks/useSavedQuery';
@@ -36,6 +39,7 @@ import { useExplorer } from '../providers/ExplorerProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import AddColumnButton from './AddColumnButton';
+import BigNumberConfigPanel from './BigNumberConfig';
 import ChartConfigPanel from './ChartConfigPanel';
 import { ChartDownloadMenu } from './ChartDownload';
 import { BigButton } from './common/BigButton';
@@ -55,10 +59,7 @@ import { RefreshButton } from './RefreshButton';
 import { RefreshServerButton } from './RefreshServerButton';
 import { RenderedSql } from './RenderedSql';
 import AddTilesToDashboardModal from './SavedDashboards/AddTilesToDashboardModal';
-import CreateSavedDashboardModal from './SavedDashboards/CreateSavedDashboardModal';
-import DashboardForm from './SavedDashboards/DashboardForm';
 import CreateSavedQueryModal from './SavedQueries/CreateSavedQueryModal';
-import SavedQueryForm from './SavedQueries/SavedQueryForm';
 
 interface Props {
     savedQueryUuid?: string;
@@ -67,10 +68,9 @@ interface Props {
 export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const updateSavedChart = useUpdateMutation(savedQueryUuid);
+    const { mutate: deleteData, isLoading: isDeleting } = useDeleteMutation();
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
-        useState<boolean>(false);
-    const [isAddToNewDashboardModalOpen, setIsAddToNewDashboardModalOpen] =
         useState<boolean>(false);
     const location = useLocation<{ fromExplorer?: boolean } | undefined>();
     const {
@@ -95,7 +95,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         useState<ChartConfig['config']>();
 
     const update = useAddVersionMutation();
-
+    const history = useHistory();
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false);
     const [resultsIsOpen, setResultsIsOpen] = useState<boolean>(true);
     const [sqlIsOpen, setSqlIsOpen] = useState<boolean>(false);
@@ -106,15 +106,28 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [activeVizTab, setActiveVizTab] = useState<ChartType>(
         ChartType.CARTESIAN,
     );
+
     const [pivotDimensions, setPivotDimensions] = useState<string[]>();
+
+    const validConfig = () => {
+        switch (activeVizTab) {
+            case ChartType.TABLE:
+                return undefined;
+            case ChartType.BIG_NUMBER:
+                return validChartConfig;
+            default:
+                return validChartConfig || { series: [] };
+        }
+    };
     const queryData: CreateSavedChartVersion | undefined = tableName
         ? ({
               tableName,
               metricQuery: {
+                  // order of fields is important for the hasUnsavedChanges method
                   dimensions,
                   metrics,
-                  sorts,
                   filters,
+                  sorts,
                   limit,
                   tableCalculations: tableCalculations.filter((t) =>
                       selectedTableCalculations.includes(t.name),
@@ -125,17 +138,18 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                   : undefined,
               chartConfig: {
                   type: activeVizTab,
-                  config: [ChartType.TABLE, ChartType.BIG_NUMBER].includes(
-                      activeVizTab,
-                  )
-                      ? undefined
-                      : validChartConfig || { series: [] },
+                  config: validConfig(),
               },
               tableConfig: {
                   columnOrder,
               },
           } as CreateSavedChartVersion)
         : undefined;
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
+        useState<boolean>(false);
+    const [relatedDashboards, setRelatedDashboards] = useState<
+        DashboardBasicDetails[]
+    >([]);
 
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
@@ -197,6 +211,22 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         }
     }, [data]);
 
+    const hasUnsavedChanges = (): boolean => {
+        const filterData = (
+            d: SavedChart | CreateSavedChartVersion | undefined,
+        ) => {
+            return {
+                chartConfig: d?.chartConfig,
+                metricQuery: d?.metricQuery,
+                tableConfig: d?.tableConfig,
+            };
+        };
+
+        return (
+            JSON.stringify(filterData(data)) ===
+            JSON.stringify(filterData(queryData))
+        );
+    };
     return (
         <>
             <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
@@ -289,13 +319,14 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
 
             <Card style={{ padding: 5, overflowY: 'scroll' }} elevation={1}>
                 <VisualizationProvider
-                    chartConfigs={data?.chartConfig.config}
+                    chartConfigs={data?.chartConfig}
                     chartType={activeVizTab}
                     pivotDimensions={data?.pivotConfig?.columns}
                     tableName={tableName}
                     resultsData={queryResults.data}
                     isLoading={queryResults.isLoading}
                     onChartConfigChange={setValidChartConfig}
+                    onBigNumberLabelChange={setValidChartConfig}
                     onChartTypeChange={setActiveVizTab}
                     onPivotDimensionsChange={setPivotDimensions}
                 >
@@ -332,12 +363,22 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                 }}
                             >
                                 <VisualizationCardOptions />
-                                <ChartConfigPanel />
+                                {activeVizTab === ChartType.BIG_NUMBER ? (
+                                    <BigNumberConfigPanel />
+                                ) : (
+                                    <ChartConfigPanel />
+                                )}
                                 <ChartDownloadMenu />
                                 <ButtonGroup>
                                     <Button
-                                        text="Save chart"
-                                        disabled={!tableName}
+                                        text={
+                                            savedQueryUuid
+                                                ? 'Save changes'
+                                                : 'Save chart'
+                                        }
+                                        disabled={
+                                            !tableName || hasUnsavedChanges()
+                                        }
                                         onClick={
                                             savedQueryUuid
                                                 ? handleSavedQueryUpdate
@@ -361,22 +402,37 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                                         }
                                                     />
                                                     <MenuItem
-                                                        icon="circle-arrow-right"
-                                                        text="Add chart to an existing dashboard"
+                                                        icon="control"
+                                                        text="Add to dashboard"
                                                         onClick={() =>
                                                             setIsAddToDashboardModalOpen(
                                                                 true,
                                                             )
                                                         }
                                                     />
+
                                                     <MenuItem
-                                                        icon="control"
-                                                        text="Create dashboard with chart"
-                                                        onClick={() =>
-                                                            setIsAddToNewDashboardModalOpen(
-                                                                true,
-                                                            )
-                                                        }
+                                                        icon="delete"
+                                                        text="Delete chart"
+                                                        intent="danger"
+                                                        onClick={() => {
+                                                            getDashboards(
+                                                                projectUuid,
+                                                                savedQueryUuid,
+                                                            ).then(
+                                                                (
+                                                                    dashboards,
+                                                                ) => {
+                                                                    setRelatedDashboards(
+                                                                        dashboards,
+                                                                    );
+
+                                                                    setIsDeleteDialogOpen(
+                                                                        true,
+                                                                    );
+                                                                },
+                                                            );
+                                                        }}
                                                     />
                                                 </Menu>
                                             }
@@ -488,33 +544,94 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     isOpen={isQueryModalOpen}
                     savedData={queryData}
                     onClose={() => setIsQueryModalOpen(false)}
-                    ModalContent={SavedQueryForm}
                 />
             )}
+
             {data && (
-                <CreateSavedDashboardModal
-                    isOpen={isAddToNewDashboardModalOpen}
-                    tiles={[
-                        {
-                            uuid: uuid4(),
-                            type: DashboardTileTypes.SAVED_CHART,
-                            properties: {
-                                savedChartUuid: data.uuid,
-                            },
-                            ...getDefaultChartTileSize(activeVizTab),
-                        },
-                    ]}
-                    showRedirectButton
-                    onClose={() => setIsAddToNewDashboardModalOpen(false)}
-                    ModalContent={DashboardForm}
-                />
-            )}
-            {data && isAddToDashboardModalOpen && (
                 <AddTilesToDashboardModal
+                    isOpen={isAddToDashboardModalOpen}
                     savedChart={data}
                     onClose={() => setIsAddToDashboardModalOpen(false)}
                 />
             )}
+            <Dialog
+                isOpen={isDeleteDialogOpen}
+                icon="delete"
+                onClose={() =>
+                    !isDeleting ? setIsDeleteDialogOpen(false) : undefined
+                }
+                title={'Delete chart'}
+            >
+                <div className={Classes.DIALOG_BODY}>
+                    <p>
+                        Are you sure you want to delete the chart{' '}
+                        <b>"{chartName}"</b> ?
+                    </p>
+
+                    {relatedDashboards && relatedDashboards.length > 0 && (
+                        <>
+                            <b>
+                                This action will remove a chart tile from{' '}
+                                {relatedDashboards.length} dashboard
+                                {relatedDashboards.length > 1 ? 's' : ''}:
+                            </b>
+                            <ul>
+                                {relatedDashboards.map((dashboard) => {
+                                    return (
+                                        <li>
+                                            <Link
+                                                target="_blank"
+                                                to={`/projects/${projectUuid}/dashboards/${dashboard.uuid}`}
+                                            >
+                                                {dashboard.name}
+                                            </Link>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </>
+                    )}
+                </div>
+                <div className={Classes.DIALOG_FOOTER}>
+                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+                        <Button
+                            disabled={isDeleting}
+                            onClick={() => setIsDeleteDialogOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={isDeleting}
+                            intent="danger"
+                            onClick={() => {
+                                /*
+                                Check the location of `goBack` after deleting a chart
+                                if we land on an unsaved chart, 
+                                we go back further into an empty explore
+                                */
+                                history.listen((loc, action) => {
+                                    if (action === 'POP') {
+                                        if (loc.pathname.includes('/tables/')) {
+                                            history.push(
+                                                `/projects/${projectUuid}/tables`,
+                                            );
+                                        }
+                                    }
+                                });
+
+                                if (savedQueryUuid) {
+                                    deleteData(savedQueryUuid);
+                                    history.goBack();
+                                }
+
+                                setIsDeleteDialogOpen(false);
+                            }}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                </div>
+            </Dialog>
         </>
     );
 };

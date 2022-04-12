@@ -1,3 +1,165 @@
+# [0.59.0](https://github.com/lightdash/lightdash/compare/0.58.1...0.59.0) (2022-04-11)
+
+
+### Features
+
+* add-new-chart-to-dashboard ([#1729](https://github.com/lightdash/lightdash/issues/1729)) ([5bf0ec4](https://github.com/lightdash/lightdash/commit/5bf0ec451f7d008b3d07664dde720611caac8775))
+
+## [0.58.1](https://github.com/lightdash/lightdash/compare/0.58.0...0.58.1) (2022-04-11)
+
+
+### Bug Fixes
+
+* fix save changes disabled button for bigint and tables ([#1711](https://github.com/lightdash/lightdash/issues/1711)) ([6c88f6f](https://github.com/lightdash/lightdash/commit/6c88f6f6ebcb354ddf9fb6c69f2b85cab9e715a7))
+
+# [0.58.0](https://github.com/lightdash/lightdash/compare/0.57.2...0.58.0) (2022-04-11)
+
+
+### Features
+
+* duplicate chart endpoint ([#1720](https://github.com/lightdash/lightdash/issues/1720)) ([9f7ec18](https://github.com/lightdash/lightdash/commit/9f7ec18292150ac9feb80a42f98eee3a51ce25e7))
+
+## [0.57.2](https://github.com/lightdash/lightdash/compare/0.57.1...0.57.2) (2022-04-11)
+
+
+### Bug Fixes
+
+* fix dashboard crash filter ([#1733](https://github.com/lightdash/lightdash/issues/1733)) ([3d87ddf](https://github.com/lightdash/lightdash/commit/3d87ddf6c9ed39094c37f34eb5bd52dd9a30f3c0))
+
+## [0.57.1](https://github.com/lightdash/lightdash/compare/0.57.0...0.57.1) (2022-04-08)
+
+
+### Bug Fixes
+
+* replace history on enter dashboard edit mode ([#1723](https://github.com/lightdash/lightdash/issues/1723)) ([7e92bba](https://github.com/lightdash/lightdash/commit/7e92bba633652ea84355c75524cfbafe6144064b))
+
+# [0.57.0](https://github.com/lightdash/lightdash/compare/0.56.0...0.57.0) (2022-04-08)
+
+
+### Features
+
+* add chart config to update big number label ([#1648](https://github.com/lightdash/lightdash/issues/1648)) ([cb06d13](https://github.com/lightdash/lightdash/commit/cb06d134e7462eda990ea0da2234457ff2b37f4d))
+* link to dashboard on remove popup ([#1713](https://github.com/lightdash/lightdash/issues/1713)) ([889f317](https://github.com/lightdash/lightdash/commit/889f317ecbbcc2359b15f7d24eca44e27067ff61))
+
+# [0.56.0](https://github.com/lightdash/lightdash/compare/0.55.1...0.56.0) (2022-04-08)
+
+
+### Features
+
+* warn leaving dashboards ([#1700](https://github.com/lightdash/lightdash/issues/1700)) ([0cb35bd](https://github.com/lightdash/lightdash/commit/0cb35bd093f826292f21bc2d872632db34bb02eb))
+
+## [0.55.1](https://github.com/lightdash/lightdash/compare/0.55.0...0.55.1) (2022-04-08)
+
+
+### Bug Fixes
+
+* make sql autocomplete box wider ([#1718](https://github.com/lightdash/lightdash/issues/1718)) ([4999fcb](https://github.com/lightdash/lightdash/commit/4999fcbe83e2810ef780d669a26852164a5699a2))
+
+# [0.55.0](https://github.com/lightdash/lightdash/compare/0.54.2...0.55.0) (2022-04-08)
+
+
+### Features
+
+* add eur to formatter ([#1714](https://github.com/lightdash/lightdash/issues/1714)) ([f565ff5](https://github.com/lightdash/lightdash/commit/f565ff50e696422d5e53f330b3f93ad540784655))
+
+## [0.54.2](https://github.com/lightdash/lightdash/compare/0.54.1...0.54.2) (2022-04-07)
+
+
+### Bug Fixes
+
+* allow saving changes when filters or table config happens ([#1704](https://github.com/lightdash/lightdash/issues/1704)) ([1ab4d52](https://github.com/lightdash/lightdash/commit/1ab4d522d47503af99b68a2e2aa08e712f28e964))
+
+## [0.54.1](https://github.com/lightdash/lightdash/compare/0.54.0...0.54.1) (2022-04-07)
+
+
+### Bug Fixes
+
+* fix format on echarts with pivot ([#1702](https://github.com/lightdash/lightdash/issues/1702)) ([2554b1a](https://github.com/lightdash/lightdash/commit/2554b1af25bb2c64bb6e708655bc1118edb1e211))
+
+# [0.54.0](https://github.com/lightdash/lightdash/compare/0.53.0...0.54.0) (2022-04-07)
+
+
+### Features
+
+* add project uuid to analytics events ([#1683](https://github.com/lightdash/lightdash/issues/1683)) ([89b0d84](https://github.com/lightdash/lightdash/commit/89b0d846ca49679559728b7dce41441581f4fe84))
+
+# [0.53.0](https://github.com/lightdash/lightdash/compare/0.52.0...0.53.0) (2022-04-07)
+
+
+### Features
+
+* confirm user wants to delete chart with linked dashboards ([#1691](https://github.com/lightdash/lightdash/issues/1691)) ([455c5dc](https://github.com/lightdash/lightdash/commit/455c5dc2af377385c708aee1b693e83ea30ee366))
+
+# [0.52.0](https://github.com/lightdash/lightdash/compare/0.51.1...0.52.0) (2022-04-07)
+
+
+### Features
+
+* analytics event for updating the default chart colours ([#1697](https://github.com/lightdash/lightdash/issues/1697)) ([c3ff0d6](https://github.com/lightdash/lightdash/commit/c3ff0d6c646402055c46cfdd6ccbf2f7cb3bd441))
+
+## [0.51.1](https://github.com/lightdash/lightdash/compare/0.51.0...0.51.1) (2022-04-06)
+
+
+### Bug Fixes
+
+* support multiple projects during onboarding ([#1692](https://github.com/lightdash/lightdash/issues/1692)) ([b1c658d](https://github.com/lightdash/lightdash/commit/b1c658d43d2db06639997f45a38f336ca338a069))
+
+# [0.51.0](https://github.com/lightdash/lightdash/compare/0.50.0...0.51.0) (2022-04-06)
+
+
+### Features
+
+* delete charts on explore ([#1686](https://github.com/lightdash/lightdash/issues/1686)) ([d763436](https://github.com/lightdash/lightdash/commit/d763436a4170daa9ed4ca66f611972eab8200300))
+
+# [0.50.0](https://github.com/lightdash/lightdash/compare/0.49.1...0.50.0) (2022-04-05)
+
+
+### Features
+
+* formatted labels on charts ([#1666](https://github.com/lightdash/lightdash/issues/1666)) ([d9946f7](https://github.com/lightdash/lightdash/commit/d9946f7509f2023ffed431bf8916ae600385727e))
+
+## [0.49.1](https://github.com/lightdash/lightdash/compare/0.49.0...0.49.1) (2022-04-05)
+
+
+### Bug Fixes
+
+* dashboard cross filtering cause an error ([#1647](https://github.com/lightdash/lightdash/issues/1647)) ([5910041](https://github.com/lightdash/lightdash/commit/5910041a92874fd5173bcc89c3211d5564a66979))
+
+# [0.49.0](https://github.com/lightdash/lightdash/compare/0.48.0...0.49.0) (2022-04-05)
+
+
+### Features
+
+* add hide series on chart config ([#1681](https://github.com/lightdash/lightdash/issues/1681)) ([e4ab8ee](https://github.com/lightdash/lightdash/commit/e4ab8ee95fb5eda9db5413b84b85f1e8005b0878))
+
+# [0.48.0](https://github.com/lightdash/lightdash/compare/0.47.1...0.48.0) (2022-04-05)
+
+
+### Features
+
+* save changes button on charts + disabled button ([#1682](https://github.com/lightdash/lightdash/issues/1682)) ([9c29567](https://github.com/lightdash/lightdash/commit/9c295671d6aad8c86678740bff6e48b3be1691da))
+
+## [0.47.1](https://github.com/lightdash/lightdash/compare/0.47.0...0.47.1) (2022-04-04)
+
+
+### Bug Fixes
+
+* automatically collapse series UI when expanding another ([#1656](https://github.com/lightdash/lightdash/issues/1656)) ([d1b4783](https://github.com/lightdash/lightdash/commit/d1b4783560484d5f5ef5eec1ca03042d20722cb6))
+
+# [0.47.0](https://github.com/lightdash/lightdash/compare/0.46.6...0.47.0) (2022-04-04)
+
+
+### Features
+
+* add analytics for formatted fields ([#1645](https://github.com/lightdash/lightdash/issues/1645)) ([bbcd0ba](https://github.com/lightdash/lightdash/commit/bbcd0ba6c368fda0a4518c53bb270d3dba5a6a2b))
+
+## [0.46.6](https://github.com/lightdash/lightdash/compare/0.46.5...0.46.6) (2022-04-04)
+
+
+### Bug Fixes
+
+* use echart color config ([#1639](https://github.com/lightdash/lightdash/issues/1639)) ([1869e47](https://github.com/lightdash/lightdash/commit/1869e47e194527fa5982d390cdc266df9277d2f7))
+
 ## [0.46.5](https://github.com/lightdash/lightdash/compare/0.46.4...0.46.5) (2022-04-01)
 
 

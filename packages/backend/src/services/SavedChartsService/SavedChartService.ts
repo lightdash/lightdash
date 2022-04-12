@@ -9,7 +9,7 @@ import {
 } from 'common';
 import { analytics } from '../../analytics/client';
 import { CreateSavedChartOrVersionEvent } from '../../analytics/LightdashAnalytics';
-import { ForbiddenError, NotExistsError } from '../../errors';
+import { ForbiddenError } from '../../errors';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 
@@ -32,6 +32,7 @@ export class SavedChartService {
         savedChart: SavedChart,
     ): CreateSavedChartOrVersionEvent['properties'] {
         return {
+            projectId: savedChart.projectUuid,
             savedQueryId: savedChart.uuid,
             dimensionsCount: savedChart.metricQuery.dimensions.length,
             metricsCount: savedChart.metricQuery.metrics.length,
@@ -80,7 +81,6 @@ export class SavedChartService {
         analytics.track({
             event: 'saved_chart_version.created',
             userId: user.userUuid,
-            organizationId: user.organizationUuid,
             properties: SavedChartService.getCreateEventProperties(savedChart),
         });
         return savedChart;
@@ -101,8 +101,8 @@ export class SavedChartService {
         analytics.track({
             event: 'saved_chart.updated',
             userId: user.userUuid,
-            organizationId: user.organizationUuid,
             properties: {
+                projectId: savedChart.projectUuid,
                 savedQueryId: savedChartUuid,
             },
         });
@@ -113,13 +113,13 @@ export class SavedChartService {
         if (user.ability.cannot('delete', 'SavedChart')) {
             throw new ForbiddenError();
         }
-        await this.savedChartModel.delete(savedChartUuid);
+        const deletedChart = await this.savedChartModel.delete(savedChartUuid);
         analytics.track({
             event: 'saved_chart.deleted',
             userId: user.userUuid,
-            organizationId: user.organizationUuid,
             properties: {
-                savedQueryId: savedChartUuid,
+                savedQueryId: deletedChart.uuid,
+                projectId: deletedChart.projectUuid,
             },
         });
     }
@@ -142,8 +142,6 @@ export class SavedChartService {
         );
         analytics.track({
             event: 'saved_chart.created',
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
             userId: user.userUuid,
             properties:
                 SavedChartService.getCreateEventProperties(newSavedChart),
@@ -151,18 +149,44 @@ export class SavedChartService {
         return newSavedChart;
     }
 
-    async hasSavedCharts(user: SessionUser): Promise<boolean> {
-        const { organizationUuid } = user;
-        if (organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
+    async duplicate(
+        user: SessionUser,
+        projectUuid: string,
+        chartUuid: string,
+    ): Promise<SavedChart> {
+        if (user.ability.cannot('create', 'SavedChart')) {
+            throw new ForbiddenError();
         }
-        const project = await this.projectModel.getDefaultProject(
-            organizationUuid,
+        const chart = await this.savedChartModel.get(chartUuid);
+        const duplicatedChart = {
+            ...chart,
+            name: `Copy of ${chart.name}`,
+        };
+        const newSavedChart = await this.savedChartModel.create(
+            projectUuid,
+            duplicatedChart,
         );
-        const spaces = await this.savedChartModel.getAllSpaces(
-            project.projectUuid,
-        );
+        const newSavedChartProperties =
+            SavedChartService.getCreateEventProperties(newSavedChart);
 
-        return spaces.some((space) => space.queries.length > 0);
+        analytics.track({
+            event: 'saved_chart.created',
+            userId: user.userUuid,
+            properties: {
+                ...newSavedChartProperties,
+                duplicated: true,
+            },
+        });
+
+        analytics.track({
+            event: 'duplicated_chart_created',
+            userId: user.userUuid,
+            properties: {
+                ...newSavedChartProperties,
+                newSavedQueryId: newSavedChartProperties.savedQueryId,
+                duplicateOfSavedQueryId: chartUuid,
+            },
+        });
+        return newSavedChart;
     }
 }

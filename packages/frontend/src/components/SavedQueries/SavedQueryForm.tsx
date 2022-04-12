@@ -15,8 +15,9 @@ const SavedQueryForm = ({
         <>
             {actionType === ActionTypeModal.UPDATE && (
                 <Input
-                    label="Name"
+                    label="Enter a memorable name for your chart"
                     name="name"
+                    placeholder="eg. How many weekly active users do we have?"
                     disabled={isDisabled}
                     rules={{ required: true }}
                     defaultValue={data?.name}

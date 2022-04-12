@@ -73,7 +73,6 @@ export class OrganizationService {
         analytics.track({
             userId: userUuid,
             event: 'organization.updated',
-            organizationId: organizationUuid,
             properties: {
                 type:
                     lightdashConfig.mode === LightdashMode.CLOUD_BETA
@@ -81,15 +80,9 @@ export class OrganizationService {
                         : 'self-hosted',
                 organizationId: organizationUuid,
                 organizationName: org.name,
+                defaultColourPaletteUpdated: data.chartColors !== undefined,
             },
         });
-    }
-
-    async hasInvitedUser(user: SessionUser): Promise<boolean> {
-        return (
-            (await this.inviteLinkModel.hasActiveInvites()) ||
-            (await this.getUsers(user)).length > 1
-        );
     }
 
     async getUsers(user: SessionUser): Promise<OrganizationMemberProfile[]> {

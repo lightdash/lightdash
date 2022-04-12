@@ -53,9 +53,12 @@ export const getChartAvailableFilters = async (savedChartUuid: string) =>
 
 export const useAvailableDashboardFilterTargets = (
     dashboard: Dashboard | undefined,
+    availableTiles: Dashboard['tiles'],
 ): { isLoading: boolean; data: FilterableField[] } => {
+    const availableTilesToFilter =
+        dashboard?.tiles.length != 0 ? dashboard?.tiles : availableTiles;
     const queries = useMemo(() => {
-        const savedChartUuids = (dashboard?.tiles || [])
+        const savedChartUuids = (availableTilesToFilter || [])
             .map((tile) =>
                 tile.type === DashboardTileTypes.SAVED_CHART
                     ? tile.properties.savedChartUuid

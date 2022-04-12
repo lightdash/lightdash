@@ -7,7 +7,9 @@ import {
     Explore,
     ExploreError,
     FilterableField,
+    formatRows,
     getDimensions,
+    getFields,
     getMetrics,
     hasIntersection,
     isExploreError,
@@ -29,7 +31,7 @@ import {
     MissingWarehouseCredentialsError,
     NotExistsError,
 } from '../../errors';
-import { formatRows } from '../../formatter';
+import Logger from '../../logger';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -115,12 +117,13 @@ export class ProjectService {
         analytics.track({
             event: 'project.created',
             userId: user.userUuid,
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
             properties: {
+                projectName: data.name,
                 projectId: projectUuid,
                 projectType: data.dbtConnection.type,
                 warehouseConnectionType: data.warehouseConnection.type,
+                organizationId: user.organizationUuid,
+                dbtConnectionType: data.dbtConnection.type,
             },
         });
         this.projectLoading[projectUuid] = false;
@@ -154,13 +157,14 @@ export class ProjectService {
         analytics.track({
             event: 'project.updated',
             userId: user.userUuid,
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
             properties: {
+                projectName: updatedProject.name,
                 projectId: projectUuid,
                 projectType: updatedProject.dbtConnection.type,
                 warehouseConnectionType:
                     updatedProject.warehouseConnection.type,
+                organizationId: user.organizationUuid,
+                dbtConnectionType: data.dbtConnection.type,
             },
         });
         this.projectLoading[projectUuid] = false;
@@ -195,8 +199,6 @@ export class ProjectService {
         analytics.track({
             event: 'project.deleted',
             userId: user.userUuid,
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
             properties: {
                 projectId: projectUuid,
             },
@@ -276,11 +278,10 @@ export class ProjectService {
         }
 
         await analytics.track({
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
             userId: user.userUuid,
             event: 'query.executed',
             properties: {
+                projectId: projectUuid,
                 hasExampleMetric,
                 dimensionsCount: metricQuery.dimensions.length,
                 metricsCount: metricQuery.metrics.length,
@@ -307,10 +308,11 @@ export class ProjectService {
         sql: string,
     ): Promise<ApiSqlQueryResults> {
         await analytics.track({
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
             userId: user.userUuid,
             event: 'sql.executed',
+            properties: {
+                projectId: projectUuid,
+            },
         });
         const adapter = await this.getAdapter(projectUuid);
         const rows = await adapter.runQuery(sql);
@@ -336,9 +338,8 @@ export class ProjectService {
             analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,
-                organizationId: user.organizationUuid,
-                projectId: projectUuid,
                 properties: {
+                    projectId: projectUuid,
                     projectType: project.dbtConnection.type,
                     warehouseType: project.warehouseConnection?.type,
                     modelsCount: explores.length,
@@ -372,6 +373,37 @@ export class ProjectService {
                         }
                         return acc;
                     }, 0),
+                    formattedFieldsCount: explores.reduce<number>(
+                        (acc, explore) => {
+                            try {
+                                if (!isExploreError(explore)) {
+                                    const filteredExplore = {
+                                        ...explore,
+                                        tables: {
+                                            [explore.baseTable]:
+                                                explore.tables[
+                                                    explore.baseTable
+                                                ],
+                                        },
+                                    };
+
+                                    return (
+                                        acc +
+                                        getFields(filteredExplore).filter(
+                                            ({ format }) =>
+                                                format !== undefined,
+                                        ).length
+                                    );
+                                }
+                            } catch (e) {
+                                Logger.error(
+                                    `Unable to reduce formattedFieldsCount. ${e}`,
+                                );
+                            }
+                            return acc;
+                        },
+                        0,
+                    ),
                 },
             });
             return explores;
@@ -380,9 +412,8 @@ export class ProjectService {
             analytics.track({
                 event: 'project.error',
                 userId: user.userUuid,
-                projectId: projectUuid,
-                organizationId: user.organizationUuid,
                 properties: {
+                    projectId: projectUuid,
                     name: errorResponse.name,
                     statusCode: errorResponse.statusCode,
                     projectType: project.dbtConnection.type,
@@ -392,41 +423,6 @@ export class ProjectService {
         } finally {
             this.projectLoading[projectUuid] = false;
         }
-    }
-
-    async hasMetrics(user: SessionUser): Promise<boolean> {
-        const { organizationUuid } = user;
-        if (organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
-        }
-        const project = await this.projectModel.getDefaultProject(
-            organizationUuid,
-        );
-        const explores = await this.getAllExplores(user, project.projectUuid);
-        return explores.some((explore) => {
-            if (!isExploreError(explore)) {
-                return (
-                    getMetrics(explore).filter(
-                        ({ isAutoGenerated }) => !isAutoGenerated,
-                    ).length > 0
-                );
-            }
-            return false;
-        });
-    }
-
-    async hasSavedCharts(user: SessionUser): Promise<boolean> {
-        const { organizationUuid } = user;
-        if (organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
-        }
-        const project = await this.projectModel.getDefaultProject(
-            organizationUuid,
-        );
-        const spaces = await this.savedChartModel.getAllSpaces(
-            project.projectUuid,
-        );
-        return spaces.some((space) => space.queries.length > 0);
     }
 
     async getAllExplores(
@@ -540,8 +536,6 @@ export class ProjectService {
         analytics.track({
             event: 'project_tables_configuration.updated',
             userId: user.userUuid,
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
             properties: {
                 projectId: projectUuid,
                 project_table_selection_type: data.tableSelection.type,
@@ -567,5 +561,17 @@ export class ProjectService {
         return getDimensions(explore).filter(
             (field) => isFilterableDimension(field) && !field.hidden,
         );
+    }
+
+    async hasSavedCharts(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const ability = defineAbilityForOrganizationMember(user);
+        if (ability.cannot('view', 'Project')) {
+            throw new AuthorizationError();
+        }
+        const spaces = await this.savedChartModel.getAllSpaces(projectUuid);
+        return spaces.some((space) => space.queries.length > 0);
     }
 }

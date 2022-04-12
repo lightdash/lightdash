@@ -1,3 +1,4 @@
+import { Intent } from '@blueprintjs/core';
 import { ApiError } from 'common';
 import React, { useEffect, useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
@@ -13,6 +14,9 @@ type CreateActionModalProps<T> = {
     setFormValues?: (data: any, methods: UseFormReturn<any, object>) => void;
     savedData?: any;
     onClose?: () => void;
+    title?: string;
+    confirmButtonLabel?: string;
+    confirmButtonIntent?: Intent;
 };
 
 const CreateActionModal = <T extends { uuid: string; name: string }>(
@@ -31,6 +35,9 @@ const CreateActionModal = <T extends { uuid: string; name: string }>(
         isOpen,
         onClose,
         ModalContent,
+        title,
+        confirmButtonLabel,
+        confirmButtonIntent,
     } = props;
     const { status, mutate, isLoading: isCreating, reset } = useCreate;
 
@@ -52,8 +59,8 @@ const CreateActionModal = <T extends { uuid: string; name: string }>(
 
     return (
         <ActionModal
-            title="Create"
-            confirmButtonLabel="Create"
+            title={title || 'Create'}
+            confirmButtonLabel={confirmButtonLabel || 'Create'}
             useActionModalState={[actionState, setActionState]}
             isDisabled={isCreating}
             onSubmitForm={onSubmitForm}
@@ -61,6 +68,7 @@ const CreateActionModal = <T extends { uuid: string; name: string }>(
             completedMutation={status === 'success'}
             ModalContent={ModalContent}
             onClose={onClose}
+            confirmButtonIntent={confirmButtonIntent}
         />
     );
 };

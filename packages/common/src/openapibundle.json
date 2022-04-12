@@ -735,6 +735,15 @@
                             "format": "uuid"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "chartUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": false
                     }
                 ],
                 "responses": {
@@ -884,6 +893,15 @@
                             "format": "uuid"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "duplicateFrom",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": false
                     }
                 ],
                 "requestBody": {

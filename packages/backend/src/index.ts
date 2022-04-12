@@ -174,7 +174,6 @@ app.use((error: Error, req: Request, res: Response, _: NextFunction) => {
     );
     analytics.track({
         event: 'api.error',
-        organizationId: req.user?.organizationUuid,
         userId: req.user?.userUuid,
         anonymousId: !req.user?.userUuid
             ? LightdashAnalytics.anonymousId

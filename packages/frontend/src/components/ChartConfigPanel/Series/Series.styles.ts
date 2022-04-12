@@ -89,7 +89,7 @@ export const SeriesMainInputs = styled.div<{ $isGrouped?: boolean }>`
     ${({ $isGrouped }) =>
         $isGrouped &&
         `
-        grid-template-columns: 2.143em auto 2.143em;
+        grid-template-columns: 2.143em 12.5em 2.143em 2.14em;
         column-gap: 0.357em;
   `}
 `;

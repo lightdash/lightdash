@@ -242,10 +242,12 @@ export class SavedChartModel {
         return this.get(savedChartUuid);
     }
 
-    async delete(savedChartUuid: string): Promise<void> {
+    async delete(savedChartUuid: string): Promise<SavedChart> {
+        const savedChart = await this.get(savedChartUuid);
         await this.database('saved_queries')
             .delete()
             .where('saved_query_uuid', savedChartUuid);
+        return savedChart;
     }
 
     async get(savedChartUuid: string): Promise<SavedChart> {

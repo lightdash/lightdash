@@ -184,15 +184,31 @@ projectRouter.post(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        savedChartsService
-            .create(req.user!, req.params.projectUuid, req.body)
-            .then((results) => {
-                res.json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next);
+        if (req.params.duplicateFrom) {
+            savedChartsService
+                .duplicate(
+                    req.user!,
+                    req.params.projectUuid,
+                    req.params.duplicateFrom,
+                )
+                .then((results) => {
+                    res.json({
+                        status: 'ok',
+                        results,
+                    });
+                })
+                .catch(next);
+        } else {
+            savedChartsService
+                .create(req.user!, req.params.projectUuid, req.body)
+                .then((results) => {
+                    res.json({
+                        status: 'ok',
+                        results,
+                    });
+                })
+                .catch(next);
+        }
     },
 );
 
@@ -209,8 +225,12 @@ projectRouter.get('/spaces', isAuthenticated, async (req, res, next) => {
 });
 
 projectRouter.get('/dashboards', isAuthenticated, async (req, res, next) => {
+    const chartUuid: string | undefined =
+        typeof req.query.chartUuid === 'string'
+            ? req.query.chartUuid.toString()
+            : undefined;
     dashboardService
-        .getAllByProject(req.user!, req.params.projectUuid)
+        .getAllByProject(req.user!, req.params.projectUuid, chartUuid)
         .then((results) => {
             res.json({
                 status: 'ok',
@@ -306,6 +326,25 @@ projectRouter.patch(
                     req.params.projectUuid,
                     req.body,
                 );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+projectRouter.get(
+    '/hasSavedCharts',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results = await projectService.hasSavedCharts(
+                req.user!,
+                req.params.projectUuid,
+            );
             res.json({
                 status: 'ok',
                 results,

@@ -7,10 +7,7 @@ import ChartConfigTabs from './ChartConfigTabs';
 
 export const ChartConfigPanel: React.FC = () => {
     const { chartType, plotData } = useVisualizationContext();
-    const disabled =
-        !plotData ||
-        chartType === ChartType.BIG_NUMBER ||
-        chartType === ChartType.TABLE;
+    const disabled = !plotData || chartType === ChartType.TABLE;
 
     const [isOpen, setIsOpen] = useState(false);
     return (

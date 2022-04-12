@@ -30,6 +30,7 @@ export class DashboardService {
         dashboard: Dashboard,
     ): CreateDashboardOrVersionEvent['properties'] {
         return {
+            projectId: dashboard.projectUuid,
             dashboardId: dashboard.uuid,
             filtersCount: dashboard.filters
                 ? dashboard.filters.metrics.length +
@@ -51,8 +52,9 @@ export class DashboardService {
     async getAllByProject(
         user: SessionUser,
         projectUuid: string,
+        chartUuid?: string,
     ): Promise<DashboardBasicDetails[]> {
-        return this.dashboardModel.getAllByProject(projectUuid);
+        return this.dashboardModel.getAllByProject(projectUuid, chartUuid);
     }
 
     async getById(
@@ -78,8 +80,6 @@ export class DashboardService {
         analytics.track({
             event: 'dashboard.created',
             userId: user.userUuid,
-            projectId: projectUuid,
-            organizationId: user.organizationUuid,
             properties: DashboardService.getCreateEventProperties(newDashboard),
         });
         return this.getById(user, newDashboard.uuid);
@@ -94,16 +94,19 @@ export class DashboardService {
             throw new ForbiddenError();
         }
         if (isDashboardUnversionedFields(dashboard)) {
-            await this.dashboardModel.update(dashboardUuid, {
-                name: dashboard.name,
-                description: dashboard.description,
-            });
+            const updatedDashboard = await this.dashboardModel.update(
+                dashboardUuid,
+                {
+                    name: dashboard.name,
+                    description: dashboard.description,
+                },
+            );
             analytics.track({
                 event: 'dashboard.updated',
                 userId: user.userUuid,
-                organizationId: user.organizationUuid,
                 properties: {
-                    dashboardId: dashboardUuid,
+                    dashboardId: updatedDashboard.uuid,
+                    projectId: updatedDashboard.projectUuid,
                 },
             });
         }
@@ -118,7 +121,6 @@ export class DashboardService {
             analytics.track({
                 event: 'dashboard_version.created',
                 userId: user.userUuid,
-                organizationId: user.organizationUuid,
                 properties:
                     DashboardService.getCreateEventProperties(updatedDashboard),
             });
@@ -130,13 +132,15 @@ export class DashboardService {
         if (user.ability.cannot('delete', 'Dashboard')) {
             throw new ForbiddenError();
         }
-        await this.dashboardModel.delete(dashboardUuid);
+        const deletedDashboard = await this.dashboardModel.delete(
+            dashboardUuid,
+        );
         analytics.track({
             event: 'dashboard.deleted',
             userId: user.userUuid,
-            organizationId: user.organizationUuid,
             properties: {
-                dashboardId: dashboardUuid,
+                dashboardId: deletedDashboard.uuid,
+                projectId: deletedDashboard.projectUuid,
             },
         });
     }

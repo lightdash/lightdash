@@ -183,6 +183,29 @@ describe('DashboardModel', () => {
                 ]),
             )
             .response([]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardsTableName, [expectedDashboard.uuid, 1]),
+            )
+            .response([dashboardWithVersionEntry]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardViewsTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([dashboardViewEntry]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardTilesTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([
+                dashboardTileWithSavedChartEntry,
+                loomTileEntry,
+                markdownTileEntry,
+            ]);
         jest.spyOn(model, 'getById').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
@@ -203,12 +226,54 @@ describe('DashboardModel', () => {
                 ]),
             )
             .response([]);
+        tracker.on
+            .select(queryMatcher(DashboardsTableName, [dashboardUuid, 1]))
+            .response([dashboardWithVersionEntry]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardViewsTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([dashboardViewEntry]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardTilesTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([
+                dashboardTileWithSavedChartEntry,
+                loomTileEntry,
+                markdownTileEntry,
+            ]);
 
         await model.update(dashboardUuid, updateDashboard);
         expect(tracker.history.update).toHaveLength(1);
     });
     test('should delete dashboard', async () => {
         const dashboardUuid = 'dashboard uuid';
+        tracker.on
+            .select(queryMatcher(DashboardsTableName, [dashboardUuid, 1]))
+            .response([dashboardWithVersionEntry]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardViewsTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([dashboardViewEntry]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardTilesTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([
+                dashboardTileWithSavedChartEntry,
+                loomTileEntry,
+                markdownTileEntry,
+            ]);
         tracker.on
             .delete(queryMatcher(DashboardsTableName, [dashboardUuid]))
             .response([]);

@@ -63,7 +63,6 @@ const SimpleChart: FC = () => {
         useVisualizationContext();
 
     const eChartsOptions = useEcharts();
-
     useEffect(() => {
         const listener = () => {
             const eCharts = chartRef.current?.getEchartsInstance();

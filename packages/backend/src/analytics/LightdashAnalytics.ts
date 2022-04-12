@@ -39,8 +39,14 @@ type TrackSimpleEvent = BaseTrack & {
         | 'invite_link.created'
         | 'invite_link.all_revoked'
         | 'password_reset_link.created'
-        | 'password_reset_link.used'
-        | 'sql.executed';
+        | 'password_reset_link.used';
+};
+
+type SqlExecutedEvent = BaseTrack & {
+    event: 'sql.executed';
+    properties: {
+        projectId: string;
+    };
 };
 
 type LoginEvent = BaseTrack & {
@@ -72,6 +78,7 @@ type UpdateUserEvent = BaseTrack & {
 type QueryExecutionEvent = BaseTrack & {
     event: 'query.executed';
     properties: {
+        projectId: string;
         metricsCount: number;
         dimensionsCount: number;
         tableCalculationsCount: number;
@@ -87,6 +94,7 @@ type TrackOrganizationEvent = BaseTrack & {
         type: string;
         organizationId: string;
         organizationName: string;
+        defaultColourPaletteUpdated?: boolean;
     };
 };
 
@@ -100,6 +108,7 @@ type TrackUserDeletedEvent = BaseTrack & {
 type TrackSavedChart = BaseTrack & {
     event: 'saved_chart.updated' | 'saved_chart.deleted';
     properties: {
+        projectId: string;
         savedQueryId: string;
     };
 };
@@ -107,7 +116,30 @@ type TrackSavedChart = BaseTrack & {
 export type CreateSavedChartOrVersionEvent = BaseTrack & {
     event: 'saved_chart.created' | 'saved_chart_version.created';
     properties: {
+        projectId: string;
         savedQueryId: string;
+        dimensionsCount: number;
+        metricsCount: number;
+        filtersCount: number;
+        sortsCount: number;
+        tableCalculationsCount: number;
+        pivotCount: number;
+        chartType: ChartType;
+        cartesian?: {
+            xAxisCount: number;
+            yAxisCount: number;
+            seriesCount: number;
+            seriesTypes: CartesianSeriesType[];
+        };
+        duplicated?: boolean;
+    };
+};
+
+export type DuplicatedChartCreatedEvent = BaseTrack & {
+    event: 'duplicated_chart_created';
+    properties: {
+        projectId: string;
+        newSavedQueryId: string;
         dimensionsCount: number;
         metricsCount: number;
         filtersCount: number;
@@ -128,9 +160,12 @@ type ProjectEvent = BaseTrack & {
     event: 'project.updated' | 'project.created';
     userId: string;
     properties: {
+        projectName: string;
         projectId: string;
         projectType: ProjectType;
         warehouseConnectionType: WarehouseTypes;
+        organizationId: string;
+        dbtConnectionType: ProjectType;
     };
 };
 
@@ -155,6 +190,7 @@ type ProjectCompiledEvent = BaseTrack & {
     event: 'project.compiled';
     userId?: string;
     properties: {
+        projectId: string;
         projectType: ProjectType;
         warehouseType?: WarehouseTypes;
         modelsCount: number;
@@ -162,6 +198,7 @@ type ProjectCompiledEvent = BaseTrack & {
         metricsCount: number;
         packagesCount?: number;
         roundCount?: number;
+        formattedFieldsCount?: number;
     };
 };
 
@@ -169,6 +206,7 @@ type ProjectErrorEvent = BaseTrack & {
     event: 'project.error';
     userId?: string;
     properties: {
+        projectId: string;
         name: string;
         statusCode: number;
         projectType: ProjectType;
@@ -179,6 +217,7 @@ type DashboardEvent = BaseTrack & {
     event: 'dashboard.updated' | 'dashboard.deleted';
     userId: string;
     properties: {
+        projectId: string;
         dashboardId: string;
     };
 };
@@ -186,6 +225,7 @@ type DashboardEvent = BaseTrack & {
 export type CreateDashboardOrVersionEvent = BaseTrack & {
     event: 'dashboard.created' | 'dashboard_version.created';
     properties: {
+        projectId: string;
         dashboardId: string;
         filtersCount: number;
         tilesCount: number;
@@ -225,7 +265,9 @@ type Track =
     | ProjectTablesConfigurationEvent
     | TrackOrganizationEvent
     | LoginEvent
-    | IdentityLinkedEvent;
+    | IdentityLinkedEvent
+    | SqlExecutedEvent
+    | DuplicatedChartCreatedEvent;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {
