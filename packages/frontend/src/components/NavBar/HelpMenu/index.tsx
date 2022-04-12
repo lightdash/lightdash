@@ -5,7 +5,7 @@ import {
     Position,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import React, { FC } from 'react';
+import React, { FC, useEffect } from 'react';
 import {
     ButtonWrapper,
     HelpItem,
@@ -17,12 +17,51 @@ import {
 } from './HelpMenu.styles';
 
 const HelpMenu: FC = () => {
+    useEffect(() => {
+        const script = document.createElement('script');
+        script.async = false;
+        script.src = 'https://cdn.headwayapp.co/widget.js';
+        document.head.appendChild(script);
+        var config = {
+            selector: '.headway-badge',
+            account: '7L3Bzx',
+        };
+        script.onload = function () {
+            //@ts-ignore
+            window.Headway.init(config);
+        };
+        /*
+<script>
+  // @see https://docs.headwayapp.co/widget for more configuration options.
+  var HW_config = {
+    selector: ".headway-badge", // CSS selector where to inject the badge
+    account:  "7L3Bzx"
+  }
+</script>
+<script async src="https://cdn.headwayapp.co/widget.js"></script>
+
+*/
+        /*  const script = document.createElement('script')
+        script.innerHTML = `
+  // @see https://docs.headwayapp.co/widget for more configuration options.
+  var HW_config = {
+    selector: ".CHANGE_THIS", // CSS selector where to inject the badge
+    account:  "7L3Bzx"
+  }
+<script async src="https://cdn.headwayapp.co/widget.js"></script>
+`
+        document.body.appendChild(script)*/
+    }, []);
+
     const openChatWindow = () => {
         (window as any).$chatwoot?.toggle('true');
     };
 
     return (
         <>
+            <div className="headway-badge" style={{ marginTop: 30 }}>
+                <Icon icon="notifications" />
+            </div>
             <Popover2
                 interactionKind={PopoverInteractionKind.CLICK}
                 content={
