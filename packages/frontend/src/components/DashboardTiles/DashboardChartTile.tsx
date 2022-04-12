@@ -234,8 +234,7 @@ const DashboardChartTile: FC<Props> = (props) => {
             tableName: savedQuery.tableName,
             sorting: true,
             selectedTableCalculations: [],
-            columnOrder: [],
-            limit: savedQuery.metricQuery.limit,
+            columnOrder: savedQuery.tableConfig.columnOrder,
             tableCalculations: savedQuery.metricQuery.tableCalculations,
         };
         const exploreParams = convertExplorerStateToExploreUrl(explorerState);
