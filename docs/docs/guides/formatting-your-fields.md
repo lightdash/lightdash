@@ -1,6 +1,6 @@
 # Formatting your fields
 
-Sometimes the format of things in your dbt project is different to how you want it to look in Lightdash. That's okay! We've built a bunch of features to help you to format the fields in your dbt project so that it's super easy for everyone to find what they need in Lightdash.
+Sometimes the format of things in your dbt project is different to how you want it to look in Lightdash. That's okay! We've built a bunch of features to help you to format the fields in your dbt project so that the data in your Lightdash project looks exactly like you want it to 🥸
 
 ## Hiding fields from your dbt YAML files
 
