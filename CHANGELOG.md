@@ -1,3 +1,10 @@
+# [0.62.0](https://github.com/lightdash/lightdash/compare/0.61.0...0.62.0) (2022-04-12)
+
+
+### Features
+
+* saved charts should be open by default ([#1736](https://github.com/lightdash/lightdash/issues/1736)) ([deae3e9](https://github.com/lightdash/lightdash/commit/deae3e963e22e6f6cdc0063f4ab4f61771885410))
+
 # [0.61.0](https://github.com/lightdash/lightdash/compare/0.60.0...0.61.0) (2022-04-12)
 
 
