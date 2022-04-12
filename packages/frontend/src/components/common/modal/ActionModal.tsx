@@ -7,7 +7,6 @@ import BaseModal from './BaseModal';
 export enum ActionTypeModal {
     CLOSE,
     UPDATE,
-    DUPLICATE,
     DELETE,
 }
 
