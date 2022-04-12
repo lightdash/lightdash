@@ -182,15 +182,18 @@ const Dashboard = () => {
     const [blockedNavigationLocation, setBlockedNavigationLocation] =
         useState<string>();
 
-    // Capture refresh with unsaved changes
-    window.addEventListener('beforeunload', (event) => {
+    const checkReload = (event: BeforeUnloadEvent) => {
         if (hasTilesChanged || haveFiltersChanged) {
             const message =
                 'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
             event.returnValue = message;
             return message;
         }
-    });
+    };
+    useEffect(() => {
+        window.addEventListener('beforeunload', checkReload);
+        return () => window.removeEventListener('beforeunload', checkReload);
+    }, [hasTilesChanged, haveFiltersChanged]);
 
     useEffect(() => {
         history.block((prompt) => {
