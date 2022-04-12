@@ -1,5 +1,9 @@
 import { Alert, Intent, Spinner } from '@blueprintjs/core';
-import { Dashboard as IDashboard, DashboardTileTypes } from 'common';
+import {
+    Dashboard as IDashboard,
+    DashboardChartTileProperties,
+    DashboardTileTypes,
+} from 'common';
 import React, {
     FC,
     memo,
