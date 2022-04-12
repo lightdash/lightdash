@@ -97,7 +97,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     } = useExplorer();
     const explore = useExplore(tableName);
     const queryResults = useQueryResults();
-    const { data } = useSavedQuery({ id: savedQueryUuid });
+    const { data, isLoading } = useSavedQuery({ id: savedQueryUuid });
     const [validChartConfig, setValidChartConfig] =
         useState<ChartConfig['config']>();
 
@@ -335,7 +335,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     pivotDimensions={data?.pivotConfig?.columns}
                     tableName={tableName}
                     resultsData={queryResults.data}
-                    isLoading={queryResults.isLoading}
+                    isLoading={queryResults.isLoading || isLoading}
                     onChartConfigChange={setValidChartConfig}
                     onBigNumberLabelChange={setValidChartConfig}
                     onChartTypeChange={setActiveVizTab}
