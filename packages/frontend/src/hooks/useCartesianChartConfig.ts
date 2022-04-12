@@ -2,6 +2,8 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
+    ChartType,
+    CompleteCartesianChartLayout,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
@@ -13,6 +15,8 @@ const useCartesianChartConfig = (
     chartConfigs: CartesianChart,
     pivotKey: string | undefined,
     resultsData: ApiQueryResults | undefined,
+    setVisualizationChartType: (chart: ChartType) => void,
+    setPivotDimensions: (s: string[]) => void,
 ) => {
     const [dirtyChartType, setChartType] = useState<CartesianSeriesType>(
         chartConfigs?.eChartsConfig?.series?.[0]?.type ||
@@ -186,7 +190,92 @@ const useCartesianChartConfig = (
     }, [resultsData]);
 
     // Set fallout layout values
+    // https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6
     useEffect(() => {
+        const setAxes = (
+            prev: Partial<Partial<CompleteCartesianChartLayout>> | undefined,
+            xField: string,
+            yField: string[],
+        ) => {
+            const validYFields = prev?.yField
+                ? prev.yField.filter((y) => availableFields.includes(y))
+                : [];
+            return {
+                ...prev,
+                xField:
+                    prev?.xField && availableFields.includes(prev?.xField)
+                        ? prev?.xField
+                        : xField,
+                yField: validYFields.length > 0 ? validYFields : yField,
+            };
+        };
+
+        setPivotDimensions([]); //reset pivot
+        setVisualizationChartType(ChartType.CARTESIAN); // reset table
+
+        // one metric , one dimension
+        if (availableMetrics.length === 1 && availableDimensions.length === 1) {
+            setDirtyLayout((prev) => {
+                return setAxes(prev, availableDimensions[0], [
+                    availableMetrics[0],
+                ]);
+            });
+        }
+
+        // one metric, two dimensions
+        if (availableMetrics.length === 1 && availableDimensions.length === 2) {
+            setDirtyLayout((prev) => {
+                return setAxes(prev, availableDimensions[0], [
+                    availableMetrics[0],
+                ]);
+            });
+            setPivotDimensions([availableDimensions[1]]);
+        }
+
+        // two metrics, one dimension
+        if (availableMetrics.length === 2 && availableDimensions.length === 1) {
+            setDirtyLayout((prev) => {
+                return setAxes(prev, availableDimensions[0], availableMetrics);
+            });
+        }
+
+        // two metrics, two dimensions
+        // AND >2 metrics, >2 dimensions
+        if (availableMetrics.length >= 2 && availableDimensions.length >= 2) {
+            setDirtyLayout((prev) => {
+                //Max 4 metrics in Y-axis
+                return setAxes(
+                    prev,
+                    availableDimensions[0],
+                    availableMetrics.slice(0, 4),
+                );
+            });
+            setPivotDimensions([availableDimensions[1]]);
+        }
+
+        // 2+ metrics with no dimensions
+        if (availableMetrics.length >= 2 && availableDimensions.length === 0) {
+            setDirtyLayout((prev) => {
+                return setAxes(prev, availableMetrics[0], [
+                    availableMetrics[1],
+                ]);
+            });
+            setVisualizationChartType(ChartType.CARTESIAN);
+
+            setType(CartesianSeriesType.SCATTER, false);
+        }
+
+        // 2+ dimensions with no metrics
+        if (availableMetrics.length === 0 && availableDimensions.length >= 2) {
+            setDirtyLayout((prev) => {
+                return setAxes(prev, availableDimensions[0], [
+                    availableDimensions[1],
+                ]);
+            });
+            setVisualizationChartType(ChartType.TABLE);
+        }
+
+        // else , default behaviour
         if (availableFields.length > 1) {
             setDirtyLayout((prev) => {
                 const fallbackXField =

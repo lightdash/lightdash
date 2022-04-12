@@ -77,6 +77,12 @@ export const VisualizationProvider: FC<Props> = ({
         pivotDimensions,
         resultsData,
     );
+    const setChartType = useCallback(
+        (value: ChartType) => {
+            onChartTypeChange?.(value);
+        },
+        [onChartTypeChange],
+    );
 
     const chartTypeConfig =
         chartType === chartConfigs?.type ? chartConfigs.config : undefined;
@@ -92,6 +98,8 @@ export const VisualizationProvider: FC<Props> = ({
         chartTypeConfig as CartesianChart,
         validPivotDimensions?.[0],
         resultsData,
+        setChartType,
+        setPivotDimensions,
     );
 
     const { validCartesianConfig } = cartesianConfig;
@@ -101,13 +109,6 @@ export const VisualizationProvider: FC<Props> = ({
         validCartesianConfig,
         resultsData,
         validPivotDimensions,
-    );
-
-    const setChartType = useCallback(
-        (value: ChartType) => {
-            onChartTypeChange?.(value);
-        },
-        [onChartTypeChange],
     );
 
     useEffect(() => {
