@@ -45,7 +45,11 @@ module.exports = {
       items: [
         "guides/how-to-deploy-to-kubernetes",
         "guides/how-to-join-tables",
-        "guides/how-to-reset-your-password"
+        "guides/how-to-reset-your-password",
+        "guides/customizing-the-appearance-of-your-project",
+        "guides/formatting-your-fields",
+        "guides/how-to-create-multiple-projects",
+        "guides/limiting-data-using-filters",
       ],
     },
     {
