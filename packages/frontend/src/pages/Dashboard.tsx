@@ -77,7 +77,7 @@ const Dashboard = () => {
     const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
     const [tileId, setTileId] = useState<string>('');
     const [dashboardName, setDashboardName] = useState<string>('');
-    const { onDuplicateChart, duplicatedChart } = useDuplicate(tileId);
+    const { onDuplicate, duplicatedChart } = useDuplicate(tileId);
     const {
         mutate,
         isSuccess,
@@ -172,21 +172,24 @@ const Dashboard = () => {
         setHasTilesChanged(true);
     }, []);
 
-    const onDuplicate = useCallback((tile: IDashboard['tiles'][number]) => {
-        setHasTilesChanged(true);
-        onDuplicateChart();
+    const onDuplicateChart = useCallback(
+        (tile: IDashboard['tiles'][number]) => {
+            setHasTilesChanged(true);
+            onDuplicate();
 
-        if (duplicatedChart) {
-            setDashboardTiles((currentDashboardTiles) => [
-                ...currentDashboardTiles,
-                {
-                    ...tile,
-                    uuid: duplicatedChart?.uuid,
-                    name: duplicatedChart.name,
-                },
-            ]);
-        }
-    }, []);
+            if (duplicatedChart) {
+                setDashboardTiles((currentDashboardTiles) => [
+                    ...currentDashboardTiles,
+                    {
+                        ...tile,
+                        uuid: duplicatedChart?.uuid,
+                        name: duplicatedChart.name,
+                    },
+                ]);
+            }
+        },
+        [],
+    );
 
     const onCancel = useCallback(() => {
         setDashboardTiles(dashboard?.tiles || []);
@@ -307,7 +310,7 @@ const Dashboard = () => {
                                         onEdit={onEdit}
                                         onDuplicate={() => {
                                             setTileId(tileUuid);
-                                            onDuplicate(tile);
+                                            onDuplicateChart(tile);
                                         }}
                                     />
                                 </TrackSection>

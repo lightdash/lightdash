@@ -18,8 +18,8 @@ const ModalActionButtons = ({
     setActionState,
 }: ModalActionButtonsProps) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [chartId, setChartId] = useState<string>('');
-    const { onDuplicateChart } = useDuplicate(chartId);
+    const [itemId, setItemId] = useState<string>('');
+    const { onDuplicate } = useDuplicate(itemId);
 
     return (
         <Popover2
@@ -50,8 +50,8 @@ const ModalActionButtons = ({
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setChartId(data.uuid);
-                            onDuplicateChart();
+                            setItemId(data.uuid);
+                            onDuplicate();
                         }}
                     />
                     <MenuItem
