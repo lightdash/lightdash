@@ -221,7 +221,7 @@ export const useCreateMutation = (
     );
 };
 
-export const useDuplicateMutation = (id: string) => {
+export const useDuplicateDashboardMutation = (id: string) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
