@@ -1,3 +1,10 @@
+# [0.61.0](https://github.com/lightdash/lightdash/compare/0.60.0...0.61.0) (2022-04-12)
+
+
+### Features
+
+* endpoint duplicate dashboard ([#1754](https://github.com/lightdash/lightdash/issues/1754)) ([833fefe](https://github.com/lightdash/lightdash/commit/833fefe2acb1527a66d85fafc47c17b673ba4283))
+
 # [0.60.0](https://github.com/lightdash/lightdash/compare/0.59.0...0.60.0) (2022-04-12)
 
 
