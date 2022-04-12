@@ -226,25 +226,8 @@ const DashboardChartTile: FC<Props> = (props) => {
         [explore],
     );
 
-    /*
-    // http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/tables/customers?
-    dimensions=customers_customer_id%2Ccustomers_days_between_created_and_first_order
-    &metrics=customers_unique_customer_count%2Ccustomers_date_of_first_created_customer
-    &sort=%5B%7B"fieldId"%3A"customers_unique_customer_count"%2C"descending"%3Atrue%7D%2C%7B"fieldId"%3A"customers_customer_id"%2C"descending"%3Afalse%7D%5D
-    &filters=%7B"dimensions"%3A%7B"id"%3A"1abdd3f7-9680-41a6-af46-6bd544f74175"%2C"and"%3A%5B%7B"id"%3A"2342d7c8-4604-46e1-93a2-2b965c183a76"%2C"target"%3A%7B"fieldId"%3A"customers_customer_id"%7D%2C"operator"%3A"equals"%2C"values"%3A%5B"4"%5D%7D%5D%7D%7D
-    &limit=500
-    &column_order=customers_unique_customer_count%2Ccustomers_customer_id%2Ccustomers_days_between_created_and_first_order%2Ccustomers_date_of_first_created_customer
-    */
     let exploreUrl = '';
-
     if (savedQuery) {
-        // Reversing method in useExplorerRoute to convert savedChart into explore URL
-        /*const metric = savedQuery.metricQuery
-        const queryDimensions = encodeURIComponent(metric.dimensions.join(','))
-        const queryMetrics = encodeURIComponent(metric.metrics.join(',')) 
-        const querySort= JSON.stringify(metric.sorts)
-        const queryFilters= JSON.stringify(metric.filters)
-*/
         const explorerState: ExplorerReduceState = {
             ...savedQuery.metricQuery,
             chartName: savedQuery.name,
