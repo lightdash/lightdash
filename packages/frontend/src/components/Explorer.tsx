@@ -27,7 +27,7 @@ import {
 import { FC, useEffect, useState } from 'react';
 import { Link, useHistory, useLocation, useParams } from 'react-router-dom';
 import { getDashboards } from '../hooks/dashboard/useDashboards';
-import useDuplicate from '../hooks/useDuplicate';
+import { useDuplicateChart } from '../hooks/useDuplicate';
 import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
 import {
@@ -105,7 +105,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [vizIsOpen, setVizisOpen] = useState<boolean>(!!savedQueryUuid);
     const totalActiveFilters: number = countTotalFilterRules(filters);
     const [chartId, setChartId] = useState<string>('');
-    const { onDuplicate } = useDuplicate(chartId);
+    const { onDuplicateChart } = useDuplicateChart(chartId);
     const [activeVizTab, setActiveVizTab] = useState<ChartType>(
         ChartType.CARTESIAN,
     );
@@ -420,7 +420,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                                                 setChartId(
                                                                     savedQueryUuid,
                                                                 );
-                                                                onDuplicate();
+                                                                onDuplicateChart();
                                                             } else {
                                                                 setIsQueryModalOpen(
                                                                     true,

@@ -26,7 +26,7 @@ import {
     useDashboardQuery,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
-import useDuplicate from '../hooks/useDuplicate';
+import { useDuplicateChart } from '../hooks/useDuplicate';
 import { useDashboardContext } from '../providers/DashboardProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import '../styles/react-grid.css';
@@ -77,7 +77,7 @@ const Dashboard = () => {
     const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
     const [tileId, setTileId] = useState<string>('');
     const [dashboardName, setDashboardName] = useState<string>('');
-    const { onDuplicate, duplicatedChart } = useDuplicate(tileId);
+    const { onDuplicateChart, duplicatedChart } = useDuplicateChart(tileId);
     const {
         mutate,
         isSuccess,
@@ -172,24 +172,21 @@ const Dashboard = () => {
         setHasTilesChanged(true);
     }, []);
 
-    const onDuplicateChart = useCallback(
-        (tile: IDashboard['tiles'][number]) => {
-            setHasTilesChanged(true);
-            onDuplicate();
+    const onDuplicate = useCallback((tile: IDashboard['tiles'][number]) => {
+        setHasTilesChanged(true);
+        onDuplicateChart();
 
-            if (duplicatedChart) {
-                setDashboardTiles((currentDashboardTiles) => [
-                    ...currentDashboardTiles,
-                    {
-                        ...tile,
-                        uuid: duplicatedChart?.uuid,
-                        name: duplicatedChart.name,
-                    },
-                ]);
-            }
-        },
-        [],
-    );
+        if (duplicatedChart) {
+            setDashboardTiles((currentDashboardTiles) => [
+                ...currentDashboardTiles,
+                {
+                    ...tile,
+                    uuid: duplicatedChart?.uuid,
+                    name: duplicatedChart.name,
+                },
+            ]);
+        }
+    }, []);
 
     const onCancel = useCallback(() => {
         setDashboardTiles(dashboard?.tiles || []);
@@ -310,7 +307,7 @@ const Dashboard = () => {
                                         onEdit={onEdit}
                                         onDuplicate={() => {
                                             setTileId(tileUuid);
-                                            onDuplicateChart(tile);
+                                            onDuplicate(tile);
                                         }}
                                     />
                                 </TrackSection>

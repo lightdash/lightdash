@@ -1,7 +1,10 @@
 import { Button, Menu, MenuItem } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { Dispatch, SetStateAction, useState } from 'react';
-import useDuplicate from '../../../hooks/useDuplicate';
+import {
+    useDuplicateChart,
+    useDuplicateDashboard,
+} from '../../../hooks/useDuplicate';
 import { ActionTypeModal } from './ActionModal';
 
 type ModalActionButtonsProps = {
@@ -19,7 +22,8 @@ const ModalActionButtons = ({
 }: ModalActionButtonsProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [itemId, setItemId] = useState<string>('');
-    const { onDuplicate } = useDuplicate(itemId);
+    const { onDuplicateChart } = useDuplicateChart(itemId);
+    const { onDuplicateDashboard } = useDuplicateDashboard(itemId);
 
     return (
         <Popover2
@@ -51,7 +55,12 @@ const ModalActionButtons = ({
                             e.preventDefault();
                             e.stopPropagation();
                             setItemId(data.uuid);
-                            onDuplicate();
+                            if (data.projectUuid || data.description) {
+                                onDuplicateDashboard();
+                            }
+                            if (!data.projectUuid && !data.description) {
+                                onDuplicateChart();
+                            }
                         }}
                     />
                     <MenuItem
