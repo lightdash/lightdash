@@ -1,3 +1,10 @@
+# [0.63.0](https://github.com/lightdash/lightdash/compare/0.62.0...0.63.0) (2022-04-12)
+
+
+### Features
+
+* update default chart configs ([#1650](https://github.com/lightdash/lightdash/issues/1650)) ([ca15f2c](https://github.com/lightdash/lightdash/commit/ca15f2c1070091e751d9ea04670ce9e94f72467d))
+
 # [0.62.0](https://github.com/lightdash/lightdash/compare/0.61.0...0.62.0) (2022-04-12)
 
 
