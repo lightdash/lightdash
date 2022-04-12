@@ -100,7 +100,6 @@ export class DashboardService {
             ...dashboard,
             name: `Copy of ${dashboard.name}`,
         };
-        console.log('dup', duplicatedDashboard);
         const newDashboard = await this.dashboardModel.create(
             space.space_uuid,
             duplicatedDashboard,
