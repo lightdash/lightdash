@@ -33,12 +33,11 @@ const createDashboard = async (projectUuid: string, data: CreateDashboard) =>
 const duplicateDashboard = async (
     projectUuid: string,
     id: string,
-    payload: CreateDashboard,
 ): Promise<Dashboard> =>
     lightdashApi<Dashboard>({
         url: `/projects/${projectUuid}/dashboards?duplicateFrom=${id}`,
         method: 'POST',
-        body: JSON.stringify(payload),
+        body: undefined,
     });
 
 const updateDashboard = async (id: string, data: UpdateDashboard) =>
@@ -226,18 +225,18 @@ export const useDuplicateDashboardMutation = (id: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
     return useMutation<Dashboard, ApiError, CreateDashboard>(
-        (data) => duplicateDashboard(projectUuid, id, data),
+        () => duplicateDashboard(projectUuid, id),
         {
             mutationKey: ['dashboard_create', projectUuid],
             onSuccess: async () => {
                 await queryClient.invalidateQueries('dashboards');
                 showToastSuccess({
-                    title: `Success! Chart was duplicated.`,
+                    title: `Success! Dashboard was duplicated.`,
                 });
             },
             onError: (error) => {
                 showToastError({
-                    title: `Failed to duplicate chart`,
+                    title: `Failed to duplicate dashboard`,
                     subtitle: error.error.message,
                 });
             },

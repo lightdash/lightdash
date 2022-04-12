@@ -1,5 +1,9 @@
 import { Alert, Intent, Spinner } from '@blueprintjs/core';
-import { Dashboard as IDashboard, DashboardTileTypes } from 'common';
+import {
+    Dashboard as IDashboard,
+    DashboardChartTileProperties,
+    DashboardTileTypes,
+} from 'common';
 import React, {
     FC,
     memo,
@@ -301,27 +305,28 @@ const Dashboard = () => {
                     cols={{ lg: 12, md: 10, sm: 6 }}
                     layouts={layouts}
                 >
-                    {dashboardTiles.map((tile) => (
-                        <div key={tile.uuid}>
-                            <TrackSection name={SectionName.DASHBOARD_TILE}>
-                                <GridTile
-                                    isEditMode={isEditMode}
-                                    tile={tile}
-                                    onDelete={onDelete}
-                                    onEdit={onEdit}
-                                    onDuplicate={() => {
-                                        setTileId(
-                                            tile.properties &&
-                                                // @ts-ignore
-                                                tile?.properties
-                                                    ?.savedChartUuid,
-                                        );
-                                        onDuplicateChart();
-                                    }}
-                                />
-                            </TrackSection>
-                        </div>
-                    ))}
+                    {dashboardTiles.map((tile) => {
+                        const tileUuid = (tile as DashboardChartTileProperties)
+                            ? // @ts-ignore
+                              tile.properties.savedChartUuid
+                            : tile.uuid;
+                        return (
+                            <div key={tile.uuid}>
+                                <TrackSection name={SectionName.DASHBOARD_TILE}>
+                                    <GridTile
+                                        isEditMode={isEditMode}
+                                        tile={tile}
+                                        onDelete={onDelete}
+                                        onEdit={onEdit}
+                                        onDuplicate={() => {
+                                            setTileId(tileUuid);
+                                            onDuplicateChart();
+                                        }}
+                                    />
+                                </TrackSection>
+                            </div>
+                        );
+                    })}
                 </ResponsiveGridLayout>
                 {dashboardTiles.length <= 0 && (
                     <EmptyStateNoTiles projectId={projectUuid} />
