@@ -1,6 +1,6 @@
 # Customizing the appearance of your project
 
-### Update the default colours used in charts
+## Update the default colours used in charts
 
 You can update the default colours used in your organization's charts so that everything you build is on brand 👩‍🎨
 
