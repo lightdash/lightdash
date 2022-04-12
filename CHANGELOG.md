@@ -1,3 +1,10 @@
+## [0.63.1](https://github.com/lightdash/lightdash/compare/0.63.0...0.63.1) (2022-04-12)
+
+
+### Bug Fixes
+
+* fix format decimals ([#1752](https://github.com/lightdash/lightdash/issues/1752)) ([7f28fed](https://github.com/lightdash/lightdash/commit/7f28fed021e8449c623393806ce0b769cf0f17a7))
+
 # [0.63.0](https://github.com/lightdash/lightdash/compare/0.62.0...0.63.0) (2022-04-12)
 
 
