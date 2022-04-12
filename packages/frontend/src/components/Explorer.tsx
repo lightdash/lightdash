@@ -72,7 +72,9 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
         useState<boolean>(false);
-    const location = useLocation<{ fromExplorer?: boolean } | undefined>();
+    const location = useLocation<
+        { fromExplorer?: boolean; explore?: boolean } | undefined
+    >();
     const {
         state: {
             chartName,
@@ -107,6 +109,11 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         ChartType.CARTESIAN,
     );
 
+    const searchParams = new URLSearchParams(location.search);
+
+    const overrideQueryUuid: string | undefined = searchParams.get('explore')
+        ? undefined
+        : savedQueryUuid;
     const [pivotDimensions, setPivotDimensions] = useState<string[]>();
 
     const validConfig = () => {
@@ -222,6 +229,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             };
         };
 
+        if (!overrideQueryUuid) return false;
         return (
             JSON.stringify(filterData(data)) ===
             JSON.stringify(filterData(queryData))
@@ -248,7 +256,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             marginRight: 10,
                         }}
                     >
-                        {chartName && (
+                        {overrideQueryUuid && chartName && (
                             <EditableHeader
                                 value={chartName}
                                 isDisabled={updateSavedChart.isLoading}
@@ -372,7 +380,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                 <ButtonGroup>
                                     <Button
                                         text={
-                                            savedQueryUuid
+                                            overrideQueryUuid
                                                 ? 'Save changes'
                                                 : 'Save chart'
                                         }
@@ -380,13 +388,13 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                             !tableName || hasUnsavedChanges()
                                         }
                                         onClick={
-                                            savedQueryUuid
+                                            overrideQueryUuid
                                                 ? handleSavedQueryUpdate
                                                 : () =>
                                                       setIsQueryModalOpen(true)
                                         }
                                     />
-                                    {savedQueryUuid && (
+                                    {overrideQueryUuid && (
                                         <Popover2
                                             placement="bottom"
                                             disabled={!tableName}

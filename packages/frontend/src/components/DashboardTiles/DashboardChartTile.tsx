@@ -256,6 +256,11 @@ const DashboardChartTile: FC<Props> = (props) => {
                             text="Edit chart"
                             href={`/projects/${projectUuid}/saved/${savedChartUuid}`}
                         />
+                        <MenuItem
+                            icon="series-search"
+                            text="Explore from here"
+                            href={`/projects/${projectUuid}/saved/${savedChartUuid}?explore=true`}
+                        />
                     </>
                 )
             }
