@@ -1,3 +1,10 @@
+# [0.60.0](https://github.com/lightdash/lightdash/compare/0.59.0...0.60.0) (2022-04-12)
+
+
+### Features
+
+* explore from here saved ([#1750](https://github.com/lightdash/lightdash/issues/1750)) ([25c3f01](https://github.com/lightdash/lightdash/commit/25c3f017c70441a07f8f9a1d98a2861cd8a28632))
+
 # [0.59.0](https://github.com/lightdash/lightdash/compare/0.58.1...0.59.0) (2022-04-11)
 
 
