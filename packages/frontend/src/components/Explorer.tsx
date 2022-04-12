@@ -27,7 +27,7 @@ import {
 import { FC, useEffect, useState } from 'react';
 import { Link, useHistory, useLocation, useParams } from 'react-router-dom';
 import { getDashboards } from '../hooks/dashboard/useDashboards';
-import useDuplicate from '../hooks/useDuplicate';
+import { useDuplicateChart } from '../hooks/useDuplicate';
 import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
 import {
