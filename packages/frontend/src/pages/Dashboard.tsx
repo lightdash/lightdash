@@ -77,7 +77,7 @@ const Dashboard = () => {
     const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
     const [tileId, setTileId] = useState<string>('');
     const [dashboardName, setDashboardName] = useState<string>('');
-    const { onDuplicateChart } = useDuplicate(tileId);
+    const { onDuplicateChart, duplicatedChart } = useDuplicate(tileId);
     const {
         mutate,
         isSuccess,
@@ -172,34 +172,21 @@ const Dashboard = () => {
         setHasTilesChanged(true);
     }, []);
 
-    // const onDuplicate = useCallback(
-    //     (tile: IDashboard['tiles'][number]) => {
-    //         // @ts-ignore
-    //         setTileId(tile.properties && tile.properties.savedChartUuid);
-    //         setHasTilesChanged(true);
-    //         if (chartToDuplicate) {
-    //             const {
-    //                 projectUuid: idToForget,
-    //                 uuid,
-    //                 updatedAt,
-    //                 ...chartDuplicate
-    //             } = chartToDuplicate;
-    //             duplicateChart({
-    //                 ...chartDuplicate,
-    //                 name: `${chartDuplicate.name} (copy)`,
-    //             });
-    //             setDashboardTiles((currentDashboardTiles) => [
-    //                 ...currentDashboardTiles,
-    //                 {
-    //                     ...tile,
-    //                     uuid: uuidv4(),
-    //                     name: `${chartDuplicate.name} (copy)`,
-    //                 },
-    //             ]);
-    //         }
-    //     },
-    //     [chartToDuplicate],
-    // );
+    const onDuplicate = useCallback((tile: IDashboard['tiles'][number]) => {
+        setHasTilesChanged(true);
+        onDuplicateChart();
+
+        if (duplicatedChart) {
+            setDashboardTiles((currentDashboardTiles) => [
+                ...currentDashboardTiles,
+                {
+                    ...tile,
+                    uuid: duplicatedChart?.uuid,
+                    name: duplicatedChart.name,
+                },
+            ]);
+        }
+    }, []);
 
     const onCancel = useCallback(() => {
         setDashboardTiles(dashboard?.tiles || []);
@@ -320,7 +307,7 @@ const Dashboard = () => {
                                         onEdit={onEdit}
                                         onDuplicate={() => {
                                             setTileId(tileUuid);
-                                            onDuplicateChart();
+                                            onDuplicate(tile);
                                         }}
                                     />
                                 </TrackSection>
