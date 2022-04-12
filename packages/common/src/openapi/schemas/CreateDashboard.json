@@ -17,6 +17,5 @@
         "filters": {
             "$ref": "./DashboardFilters.json"
         }
-    },
-    "required": ["tiles", "name"]
+    }
 }

@@ -13,11 +13,20 @@
                     "format": "uuid"
                 },
                 "required": true
+            },
+            {
+                "in": "query",
+                "name": "duplicateFrom",
+                "schema": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "required": false
             }
         ],
         "requestBody": {
             "description": "New dashboard specification",
-            "required": true,
+            "required": false,
             "content": {
                 "application/json": {
                     "schema": {
