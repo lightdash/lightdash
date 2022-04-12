@@ -165,7 +165,6 @@ export const useCreateMutation = () => {
 };
 
 export const useDuplicateMutation = (id: string) => {
-    const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
@@ -173,19 +172,10 @@ export const useDuplicateMutation = (id: string) => {
         (data) => duplicateSavedQuery(projectUuid, id, data),
         {
             mutationKey: ['saved_query_create', projectUuid],
-            onSuccess: (data) => {
-                queryClient.setQueryData(
-                    ['saved_query_create', data.uuid],
-                    data,
-                );
+            onSuccess: async () => {
+                await queryClient.invalidateQueries('spaces');
                 showToastSuccess({
                     title: `Success! Chart was duplicated.`,
-                });
-                history.push({
-                    pathname: `/projects/${projectUuid}/saved/${data.uuid}`,
-                    state: {
-                        fromExplorer: true,
-                    },
                 });
             },
             onError: (error) => {
