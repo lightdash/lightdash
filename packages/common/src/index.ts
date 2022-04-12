@@ -1257,7 +1257,8 @@ export function formatValue<T>(format: string, value: T): string | T {
             if (Number.isNaN(value as any)) {
                 return value;
             }
-            return `${parseFloat(value as any) * 100}%`;
+            // Fix rounding issue
+            return `${(parseFloat(value as any) * 100).toFixed(2)}%`;
 
         case '': // no format
             return value;
