@@ -3,6 +3,7 @@ import { friendlyName } from 'common';
 import React, { FC } from 'react';
 import { mapDataToTable, modifiedItem } from '../../utils/tableData';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { LoadingChart } from '../SimpleChart';
 import {
     TableHeader,
     TableInnerWrapper,
@@ -10,11 +11,14 @@ import {
 } from './SimpleTable.styles';
 
 const SimpleTable: FC = () => {
-    const { plotData } = useVisualizationContext();
+    const { plotData, isLoading } = useVisualizationContext();
     const tableItems = plotData ? plotData.slice(0, 25) : [];
 
     const { headers, rows } = mapDataToTable(tableItems);
     const validData = rows && headers;
+
+    if (isLoading) return <LoadingChart />;
+
     return (
         <>
             {validData ? (
