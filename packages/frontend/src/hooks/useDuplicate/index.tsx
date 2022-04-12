@@ -7,7 +7,8 @@ const useDuplicate = (itemId: string) => {
     const { data: chartToDuplicate } = useSavedQuery({ id: itemId });
     // const { data: dashboardToDuplicate } = useDashboardQuery(itemId);
 
-    const { mutate: duplicateChart } = useDuplicateMutation(itemId);
+    const { mutate: duplicateChart, data: duplicatedChart } =
+        useDuplicateMutation(itemId);
     // const { mutate: duplicateDashboard } =
     //     useDuplicateDashboardMutation(itemId);
 
@@ -34,7 +35,7 @@ const useDuplicate = (itemId: string) => {
     //     }
     // }, [dashboardToDuplicate]);
 
-    return { onDuplicateChart };
+    return { onDuplicateChart, duplicatedChart };
 };
 
 export default useDuplicate;

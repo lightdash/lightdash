@@ -77,7 +77,7 @@ const Dashboard = () => {
     const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
     const [tileId, setTileId] = useState<string>('');
     const [dashboardName, setDashboardName] = useState<string>('');
-    const { onDuplicateChart } = useDuplicate(tileId);
+    const { onDuplicateChart, duplicatedChart } = useDuplicate(tileId);
     const {
         mutate,
         isSuccess,
