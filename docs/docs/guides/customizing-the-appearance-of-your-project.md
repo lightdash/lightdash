@@ -8,4 +8,6 @@ You can do this by heading to the `settings` --> `appearances` and you can updat
 
 ![changing default colours](./assets/changing-default-colours.png)
 
-The next time you build a chart, it will default to using these colours for the series. 
+The next time you build a chart, it will default to using these colours for the series.
+
+![default colours in config](./assets/default-colours-in-config.png)
