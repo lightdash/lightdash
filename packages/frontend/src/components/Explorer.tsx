@@ -229,7 +229,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             };
         };
 
-        if (!overrideQueryUuid) return false; // allow saving changes
+        if (!overrideQueryUuid) return false;
         return (
             JSON.stringify(filterData(data)) ===
             JSON.stringify(filterData(queryData))
