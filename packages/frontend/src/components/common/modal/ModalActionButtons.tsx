@@ -1,6 +1,5 @@
 import { Button, Menu, MenuItem } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import { Dashboard as IDashboard } from 'common';
 import React, { Dispatch, SetStateAction, useCallback, useState } from 'react';
 import {
     useDuplicateMutation,
@@ -27,26 +26,20 @@ const ModalActionButtons = ({
 
     const { mutate: duplicateChart } = useDuplicateMutation(tileId);
 
-    const onDuplicate = useCallback(
-        (tile: IDashboard['tiles'][number]) => {
-            // @ts-ignore
-            setTileId(tile.properties && tile.properties.savedChartUuid);
-
-            if (chartToDuplicate) {
-                const {
-                    projectUuid: idToForget,
-                    uuid,
-                    updatedAt,
-                    ...chartDuplicate
-                } = chartToDuplicate;
-                duplicateChart({
-                    ...chartDuplicate,
-                    name: `${chartDuplicate.name} (copy)`,
-                });
-            }
-        },
-        [chartToDuplicate],
-    );
+    const onDuplicate = useCallback(() => {
+        if (chartToDuplicate) {
+            const {
+                projectUuid: idToForget,
+                uuid,
+                updatedAt,
+                ...chartDuplicate
+            } = chartToDuplicate;
+            duplicateChart({
+                ...chartDuplicate,
+                name: `${chartDuplicate.name} (copy)`,
+            });
+        }
+    }, [chartToDuplicate]);
 
     return (
         <Popover2
@@ -77,12 +70,8 @@ const ModalActionButtons = ({
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            console.log('miraaa', e);
-                            // onDuplicate(e);
-                            setActionState({
-                                actionType: ActionTypeModal.DUPLICATE,
-                                data,
-                            });
+                            setTileId(data.uuid);
+                            onDuplicate();
                         }}
                     />
                     <MenuItem
