@@ -1,4 +1,4 @@
-import { countTotalFilterRules } from 'common';
+import { ChartConfig, countTotalFilterRules } from 'common';
 import { useEffect } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
@@ -10,6 +10,7 @@ import {
 
 export const convertExplorerStateToExploreUrl = (
     state: ExplorerReduceState,
+    chartConfig?: ChartConfig,
 ) => {
     const newParams = new URLSearchParams();
 
@@ -54,6 +55,11 @@ export const convertExplorerStateToExploreUrl = (
             'table_calculations',
             JSON.stringify(state.tableCalculations),
         );
+    }
+
+    if (chartConfig) {
+        console.log('chart config', JSON.stringify(chartConfig));
+        newParams.set('chart_config', JSON.stringify(chartConfig));
     }
     return newParams;
 };

@@ -237,7 +237,10 @@ const DashboardChartTile: FC<Props> = (props) => {
             columnOrder: savedQuery.tableConfig.columnOrder,
             tableCalculations: savedQuery.metricQuery.tableCalculations,
         };
-        const exploreParams = convertExplorerStateToExploreUrl(explorerState);
+        const exploreParams = convertExplorerStateToExploreUrl(
+            explorerState,
+            savedQuery.chartConfig,
+        );
 
         exploreUrl = `/projects/${projectUuid}/tables/${
             savedQuery.tableName
