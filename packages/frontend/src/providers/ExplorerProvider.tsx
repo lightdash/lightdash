@@ -75,7 +75,7 @@ type Action =
           type: ActionType.RESET_SORTING;
       };
 
-interface ExplorerReduceState {
+export interface ExplorerReduceState {
     chartName: string | undefined;
     tableName: string | undefined;
     selectedTableCalculations: FieldId[];

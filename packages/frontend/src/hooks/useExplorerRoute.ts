@@ -3,8 +3,60 @@ import { useEffect } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import { useApp } from '../providers/AppProvider';
-import { useExplorer } from '../providers/ExplorerProvider';
+import {
+    ExplorerReduceState,
+    useExplorer,
+} from '../providers/ExplorerProvider';
 
+export const convertExplorerStateToExploreUrl = (
+    state: ExplorerReduceState,
+) => {
+    const newParams = new URLSearchParams();
+
+    if (state.dimensions.length === 0) {
+        newParams.delete('dimensions');
+    } else {
+        newParams.set('dimensions', state.dimensions.join(','));
+    }
+    if (state.metrics.length === 0) {
+        newParams.delete('metrics');
+    } else {
+        newParams.set('metrics', state.metrics.join(','));
+    }
+    if (state.sorts.length === 0) {
+        newParams.delete('sort');
+    } else {
+        newParams.set('sort', JSON.stringify(state.sorts));
+    }
+    if (countTotalFilterRules(state.filters) === 0) {
+        newParams.delete('filters');
+    } else {
+        newParams.set('filters', JSON.stringify(state.filters));
+    }
+    newParams.set('limit', `${state.limit}`);
+    if (state.columnOrder.length === 0) {
+        newParams.delete('column_order');
+    } else {
+        newParams.set('column_order', state.columnOrder.join(','));
+    }
+    if (state.selectedTableCalculations.length === 0) {
+        newParams.delete('selected_table_calculations');
+    } else {
+        newParams.set(
+            'selected_table_calculations',
+            state.selectedTableCalculations.join(','),
+        );
+    }
+    if (state.tableCalculations.length === 0) {
+        newParams.delete('table_calculations');
+    } else {
+        newParams.set(
+            'table_calculations',
+            JSON.stringify(state.tableCalculations),
+        );
+    }
+    return newParams;
+};
 export const useExplorerRoute = () => {
     const { showToastError } = useApp();
     const { search } = useLocation();
@@ -71,52 +123,8 @@ export const useExplorerRoute = () => {
     // Update url params based on pristine state
     useEffect(() => {
         if (pristineState.tableName) {
-            const newParams = new URLSearchParams();
-            if (pristineState.dimensions.length === 0) {
-                newParams.delete('dimensions');
-            } else {
-                newParams.set('dimensions', pristineState.dimensions.join(','));
-            }
-            if (pristineState.metrics.length === 0) {
-                newParams.delete('metrics');
-            } else {
-                newParams.set('metrics', pristineState.metrics.join(','));
-            }
-            if (pristineState.sorts.length === 0) {
-                newParams.delete('sort');
-            } else {
-                newParams.set('sort', JSON.stringify(pristineState.sorts));
-            }
-            if (countTotalFilterRules(pristineState.filters) === 0) {
-                newParams.delete('filters');
-            } else {
-                newParams.set('filters', JSON.stringify(pristineState.filters));
-            }
-            newParams.set('limit', `${pristineState.limit}`);
-            if (pristineState.columnOrder.length === 0) {
-                newParams.delete('column_order');
-            } else {
-                newParams.set(
-                    'column_order',
-                    pristineState.columnOrder.join(','),
-                );
-            }
-            if (pristineState.selectedTableCalculations.length === 0) {
-                newParams.delete('selected_table_calculations');
-            } else {
-                newParams.set(
-                    'selected_table_calculations',
-                    pristineState.selectedTableCalculations.join(','),
-                );
-            }
-            if (pristineState.tableCalculations.length === 0) {
-                newParams.delete('table_calculations');
-            } else {
-                newParams.set(
-                    'table_calculations',
-                    JSON.stringify(pristineState.tableCalculations),
-                );
-            }
+            const newParams = convertExplorerStateToExploreUrl(pristineState);
+
             history.replace({
                 pathname: `/projects/${pathParams.projectUuid}/tables/${pristineState.tableName}`,
                 search: newParams.toString(),
