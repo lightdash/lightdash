@@ -142,7 +142,7 @@ export const AppProvider: FC = ({ children }) => {
             document.head.appendChild(script);
             setIsHeadwayLoaded(true);
         }
-    }, [isSentryLoaded, setIsSentryLoaded, health]);
+    }, [isHeadwayLoaded, health]);
 
     const showToastSuccess = useCallback<AppContext['showToastSuccess']>(
         ({ title, subtitle, key, ...rest }) => {
