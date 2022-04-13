@@ -72,3 +72,15 @@ export const ItemDescription = styled.p`
     color: ${Colors.GRAY5} !important;
     margin: 0;
 `;
+
+export const NotificationWrapper = styled.div`
+    position: relative;
+    color: ${Colors.GRAY5} !important;
+
+    margin-right: 0.625em;
+`;
+export const NotificationWidget = styled.div`
+    position: absolute;
+    left: 0;
+    top: 0;
+`;
