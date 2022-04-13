@@ -73,6 +73,7 @@ export const AppProvider: FC = ({ children }) => {
         enabled: !!health.data?.isAuthenticated,
         retry: false,
     });
+    const [isHeadwayLoaded, setIsHeadwayLoaded] = useState(false);
 
     useEffect(() => {
         if (health.data && !isSentryLoaded && health.data.sentry.dsn) {
@@ -132,6 +133,16 @@ export const AppProvider: FC = ({ children }) => {
             setIsChatwootLoaded(true);
         }
     }, [isChatwootLoaded, health, user]);
+
+    useEffect(() => {
+        if (!isHeadwayLoaded) {
+            const script = document.createElement('script');
+            script.async = false;
+            script.src = 'https://cdn.headwayapp.co/widget.js';
+            document.head.appendChild(script);
+            setIsHeadwayLoaded(true);
+        }
+    }, [isSentryLoaded, setIsSentryLoaded, health]);
 
     const showToastSuccess = useCallback<AppContext['showToastSuccess']>(
         ({ title, subtitle, key, ...rest }) => {

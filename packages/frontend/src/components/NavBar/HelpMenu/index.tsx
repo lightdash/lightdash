@@ -20,19 +20,10 @@ import {
 
 const HelpMenu: FC = () => {
     useEffect(() => {
-        //@ts-ignore
-        if (window.Headway) return; // don't load it twice
-        const script = document.createElement('script');
-        script.async = false;
-        script.src = 'https://cdn.headwayapp.co/widget.js';
-        document.head.appendChild(script);
-        script.onload = function () {
-            //@ts-ignore
-            window.Headway.init({
-                selector: '#headway-badge',
-                account: '7L3Bzx',
-            });
-        };
+        (window as any).Headway.init({
+            selector: '#headway-badge',
+            account: '7L3Bzx',
+        });
     }, []);
 
     const openChatWindow = () => {
