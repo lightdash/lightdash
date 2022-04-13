@@ -1,3 +1,10 @@
+# [0.64.0](https://github.com/lightdash/lightdash/compare/0.63.2...0.64.0) (2022-04-13)
+
+
+### Features
+
+* headway widget ([#1755](https://github.com/lightdash/lightdash/issues/1755)) ([aa97faf](https://github.com/lightdash/lightdash/commit/aa97faf22e88cbe4f198c8fb8106f6047c36221d))
+
 ## [0.63.2](https://github.com/lightdash/lightdash/compare/0.63.1...0.63.2) (2022-04-13)
 
 
