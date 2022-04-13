@@ -1,12 +1,15 @@
 import { AnchorButton } from '@blueprintjs/core';
+import { SpaceQuery } from 'common';
 import React, { FC } from 'react';
-import { useSavedCharts } from '../../../hooks/useSpaces';
-import LatestCard from '../LatestCard';
 import {
-    ChartName,
-    CreateChartButton,
-    ViewAllButton,
-} from './LatestSavedCharts.style';
+    useDeleteMutation,
+    useUpdateMutation,
+} from '../../../hooks/useSavedQuery';
+import { useSavedCharts } from '../../../hooks/useSpaces';
+import ActionCardList from '../../common/ActionCardList';
+import SavedQueryForm from '../../SavedQueries/SavedQueryForm';
+import LatestCard from '../LatestCard';
+import { CreateChartButton, ViewAllButton } from './LatestSavedCharts.style';
 
 const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const savedChartsRequest = useSavedCharts(projectUuid);
@@ -35,23 +38,18 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 )
             }
         >
-            {savedCharts
-                .sort(
-                    (a, b) =>
-                        new Date(b.updatedAt).getTime() -
-                        new Date(a.updatedAt).getTime(),
-                )
-                .slice(0, 5)
-                .map(({ uuid, name }) => (
-                    <ChartName
-                        key={uuid}
-                        minimal
-                        href={`/projects/${projectUuid}/saved/${uuid}`}
-                        alignText="left"
-                    >
-                        {name}
-                    </ChartName>
-                ))}
+            <ActionCardList
+                title="Saved charts"
+                useUpdate={useUpdateMutation}
+                useDelete={useDeleteMutation()}
+                dataList={savedCharts}
+                getURL={(savedQuery: SpaceQuery) => {
+                    const { uuid } = savedQuery;
+                    return `/projects/${projectUuid}/saved/${uuid}`;
+                }}
+                ModalContent={SavedQueryForm}
+                isHomePage
+            />
             {savedCharts.length === 0 && (
                 <CreateChartButton
                     minimal

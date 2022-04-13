@@ -1,13 +1,21 @@
-import { Card, Colors, Divider, H3, NonIdealState } from '@blueprintjs/core';
+import { NonIdealState } from '@blueprintjs/core';
 import { ApiError } from 'common';
 import React, { useState } from 'react';
 import { UseMutationResult } from 'react-query';
-import styled from 'styled-components';
+import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import { DeleteDashboardModal } from '../SavedDashboards/DeleteDashboardModal';
-import AddTilesToDashboardModal from '../SavedDashboards/AddTilesToDashboardModal';
-import ActionCard from './ActionCard';
-import { ActionModalProps, ActionTypeModal } from './modal/ActionModal';
-import UpdateActionModal from './modal/UpdateActionModal';
+import ActionCard from '../ActionCard';
+import { ActionModalProps, ActionTypeModal } from '../modal/ActionModal';
+import DeleteActionModal from '../modal/DeleteActionModal';
+import UpdateActionModal from '../modal/UpdateActionModal';
+import {
+    ActionCardListWrapper,
+    ActionCardWrapper,
+    CardDivider,
+    HeaderCardListWrapper,
+    NoIdealStateWrapper,
+    TitleWrapper,
+} from './ActionCardList.style';
 
 type ActionCardListProps<T extends { uuid: string; name: string }> = {
     title: string;
@@ -20,14 +28,8 @@ type ActionCardListProps<T extends { uuid: string; name: string }> = {
     ) => JSX.Element;
     headerAction?: React.ReactNode;
     isChart?: boolean;
+    isHomePage?: boolean;
 };
-
-const ActionCardListWrapper = styled(Card)`
-    width: 768px;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-`;
 
 const ActionCardList = <T extends { uuid: string; name: string }>({
     dataList,
@@ -38,6 +40,7 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
     title,
     headerAction,
     isChart,
+    isHomePage,
 }: ActionCardListProps<T>) => {
     const [actionState, setActionState] = useState<{
         actionType: number;
@@ -47,30 +50,24 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
     });
 
     return (
-        <ActionCardListWrapper>
-            <div
-                style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'flex-end',
-                }}
-            >
-                <H3 style={{ flex: 1, margin: 0, color: Colors.GRAY1 }}>
-                    {title}
-                </H3>
-                {headerAction}
-            </div>
-            <Divider style={{ margin: '20px 0' }} />
+        <ActionCardListWrapper $isHomePage={isHomePage}>
+            {!isHomePage && (
+                <HeaderCardListWrapper>
+                    <TitleWrapper>{title}</TitleWrapper>
+                    {headerAction}
+                </HeaderCardListWrapper>
+            )}
+            {!isHomePage && <CardDivider />}
             <div>
                 {dataList.map((data) => (
-                    <div key={data.uuid} style={{ marginBottom: 10 }}>
+                    <ActionCardWrapper key={data.uuid}>
                         <ActionCard
                             data={data}
                             url={getURL(data)}
                             setActionState={setActionState}
                             isChart={isChart}
                         />
-                    </div>
+                    </ActionCardWrapper>
                 ))}
             </div>
             {actionState.actionType === ActionTypeModal.UPDATE && (
@@ -110,9 +107,9 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
             )}
 
             {dataList.length <= 0 && (
-                <div style={{ padding: '50px 0' }}>
+                <NoIdealStateWrapper>
                     <NonIdealState title="No results available" icon="search" />
-                </div>
+                </NoIdealStateWrapper>
             )}
         </ActionCardListWrapper>
     );
@@ -121,6 +118,7 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
 ActionCardList.defaultProps = {
     headerAction: null,
     isChart: false,
+    isHomePage: false,
 };
 
 export default ActionCardList;
