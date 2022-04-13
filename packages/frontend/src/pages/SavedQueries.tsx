@@ -22,6 +22,7 @@ const SavedQueries: FC = () => {
             <SavedQueriesContent
                 savedQueries={data || []}
                 projectUuid={projectUuid}
+                isChart
             />
         </Page>
     );

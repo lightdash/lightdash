@@ -6,6 +6,7 @@ type ActionCardProps<T> = {
     data: T;
     url: string;
     setActionState: Dispatch<SetStateAction<{ actionType: number; data?: T }>>;
+    isChart?: boolean;
 };
 
 const ActionCard = <T extends { uuid: string; name: string }>(
@@ -16,6 +17,7 @@ const ActionCard = <T extends { uuid: string; name: string }>(
         data: { name },
         url,
         setActionState,
+        isChart,
     } = props;
     return (
         <LinkButton
@@ -32,6 +34,7 @@ const ActionCard = <T extends { uuid: string; name: string }>(
                     data={data}
                     url={url}
                     setActionState={setActionState}
+                    isChart={isChart}
                 />
             }
         >

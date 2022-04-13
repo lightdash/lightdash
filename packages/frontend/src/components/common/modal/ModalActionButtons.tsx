@@ -11,12 +11,14 @@ type ModalActionButtonsProps = {
     setActionState: Dispatch<
         SetStateAction<{ actionType: number; data?: any }>
     >;
+    isChart?: boolean;
 };
 
 const ModalActionButtons = ({
     data,
     url,
     setActionState,
+    isChart,
 }: ModalActionButtonsProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [itemId, setItemId] = useState<string>('');
@@ -57,10 +59,10 @@ const ModalActionButtons = ({
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            if (data.projectUuid || data.description) {
+                            if (!isChart) {
                                 duplicateDashboard(itemId);
                             }
-                            if (!data.projectUuid && !data.description) {
+                            if (isChart) {
                                 duplicateChart(itemId);
                             }
                             setIsOpen(false);
@@ -96,6 +98,10 @@ const ModalActionButtons = ({
             />
         </Popover2>
     );
+};
+
+ModalActionButtons.defaultProps = {
+    isChart: false,
 };
 
 export default ModalActionButtons;

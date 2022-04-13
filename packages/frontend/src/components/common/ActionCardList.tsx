@@ -18,6 +18,7 @@ type ActionCardListProps<T extends { uuid: string; name: string }> = {
         props: Pick<ActionModalProps<T>, 'useActionModalState' | 'isDisabled'>,
     ) => JSX.Element;
     headerAction?: React.ReactNode;
+    isChart?: boolean;
 };
 
 const ActionCardListWrapper = styled(Card)`
@@ -35,6 +36,7 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
     ModalContent,
     title,
     headerAction,
+    isChart,
 }: ActionCardListProps<T>) => {
     const [actionState, setActionState] = useState<{
         actionType: number;
@@ -65,6 +67,7 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
                             data={data}
                             url={getURL(data)}
                             setActionState={setActionState}
+                            isChart={isChart}
                         />
                     </div>
                 ))}
@@ -95,6 +98,7 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
 
 ActionCardList.defaultProps = {
     headerAction: null,
+    isChart: false,
 };
 
 export default ActionCardList;

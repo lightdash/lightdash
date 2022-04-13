@@ -10,11 +10,13 @@ import SavedQueryForm from './SavedQueryForm';
 type SavedQueriesContentProps = {
     savedQueries: SpaceQuery[];
     projectUuid: string;
+    isChart?: boolean;
 };
 
 const SavedQueriesContent = ({
     savedQueries,
     projectUuid,
+    isChart,
 }: SavedQueriesContentProps) => (
     <ActionCardList
         title="Saved charts"
@@ -26,6 +28,7 @@ const SavedQueriesContent = ({
             return `/projects/${projectUuid}/saved/${uuid}`;
         }}
         ModalContent={SavedQueryForm}
+        isChart={isChart}
     />
 );
 
