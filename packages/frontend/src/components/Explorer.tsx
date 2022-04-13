@@ -111,6 +111,12 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         ChartType.CARTESIAN,
     );
 
+    useEffect(() => {
+        if (savedQueryUuid) {
+            setChartId(savedQueryUuid);
+        }
+    }, []);
+
     const searchParams = new URLSearchParams(location.search);
 
     const overrideQueryUuid: string | undefined = searchParams.get('explore')
