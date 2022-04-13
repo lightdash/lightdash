@@ -104,8 +104,9 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [sqlIsOpen, setSqlIsOpen] = useState<boolean>(false);
     const [vizIsOpen, setVizisOpen] = useState<boolean>(!!savedQueryUuid);
     const totalActiveFilters: number = countTotalFilterRules(filters);
-    const [chartId] = useState<string>(savedQueryUuid || '');
-    const { mutate: duplicateChart } = useDuplicateMutation(chartId);
+    const { mutate: duplicateChart } = useDuplicateMutation(
+        savedQueryUuid || '',
+    );
     const [activeVizTab, setActiveVizTab] = useState<ChartType>(
         ChartType.CARTESIAN,
     );
