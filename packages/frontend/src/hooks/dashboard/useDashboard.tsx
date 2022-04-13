@@ -220,7 +220,11 @@ export const useCreateMutation = (
     );
 };
 
-export const useDuplicateDashboardMutation = (dashboardUuid: string) => {
+export const useDuplicateDashboardMutation = (
+    dashboardUuid: string,
+    showRedirectButton: boolean = false,
+) => {
+    const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
@@ -228,10 +232,20 @@ export const useDuplicateDashboardMutation = (dashboardUuid: string) => {
         () => duplicateDashboard(projectUuid, dashboardUuid),
         {
             mutationKey: ['dashboard_create', projectUuid],
-            onSuccess: async () => {
+            onSuccess: async (data) => {
                 await queryClient.invalidateQueries('dashboards');
                 showToastSuccess({
-                    title: `Success! Dashboard was duplicated.`,
+                    title: `Dashboard successfully duplicated!`,
+                    action: showRedirectButton
+                        ? {
+                              text: 'Open dashboard',
+                              icon: 'arrow-right',
+                              onClick: () =>
+                                  history.push(
+                                      `/projects/${projectUuid}/dashboards/${data.uuid}`,
+                                  ),
+                          }
+                        : undefined,
                 });
             },
             onError: (error) => {

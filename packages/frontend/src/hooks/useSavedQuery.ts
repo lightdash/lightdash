@@ -163,7 +163,11 @@ export const useCreateMutation = () => {
     );
 };
 
-export const useDuplicateMutation = (chartUuid: string) => {
+export const useDuplicateMutation = (
+    chartUuid: string,
+    showRedirectButton: boolean = false,
+) => {
+    const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
@@ -171,10 +175,20 @@ export const useDuplicateMutation = (chartUuid: string) => {
         () => duplicateSavedQuery(projectUuid, chartUuid),
         {
             mutationKey: ['saved_query_create', projectUuid],
-            onSuccess: async () => {
+            onSuccess: async (data) => {
                 await queryClient.invalidateQueries('spaces');
                 showToastSuccess({
-                    title: `Success! Chart was duplicated.`,
+                    title: `Chart successfully duplicated!`,
+                    action: showRedirectButton
+                        ? {
+                              text: 'Open chart',
+                              icon: 'arrow-right',
+                              onClick: () =>
+                                  history.push(
+                                      `/projects/${projectUuid}/saved/${data.uuid}`,
+                                  ),
+                          }
+                        : undefined,
                 });
             },
             onError: (error) => {

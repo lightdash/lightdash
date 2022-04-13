@@ -22,9 +22,11 @@ const ModalActionButtons = ({
 }: ModalActionButtonsProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [itemId, setItemId] = useState<string>('');
-    const { mutate: duplicateChart } = useDuplicateMutation(itemId);
-    const { mutate: duplicateDashboard } =
-        useDuplicateDashboardMutation(itemId);
+    const { mutate: duplicateChart } = useDuplicateMutation(itemId, true);
+    const { mutate: duplicateDashboard } = useDuplicateDashboardMutation(
+        itemId,
+        true,
+    );
 
     useEffect(() => {
         setItemId(data.uuid);
