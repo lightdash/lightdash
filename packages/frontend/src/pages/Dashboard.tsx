@@ -13,6 +13,7 @@ import React, {
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useHistory, useParams } from 'react-router-dom';
+import { v4 as uuid4 } from 'uuid';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import Page from '../components/common/Page/Page';
 import DashboardFilter from '../components/DashboardFilter';
@@ -76,8 +77,7 @@ const Dashboard = () => {
     const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
     const [tileId, setTileId] = useState<string>('');
     const [dashboardName, setDashboardName] = useState<string>('');
-    const { mutate: duplicateChart, data: duplicatedChart } =
-        useDuplicateMutation(tileId);
+    const { mutate: duplicateChart } = useDuplicateMutation(tileId);
     const {
         mutate,
         isSuccess,
