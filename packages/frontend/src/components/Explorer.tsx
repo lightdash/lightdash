@@ -110,6 +110,12 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         ChartType.CARTESIAN,
     );
 
+    useEffect(() => {
+        if (savedQueryUuid) {
+            setChartId(savedQueryUuid);
+        }
+    }, []);
+
     const searchParams = new URLSearchParams(location.search);
 
     const overrideQueryUuid: string | undefined = searchParams.get('explore')
@@ -417,9 +423,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                                                 savedQueryUuid &&
                                                                 hasUnsavedChanges()
                                                             ) {
-                                                                setChartId(
-                                                                    savedQueryUuid,
-                                                                );
                                                                 onDuplicateChart();
                                                             } else {
                                                                 setIsQueryModalOpen(
