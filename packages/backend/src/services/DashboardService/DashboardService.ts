@@ -76,6 +76,7 @@ export class DashboardService {
         const newDashboard = await this.dashboardModel.create(
             space.space_uuid,
             dashboard,
+            user,
         );
         analytics.track({
             event: 'dashboard.created',
@@ -103,6 +104,7 @@ export class DashboardService {
         const newDashboard = await this.dashboardModel.create(
             space.space_uuid,
             duplicatedDashboard,
+            user,
         );
 
         const dashboardProperties =
@@ -157,6 +159,7 @@ export class DashboardService {
                     tiles: dashboard.tiles,
                     filters: dashboard.filters,
                 },
+                user,
             );
             analytics.track({
                 event: 'dashboard_version.created',
