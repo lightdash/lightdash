@@ -1,9 +1,5 @@
 import { Alert, Intent, Spinner } from '@blueprintjs/core';
-import {
-    Dashboard as IDashboard,
-    DashboardChartTileProperties,
-    DashboardTileTypes,
-} from 'common';
+import { Dashboard as IDashboard, DashboardTileTypes } from 'common';
 import React, {
     FC,
     memo,
@@ -14,6 +10,7 @@ import React, {
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useHistory, useParams } from 'react-router-dom';
+import { v4 as uuid4 } from 'uuid';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import Page from '../components/common/Page/Page';
 import DashboardFilter from '../components/DashboardFilter';
@@ -77,8 +74,7 @@ const Dashboard = () => {
     const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
     const [tileId, setTileId] = useState<string>('');
     const [dashboardName, setDashboardName] = useState<string>('');
-    const { mutate: duplicateChart, data: duplicatedChart } =
-        useDuplicateMutation(tileId);
+    const { mutate: duplicateChart } = useDuplicateMutation(tileId);
     const {
         mutate,
         isSuccess,
@@ -175,18 +171,14 @@ const Dashboard = () => {
 
     const onDuplicate = useCallback((tile: IDashboard['tiles'][number]) => {
         setHasTilesChanged(true);
-        duplicateChart(tileId);
 
-        if (duplicatedChart) {
-            setDashboardTiles((currentDashboardTiles) => [
-                ...currentDashboardTiles,
-                {
-                    ...tile,
-                    uuid: duplicatedChart?.uuid,
-                    name: duplicatedChart.name,
-                },
-            ]);
-        }
+        setDashboardTiles((currentDashboardTiles) => [
+            ...currentDashboardTiles,
+            {
+                ...tile,
+                uuid: uuid4(),
+            },
+        ]);
     }, []);
 
     const onCancel = useCallback(() => {
@@ -294,10 +286,10 @@ const Dashboard = () => {
                     layouts={layouts}
                 >
                     {dashboardTiles.map((tile) => {
-                        const tileUuid = (tile as DashboardChartTileProperties)
-                            ? // @ts-ignore
-                              tile.properties.savedChartUuid
-                            : tile.uuid;
+                        const tileUuid =
+                            // @ts-ignore
+                            tile.properties.savedChartUuid || tile.uuid;
+
                         return (
                             <div key={tile.uuid}>
                                 <TrackSection name={SectionName.DASHBOARD_TILE}>
@@ -308,6 +300,7 @@ const Dashboard = () => {
                                         onEdit={onEdit}
                                         onDuplicate={() => {
                                             setTileId(tileUuid);
+                                            duplicateChart(tileUuid);
                                             onDuplicate(tile);
                                         }}
                                     />

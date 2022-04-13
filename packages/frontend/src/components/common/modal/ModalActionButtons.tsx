@@ -63,6 +63,7 @@ const ModalActionButtons = ({
                             if (!data.projectUuid && !data.description) {
                                 duplicateChart(itemId);
                             }
+                            setIsOpen(false);
                         }}
                     />
                     <MenuItem
