@@ -5,6 +5,7 @@ import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDashboards } from '../../../hooks/dashboard/useDashboards';
 import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
 import LatestCard from '../LatestCard';
+import { UpdatedInfo } from '../LatestSavedCharts';
 import {
     CreateDashboardButton,
     DashboardLinkButton,
@@ -12,7 +13,6 @@ import {
     DashboardTitle,
     ViewAllDashboardsButton,
 } from './LatestDashboard.styles';
-
 interface Props {
     projectUuid: string;
 }
@@ -63,7 +63,7 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
                             new Date(a.updatedAt).getTime(),
                     )
                     .slice(0, 6)
-                    .map(({ uuid, name }) => (
+                    .map(({ uuid, name, updatedAt, updatedByUser }) => (
                         <DashboardLinkButton
                             key={uuid}
                             minimal
@@ -71,6 +71,10 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
                             href={`/projects/${projectUuid}/dashboards/${uuid}`}
                         >
                             <DashboardTitle>{name}</DashboardTitle>
+                            <UpdatedInfo
+                                updatedAt={updatedAt}
+                                user={updatedByUser}
+                            />
                         </DashboardLinkButton>
                     ))}
                 {dashboards.length < 6 && (

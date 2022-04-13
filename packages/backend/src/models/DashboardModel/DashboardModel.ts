@@ -245,9 +245,9 @@ export class DashboardModel {
                 updatedAt: created_at,
                 projectUuid: project_uuid,
                 updatedByUser: {
-                    user_uuid,
-                    first_name,
-                    last_name,
+                    userUuid: user_uuid,
+                    firstName: first_name,
+                    lastName: last_name,
                 },
             }),
         );

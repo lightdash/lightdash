@@ -1,13 +1,38 @@
 import { AnchorButton } from '@blueprintjs/core';
+import { SessionUser } from 'common';
 import React, { FC } from 'react';
 import { useSavedCharts } from '../../../hooks/useSpaces';
+import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import LatestCard from '../LatestCard';
 import {
     ChartName,
     CreateChartButton,
+    UpdatedLabel,
     ViewAllButton,
 } from './LatestSavedCharts.style';
 
+export const UpdatedInfo: FC<{
+    updatedAt: Date;
+    user: Partial<SessionUser> | undefined;
+}> = ({ updatedAt, user }) => {
+    const timeAgo = useTimeAgo(updatedAt);
+
+    return (
+        <UpdatedLabel>
+            Last edited <b>{timeAgo}</b>{' '}
+            {user && user.firstName ? (
+                <>
+                    by{' '}
+                    <b>
+                        {user.firstName} {user.lastName}
+                    </b>
+                </>
+            ) : (
+                ''
+            )}
+        </UpdatedLabel>
+    );
+};
 const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const savedChartsRequest = useSavedCharts(projectUuid);
     const savedCharts = savedChartsRequest.data || [];
@@ -42,14 +67,20 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         new Date(a.updatedAt).getTime(),
                 )
                 .slice(0, 5)
-                .map(({ uuid, name }) => (
+                .map(({ uuid, name, updatedAt, updatedByUser }) => (
                     <ChartName
                         key={uuid}
                         minimal
                         href={`/projects/${projectUuid}/saved/${uuid}`}
                         alignText="left"
                     >
-                        {name}
+                        <>
+                            {name}
+                            <UpdatedInfo
+                                updatedAt={updatedAt}
+                                user={updatedByUser}
+                            />
+                        </>
                     </ChartName>
                 ))}
             {savedCharts.length === 0 && (
