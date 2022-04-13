@@ -27,7 +27,6 @@ import {
 import { FC, useEffect, useState } from 'react';
 import { Link, useHistory, useLocation, useParams } from 'react-router-dom';
 import { getDashboards } from '../hooks/dashboard/useDashboards';
-import { useDuplicateChart } from '../hooks/useDuplicate';
 import { useExplore } from '../hooks/useExplore';
 import { useQueryResults } from '../hooks/useQueryResults';
 import {
@@ -110,12 +109,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [activeVizTab, setActiveVizTab] = useState<ChartType>(
         ChartType.CARTESIAN,
     );
-
-    useEffect(() => {
-        if (savedQueryUuid) {
-            setChartId(savedQueryUuid);
-        }
-    }, []);
 
     const searchParams = new URLSearchParams(location.search);
 
