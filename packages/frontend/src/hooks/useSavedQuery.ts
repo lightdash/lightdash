@@ -177,6 +177,17 @@ export const useDuplicateMutation = (
             mutationKey: ['saved_query_create', projectUuid],
             onSuccess: async (data) => {
                 await queryClient.invalidateQueries('spaces');
+
+                if (!showRedirectButton) {
+                    history.push({
+                        pathname: `/projects/${projectUuid}/saved/${data.uuid}`,
+
+                        state: {
+                            fromExplorer: true,
+                        },
+                    });
+                }
+
                 showToastSuccess({
                     title: `Chart successfully duplicated!`,
                     action: showRedirectButton
