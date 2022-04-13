@@ -1,3 +1,10 @@
+## [0.63.2](https://github.com/lightdash/lightdash/compare/0.63.1...0.63.2) (2022-04-13)
+
+
+### Bug Fixes
+
+* fix bignumber and table saved charts ([#1769](https://github.com/lightdash/lightdash/issues/1769)) ([1b6fc70](https://github.com/lightdash/lightdash/commit/1b6fc70002a10e53192cc7336bea1759b45093ab))
+
 ## [0.63.1](https://github.com/lightdash/lightdash/compare/0.63.0...0.63.1) (2022-04-12)
 
 
