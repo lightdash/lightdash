@@ -14,21 +14,22 @@ import {
     ItemDescription,
     LinkWrapper,
     MenuWrapper,
+    NotificationWidget,
+    NotificationWrapper,
 } from './HelpMenu.styles';
 
 const HelpMenu: FC = () => {
     useEffect(() => {
+        //@ts-ignore
+        if (window.Headway) return; // don't load it twice
         const script = document.createElement('script');
         script.async = false;
         script.src = 'https://cdn.headwayapp.co/widget.js';
         document.head.appendChild(script);
         script.onload = function () {
-            document
-                .querySelectorAll('.HW_badge_cont')
-                .forEach((b) => b.remove);
             //@ts-ignore
             window.Headway.init({
-                selector: '.headway-badge',
+                selector: '#headway-badge',
                 account: '7L3Bzx',
             });
         };
@@ -40,9 +41,10 @@ const HelpMenu: FC = () => {
 
     return (
         <>
-            <div className="headway-badge" style={{ marginTop: 30 }}>
+            <NotificationWrapper>
                 <Icon icon="notifications" />
-            </div>
+                <NotificationWidget id="headway-badge"></NotificationWidget>
+            </NotificationWrapper>
             <Popover2
                 interactionKind={PopoverInteractionKind.CLICK}
                 content={
