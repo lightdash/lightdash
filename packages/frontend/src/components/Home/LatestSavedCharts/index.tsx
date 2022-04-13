@@ -49,6 +49,7 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 }}
                 ModalContent={SavedQueryForm}
                 isHomePage
+                isChart
             />
             {savedCharts.length === 0 && (
                 <CreateChartButton

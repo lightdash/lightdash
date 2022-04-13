@@ -3,10 +3,9 @@ import { ApiError } from 'common';
 import React, { useState } from 'react';
 import { UseMutationResult } from 'react-query';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import { DeleteDashboardModal } from '../SavedDashboards/DeleteDashboardModal';
+import { DeleteDashboardModal } from '../../SavedDashboards/DeleteDashboardModal';
 import ActionCard from '../ActionCard';
 import { ActionModalProps, ActionTypeModal } from '../modal/ActionModal';
-import DeleteActionModal from '../modal/DeleteActionModal';
 import UpdateActionModal from '../modal/UpdateActionModal';
 import {
     ActionCardListWrapper,
@@ -92,7 +91,7 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
                         name={actionState.data.name}
                     />
                 )}
-          
+
             {actionState.actionType === ActionTypeModal.ADD_TO_DASHBOARD && (
                 <AddTilesToDashboardModal
                     savedChart={actionState.data}
