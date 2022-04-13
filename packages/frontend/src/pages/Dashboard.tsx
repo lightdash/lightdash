@@ -1,9 +1,5 @@
 import { Alert, Intent, Spinner } from '@blueprintjs/core';
-import {
-    Dashboard as IDashboard,
-    DashboardChartTileProperties,
-    DashboardTileTypes,
-} from 'common';
+import { Dashboard as IDashboard, DashboardTileTypes } from 'common';
 import React, {
     FC,
     memo,
@@ -77,8 +73,7 @@ const Dashboard = () => {
     const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
     const [tileId, setTileId] = useState<string>('');
     const [dashboardName, setDashboardName] = useState<string>('');
-    const { mutate: duplicateChart, data: duplicatedChart } =
-        useDuplicateMutation(tileId);
+    const { mutate: duplicateChart } = useDuplicateMutation(tileId);
     const {
         mutate,
         isSuccess,
