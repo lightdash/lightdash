@@ -1,3 +1,10 @@
+# [0.65.0](https://github.com/lightdash/lightdash/compare/0.64.0...0.65.0) (2022-04-13)
+
+
+### Features
+
+* add posibility to duplicate a chart within a dashboard ([#1707](https://github.com/lightdash/lightdash/issues/1707)) ([d23a7f0](https://github.com/lightdash/lightdash/commit/d23a7f0c26de112f9ce2d157e9ac0e521413b8cc))
+
 # [0.64.0](https://github.com/lightdash/lightdash/compare/0.63.2...0.64.0) (2022-04-13)
 
 
