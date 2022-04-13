@@ -4,6 +4,7 @@ import {
     CreateSavedChartVersion,
     DBFieldTypes,
     SavedChart,
+    SessionUser,
     SortField,
     Space,
     UpdateSavedChart,
@@ -78,6 +79,7 @@ const createSavedChartVersion = async (
         chartConfig,
         tableConfig,
         pivotConfig,
+        updatedByUser,
     }: CreateSavedChartVersion,
 ): Promise<void> => {
     await db.transaction(async (trx) => {
@@ -93,6 +95,7 @@ const createSavedChartVersion = async (
                         : undefined,
                     chart_type: chartConfig.type,
                     chart_config: chartConfig.config,
+                    updated_by_user_uuid: updatedByUser?.userUuid,
                 })
                 .returning('*');
             const promises: Promise<any>[] = [];
@@ -213,17 +216,18 @@ export class SavedChartModel {
     async createVersion(
         savedChartUuid: string,
         data: CreateSavedChartVersion,
+        user: SessionUser,
     ): Promise<SavedChart> {
         await this.database.transaction(async (trx) => {
             try {
                 const [savedChart] = await trx('saved_queries')
                     .select(['saved_query_id'])
                     .where('saved_query_uuid', savedChartUuid);
-                await createSavedChartVersion(
-                    trx,
-                    savedChart.saved_query_id,
-                    data,
-                );
+
+                await createSavedChartVersion(trx, savedChart.saved_query_id, {
+                    ...data,
+                    updatedByUser: user,
+                });
             } catch (e) {
                 trx.rollback(e);
                 throw e;

@@ -936,7 +936,10 @@ export const isDbtRpcRunSqlResults = (
             Array.isArray(result.table.rows),
     );
 
-export type SpaceQuery = Pick<SavedChart, 'uuid' | 'name' | 'updatedAt'>;
+export type SpaceQuery = Pick<
+    SavedChart,
+    'uuid' | 'name' | 'updatedAt' | 'updatedByUser'
+>;
 
 export type Space = {
     uuid: string;
