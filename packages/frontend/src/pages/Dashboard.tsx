@@ -270,10 +270,6 @@ const Dashboard = () => {
                     layouts={layouts}
                 >
                     {dashboardTiles.map((tile) => {
-                        const tileUuid =
-                            // @ts-ignore
-                            tile.properties.savedChartUuid || tile.uuid;
-
                         return (
                             <div key={tile.uuid}>
                                 <TrackSection name={SectionName.DASHBOARD_TILE}>
