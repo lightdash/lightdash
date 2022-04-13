@@ -28,6 +28,7 @@ export const useCompliedSql = () => {
             limit,
             selectedTableCalculations,
             tableCalculations,
+            additionalMetrics,
         },
     } = useExplorer();
     const setErrorResponse = useQueryError();
@@ -40,6 +41,7 @@ export const useCompliedSql = () => {
         tableCalculations: tableCalculations.filter(({ name }) =>
             selectedTableCalculations.includes(name),
         ),
+        additionalMetrics,
     };
     const queryKey = ['compiledQuery', tableId, metricQuery, projectUuid];
     return useQuery<ApiCompiledQueryResults, ApiError>({

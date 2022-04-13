@@ -1,5 +1,6 @@
 import {
     FieldId,
+    Metric,
     MetricQuery,
     SortField,
     TableCalculation,
@@ -30,6 +31,7 @@ export enum ActionType {
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
     RESET_SORTING,
+    SET_ADDITIONAL_METRICS,
 }
 
 type Action =
@@ -73,6 +75,10 @@ type Action =
       }
     | {
           type: ActionType.RESET_SORTING;
+      }
+    | {
+          type: ActionType.SET_ADDITIONAL_METRICS;
+          payload: Metric[];
       };
 
 interface ExplorerReduceState {
@@ -87,6 +93,7 @@ interface ExplorerReduceState {
     columnOrder: string[];
     limit: number;
     tableCalculations: TableCalculation[];
+    additionalMetrics: Metric[];
 }
 
 interface ExplorerState extends ExplorerReduceState {
@@ -134,6 +141,7 @@ const defaultState: ExplorerReduceState = {
     limit: 500,
     tableCalculations: [],
     selectedTableCalculations: [],
+    additionalMetrics: [],
 };
 
 const calcColumnOrder = (
@@ -294,6 +302,12 @@ function reducer(
                 filters: action.payload,
             };
         }
+        case ActionType.SET_ADDITIONAL_METRICS: {
+            return {
+                ...state,
+                additionalMetrics: action.payload,
+            };
+        }
         case ActionType.SET_COLUMN_ORDER: {
             return {
                 ...state,
@@ -361,6 +375,7 @@ function reducer(
                 ]),
             };
         }
+
         default: {
             throw new Error(`Unhandled action type`);
         }

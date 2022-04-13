@@ -1,4 +1,4 @@
-import { FieldId } from './field';
+import { FieldId, Metric } from './field';
 import { Filters } from './filter';
 
 export type TableCalculation = {
@@ -19,6 +19,7 @@ export type MetricQuery = {
     sorts: SortField[]; // Sorts for the data
     limit: number; // Max number of rows to return from query
     tableCalculations: TableCalculation[]; // calculations to append to results
+    additionalMetrics?: Metric[]; // existing metric type
 };
 export type CompiledMetricQuery = MetricQuery & {
     compiledTableCalculations: CompiledTableCalculation[];

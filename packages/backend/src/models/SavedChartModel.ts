@@ -347,6 +347,7 @@ export class SavedChartModel {
                         sql: tableCalculation.calculation_raw_sql,
                     }),
                 ),
+                additionalMetrics: [], // TODO load from DB
             },
             chartConfig,
             tableConfig: {
