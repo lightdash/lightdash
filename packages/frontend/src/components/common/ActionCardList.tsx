@@ -99,6 +99,10 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
             {actionState.actionType === ActionTypeModal.ADD_TO_DASHBOARD && (
                 <AddTilesToDashboardModal
                     savedChart={actionState.data}
+                    isOpen={
+                        actionState.actionType ===
+                        ActionTypeModal.ADD_TO_DASHBOARD
+                    }
                     onClose={() =>
                         setActionState({ actionType: ActionTypeModal.CLOSE })
                     }

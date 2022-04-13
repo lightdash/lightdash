@@ -21,12 +21,12 @@ import {
     useUpdateDashboard,
 } from '../../hooks/dashboard/useDashboard';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
+import { useSavedQuery } from '../../hooks/useSavedQuery';
 import { CreateNewText } from './AddTilesToDashboardModal.styles';
 
 interface AddTilesToDashboardModalProps {
     isOpen: boolean;
-
-    savedChart: SavedChart;
+    savedChart: SavedChart | any;
     onClose?: () => void;
 }
 
@@ -53,6 +53,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     const [name, setName] = useState<string>('');
     const [showNewDashboardInput, setShowNewDashboardInput] =
         useState<boolean>(false);
+    const { data: completeSavedChart } = useSavedQuery(savedChart.uuid);
 
     useEffect(() => {
         if (dashboards && !dashboardData && !isLoading) {
@@ -148,7 +149,10 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                                         savedChart.uuid,
                                                 },
                                                 ...getDefaultChartTileSize(
-                                                    savedChart.chartConfig.type,
+                                                    savedChart.chartConfig
+                                                        ?.type ||
+                                                        completeSavedChart
+                                                            ?.chartConfig.type,
                                                 ),
                                             },
                                         ],
@@ -167,7 +171,10 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                                         savedChart.uuid,
                                                 },
                                                 ...getDefaultChartTileSize(
-                                                    savedChart.chartConfig.type,
+                                                    savedChart.chartConfig
+                                                        ?.type ||
+                                                        completeSavedChart
+                                                            ?.chartConfig.type,
                                                 ),
                                             },
                                         ],
