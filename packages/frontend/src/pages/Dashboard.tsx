@@ -10,7 +10,6 @@ import React, {
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useHistory, useParams } from 'react-router-dom';
-import { v4 as uuid4 } from 'uuid';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import Page from '../components/common/Page/Page';
 import DashboardFilter from '../components/DashboardFilter';
@@ -23,7 +22,6 @@ import {
     useDashboardQuery,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
-import { useDuplicateMutation } from '../hooks/useSavedQuery';
 import { useDashboardContext } from '../providers/DashboardProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import '../styles/react-grid.css';
@@ -34,7 +32,7 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 const GridTile: FC<
     Pick<
         React.ComponentProps<typeof TileBase>,
-        'tile' | 'onEdit' | 'onDelete' | 'isEditMode' | 'onDuplicate'
+        'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     >
 > = memo((props) => {
     const { tile } = props;
@@ -72,9 +70,7 @@ const Dashboard = () => {
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
     const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
-    const [tileId, setTileId] = useState<string>('');
     const [dashboardName, setDashboardName] = useState<string>('');
-    const { mutate: duplicateChart } = useDuplicateMutation(tileId);
     const {
         mutate,
         isSuccess,
@@ -167,18 +163,6 @@ const Dashboard = () => {
             ),
         );
         setHasTilesChanged(true);
-    }, []);
-
-    const onDuplicate = useCallback((tile: IDashboard['tiles'][number]) => {
-        setHasTilesChanged(true);
-
-        setDashboardTiles((currentDashboardTiles) => [
-            ...currentDashboardTiles,
-            {
-                ...tile,
-                uuid: uuid4(),
-            },
-        ]);
     }, []);
 
     const onCancel = useCallback(() => {
@@ -298,11 +282,6 @@ const Dashboard = () => {
                                         tile={tile}
                                         onDelete={onDelete}
                                         onEdit={onEdit}
-                                        onDuplicate={() => {
-                                            setTileId(tileUuid);
-                                            duplicateChart(tileUuid);
-                                            onDuplicate(tile);
-                                        }}
                                     />
                                 </TrackSection>
                             </div>
