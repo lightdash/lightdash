@@ -1,5 +1,5 @@
 import { Button, Classes, Dialog } from '@blueprintjs/core';
-import { FC, useState } from 'react';
+import { FC } from 'react';
 import { useDeleteMutation } from '../../hooks/dashboard/useDashboard';
 
 interface DeleteDashboardModalProps {
@@ -16,7 +16,6 @@ export const DeleteDashboardModal: FC<DeleteDashboardModalProps> = ({
     onClose,
 }) => {
     const { mutate: deleteData, isLoading: isDeleting } = useDeleteMutation();
-    const [uuidDeleted, setUuidDeleted] = useState<string>();
 
     return (
         <Dialog
@@ -41,7 +40,6 @@ export const DeleteDashboardModal: FC<DeleteDashboardModalProps> = ({
                         intent="danger"
                         onClick={() => {
                             deleteData(uuid);
-                            setUuidDeleted(uuid);
                             onClose();
                         }}
                     >
