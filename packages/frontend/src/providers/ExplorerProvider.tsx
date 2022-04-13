@@ -93,7 +93,7 @@ interface ExplorerReduceState {
     columnOrder: string[];
     limit: number;
     tableCalculations: TableCalculation[];
-    additionalMetrics: Metric[];
+    additionalMetrics: Metric[] | undefined;
 }
 
 interface ExplorerState extends ExplorerReduceState {

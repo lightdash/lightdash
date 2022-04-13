@@ -124,7 +124,7 @@ export const useExplorerRoute = () => {
                 );
             }
 
-            if (pristineState.additionalMetrics.length === 0) {
+            if (pristineState.additionalMetrics?.length === 0) {
                 newParams.delete('additional_metrics');
             } else {
                 newParams.set(
