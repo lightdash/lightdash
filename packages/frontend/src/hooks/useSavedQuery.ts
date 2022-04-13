@@ -22,10 +22,10 @@ const createSavedQuery = async (
 
 const duplicateSavedQuery = async (
     projectUuid: string,
-    id: string,
+    chartUuid: string,
 ): Promise<SavedChart> =>
     lightdashApi<SavedChart>({
-        url: `/projects/${projectUuid}/saved?duplicateFrom=${id}`,
+        url: `/projects/${projectUuid}/saved?duplicateFrom=${chartUuid}`,
         method: 'POST',
         body: undefined,
     });
@@ -163,12 +163,12 @@ export const useCreateMutation = () => {
     );
 };
 
-export const useDuplicateMutation = (id: string) => {
+export const useDuplicateMutation = (chartUuid: string) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
-    return useMutation<SavedChart, ApiError, CreateSavedChart>(
-        () => duplicateSavedQuery(projectUuid, id),
+    return useMutation<SavedChart, ApiError, string>(
+        () => duplicateSavedQuery(projectUuid, chartUuid),
         {
             mutationKey: ['saved_query_create', projectUuid],
             onSuccess: async () => {

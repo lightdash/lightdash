@@ -32,10 +32,10 @@ const createDashboard = async (projectUuid: string, data: CreateDashboard) =>
 
 const duplicateDashboard = async (
     projectUuid: string,
-    id: string,
+    dashboardUuid: string,
 ): Promise<Dashboard> =>
     lightdashApi<Dashboard>({
-        url: `/projects/${projectUuid}/dashboards?duplicateFrom=${id}`,
+        url: `/projects/${projectUuid}/dashboards?duplicateFrom=${dashboardUuid}`,
         method: 'POST',
         body: undefined,
     });
@@ -220,12 +220,12 @@ export const useCreateMutation = (
     );
 };
 
-export const useDuplicateDashboardMutation = (id: string) => {
+export const useDuplicateDashboardMutation = (dashboardUuid: string) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
-    return useMutation<Dashboard, ApiError, CreateDashboard>(
-        () => duplicateDashboard(projectUuid, id),
+    return useMutation<Dashboard, ApiError, string>(
+        () => duplicateDashboard(projectUuid, dashboardUuid),
         {
             mutationKey: ['dashboard_create', projectUuid],
             onSuccess: async () => {
