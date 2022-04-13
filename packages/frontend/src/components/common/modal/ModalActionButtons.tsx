@@ -30,10 +30,6 @@ const ModalActionButtons = ({
         setItemId(data.uuid);
     }, []);
 
-    useEffect(() => {
-        setItemId(data.uuid);
-    }, []);
-
     return (
         <Popover2
             isOpen={isOpen}
