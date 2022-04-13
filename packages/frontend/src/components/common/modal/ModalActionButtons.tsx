@@ -25,6 +25,7 @@ const ModalActionButtons = ({
     const { mutate: duplicateChart } = useDuplicateMutation(itemId);
     const { mutate: duplicateDashboard } =
         useDuplicateDashboardMutation(itemId);
+    const isDashboardPage = url.includes('/dashboards');
 
     useEffect(() => {
         setItemId(data.uuid);
@@ -68,25 +69,26 @@ const ModalActionButtons = ({
                             setIsOpen(false);
                         }}
                     />
-                  {!isDashboardPage && (
-                            <MenuItem
-                                icon="insert"
-                                text="Add to Dashboard"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setIsOpen(false);
-                                    setActionState({
-                                        actionType:
-                                            ActionTypeModal.ADD_TO_DASHBOARD,
-                                        data,
-                                    });
-                                }}
-                            />
-                        )}
+                    {!isDashboardPage && (
+                        <MenuItem
+                            icon="insert"
+                            text="Add to Dashboard"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setIsOpen(false);
+                                setActionState({
+                                    actionType:
+                                        ActionTypeModal.ADD_TO_DASHBOARD,
+                                    data,
+                                });
+                            }}
+                        />
+                    )}
+                    <Divider />
                     <MenuItem
                         role="button"
-                        icon="delete"
+                        icon="trash"
                         text="Delete"
                         intent="danger"
                         onClick={(e) => {
