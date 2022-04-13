@@ -127,7 +127,18 @@ const NodeItemButtons: FC<{
     const { isFilteredField, addFilter } = useFilters();
     const isFiltered = isFilteredField(node);
     const { track } = useTracking();
-    const menuItems: ReactNode[] = [];
+    const menuItems: ReactNode[] = [
+        <MenuItem
+            key="filter"
+            icon="numerical"
+            text="Add metric"
+            onClick={(e) => {
+                e.stopPropagation();
+                addFilter(node, undefined);
+            }}
+        />,
+    ];
+
     if (node.source) {
         menuItems.push(
             <MenuItem
@@ -145,7 +156,7 @@ const NodeItemButtons: FC<{
         );
     }
     if (isFilterableField(node)) {
-        menuItems.push(
+        menuItems.unshift(
             <MenuItem
                 key="filter"
                 icon="filter"
