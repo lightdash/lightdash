@@ -9,12 +9,16 @@ import {
     METRIC_QUERY_NO_CALCS,
     METRIC_QUERY_VALID_REFERENCES,
     METRIC_QUERY_VALID_REFERENCES_COMPILED,
+    METRIC_QUERY_WITH_ADDITIONAL_METRICS,
+    METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED,
+    METRIC_QUERY_WITH_INVALID_ADDITIONAL_METRIC,
 } from './queryCompiler.mock';
 
 test('Should compile without table calculations', () => {
     const expected: CompiledMetricQuery = {
         ...METRIC_QUERY_NO_CALCS,
         compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
     };
     expect(
         compileMetricQuery({
@@ -56,6 +60,24 @@ test('Should throw error when table calculation has duplicate name', () => {
         compileMetricQuery({
             explore: EXPLORE,
             metricQuery: METRIC_QUERY_DUPLICATE_NAME,
+        }),
+    ).toThrowError(CompileError);
+});
+
+test('Should compile query with additional metrics', () => {
+    expect(
+        compileMetricQuery({
+            explore: EXPLORE,
+            metricQuery: METRIC_QUERY_WITH_ADDITIONAL_METRICS,
+        }),
+    ).toStrictEqual(METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED);
+});
+
+test('Should throw compile error if metric in non existent table', () => {
+    expect(() =>
+        compileMetricQuery({
+            explore: EXPLORE,
+            metricQuery: METRIC_QUERY_WITH_INVALID_ADDITIONAL_METRIC,
         }),
     ).toThrowError(CompileError);
 });

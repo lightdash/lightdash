@@ -19,6 +19,8 @@ import {
     METRIC_QUERY_SQL,
     METRIC_QUERY_TWO_TABLES,
     METRIC_QUERY_TWO_TABLES_SQL,
+    METRIC_QUERY_WITH_ADDITIONAL_METRIC,
+    METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL,
     METRIC_QUERY_WITH_FILTER,
     METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
     METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL,
@@ -80,6 +82,15 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_METRIC_FILTER,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_SQL);
+    });
+
+    test('Should build query with additional metric', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_ADDITIONAL_METRIC,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL);
     });
 });
 

@@ -1,4 +1,4 @@
-import { FieldId, Metric } from './field';
+import { CompiledMetric, FieldId, Metric } from './field';
 import { Filters } from './filter';
 
 export type TableCalculation = {
@@ -23,6 +23,7 @@ export type MetricQuery = {
 };
 export type CompiledMetricQuery = MetricQuery & {
     compiledTableCalculations: CompiledTableCalculation[];
+    compiledAdditionalMetrics: CompiledMetric[];
 };
 // Sort by
 export type SortField = {
