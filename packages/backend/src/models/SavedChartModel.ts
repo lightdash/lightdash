@@ -3,6 +3,7 @@ import {
     CreateSavedChart,
     CreateSavedChartVersion,
     DBFieldTypes,
+    Metric,
     SavedChart,
     SortField,
     Space,
@@ -74,6 +75,7 @@ const createSavedChartVersion = async (
             metrics,
             sorts,
             tableCalculations,
+            additionalMetrics,
         },
         chartConfig,
         tableConfig,
@@ -146,6 +148,10 @@ const createSavedChartVersion = async (
                         ),
                     }),
                 );
+            });
+            additionalMetrics?.forEach((tableCalculation, index) => {
+                // TODO save in DB
+                promises.push();
             });
             await Promise.all(promises);
         } catch (e) {
@@ -303,6 +309,15 @@ export class SavedChartModel {
                 'saved_queries_version_id',
                 savedQuery.saved_queries_version_id,
             );
+        // TODO load from DB
+        const additionalMetrics: Metric[] = []; /* await this.database(
+            'saved_queries_version_table_calculations',
+        )
+            .select(['name', 'display_name', 'calculation_raw_sql', 'order'])
+            .where(
+                'saved_queries_version_id',
+                savedQuery.saved_queries_version_id,
+            ); */
 
         const [dimensions, metrics]: [string[], string[]] = fields.reduce<
             [string[], string[]]
@@ -347,7 +362,7 @@ export class SavedChartModel {
                         sql: tableCalculation.calculation_raw_sql,
                     }),
                 ),
-                additionalMetrics: [], // TODO load from DB
+                additionalMetrics,
             },
             chartConfig,
             tableConfig: {
