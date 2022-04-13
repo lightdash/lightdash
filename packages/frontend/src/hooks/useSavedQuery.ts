@@ -20,6 +20,16 @@ const createSavedQuery = async (
         body: JSON.stringify(payload),
     });
 
+const duplicateSavedQuery = async (
+    projectUuid: string,
+    chartUuid: string,
+): Promise<SavedChart> =>
+    lightdashApi<SavedChart>({
+        url: `/projects/${projectUuid}/saved?duplicateFrom=${chartUuid}`,
+        method: 'POST',
+        body: undefined,
+    });
+
 const deleteSavedQuery = async (id: string) =>
     lightdashApi<undefined>({
         url: `/saved/${id}`,
@@ -146,6 +156,30 @@ export const useCreateMutation = () => {
             onError: (error) => {
                 showToastError({
                     title: `Failed to save chart`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};
+
+export const useDuplicateMutation = (chartUuid: string) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useApp();
+    return useMutation<SavedChart, ApiError, string>(
+        () => duplicateSavedQuery(projectUuid, chartUuid),
+        {
+            mutationKey: ['saved_query_create', projectUuid],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries('spaces');
+                showToastSuccess({
+                    title: `Success! Chart was duplicated.`,
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to duplicate chart`,
                     subtitle: error.error.message,
                 });
             },

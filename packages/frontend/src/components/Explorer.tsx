@@ -32,6 +32,7 @@ import { useQueryResults } from '../hooks/useQueryResults';
 import {
     useAddVersionMutation,
     useDeleteMutation,
+    useDuplicateMutation,
     useSavedQuery,
     useUpdateMutation,
 } from '../hooks/useSavedQuery';
@@ -103,6 +104,8 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [sqlIsOpen, setSqlIsOpen] = useState<boolean>(false);
     const [vizIsOpen, setVizisOpen] = useState<boolean>(!!savedQueryUuid);
     const totalActiveFilters: number = countTotalFilterRules(filters);
+    const chartId = savedQueryUuid || '';
+    const { mutate: duplicateChart } = useDuplicateMutation(chartId);
     const [activeVizTab, setActiveVizTab] = useState<ChartType>(
         ChartType.CARTESIAN,
     );
@@ -399,13 +402,30 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                             content={
                                                 <Menu>
                                                     <MenuItem
-                                                        icon="add"
-                                                        text="Save chart as"
-                                                        onClick={() =>
-                                                            setIsQueryModalOpen(
-                                                                true,
-                                                            )
+                                                        icon={
+                                                            hasUnsavedChanges()
+                                                                ? 'duplicate'
+                                                                : 'add'
                                                         }
+                                                        text={
+                                                            hasUnsavedChanges()
+                                                                ? 'Duplicate'
+                                                                : 'Save chart as'
+                                                        }
+                                                        onClick={() => {
+                                                            if (
+                                                                savedQueryUuid &&
+                                                                hasUnsavedChanges()
+                                                            ) {
+                                                                duplicateChart(
+                                                                    chartId,
+                                                                );
+                                                            } else {
+                                                                setIsQueryModalOpen(
+                                                                    true,
+                                                                );
+                                                            }
+                                                        }}
                                                     />
                                                     <MenuItem
                                                         icon="control"

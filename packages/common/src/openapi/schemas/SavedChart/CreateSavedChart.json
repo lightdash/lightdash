@@ -39,12 +39,5 @@
             },
             "required": ["columns"]
         }
-    },
-    "required": [
-        "name",
-        "tableName",
-        "metricQuery",
-        "chartConfig",
-        "tableConfig"
-    ]
+    }
 }
