@@ -98,6 +98,7 @@ export const VisualizationProvider: FC<Props> = ({
         chartTypeConfig as CartesianChart,
         validPivotDimensions?.[0],
         resultsData,
+        chartConfigs !== undefined,
         setChartType,
         setPivotDimensions,
     );
