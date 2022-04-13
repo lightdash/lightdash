@@ -1,29 +1,22 @@
 import { Button, Classes, Dialog } from '@blueprintjs/core';
-import { FC, useEffect, useState } from 'react';
+import { FC, useState } from 'react';
 import { useDeleteMutation } from '../../hooks/dashboard/useDashboard';
 
 interface DeleteDashboardModalProps {
     uuid: string;
     name: string;
-    refresh: number;
+    isOpen: boolean;
+    onClose: () => void;
 }
 
 export const DeleteDashboardModal: FC<DeleteDashboardModalProps> = ({
     uuid,
     name,
-    refresh,
+    isOpen,
+    onClose,
 }) => {
     const { mutate: deleteData, isLoading: isDeleting } = useDeleteMutation();
-    const [isOpen, setIsOpen] = useState<boolean>(true);
     const [uuidDeleted, setUuidDeleted] = useState<string>();
-
-    const onClose = () => {
-        setIsOpen(false);
-    };
-
-    useEffect(() => {
-        if (uuidDeleted != uuid) setIsOpen(true);
-    }, [refresh]);
 
     return (
         <Dialog

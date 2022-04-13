@@ -79,7 +79,14 @@ const ActionCardList = <T extends { uuid: string; name: string }>({
             {actionState.actionType === ActionTypeModal.DELETE &&
                 actionState.data && (
                     <DeleteDashboardModal
-                        refresh={new Date().getTime()}
+                        isOpen={
+                            actionState.actionType === ActionTypeModal.DELETE
+                        }
+                        onClose={() => {
+                            setActionState({
+                                actionType: ActionTypeModal.CLOSE,
+                            });
+                        }}
                         uuid={actionState.data.uuid}
                         name={actionState.data.name}
                     />
