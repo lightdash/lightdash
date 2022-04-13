@@ -5,7 +5,7 @@ import { getLoomId } from './TileForms/LoomTileForm';
 
 type Props = Pick<
     React.ComponentProps<typeof TileBase>,
-    'tile' | 'onEdit' | 'onDelete' | 'isEditMode' | 'onDuplicate'
+    'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
 > & { tile: DashboardLoomTile };
 
 const LoomTile: FC<Props> = (props) => {
