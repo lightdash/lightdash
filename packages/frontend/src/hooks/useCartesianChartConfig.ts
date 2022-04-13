@@ -15,6 +15,7 @@ const useCartesianChartConfig = (
     chartConfigs: CartesianChart,
     pivotKey: string | undefined,
     resultsData: ApiQueryResults | undefined,
+    isSaved: boolean,
     setVisualizationChartType: (chart: ChartType) => void,
     setPivotDimensions: (s: string[]) => void,
 ) => {
@@ -209,6 +210,8 @@ const useCartesianChartConfig = (
                 yField: validYFields.length > 0 ? validYFields : yField,
             };
         };
+        // Only load this if there are no existing chart configuration (not saved)
+        if (isSaved) return;
 
         setPivotDimensions([]); //reset pivot
         setVisualizationChartType(ChartType.CARTESIAN); // reset table
