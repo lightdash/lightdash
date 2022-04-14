@@ -233,7 +233,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
 
         if (!overrideQueryUuid) return false;
         return (
-            JSON.stringify(filterData(data)) ===
+            JSON.stringify(filterData(data)) !==
             JSON.stringify(filterData(queryData))
         );
     };
@@ -405,25 +405,25 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                                     <MenuItem
                                                         icon={
                                                             hasUnsavedChanges()
-                                                                ? 'duplicate'
-                                                                : 'add'
+                                                                ? 'add'
+                                                                : 'duplicate'
                                                         }
                                                         text={
                                                             hasUnsavedChanges()
-                                                                ? 'Duplicate'
-                                                                : 'Save as new chart'
+                                                                ? 'Save chart as'
+                                                                : 'Duplicate'
                                                         }
                                                         onClick={() => {
                                                             if (
                                                                 savedQueryUuid &&
                                                                 hasUnsavedChanges()
                                                             ) {
-                                                                duplicateChart(
-                                                                    chartId,
-                                                                );
-                                                            } else {
                                                                 setIsQueryModalOpen(
                                                                     true,
+                                                                );
+                                                            } else {
+                                                                duplicateChart(
+                                                                    chartId,
                                                                 );
                                                             }
                                                         }}
