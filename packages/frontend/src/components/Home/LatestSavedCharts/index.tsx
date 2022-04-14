@@ -14,6 +14,13 @@ import { CreateChartButton, ViewAllButton } from './LatestSavedCharts.style';
 const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const savedChartsRequest = useSavedCharts(projectUuid);
     const savedCharts = savedChartsRequest.data || [];
+    const featuredCharts = savedCharts
+        .sort(
+            (a, b) =>
+                new Date(b.updatedAt).getTime() -
+                new Date(a.updatedAt).getTime(),
+        )
+        .slice(0, 5);
     return (
         <LatestCard
             isLoading={savedChartsRequest.isLoading}
@@ -42,7 +49,7 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 title="Saved charts"
                 useUpdate={useUpdateMutation}
                 useDelete={useDeleteMutation()}
-                dataList={savedCharts}
+                dataList={featuredCharts}
                 getURL={(savedQuery: SpaceQuery) => {
                     const { uuid } = savedQuery;
                     return `/projects/${projectUuid}/saved/${uuid}`;
@@ -51,6 +58,7 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 isHomePage
                 isChart
             />
+
             {savedCharts.length === 0 && (
                 <CreateChartButton
                     minimal
