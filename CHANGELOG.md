@@ -1,3 +1,11 @@
+# [0.66.0](https://github.com/lightdash/lightdash/compare/0.65.0...0.66.0) (2022-04-14)
+
+
+### Features
+
+* add projectName to project compiled analytics ([#1780](https://github.com/lightdash/lightdash/issues/1780)) ([9d9234c](https://github.com/lightdash/lightdash/commit/9d9234c645691a025b204c23736eb5ef7ef3f40e))
+* bring consistency around chart ations 2 ([#1778](https://github.com/lightdash/lightdash/issues/1778)) ([b81ccad](https://github.com/lightdash/lightdash/commit/b81ccad833f68bcf4fb1de38c5d830798f7052a2))
+
 # [0.65.0](https://github.com/lightdash/lightdash/compare/0.64.0...0.65.0) (2022-04-13)
 
 
