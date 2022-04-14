@@ -104,3 +104,23 @@ export type SavedChartTableCalculationTable = Knex.CompositeTableType<
     DbSavedChartTableCalculation,
     DbSavedChartTableCalculationInsert
 >;
+
+export const SavedChartAdditionalMetricTableName =
+    'saved_queries_version_additional_metrics';
+export type DbSavedChartAdditionalMetric = {
+    saved_queries_version_additional_metric_id: number;
+    table: string;
+    name: string;
+    label?: string;
+    type: string;
+    description?: string;
+    sql?: string;
+    hidden?: boolean;
+    round?: number;
+    format?: string;
+    saved_queries_version_id: number;
+};
+export type DbSavedChartAdditionalMetricInsert = Omit<
+    DbSavedChartAdditionalMetric,
+    'saved_queries_version_additional_metric_id'
+>;

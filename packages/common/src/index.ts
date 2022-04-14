@@ -1,6 +1,7 @@
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import { Dashboard, DashboardBasicDetails } from './types/dashboard';
+import { DbtNode, SupportedDbtAdapter } from './types/dbt';
 import {
     CompiledDimension,
     CompiledField,
@@ -37,6 +38,7 @@ import { LightdashUser } from './types/user';
 
 export * from './authorization/organizationMemberAbility';
 export * from './types/dashboard';
+export * from './types/dbt';
 export * from './types/field';
 export * from './types/filter';
 export * from './types/metricQuery';
@@ -414,6 +416,9 @@ const capitalize = (word: string): string =>
     word ? `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}` : '';
 
 export const friendlyName = (text: string): string => {
+    if (text === '') {
+        return '';
+    }
     const normalisedText =
         text === text.toUpperCase() ? text.toLowerCase() : text; // force all uppercase to all lowercase
     const [first, ...rest] =
@@ -432,85 +437,6 @@ export const snakeCaseName = (text: string): string =>
         .join('_');
 
 export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
-
-// DBT CONFIG
-export enum SupportedDbtAdapter {
-    BIGQUERY = 'bigquery',
-    DATABRICKS = 'databricks',
-    SNOWFLAKE = 'snowflake',
-    REDSHIFT = 'redshift',
-    POSTGRES = 'postgres',
-}
-
-export type DbtNode = {
-    unique_id: string;
-    resource_type: string;
-};
-export type DbtRawModelNode = DbtNode & {
-    columns: { [name: string]: DbtModelColumn };
-    config?: { meta?: DbtModelMetadata };
-    meta: DbtModelMetadata;
-    database: string | null;
-    schema: string;
-    name: string;
-    tags: string[];
-    relation_name: string;
-    depends_on: DbtTableDependency;
-    description?: string;
-    root_path: string;
-    patch_path: string | null;
-};
-export type DbtModelNode = DbtRawModelNode & {
-    database: string;
-};
-type DbtTableDependency = {
-    nodes: string[];
-};
-export type DbtModelColumn = {
-    name: string;
-    description?: string;
-    meta: DbtColumnMetadata;
-    data_type?: DimensionType;
-};
-
-// CUSTOM LIGHTDASH CONFIG IN DBT
-type DbtModelMetadata = DbtModelLightdashConfig & {};
-
-type DbtModelLightdashConfig = {
-    label?: string;
-    joins?: DbtModelJoin[];
-};
-type DbtModelJoin = {
-    join: string;
-    sql_on: string;
-};
-type DbtColumnMetadata = DbtColumnLightdashConfig & {};
-type DbtColumnLightdashConfig = {
-    dimension?: DbtColumnLightdashDimension;
-    metrics?: { [metricName: string]: DbtColumnLightdashMetric };
-};
-
-type DbtColumnLightdashDimension = {
-    name?: string;
-    label?: string;
-    type?: DimensionType;
-    description?: string;
-    sql?: string;
-    time_intervals?: string | string[];
-    hidden?: boolean;
-    round?: number;
-    format?: string;
-};
-
-export type DbtColumnLightdashMetric = {
-    label?: string;
-    type: MetricType;
-    description?: string;
-    sql?: string;
-    hidden?: boolean;
-    round?: number;
-    format?: string;
-};
 
 export type ResultRow = {
     [col: string]: {

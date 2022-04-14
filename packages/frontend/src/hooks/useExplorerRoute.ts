@@ -49,6 +49,11 @@ export const useExplorerRoute = () => {
                     searchParams
                         .get('selected_table_calculations')
                         ?.split(',') || [];
+                const additionalMetricsParam =
+                    searchParams.get('additionalMetrics');
+                const additionalMetrics = !additionalMetricsParam
+                    ? []
+                    : JSON.parse(additionalMetricsParam);
                 setState({
                     chartName: '',
                     sorting: false,
@@ -61,6 +66,7 @@ export const useExplorerRoute = () => {
                     columnOrder,
                     tableCalculations,
                     selectedTableCalculations,
+                    additionalMetrics,
                 });
             } catch (e: any) {
                 showToastError({ title: 'Error parsing url', subtitle: e });
@@ -115,6 +121,15 @@ export const useExplorerRoute = () => {
                 newParams.set(
                     'table_calculations',
                     JSON.stringify(pristineState.tableCalculations),
+                );
+            }
+
+            if (pristineState.additionalMetrics?.length === 0) {
+                newParams.delete('additional_metrics');
+            } else {
+                newParams.set(
+                    'additional_metrics',
+                    JSON.stringify(pristineState.additionalMetrics),
                 );
             }
             history.replace({
