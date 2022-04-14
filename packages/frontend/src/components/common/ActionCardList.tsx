@@ -1,5 +1,5 @@
 import { Card, Colors, Divider, H3, NonIdealState } from '@blueprintjs/core';
-import { ApiError } from 'common';
+import { ApiError, UpdatedByUser } from 'common';
 import React, { useState } from 'react';
 import { UseMutationResult } from 'react-query';
 import styled from 'styled-components';
@@ -27,7 +27,14 @@ const ActionCardListWrapper = styled(Card)`
     justify-content: flex-start;
 `;
 
-const ActionCardList = <T extends { uuid: string; name: string }>({
+const ActionCardList = <
+    T extends {
+        uuid: string;
+        name: string;
+        updatedAt: Date;
+        updatedByUser?: UpdatedByUser;
+    },
+>({
     dataList,
     getURL,
     useDelete,
