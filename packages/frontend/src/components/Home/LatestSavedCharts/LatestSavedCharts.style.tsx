@@ -25,11 +25,3 @@ export const ViewAllButton = styled(LinkButton)`
     color: ${Colors.BLUE3} !important;
     width: 7.143em;
 `;
-
-export const UpdatedLabel = styled.p`
-    color: ${Colors.GRAY2};
-    font-size: 0.75em;
-    font-weight: 400;
-    margin-top: 0.38em;
-    line-height: 12px;
-`;

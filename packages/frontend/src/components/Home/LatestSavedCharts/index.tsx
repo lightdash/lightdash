@@ -1,43 +1,16 @@
 import { AnchorButton } from '@blueprintjs/core';
-import { SessionUser, SpaceQuery } from 'common';
+import { SpaceQuery } from 'common';
 import React, { FC } from 'react';
 import {
     useDeleteMutation,
     useUpdateMutation,
 } from '../../../hooks/useSavedQuery';
 import { useSavedCharts } from '../../../hooks/useSpaces';
-import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import ActionCardList from '../../common/ActionCardList';
 import SavedQueryForm from '../../SavedQueries/SavedQueryForm';
 import LatestCard from '../LatestCard';
-import {
-    CreateChartButton,
-    UpdatedLabel,
-    ViewAllButton,
-} from './LatestSavedCharts.style';
+import { CreateChartButton, ViewAllButton } from './LatestSavedCharts.style';
 
-export const UpdatedInfo: FC<{
-    updatedAt: Date;
-    user: Partial<SessionUser> | undefined;
-}> = ({ updatedAt, user }) => {
-    const timeAgo = useTimeAgo(updatedAt);
-
-    return (
-        <UpdatedLabel>
-            Last edited <b>{timeAgo}</b>{' '}
-            {user && user.firstName ? (
-                <>
-                    by{' '}
-                    <b>
-                        {user.firstName} {user.lastName}
-                    </b>
-                </>
-            ) : (
-                ''
-            )}
-        </UpdatedLabel>
-    );
-};
 const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const savedChartsRequest = useSavedCharts(projectUuid);
     const savedCharts = savedChartsRequest.data || [];
