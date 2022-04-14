@@ -501,7 +501,10 @@ const TableTree: FC<TableTreeProps> = ({
                           key: metric.name,
                           id: metric.name,
                           label: (
-                              <Tooltip2 content={metric.description}>
+                              <Tooltip2
+                                  key={metric.label}
+                                  content={metric.description}
+                              >
                                   {metric.label}
                               </Tooltip2>
                           ),
