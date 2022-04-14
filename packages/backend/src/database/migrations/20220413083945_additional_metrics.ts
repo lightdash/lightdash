@@ -12,9 +12,15 @@ export async function up(knex: Knex): Promise<void> {
                     'saved_queries_version_additional_metric_id',
                     'integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY',
                 );
-                tableBuilder.text('field_type').notNullable();
+                tableBuilder.text('table').notNullable();
+                tableBuilder.text('name').notNullable();
                 tableBuilder.text('type').notNullable();
-                tableBuilder.boolean('is_auto_generated').notNullable();
+                tableBuilder.text('label');
+                tableBuilder.text('description');
+                tableBuilder.text('sql');
+                tableBuilder.boolean('hidden');
+                tableBuilder.integer('round');
+                tableBuilder.string('format');
                 tableBuilder
                     .integer('saved_queries_version_id')
                     .notNullable()

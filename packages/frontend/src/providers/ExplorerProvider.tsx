@@ -1,4 +1,5 @@
 import {
+    AdditionalMetric,
     FieldId,
     Metric,
     MetricQuery,
@@ -93,7 +94,7 @@ interface ExplorerReduceState {
     columnOrder: string[];
     limit: number;
     tableCalculations: TableCalculation[];
-    additionalMetrics: Metric[] | undefined;
+    additionalMetrics: AdditionalMetric[] | undefined;
 }
 
 interface ExplorerState extends ExplorerReduceState {

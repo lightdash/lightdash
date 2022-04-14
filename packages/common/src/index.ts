@@ -512,6 +512,11 @@ export type DbtColumnLightdashMetric = {
     format?: string;
 };
 
+export interface AdditionalMetric extends DbtColumnLightdashMetric {
+    table: string;
+    name: string;
+}
+
 export type ResultRow = {
     [col: string]: {
         value: {
