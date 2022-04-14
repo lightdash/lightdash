@@ -1,3 +1,10 @@
+# [0.67.0](https://github.com/lightdash/lightdash/compare/0.66.0...0.67.0) (2022-04-14)
+
+
+### Features
+
+* add additionalmetrics to runquery ([#1764](https://github.com/lightdash/lightdash/issues/1764)) ([8983bf2](https://github.com/lightdash/lightdash/commit/8983bf2f6861d46f40d91afa70d9182da42a9476))
+
 # [0.66.0](https://github.com/lightdash/lightdash/compare/0.65.0...0.66.0) (2022-04-14)
 
 
