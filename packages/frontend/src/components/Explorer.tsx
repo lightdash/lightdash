@@ -387,7 +387,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                                 : 'Save chart'
                                         }
                                         disabled={
-                                            !tableName || hasUnsavedChanges()
+                                            !tableName || !hasUnsavedChanges()
                                         }
                                         onClick={
                                             overrideQueryUuid
