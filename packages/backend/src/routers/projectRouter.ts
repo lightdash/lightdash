@@ -98,6 +98,7 @@ projectRouter.post(
                 sorts: body.sorts,
                 limit: body.limit,
                 tableCalculations: body.tableCalculations,
+                additionalMetrics: body.additionalMetrics,
             };
             const results: ApiCompiledQueryResults = (
                 await projectService.compileQuery(
@@ -130,6 +131,7 @@ projectRouter.post(
                 sorts: body.sorts,
                 limit: body.limit,
                 tableCalculations: body.tableCalculations,
+                additionalMetrics: body.additionalMetrics,
             };
             const results: ApiQueryResults = await projectService.runQuery(
                 req.user!,

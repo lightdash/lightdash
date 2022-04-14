@@ -5,7 +5,7 @@ import {
     Position,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import React, { FC } from 'react';
+import React, { FC, useEffect } from 'react';
 import {
     ButtonWrapper,
     HelpItem,
@@ -14,15 +14,28 @@ import {
     ItemDescription,
     LinkWrapper,
     MenuWrapper,
+    NotificationWidget,
+    NotificationWrapper,
 } from './HelpMenu.styles';
 
 const HelpMenu: FC = () => {
+    useEffect(() => {
+        (window as any).Headway.init({
+            selector: '#headway-badge',
+            account: '7L3Bzx',
+        });
+    }, []);
+
     const openChatWindow = () => {
         (window as any).$chatwoot?.toggle('true');
     };
 
     return (
         <>
+            <NotificationWrapper>
+                <Icon icon="notifications" />
+                <NotificationWidget id="headway-badge"></NotificationWidget>
+            </NotificationWrapper>
             <Popover2
                 interactionKind={PopoverInteractionKind.CLICK}
                 content={
@@ -84,7 +97,7 @@ const HelpMenu: FC = () => {
                 }
                 position={Position.BOTTOM_LEFT}
             >
-                <Button minimal icon="help" text="Help" />
+                <Button minimal icon="help" />
             </Popover2>
         </>
     );

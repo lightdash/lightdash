@@ -13,7 +13,9 @@ import { Knex } from 'knex';
 import {
     CreateDbSavedChartVersionField,
     CreateDbSavedChartVersionSort,
+    DbSavedChartAdditionalMetricInsert,
     DbSavedChartTableCalculationInsert,
+    SavedChartAdditionalMetricTableName,
 } from '../database/entities/savedCharts';
 import { getSpace, getSpaceWithQueries } from '../database/entities/spaces';
 import { NotFoundError } from '../errors';
@@ -63,6 +65,16 @@ const createSavedChartVersionTableCalculation = async (
     return results[0];
 };
 
+const createSavedChartVersionAdditionalMetrics = async (
+    trx: Knex,
+    data: DbSavedChartAdditionalMetricInsert,
+) => {
+    const results = await trx(SavedChartAdditionalMetricTableName)
+        .insert(data)
+        .returning('*');
+    return results[0];
+};
+
 const createSavedChartVersion = async (
     db: Knex,
     savedChartId: number,
@@ -75,6 +87,7 @@ const createSavedChartVersion = async (
             metrics,
             sorts,
             tableCalculations,
+            additionalMetrics,
         },
         chartConfig,
         tableConfig,
@@ -147,6 +160,23 @@ const createSavedChartVersion = async (
                         order: tableConfig.columnOrder.findIndex(
                             (column) => column === tableCalculation.name,
                         ),
+                    }),
+                );
+            });
+            additionalMetrics?.forEach((additionalMetric, index) => {
+                promises.push(
+                    createSavedChartVersionAdditionalMetrics(trx, {
+                        table: additionalMetric.table,
+                        name: additionalMetric.name,
+                        type: additionalMetric.type,
+                        label: additionalMetric.label,
+                        description: additionalMetric.description,
+                        sql: additionalMetric.sql,
+                        hidden: additionalMetric.hidden,
+                        round: additionalMetric.round,
+                        format: additionalMetric.format,
+                        saved_queries_version_id:
+                            version.saved_queries_version_id,
                     }),
                 );
             });
@@ -307,6 +337,35 @@ export class SavedChartModel {
                 'saved_queries_version_id',
                 savedQuery.saved_queries_version_id,
             );
+        const additionalMetrics = await this.database(
+            SavedChartAdditionalMetricTableName,
+        )
+            .select([
+                'table',
+                'name',
+                'type',
+                'label',
+                'description',
+                'sql',
+                'hidden',
+                'round',
+                'format',
+            ])
+            .where(
+                'saved_queries_version_id',
+                savedQuery.saved_queries_version_id,
+            );
+
+        // Filters out "null" fields
+        const additionalMetricsFiltered = additionalMetrics.map((addMetric) =>
+            Object.keys(addMetric).reduce(
+                (acc, key) => ({
+                    ...acc,
+                    [key]: addMetric[key] !== null ? addMetric[key] : undefined,
+                }),
+                { ...addMetric },
+            ),
+        );
 
         const [dimensions, metrics]: [string[], string[]] = fields.reduce<
             [string[], string[]]
@@ -351,6 +410,7 @@ export class SavedChartModel {
                         sql: tableCalculation.calculation_raw_sql,
                     }),
                 ),
+                additionalMetrics: additionalMetricsFiltered,
             },
             chartConfig,
             tableConfig: {

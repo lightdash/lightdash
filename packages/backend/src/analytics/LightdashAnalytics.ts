@@ -192,6 +192,7 @@ type ProjectCompiledEvent = BaseTrack & {
     userId?: string;
     properties: {
         projectId: string;
+        projectName: string;
         projectType: ProjectType;
         warehouseType?: WarehouseTypes;
         modelsCount: number;

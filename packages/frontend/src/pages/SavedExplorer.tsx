@@ -36,6 +36,7 @@ const SavedExplorer = () => {
                 selectedTableCalculations:
                     data.metricQuery.tableCalculations.map((t) => t.name),
                 tableCalculations: data.metricQuery.tableCalculations,
+                additionalMetrics: data.metricQuery.additionalMetrics,
             });
         }
     }, [data, setState]);

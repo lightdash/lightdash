@@ -30,6 +30,7 @@ export const useQueryResults = () => {
             tableCalculations,
             selectedTableCalculations,
             isValidQuery,
+            additionalMetrics,
         },
     } = useExplorer();
     const metricQuery: MetricQuery = {
@@ -41,6 +42,7 @@ export const useQueryResults = () => {
         tableCalculations: tableCalculations.filter(({ name }) =>
             selectedTableCalculations.includes(name),
         ),
+        additionalMetrics,
     };
     const queryKey = ['queryResults', tableId, metricQuery, projectUuid];
     return useQuery<ApiQueryResults, ApiError>({

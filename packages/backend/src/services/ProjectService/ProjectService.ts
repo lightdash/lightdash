@@ -340,6 +340,7 @@ export class ProjectService {
                 userId: user.userUuid,
                 properties: {
                     projectId: projectUuid,
+                    projectName: project.name,
                     projectType: project.dbtConnection.type,
                     warehouseType: project.warehouseConnection?.type,
                     modelsCount: explores.length,

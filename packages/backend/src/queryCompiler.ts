@@ -1,4 +1,6 @@
 import {
+    AdditionalMetric,
+    CompiledMetric,
     CompiledMetricQuery,
     CompiledTableCalculation,
     Explore,
@@ -6,8 +8,9 @@ import {
     MetricQuery,
     TableCalculation,
 } from 'common';
+import { convertMetric } from './dbt/translator';
 import { CompileError } from './errors';
-import { lightdashVariablePattern } from './exploreCompiler';
+import { compileMetricSql, lightdashVariablePattern } from './exploreCompiler';
 import { getQuoteChar } from './queryBuilder';
 
 const resolveQueryFieldReference = (ref: string): FieldId => {
@@ -54,8 +57,34 @@ const compileTableCalculation = (
     };
 };
 
+type CompileAdditionalMetricArgs = {
+    additionalMetric: AdditionalMetric;
+    explore: Pick<Explore, 'tables'>;
+};
+const compileAdditionalMetric = ({
+    additionalMetric,
+    explore,
+}: CompileAdditionalMetricArgs): CompiledMetric => {
+    const table = explore.tables[additionalMetric.table];
+    if (table === undefined) {
+        throw new CompileError(
+            `Custom metric "${additionalMetric.name}" references a table that doesn't exist "${additionalMetric.table}"`,
+            {},
+        );
+    }
+    console.log(additionalMetric);
+    const metric = convertMetric({
+        modelName: table.name,
+        columnName: '',
+        name: additionalMetric.name,
+        metric: additionalMetric,
+        tableLabel: table.label,
+    });
+    return { ...metric, compiledSql: compileMetricSql(metric, explore.tables) };
+};
+
 type CompileMetricQueryArgs = {
-    explore: Pick<Explore, 'targetDatabase'>;
+    explore: Pick<Explore, 'targetDatabase' | 'tables'>;
     metricQuery: MetricQuery;
 };
 export const compileMetricQuery = ({
@@ -71,8 +100,13 @@ export const compileMetricQuery = ({
                 quoteChar,
             ),
     );
+    const compiledAdditionalMetrics = (metricQuery.additionalMetrics || []).map(
+        (additionalMetric) =>
+            compileAdditionalMetric({ additionalMetric, explore }),
+    );
     return {
         ...metricQuery,
         compiledTableCalculations,
+        compiledAdditionalMetrics,
     };
 };

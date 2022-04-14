@@ -1,3 +1,32 @@
+# [0.67.0](https://github.com/lightdash/lightdash/compare/0.66.0...0.67.0) (2022-04-14)
+
+
+### Features
+
+* add additionalmetrics to runquery ([#1764](https://github.com/lightdash/lightdash/issues/1764)) ([8983bf2](https://github.com/lightdash/lightdash/commit/8983bf2f6861d46f40d91afa70d9182da42a9476))
+
+# [0.66.0](https://github.com/lightdash/lightdash/compare/0.65.0...0.66.0) (2022-04-14)
+
+
+### Features
+
+* add projectName to project compiled analytics ([#1780](https://github.com/lightdash/lightdash/issues/1780)) ([9d9234c](https://github.com/lightdash/lightdash/commit/9d9234c645691a025b204c23736eb5ef7ef3f40e))
+* bring consistency around chart ations 2 ([#1778](https://github.com/lightdash/lightdash/issues/1778)) ([b81ccad](https://github.com/lightdash/lightdash/commit/b81ccad833f68bcf4fb1de38c5d830798f7052a2))
+
+# [0.65.0](https://github.com/lightdash/lightdash/compare/0.64.0...0.65.0) (2022-04-13)
+
+
+### Features
+
+* add posibility to duplicate a chart within a dashboard ([#1707](https://github.com/lightdash/lightdash/issues/1707)) ([d23a7f0](https://github.com/lightdash/lightdash/commit/d23a7f0c26de112f9ce2d157e9ac0e521413b8cc))
+
+# [0.64.0](https://github.com/lightdash/lightdash/compare/0.63.2...0.64.0) (2022-04-13)
+
+
+### Features
+
+* headway widget ([#1755](https://github.com/lightdash/lightdash/issues/1755)) ([aa97faf](https://github.com/lightdash/lightdash/commit/aa97faf22e88cbe4f198c8fb8106f6047c36221d))
+
 ## [0.63.2](https://github.com/lightdash/lightdash/compare/0.63.1...0.63.2) (2022-04-13)
 
 

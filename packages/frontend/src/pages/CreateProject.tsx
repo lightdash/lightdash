@@ -29,7 +29,7 @@ const CreateProject: FC = () => {
                     organization&apos;s data/analytics engineering experts. Once
                     you set up your dbt and warehouse connection, you will be
                     ready to start exploring your data in Lightdash! If you are
-                    just itching to get start,{' '}
+                    itching to get started,{' '}
                     <a
                         target="_blank"
                         rel="noreferrer"

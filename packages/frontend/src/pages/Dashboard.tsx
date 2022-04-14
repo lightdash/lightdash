@@ -164,6 +164,7 @@ const Dashboard = () => {
         );
         setHasTilesChanged(true);
     }, []);
+
     const onCancel = useCallback(() => {
         setDashboardTiles(dashboard?.tiles || []);
         setHasTilesChanged(false);
@@ -268,18 +269,20 @@ const Dashboard = () => {
                     cols={{ lg: 12, md: 10, sm: 6 }}
                     layouts={layouts}
                 >
-                    {dashboardTiles.map((tile) => (
-                        <div key={tile.uuid}>
-                            <TrackSection name={SectionName.DASHBOARD_TILE}>
-                                <GridTile
-                                    isEditMode={isEditMode}
-                                    tile={tile}
-                                    onDelete={onDelete}
-                                    onEdit={onEdit}
-                                />
-                            </TrackSection>
-                        </div>
-                    ))}
+                    {dashboardTiles.map((tile) => {
+                        return (
+                            <div key={tile.uuid}>
+                                <TrackSection name={SectionName.DASHBOARD_TILE}>
+                                    <GridTile
+                                        isEditMode={isEditMode}
+                                        tile={tile}
+                                        onDelete={onDelete}
+                                        onEdit={onEdit}
+                                    />
+                                </TrackSection>
+                            </div>
+                        );
+                    })}
                 </ResponsiveGridLayout>
                 {dashboardTiles.length <= 0 && (
                     <EmptyStateNoTiles projectId={projectUuid} />

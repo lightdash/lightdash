@@ -115,6 +115,12 @@ export const compileMetricSql = (
         ? compileMetricReference
         : compileDimensionReference;
     // Metric might have references to other dimensions
+    if (!tables[metric.table]) {
+        throw new CompileError(
+            `Metric "${metric.name}" references a table "${metric.table}" which matches no model`,
+            {},
+        );
+    }
     let renderedSql = metric.sql.replace(lightdashVariablePattern, (_, p1) =>
         compileReference(p1, tables, metric.table),
     );

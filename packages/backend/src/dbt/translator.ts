@@ -144,7 +144,7 @@ type ConvertMetricArgs = {
     source?: Source;
     tableLabel: string;
 };
-const convertMetric = ({
+export const convertMetric = ({
     modelName,
     columnName,
     name,
