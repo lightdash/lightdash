@@ -192,6 +192,7 @@ type ProjectCompiledEvent = BaseTrack & {
     userId?: string;
     properties: {
         projectId: string;
+        projectName: string;
         projectType: ProjectType;
         warehouseType?: WarehouseTypes;
         modelsCount: number;
@@ -310,6 +311,7 @@ export class LightdashAnalytics extends Analytics {
     }
 
     track(payload: Track) {
+        console.log('payload', payload);
         if (payload.event === 'user.updated') {
             const basicEventProperties = {
                 is_tracking_anonymized: payload.properties.isTrackingAnonymized,
