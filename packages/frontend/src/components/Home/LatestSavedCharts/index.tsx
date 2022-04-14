@@ -74,13 +74,11 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         href={`/projects/${projectUuid}/saved/${uuid}`}
                         alignText="left"
                     >
-                        <>
-                            {name}
-                            <UpdatedInfo
-                                updatedAt={updatedAt}
-                                user={updatedByUser}
-                            />
-                        </>
+                        {name}
+                        <UpdatedInfo
+                            updatedAt={updatedAt}
+                            user={updatedByUser}
+                        />
                     </ChartName>
                 ))}
             {savedCharts.length === 0 && (
