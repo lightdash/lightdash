@@ -7,7 +7,7 @@ import {
     TableCalculation,
 } from 'common';
 import { CompileError } from './errors';
-import { lightdashVariablePattern } from './exploreCompiler';
+import { compileMetricSql, lightdashVariablePattern } from './exploreCompiler';
 import { getQuoteChar } from './queryBuilder';
 
 const resolveQueryFieldReference = (ref: string): FieldId => {
@@ -55,7 +55,7 @@ const compileTableCalculation = (
 };
 
 type CompileMetricQueryArgs = {
-    explore: Pick<Explore, 'targetDatabase'>;
+    explore: Pick<Explore, 'targetDatabase' | 'tables'>;
     metricQuery: MetricQuery;
 };
 export const compileMetricQuery = ({
@@ -71,8 +71,15 @@ export const compileMetricQuery = ({
                 quoteChar,
             ),
     );
+    const compiledAdditionalMetrics = (metricQuery.additionalMetrics || []).map(
+        (additionalMetric) => ({
+            ...additionalMetric,
+            compiledSql: compileMetricSql(additionalMetric, explore.tables),
+        }),
+    );
     return {
         ...metricQuery,
         compiledTableCalculations,
+        compiledAdditionalMetrics,
     };
 };
