@@ -352,6 +352,15 @@ export class SavedChartModel {
                 savedQuery.saved_queries_version_id,
             );
 
+        // Filters out "null" fields
+        const additionalMetricsFiltered = additionalMetrics.map((addMetric) => Object.keys(addMetric).reduce(
+                (acc, key) => ({
+                    ...acc,
+                    [key]: addMetric[key] !== null ? addMetric[key] : undefined,
+                }),
+                { ...addMetric },
+            ));
+
         const [dimensions, metrics]: [string[], string[]] = fields.reduce<
             [string[], string[]]
         >(
@@ -395,7 +404,7 @@ export class SavedChartModel {
                         sql: tableCalculation.calculation_raw_sql,
                     }),
                 ),
-                additionalMetrics,
+                additionalMetrics: additionalMetricsFiltered,
             },
             chartConfig,
             tableConfig: {
