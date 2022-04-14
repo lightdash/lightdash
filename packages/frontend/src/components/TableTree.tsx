@@ -17,8 +17,10 @@ import {
     CompiledMetric,
     CompiledTable,
     Dimension,
+    DimensionType,
     fieldId,
     FieldId,
+    friendlyName,
     isFilterableField,
     Metric,
     Source,
@@ -127,17 +129,29 @@ const NodeItemButtons: FC<{
     const { isFilteredField, addFilter } = useFilters();
     const isFiltered = isFilteredField(node);
     const { track } = useTracking();
-    const menuItems: ReactNode[] = [
-        <MenuItem
-            key="filter"
-            icon="numerical"
-            text="Add metric"
-            onClick={(e) => {
-                e.stopPropagation();
-                addFilter(node, undefined);
-            }}
-        />,
-    ];
+    const menuItems: ReactNode[] = [];
+
+    const customMetricType = (type: DimensionType) => {
+        switch (type) {
+            case DimensionType.STRING ||
+                DimensionType.BOOLEAN ||
+                DimensionType.TIMESTAMP ||
+                DimensionType.DATE:
+                return ['count_distinct', 'count', 'min', 'max'];
+
+            case DimensionType.NUMBER:
+                return [
+                    'min',
+                    'max',
+                    'sum',
+                    'average',
+                    'count_distinct',
+                    'count',
+                ];
+            default:
+                return [];
+        }
+    };
 
     if (node.source) {
         menuItems.push(
@@ -156,7 +170,7 @@ const NodeItemButtons: FC<{
         );
     }
     if (isFilterableField(node)) {
-        menuItems.unshift(
+        menuItems.push(
             <MenuItem
                 key="filter"
                 icon="filter"
@@ -169,6 +183,16 @@ const NodeItemButtons: FC<{
                     addFilter(node, undefined);
                 }}
             />,
+        );
+    }
+
+    if (node.fieldType === 'dimension') {
+        menuItems.push(
+            <MenuItem key="Add metric" icon="numerical" text="Add metric">
+                {customMetricType(node.type)?.map((metric) => (
+                    <MenuItem key={metric} text={friendlyName(metric)} />
+                ))}
+            </MenuItem>,
         );
     }
     return (
@@ -391,6 +415,35 @@ const TableTree: FC<TableTreeProps> = ({
                   })),
     };
 
+    const customMetricsNode = {
+        id: 'customMetrics',
+        label: (
+            <span style={{ color: Colors.GREEN1 }}>
+                <strong>Custom metrics</strong>
+            </span>
+        ),
+        icon: (
+            <Icon
+                icon="clean"
+                intent={Intent.SUCCESS}
+                className={Classes.TREE_NODE_ICON}
+            />
+        ),
+        hasCaret: false,
+        isExpanded: true,
+        childNodes: filteredDimensions
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((dimension) =>
+                renderDimensionTreeNode(
+                    dimension,
+                    expandedNodes,
+                    selectedNodes,
+                    onOpenSourceDialog,
+                    hoveredFieldId,
+                ),
+            ),
+    };
+
     const dimensionNode = {
         id: 'dimensions',
         label: (
@@ -432,7 +485,7 @@ const TableTree: FC<TableTreeProps> = ({
                     onOpenSourceDialog={onOpenSourceDialog}
                 />
             ),
-            childNodes: [metricNode, dimensionNode],
+            childNodes: [metricNode, customMetricsNode, dimensionNode],
         },
     ];
 
