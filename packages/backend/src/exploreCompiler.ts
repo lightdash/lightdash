@@ -117,7 +117,7 @@ export const compileMetricSql = (
     // Metric might have references to other dimensions
     if (!tables[metric.table]) {
         throw new CompileError(
-            `Model "${metric.table}" has a metric: \${${metric.name}} which matches no model`,
+            `Metric "${metric.name}" references a table "${metric.table}" which matches no model`,
             {},
         );
     }
