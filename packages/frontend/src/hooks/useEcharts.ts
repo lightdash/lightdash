@@ -279,9 +279,8 @@ export const getEchartsSeries = (
                                 ...series.label,
                                 formatter: (value: any) =>
                                     formatValue(
-                                        formats[series.encode.yRef.field]
-                                            .format,
-                                        formats[series.encode.yRef.field].round,
+                                        formats[yField].format,
+                                        formats[yField].round,
                                         value?.value?.[yField],
                                     ),
                             },
