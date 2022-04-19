@@ -25,6 +25,7 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
     const useCreate = useCreateMutation();
     const { mutate, isLoading: isCreating } = useCreate;
     const [name, setName] = useState<string>('');
+    const [description, setDescription] = useState<string>('');
 
     return (
         <Dialog isOpen={isOpen} onClose={onClose} lazy title="Save chart">
@@ -43,6 +44,19 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
                             placeholder="eg. How many weekly active users do we have?"
                         />
                     </FormGroup>
+                    <FormGroup
+                        label="Chart description"
+                        labelFor="chart-description"
+                        style={{ fontWeight: 'bold' }}
+                    >
+                        <InputGroup
+                            id="chart-description"
+                            type="text"
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            placeholder="A few words to give your team some context"
+                        />
+                    </FormGroup>
                 </div>
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>
@@ -53,7 +67,7 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
                             text="Save"
                             type="submit"
                             onClick={(e) => {
-                                mutate({ ...savedData, name });
+                                mutate({ ...savedData, name, description });
 
                                 if (onClose) onClose();
                                 e.preventDefault();
