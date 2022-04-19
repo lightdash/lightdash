@@ -28,14 +28,17 @@ const HelpMenu: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [hasMounted, setHasMounted] = useState<boolean>(false);
 
-    const trackNotifications = {
-        user_id: user.data?.userUuid,
-        project_id: projectUuid,
-        organization_id: user.data?.organizationUuid,
-    };
-
     useEffect(() => {
         setHasMounted(true);
+    }, []);
+
+    useEffect(() => {
+        const trackNotifications = {
+            user_id: user.data?.userUuid,
+            project_id: projectUuid,
+            organization_id: user.data?.organizationUuid,
+        };
+
         if (hasMounted) {
             (window as any).Headway.init({
                 selector: '#headway-badge',
@@ -64,10 +67,14 @@ const HelpMenu: FC = () => {
                     },
                 },
             });
-        } else {
-            return;
         }
-    }, []);
+    }, [
+        hasMounted,
+        track,
+        projectUuid,
+        user.data?.organizationUuid,
+        user.data?.userUuid,
+    ]);
 
     const openChatWindow = () => {
         (window as any).$chatwoot?.toggle('true');
