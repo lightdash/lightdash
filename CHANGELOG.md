@@ -1,3 +1,10 @@
+## [0.68.2](https://github.com/lightdash/lightdash/compare/0.68.1...0.68.2) (2022-04-19)
+
+
+### Bug Fixes
+
+* remove overridequeryuuid condition on save changes ([#1806](https://github.com/lightdash/lightdash/issues/1806)) ([733a4f9](https://github.com/lightdash/lightdash/commit/733a4f9d85492cca8616032e1b6a1256b8b218bb))
+
 ## [0.68.1](https://github.com/lightdash/lightdash/compare/0.68.0...0.68.1) (2022-04-19)
 
 
