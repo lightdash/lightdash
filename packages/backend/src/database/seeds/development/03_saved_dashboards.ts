@@ -1,9 +1,11 @@
+import { Ability } from '@casl/ability';
 import {
     DashboardChartTile,
     DashboardLoomTile,
     DashboardMarkdownTile,
     DashboardTileTypes,
     FilterOperator,
+    OrganizationMemberRole,
     SEED_PROJECT,
 } from 'common';
 import { Knex } from 'knex';
@@ -140,42 +142,59 @@ export async function seed(knex: Knex): Promise<void> {
         },
     };
 
-    await dashboardModel.create(spaceUuid, {
-        name: 'Jaffle dashboard',
-        tiles: [
-            loomTile,
-            markdownTile,
-            markdownRevenueTile,
-            barChart,
-            bigNumberTile,
-            markdownOrdersTile,
-            lineChartTile,
-            barTile,
-            tableTile,
-        ],
-        filters: {
-            dimensions: [
-                {
-                    id: 'e7df7c5a-1070-439a-8300-125fe5f9b1af',
-                    target: {
-                        fieldId: 'orders_is_completed',
-                        tableName: 'orders',
-                    },
-                    values: [true],
-                    operator: FilterOperator.EQUALS,
-                },
-                {
-                    id: '6d28a3a5-c01f-46d8-9f6b-74a9ab1efd99',
-                    target: {
-                        fieldId: 'orders_order_date_year',
-                        tableName: 'orders',
-                    },
-                    values: [5],
-                    operator: FilterOperator.IN_THE_PAST,
-                    settings: { completed: true, unitOfTime: 'years' },
-                },
+    await dashboardModel.create(
+        spaceUuid,
+        {
+            name: 'Jaffle dashboard',
+            tiles: [
+                loomTile,
+                markdownTile,
+                markdownRevenueTile,
+                barChart,
+                bigNumberTile,
+                markdownOrdersTile,
+                lineChartTile,
+                barTile,
+                tableTile,
             ],
-            metrics: [],
+            filters: {
+                dimensions: [
+                    {
+                        id: 'e7df7c5a-1070-439a-8300-125fe5f9b1af',
+                        target: {
+                            fieldId: 'orders_is_completed',
+                            tableName: 'orders',
+                        },
+                        values: [true],
+                        operator: FilterOperator.EQUALS,
+                    },
+                    {
+                        id: '6d28a3a5-c01f-46d8-9f6b-74a9ab1efd99',
+                        target: {
+                            fieldId: 'orders_order_date_year',
+                            tableName: 'orders',
+                        },
+                        values: [5],
+                        operator: FilterOperator.IN_THE_PAST,
+                        settings: { completed: true, unitOfTime: 'years' },
+                    },
+                ],
+                metrics: [],
+            },
         },
-    });
+        {
+            userUuid: 'userUuid',
+            email: 'john@lightdash.com',
+            firstName: 'John',
+            lastName: 'Doe',
+            organizationUuid: 'organizationUuid',
+            organizationName: 'organizationName',
+            isTrackingAnonymized: false,
+            isMarketingOptedIn: false,
+            isSetupComplete: true,
+            userId: 0,
+            role: OrganizationMemberRole.ADMIN,
+            ability: new Ability([{ subject: 'Project', action: 'update' }]),
+        },
+    );
 }
