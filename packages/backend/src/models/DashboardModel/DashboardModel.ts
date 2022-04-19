@@ -38,7 +38,8 @@ export type GetDashboardQuery = Pick<
     'dashboard_id' | 'dashboard_uuid' | 'name' | 'description'
 > &
     Pick<DashboardVersionTable['base'], 'dashboard_version_id' | 'created_at'> &
-    Pick<ProjectTable['base'], 'project_uuid'>;
+    Pick<ProjectTable['base'], 'project_uuid'> &
+    Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'>;
 
 export type GetDashboardDetailsQuery = Pick<
     DashboardTable['base'],
