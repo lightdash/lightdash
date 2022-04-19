@@ -81,6 +81,7 @@ export const NotificationWrapper = styled.div`
     margin-right: 0.357em;
 
     :hover {
+        cursor: pointer;
         background: rgba(138, 155, 168, 0.15) !important;
     }
 `;
