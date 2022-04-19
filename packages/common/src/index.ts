@@ -1167,59 +1167,67 @@ export const getAxisName = ({
         : undefined;
 };
 
-export function formatValue<T>(format: string, value: T): string | T {
+export function formatValue<T>(
+    format: string | undefined,
+    round: number | undefined,
+    value: T,
+): string | T {
+    function roundNumber(number: T): string | T {
+        if (round === undefined || round < 0) return value;
+        if (Number.isNaN(parseFloat(number as any))) {
+            return number;
+        }
+        return parseFloat(number as any).toFixed(round);
+    }
+
     if (value === undefined) return value;
     switch (format) {
         case 'km':
         case 'mi':
-            return `${value} ${format}`;
+            return `${roundNumber(value)} ${format}`;
         case 'usd':
-            return `$${value}`;
+            return `$${roundNumber(value)}`;
         case 'gbp':
-            return `£${value}`;
+            return `£${roundNumber(value)}`;
         case 'eur':
-            return `€${value}`;
+            return `€${roundNumber(value)}`;
         case 'percent':
-            if (Number.isNaN(value as any)) {
+            if (Number.isNaN(parseFloat(value as any))) {
                 return value;
             }
             // Fix rounding issue
-            return `${(parseFloat(value as any) * 100).toFixed(2)}%`;
+            return `${(parseFloat(value as any) * 100).toFixed(round)}%`;
 
         case '': // no format
-            return value;
+            return roundNumber(value);
         default:
             // unrecognized format
-            return value;
+            return roundNumber(value);
     }
 }
 
-export function getFormats(
-    explore: Explore,
-): Record<string, string | undefined> {
+export function getFieldMap(explore: Explore): Record<string, CompiledField> {
     return getFields(explore).reduce(
         (sum, field) => ({
             ...sum,
-            [fieldId(field)]: field.format,
+            [fieldId(field)]: { format: field.format, round: field.round },
         }),
         {},
-    ); // e.g { 'my_table_my_dimension': 'km'}}
+    ); // e.g { 'my_table_my_dimension': {format: 'usd', round: 1} }}
 }
+
 export function formatRows(
     rows: { [col: string]: any }[],
     explore: Explore,
 ): ResultRow[] {
-    const fieldMap = getFormats(explore);
-    function getFormat(columnName: string): string {
-        return fieldMap[columnName] || '';
-    }
+    const fieldMap = getFieldMap(explore);
 
     return rows.map((row) =>
         Object.keys(row).reduce((acc, columnName) => {
             const col = row[columnName];
 
-            const format = getFormat(columnName);
-            const formattedColumn = formatValue(format, col);
+            const field = fieldMap[columnName];
+            const formattedColumn = formatValue(field.format, field.round, col);
 
             return {
                 ...acc,

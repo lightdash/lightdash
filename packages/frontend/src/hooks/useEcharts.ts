@@ -2,6 +2,7 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
+    CompiledField,
     Dimension,
     DimensionType,
     Explore,
@@ -13,8 +14,8 @@ import {
     getAxisName,
     getDimensions,
     getFieldLabel,
+    getFieldMap,
     getFields,
-    getFormats,
     getItemId,
     getItemLabel,
     hashFieldReference,
@@ -143,7 +144,7 @@ export const getEchartsSeries = (
     originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,
     pivotKey: string | undefined,
-    formats: Record<string, string | undefined> | undefined,
+    formats: Record<string, CompiledField> | undefined,
 ): EChartSeries[] => {
     if (pivotKey) {
         return (cartesianChart.eChartsConfig.series || [])
@@ -214,7 +215,9 @@ export const getEchartsSeries = (
                                 ...series.label,
                                 formatter: (val: any) =>
                                     formatValue(
-                                        formats[series.encode.yRef.field] || '',
+                                        formats[series.encode.yRef.field]
+                                            .format,
+                                        formats[series.encode.yRef.field].round,
                                         val?.value?.[yFieldHash],
                                     ),
                             },
@@ -276,7 +279,9 @@ export const getEchartsSeries = (
                                 ...series.label,
                                 formatter: (value: any) =>
                                     formatValue(
-                                        formats[yField] || '',
+                                        formats[series.encode.yRef.field]
+                                            .format,
+                                        formats[series.encode.yRef.field].round,
                                         value?.value?.[yField],
                                     ),
                             },
@@ -296,7 +301,7 @@ const getEchartAxis = ({
     validCartesianConfig: CartesianChart;
     items: Array<Field | TableCalculation>;
     series: EChartSeries[];
-    formats: Record<string, string | undefined> | undefined;
+    formats: Record<string, CompiledField> | undefined;
 }) => {
     const xAxisItem = items.find(
         (item) =>
@@ -361,7 +366,11 @@ const getEchartAxis = ({
                 axisLabel: {
                     formatter: (value: any) => {
                         const field = getItemId(axisItem);
-                        return formatValue(formats?.[field] || '', value);
+                        return formatValue(
+                            formats?.[field].format,
+                            formats?.[field].round,
+                            value,
+                        );
                     },
                 },
             }
@@ -474,7 +483,7 @@ const useEcharts = () => {
         resultsData,
     } = useVisualizationContext();
 
-    const formats = explore ? getFormats(explore) : undefined;
+    const formats = explore ? getFieldMap(explore) : undefined;
     const { data: organisationData } = useOrganisation();
 
     const series = useMemo(() => {
