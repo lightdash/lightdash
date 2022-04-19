@@ -1,3 +1,10 @@
+# [0.69.0](https://github.com/lightdash/lightdash/compare/0.68.2...0.69.0) (2022-04-19)
+
+
+### Features
+
+* add tracking to notifications button ([#1808](https://github.com/lightdash/lightdash/issues/1808)) ([78f45fe](https://github.com/lightdash/lightdash/commit/78f45fe560cd813b71263ee445255d48d76dcc11))
+
 ## [0.68.2](https://github.com/lightdash/lightdash/compare/0.68.1...0.68.2) (2022-04-19)
 
 
