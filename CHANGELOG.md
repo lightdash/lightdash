@@ -1,3 +1,17 @@
+## [0.68.1](https://github.com/lightdash/lightdash/compare/0.68.0...0.68.1) (2022-04-19)
+
+
+### Bug Fixes
+
+* remove friendlyname from bignumber value ([#1791](https://github.com/lightdash/lightdash/issues/1791)) ([1bd51cf](https://github.com/lightdash/lightdash/commit/1bd51cfe179d2c874ba6c696b5184984772729b7))
+
+# [0.68.0](https://github.com/lightdash/lightdash/compare/0.67.0...0.68.0) (2022-04-14)
+
+
+### Features
+
+* navigate to chart when duplicated 2 ([#1777](https://github.com/lightdash/lightdash/issues/1777)) ([77cfcf4](https://github.com/lightdash/lightdash/commit/77cfcf4e6c21db37f87a032a17f6d68a7713a34a))
+
 # [0.67.0](https://github.com/lightdash/lightdash/compare/0.66.0...0.67.0) (2022-04-14)
 
 
