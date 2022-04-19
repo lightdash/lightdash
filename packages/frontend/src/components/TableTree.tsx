@@ -38,6 +38,7 @@ import React, {
     useState,
 } from 'react';
 import { useFilters } from '../hooks/useFilters';
+import { useExplorer } from '../providers/ExplorerProvider';
 import { TrackSection, useTracking } from '../providers/TrackingProvider';
 import { EventName, SectionName } from '../types/Events';
 
@@ -148,6 +149,9 @@ const NodeItemButtons: FC<{
     const isFiltered = isFilteredField(node);
     const { track } = useTracking();
     const menuItems: ReactNode[] = [];
+    const {
+        actions: { setAdditionalMetrics },
+    } = useExplorer();
 
     const createCustomMetric = (metric: any, type: MetricType) => {
         const customMetricData: Metric = {
@@ -164,8 +168,10 @@ const NodeItemButtons: FC<{
             type,
             hidden: false,
         };
-        if (setCustomMetrics && customMetrics)
+        if (setCustomMetrics && customMetrics) {
             setCustomMetrics([...customMetrics, customMetricData]);
+            setAdditionalMetrics(customMetrics);
+        }
     };
 
     const customMetricType = (type: DimensionType): MetricType[] => {
@@ -360,6 +366,7 @@ const TableTree: FC<TableTreeProps> = ({
     const [expandedNodes, setExpandedNodes] = useState<Array<string | number>>([
         table.name,
     ]);
+
     const [customMetrics, setCustomMetrics] = useState<Metric[] | []>([]);
     const { metrics: allMetrics, dimensions: allDimensions } = table;
     const metrics: CompiledMetric[] = useMemo(() => {

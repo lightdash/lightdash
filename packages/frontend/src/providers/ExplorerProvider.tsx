@@ -129,6 +129,7 @@ interface ExplorerContext {
             filters: MetricQuery['filters'],
             syncPristineState: boolean,
         ) => void;
+        setAdditionalMetrics: (filters: Metric[]) => void;
         setColumnOrder: (order: string[]) => void;
         addTableCalculation: (tableCalculation: TableCalculation) => void;
         updateTableCalculation: (
@@ -669,6 +670,13 @@ export const ExplorerProvider: FC<{
         [],
     );
 
+    const setAdditionalMetrics = useCallback((additionalMetrics: Metric[]) => {
+        dispatch({
+            type: ActionType.SET_ADDITIONAL_METRICS,
+            payload: additionalMetrics,
+        });
+    }, []);
+
     const setColumnOrder = useCallback((order: string[]) => {
         dispatch({
             type: ActionType.SET_COLUMN_ORDER,
@@ -796,6 +804,7 @@ export const ExplorerProvider: FC<{
                 setFilters,
                 setRowLimit,
                 setColumnOrder,
+                setAdditionalMetrics,
                 addTableCalculation,
                 deleteTableCalculation,
                 updateTableCalculation,
@@ -813,6 +822,7 @@ export const ExplorerProvider: FC<{
                 setFilters,
                 setRowLimit,
                 setColumnOrder,
+                setAdditionalMetrics,
                 addTableCalculation,
                 deleteTableCalculation,
                 updateTableCalculation,
