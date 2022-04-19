@@ -87,8 +87,8 @@ Lightdash breaks this out into the default intervals automatically. So, this is 
 ![screenshot-default-intervals](assets/screenshot-default-intervals.png)
 
 ### By default, the time intervals we use are:
-**Date**: ['DAY', 'WEEK', 'MONTH', 'YEAR']
-**Timestamp**: ['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']
+**Date**: ["DAY", "WEEK", "MONTH", "YEAR"]
+**Timestamp**: ["RAW", "DAY", "WEEK", "MONTH", "YEAR"]
 
 ### To change the time intervals used for a dimension, specify your custom intervals using `time_intervals`
 If you want to change the time intervals shown for a dimension, you can specify the custom time intervals you'd like you include using the `time_intervals` property for a dimension. You can use any values supported by your warehouse.
@@ -100,7 +100,7 @@ In this example, I've only included the day, month, and quarter time intervals f
         description: 'Timestamp when the user was created.'
         meta:
           dimension:
-            time_intervals: ['DAY', 'MONTH', 'QUARTER']
+            time_intervals: ["DAY", "MONTH", "QUARTER"]
 ```
 
 ![screenshot-custom-intervals](assets/screenshot-custom-intervals.png)
