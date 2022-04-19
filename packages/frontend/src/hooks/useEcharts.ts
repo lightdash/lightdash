@@ -359,18 +359,14 @@ const getEchartAxis = ({
     const getAxisFormatter = (
         axisItem: Field | TableCalculation | undefined,
     ) => {
+        const field =
+            axisItem && getItemId(axisItem) && formats?.[getItemId(axisItem)];
         return (
-            axisItem &&
-            getItemId(axisItem) &&
-            formats?.[getItemId(axisItem)] && {
+            field &&
+            (field.format || field.round) && {
                 axisLabel: {
                     formatter: (value: any) => {
-                        const field = getItemId(axisItem);
-                        return formatValue(
-                            formats?.[field].format,
-                            formats?.[field].round,
-                            value,
-                        );
+                        return formatValue(field.format, field.round, value);
                     },
                 },
             }
