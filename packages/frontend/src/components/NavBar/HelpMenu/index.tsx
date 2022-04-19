@@ -5,7 +5,7 @@ import {
     Position,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import React, { FC, useEffect } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
@@ -26,6 +26,7 @@ const HelpMenu: FC = () => {
     const { track } = useTracking();
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const [hasMounted, setHasMounted] = useState<boolean>(false);
 
     const trackNotifications = {
         user_id: user.data?.userUuid,
@@ -34,33 +35,38 @@ const HelpMenu: FC = () => {
     };
 
     useEffect(() => {
-        (window as any).Headway.init({
-            selector: '#headway-badge',
-            account: '7L3Bzx',
-            callbacks: {
-                onShowWidget: () => {
-                    track({
-                        name: EventName.NOTIFICATIONS_CLICKED,
-                        properties: { ...trackNotifications },
-                    });
+        setHasMounted(true);
+        if (hasMounted) {
+            (window as any).Headway.init({
+                selector: '#headway-badge',
+                account: '7L3Bzx',
+                callbacks: {
+                    onShowWidget: () => {
+                        track({
+                            name: EventName.NOTIFICATIONS_CLICKED,
+                            properties: { ...trackNotifications },
+                        });
+                    },
+                    onShowDetails: (changelog: any) => {
+                        track({
+                            name: EventName.NOTIFICATIONS_ITEM_CLICKED,
+                            properties: {
+                                ...trackNotifications,
+                                item: changelog.title,
+                            },
+                        });
+                    },
+                    onReadMore: () => {
+                        track({
+                            name: EventName.NOTIFICATIONS_CLICKED,
+                            properties: { ...trackNotifications },
+                        });
+                    },
                 },
-                onShowDetails: (changelog: any) => {
-                    track({
-                        name: EventName.NOTIFICATIONS_ITEM_CLICKED,
-                        properties: {
-                            ...trackNotifications,
-                            item: changelog.title,
-                        },
-                    });
-                },
-                onReadMore: () => {
-                    track({
-                        name: EventName.NOTIFICATIONS_CLICKED,
-                        properties: { ...trackNotifications },
-                    });
-                },
-            },
-        });
+            });
+        } else {
+            return;
+        }
     }, []);
 
     const openChatWindow = () => {
