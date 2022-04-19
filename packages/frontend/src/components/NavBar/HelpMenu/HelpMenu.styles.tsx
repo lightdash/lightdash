@@ -74,13 +74,23 @@ export const ItemDescription = styled.p`
 `;
 
 export const NotificationWrapper = styled.div`
+    padding: 0.357em 0.571em;
+    border-radius: 0.214em;
     position: relative;
     color: ${Colors.GRAY5} !important;
+    margin-right: 0.357em;
 
-    margin-right: 0.625em;
+    :hover {
+        cursor: pointer;
+        background: rgba(138, 155, 168, 0.15) !important;
+    }
 `;
 export const NotificationWidget = styled.div`
     position: absolute;
-    left: 0;
-    top: 0;
+    left: 0.571em;
+    top: 0.214em;
+
+    .HW_badge.HW_softHidden {
+        background: transparent;
+    }
 `;
