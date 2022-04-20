@@ -17,7 +17,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unixodbc-dev \
     unzip \
     wget \
-    postgresql-client \ 
     && apt-get clean
 
 # dbt
@@ -44,6 +43,10 @@ RUN wget \
 # Stage 1: stop here for dev environment
 # -----------------------------
 FROM base AS dev
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client \ 
+    && apt-get clean
 
 EXPOSE 3000
 EXPOSE 8080
