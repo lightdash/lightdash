@@ -1,3 +1,4 @@
+import { formatValue } from 'common';
 import { analytics } from '../../analytics/client';
 import {
     onboardingModel,
@@ -132,6 +133,67 @@ describe('ProjectService', () => {
                 true,
             );
             expect(result).toEqual(expectedExploreSummaryFilteredByName);
+        });
+    });
+
+    describe('format and round', () => {
+        test('formatValue should return the right format', async () => {
+            expect(formatValue('km', undefined, 5)).toEqual('5 km');
+            expect(formatValue('km', undefined, '5')).toEqual('5 km');
+
+            expect(formatValue('mi', undefined, 5)).toEqual('5 mi');
+            expect(formatValue('usd', undefined, 5)).toEqual('$5');
+            expect(formatValue('gbp', undefined, 5)).toEqual('£5');
+            expect(formatValue('eur', undefined, 5)).toEqual('€5');
+            expect(formatValue('percent', undefined, 5)).toEqual('500%');
+            expect(formatValue('percent', undefined, 0.05)).toEqual('5%');
+            expect(formatValue('percent', undefined, '5')).toEqual('500%');
+            expect(formatValue('percent', undefined, 'foo')).toEqual('foo');
+            expect(formatValue('percent', undefined, false)).toEqual(false);
+
+            expect(formatValue('', undefined, 5)).toEqual(5);
+            expect(formatValue(undefined, undefined, 5)).toEqual(5);
+        });
+        test('formatValue should return the right round', async () => {
+            expect(formatValue(undefined, 2, 5)).toEqual('5.00');
+            expect(formatValue(undefined, 2, 5.001)).toEqual('5.00');
+            expect(formatValue(undefined, 2, 5.555)).toEqual('5.55');
+            expect(formatValue(undefined, 2, 5.5555)).toEqual('5.56');
+            expect(formatValue(undefined, 2, 5.9999999)).toEqual('6.00');
+
+            expect(formatValue(undefined, 0, 5)).toEqual('5');
+            expect(formatValue(undefined, 0, 5.001)).toEqual('5');
+            expect(formatValue(undefined, 0, 5.9999999)).toEqual('6');
+
+            // negative rounding not supported
+            expect(formatValue(undefined, -1, 5)).toEqual(5);
+
+            expect(formatValue(undefined, 2, 'foo')).toEqual('foo');
+            expect(formatValue(undefined, 2, false)).toEqual(false);
+
+            expect(formatValue(undefined, 10, 5)).toEqual('5.0000000000');
+            expect(formatValue(undefined, 10, 5.001)).toEqual('5.0010000000');
+            expect(formatValue(undefined, 10, 5.9999999)).toEqual(
+                '5.9999999000',
+            );
+        });
+
+        test('formatValue should return the right format and round', async () => {
+            expect(formatValue('km', 2, 5)).toEqual('5.00 km');
+            expect(formatValue('mi', 4, 5)).toEqual('5.0000 mi');
+            expect(formatValue('usd', 2, 5)).toEqual('$5.00');
+            expect(formatValue('usd', 0, 5.0)).toEqual('$5');
+            expect(formatValue('usd', 2, '5.0000')).toEqual('$5.00');
+            expect(formatValue('gbp', 2, 5)).toEqual('£5.00');
+            expect(formatValue('eur', 2, 5)).toEqual('€5.00');
+            expect(formatValue('percent', 2, 5)).toEqual('500.00%');
+            expect(formatValue('percent', 2, 0.05)).toEqual('5.00%');
+            expect(formatValue('percent', 2, '5')).toEqual('500.00%');
+            expect(formatValue('percent', 2, 0.0511)).toEqual('5.11%');
+            expect(formatValue('percent', 4, 0.0511)).toEqual('5.1100%');
+            expect(formatValue('percent', 2, 'foo')).toEqual('foo');
+            expect(formatValue('percent', 2, false)).toEqual(false);
+            expect(formatValue('', 2, 5)).toEqual('5.00');
         });
     });
 });

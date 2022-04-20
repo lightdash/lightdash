@@ -157,8 +157,6 @@ export const compileMetricSql = (
             );
     }
 
-    if (metric.round !== undefined)
-        renderedSql = `ROUND(${renderedSql}, ${metric.round})`;
     return renderedSql;
 };
 
