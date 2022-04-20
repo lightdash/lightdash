@@ -5,6 +5,9 @@
         "name": {
             "type": "string"
         },
+        "description": {
+            "type": "string"
+        },
         "tableName": {
             "type": "string"
         },
