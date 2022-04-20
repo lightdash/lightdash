@@ -5,7 +5,7 @@ import {
     Position,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import React, { FC, useEffect, useState } from 'react';
+import React, { FC, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
@@ -26,11 +26,6 @@ const HelpMenu: FC = () => {
     const { track } = useTracking();
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [hasMounted, setHasMounted] = useState<boolean>(false);
-
-    useEffect(() => {
-        setHasMounted(true);
-    }, []);
 
     useEffect(() => {
         const trackNotifications = {
@@ -39,7 +34,7 @@ const HelpMenu: FC = () => {
             organization_id: user.data?.organizationUuid,
         };
 
-        if (hasMounted) {
+        if ((window as any) && (window as any).Headway) {
             (window as any).Headway.init({
                 selector: '#headway-badge',
                 account: '7L3Bzx',
@@ -68,13 +63,7 @@ const HelpMenu: FC = () => {
                 },
             });
         }
-    }, [
-        hasMounted,
-        track,
-        projectUuid,
-        user.data?.organizationUuid,
-        user.data?.userUuid,
-    ]);
+    }, [track, projectUuid, user.data?.organizationUuid, user.data?.userUuid]);
 
     const openChatWindow = () => {
         (window as any).$chatwoot?.toggle('true');
