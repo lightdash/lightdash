@@ -7,11 +7,7 @@ export async function up(knex: Knex): Promise<void> {
         await knex.schema.createTable(
             CACHED_EXPLORES_TABLE_NAME,
             (tableBuilder) => {
-                tableBuilder.specificType(
-                    'cached_explores_id',
-                    'integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY',
-                );
-                tableBuilder.text('project_uuid').notNullable();
+                tableBuilder.uuid('project_uuid').primary().notNullable();
                 tableBuilder.jsonb('explores').notNullable();
             },
         );
