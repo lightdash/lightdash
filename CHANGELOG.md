@@ -1,3 +1,10 @@
+# [0.71.0](https://github.com/lightdash/lightdash/compare/0.70.0...0.71.0) (2022-04-20)
+
+
+### Features
+
+* add updated user on charts and dashboards ([#1773](https://github.com/lightdash/lightdash/issues/1773)) ([d49d27a](https://github.com/lightdash/lightdash/commit/d49d27a7b11fcbc5ab1d111e70aff5cbba2aa5ab))
+
 # [0.70.0](https://github.com/lightdash/lightdash/compare/0.69.0...0.70.0) (2022-04-20)
 
 
