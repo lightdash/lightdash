@@ -5,6 +5,7 @@ import {
     DashboardTileTypes,
     DashboardUnversionedFields,
     DashboardVersionedFields,
+    SessionUser,
 } from 'common';
 import { Knex } from 'knex';
 import {
@@ -28,6 +29,7 @@ import {
     SavedChartTable,
 } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
+import { UserTable } from '../../database/entities/users';
 import { NotFoundError, UnexpectedServerError } from '../../errors';
 import Transaction = Knex.Transaction;
 
@@ -36,14 +38,16 @@ export type GetDashboardQuery = Pick<
     'dashboard_id' | 'dashboard_uuid' | 'name' | 'description'
 > &
     Pick<DashboardVersionTable['base'], 'dashboard_version_id' | 'created_at'> &
-    Pick<ProjectTable['base'], 'project_uuid'>;
+    Pick<ProjectTable['base'], 'project_uuid'> &
+    Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'>;
 
 export type GetDashboardDetailsQuery = Pick<
     DashboardTable['base'],
     'dashboard_uuid' | 'name' | 'description'
 > &
     Pick<DashboardVersionTable['base'], 'created_at'> &
-    Pick<ProjectTable['base'], 'project_uuid'>;
+    Pick<ProjectTable['base'], 'project_uuid'> &
+    Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'>;
 export type GetChartTileQuery = Pick<
     DashboardTileChartTable['base'],
     'dashboard_tile_uuid'
@@ -69,8 +73,9 @@ export class DashboardModel {
         const [versionId] = await trx(DashboardVersionsTableName).insert(
             {
                 dashboard_id: dashboardId,
+                updated_by_user_uuid: version.updatedByUser?.userUuid,
             },
-            ['dashboard_version_id'],
+            ['dashboard_version_id', 'updated_by_user_uuid'],
         );
         await trx(DashboardViewsTableName).insert({
             dashboard_version_id: versionId.dashboard_version_id,
@@ -188,6 +193,11 @@ export class DashboardModel {
                 `saved_queries.saved_query_id`,
                 `${DashboardTileChartTableName}.saved_chart_id`,
             )
+            .leftJoin(
+                `users`,
+                `users.user_uuid`,
+                `${DashboardVersionsTableName}.updated_by_user_uuid`,
+            )
             .innerJoin(
                 ProjectTableName,
                 `${SpaceTableName}.project_id`,
@@ -199,6 +209,9 @@ export class DashboardModel {
                 `${DashboardsTableName}.description`,
                 `${DashboardVersionsTableName}.created_at`,
                 `${ProjectTableName}.project_uuid`,
+                `users.user_uuid`,
+                `users.first_name`,
+                `users.last_name`,
             ])
             .orderBy([
                 {
@@ -223,12 +236,20 @@ export class DashboardModel {
                 dashboard_uuid,
                 created_at,
                 project_uuid,
+                user_uuid,
+                first_name,
+                last_name,
             }) => ({
                 name,
                 description,
                 uuid: dashboard_uuid,
                 updatedAt: created_at,
                 projectUuid: project_uuid,
+                updatedByUser: {
+                    userUuid: user_uuid,
+                    firstName: first_name,
+                    lastName: last_name,
+                },
             }),
         );
     }
@@ -422,6 +443,7 @@ export class DashboardModel {
     async create(
         spaceUuid: string,
         dashboard: CreateDashboard,
+        user: SessionUser,
     ): Promise<Dashboard> {
         const dashboardId = await this.database.transaction(async (trx) => {
             const [space] = await trx(SpaceTableName)
@@ -439,11 +461,10 @@ export class DashboardModel {
                 })
                 .returning(['dashboard_id', 'dashboard_uuid']);
 
-            await DashboardModel.createVersion(
-                trx,
-                newDashboard.dashboard_id,
-                dashboard,
-            );
+            await DashboardModel.createVersion(trx, newDashboard.dashboard_id, {
+                ...dashboard,
+                updatedByUser: user,
+            });
 
             return newDashboard.dashboard_uuid;
         });
@@ -471,6 +492,7 @@ export class DashboardModel {
     async addVersion(
         dashboardUuid: string,
         version: DashboardVersionedFields,
+        user: SessionUser,
     ): Promise<Dashboard> {
         const [dashboard] = await this.database(DashboardsTableName)
             .select(['dashboard_id'])
@@ -480,11 +502,10 @@ export class DashboardModel {
             throw new NotFoundError('Dashboard not found');
         }
         await this.database.transaction(async (trx) => {
-            await DashboardModel.createVersion(
-                trx,
-                dashboard.dashboard_id,
-                version,
-            );
+            await DashboardModel.createVersion(trx, dashboard.dashboard_id, {
+                ...version,
+                updatedByUser: user,
+            });
         });
         return this.getById(dashboardUuid);
     }

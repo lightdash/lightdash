@@ -77,6 +77,7 @@ export class SavedChartService {
         const savedChart = await this.savedChartModel.createVersion(
             savedChartUuid,
             data,
+            user,
         );
         analytics.track({
             event: 'saved_chart_version.created',

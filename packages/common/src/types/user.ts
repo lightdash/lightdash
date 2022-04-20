@@ -19,6 +19,11 @@ export interface SessionUser extends LightdashUser {
     ability: OrganizationMemberAbility;
 }
 
+export interface UpdatedByUser {
+    userUuid: string;
+    firstName: string;
+    lastName: string;
+}
 export const isSessionUser = (user: any): user is SessionUser =>
     typeof user === 'object' &&
     user !== null &&
