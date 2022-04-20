@@ -116,6 +116,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const overrideQueryUuid: string | undefined = searchParams.get('explore')
         ? undefined
         : savedQueryUuid;
+
     const [pivotDimensions, setPivotDimensions] = useState<string[]>();
 
     const validConfig = () => {
@@ -141,6 +142,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                   tableCalculations: tableCalculations.filter((t) =>
                       selectedTableCalculations.includes(t.name),
                   ),
+                  additionalMetrics: [],
               },
               pivotConfig: pivotDimensions
                   ? { columns: pivotDimensions }
@@ -231,7 +233,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             };
         };
 
-        if (!overrideQueryUuid) return false;
         return (
             JSON.stringify(filterData(data)) !==
             JSON.stringify(filterData(queryData))

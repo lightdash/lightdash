@@ -5,13 +5,15 @@ import LinkButton from '../../common/LinkButton';
 const ButtonStyle = css`
     width: 100%;
     justify-content: left;
-    margin-bottom: 10px;
 `;
 
 export const ChartName = styled(LinkButton)`
     ${ButtonStyle}
     color: ${Colors.DARK_GRAY1};
     font-weight: 600;
+    height: 60px;
+    padding: 10px;
+    line-height: 18px;
 `;
 
 export const CreateChartButton = styled(LinkButton)`

@@ -100,7 +100,10 @@ In this example, I've only included the day, month, and quarter time intervals f
         description: 'Timestamp when the user was created.'
         meta:
           dimension:
-            time_intervals: ['DAY', 'MONTH', 'QUARTER']
+            time_intervals:
+              - DAY
+              - MONTH
+              - QUARTER
 ```
 
 ![screenshot-custom-intervals](assets/screenshot-custom-intervals.png)

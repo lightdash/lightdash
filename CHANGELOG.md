@@ -1,3 +1,31 @@
+# [0.71.0](https://github.com/lightdash/lightdash/compare/0.70.0...0.71.0) (2022-04-20)
+
+
+### Features
+
+* add updated user on charts and dashboards ([#1773](https://github.com/lightdash/lightdash/issues/1773)) ([d49d27a](https://github.com/lightdash/lightdash/commit/d49d27a7b11fcbc5ab1d111e70aff5cbba2aa5ab))
+
+# [0.70.0](https://github.com/lightdash/lightdash/compare/0.69.0...0.70.0) (2022-04-20)
+
+
+### Features
+
+* remove add metric link ([#1815](https://github.com/lightdash/lightdash/issues/1815)) ([a357ee1](https://github.com/lightdash/lightdash/commit/a357ee1ff3940ea0cc8bba8c7907c8cd12a24fac))
+
+# [0.69.0](https://github.com/lightdash/lightdash/compare/0.68.2...0.69.0) (2022-04-19)
+
+
+### Features
+
+* add tracking to notifications button ([#1808](https://github.com/lightdash/lightdash/issues/1808)) ([78f45fe](https://github.com/lightdash/lightdash/commit/78f45fe560cd813b71263ee445255d48d76dcc11))
+
+## [0.68.2](https://github.com/lightdash/lightdash/compare/0.68.1...0.68.2) (2022-04-19)
+
+
+### Bug Fixes
+
+* remove overridequeryuuid condition on save changes ([#1806](https://github.com/lightdash/lightdash/issues/1806)) ([733a4f9](https://github.com/lightdash/lightdash/commit/733a4f9d85492cca8616032e1b6a1256b8b218bb))
+
 ## [0.68.1](https://github.com/lightdash/lightdash/compare/0.68.0...0.68.1) (2022-04-19)
 
 
