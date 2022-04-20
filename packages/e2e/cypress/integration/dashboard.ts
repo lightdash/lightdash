@@ -6,6 +6,17 @@ describe('Explore', () => {
         cy.login();
         // @ts-ignore
         cy.preCompileProject();
+
+        ['chat.lightdash.com', 'www.loom.com'].forEach((url) => {
+            cy.intercept(
+                {
+                    hostname: url,
+                },
+                (req) => {
+                    req.destroy();
+                },
+            );
+        });
     });
 
     beforeEach(() => {
