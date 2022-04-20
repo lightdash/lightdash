@@ -1229,8 +1229,11 @@ export function formatRows(
         Object.keys(row).reduce((acc, columnName) => {
             const col = row[columnName];
 
-            const field = fieldMap[columnName];
-            const formattedColumn = formatValue(field.format, field.round, col);
+            const field: CompiledField | undefined = fieldMap[columnName];
+            const formattedColumn =
+                field === undefined
+                    ? col
+                    : formatValue(field.format, field.round, col);
 
             return {
                 ...acc,

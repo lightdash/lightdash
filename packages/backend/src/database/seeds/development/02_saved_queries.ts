@@ -171,10 +171,10 @@ export async function seed(knex: Knex): Promise<void> {
         tableName: 'orders',
         metricQuery: {
             dimensions: ['customers_customer_id'],
-            metrics: ['orders_avg_amount'],
+            metrics: ['orders_average_order_size'],
             filters: {},
             limit: 500,
-            sorts: [{ fieldId: 'orders_avg_amount', descending: true }],
+            sorts: [{ fieldId: 'orders_average_order_size', descending: true }],
             tableCalculations: [],
         },
         chartConfig: {
@@ -182,7 +182,7 @@ export async function seed(knex: Knex): Promise<void> {
             config: {
                 layout: {
                     xField: 'customers_customer_id',
-                    yField: ['orders_avg_amount'],
+                    yField: ['orders_average_order_size'],
                     flipAxes: true,
                 },
                 eChartsConfig: {
@@ -190,7 +190,7 @@ export async function seed(knex: Knex): Promise<void> {
                         {
                             encode: {
                                 xRef: { field: 'customers_customer_id' },
-                                yRef: { field: 'orders_avg_amount' },
+                                yRef: { field: 'orders_average_order_size' },
                             },
                             type: CartesianSeriesType.BAR,
                         },
@@ -199,7 +199,7 @@ export async function seed(knex: Knex): Promise<void> {
             },
         },
         tableConfig: {
-            columnOrder: ['customers_customer_id', 'orders_avg_amount'],
+            columnOrder: ['customers_customer_id', 'orders_average_order_size'],
         },
     });
 
