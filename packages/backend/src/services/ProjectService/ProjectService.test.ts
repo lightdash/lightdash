@@ -14,14 +14,12 @@ import {
     expectedExploreSummaryFilteredByName,
     expectedExploreSummaryFilteredByTags,
     expectedSqlResults,
-    exploreWithError,
     projectAdapterMock,
     spacesWithSavedCharts,
     tablesConfiguration,
     tablesConfigurationWithNames,
     tablesConfigurationWithTags,
     user,
-    validExplore,
 } from './ProjectService.mock';
 
 jest.mock('../../analytics/client', () => ({
@@ -34,6 +32,7 @@ jest.mock('../../models/models', () => ({
     projectModel: {
         getTablesConfiguration: jest.fn(async () => tablesConfiguration),
         updateTablesConfiguration: jest.fn(),
+        getCacheExplores: jest.fn(async () => allExplores),
     },
     onboardingModel: {},
     savedChartModel: {
@@ -65,11 +64,6 @@ describe('ProjectService', () => {
         );
     });
     test('should get project catalog', async () => {
-        service.cachedExplores[projectUuid] = Promise.resolve([
-            exploreWithError,
-            validExplore,
-        ]);
-
         const results = await service.getCatalog(user, projectUuid);
 
         expect(results).toEqual(expectedCatalog);
@@ -93,9 +87,6 @@ describe('ProjectService', () => {
         );
     });
     describe('getAllExploresSummary', () => {
-        beforeEach(() => {
-            service.cachedExplores[projectUuid] = Promise.resolve(allExplores);
-        });
         test('should get all explores summary without filtering', async () => {
             const result = await service.getAllExploresSummary(
                 user,

@@ -438,6 +438,7 @@ export class ProjectService {
             });
             return explores;
         }
+
         return cachedExplores;
     }
 
