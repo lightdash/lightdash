@@ -27,13 +27,13 @@ const HelpMenu: FC = () => {
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const trackNotifications = {
-        user_id: user.data?.userUuid,
-        project_id: projectUuid,
-        organization_id: user.data?.organizationUuid,
-    };
-
     useEffect(() => {
+        const trackNotifications = {
+            user_id: user.data?.userUuid,
+            project_id: projectUuid,
+            organization_id: user.data?.organizationUuid,
+        };
+
         (window as any).Headway.init({
             selector: '#headway-badge',
             account: '7L3Bzx',
@@ -61,7 +61,7 @@ const HelpMenu: FC = () => {
                 },
             },
         });
-    }, []);
+    }, [track, projectUuid, user.data?.organizationUuid, user.data?.userUuid]);
 
     const openChatWindow = () => {
         (window as any).$chatwoot?.toggle('true');
