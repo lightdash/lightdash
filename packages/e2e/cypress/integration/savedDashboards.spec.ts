@@ -25,7 +25,7 @@ describe('Dashboard List', () => {
         cy.get('[data-icon=more]').click();
         cy.findByRole('button', { name: 'Delete' }).click();
         // click on delete in the popup
-        cy.get('[data-cy=submit-base-modal]').click();
+        cy.findByText('Delete').click();
         cy.findByText('No results available');
     });
 
