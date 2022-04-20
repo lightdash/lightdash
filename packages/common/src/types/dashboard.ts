@@ -65,7 +65,7 @@ export type CreateDashboard = {
         | CreateDashboardLoomTile
     >;
     filters?: DashboardFilters;
-    updatedByUser?: UpdatedByUser;
+    updatedByUser?: Pick<UpdatedByUser, 'userUuid'>;
 };
 
 export type Dashboard = {
