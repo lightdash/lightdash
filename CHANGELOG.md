@@ -1,3 +1,10 @@
+## [0.71.5](https://github.com/lightdash/lightdash/compare/0.71.4...0.71.5) (2022-04-20)
+
+
+### Bug Fixes
+
+* make field search more strict with fuse options ([#1833](https://github.com/lightdash/lightdash/issues/1833)) ([43a66a2](https://github.com/lightdash/lightdash/commit/43a66a28a920ec8d332c2cc0ba2f1f55ef9d8345))
+
 ## [0.71.4](https://github.com/lightdash/lightdash/compare/0.71.3...0.71.4) (2022-04-20)
 
 
