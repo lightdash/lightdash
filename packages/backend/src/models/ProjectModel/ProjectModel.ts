@@ -2,6 +2,8 @@ import {
     CreateProject,
     CreateWarehouseCredentials,
     DbtProjectConfig,
+    Explore,
+    ExploreError,
     OrganizationProject,
     Project,
     sensitiveCredentialsFieldNames,
@@ -12,7 +14,10 @@ import {
 } from 'common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
-import { ProjectTableName } from '../../database/entities/projects';
+import {
+    CacheExploresTableName,
+    ProjectTableName,
+} from '../../database/entities/projects';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import { NotExistsError, UnexpectedServerError } from '../../errors';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
@@ -382,5 +387,42 @@ export class ProjectModel {
                 table_selection_value: data.tableSelection.value,
             })
             .where('project_uuid', projectUuid);
+    }
+
+    async getCacheExplores(
+        projectUuid: string,
+    ): Promise<(Explore | ExploreError)[]> {
+        const explores = await this.database(CacheExploresTableName)
+            .select(['explores'])
+            .where('project_uuid', projectUuid)
+            .limit(1);
+        if (explores.length > 0) return explores[0].explores;
+        return [];
+
+        /* 
+        TODO Should we return error if nor esults ? 
+        const error : ExploreError = {
+            name: "no cache", 
+            label: `no cache for projectUuid ${projectUuid}`,
+            errors: [{type: InlineErrorType.NO_CACHE, message: 'no cache'}]
+        }
+        return [error]
+        */
+    }
+
+    async saveCacheExplores(
+        projectUuid: string,
+        explores: (Explore | ExploreError)[],
+    ): Promise<void> {
+        this.database.transaction(async (trx) => {
+            await trx(CacheExploresTableName)
+                .where('project_uuid', projectUuid)
+                .delete();
+
+            const result = await trx(CacheExploresTableName).insert({
+                project_uuid: projectUuid,
+                explores: JSON.stringify(explores),
+            });
+        });
     }
 }
