@@ -17,6 +17,7 @@ describe('Explore', () => {
 
         cy.findByText('Jaffle dashboard').click();
 
-        cy.find('No chart available').should('not.exist');
+        cy.findAllByText('No chart available').should('have.length', 0);
+        cy.findAllByText('No data available').should('have.length', 0);
     });
 });
