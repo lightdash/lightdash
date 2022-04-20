@@ -862,7 +862,10 @@ export const isDbtRpcRunSqlResults = (
             Array.isArray(result.table.rows),
     );
 
-export type SpaceQuery = Pick<SavedChart, 'uuid' | 'name' | 'updatedAt'>;
+export type SpaceQuery = Pick<
+    SavedChart,
+    'uuid' | 'name' | 'updatedAt' | 'updatedByUser'
+>;
 
 export type Space = {
     uuid: string;
@@ -1167,67 +1170,59 @@ export const getAxisName = ({
         : undefined;
 };
 
-export function formatValue<T>(
-    format: string | undefined,
-    round: number | undefined,
-    value: T,
-): string | T {
-    function roundNumber(number: T): string | T {
-        if (round === undefined || round < 0) return value;
-        if (Number.isNaN(parseFloat(number as any))) {
-            return number;
-        }
-        return parseFloat(number as any).toFixed(round);
-    }
-
+export function formatValue<T>(format: string, value: T): string | T {
     if (value === undefined) return value;
     switch (format) {
         case 'km':
         case 'mi':
-            return `${roundNumber(value)} ${format}`;
+            return `${value} ${format}`;
         case 'usd':
-            return `$${roundNumber(value)}`;
+            return `$${value}`;
         case 'gbp':
-            return `£${roundNumber(value)}`;
+            return `£${value}`;
         case 'eur':
-            return `€${roundNumber(value)}`;
+            return `€${value}`;
         case 'percent':
-            if (Number.isNaN(parseFloat(value as any))) {
+            if (Number.isNaN(value as any)) {
                 return value;
             }
             // Fix rounding issue
-            return `${(parseFloat(value as any) * 100).toFixed(round)}%`;
+            return `${(parseFloat(value as any) * 100).toFixed(2)}%`;
 
         case '': // no format
-            return roundNumber(value);
+            return value;
         default:
             // unrecognized format
-            return roundNumber(value);
+            return value;
     }
 }
 
-export function getFieldMap(explore: Explore): Record<string, CompiledField> {
+export function getFormats(
+    explore: Explore,
+): Record<string, string | undefined> {
     return getFields(explore).reduce(
         (sum, field) => ({
             ...sum,
-            [fieldId(field)]: { format: field.format, round: field.round },
+            [fieldId(field)]: field.format,
         }),
         {},
-    ); // e.g { 'my_table_my_dimension': {format: 'usd', round: 1} }}
+    ); // e.g { 'my_table_my_dimension': 'km'}}
 }
-
 export function formatRows(
     rows: { [col: string]: any }[],
     explore: Explore,
 ): ResultRow[] {
-    const fieldMap = getFieldMap(explore);
+    const fieldMap = getFormats(explore);
+    function getFormat(columnName: string): string {
+        return fieldMap[columnName] || '';
+    }
 
     return rows.map((row) =>
         Object.keys(row).reduce((acc, columnName) => {
             const col = row[columnName];
 
-            const field = fieldMap[columnName];
-            const formattedColumn = formatValue(field.format, field.round, col);
+            const format = getFormat(columnName);
+            const formattedColumn = formatValue(format, col);
 
             return {
                 ...acc,
