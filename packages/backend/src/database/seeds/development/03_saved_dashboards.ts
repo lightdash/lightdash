@@ -183,7 +183,7 @@ export async function seed(knex: Knex): Promise<void> {
             },
         },
         {
-            userUuid: 'userUuid',
+            userUuid: '6d28a3a5-c01f-46d8-9f6b-74a9ab1efd99',
             email: 'john@lightdash.com',
             firstName: 'John',
             lastName: 'Doe',
