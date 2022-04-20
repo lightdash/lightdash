@@ -1,3 +1,10 @@
+## [0.71.2](https://github.com/lightdash/lightdash/compare/0.71.1...0.71.2) (2022-04-20)
+
+
+### Bug Fixes
+
+* make sure window has mounted before initilizing Headway ([#1813](https://github.com/lightdash/lightdash/issues/1813)) ([41d17e0](https://github.com/lightdash/lightdash/commit/41d17e0a81681f8a078e67cc45991c365450f62a))
+
 ## [0.71.1](https://github.com/lightdash/lightdash/compare/0.71.0...0.71.1) (2022-04-20)
 
 
