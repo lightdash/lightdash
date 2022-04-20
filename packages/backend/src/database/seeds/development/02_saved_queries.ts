@@ -9,6 +9,7 @@ export async function seed(knex: Knex): Promise<void> {
     // Inserts seed entries
     await savedChartModel.create(SEED_PROJECT.project_uuid, {
         name: 'How much revenue do we have per payment method?',
+        description: 'How much revenue do we have per payment method?',
         tableName: 'payments',
         metricQuery: {
             dimensions: ['payments_payment_method'],
@@ -70,6 +71,7 @@ export async function seed(knex: Knex): Promise<void> {
 
     await savedChartModel.create(SEED_PROJECT.project_uuid, {
         name: `What's our total revenue to date?`,
+        description: `What's our total revenue to date?`,
         tableName: 'payments',
         metricQuery: {
             dimensions: ['orders_status'],
@@ -107,6 +109,7 @@ export async function seed(knex: Knex): Promise<void> {
 
     await savedChartModel.create(SEED_PROJECT.project_uuid, {
         name: 'How many orders we have over time ?',
+        description: 'How many orders we have over time ?',
         tableName: 'orders',
         metricQuery: {
             dimensions: ['orders_order_date'],
@@ -168,6 +171,7 @@ export async function seed(knex: Knex): Promise<void> {
 
     await savedChartModel.create(SEED_PROJECT.project_uuid, {
         name: "What's the average spend per customer?",
+        description: "What's the average spend per customer?",
         tableName: 'orders',
         metricQuery: {
             dimensions: ['customers_customer_id'],
@@ -205,6 +209,7 @@ export async function seed(knex: Knex): Promise<void> {
 
     await savedChartModel.create(SEED_PROJECT.project_uuid, {
         name: 'Which customers have not recently ordered an item?',
+        description: 'Which customers have not recently ordered an item?',
         tableName: 'payments',
         metricQuery: {
             dimensions: [
