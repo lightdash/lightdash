@@ -1,3 +1,10 @@
+## [0.71.4](https://github.com/lightdash/lightdash/compare/0.71.3...0.71.4) (2022-04-20)
+
+
+### Bug Fixes
+
+* fix format undefined on frontend ([#1830](https://github.com/lightdash/lightdash/issues/1830)) ([bf615f1](https://github.com/lightdash/lightdash/commit/bf615f1e499717628b8e2a9a7dae4ddff8de4231))
+
 ## [0.71.3](https://github.com/lightdash/lightdash/compare/0.71.2...0.71.3) (2022-04-20)
 
 
