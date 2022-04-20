@@ -7,7 +7,7 @@ if [ -z "$PGPASSWORD" ]; then
 fi
 
 # delete public schema on db
-PGPASSWORD=password psql -h db-dev -d postgres -U postgres -c 'drop schema public cascade; create schema public;'
+PGPASSWORD=$PGPASSWORD psql -p $PGPORT -h $PGHOST -d $PGDATABASE -U $PGUSER -c 'drop schema public cascade; create schema public;'
 
 # migrate 
 yarn workspace backend migrate
