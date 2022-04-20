@@ -27,41 +27,43 @@ const HelpMenu: FC = () => {
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const trackNotifications = {
-        user_id: user.data?.userUuid,
-        project_id: projectUuid,
-        organization_id: user.data?.organizationUuid,
-    };
-
     useEffect(() => {
-        (window as any).Headway.init({
-            selector: '#headway-badge',
-            account: '7L3Bzx',
-            callbacks: {
-                onShowWidget: () => {
-                    track({
-                        name: EventName.NOTIFICATIONS_CLICKED,
-                        properties: { ...trackNotifications },
-                    });
+        const trackNotifications = {
+            user_id: user.data?.userUuid,
+            project_id: projectUuid,
+            organization_id: user.data?.organizationUuid,
+        };
+
+        if ((window as any) && (window as any).Headway) {
+            (window as any).Headway.init({
+                selector: '#headway-badge',
+                account: '7L3Bzx',
+                callbacks: {
+                    onShowWidget: () => {
+                        track({
+                            name: EventName.NOTIFICATIONS_CLICKED,
+                            properties: { ...trackNotifications },
+                        });
+                    },
+                    onShowDetails: (changelog: any) => {
+                        track({
+                            name: EventName.NOTIFICATIONS_ITEM_CLICKED,
+                            properties: {
+                                ...trackNotifications,
+                                item: changelog.title,
+                            },
+                        });
+                    },
+                    onReadMore: () => {
+                        track({
+                            name: EventName.NOTIFICATIONS_CLICKED,
+                            properties: { ...trackNotifications },
+                        });
+                    },
                 },
-                onShowDetails: (changelog: any) => {
-                    track({
-                        name: EventName.NOTIFICATIONS_ITEM_CLICKED,
-                        properties: {
-                            ...trackNotifications,
-                            item: changelog.title,
-                        },
-                    });
-                },
-                onReadMore: () => {
-                    track({
-                        name: EventName.NOTIFICATIONS_CLICKED,
-                        properties: { ...trackNotifications },
-                    });
-                },
-            },
-        });
-    }, []);
+            });
+        }
+    }, [track, projectUuid, user.data?.organizationUuid, user.data?.userUuid]);
 
     const openChatWindow = () => {
         (window as any).$chatwoot?.toggle('true');
