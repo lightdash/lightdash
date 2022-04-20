@@ -210,7 +210,8 @@ export const getEchartsSeries = (
                         ),
                     },
                     ...(series.label?.show &&
-                        formats && {
+                        formats &&
+                        formats[series.encode.yRef.field] && {
                             label: {
                                 ...series.label,
                                 formatter: (val: any) =>
@@ -274,7 +275,8 @@ export const getEchartsSeries = (
                     },
 
                     ...(series.label?.show &&
-                        formats && {
+                        formats &&
+                        formats[yField] && {
                             label: {
                                 ...series.label,
                                 formatter: (value: any) =>
