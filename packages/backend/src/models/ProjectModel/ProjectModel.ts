@@ -398,16 +398,6 @@ export class ProjectModel {
             .limit(1);
         if (explores.length > 0) return explores[0].explores;
         return [];
-
-        /* 
-        TODO Should we return error if nor esults ? 
-        const error : ExploreError = {
-            name: "no cache", 
-            label: `no cache for projectUuid ${projectUuid}`,
-            errors: [{type: InlineErrorType.NO_CACHE, message: 'no cache'}]
-        }
-        return [error]
-        */
     }
 
     async saveCacheExplores(
