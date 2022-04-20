@@ -12,7 +12,6 @@ import {
     DashboardTitle,
     ViewAllDashboardsButton,
 } from './LatestDashboard.styles';
-
 interface Props {
     projectUuid: string;
 }

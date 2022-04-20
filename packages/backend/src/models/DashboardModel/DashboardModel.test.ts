@@ -39,6 +39,7 @@ import {
     savedChartEntry,
     spaceEntry,
     updateDashboard,
+    user,
 } from './DashboardModel.mock';
 
 jest.mock('../../config/lightdashConfig', () => ({
@@ -64,6 +65,7 @@ describe('DashboardModel', () => {
     const model = new DashboardModel({
         database: knex({ client: MockClient, dialect: 'pg' }),
     });
+
     let tracker: Tracker;
     beforeAll(() => {
         tracker = getTracker();
@@ -141,6 +143,7 @@ describe('DashboardModel', () => {
             .insert(
                 queryMatcher(DashboardVersionsTableName, [
                     dashboardEntry.dashboard_id,
+                    user.userUuid,
                 ]),
             )
             .response([dashboardVersionEntry]);
@@ -210,7 +213,7 @@ describe('DashboardModel', () => {
             Promise.resolve(expectedDashboard),
         );
 
-        await model.create(spaceUuid, createDashboard);
+        await model.create(spaceUuid, createDashboard, user);
 
         expect(tracker.history.select).toHaveLength(2);
         expect(tracker.history.insert).toHaveLength(5);
@@ -289,7 +292,7 @@ describe('DashboardModel', () => {
             .response([]);
 
         await expect(
-            model.addVersion(expectedDashboard.uuid, addDashboardVersion),
+            model.addVersion(expectedDashboard.uuid, addDashboardVersion, user),
         ).rejects.toThrowError(NotFoundError);
     });
     test('should create dashboard version with all tile types', async () => {
@@ -302,6 +305,7 @@ describe('DashboardModel', () => {
             .insert(
                 queryMatcher(DashboardVersionsTableName, [
                     dashboardEntry.dashboard_id,
+                    user.userUuid,
                 ]),
             )
             .response([dashboardVersionEntry]);
@@ -414,6 +418,7 @@ describe('DashboardModel', () => {
         await model.addVersion(
             expectedDashboard.uuid,
             addDashboardVersionWithAllTiles,
+            user,
         );
 
         expect(tracker.history.select).toHaveLength(2);
@@ -429,6 +434,7 @@ describe('DashboardModel', () => {
             .insert(
                 queryMatcher(DashboardVersionsTableName, [
                     dashboardEntry.dashboard_id,
+                    user.userUuid,
                 ]),
             )
             .response([dashboardVersionEntry]);
@@ -479,6 +485,7 @@ describe('DashboardModel', () => {
         await model.addVersion(
             expectedDashboard.uuid,
             addDashboardVersionWithTileIds,
+            user,
         );
 
         expect(tracker.history.select).toHaveLength(2);
@@ -494,6 +501,7 @@ describe('DashboardModel', () => {
             .insert(
                 queryMatcher(DashboardVersionsTableName, [
                     dashboardEntry.dashboard_id,
+                    user.userUuid,
                 ]),
             )
             .response([dashboardVersionEntry]);
@@ -525,6 +533,7 @@ describe('DashboardModel', () => {
         await model.addVersion(
             expectedDashboard.uuid,
             addDashboardVersionWithoutChart,
+            user,
         );
 
         expect(tracker.history.select).toHaveLength(1);
@@ -540,6 +549,7 @@ describe('DashboardModel', () => {
             .insert(
                 queryMatcher(DashboardVersionsTableName, [
                     dashboardEntry.dashboard_id,
+                    user.userUuid,
                 ]),
             )
             .response([dashboardVersionEntry]);
@@ -575,7 +585,7 @@ describe('DashboardModel', () => {
             .response([]);
 
         await expect(
-            model.addVersion(expectedDashboard.uuid, addDashboardVersion),
+            model.addVersion(expectedDashboard.uuid, addDashboardVersion, user),
         ).rejects.toThrowError(NotFoundError);
     });
 });

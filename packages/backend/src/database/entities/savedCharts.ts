@@ -29,6 +29,7 @@ export type DbSavedChartVersion = {
     saved_query_id: number;
     chart_config: ChartConfig['config'] | undefined;
     pivot_dimensions: string[] | undefined;
+    updated_by_user_uuid: string | undefined;
 };
 
 export type SavedChartVersionsTable = Knex.CompositeTableType<
@@ -45,6 +46,7 @@ export type CreateDbSavedChartVersion = Pick<
     | 'chart_type'
     | 'pivot_dimensions'
     | 'chart_config'
+    | 'updated_by_user_uuid'
 >;
 
 type DbSavedChartVersionField = {

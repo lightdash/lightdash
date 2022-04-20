@@ -1,5 +1,5 @@
 import { NonIdealState } from '@blueprintjs/core';
-import { ApiError } from 'common';
+import { ApiError, UpdatedByUser } from 'common';
 import React, { useState } from 'react';
 import { UseMutationResult } from 'react-query';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
@@ -30,7 +30,14 @@ type ActionCardListProps<T extends { uuid: string; name: string }> = {
     isHomePage?: boolean;
 };
 
-const ActionCardList = <T extends { uuid: string; name: string }>({
+const ActionCardList = <
+    T extends {
+        uuid: string;
+        name: string;
+        updatedAt: Date;
+        updatedByUser?: UpdatedByUser;
+    },
+>({
     dataList,
     getURL,
     useDelete,
