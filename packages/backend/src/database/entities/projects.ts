@@ -2,6 +2,7 @@ import { ProjectType, TableSelectionType } from 'common';
 import { Knex } from 'knex';
 
 export const ProjectTableName = 'projects';
+export const CacheExploresTableName = 'cached_explores';
 
 type DbProject = {
     project_id: number;
