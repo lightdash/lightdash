@@ -1,10 +1,10 @@
-.bp3-form-group.input-wrapper label.bp3-label {
+.bp4-form-group.input-wrapper label.bp4-label {
     font-weight: 500;
     display: inline-flex;
     gap: 3px;
 }
 
-.bp3-form-group.input-wrapper .bp3-text-muted {
+.bp4-form-group.input-wrapper .bp4-text-muted {
     flex: 1;
     display: inline-flex;
     gap: 3px;

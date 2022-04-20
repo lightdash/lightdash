@@ -7,7 +7,7 @@ const StyledAnchorButton = styled(AnchorButton)`
     font-weight: 500;
     white-space: nowrap;
 
-    & span.bp3-icon {
+    & span.bp4-icon {
         width: 12px;
         height: 12px;
 
