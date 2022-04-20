@@ -1,3 +1,10 @@
+## [0.71.3](https://github.com/lightdash/lightdash/compare/0.71.2...0.71.3) (2022-04-20)
+
+
+### Bug Fixes
+
+* handle table calcs in results formatter ([#1826](https://github.com/lightdash/lightdash/issues/1826)) ([7e8ccf6](https://github.com/lightdash/lightdash/commit/7e8ccf6a21b93566565fa617971c56c17b263c1f))
+
 ## [0.71.2](https://github.com/lightdash/lightdash/compare/0.71.1...0.71.2) (2022-04-20)
 
 
