@@ -443,7 +443,7 @@ export class DashboardModel {
     async create(
         spaceUuid: string,
         dashboard: CreateDashboard,
-        user: SessionUser,
+        user: Pick<SessionUser, 'userUuid'>,
     ): Promise<Dashboard> {
         const dashboardId = await this.database.transaction(async (trx) => {
             const [space] = await trx(SpaceTableName)
@@ -492,7 +492,7 @@ export class DashboardModel {
     async addVersion(
         dashboardUuid: string,
         version: DashboardVersionedFields,
-        user: SessionUser,
+        user: Pick<SessionUser, 'userUuid'>,
     ): Promise<Dashboard> {
         const [dashboard] = await this.database(DashboardsTableName)
             .select(['dashboard_id'])

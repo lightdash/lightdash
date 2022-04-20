@@ -1,3 +1,10 @@
+## [0.71.1](https://github.com/lightdash/lightdash/compare/0.71.0...0.71.1) (2022-04-20)
+
+
+### Bug Fixes
+
+* format UUID in seed ([#1824](https://github.com/lightdash/lightdash/issues/1824)) ([efdaa40](https://github.com/lightdash/lightdash/commit/efdaa403f9df8d5e76f8f2ce0b3a2a8e38a9c4e0))
+
 # [0.71.0](https://github.com/lightdash/lightdash/compare/0.70.0...0.71.0) (2022-04-20)
 
 
