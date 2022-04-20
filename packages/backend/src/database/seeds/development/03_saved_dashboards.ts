@@ -1,12 +1,11 @@
-import { Ability } from '@casl/ability';
 import {
     DashboardChartTile,
     DashboardLoomTile,
     DashboardMarkdownTile,
     DashboardTileTypes,
     FilterOperator,
-    OrganizationMemberRole,
     SEED_PROJECT,
+    SEED_USER,
 } from 'common';
 import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
@@ -183,18 +182,7 @@ export async function seed(knex: Knex): Promise<void> {
             },
         },
         {
-            userUuid: '6d28a3a5-c01f-46d8-9f6b-74a9ab1efd99',
-            email: 'john@lightdash.com',
-            firstName: 'John',
-            lastName: 'Doe',
-            organizationUuid: 'organizationUuid',
-            organizationName: 'organizationName',
-            isTrackingAnonymized: false,
-            isMarketingOptedIn: false,
-            isSetupComplete: true,
-            userId: 0,
-            role: OrganizationMemberRole.ADMIN,
-            ability: new Ability([{ subject: 'Project', action: 'update' }]),
+            userUuid: SEED_USER.user_uuid,
         },
     );
 }
