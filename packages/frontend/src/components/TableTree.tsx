@@ -1,5 +1,4 @@
 import {
-    AnchorButton,
     Button,
     Classes,
     Colors,
@@ -339,18 +338,7 @@ const TableTree: FC<TableTreeProps> = ({
                 </strong>
             </span>
         ),
-        secondaryLabel:
-            hasNoMetrics || tableContainsAutoMetrics ? (
-                <AnchorButton
-                    minimal
-                    href="https://docs.lightdash.com/get-started/setup-lightdash/add-metrics"
-                    target="_blank"
-                    rightIcon="plus"
-                    referrerPolicy="no-referrer"
-                >
-                    Add metrics
-                </AnchorButton>
-            ) : null,
+        secondaryLabel: null,
         icon: (
             <Icon
                 icon={tableContainsAutoMetrics ? 'clean' : 'numerical'}
