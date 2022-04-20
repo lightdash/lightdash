@@ -25,7 +25,7 @@ type DbSavedChartDetails = {
     saved_query_id: number;
     saved_query_uuid: string;
     name: string;
-    description?: string;
+    description: string;
     saved_queries_version_id: number;
     explore_name: string;
     filters: any;
@@ -209,6 +209,7 @@ export class SavedChartModel {
         projectUuid: string,
         {
             name,
+            description,
             tableName,
             metricQuery,
             chartConfig,
@@ -221,7 +222,7 @@ export class SavedChartModel {
                 try {
                     const space = await getSpace(trx, projectUuid);
                     const [newSavedChart] = await trx('saved_queries')
-                        .insert({ name, space_id: space.space_id })
+                        .insert({ name, space_id: space.space_id, description })
                         .returning('*');
                     await createSavedChartVersion(
                         trx,
@@ -301,6 +302,7 @@ export class SavedChartModel {
                 'saved_queries.saved_query_id',
                 'saved_queries.saved_query_uuid',
                 'saved_queries.name',
+                'saved_queries.description',
                 'saved_queries_versions.saved_queries_version_id',
                 'saved_queries_versions.explore_name',
                 'saved_queries_versions.filters',
@@ -393,6 +395,7 @@ export class SavedChartModel {
             uuid: savedQuery.saved_query_uuid,
             projectUuid: savedQuery.project_uuid,
             name: savedQuery.name,
+            description: savedQuery.description,
             tableName: savedQuery.explore_name,
             updatedAt: savedQuery.created_at,
             metricQuery: {
