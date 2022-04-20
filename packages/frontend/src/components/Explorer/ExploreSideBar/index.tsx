@@ -55,6 +55,8 @@ const BasePanel = () => {
             if (validSearch !== '') {
                 return new Fuse(Object.values(exploresResult.data), {
                     keys: ['name'],
+                    ignoreLocation: true,
+                    threshold: 0.3,
                 })
                     .search(validSearch)
                     .map((res) => res.item);
