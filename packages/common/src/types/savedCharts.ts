@@ -1,4 +1,5 @@
 import { MetricQuery } from './metricQuery';
+import { UpdatedByUser } from './user';
 
 export enum ChartType {
     CARTESIAN = 'cartesian',
@@ -101,6 +102,7 @@ export type SavedChart = {
         columnOrder: string[];
     };
     updatedAt: Date;
+    updatedByUser?: UpdatedByUser;
 };
 
 export type CreateSavedChart = Omit<

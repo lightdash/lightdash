@@ -80,6 +80,7 @@ describe('DashboardService', () => {
         expect(dashboardModel.create).toHaveBeenCalledWith(
             space.space_uuid,
             createDashboard,
+            user,
         );
         expect(analytics.track).toHaveBeenCalledTimes(1);
         expect(analytics.track).toHaveBeenCalledWith(
@@ -100,6 +101,7 @@ describe('DashboardService', () => {
         expect(dashboardModel.create).toHaveBeenCalledWith(
             space.space_uuid,
             createDashboardWithTileIds,
+            user,
         );
         expect(analytics.track).toHaveBeenCalledTimes(1);
         expect(analytics.track).toHaveBeenCalledWith(
@@ -140,6 +142,7 @@ describe('DashboardService', () => {
         expect(dashboardModel.addVersion).toHaveBeenCalledWith(
             dashboardUuid,
             updateDashboardTiles,
+            user,
         );
         expect(analytics.track).toHaveBeenCalledTimes(1);
         expect(analytics.track).toHaveBeenCalledWith(
@@ -160,6 +163,7 @@ describe('DashboardService', () => {
         expect(dashboardModel.addVersion).toHaveBeenCalledWith(
             dashboardUuid,
             updateDashboardTilesWithIds,
+            user,
         );
         expect(analytics.track).toHaveBeenCalledTimes(1);
         expect(analytics.track).toHaveBeenCalledWith(
@@ -185,6 +189,7 @@ describe('DashboardService', () => {
         expect(dashboardModel.addVersion).toHaveBeenCalledWith(
             dashboardUuid,
             updateDashboardTiles,
+            user,
         );
         expect(analytics.track).toHaveBeenCalledTimes(2);
         expect(analytics.track).toHaveBeenNthCalledWith(

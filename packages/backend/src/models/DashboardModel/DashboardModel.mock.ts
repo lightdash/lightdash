@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     CreateDashboard,
     CreateDashboardChartTile,
@@ -9,6 +10,8 @@ import {
     DashboardTileTypes,
     DashboardUnversionedFields,
     DashboardVersionedFields,
+    OrganizationMemberRole,
+    SessionUser,
 } from 'common';
 import {
     DashboardTable,
@@ -139,6 +142,7 @@ export const dashboardVersionEntry: DashboardVersionTable['base'] = {
     dashboard_version_id: 0,
     dashboard_id: 0,
     created_at: new Date(),
+    updated_by_user_uuid: 'userUuid',
 };
 
 export const dashboardViewEntry: DashboardViewTable['base'] = {
@@ -160,6 +164,9 @@ export const dashboardWithVersionEntry: GetDashboardQuery = {
     description: dashboardEntry.description,
     dashboard_version_id: dashboardVersionEntry.dashboard_version_id,
     created_at: dashboardVersionEntry.created_at,
+    user_uuid: 'userUuid',
+    first_name: 'firstName',
+    last_name: 'lastName',
 };
 
 export const dashboardTileEntry: DashboardTileTable['base'] = {
@@ -254,5 +261,27 @@ export const expectedAllDashboards: DashboardBasicDetails[] = [
         name: dashboardEntry.name,
         description: dashboardEntry.description,
         updatedAt: dashboardVersionEntry.created_at,
+        updatedByUser: {
+            firstName: 'firstName',
+            lastName: 'lastName',
+            userUuid: 'userUuid',
+        },
     },
 ];
+
+export const user: SessionUser = {
+    userUuid: 'userUuid',
+    email: 'email',
+    firstName: 'firstName',
+    lastName: 'lastName',
+    organizationUuid: 'organizationUuid',
+    organizationName: 'organizationName',
+    isTrackingAnonymized: false,
+    isMarketingOptedIn: false,
+    isSetupComplete: true,
+    userId: 0,
+    role: OrganizationMemberRole.ADMIN,
+    ability: new Ability([
+        { subject: 'Dashboard', action: ['update', 'delete', 'create'] },
+    ]),
+};

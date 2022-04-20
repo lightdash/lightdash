@@ -44,13 +44,29 @@ export const getSpaceWithQueries = async (
             `saved_queries.saved_query_id`,
             `saved_queries_versions.saved_query_id`,
         )
-        .select<{ saved_query_uuid: string; name: string; created_at: Date }[]>(
-            [
-                `saved_queries.saved_query_uuid`,
-                `saved_queries.name`,
-                `saved_queries_versions.created_at`,
-            ],
+        .leftJoin(
+            'users',
+            'saved_queries_versions.updated_by_user_uuid',
+            'users.user_uuid',
         )
+
+        .select<
+            {
+                saved_query_uuid: string;
+                name: string;
+                created_at: Date;
+                user_uuid: string;
+                first_name: string;
+                last_name: string;
+            }[]
+        >([
+            `saved_queries.saved_query_uuid`,
+            `saved_queries.name`,
+            `saved_queries_versions.created_at`,
+            `users.user_uuid`,
+            `users.first_name`,
+            `users.last_name`,
+        ])
         .orderBy([
             {
                 column: `saved_queries_versions.saved_query_id`,
@@ -69,6 +85,11 @@ export const getSpaceWithQueries = async (
             uuid: savedQuery.saved_query_uuid,
             name: savedQuery.name,
             updatedAt: savedQuery.created_at,
+            updatedByUser: {
+                userUuid: savedQuery.user_uuid,
+                firstName: savedQuery.first_name,
+                lastName: savedQuery.last_name,
+            },
         })),
     };
 };

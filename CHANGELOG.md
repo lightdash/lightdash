@@ -1,3 +1,10 @@
+# [0.70.0](https://github.com/lightdash/lightdash/compare/0.69.0...0.70.0) (2022-04-20)
+
+
+### Features
+
+* remove add metric link ([#1815](https://github.com/lightdash/lightdash/issues/1815)) ([a357ee1](https://github.com/lightdash/lightdash/commit/a357ee1ff3940ea0cc8bba8c7907c8cd12a24fac))
+
 # [0.69.0](https://github.com/lightdash/lightdash/compare/0.68.2...0.69.0) (2022-04-19)
 
 

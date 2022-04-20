@@ -1,5 +1,6 @@
 import { DashboardFilters } from './filter';
 import { SavedChartType } from './savedCharts';
+import { UpdatedByUser } from './user';
 
 export enum DashboardTileTypes {
     SAVED_CHART = 'saved_chart',
@@ -64,6 +65,7 @@ export type CreateDashboard = {
         | CreateDashboardLoomTile
     >;
     filters?: DashboardFilters;
+    updatedByUser?: UpdatedByUser;
 };
 
 export type Dashboard = {
@@ -76,11 +78,17 @@ export type Dashboard = {
         DashboardChartTile | DashboardMarkdownTile | DashboardLoomTile
     >;
     filters: DashboardFilters;
+    updatedByUser?: UpdatedByUser;
 };
 
 export type DashboardBasicDetails = Pick<
     Dashboard,
-    'uuid' | 'name' | 'description' | 'updatedAt' | 'projectUuid'
+    | 'uuid'
+    | 'name'
+    | 'description'
+    | 'updatedAt'
+    | 'projectUuid'
+    | 'updatedByUser'
 >;
 
 export type DashboardUnversionedFields = Pick<
@@ -89,7 +97,7 @@ export type DashboardUnversionedFields = Pick<
 >;
 export type DashboardVersionedFields = Pick<
     CreateDashboard,
-    'tiles' | 'filters'
+    'tiles' | 'filters' | 'updatedByUser'
 >;
 
 export type UpdateDashboard =
