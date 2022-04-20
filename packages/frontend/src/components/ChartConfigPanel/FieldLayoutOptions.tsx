@@ -139,7 +139,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                             minimal
                             icon="cross"
                             onClick={() => {
-                                setPivotDimensions(undefined);
+                                setPivotDimensions([]);
                             }}
                         />
                     )}
