@@ -1,5 +1,7 @@
 import {
     AdditionalMetric,
+    ChartConfig,
+    ChartType,
     FieldId,
     Metric,
     MetricQuery,
@@ -34,12 +36,21 @@ export enum ActionType {
     DELETE_TABLE_CALCULATION,
     RESET_SHOULD_FETCH_RESULTS,
     SET_ADDITIONAL_METRICS,
+    SET_PIVOT_FIELDS,
+    SET_CHART_TYPE,
+    SET_CHART_CONFIG,
 }
 
 type Action =
     | { type: ActionType.RESET }
     | { type: ActionType.RESET_SHOULD_FETCH_RESULTS }
-    | { type: ActionType.SET_STATE; payload: Required<ExplorerReduceState> }
+    | {
+          type: ActionType.SET_STATE;
+          payload: Omit<
+              Required<ExplorerReduceState>,
+              'chartType' | 'chartConfig' | 'pivotFields'
+          >;
+      }
     | { type: ActionType.SET_TABLE_NAME; payload: string }
     | {
           type:
@@ -79,6 +90,18 @@ type Action =
     | {
           type: ActionType.SET_ADDITIONAL_METRICS;
           payload: Metric[];
+      }
+    | {
+          type: ActionType.SET_PIVOT_FIELDS;
+          payload: FieldId[];
+      }
+    | {
+          type: ActionType.SET_CHART_TYPE;
+          payload: ChartType;
+      }
+    | {
+          type: ActionType.SET_CHART_CONFIG;
+          payload: ChartConfig['config'] | undefined;
       };
 
 interface ExplorerReduceState {
@@ -86,6 +109,7 @@ interface ExplorerReduceState {
     chartName: string | undefined;
     tableName: string | undefined;
     selectedTableCalculations: FieldId[];
+    pivotFields: FieldId[];
     dimensions: FieldId[];
     metrics: FieldId[];
     filters: MetricQuery['filters'];
@@ -94,6 +118,8 @@ interface ExplorerReduceState {
     limit: number;
     tableCalculations: TableCalculation[];
     additionalMetrics: AdditionalMetric[] | undefined;
+    chartType: ChartType;
+    chartConfig: ChartConfig['config'] | undefined;
 }
 
 export interface ExplorerState extends ExplorerReduceState {
@@ -106,7 +132,12 @@ interface ExplorerContext {
     queryResults: ReturnType<typeof useQueryResults>;
     actions: {
         reset: () => void;
-        setState: (state: Required<ExplorerReduceState>) => void;
+        setState: (
+            state: Omit<
+                Required<ExplorerReduceState>,
+                'chartType' | 'chartConfig' | 'pivotFields'
+            >,
+        ) => void;
         setTableName: (tableName: string) => void;
         toggleActiveField: (fieldId: FieldId, isDimension: boolean) => void;
         toggleSortField: (fieldId: FieldId) => void;
@@ -123,6 +154,11 @@ interface ExplorerContext {
             tableCalculation: TableCalculation,
         ) => void;
         deleteTableCalculation: (name: string) => void;
+        setPivotFields: (fields: FieldId[] | undefined) => void;
+        setChartType: (chartType: ChartType) => void;
+        setChartConfig: (
+            chartConfig: ChartConfig['config'] | undefined,
+        ) => void;
     };
 }
 
@@ -141,6 +177,9 @@ const defaultState: ExplorerReduceState = {
     tableCalculations: [],
     selectedTableCalculations: [],
     additionalMetrics: [],
+    pivotFields: [],
+    chartType: ChartType.CARTESIAN,
+    chartConfig: undefined,
 };
 
 const calcColumnOrder = (
@@ -171,6 +210,7 @@ function reducer(
         }
         case ActionType.SET_STATE: {
             return {
+                ...state,
                 ...action.payload,
                 columnOrder: calcColumnOrder(action.payload.columnOrder, [
                     ...action.payload.dimensions,
@@ -351,7 +391,24 @@ function reducer(
                 ]),
             };
         }
-
+        case ActionType.SET_PIVOT_FIELDS: {
+            return {
+                ...state,
+                pivotFields: action.payload,
+            };
+        }
+        case ActionType.SET_CHART_TYPE: {
+            return {
+                ...state,
+                chartType: action.payload,
+            };
+        }
+        case ActionType.SET_CHART_CONFIG: {
+            return {
+                ...state,
+                chartConfig: action.payload,
+            };
+        }
         default: {
             throw new Error(`Unhandled action type`);
         }
@@ -378,15 +435,23 @@ export const ExplorerProvider: FC = ({ children }) => {
         });
     }, []);
 
-    const setState = useCallback((state: ExplorerReduceState) => {
-        dispatch({
-            type: ActionType.SET_STATE,
-            payload: state,
-            options: {
-                shouldFetchResults: true,
-            },
-        });
-    }, []);
+    const setState = useCallback(
+        (
+            state: Omit<
+                Required<ExplorerReduceState>,
+                'chartType' | 'chartConfig' | 'pivotFields'
+            >,
+        ) => {
+            dispatch({
+                type: ActionType.SET_STATE,
+                payload: state,
+                options: {
+                    shouldFetchResults: true,
+                },
+            });
+        },
+        [],
+    );
 
     const setTableName = useCallback((tableName: string) => {
         dispatch({
@@ -443,6 +508,30 @@ export const ExplorerProvider: FC = ({ children }) => {
                 options: {
                     shouldFetchResults,
                 },
+            });
+        },
+        [],
+    );
+
+    const setPivotFields = useCallback((fields: FieldId[] = []) => {
+        dispatch({
+            type: ActionType.SET_PIVOT_FIELDS,
+            payload: fields,
+        });
+    }, []);
+
+    const setChartType = useCallback((chartType: ChartType) => {
+        dispatch({
+            type: ActionType.SET_CHART_TYPE,
+            payload: chartType,
+        });
+    }, []);
+
+    const setChartConfig = useCallback(
+        (chartConfig: ChartConfig['config'] | undefined) => {
+            dispatch({
+                type: ActionType.SET_CHART_CONFIG,
+                payload: chartConfig,
             });
         },
         [],
@@ -533,6 +622,9 @@ export const ExplorerProvider: FC = ({ children }) => {
                 addTableCalculation,
                 deleteTableCalculation,
                 updateTableCalculation,
+                setPivotFields,
+                setChartType,
+                setChartConfig,
             }),
             [
                 reset,
@@ -547,6 +639,9 @@ export const ExplorerProvider: FC = ({ children }) => {
                 addTableCalculation,
                 deleteTableCalculation,
                 updateTableCalculation,
+                setPivotFields,
+                setChartType,
+                setChartConfig,
             ],
         ),
     };
