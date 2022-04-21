@@ -312,7 +312,6 @@ const useCartesianChartConfig = (
         isSaved,
         setPivotDimensions,
         setType,
-        setVisualizationChartType,
     ]);
 
     // Generate expected series
