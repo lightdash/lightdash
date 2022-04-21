@@ -52,6 +52,51 @@ This is the folder where your `dbt_project.yml` file is found in the GitHub repo
 - Put `/` if your `dbt_project.yml` file is in the main folder of your repo (e.g. lightdash/lightdash-analytics/dbt_project.yml)
 - Include the path to the sub-folder where your dbt project is if your dbt project is in a sub-folder in your repo. For example, if my project was in lightdash/lightdash-analytics/dbt/dbt_project.yml, I'd write `/dbt` in this field.
 
+#### Host domain 
+
+If you've [customized the domain for your GitHub pages](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/about-custom-domains-and-github-pages), you can add the custom domain for your project in here. 
+
+By default, this is `github.com`
+
+#### Target name
+
+`target` contains information about your dbt connection to your warehouse.
+
+It's the dataset/schema in your data warehouse that Lightdash will look for your dbt models. By default, we set this to be the same value as you have as the default in your `profiles.yml` file.
+
+If you want to change this to be something other than the default `target` defined in dbt, you can enter the target of your choice here (for example `dbt_khindson`.)
+
+To read more about dbt targets, [check out the dbt docs here.](https://docs.getdbt.com/reference/dbt-jinja-functions/target) 
+
+#### Environment variables
+
+If you've used [environment variables in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/dbt-jinja-functions/env_var), you can add these to Lightdash here.
+
+For each environment variable, you'll need to add the `key` + `value` pair for the item. 
+
+You'll normally find these values in a file called `.env` in your dbt project directory. 
+
+For example, I might have something like:
+
+```yaml
+profile:
+  target: prod
+  outputs:
+    prod:
+      type: postgres
+      host: 127.0.0.1
+      user: "{{ env_var('DBT_USER') }}"
+      ....
+```
+
+Then a `.env` file like:
+
+```
+export DBT_USER="myspecialuserkey123"
+```
+
+So, in Lightdash, I'd add a new environment variable and put `key` as `DBT_USER` and `value` as `myspecialuserkey123`.
+
 ----
 
 ### GitLab
@@ -78,6 +123,51 @@ then you don't need to change anything in here. You can just leave the default v
 
 If your dbt project is in a sub-folder in your repo (e.g. `lightdash/lightdash-analytics/dbt/dbt_project.yml`), then
 you'll need to include the path to the sub-folder where your dbt project is (e.g. `/dbt`).
+
+#### Host domain 
+
+If you've [customized the domain for your GitLab pages](https://docs.gitlab.com/ee/user/project/pages/getting_started_part_one.html), you can add the custom domain for your project in here. 
+
+By default, this is `gitlab.io`.
+
+#### Target name
+
+`target` contains information about your dbt connection to your warehouse.
+
+It's the dataset/schema in your data warehouse that Lightdash will look for your dbt models. By default, we set this to be the same value as you have as the default in your `profiles.yml` file.
+
+If you want to change this to be something other than the default `target` defined in dbt, you can enter the target of your choice here (for example `dbt_khindson`.)
+
+To read more about dbt targets, [check out the dbt docs here.](https://docs.getdbt.com/reference/dbt-jinja-functions/target) 
+
+#### Environment variables
+
+If you've used [environment variables in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/dbt-jinja-functions/env_var), you can add these to Lightdash here.
+
+For each environment variable, you'll need to add the `key` + `value` pair for the item. 
+
+You'll normally find these values in a file called `.env` in your dbt project directory. 
+
+For example, I might have something like:
+
+```yaml
+profile:
+  target: prod
+  outputs:
+    prod:
+      type: postgres
+      host: 127.0.0.1
+      user: "{{ env_var('DBT_USER') }}"
+      ....
+```
+
+Then a `.env` file like:
+
+```
+export DBT_USER="myspecialuserkey123"
+```
+
+So, in Lightdash, I'd add a new environment variable and put `key` as `DBT_USER` and `value` as `myspecialuserkey123`.
 
 ----
 
@@ -114,6 +204,45 @@ then you don't need to change anything in here. You can just leave the default v
 If your dbt project is in a sub-folder in your repo (e.g. `lightdash/lightdash-analytics/dbt/dbt_project.yml`), then
 you'll need to include the path to the sub-folder where your dbt project is (e.g. `/dbt`).
 
+#### Target name
+
+`target` contains information about your dbt connection to your warehouse.
+
+It's the dataset/schema in your data warehouse that Lightdash will look for your dbt models. By default, we set this to be the same value as you have as the default in your `profiles.yml` file.
+
+If you want to change this to be something other than the default `target` defined in dbt, you can enter the target of your choice here (for example `dbt_khindson`.)
+
+To read more about dbt targets, [check out the dbt docs here.](https://docs.getdbt.com/reference/dbt-jinja-functions/target) 
+
+#### Environment variables
+
+If you've used [environment variables in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/dbt-jinja-functions/env_var), you can add these to Lightdash here.
+
+For each environment variable, you'll need to add the `key` + `value` pair for the item. 
+
+You'll normally find these values in a file called `.env` in your dbt project directory. 
+
+For example, I might have something like:
+
+```yaml
+profile:
+  target: prod
+  outputs:
+    prod:
+      type: postgres
+      host: 127.0.0.1
+      user: "{{ env_var('DBT_USER') }}"
+      ....
+```
+
+Then a `.env` file like:
+
+```
+export DBT_USER="myspecialuserkey123"
+```
+
+So, in Lightdash, I'd add a new environment variable and put `key` as `DBT_USER` and `value` as `myspecialuserkey123`.
+
 ### Local dbt project
 
 :::caution Prerequisite
@@ -131,6 +260,85 @@ you start docker compose:
 export DBT_PROJECT_DIR= # Enter your path here!
 docker compose start
 ```
+
+----
+
+### BitBucket
+
+#### Username
+
+This is the login name for your Bitbucket user. This is usually the same username you use to login to 
+Bitbucket. You can find your username in Bitbucket by:
+1. Going to your avatar in the bottom left and click **Personal settings**.
+2. From the **Account settings** page, check the value next to the **Username**
+
+Alternatively, you can [create a new user through the Bitbucket console](https://confluence.atlassian.com/bitbucketserver/users-and-groups-776640439.html) 
+with a username and password specifically for Lightdash to use.
+
+#### Personal access token
+
+This is used by Lightdash to access your repo.
+See the [instructions for creating a personal access token here](https://confluence.atlassian.com/bitbucketserver/http-access-tokens-939515499.html).
+
+Select `Project read` and `Repository read` scope when you're creating the token.
+
+#### Repository
+This should be in the format `my-org/my-repo`. e.g. `lightdash/lightdash-analytics`
+
+#### Branch
+This is the branch in your Bitbucket repo that Lightdash should sync to. e.g. `main`, `master` or `dev`
+
+By default, we've set this to `main` but you can change it to whatever you'd like.
+
+#### Project directory path
+This is the folder where your `dbt_project.yml` file is found in the Bitbucket repository you entered above.
+
+- Put `/` if your `dbt_project.yml` file is in the main folder of your repo (e.g. lightdash/lightdash-analytics/dbt_project.yml)
+- Include the path to the sub-folder where your dbt project is if your dbt project is in a sub-folder in your repo. For example, if my project was in lightdash/lightdash-analytics/dbt/dbt_project.yml, I'd write `/dbt` in this field.
+
+#### Host domain 
+
+If you've [customized the domain for your Bitbucket server](https://confluence.atlassian.com/bitbucketserver/specify-the-bitbucket-base-url-776640392.html), you can add the custom domain for your project in here. 
+
+#### Target name
+
+`target` contains information about your dbt connection to your warehouse.
+
+It's the dataset/schema in your data warehouse that Lightdash will look for your dbt models. By default, we set this to be the same value as you have as the default in your `profiles.yml` file.
+
+If you want to change this to be something other than the default `target` defined in dbt, you can enter the target of your choice here (for example `dbt_khindson`.)
+
+To read more about dbt targets, [check out the dbt docs here.](https://docs.getdbt.com/reference/dbt-jinja-functions/target) 
+
+#### Environment variables
+
+If you've used [environment variables in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/dbt-jinja-functions/env_var), you can add these to Lightdash here.
+
+For each environment variable, you'll need to add the `key` + `value` pair for the item. 
+
+You'll normally find these values in a file called `.env` in your dbt project directory. 
+
+For example, I might have something like:
+
+```yaml
+profile:
+  target: prod
+  outputs:
+    prod:
+      type: postgres
+      host: 127.0.0.1
+      user: "{{ env_var('DBT_USER') }}"
+      ....
+```
+
+Then a `.env` file like:
+
+```
+export DBT_USER="myspecialuserkey123"
+```
+
+So, in Lightdash, I'd add a new environment variable and put `key` as `DBT_USER` and `value` as `myspecialuserkey123`.
+
 
 ----
 
@@ -177,6 +385,7 @@ my-profile:
       method: oauth
       project: abc-123
       dataset: my_dataset # look for this one!
+      ...
 ```
 
 #### Location
@@ -459,7 +668,7 @@ guide for
 This is the name of your database. The specified user must be granted access to this database. You can see a list of 
 databases available in the snowflake console:
 
-![snowflake-database-list](./assets/snowflake-database-list.png
+![snowflake-database-list](./assets/snowflake-database-list.png)
 
 #### Warehouse
 
