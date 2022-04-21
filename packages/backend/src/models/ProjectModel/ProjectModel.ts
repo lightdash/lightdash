@@ -415,4 +415,15 @@ export class ProjectModel {
             });
         });
     }
+
+    async hasLock(projectUuid: string): Promise<boolean> {
+        const projectId = await this.database.raw<number>(
+            `SELECT project_id FROM projects WHERE project_uuid=${projectUuid};`,
+        );
+        const hasLock = await this.database.raw<boolean>(
+            `SELECT pg_try_advisory_xact_lock(${projectId});`,
+        );
+
+        return hasLock;
+    }
 }

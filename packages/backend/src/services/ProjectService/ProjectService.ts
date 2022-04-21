@@ -325,6 +325,8 @@ export class ProjectService {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
 
+        const hasLock = this.projectModel.hasLock(projectUuid);
+        console.log('lock', hasLock);
         // Force refresh adapter (refetch git repos, check for changed credentials, etc.)
         // Might want to cache parts of this in future if slow
         this.projectLoading[projectUuid] = true;
