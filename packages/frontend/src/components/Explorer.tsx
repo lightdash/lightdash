@@ -86,7 +86,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             filters,
             columnOrder,
             tableCalculations,
-            selectedTableCalculations,
             pivotFields,
             chartType,
             chartConfig,
@@ -139,9 +138,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                   filters,
                   sorts,
                   limit,
-                  tableCalculations: tableCalculations.filter((t) =>
-                      selectedTableCalculations.includes(t.name),
-                  ),
+                  tableCalculations,
                   additionalMetrics: [],
               },
               pivotConfig:

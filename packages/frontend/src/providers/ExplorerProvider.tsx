@@ -100,7 +100,6 @@ export interface ExplorerReduceState {
     shouldFetchResults: boolean;
     chartName: string | undefined;
     tableName: string | undefined;
-    selectedTableCalculations: FieldId[];
     pivotFields: FieldId[];
     dimensions: FieldId[];
     metrics: FieldId[];
@@ -161,7 +160,6 @@ const defaultState: ExplorerReduceState = {
     columnOrder: [],
     limit: 500,
     tableCalculations: [],
-    selectedTableCalculations: [],
     additionalMetrics: [],
     pivotFields: [],
     chartType: ChartType.CARTESIAN,
@@ -212,7 +210,7 @@ function reducer(
                 columnOrder: calcColumnOrder(state.columnOrder, [
                     ...dimensions,
                     ...state.metrics,
-                    ...state.selectedTableCalculations,
+                    ...state.tableCalculations.map(({ name }) => name),
                 ]),
             };
         }
@@ -225,7 +223,7 @@ function reducer(
                 columnOrder: calcColumnOrder(state.columnOrder, [
                     ...state.dimensions,
                     ...metrics,
-                    ...state.selectedTableCalculations,
+                    ...state.tableCalculations.map(({ name }) => name),
                 ]),
             };
         }
@@ -305,23 +303,22 @@ function reducer(
                 columnOrder: calcColumnOrder(action.payload, [
                     ...state.dimensions,
                     ...state.metrics,
-                    ...state.selectedTableCalculations,
+                    ...state.tableCalculations.map(({ name }) => name),
                 ]),
             };
         }
         case ActionType.ADD_TABLE_CALCULATION: {
-            const selectedTableCalculations = toggleArrayValue(
-                state.selectedTableCalculations,
-                action.payload.name,
-            );
+            const newTableCalculations = [
+                ...state.tableCalculations,
+                action.payload,
+            ];
             return {
                 ...state,
-                selectedTableCalculations,
-                tableCalculations: [...state.tableCalculations, action.payload],
+                tableCalculations: newTableCalculations,
                 columnOrder: calcColumnOrder(state.columnOrder, [
                     ...state.dimensions,
                     ...state.metrics,
-                    ...selectedTableCalculations,
+                    ...newTableCalculations.map(({ name }) => name),
                 ]),
             };
         }
@@ -334,12 +331,6 @@ function reducer(
                             ? action.payload.tableCalculation
                             : tableCalculation,
                 ),
-                selectedTableCalculations: state.selectedTableCalculations.map(
-                    (name) =>
-                        name === action.payload.oldName
-                            ? action.payload.tableCalculation.name
-                            : name,
-                ),
                 columnOrder: state.columnOrder.map((column) =>
                     column === action.payload.oldName
                         ? action.payload.tableCalculation.name
@@ -348,21 +339,16 @@ function reducer(
             };
         }
         case ActionType.DELETE_TABLE_CALCULATION: {
-            const selectedTableCalculations =
-                state.selectedTableCalculations.filter(
-                    (name) => name !== action.payload,
-                );
+            const newTableCalculations = state.tableCalculations.filter(
+                (tableCalculation) => tableCalculation.name !== action.payload,
+            );
             return {
                 ...state,
-                selectedTableCalculations,
-                tableCalculations: state.tableCalculations.filter(
-                    (tableCalculation) =>
-                        tableCalculation.name !== action.payload,
-                ),
+                tableCalculations: newTableCalculations,
                 columnOrder: calcColumnOrder(state.columnOrder, [
                     ...state.dimensions,
                     ...state.metrics,
-                    ...selectedTableCalculations,
+                    ...newTableCalculations.map(({ name }) => name),
                 ]),
             };
         }
@@ -404,7 +390,7 @@ export const ExplorerProvider: FC<{
         const fields = new Set([
             ...reducerState.dimensions,
             ...reducerState.metrics,
-            ...reducerState.selectedTableCalculations,
+            ...reducerState.tableCalculations.map(({ name }) => name),
         ]);
         return [fields, fields.size > 0];
     }, [reducerState]);
