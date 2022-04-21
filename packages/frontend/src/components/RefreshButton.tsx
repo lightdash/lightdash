@@ -11,20 +11,25 @@ import { BigButton } from './common/BigButton';
 export const RefreshButton = () => {
     const {
         state: { isValidQuery, sorts },
-        queryResults,
-        actions: { syncState },
+        queryResults: { mutate, isLoading: isLoadingResults },
+        actions: { setSortFields },
     } = useExplorer();
     const status = useServerStatus();
     const { track } = useTracking();
     const defaultSort = useDefaultSortField();
     const isDisabled = !isValidQuery;
-    const isLoading = queryResults.isLoading || status.data === 'loading';
+    const isLoading = isLoadingResults || status.data === 'loading';
     const onClick = useCallback(async () => {
-        syncState(sorts.length === 0 ? defaultSort : undefined);
+        if (sorts.length <= 0 && defaultSort) {
+            setSortFields([defaultSort]);
+        } else {
+            mutate();
+        }
+
         track({
             name: EventName.RUN_QUERY_BUTTON_CLICKED,
         });
-    }, [defaultSort, sorts, syncState, track]);
+    }, [defaultSort, mutate, setSortFields, sorts, track]);
     const hotkeys = useMemo(() => {
         const runQueryHotkey = {
             combo: 'ctrl+enter',

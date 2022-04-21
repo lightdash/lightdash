@@ -24,8 +24,8 @@ const SavedExplorer = () => {
     useEffect(() => {
         if (data) {
             setState({
+                shouldFetchResults: true,
                 chartName: data.name,
-                sorting: false,
                 tableName: data.tableName,
                 dimensions: data.metricQuery.dimensions,
                 metrics: data.metricQuery.metrics,

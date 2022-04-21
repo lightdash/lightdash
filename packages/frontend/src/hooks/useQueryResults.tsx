@@ -1,5 +1,5 @@
 import { ApiError, ApiQueryResults, MetricQuery, SavedChart } from 'common';
-import { useEffect, useMemo } from 'react';
+import { useCallback } from 'react';
 import { useMutation, useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
@@ -21,43 +21,9 @@ export const getQueryResults = async ({
         body: JSON.stringify(query),
     });
 
-export const useQueryResults = ({
-    tableName: tableId,
-    dimensions,
-    metrics,
-    sorts,
-    filters,
-    limit,
-    tableCalculations,
-    selectedTableCalculations,
-    isValidQuery,
-    additionalMetrics,
-}: ExplorerState) => {
+export const useQueryResults = (state: ExplorerState) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const setErrorResponse = useQueryError();
-    const metricQuery: MetricQuery = useMemo(
-        () => ({
-            dimensions: Array.from(dimensions),
-            metrics: Array.from(metrics),
-            sorts,
-            filters,
-            limit: limit || 500,
-            tableCalculations: tableCalculations.filter(({ name }) =>
-                selectedTableCalculations.includes(name),
-            ),
-            additionalMetrics,
-        }),
-        [
-            additionalMetrics,
-            dimensions,
-            filters,
-            limit,
-            metrics,
-            selectedTableCalculations,
-            sorts,
-            tableCalculations,
-        ],
-    );
     const mutation = useMutation<
         ApiQueryResults,
         ApiError,
@@ -67,19 +33,32 @@ export const useQueryResults = ({
             query: MetricQuery;
         }
     >(getQueryResults, {
-        mutationKey: ['queryResults', tableId, metricQuery, projectUuid],
+        mutationKey: ['queryResults', projectUuid],
         onError: (result) => setErrorResponse(result),
     });
 
-    // Note: temporary solution, to be replaced in the next PR
-    const { mutate } = mutation;
-    useEffect(() => {
-        if (!!tableId && isValidQuery) {
-            mutate({ projectUuid, tableId, query: metricQuery });
+    const mutate = useCallback(() => {
+        if (!!state.tableName && state.isValidQuery) {
+            mutation.mutate({
+                projectUuid,
+                tableId: state.tableName,
+                query: {
+                    dimensions: Array.from(state.dimensions),
+                    metrics: Array.from(state.metrics),
+                    sorts: state.sorts,
+                    filters: state.filters,
+                    limit: state.limit || 500,
+                    tableCalculations: state.tableCalculations.filter(
+                        ({ name }) =>
+                            state.selectedTableCalculations.includes(name),
+                    ),
+                    additionalMetrics: state.additionalMetrics,
+                },
+            });
         }
-    }, [mutate, projectUuid, tableId, isValidQuery, metricQuery]);
+    }, [mutation, projectUuid, state]);
 
-    return mutation;
+    return { ...mutation, mutate };
 };
 
 export const useSavedChartResults = (

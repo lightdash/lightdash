@@ -32,12 +32,13 @@ export enum ActionType {
     ADD_TABLE_CALCULATION,
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
-    RESET_SORTING,
+    RESET_SHOULD_FETCH_RESULTS,
     SET_ADDITIONAL_METRICS,
 }
 
 type Action =
     | { type: ActionType.RESET }
+    | { type: ActionType.RESET_SHOULD_FETCH_RESULTS }
     | { type: ActionType.SET_STATE; payload: Required<ExplorerReduceState> }
     | { type: ActionType.SET_TABLE_NAME; payload: string }
     | {
@@ -76,14 +77,12 @@ type Action =
           payload: string[];
       }
     | {
-          type: ActionType.RESET_SORTING;
-      }
-    | {
           type: ActionType.SET_ADDITIONAL_METRICS;
           payload: Metric[];
       };
 
 interface ExplorerReduceState {
+    shouldFetchResults: boolean;
     chartName: string | undefined;
     tableName: string | undefined;
     selectedTableCalculations: FieldId[];
@@ -91,7 +90,6 @@ interface ExplorerReduceState {
     metrics: FieldId[];
     filters: MetricQuery['filters'];
     sorts: SortField[];
-    sorting: boolean;
     columnOrder: string[];
     limit: number;
     tableCalculations: TableCalculation[];
@@ -105,11 +103,9 @@ export interface ExplorerState extends ExplorerReduceState {
 
 interface ExplorerContext {
     state: ExplorerState;
-    pristineState: ExplorerState;
     queryResults: ReturnType<typeof useQueryResults>;
     actions: {
         reset: () => void;
-        syncState: (defaultSortField: SortField | undefined) => void;
         setState: (state: Required<ExplorerReduceState>) => void;
         setTableName: (tableName: string) => void;
         toggleActiveField: (fieldId: FieldId, isDimension: boolean) => void;
@@ -133,13 +129,13 @@ interface ExplorerContext {
 const Context = createContext<ExplorerContext>(undefined as any);
 
 const defaultState: ExplorerReduceState = {
+    shouldFetchResults: false,
     chartName: '',
     tableName: undefined,
     dimensions: [],
     metrics: [],
     filters: {},
     sorts: [],
-    sorting: false,
     columnOrder: [],
     limit: 500,
     tableCalculations: [],
@@ -160,34 +156,15 @@ const calcColumnOrder = (
     return [...cleanColumnOrder, ...missingColumns];
 };
 
-function pristineReducer(
-    state: ExplorerReduceState,
-    action: Action,
-): ExplorerReduceState {
-    switch (action.type) {
-        case ActionType.RESET: {
-            return defaultState;
-        }
-        case ActionType.SET_STATE: {
-            return {
-                ...action.payload,
-                columnOrder: calcColumnOrder(action.payload.columnOrder, [
-                    ...action.payload.dimensions,
-                    ...action.payload.metrics,
-                    ...action.payload.selectedTableCalculations,
-                ]),
-            };
-        }
-        default: {
-            throw new Error(`Unhandled action type`);
-        }
-    }
-}
-
 function reducer(
     state: ExplorerReduceState,
-    action: Action,
+    action: Action & { options?: { shouldFetchResults: boolean } },
 ): ExplorerReduceState {
+    state = {
+        ...state,
+        shouldFetchResults:
+            action.options?.shouldFetchResults || state.shouldFetchResults,
+    };
     switch (action.type) {
         case ActionType.RESET: {
             return defaultState;
@@ -204,6 +181,9 @@ function reducer(
         }
         case ActionType.SET_TABLE_NAME: {
             return { ...state, tableName: action.payload };
+        }
+        case ActionType.RESET_SHOULD_FETCH_RESULTS: {
+            return { ...state, shouldFetchResults: false };
         }
         case ActionType.TOGGLE_DIMENSION: {
             const dimensions = toggleArrayValue(
@@ -248,7 +228,6 @@ function reducer(
             );
             return {
                 ...state,
-                sorting: true,
                 sorts: !sortField
                     ? [
                           ...state.sorts,
@@ -285,12 +264,6 @@ function reducer(
                 sorts: action.payload.filter((sf) =>
                     activeFields.has(sf.fieldId),
                 ),
-            };
-        }
-        case ActionType.RESET_SORTING: {
-            return {
-                ...state,
-                sorting: false,
             };
         }
         case ActionType.SET_ROW_LIMIT: {
@@ -387,10 +360,6 @@ function reducer(
 
 export const ExplorerProvider: FC = ({ children }) => {
     const [reducerState, dispatch] = useReducer(reducer, defaultState);
-    const [pristineReducerState, pristineDispatch] = useReducer(
-        pristineReducer,
-        defaultState,
-    );
 
     const [activeFields, isValidQuery] = useMemo<
         [Set<FieldId>, boolean]
@@ -402,61 +371,20 @@ export const ExplorerProvider: FC = ({ children }) => {
         ]);
         return [fields, fields.size > 0];
     }, [reducerState]);
-    const [pristineActiveFields, pristineIsValidQuery] = useMemo<
-        [Set<FieldId>, boolean]
-    >(() => {
-        const fields = new Set([
-            ...pristineReducerState.dimensions,
-            ...pristineReducerState.metrics,
-            ...pristineReducerState.selectedTableCalculations,
-        ]);
-        return [fields, fields.size > 0];
-    }, [pristineReducerState]);
+
     const reset = useCallback(() => {
         dispatch({
             type: ActionType.RESET,
         });
-        pristineDispatch({
-            type: ActionType.RESET,
-        });
     }, []);
-    const syncState = useCallback(
-        (defaultSortField: SortField | undefined) => {
-            if (defaultSortField) {
-                dispatch({
-                    type: ActionType.SET_SORT_FIELDS,
-                    payload: [defaultSortField],
-                });
-            }
-            pristineDispatch({
-                type: ActionType.SET_STATE,
-                payload: {
-                    ...reducerState,
-                    sorts: defaultSortField
-                        ? [defaultSortField]
-                        : reducerState.sorts,
-                },
-            });
-        },
-        [reducerState],
-    );
-
-    // trigger back end call to sort data
-    useEffect(() => {
-        if (reducerState.sorting) {
-            dispatch({ type: ActionType.RESET_SORTING });
-            syncState(undefined);
-        }
-    }, [reducerState.sorts, reducerState.sorting, syncState]);
 
     const setState = useCallback((state: ExplorerReduceState) => {
-        pristineDispatch({
-            type: ActionType.SET_STATE,
-            payload: state,
-        });
         dispatch({
             type: ActionType.SET_STATE,
             payload: state,
+            options: {
+                shouldFetchResults: true,
+            },
         });
     }, []);
 
@@ -481,6 +409,9 @@ export const ExplorerProvider: FC = ({ children }) => {
         dispatch({
             type: ActionType.TOGGLE_SORT_FIELD,
             payload: fieldId,
+            options: {
+                shouldFetchResults: true,
+            },
         });
     }, []);
 
@@ -488,43 +419,33 @@ export const ExplorerProvider: FC = ({ children }) => {
         dispatch({
             type: ActionType.SET_SORT_FIELDS,
             payload: sortFields,
+            options: {
+                shouldFetchResults: true,
+            },
         });
     }, []);
 
-    const setRowLimit = useCallback(
-        (limit: number) => {
-            dispatch({
-                type: ActionType.SET_ROW_LIMIT,
-                payload: limit,
-            });
-            pristineDispatch({
-                type: ActionType.SET_STATE,
-                payload: {
-                    ...reducerState,
-                    limit,
-                },
-            });
-        },
-        [reducerState],
-    );
+    const setRowLimit = useCallback((limit: number) => {
+        dispatch({
+            type: ActionType.SET_ROW_LIMIT,
+            payload: limit,
+            options: {
+                shouldFetchResults: true,
+            },
+        });
+    }, []);
 
     const setFilters = useCallback(
-        (filters: MetricQuery['filters'], syncPristineState: boolean) => {
+        (filters: MetricQuery['filters'], shouldFetchResults: boolean) => {
             dispatch({
                 type: ActionType.SET_FILTERS,
                 payload: filters,
+                options: {
+                    shouldFetchResults,
+                },
             });
-            if (syncPristineState) {
-                pristineDispatch({
-                    type: ActionType.SET_STATE,
-                    payload: {
-                        ...reducerState,
-                        filters,
-                    },
-                });
-            }
         },
-        [reducerState],
+        [],
     );
 
     const setColumnOrder = useCallback((order: string[]) => {
@@ -578,27 +499,29 @@ export const ExplorerProvider: FC = ({ children }) => {
         });
     }, []);
 
-    const pristineState = useMemo(
-        () => ({
-            ...pristineReducerState,
-            activeFields: pristineActiveFields,
-            isValidQuery: pristineIsValidQuery,
-        }),
-        [pristineActiveFields, pristineIsValidQuery, pristineReducerState],
+    const state = useMemo(
+        () => ({ ...reducerState, activeFields, isValidQuery }),
+        [reducerState, activeFields, isValidQuery],
     );
-    const queryResults = useQueryResults(pristineState);
+    const queryResults = useQueryResults(state);
+
+    // Fetch query results after state update
+    const { mutate } = queryResults;
+    useEffect(() => {
+        if (state.shouldFetchResults) {
+            mutate();
+            dispatch({
+                type: ActionType.RESET_SHOULD_FETCH_RESULTS,
+            });
+        }
+    }, [mutate, state]);
 
     const value: ExplorerContext = {
-        state: useMemo(
-            () => ({ ...reducerState, activeFields, isValidQuery }),
-            [reducerState, activeFields, isValidQuery],
-        ),
-        pristineState,
+        state,
         queryResults,
         actions: useMemo(
             () => ({
                 reset,
-                syncState,
                 setState,
                 setTableName,
                 toggleActiveField,
@@ -621,7 +544,6 @@ export const ExplorerProvider: FC = ({ children }) => {
                 setFilters,
                 setRowLimit,
                 setColumnOrder,
-                syncState,
                 addTableCalculation,
                 deleteTableCalculation,
                 updateTableCalculation,
