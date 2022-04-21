@@ -28,6 +28,11 @@ describe('Explore', () => {
 
         cy.findByText('Jaffle dashboard').click();
 
+        cy.findByText("What's our total revenue to date?");
+        cy.findByText("What's the average spend per customer?");
+
+        cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
+
         cy.findAllByText('No chart available').should('have.length', 0);
         cy.findAllByText('No data available').should('have.length', 0);
     });
