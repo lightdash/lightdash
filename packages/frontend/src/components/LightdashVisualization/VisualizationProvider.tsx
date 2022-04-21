@@ -99,7 +99,6 @@ export const VisualizationProvider: FC<Props> = ({
         validPivotDimensions?.[0],
         resultsData,
         chartConfigs !== undefined,
-        setChartType,
         setPivotDimensions,
     );
 

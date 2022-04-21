@@ -2,7 +2,6 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
-    ChartType,
     CompleteCartesianChartLayout,
     getSeriesId,
     isCompleteEchartsConfig,
@@ -16,7 +15,6 @@ const useCartesianChartConfig = (
     pivotKey: string | undefined,
     resultsData: ApiQueryResults | undefined,
     isSaved: boolean,
-    setVisualizationChartType: (chart: ChartType) => void,
     setPivotDimensions: React.Dispatch<
         React.SetStateAction<string[] | undefined>
     >,
@@ -271,9 +269,6 @@ const useCartesianChartConfig = (
                     availableMetrics[1],
                 ]);
             });
-            setVisualizationChartType(ChartType.CARTESIAN);
-
-            setType(CartesianSeriesType.SCATTER, false);
         }
 
         // 2+ dimensions with no metrics
@@ -283,7 +278,6 @@ const useCartesianChartConfig = (
                     availableDimensions[1],
                 ]);
             });
-            setVisualizationChartType(ChartType.TABLE);
         }
 
         // else , default behaviour
