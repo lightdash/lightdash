@@ -1,5 +1,7 @@
 import {
     AdditionalMetric,
+    ChartConfig,
+    ChartType,
     FieldId,
     Metric,
     MetricQuery,
@@ -32,13 +34,23 @@ export enum ActionType {
     ADD_TABLE_CALCULATION,
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
-    RESET_SORTING,
+    SET_FETCH_RESULTS_FALSE,
     SET_ADDITIONAL_METRICS,
+    SET_PIVOT_FIELDS,
+    SET_CHART_TYPE,
+    SET_CHART_CONFIG,
 }
 
 type Action =
     | { type: ActionType.RESET }
-    | { type: ActionType.SET_STATE; payload: Required<ExplorerReduceState> }
+    | { type: ActionType.SET_FETCH_RESULTS_FALSE }
+    | {
+          type: ActionType.SET_STATE;
+          payload: Omit<
+              Required<ExplorerReduceState>,
+              'chartType' | 'chartConfig' | 'pivotFields'
+          >;
+      }
     | { type: ActionType.SET_TABLE_NAME; payload: string }
     | {
           type:
@@ -76,26 +88,38 @@ type Action =
           payload: string[];
       }
     | {
-          type: ActionType.RESET_SORTING;
-      }
-    | {
           type: ActionType.SET_ADDITIONAL_METRICS;
           payload: Metric[];
+      }
+    | {
+          type: ActionType.SET_PIVOT_FIELDS;
+          payload: FieldId[];
+      }
+    | {
+          type: ActionType.SET_CHART_TYPE;
+          payload: ChartType;
+      }
+    | {
+          type: ActionType.SET_CHART_CONFIG;
+          payload: ChartConfig['config'] | undefined;
       };
 
 interface ExplorerReduceState {
+    shouldFetchResults: boolean;
     chartName: string | undefined;
     tableName: string | undefined;
     selectedTableCalculations: FieldId[];
+    pivotFields: FieldId[];
     dimensions: FieldId[];
     metrics: FieldId[];
     filters: MetricQuery['filters'];
     sorts: SortField[];
-    sorting: boolean;
     columnOrder: string[];
     limit: number;
     tableCalculations: TableCalculation[];
     additionalMetrics: AdditionalMetric[] | undefined;
+    chartType: ChartType;
+    chartConfig: ChartConfig['config'] | undefined;
 }
 
 export interface ExplorerState extends ExplorerReduceState {
@@ -105,12 +129,15 @@ export interface ExplorerState extends ExplorerReduceState {
 
 interface ExplorerContext {
     state: ExplorerState;
-    pristineState: ExplorerState;
     queryResults: ReturnType<typeof useQueryResults>;
     actions: {
         reset: () => void;
-        syncState: (defaultSortField: SortField | undefined) => void;
-        setState: (state: Required<ExplorerReduceState>) => void;
+        setState: (
+            state: Omit<
+                Required<ExplorerReduceState>,
+                'chartType' | 'chartConfig' | 'pivotFields'
+            >,
+        ) => void;
         setTableName: (tableName: string) => void;
         toggleActiveField: (fieldId: FieldId, isDimension: boolean) => void;
         toggleSortField: (fieldId: FieldId) => void;
@@ -127,24 +154,32 @@ interface ExplorerContext {
             tableCalculation: TableCalculation,
         ) => void;
         deleteTableCalculation: (name: string) => void;
+        setPivotFields: (fields: FieldId[] | undefined) => void;
+        setChartType: (chartType: ChartType) => void;
+        setChartConfig: (
+            chartConfig: ChartConfig['config'] | undefined,
+        ) => void;
     };
 }
 
 const Context = createContext<ExplorerContext>(undefined as any);
 
 const defaultState: ExplorerReduceState = {
+    shouldFetchResults: false,
     chartName: '',
     tableName: undefined,
     dimensions: [],
     metrics: [],
     filters: {},
     sorts: [],
-    sorting: false,
     columnOrder: [],
     limit: 500,
     tableCalculations: [],
     selectedTableCalculations: [],
     additionalMetrics: [],
+    pivotFields: [],
+    chartType: ChartType.CARTESIAN,
+    chartConfig: undefined,
 };
 
 const calcColumnOrder = (
@@ -160,40 +195,22 @@ const calcColumnOrder = (
     return [...cleanColumnOrder, ...missingColumns];
 };
 
-function pristineReducer(
-    state: ExplorerReduceState,
-    action: Action,
-): ExplorerReduceState {
-    switch (action.type) {
-        case ActionType.RESET: {
-            return defaultState;
-        }
-        case ActionType.SET_STATE: {
-            return {
-                ...action.payload,
-                columnOrder: calcColumnOrder(action.payload.columnOrder, [
-                    ...action.payload.dimensions,
-                    ...action.payload.metrics,
-                    ...action.payload.selectedTableCalculations,
-                ]),
-            };
-        }
-        default: {
-            throw new Error(`Unhandled action type`);
-        }
-    }
-}
-
 function reducer(
     state: ExplorerReduceState,
-    action: Action,
+    action: Action & { options?: { shouldFetchResults: boolean } },
 ): ExplorerReduceState {
+    state = {
+        ...state,
+        shouldFetchResults:
+            action.options?.shouldFetchResults || state.shouldFetchResults,
+    };
     switch (action.type) {
         case ActionType.RESET: {
             return defaultState;
         }
         case ActionType.SET_STATE: {
             return {
+                ...state,
                 ...action.payload,
                 columnOrder: calcColumnOrder(action.payload.columnOrder, [
                     ...action.payload.dimensions,
@@ -204,6 +221,9 @@ function reducer(
         }
         case ActionType.SET_TABLE_NAME: {
             return { ...state, tableName: action.payload };
+        }
+        case ActionType.SET_FETCH_RESULTS_FALSE: {
+            return { ...state, shouldFetchResults: false };
         }
         case ActionType.TOGGLE_DIMENSION: {
             const dimensions = toggleArrayValue(
@@ -248,7 +268,6 @@ function reducer(
             );
             return {
                 ...state,
-                sorting: true,
                 sorts: !sortField
                     ? [
                           ...state.sorts,
@@ -285,12 +304,6 @@ function reducer(
                 sorts: action.payload.filter((sf) =>
                     activeFields.has(sf.fieldId),
                 ),
-            };
-        }
-        case ActionType.RESET_SORTING: {
-            return {
-                ...state,
-                sorting: false,
             };
         }
         case ActionType.SET_ROW_LIMIT: {
@@ -378,7 +391,24 @@ function reducer(
                 ]),
             };
         }
-
+        case ActionType.SET_PIVOT_FIELDS: {
+            return {
+                ...state,
+                pivotFields: action.payload,
+            };
+        }
+        case ActionType.SET_CHART_TYPE: {
+            return {
+                ...state,
+                chartType: action.payload,
+            };
+        }
+        case ActionType.SET_CHART_CONFIG: {
+            return {
+                ...state,
+                chartConfig: action.payload,
+            };
+        }
         default: {
             throw new Error(`Unhandled action type`);
         }
@@ -387,10 +417,6 @@ function reducer(
 
 export const ExplorerProvider: FC = ({ children }) => {
     const [reducerState, dispatch] = useReducer(reducer, defaultState);
-    const [pristineReducerState, pristineDispatch] = useReducer(
-        pristineReducer,
-        defaultState,
-    );
 
     const [activeFields, isValidQuery] = useMemo<
         [Set<FieldId>, boolean]
@@ -402,63 +428,30 @@ export const ExplorerProvider: FC = ({ children }) => {
         ]);
         return [fields, fields.size > 0];
     }, [reducerState]);
-    const [pristineActiveFields, pristineIsValidQuery] = useMemo<
-        [Set<FieldId>, boolean]
-    >(() => {
-        const fields = new Set([
-            ...pristineReducerState.dimensions,
-            ...pristineReducerState.metrics,
-            ...pristineReducerState.selectedTableCalculations,
-        ]);
-        return [fields, fields.size > 0];
-    }, [pristineReducerState]);
+
     const reset = useCallback(() => {
         dispatch({
             type: ActionType.RESET,
         });
-        pristineDispatch({
-            type: ActionType.RESET,
-        });
     }, []);
-    const syncState = useCallback(
-        (defaultSortField: SortField | undefined) => {
-            if (defaultSortField) {
-                dispatch({
-                    type: ActionType.SET_SORT_FIELDS,
-                    payload: [defaultSortField],
-                });
-            }
-            pristineDispatch({
+
+    const setState = useCallback(
+        (
+            state: Omit<
+                Required<ExplorerReduceState>,
+                'chartType' | 'chartConfig' | 'pivotFields'
+            >,
+        ) => {
+            dispatch({
                 type: ActionType.SET_STATE,
-                payload: {
-                    ...reducerState,
-                    sorts: defaultSortField
-                        ? [defaultSortField]
-                        : reducerState.sorts,
+                payload: state,
+                options: {
+                    shouldFetchResults: true,
                 },
             });
         },
-        [reducerState],
+        [],
     );
-
-    // trigger back end call to sort data
-    useEffect(() => {
-        if (reducerState.sorting) {
-            dispatch({ type: ActionType.RESET_SORTING });
-            syncState(undefined);
-        }
-    }, [reducerState.sorts, reducerState.sorting, syncState]);
-
-    const setState = useCallback((state: ExplorerReduceState) => {
-        pristineDispatch({
-            type: ActionType.SET_STATE,
-            payload: state,
-        });
-        dispatch({
-            type: ActionType.SET_STATE,
-            payload: state,
-        });
-    }, []);
 
     const setTableName = useCallback((tableName: string) => {
         dispatch({
@@ -481,6 +474,9 @@ export const ExplorerProvider: FC = ({ children }) => {
         dispatch({
             type: ActionType.TOGGLE_SORT_FIELD,
             payload: fieldId,
+            options: {
+                shouldFetchResults: true,
+            },
         });
     }, []);
 
@@ -488,43 +484,57 @@ export const ExplorerProvider: FC = ({ children }) => {
         dispatch({
             type: ActionType.SET_SORT_FIELDS,
             payload: sortFields,
+            options: {
+                shouldFetchResults: true,
+            },
         });
     }, []);
 
-    const setRowLimit = useCallback(
-        (limit: number) => {
-            dispatch({
-                type: ActionType.SET_ROW_LIMIT,
-                payload: limit,
-            });
-            pristineDispatch({
-                type: ActionType.SET_STATE,
-                payload: {
-                    ...reducerState,
-                    limit,
-                },
-            });
-        },
-        [reducerState],
-    );
+    const setRowLimit = useCallback((limit: number) => {
+        dispatch({
+            type: ActionType.SET_ROW_LIMIT,
+            payload: limit,
+            options: {
+                shouldFetchResults: true,
+            },
+        });
+    }, []);
 
     const setFilters = useCallback(
-        (filters: MetricQuery['filters'], syncPristineState: boolean) => {
+        (filters: MetricQuery['filters'], shouldFetchResults: boolean) => {
             dispatch({
                 type: ActionType.SET_FILTERS,
                 payload: filters,
+                options: {
+                    shouldFetchResults,
+                },
             });
-            if (syncPristineState) {
-                pristineDispatch({
-                    type: ActionType.SET_STATE,
-                    payload: {
-                        ...reducerState,
-                        filters,
-                    },
-                });
-            }
         },
-        [reducerState],
+        [],
+    );
+
+    const setPivotFields = useCallback((fields: FieldId[] = []) => {
+        dispatch({
+            type: ActionType.SET_PIVOT_FIELDS,
+            payload: fields,
+        });
+    }, []);
+
+    const setChartType = useCallback((chartType: ChartType) => {
+        dispatch({
+            type: ActionType.SET_CHART_TYPE,
+            payload: chartType,
+        });
+    }, []);
+
+    const setChartConfig = useCallback(
+        (chartConfig: ChartConfig['config'] | undefined) => {
+            dispatch({
+                type: ActionType.SET_CHART_CONFIG,
+                payload: chartConfig,
+            });
+        },
+        [],
     );
 
     const setColumnOrder = useCallback((order: string[]) => {
@@ -578,27 +588,29 @@ export const ExplorerProvider: FC = ({ children }) => {
         });
     }, []);
 
-    const pristineState = useMemo(
-        () => ({
-            ...pristineReducerState,
-            activeFields: pristineActiveFields,
-            isValidQuery: pristineIsValidQuery,
-        }),
-        [pristineActiveFields, pristineIsValidQuery, pristineReducerState],
+    const state = useMemo(
+        () => ({ ...reducerState, activeFields, isValidQuery }),
+        [reducerState, activeFields, isValidQuery],
     );
-    const queryResults = useQueryResults(pristineState);
+    const queryResults = useQueryResults(state);
+
+    // Fetch query results after state update
+    const { mutate } = queryResults;
+    useEffect(() => {
+        if (state.shouldFetchResults) {
+            mutate();
+            dispatch({
+                type: ActionType.SET_FETCH_RESULTS_FALSE,
+            });
+        }
+    }, [mutate, state]);
 
     const value: ExplorerContext = {
-        state: useMemo(
-            () => ({ ...reducerState, activeFields, isValidQuery }),
-            [reducerState, activeFields, isValidQuery],
-        ),
-        pristineState,
+        state,
         queryResults,
         actions: useMemo(
             () => ({
                 reset,
-                syncState,
                 setState,
                 setTableName,
                 toggleActiveField,
@@ -610,6 +622,9 @@ export const ExplorerProvider: FC = ({ children }) => {
                 addTableCalculation,
                 deleteTableCalculation,
                 updateTableCalculation,
+                setPivotFields,
+                setChartType,
+                setChartConfig,
             }),
             [
                 reset,
@@ -621,10 +636,12 @@ export const ExplorerProvider: FC = ({ children }) => {
                 setFilters,
                 setRowLimit,
                 setColumnOrder,
-                syncState,
                 addTableCalculation,
                 deleteTableCalculation,
                 updateTableCalculation,
+                setPivotFields,
+                setChartType,
+                setChartConfig,
             ],
         ),
     };

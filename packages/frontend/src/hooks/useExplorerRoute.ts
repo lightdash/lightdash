@@ -12,7 +12,8 @@ export const useExplorerRoute = () => {
     const pathParams =
         useParams<{ projectUuid: string; tableId: string | undefined }>();
     const {
-        pristineState,
+        state: { tableName, columnOrder: stateColumnOrder },
+        queryResults: { data: queryResultsData },
         actions: { setState, reset, setTableName },
     } = useExplorer();
 
@@ -55,8 +56,8 @@ export const useExplorerRoute = () => {
                     ? []
                     : JSON.parse(additionalMetricsParam);
                 setState({
+                    shouldFetchResults: true,
                     chartName: '',
-                    sorting: false,
                     tableName: pathParams.tableId,
                     dimensions,
                     metrics,
@@ -76,68 +77,92 @@ export const useExplorerRoute = () => {
 
     // Update url params based on pristine state
     useEffect(() => {
-        if (pristineState.tableName) {
+        if (queryResultsData?.metricQuery && tableName) {
             const newParams = new URLSearchParams();
-            if (pristineState.dimensions.length === 0) {
+            if (queryResultsData.metricQuery.dimensions.length === 0) {
                 newParams.delete('dimensions');
             } else {
-                newParams.set('dimensions', pristineState.dimensions.join(','));
-            }
-            if (pristineState.metrics.length === 0) {
-                newParams.delete('metrics');
-            } else {
-                newParams.set('metrics', pristineState.metrics.join(','));
-            }
-            if (pristineState.sorts.length === 0) {
-                newParams.delete('sort');
-            } else {
-                newParams.set('sort', JSON.stringify(pristineState.sorts));
-            }
-            if (countTotalFilterRules(pristineState.filters) === 0) {
-                newParams.delete('filters');
-            } else {
-                newParams.set('filters', JSON.stringify(pristineState.filters));
-            }
-            newParams.set('limit', `${pristineState.limit}`);
-            if (pristineState.columnOrder.length === 0) {
-                newParams.delete('column_order');
-            } else {
                 newParams.set(
-                    'column_order',
-                    pristineState.columnOrder.join(','),
+                    'dimensions',
+                    queryResultsData.metricQuery.dimensions.join(','),
                 );
             }
-            if (pristineState.selectedTableCalculations.length === 0) {
+            if (queryResultsData.metricQuery.metrics.length === 0) {
+                newParams.delete('metrics');
+            } else {
+                newParams.set(
+                    'metrics',
+                    queryResultsData.metricQuery.metrics.join(','),
+                );
+            }
+            if (queryResultsData.metricQuery.sorts.length === 0) {
+                newParams.delete('sort');
+            } else {
+                newParams.set(
+                    'sort',
+                    JSON.stringify(queryResultsData.metricQuery.sorts),
+                );
+            }
+            if (
+                countTotalFilterRules(queryResultsData.metricQuery.filters) ===
+                0
+            ) {
+                newParams.delete('filters');
+            } else {
+                newParams.set(
+                    'filters',
+                    JSON.stringify(queryResultsData.metricQuery.filters),
+                );
+            }
+            newParams.set('limit', `${queryResultsData.metricQuery.limit}`);
+            if (stateColumnOrder.length === 0) {
+                newParams.delete('column_order');
+            } else {
+                newParams.set('column_order', stateColumnOrder.join(','));
+            }
+            if (queryResultsData.metricQuery.tableCalculations.length === 0) {
                 newParams.delete('selected_table_calculations');
             } else {
                 newParams.set(
                     'selected_table_calculations',
-                    pristineState.selectedTableCalculations.join(','),
+                    queryResultsData.metricQuery.tableCalculations
+                        .map(({ name }) => name)
+                        .join(','),
                 );
             }
-            if (pristineState.tableCalculations.length === 0) {
+            if (queryResultsData.metricQuery.tableCalculations.length === 0) {
                 newParams.delete('table_calculations');
             } else {
                 newParams.set(
                     'table_calculations',
-                    JSON.stringify(pristineState.tableCalculations),
+                    JSON.stringify(
+                        queryResultsData.metricQuery.tableCalculations,
+                    ),
                 );
             }
 
-            if (pristineState.additionalMetrics?.length === 0) {
+            if (queryResultsData.metricQuery.additionalMetrics?.length === 0) {
                 newParams.delete('additional_metrics');
             } else {
                 newParams.set(
                     'additional_metrics',
-                    JSON.stringify(pristineState.additionalMetrics),
+                    JSON.stringify(
+                        queryResultsData.metricQuery.additionalMetrics,
+                    ),
                 );
             }
             history.replace({
-                pathname: `/projects/${pathParams.projectUuid}/tables/${pristineState.tableName}`,
+                pathname: `/projects/${pathParams.projectUuid}/tables/${tableName}`,
                 search: newParams.toString(),
             });
         }
-    }, [pristineState, history, pathParams.projectUuid]);
+    }, [
+        queryResultsData,
+        tableName,
+        stateColumnOrder,
+        history,
+        pathParams.projectUuid,
+    ]);
 
     useEffect(() => {
         if (!pathParams.tableId) {
