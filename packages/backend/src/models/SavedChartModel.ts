@@ -25,7 +25,7 @@ type DbSavedChartDetails = {
     saved_query_id: number;
     saved_query_uuid: string;
     name: string;
-    description?: string | undefined;
+    description?: string;
     saved_queries_version_id: number;
     explore_name: string;
     filters: any;

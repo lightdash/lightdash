@@ -1,14 +1,8 @@
-import {
-    Button,
-    Classes,
-    Dialog,
-    FormGroup,
-    InputGroup,
-    Intent,
-} from '@blueprintjs/core';
+import { Button, Classes, Dialog, InputGroup, Intent } from '@blueprintjs/core';
 import { CreateSavedChartVersion } from 'common';
 import React, { FC, useState } from 'react';
 import { useCreateMutation } from '../../hooks/useSavedQuery';
+import { FormGroupWrapper } from './SavedQueries.style';
 
 interface CreateSavedQueryModalProps {
     isOpen: boolean;
@@ -25,16 +19,15 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
     const useCreate = useCreateMutation();
     const { mutate, isLoading: isCreating } = useCreate;
     const [name, setName] = useState<string>('');
-    const [description, setDescription] = useState<string>('');
+    const [description, setDescription] = useState<string>();
 
     return (
         <Dialog isOpen={isOpen} onClose={onClose} lazy title="Save chart">
             <form>
                 <div className={Classes.DIALOG_BODY}>
-                    <FormGroup
+                    <FormGroupWrapper
                         label="Enter a memorable name for your chart"
                         labelFor="chart-name"
-                        style={{ fontWeight: 'bold' }}
                     >
                         <InputGroup
                             id="chart-name"
@@ -43,11 +36,10 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
                             onChange={(e) => setName(e.target.value)}
                             placeholder="eg. How many weekly active users do we have?"
                         />
-                    </FormGroup>
-                    <FormGroup
+                    </FormGroupWrapper>
+                    <FormGroupWrapper
                         label="Chart description"
                         labelFor="chart-description"
-                        style={{ fontWeight: 'bold' }}
                     >
                         <InputGroup
                             id="chart-description"
@@ -56,7 +48,7 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
                             onChange={(e) => setDescription(e.target.value)}
                             placeholder="A few words to give your team some context"
                         />
-                    </FormGroup>
+                    </FormGroupWrapper>
                 </div>
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>
