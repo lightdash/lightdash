@@ -35,5 +35,9 @@ describe('Explore', () => {
 
         cy.findAllByText('No chart available').should('have.length', 0);
         cy.findAllByText('No data available').should('have.length', 0);
+
+        cy.get('.echarts-for-react').should('have.length', 3); // Charts
+        cy.contains('Payments total revenue'); // BigNumber chart
+        cy.get('th').should('have.length', 5); // Table chart
     });
 });
