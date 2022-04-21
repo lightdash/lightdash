@@ -432,11 +432,7 @@ export class ProjectService {
             projectUuid,
         );
         if (true || cachedExplores.length === 0 || forceRefresh) {
-            const hasLock = await this.projectModel.hasLock(projectUuid);
-            console.log('getAllExplores: is locked?', hasLock);
-
             this.projectModel.lockProcess(projectUuid, () => {
-                console.log('refreshing all tables');
                 const explores = this.refreshAllTables(user, projectUuid);
                 explores.then((ex) => {
                     this.projectModel.saveCacheExplores(projectUuid, ex);

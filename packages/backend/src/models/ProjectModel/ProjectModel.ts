@@ -416,28 +416,27 @@ export class ProjectModel {
         });
     }
 
-    async hasLock(projectUuid: string): Promise<boolean> {
-        const projects = await this.database('projects')
-            .where('project_uuid', projectUuid)
-            .select('project_id')
-            .limit(1);
-        const rawLock = await this.database.raw(
-            `SELECT pg_try_advisory_xact_lock(${projects[0].project_id});`,
-        );
-        const adquiresLock = rawLock.rows[0].pg_try_advisory_xact_lock;
-        return !adquiresLock;
-    }
-
-    async lockProcess(projectUuid: string, fun: () => void): Promise<void> {
+    async lockProcess(projectUuid: string, func: () => void): Promise<void> {
         this.database.transaction(async (trx) => {
+            // pg_advisory_xact_lock takes a 64bit integer as key
+            // we can't use project_uuid (uuidv4) as key, not even a hash,
+            // so we will be using autoinc project_id from DB.
             const projects = await this.database('projects')
                 .where('project_uuid', projectUuid)
                 .select('project_id')
                 .limit(1);
-            trx.raw(`SELECT pg_advisory_xact_lock(${projects[0].project_id});`);
-            fun();
+            const projectId = projects[0].project_id;
 
-            console.log('releasing lock');
+            // usage: pg_try_advisory_xact_lock(namespace, key)
+            // for projects we will be using namespace=1
+            const rawLock = await this.database.raw(
+                `SELECT pg_try_advisory_xact_lock('1', ${projectId});`,
+            );
+            const adquiresLock = rawLock.rows[0].pg_try_advisory_xact_lock;
+            if (!adquiresLock) return; // Lock is taken by another process, exiting
+
+            await trx.raw(`SELECT pg_advisory_xact_lock('1', ${projectId});`);
+            await func();
         });
     }
 }
