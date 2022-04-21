@@ -17,7 +17,7 @@ export const LinkButtonWrapper = styled(LinkButton)`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    text-align: left;
+    text-align: left !important;
     height: 60px;
 `;
 export const UpdatedLabel = styled.p`
