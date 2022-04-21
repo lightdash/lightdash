@@ -3,7 +3,6 @@ import { getResultValues } from 'common';
 import React from 'react';
 import { useColumns } from '../../hooks/useColumns';
 import { useExplore } from '../../hooks/useExplore';
-import { useQueryResults } from '../../hooks/useQueryResults';
 import { useExplorer } from '../../providers/ExplorerProvider';
 import { CellContextMenu } from '../ResultsTable/CellContextMenu';
 import ColumnHeaderContextMenu from '../ResultsTable/ColumnHeaderContextMenu';
@@ -17,7 +16,6 @@ import {
 
 export const ExplorerResults = () => {
     const dataColumns = useColumns();
-    const queryResults = useQueryResults();
     const {
         state: {
             tableName: activeTableName,
@@ -25,6 +23,7 @@ export const ExplorerResults = () => {
             dimensions,
             metrics,
         },
+        queryResults,
         actions: { setColumnOrder: setExplorerColumnOrder },
     } = useExplorer();
     const activeExplore = useExplore(activeTableName);

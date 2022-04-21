@@ -29,7 +29,6 @@ import { FC, useEffect, useState } from 'react';
 import { Link, useHistory, useLocation, useParams } from 'react-router-dom';
 import { getDashboards } from '../hooks/dashboard/useDashboards';
 import { useExplore } from '../hooks/useExplore';
-import { useQueryResults } from '../hooks/useQueryResults';
 import {
     useAddVersionMutation,
     useDeleteMutation,
@@ -90,10 +89,10 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             tableCalculations,
             selectedTableCalculations,
         },
+        queryResults,
         actions: { setRowLimit, setFilters },
     } = useExplorer();
     const explore = useExplore(tableName);
-    const queryResults = useQueryResults();
     const { data, isLoading } = useSavedQuery({ id: savedQueryUuid });
     const [validChartConfig, setValidChartConfig] =
         useState<ChartConfig['config']>();
@@ -634,7 +633,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             onClick={() => {
                                 /*
                                 Check the location of `goBack` after deleting a chart
-                                if we land on an unsaved chart, 
+                                if we land on an unsaved chart,
                                 we go back further into an empty explore
                                 */
                                 history.listen((loc, action) => {
