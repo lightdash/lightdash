@@ -140,53 +140,97 @@ We always recommend giving read-only permissions to Lightdash, that way you ensu
 
 ### Bigquery
 
-To connect to Bigquery, your service account will need to have the following roles in your GCP project:
-- `roles/bigquery.dataViewer` (to see data in your project)
-- `roles/bigquery.jobUser` (to run queries in your project)
-
-If you need to provide access to data across multiple projects, the service account will need to granted `roles/bigquery.dataViewer` on each additional project.
-
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile).
-
 #### Project
 
-This is the GCP project ID.
+This is project ID from Google Cloud Platform for the data that you want to connect Lightdash to.
+
+To find your project ID, head to the [BigQuery Cloud console](https://console.cloud.google.com/).
+
+Once you're in there, click on the project name in the top bar.
+
+![get to projects](./assets/get-to-projects.png)
+
+Then, you should see all of the projects and their project IDs in your organization (that you have access to).
+
+![project id list](./assets/project-id-list.png)
+
+For the project you want to connect Lightdash to, just copy its `id` and pop it into the `project` field in the Warehouse Connection form in Lightdash.
 
 #### Data set
 
-This is the name of your dbt dataset: the dataset in your warehouse where the output of your dbt models is written to.
+This is the name of your the dataset in BigQuery where the output of your dbt models is written to.
+
 If you're not sure what this is, check out the `dataset` value [you've set in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#:~:text=This%20connection%20method%20requires%20local%20OAuth%20via%20gcloud.).
 
 #### Location
 
-The location of BigQuery datasets.
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations).
+The data location of the dataset in BigQuery where the output of your dbt models is written to.
+
+The value you enter should be all lower-case (e.g. `us` or `europe-east`).
+
+You can find the location of your  [in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations), or in your BigQuery console.
+
+![data location](./assets/data-location.png)
 
 #### Key File
 
-This is the JSON key file.
-You can see [how to create a key here](https://cloud.google.com/docs/authentication/getting-started#cloud-console)
+To connect to BigQuery, you'll need to have a service account that you can use with Lightdash. You can read more about [creating and managing service accounts with Google BigQuery in their docs](https://cloud.google.com/iam/docs/creating-managing-service-accounts). 
+
+:::info
+
+If you're creating a new service account, make sure that you save your JSON key file somewhere safe! You'll need it for connecting to Lightdash.
+
+:::
+
+The service account you use with Lightdash will need to have the following roles in your GCP project:
+- `roles/bigquery.dataViewer` (to see data in your project)
+- `roles/bigquery.jobUser` (to run queries in your project)
+
+If you need to provide access to data across multiple BigQuery projects, the service account will need to granted `roles/bigquery.dataViewer` on each additional BigQuery project.
+
+Once you have a service account all ready to go, you'll need to add its JSON key file to Lightdash in the `key file` section of the Warehouse Connection page.
 
 #### Threads
-This is the amount of threads dbt can have with the warehouse.
+
+When dbt runs, it creates a directed acyclic graph (DAG) of links between models. The number of threads represents the maximum number of paths through the graph dbt may work on at once – increasing the number of threads can minimize the run time of your project.
+
+By default, we set this to 1 thread.
+
+You can read more about [configuring threads with dbt here](https://docs.getdbt.com/dbt-cli/configure-your-profile#understanding-threads).
 
 #### Timeout in seconds
+BigQuery supports query timeouts. By default, the timeout is set to 300 seconds. If a dbt model takes longer than this timeout to complete, then BigQuery may cancel the query and issue the following error:
+
+```
+Operation did not complete within the designated timeout.
+```
+
+To change this timeout, use the `Timeout in seconds` configuration.
+
 If a dbt model takes longer than this timeout to complete, then BigQuery may cancel the query.
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#timeouts).
 
 #### Priority
-The priority for the BigQuery jobs that dbt executes.
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#priority).
+The priority for the BigQuery jobs that Lightdash executes can be configured with the `priority` configuration in your Warehouse Connection settings. The `priority` field can be set to one of `batch` or `interactive`. 
+
+For more information on query priority, [check out the BigQuery documentation.](https://cloud.google.com/bigquery/docs/running-queries)
 
 #### Retries
 
-The number of times dbt should retry queries that result in unhandled server errors
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#retries).
+The `retries` configuration specifies the number of times Lightdash should retry queries that result in unhandled server errors. 
+
+For example, setting `retries` to 5 means that Lightdash will retry BigQuery queries 5 times with a delay. If the query does not succeed after the fifth attempt, then Lightdash will raise an error.
+
+By default, the number of retries is set to 3.
 
 #### Maximum bytes billed
 
-When a value is configured, queries executed by dbt will fail if they exceed the configured maximum bytes threshold.
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#maximum-bytes-billed).
+If a value for the `Maximum bytes billed` is set, then queries executed by Lightdash will fail if they exceed the configured maximum bytes threshhold. This configuration should be supplied as an integer number of bytes.
+
+For example, setting this to `1000000000` means if a query would bill more than a gigabyte of data (e.g. 2Gb), then BigQuery will reject the query and you'd get an error like this:
+
+```
+  Query exceeded limit for bytes billed: 1000000000. 2000000000 or higher required.
+```
 
 ----
 
