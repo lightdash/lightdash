@@ -136,7 +136,15 @@ docker compose start
 
 ## Warehouse connection
 
+We always recommend giving read-only permissions to Lightdash, that way you ensure than no data can be manipulated. See each section below for warehouse specific details.
+
 ### Bigquery
+
+To connect to Bigquery, your service account will need to have the following roles in your GCP project:
+- `roles/bigquery.dataViewer` (to see data in your project)
+- `roles/bigquery.jobUser` (to run queries in your project)
+
+If you need to provide access to data across multiple projects, the service account will need to granted `roles/bigquery.dataViewer` on each additional project.
 
 You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile).
 

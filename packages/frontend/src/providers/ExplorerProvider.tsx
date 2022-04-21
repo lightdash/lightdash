@@ -16,6 +16,7 @@ import React, {
     useMemo,
     useReducer,
 } from 'react';
+import { useQueryResults } from '../hooks/useQueryResults';
 
 export enum ActionType {
     RESET,
@@ -97,7 +98,7 @@ interface ExplorerReduceState {
     additionalMetrics: AdditionalMetric[] | undefined;
 }
 
-interface ExplorerState extends ExplorerReduceState {
+export interface ExplorerState extends ExplorerReduceState {
     activeFields: Set<FieldId>;
     isValidQuery: boolean;
 }
@@ -105,6 +106,7 @@ interface ExplorerState extends ExplorerReduceState {
 interface ExplorerContext {
     state: ExplorerState;
     pristineState: ExplorerState;
+    queryResults: ReturnType<typeof useQueryResults>;
     actions: {
         reset: () => void;
         syncState: (defaultSortField: SortField | undefined) => void;
@@ -576,19 +578,23 @@ export const ExplorerProvider: FC = ({ children }) => {
         });
     }, []);
 
+    const pristineState = useMemo(
+        () => ({
+            ...pristineReducerState,
+            activeFields: pristineActiveFields,
+            isValidQuery: pristineIsValidQuery,
+        }),
+        [pristineActiveFields, pristineIsValidQuery, pristineReducerState],
+    );
+    const queryResults = useQueryResults(pristineState);
+
     const value: ExplorerContext = {
         state: useMemo(
             () => ({ ...reducerState, activeFields, isValidQuery }),
             [reducerState, activeFields, isValidQuery],
         ),
-        pristineState: useMemo(
-            () => ({
-                ...pristineReducerState,
-                activeFields: pristineActiveFields,
-                isValidQuery: pristineIsValidQuery,
-            }),
-            [pristineActiveFields, pristineIsValidQuery, pristineReducerState],
-        ),
+        pristineState,
+        queryResults,
         actions: useMemo(
             () => ({
                 reset,

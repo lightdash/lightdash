@@ -1,3 +1,31 @@
+## [0.71.5](https://github.com/lightdash/lightdash/compare/0.71.4...0.71.5) (2022-04-20)
+
+
+### Bug Fixes
+
+* make field search more strict with fuse options ([#1833](https://github.com/lightdash/lightdash/issues/1833)) ([43a66a2](https://github.com/lightdash/lightdash/commit/43a66a28a920ec8d332c2cc0ba2f1f55ef9d8345))
+
+## [0.71.4](https://github.com/lightdash/lightdash/compare/0.71.3...0.71.4) (2022-04-20)
+
+
+### Bug Fixes
+
+* fix format undefined on frontend ([#1830](https://github.com/lightdash/lightdash/issues/1830)) ([bf615f1](https://github.com/lightdash/lightdash/commit/bf615f1e499717628b8e2a9a7dae4ddff8de4231))
+
+## [0.71.3](https://github.com/lightdash/lightdash/compare/0.71.2...0.71.3) (2022-04-20)
+
+
+### Bug Fixes
+
+* handle table calcs in results formatter ([#1826](https://github.com/lightdash/lightdash/issues/1826)) ([7e8ccf6](https://github.com/lightdash/lightdash/commit/7e8ccf6a21b93566565fa617971c56c17b263c1f))
+
+## [0.71.2](https://github.com/lightdash/lightdash/compare/0.71.1...0.71.2) (2022-04-20)
+
+
+### Bug Fixes
+
+* make sure window has mounted before initilizing Headway ([#1813](https://github.com/lightdash/lightdash/issues/1813)) ([41d17e0](https://github.com/lightdash/lightdash/commit/41d17e0a81681f8a078e67cc45991c365450f62a))
+
 ## [0.71.1](https://github.com/lightdash/lightdash/compare/0.71.0...0.71.1) (2022-04-20)
 
 
