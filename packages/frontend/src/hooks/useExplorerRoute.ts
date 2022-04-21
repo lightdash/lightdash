@@ -1,79 +1,21 @@
-import { countTotalFilterRules } from 'common';
-import { useEffect } from 'react';
+import { ChartType, countTotalFilterRules } from 'common';
+import { useEffect, useMemo } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
-import { useMount } from 'react-use';
 import { useApp } from '../providers/AppProvider';
-import { useExplorer } from '../providers/ExplorerProvider';
+import {
+    ExplorerReduceState,
+    useExplorer,
+} from '../providers/ExplorerProvider';
 
 export const useExplorerRoute = () => {
-    const { showToastError } = useApp();
-    const { search } = useLocation();
     const history = useHistory();
     const pathParams =
         useParams<{ projectUuid: string; tableId: string | undefined }>();
     const {
         state: { tableName, columnOrder: stateColumnOrder },
         queryResults: { data: queryResultsData },
-        actions: { setState, reset, setTableName },
+        actions: { reset, setTableName },
     } = useExplorer();
-
-    // Set initial state based on url params
-    useMount(() => {
-        if (pathParams.tableId) {
-            try {
-                const searchParams = new URLSearchParams(search);
-                const dimensions =
-                    searchParams.get('dimensions')?.split(',') || [];
-                const metrics = searchParams.get('metrics')?.split(',') || [];
-                const sortSearchParam = searchParams.get('sort');
-                const sorts = !sortSearchParam
-                    ? []
-                    : JSON.parse(sortSearchParam);
-                const filterSearchParam = searchParams.get('filters');
-                const filters = !filterSearchParam
-                    ? []
-                    : JSON.parse(filterSearchParam);
-                const limitSearchParam = searchParams.get('limit');
-                const limit =
-                    limitSearchParam &&
-                    !Number.isNaN(parseInt(limitSearchParam, 10))
-                        ? parseInt(limitSearchParam, 10)
-                        : 500;
-                const columnOrder =
-                    searchParams.get('column_order')?.split(',') || [];
-                const tableCalculationsSearchParam =
-                    searchParams.get('table_calculations');
-                const tableCalculations = !tableCalculationsSearchParam
-                    ? []
-                    : JSON.parse(tableCalculationsSearchParam);
-                const selectedTableCalculations =
-                    searchParams
-                        .get('selected_table_calculations')
-                        ?.split(',') || [];
-                const additionalMetricsParam =
-                    searchParams.get('additionalMetrics');
-                const additionalMetrics = !additionalMetricsParam
-                    ? []
-                    : JSON.parse(additionalMetricsParam);
-                setState({
-                    shouldFetchResults: true,
-                    chartName: '',
-                    tableName: pathParams.tableId,
-                    dimensions,
-                    metrics,
-                    filters,
-                    sorts,
-                    limit,
-                    columnOrder,
-                    tableCalculations,
-                    selectedTableCalculations,
-                    additionalMetrics,
-                });
-            } catch (e: any) {
-                showToastError({ title: 'Error parsing url', subtitle: e });
-            }
-        }
-    });
 
     // Update url params based on pristine state
     useEffect(() => {
@@ -171,4 +113,71 @@ export const useExplorerRoute = () => {
             setTableName(pathParams.tableId);
         }
     }, [pathParams.tableId, reset, setTableName]);
+};
+
+export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
+    const { showToastError } = useApp();
+    const { search } = useLocation();
+    const pathParams =
+        useParams<{ projectUuid: string; tableId: string | undefined }>();
+
+    return useMemo(() => {
+        if (pathParams.tableId) {
+            try {
+                const searchParams = new URLSearchParams(search);
+                const dimensions =
+                    searchParams.get('dimensions')?.split(',') || [];
+                const metrics = searchParams.get('metrics')?.split(',') || [];
+                const sortSearchParam = searchParams.get('sort');
+                const sorts = !sortSearchParam
+                    ? []
+                    : JSON.parse(sortSearchParam);
+                const filterSearchParam = searchParams.get('filters');
+                const filters = !filterSearchParam
+                    ? []
+                    : JSON.parse(filterSearchParam);
+                const limitSearchParam = searchParams.get('limit');
+                const limit =
+                    limitSearchParam &&
+                    !Number.isNaN(parseInt(limitSearchParam, 10))
+                        ? parseInt(limitSearchParam, 10)
+                        : 500;
+                const columnOrder =
+                    searchParams.get('column_order')?.split(',') || [];
+                const tableCalculationsSearchParam =
+                    searchParams.get('table_calculations');
+                const tableCalculations = !tableCalculationsSearchParam
+                    ? []
+                    : JSON.parse(tableCalculationsSearchParam);
+                const selectedTableCalculations =
+                    searchParams
+                        .get('selected_table_calculations')
+                        ?.split(',') || [];
+                const additionalMetricsParam =
+                    searchParams.get('additionalMetrics');
+                const additionalMetrics = !additionalMetricsParam
+                    ? []
+                    : JSON.parse(additionalMetricsParam);
+                return {
+                    shouldFetchResults: true,
+                    chartName: undefined,
+                    tableName: pathParams.tableId,
+                    dimensions,
+                    metrics,
+                    filters,
+                    sorts,
+                    limit,
+                    columnOrder,
+                    tableCalculations,
+                    selectedTableCalculations,
+                    additionalMetrics,
+                    chartType: ChartType.CARTESIAN,
+                    chartConfig: undefined,
+                    pivotFields: [],
+                };
+            } catch (e: any) {
+                showToastError({ title: 'Error parsing url', subtitle: e });
+            }
+        }
+    }, [pathParams, search, showToastError]);
 };

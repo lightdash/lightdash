@@ -215,12 +215,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         }
     };
 
-    useEffect(() => {
-        if (data) {
-            setChartType(data.chartConfig.type);
-        }
-    }, [data, setChartType]);
-
     const hasUnsavedChanges = (): boolean => {
         const filterData = (
             d: SavedChart | CreateSavedChartVersion | undefined,

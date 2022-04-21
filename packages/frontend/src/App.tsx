@@ -36,7 +36,6 @@ import SqlRunner from './pages/SqlRunner';
 import Welcome from './pages/Welcome';
 import { AppProvider } from './providers/AppProvider';
 import { DashboardProvider } from './providers/DashboardProvider';
-import { ExplorerProvider } from './providers/ExplorerProvider';
 import { TrackingProvider, TrackPage } from './providers/TrackingProvider';
 import { PageName } from './types/Events';
 
@@ -154,9 +153,7 @@ const App = () => (
                                                                     PageName.SAVED_QUERY_EXPLORER
                                                                 }
                                                             >
-                                                                <ExplorerProvider>
-                                                                    <SavedExplorer />
-                                                                </ExplorerProvider>
+                                                                <SavedExplorer />
                                                             </TrackPage>
                                                         </Route>
                                                         <Route path="/projects/:projectUuid/saved">
@@ -208,9 +205,7 @@ const App = () => (
                                                                     PageName.EXPLORER
                                                                 }
                                                             >
-                                                                <ExplorerProvider>
-                                                                    <Explorer />
-                                                                </ExplorerProvider>
+                                                                <Explorer />
                                                             </TrackPage>
                                                         </Route>
                                                         <Route path="/projects/:projectUuid/tables">
@@ -220,9 +215,7 @@ const App = () => (
                                                                     PageName.EXPLORE_TABLES
                                                                 }
                                                             >
-                                                                <ExplorerProvider>
-                                                                    <Explorer />
-                                                                </ExplorerProvider>
+                                                                <Explorer />
                                                             </TrackPage>
                                                         </Route>
                                                         <Route
