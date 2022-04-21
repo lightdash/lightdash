@@ -417,13 +417,27 @@ export class ProjectModel {
     }
 
     async hasLock(projectUuid: string): Promise<boolean> {
-        const projectId = await this.database.raw<number>(
-            `SELECT project_id FROM projects WHERE project_uuid=${projectUuid};`,
+        const projects = await this.database('projects')
+            .where('project_uuid', projectUuid)
+            .select('project_id')
+            .limit(1);
+        const rawLock = await this.database.raw(
+            `SELECT pg_try_advisory_xact_lock(${projects[0].project_id});`,
         );
-        const hasLock = await this.database.raw<boolean>(
-            `SELECT pg_try_advisory_xact_lock(${projectId});`,
-        );
+        const adquiresLock = rawLock.rows[0].pg_try_advisory_xact_lock;
+        return !adquiresLock;
+    }
 
-        return hasLock;
+    async lockProcess(projectUuid: string, fun: () => void): Promise<void> {
+        this.database.transaction(async (trx) => {
+            const projects = await this.database('projects')
+                .where('project_uuid', projectUuid)
+                .select('project_id')
+                .limit(1);
+            trx.raw(`SELECT pg_advisory_xact_lock(${projects[0].project_id});`);
+            fun();
+
+            console.log('releasing lock');
+        });
     }
 }

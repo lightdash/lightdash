@@ -325,8 +325,6 @@ export class ProjectService {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
 
-        const hasLock = this.projectModel.hasLock(projectUuid);
-        console.log('lock', hasLock);
         // Force refresh adapter (refetch git repos, check for changed credentials, etc.)
         // Might want to cache parts of this in future if slow
         this.projectLoading[projectUuid] = true;
@@ -433,12 +431,18 @@ export class ProjectService {
         const cachedExplores = await this.projectModel.getCacheExplores(
             projectUuid,
         );
-        if (cachedExplores.length === 0 || forceRefresh) {
-            const explores = this.refreshAllTables(user, projectUuid);
-            explores.then((ex) => {
-                this.projectModel.saveCacheExplores(projectUuid, ex);
+        if (true || cachedExplores.length === 0 || forceRefresh) {
+            const hasLock = await this.projectModel.hasLock(projectUuid);
+            console.log('getAllExplores: is locked?', hasLock);
+
+            this.projectModel.lockProcess(projectUuid, () => {
+                console.log('refreshing all tables');
+                const explores = this.refreshAllTables(user, projectUuid);
+                explores.then((ex) => {
+                    this.projectModel.saveCacheExplores(projectUuid, ex);
+                });
+                return explores;
             });
-            return explores;
         }
 
         return cachedExplores;
