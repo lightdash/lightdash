@@ -19,6 +19,7 @@
     "no-underscore-dangle": "off",
     "max-classes-per-file": "off",
     "no-case-declarations": "off",
-    "no-template-curly-in-string": "off"
+    "no-template-curly-in-string": "off",
+    "eqeqeq": "error"
   }
 }

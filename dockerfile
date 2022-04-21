@@ -44,6 +44,10 @@ RUN wget \
 # -----------------------------
 FROM base AS dev
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client \ 
+    && apt-get clean
+
 EXPOSE 3000
 EXPOSE 8080
 
