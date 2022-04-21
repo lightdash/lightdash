@@ -158,9 +158,26 @@ For the project you want to connect Lightdash to, just copy its `id` and pop it 
 
 #### Data set
 
-This is the name of your the dataset in BigQuery where the output of your dbt models is written to.
+This is the default dataset used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE 
+or  your local `profiles.yml` file.
 
-If you're not sure what this is, check out the `dataset` value [you've set in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#:~:text=This%20connection%20method%20requires%20local%20OAuth%20via%20gcloud.).
+If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
+
+![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
+
+If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field 
+named `dataset`:
+
+```yaml
+my-profile:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth
+      project: abc-123
+      dataset: my_dataset # look for this one!
+```
 
 #### Location
 
@@ -192,13 +209,12 @@ Once you have a service account all ready to go, you'll need to add its JSON key
 
 #### Threads
 
-When Lightdash runs dbt, dbt creates a directed acyclic graph (DAG) of links between models. The number of threads represents the maximum number of paths through the graph dbt may work on at once – increasing the number of threads can minimize the run time of your project.
-
-By default, we set this to 1 thread.
-
-You can read more about [configuring threads with dbt here](https://docs.getdbt.com/dbt-cli/configure-your-profile#understanding-threads).
+This is the number of multiple concurrent queries Lightdash will run against your Snowflake warehouse. Use a higher 
+number if you have a larger warehouse. A larger number of threads will increase performance for many users Lightdash 
+at the same time.
 
 #### Timeout in seconds
+
 BigQuery supports query timeouts. By default, the timeout is set to 300 seconds. If a query run by Lightdash takes longer than this timeout to complete, then BigQuery may cancel the query and issue the following error:
 
 ```
@@ -254,7 +270,29 @@ This is the database name.
 
 #### Schema
 
-This is the schema name.
+This is the default schema used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE 
+or  your local `profiles.yml` file.
+
+If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
+
+![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
+
+If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field 
+named `schema`:
+
+```yaml
+company-name:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: [hostname]
+      user: [username]
+      password: [password]
+      port: [port]
+      dbname: [database name]
+      schema: [dbt schema] # look for this one!
+```
 
 #### Port
 
@@ -262,7 +300,9 @@ This is the port where the database is running.
 
 #### Threads
 
-This is the amount of threads dbt can have with the warehouse.
+This is the number of multiple concurrent queries Lightdash will run against your Snowflake warehouse. Use a higher 
+number if you have a larger warehouse. A larger number of threads will increase performance for many users Lightdash 
+at the same time.
 
 #### Keep alive idle (seconds)
 
@@ -301,7 +341,29 @@ This is the database name.
 
 #### Schema
 
-This is the schema name.
+This is the default schema used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE 
+or  your local `profiles.yml` file.
+
+If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
+
+![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
+
+If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field 
+named `schema`:
+
+```yaml
+company-name:
+  target: dev
+  outputs:
+    dev:
+      type: redshift
+      host: hostname.region.redshift.amazonaws.com
+      user: username
+      password: password1
+      port: 5439
+      dbname: analytics
+      schema: analytics # look for this one!
+```
 
 #### Port
 
@@ -309,10 +371,17 @@ This is the port where the database is running.
 
 #### Threads
 
-This is the amount of threads dbt can have with the warehouse.
+This is the number of multiple concurrent queries Lightdash will run against your Snowflake warehouse. Use a higher 
+number if you have a larger warehouse. A larger number of threads will increase performance for many users Lightdash 
+at the same time.
+
 #### Keep alive idle (seconds)
 
 This specifies the amount of seconds with no network activity after which the operating system should send a TCP keepalive message to the client.
+
+If the database closes its connection while Lightdash is waiting for data, you may see the error `SSL SYSCALL error: EOF detected`. Lowering the [`keepalives_idle` value](https://www.postgresql.org/docs/9.3/libpq-connect.html) may prevent this, because the server will send a ping to keep the connection active more frequently.
+
+By default, this value is set to 240 seconds, but can be configured lower (perhaps 120 or 60), at the cost of a chattier network connection.
 
 #### SSL mode
 
@@ -409,7 +478,7 @@ If you're a dbt cloud user you can find this under your profile in the dbt cloud
 ![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
 
 If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field 
-named `database`:
+named `schema`:
 
 ```yaml
 my-snowflake-db:
