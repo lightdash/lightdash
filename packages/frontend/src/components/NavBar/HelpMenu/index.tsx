@@ -33,34 +33,35 @@ const HelpMenu: FC = () => {
             project_id: projectUuid,
             organization_id: user.data?.organizationUuid,
         };
-
-        (window as any).Headway.init({
-            selector: '#headway-badge',
-            account: '7L3Bzx',
-            callbacks: {
-                onShowWidget: () => {
-                    track({
-                        name: EventName.NOTIFICATIONS_CLICKED,
-                        properties: { ...trackNotifications },
-                    });
+        if ((window as any) && (window as any).Headway) {
+            (window as any).Headway.init({
+                selector: '#headway-badge',
+                account: '7L3Bzx',
+                callbacks: {
+                    onShowWidget: () => {
+                        track({
+                            name: EventName.NOTIFICATIONS_CLICKED,
+                            properties: { ...trackNotifications },
+                        });
+                    },
+                    onShowDetails: (changelog: any) => {
+                        track({
+                            name: EventName.NOTIFICATIONS_ITEM_CLICKED,
+                            properties: {
+                                ...trackNotifications,
+                                item: changelog.title,
+                            },
+                        });
+                    },
+                    onReadMore: () => {
+                        track({
+                            name: EventName.NOTIFICATIONS_CLICKED,
+                            properties: { ...trackNotifications },
+                        });
+                    },
                 },
-                onShowDetails: (changelog: any) => {
-                    track({
-                        name: EventName.NOTIFICATIONS_ITEM_CLICKED,
-                        properties: {
-                            ...trackNotifications,
-                            item: changelog.title,
-                        },
-                    });
-                },
-                onReadMore: () => {
-                    track({
-                        name: EventName.NOTIFICATIONS_CLICKED,
-                        properties: { ...trackNotifications },
-                    });
-                },
-            },
-        });
+            });
+        }
     }, [track, projectUuid, user.data?.organizationUuid, user.data?.userUuid]);
 
     const openChatWindow = () => {
