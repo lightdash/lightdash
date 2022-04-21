@@ -34,7 +34,7 @@ export enum ActionType {
     ADD_TABLE_CALCULATION,
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
-    RESET_SHOULD_FETCH_RESULTS,
+    SET_FETCH_RESULTS_FALSE,
     SET_ADDITIONAL_METRICS,
     SET_PIVOT_FIELDS,
     SET_CHART_TYPE,
@@ -43,7 +43,7 @@ export enum ActionType {
 
 type Action =
     | { type: ActionType.RESET }
-    | { type: ActionType.RESET_SHOULD_FETCH_RESULTS }
+    | { type: ActionType.SET_FETCH_RESULTS_FALSE }
     | {
           type: ActionType.SET_STATE;
           payload: Omit<
@@ -222,7 +222,7 @@ function reducer(
         case ActionType.SET_TABLE_NAME: {
             return { ...state, tableName: action.payload };
         }
-        case ActionType.RESET_SHOULD_FETCH_RESULTS: {
+        case ActionType.SET_FETCH_RESULTS_FALSE: {
             return { ...state, shouldFetchResults: false };
         }
         case ActionType.TOGGLE_DIMENSION: {
@@ -600,7 +600,7 @@ export const ExplorerProvider: FC = ({ children }) => {
         if (state.shouldFetchResults) {
             mutate();
             dispatch({
-                type: ActionType.RESET_SHOULD_FETCH_RESULTS,
+                type: ActionType.SET_FETCH_RESULTS_FALSE,
             });
         }
     }, [mutate, state]);

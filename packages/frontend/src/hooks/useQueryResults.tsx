@@ -33,7 +33,7 @@ export const useQueryResults = (state: ExplorerState) => {
             query: MetricQuery;
         }
     >(getQueryResults, {
-        mutationKey: ['queryResults', projectUuid],
+        mutationKey: ['queryResults'],
         onError: (result) => setErrorResponse(result),
     });
 
