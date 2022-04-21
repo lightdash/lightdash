@@ -336,7 +336,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     resultsData={queryResults.data}
                     isLoading={queryResults.isLoading || isLoading}
                     onChartConfigChange={setChartConfig}
-                    onBigNumberLabelChange={setChartConfig}
                     onChartTypeChange={setChartType}
                     onPivotDimensionsChange={setPivotFields}
                 >
