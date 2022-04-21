@@ -199,15 +199,13 @@ By default, we set this to 1 thread.
 You can read more about [configuring threads with dbt here](https://docs.getdbt.com/dbt-cli/configure-your-profile#understanding-threads).
 
 #### Timeout in seconds
-BigQuery supports query timeouts. By default, the timeout is set to 300 seconds. If a dbt model takes longer than this timeout to complete, then BigQuery may cancel the query and issue the following error:
+BigQuery supports query timeouts. By default, the timeout is set to 300 seconds. If a query run by Lightdash takes longer than this timeout to complete, then BigQuery may cancel the query and issue the following error:
 
 ```
 Operation did not complete within the designated timeout.
 ```
 
 To change this timeout, use the `Timeout in seconds` configuration.
-
-If a dbt model takes longer than this timeout to complete, then BigQuery may cancel the query.
 
 #### Priority
 The priority for the BigQuery jobs that Lightdash executes can be configured with the `priority` configuration in your Warehouse Connection settings. The `priority` field can be set to one of `batch` or `interactive`. 
