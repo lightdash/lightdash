@@ -36,7 +36,7 @@ const useBigNumberConfig = (
 
     useEffect(() => {
         setBigNumberName(bigNumberConfigData?.label || label);
-    }, [resultsData]);
+    }, [resultsData, bigNumberConfigData?.label, label]);
 
     const setBigNumberLabel = useCallback((name: string | undefined) => {
         setBigNumberName((prev) => name || prev);

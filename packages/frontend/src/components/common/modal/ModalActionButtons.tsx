@@ -31,7 +31,7 @@ const ModalActionButtons = ({
 
     useEffect(() => {
         setItemId(data.uuid);
-    }, []);
+    }, [data.uuid]);
 
     return (
         <Popover2

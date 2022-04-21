@@ -62,13 +62,13 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         // If no dashboards, we always show the ""
         if (
             dashboards &&
-            dashboards.length == 0 &&
+            dashboards.length === 0 &&
             !isLoading &&
             !showNewDashboardInput
         ) {
             setShowNewDashboardInput(true);
         }
-    }, [dashboards, isLoading]);
+    }, [dashboards, isLoading, dashboardData, showNewDashboardInput]);
 
     return (
         <Dialog

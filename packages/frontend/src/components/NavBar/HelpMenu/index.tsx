@@ -33,7 +33,6 @@ const HelpMenu: FC = () => {
             project_id: projectUuid,
             organization_id: user.data?.organizationUuid,
         };
-
         if ((window as any) && (window as any).Headway) {
             (window as any).Headway.init({
                 selector: '#headway-badge',
