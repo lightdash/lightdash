@@ -330,45 +330,116 @@ You can see more details in [dbt documentation](https://docs.getdbt.com/referenc
 
 #### Account
 
-This is the account to connect to.
+This is your Snowflake [account identifer](https://docs.snowflake.com/en/user-guide/admin-account-identifier.html#format-1-preferred-account-name-in-your-organization).
+
+The easiest way to find this is to login to snowflake in your browser and your account identifier is whatever comes 
+before `snowflakecomputing.com`.
+
+![snowflake-account-url](./assets/snowflake-account-url.png)
+
+For example in the image above, the user logs in via `https://aaa99827.snowflakecomputing.com/console/login#/` so 
+the account identifier is `aaa99827`.
+
+If you don't have access via the browser, you can use the following format `<organization_name>-<account_name>` where
+`organization_name` and `account_name` can be found by following any of the methods listed in 
+[Managing accounts in your organization](https://docs.snowflake.com/en/user-guide/organizations-manage-accounts.html#label-viewing-organization-name).
 
 #### User
 
-This is the database user name.
+This is the login name for your Snowflake user. This is usually the same username you use to login to 
+Snowflake:
+
+![snowflake-login-form](./assets/snowflake-login-form.png) 
+
+Alternatively, you can [create a new user through the snowflake console](https://docs.snowflake.com/en/user-guide/admin-user-management.html) 
+with a username and password specifically for Lightdash to use.
+
+If you're a snowflake admin you can list all users available in the snowflake console:
+
+![snowflake-users-list](./assets/snowflake-users-list.png)
+
 
 #### Password
 
-This is the database user password.
+This is the password your Snowflake user. This is usually the same password you use to login to Snowflake:
+
+![snowflake-login-form](./assets/snowflake-login-form.png)
+
+Alternatively, you can [create a new user through the snowflake console](https://docs.snowflake.com/en/user-guide/admin-user-management.html) 
+with a username and password specifically for Lightdash to use.
+
+If you're a Snowflake admin you can list all users available in the snowflake console:
+
+![snowflake-users-list](./assets/snowflake-users-list.png)
 
 #### Role
 
-This is the role to assume when running queries as the specified user.
+This is the security role that you would like to use when running queries as the specified user. The role must have 
+access to any warehouses, databases, schemas, and tables you want to use.
+
+If you're a Snowflake admin you can list all roles available in the snowflake console:
+
+![snowflake-roles-list](./assets/snowflake-roles-list.png)
+
+You can configure your role to allow read access to all warehouses, databases, schemas, and tables by following the 
+guide for 
+[Creating custom read-only roles](https://docs.snowflake.com/en/user-guide/security-access-control-configure.html#creating-custom-read-only-roles).
 
 #### Database
 
-This is the database name.
+This is the name of your database. The specified user must be granted access to this database. You can see a list of 
+databases available in the snowflake console:
+
+![snowflake-database-list](./assets/snowflake-database-list.png
 
 #### Warehouse
 
-This is the warehouse name.
+This is the name of the warehouse you would like to use for running queries. The specified user must be grantend 
+access to use this warehouse. You can see al list of warehouses available in the snowflake console:
+
+![snowflake-warehouse-list](./assets/snowflake-warehouse-list.png)
 
 #### Schema
 
-This is the schema name.
+This is the default schema used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE 
+or  your local `profiles.yml` file.
+
+If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
+
+![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
+
+If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field 
+named `database`:
+
+```yaml
+my-snowflake-db:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: [account id]
+      user: [username]
+      password: [password]
+      role: [user role]
+      database: [database name]
+      warehouse: [warehouse name]
+      schema: [dbt schema]    # Look for this one!
+```
 
 #### Threads
 
-This is the amount of threads dbt can have with the warehouse.
+This is the number of multiple concurrent queries Lightdash will run against your Snowflake warehouse. Use a higher 
+number if you have a larger warehouse. A larger number of threads will increase performance for many users Lightdash 
+at the same time.
 
 #### Keep client session alive
 
-This is intended to keep Snowflake sessions alive beyond the typical 4 hour timeout limit
+This is intended to keep Snowflake sessions alive beyond the typical 4 hour timeout limit.
 You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive).
 
 #### Query tag
 
-This is Snowflake query tags parameter.
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag).
+A value with which to tag all queries, for later searching in [QUERY_HISTORY view](https://docs.snowflake.com/en/sql-reference/account-usage/query_history.html))
 
 ---
 
