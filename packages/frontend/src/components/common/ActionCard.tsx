@@ -15,7 +15,7 @@ type ActionCardProps<T> = {
 
 export const UpdatedLabel = styled.p`
     color: ${Colors.GRAY2};
-    font-size: 0.75em;
+    font-size: 12px;
     font-weight: 400;
     margin-top: 0.38em;
     line-height: 12px;
