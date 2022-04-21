@@ -1,3 +1,10 @@
+## [0.71.7](https://github.com/lightdash/lightdash/compare/0.71.6...0.71.7) (2022-04-21)
+
+
+### Bug Fixes
+
+* persist pivot layout ([#1834](https://github.com/lightdash/lightdash/issues/1834)) ([69289e0](https://github.com/lightdash/lightdash/commit/69289e06a520a0de3d3aec4114317aa1b8f3acbc))
+
 ## [0.71.6](https://github.com/lightdash/lightdash/compare/0.71.5...0.71.6) (2022-04-21)
 
 
