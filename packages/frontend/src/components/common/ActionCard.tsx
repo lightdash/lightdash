@@ -19,6 +19,7 @@ export const UpdatedLabel = styled.p`
     font-weight: 400;
     margin-top: 0.38em;
     line-height: 12px;
+    margin-bottom: 0;
 `;
 
 export const UpdatedInfo: FC<{
@@ -70,6 +71,7 @@ const ActionCard = <
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 textAlign: 'left',
+                height: 60,
             }}
             rightIcon={
                 <ModalActionButtons
