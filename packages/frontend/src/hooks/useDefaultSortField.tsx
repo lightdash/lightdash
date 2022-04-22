@@ -23,11 +23,10 @@ const useDefaultSortField = (): SortField | undefined => {
 
     return useMemo(() => {
         if (data) {
-            console.log('aqui', data);
             const dimensionFields = getDimensions(data).filter((field) =>
                 dimensions.includes(getFieldId(field)),
             );
-            console.log('depois', dimensionFields);
+
             const timeDimension = dimensionFields.find(({ type }) =>
                 [DimensionType.DATE, DimensionType.TIMESTAMP].includes(type),
             );
