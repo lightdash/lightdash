@@ -63,16 +63,6 @@ export const useExplorerRoute = () => {
                 newParams.set('column_order', stateColumnOrder.join(','));
             }
             if (queryResultsData.metricQuery.tableCalculations.length === 0) {
-                newParams.delete('selected_table_calculations');
-            } else {
-                newParams.set(
-                    'selected_table_calculations',
-                    queryResultsData.metricQuery.tableCalculations
-                        .map(({ name }) => name)
-                        .join(','),
-                );
-            }
-            if (queryResultsData.metricQuery.tableCalculations.length === 0) {
                 newParams.delete('table_calculations');
             } else {
                 newParams.set(
@@ -149,10 +139,6 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                 const tableCalculations = !tableCalculationsSearchParam
                     ? []
                     : JSON.parse(tableCalculationsSearchParam);
-                const selectedTableCalculations =
-                    searchParams
-                        .get('selected_table_calculations')
-                        ?.split(',') || [];
                 const additionalMetricsParam =
                     searchParams.get('additionalMetrics');
                 const additionalMetrics = !additionalMetricsParam
@@ -169,7 +155,6 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                     limit,
                     columnOrder,
                     tableCalculations,
-                    selectedTableCalculations,
                     additionalMetrics,
                     chartType: ChartType.CARTESIAN,
                     chartConfig: undefined,

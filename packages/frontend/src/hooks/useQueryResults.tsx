@@ -48,10 +48,7 @@ export const useQueryResults = (state: ExplorerState) => {
                     sorts: state.sorts,
                     filters: state.filters,
                     limit: state.limit || 500,
-                    tableCalculations: state.tableCalculations.filter(
-                        ({ name }) =>
-                            state.selectedTableCalculations.includes(name),
-                    ),
+                    tableCalculations: state.tableCalculations,
                     additionalMetrics: state.additionalMetrics,
                 },
             });
