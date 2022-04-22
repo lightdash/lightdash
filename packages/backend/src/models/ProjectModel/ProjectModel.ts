@@ -2,6 +2,8 @@ import {
     CreateProject,
     CreateWarehouseCredentials,
     DbtProjectConfig,
+    Explore,
+    ExploreError,
     OrganizationProject,
     Project,
     sensitiveCredentialsFieldNames,
@@ -12,7 +14,10 @@ import {
 } from 'common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
-import { ProjectTableName } from '../../database/entities/projects';
+import {
+    CachedExploresTableName,
+    ProjectTableName,
+} from '../../database/entities/projects';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import { NotExistsError, UnexpectedServerError } from '../../errors';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
@@ -23,6 +28,8 @@ type ProjectModelDependencies = {
     lightdashConfig: LightdashConfig;
     encryptionService: EncryptionService;
 };
+
+const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
 
 export class ProjectModel {
     private database: Knex;
@@ -382,5 +389,57 @@ export class ProjectModel {
                 table_selection_value: data.tableSelection.value,
             })
             .where('project_uuid', projectUuid);
+    }
+
+    async getExploresFromCache(
+        projectUuid: string,
+    ): Promise<(Explore | ExploreError)[]> {
+        const explores = await this.database(CachedExploresTableName)
+            .select(['explores'])
+            .where('project_uuid', projectUuid)
+            .limit(1);
+        if (explores.length > 0) return explores[0].explores;
+        return [];
+    }
+
+    async saveExploresToCache(
+        projectUuid: string,
+        explores: (Explore | ExploreError)[],
+    ): Promise<void> {
+        this.database.transaction(async (trx) => {
+            await trx(CachedExploresTableName)
+                .where('project_uuid', projectUuid)
+                .delete();
+
+            const result = await trx(CachedExploresTableName).insert({
+                project_uuid: projectUuid,
+                explores: JSON.stringify(explores),
+            });
+        });
+    }
+
+    async tryWithProjectLock(
+        projectUuid: string,
+        func: () => void,
+    ): Promise<void> {
+        this.database.transaction(async (trx) => {
+            // pg_advisory_xact_lock takes a 64bit integer as key
+            // we can't use project_uuid (uuidv4) as key, not even a hash,
+            // so we will be using autoinc project_id from DB.
+            const projectLock = await trx.raw(`
+                SELECT
+                    pg_try_advisory_xact_lock(${CACHED_EXPLORES_PG_LOCK_NAMESPACE}, project_id)
+                FROM
+                    projects
+                WHERE
+                    project_uuid = '${projectUuid}'
+                LIMIT 1  `);
+
+            if (projectLock.rows.length === 0) return; // No project with uuid in DB
+            const adquiresLock = projectLock.rows[0].pg_try_advisory_xact_lock;
+            if (!adquiresLock) return; // Lock is taken by another process, exiting
+
+            await func();
+        });
     }
 }

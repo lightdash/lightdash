@@ -1,3 +1,10 @@
+# [0.73.0](https://github.com/lightdash/lightdash/compare/0.72.0...0.73.0) (2022-04-22)
+
+
+### Features
+
+* cache explores in db ([#1817](https://github.com/lightdash/lightdash/issues/1817)) ([68b1689](https://github.com/lightdash/lightdash/commit/68b168907e78462f4a241756fe3490c9839fa92c))
+
 # [0.72.0](https://github.com/lightdash/lightdash/compare/0.71.7...0.72.0) (2022-04-22)
 
 

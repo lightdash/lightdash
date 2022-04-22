@@ -26,7 +26,6 @@ export const useCompliedSql = () => {
             sorts,
             filters,
             limit,
-            selectedTableCalculations,
             tableCalculations,
             additionalMetrics,
         },
@@ -38,9 +37,7 @@ export const useCompliedSql = () => {
         sorts,
         filters,
         limit: limit || 500,
-        tableCalculations: tableCalculations.filter(({ name }) =>
-            selectedTableCalculations.includes(name),
-        ),
+        tableCalculations,
         additionalMetrics,
     };
     const queryKey = ['compiledQuery', tableId, metricQuery, projectUuid];
