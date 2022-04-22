@@ -38,19 +38,11 @@ export const useQueryResults = (state: ExplorerState) => {
     });
 
     const mutate = useCallback(() => {
-        if (!!state.tableName && state.isValidQuery) {
+        if (!!state.savedChartVersion.tableName && state.isValidQuery) {
             mutation.mutate({
                 projectUuid,
-                tableId: state.tableName,
-                query: {
-                    dimensions: Array.from(state.dimensions),
-                    metrics: Array.from(state.metrics),
-                    sorts: state.sorts,
-                    filters: state.filters,
-                    limit: state.limit || 500,
-                    tableCalculations: state.tableCalculations,
-                    additionalMetrics: state.additionalMetrics,
-                },
+                tableId: state.savedChartVersion.tableName,
+                query: state.savedChartVersion.metricQuery,
             });
         }
     }, [mutation, projectUuid, state]);

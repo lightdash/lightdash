@@ -11,7 +11,9 @@ export const useField = (
     field: Field | undefined;
 } => {
     const {
-        state: { tableName: activeTableName },
+        state: {
+            savedChartVersion: { tableName: activeTableName },
+        },
     } = useExplorer();
     const { data, isLoading } = useExplore(activeTableName);
     const fields: Field[] = useMemo(

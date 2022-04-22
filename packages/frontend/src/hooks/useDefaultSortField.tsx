@@ -11,15 +11,23 @@ import { useExplore } from './useExplore';
 
 const useDefaultSortField = (): SortField | undefined => {
     const {
-        state: { dimensions, metrics, columnOrder, tableName },
+        state: {
+            savedChartVersion: {
+                tableName,
+                metricQuery: { dimensions, metrics },
+                tableConfig: { columnOrder },
+            },
+        },
     } = useExplorer();
     const { data } = useExplore(tableName);
 
     return useMemo(() => {
         if (data) {
+            console.log('aqui', data);
             const dimensionFields = getDimensions(data).filter((field) =>
                 dimensions.includes(getFieldId(field)),
             );
+            console.log('depois', dimensionFields);
             const timeDimension = dimensionFields.find(({ type }) =>
                 [DimensionType.DATE, DimensionType.TIMESTAMP].includes(type),
             );

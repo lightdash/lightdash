@@ -41,7 +41,10 @@ export const useExplorerAceEditorCompleter = (): {
     setAceEditor: Dispatch<SetStateAction<Ace.Editor | undefined>>;
 } => {
     const {
-        state: { activeFields, tableName },
+        state: {
+            activeFields,
+            savedChartVersion: { tableName },
+        },
     } = useExplorer();
     const explore = useExplore(tableName);
     const [aceEditor, setAceEditor] = useState<Ace.Editor>();

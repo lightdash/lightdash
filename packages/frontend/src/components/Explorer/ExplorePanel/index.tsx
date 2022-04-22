@@ -28,7 +28,10 @@ type ExplorePanelProps = {
 };
 export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
     const {
-        state: { activeFields, tableName: activeTableName },
+        state: {
+            activeFields,
+            savedChartVersion: { tableName: activeTableName },
+        },
         actions: { toggleActiveField },
     } = useExplorer();
     const status = useServerStatus();

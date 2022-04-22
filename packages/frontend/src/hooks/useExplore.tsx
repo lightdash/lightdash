@@ -18,7 +18,7 @@ export const useExplore = (activeTableName: string | undefined) => {
     return useQuery<ApiExploreResults, ApiError>({
         queryKey,
         queryFn: () => getExplore(projectUuid, activeTableName || ''),
-        enabled: activeTableName !== undefined,
+        enabled: !!activeTableName,
         onError: (result) => setErrorResponse(result),
         retry: false,
     });

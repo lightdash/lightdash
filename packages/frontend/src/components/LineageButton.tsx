@@ -12,7 +12,9 @@ import { EventName } from '../types/Events';
 const Content = () => {
     const [showAll, setShowAll] = useState(false);
     const {
-        state: { tableName },
+        state: {
+            savedChartVersion: { tableName },
+        },
     } = useExplorer();
     const currentExplore = useExplore(tableName);
     if (currentExplore.status !== 'success') return null;

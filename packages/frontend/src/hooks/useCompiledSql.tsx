@@ -20,14 +20,18 @@ export const useCompliedSql = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const {
         state: {
-            tableName: tableId,
-            dimensions,
-            metrics,
-            sorts,
-            filters,
-            limit,
-            tableCalculations,
-            additionalMetrics,
+            savedChartVersion: {
+                tableName: tableId,
+                metricQuery: {
+                    dimensions,
+                    metrics,
+                    sorts,
+                    filters,
+                    limit,
+                    tableCalculations,
+                    additionalMetrics,
+                },
+            },
         },
     } = useExplorer();
     const setErrorResponse = useQueryError();

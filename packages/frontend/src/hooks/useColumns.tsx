@@ -42,9 +42,10 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
     const {
         state: {
             activeFields,
-            sorts: sortFields,
-            tableCalculations,
-            tableName,
+            savedChartVersion: {
+                tableName,
+                metricQuery: { sorts: sortFields, tableCalculations },
+            },
         },
         actions: { toggleSortField },
     } = useExplorer();

@@ -146,7 +146,9 @@ const BasePanel = () => {
 
 const ExploreSideBar = () => {
     const {
-        state: { tableName },
+        state: {
+            savedChartVersion: { tableName },
+        },
         actions: { reset },
     } = useExplorer();
     const { projectUuid } = useParams<{ projectUuid: string }>();

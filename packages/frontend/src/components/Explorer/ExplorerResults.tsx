@@ -18,10 +18,11 @@ export const ExplorerResults = () => {
     const dataColumns = useColumns();
     const {
         state: {
-            tableName: activeTableName,
-            columnOrder: explorerColumnOrder,
-            dimensions,
-            metrics,
+            savedChartVersion: {
+                tableName: activeTableName,
+                metricQuery: { dimensions, metrics },
+                tableConfig: { columnOrder: explorerColumnOrder },
+            },
         },
         queryResults,
         actions: { setColumnOrder: setExplorerColumnOrder },
