@@ -435,6 +435,7 @@ export class ProjectModel {
                     project_uuid = '${projectUuid}'
                 LIMIT 1  `);
 
+            if (projectLock.rows.length === 0) return; // No project with uuid in DB
             const adquiresLock = projectLock.rows[0].pg_try_advisory_xact_lock;
             if (!adquiresLock) return; // Lock is taken by another process, exiting
 
