@@ -26,7 +26,7 @@ const FlexTemplate = css`
 `;
 
 export const InputWrapper = styled(FormGroup)`
-    & label.bp3-label {
+    & label.bp4-label {
         font-weight: 500;
         display: inline-flex;
         gap: 0.214em;
@@ -112,7 +112,7 @@ export const SeriesOptionsWrapper = styled(Collapse)<{
 }>`
     ${GridTemplate}
 
-    .bp3-collapse-body {
+    .bp4-collapse-body {
         grid-column: 2 !important;
     }
 
@@ -131,7 +131,7 @@ export const SeriesOptionsWrapper = styled(Collapse)<{
 `;
 export const SeriesExtraInputWrapper = styled(FormGroup)`
     margin: 0;
-    & label.bp3-label {
+    & label.bp4-label {
         font-weight: 600;
         display: inline-flex;
         gap: 0.214em;

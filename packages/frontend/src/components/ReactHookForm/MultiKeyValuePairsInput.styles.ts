@@ -5,7 +5,7 @@ export const MultiKeyValuePairRow = styled.div`
     align-items: flex-start;
     gap: 5px;
 
-    .bp3-form-group {
+    .bp4-form-group {
         margin-bottom: 0;
         flex: 1;
     }

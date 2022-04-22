@@ -31,15 +31,15 @@ describe('Dashboard List', () => {
         cy.get('[data-cy="settings-button"]').click();
         cy.contains('User management').click();
         cy.findByText('Mary Green')
-            .parents('.bp3-card')
+            .parents('.bp4-card')
             .find('[icon="delete"]')
             .click();
         cy.findByText('Are you sure you want to delete this user ?')
-            .parents('.bp3-dialog')
+            .parents('.bp4-dialog')
             .findByRole('button', { name: 'Delete' })
             .click();
         cy.findByText('Success! User was deleted.').should('be.visible');
-        cy.get('[aria-labelledby="bp3-tab-title_user-settings_userManagement"]')
+        cy.get('[aria-labelledby="bp4-tab-title_user-settings_userManagement"]')
             .contains('Mary Green')
             .should('not.exist');
     });

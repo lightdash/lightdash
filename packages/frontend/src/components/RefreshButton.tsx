@@ -2,7 +2,6 @@ import { KeyCombo, useHotkeys } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import React, { useCallback, useMemo } from 'react';
 import useDefaultSortField from '../hooks/useDefaultSortField';
-import { useServerStatus } from '../hooks/useServerStatus';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
@@ -14,11 +13,9 @@ export const RefreshButton = () => {
         queryResults: { mutate, isLoading: isLoadingResults },
         actions: { setSortFields },
     } = useExplorer();
-    const status = useServerStatus();
     const { track } = useTracking();
     const defaultSort = useDefaultSortField();
     const isDisabled = !isValidQuery;
-    const isLoading = isLoadingResults || status.data === 'loading';
     const onClick = useCallback(async () => {
         if (sorts.length <= 0 && defaultSort) {
             setSortFields([defaultSort]);
@@ -54,14 +51,14 @@ export const RefreshButton = () => {
         <Tooltip2
             content={<KeyCombo combo="cmd+enter" />}
             position="bottom"
-            disabled={isDisabled || isLoading}
+            disabled={isDisabled || isLoadingResults}
         >
             <BigButton
                 intent="primary"
                 style={{ width: 150, marginRight: '10px' }}
                 onClick={onClick}
                 disabled={isDisabled}
-                loading={isLoading}
+                loading={isLoadingResults}
             >
                 Run query
             </BigButton>
