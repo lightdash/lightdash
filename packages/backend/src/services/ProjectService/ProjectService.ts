@@ -432,11 +432,13 @@ export class ProjectService {
             projectUuid,
         );
         if (cachedExplores.length === 0 || forceRefresh) {
-            const explores = this.refreshAllTables(user, projectUuid);
-            explores.then((ex) => {
-                this.projectModel.saveCacheExplores(projectUuid, ex);
+            this.projectModel.lockProcess(projectUuid, () => {
+                const explores = this.refreshAllTables(user, projectUuid);
+                explores.then((ex) => {
+                    this.projectModel.saveCacheExplores(projectUuid, ex);
+                });
+                return explores;
             });
-            return explores;
         }
         return cachedExplores;
     }

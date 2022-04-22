@@ -398,16 +398,6 @@ export class ProjectModel {
             .limit(1);
         if (explores.length > 0) return explores[0].explores;
         return [];
-
-        /* 
-        TODO Should we return error if nor esults ? 
-        const error : ExploreError = {
-            name: "no cache", 
-            label: `no cache for projectUuid ${projectUuid}`,
-            errors: [{type: InlineErrorType.NO_CACHE, message: 'no cache'}]
-        }
-        return [error]
-        */
     }
 
     async saveCacheExplores(
@@ -423,6 +413,30 @@ export class ProjectModel {
                 project_uuid: projectUuid,
                 explores: JSON.stringify(explores),
             });
+        });
+    }
+
+    async lockProcess(projectUuid: string, func: () => void): Promise<void> {
+        this.database.transaction(async (trx) => {
+            // pg_advisory_xact_lock takes a 64bit integer as key
+            // we can't use project_uuid (uuidv4) as key, not even a hash,
+            // so we will be using autoinc project_id from DB.
+            const projects = await this.database('projects')
+                .where('project_uuid', projectUuid)
+                .select('project_id')
+                .limit(1);
+            const projectId = projects[0].project_id;
+
+            // usage: pg_try_advisory_xact_lock(namespace, key)
+            // for projects we will be using namespace=1
+            const rawLock = await this.database.raw(
+                `SELECT pg_try_advisory_xact_lock('1', ${projectId});`,
+            );
+            const adquiresLock = rawLock.rows[0].pg_try_advisory_xact_lock;
+            if (!adquiresLock) return; // Lock is taken by another process, exiting
+
+            await trx.raw(`SELECT pg_advisory_xact_lock('1', ${projectId});`);
+            await func();
         });
     }
 }

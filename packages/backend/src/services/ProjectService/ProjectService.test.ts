@@ -33,6 +33,7 @@ jest.mock('../../models/models', () => ({
         getTablesConfiguration: jest.fn(async () => tablesConfiguration),
         updateTablesConfiguration: jest.fn(),
         getCacheExplores: jest.fn(async () => allExplores),
+        lockProcess: jest.fn((projectUuid, fun) => fun()),
     },
     onboardingModel: {},
     savedChartModel: {
