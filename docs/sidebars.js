@@ -50,6 +50,7 @@ module.exports = {
         "guides/formatting-your-fields",
         "guides/how-to-create-multiple-projects",
         "guides/limiting-data-using-filters",
+        "guides/visualizing-your-results",
       ],
     },
     {
