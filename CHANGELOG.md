@@ -1,3 +1,11 @@
+# [0.74.0](https://github.com/lightdash/lightdash/compare/0.73.0...0.74.0) (2022-04-22)
+
+
+### Features
+
+* allow user to keep using lightdash while it is refreshing ([#1847](https://github.com/lightdash/lightdash/issues/1847)) ([7dfd21c](https://github.com/lightdash/lightdash/commit/7dfd21c0baed5a1e53ac93a2912aebe119acd3d3))
+* upgrade blueprint to version 4 ([#1835](https://github.com/lightdash/lightdash/issues/1835)) ([5f53449](https://github.com/lightdash/lightdash/commit/5f534491b126e953ccbc48144e551dc59e036baf))
+
 # [0.73.0](https://github.com/lightdash/lightdash/compare/0.72.0...0.73.0) (2022-04-22)
 
 
