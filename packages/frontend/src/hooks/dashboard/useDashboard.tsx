@@ -66,7 +66,7 @@ export const useAvailableDashboardFilterTargets = (
     availableTiles: Dashboard['tiles'],
 ): { isLoading: boolean; data: FilterableField[] } => {
     const availableTilesToFilter =
-        dashboard?.tiles.length != 0 ? dashboard?.tiles : availableTiles;
+        dashboard?.tiles.length !== 0 ? dashboard?.tiles : availableTiles;
     const queries = useMemo(() => {
         const savedChartUuids = (availableTilesToFilter || [])
             .map((tile) =>
@@ -79,7 +79,7 @@ export const useAvailableDashboardFilterTargets = (
             queryKey: ['available_filters', savedChartUuid],
             queryFn: () => getChartAvailableFilters(savedChartUuid),
         }));
-    }, [dashboard]);
+    }, [availableTilesToFilter]);
     const results = useQueries(queries) as UseQueryResult<
         FilterableField[],
         ApiError

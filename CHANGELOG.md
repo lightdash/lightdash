@@ -1,3 +1,24 @@
+# [0.72.0](https://github.com/lightdash/lightdash/compare/0.71.7...0.72.0) (2022-04-22)
+
+
+### Features
+
+* add description field to create chart modal ([#1811](https://github.com/lightdash/lightdash/issues/1811)) ([ce82334](https://github.com/lightdash/lightdash/commit/ce82334ac00f2efa318e5d3bf68adb7119267f23))
+
+## [0.71.7](https://github.com/lightdash/lightdash/compare/0.71.6...0.71.7) (2022-04-21)
+
+
+### Bug Fixes
+
+* persist pivot layout ([#1834](https://github.com/lightdash/lightdash/issues/1834)) ([69289e0](https://github.com/lightdash/lightdash/commit/69289e06a520a0de3d3aec4114317aa1b8f3acbc))
+
+## [0.71.6](https://github.com/lightdash/lightdash/compare/0.71.5...0.71.6) (2022-04-21)
+
+
+### Bug Fixes
+
+* code warnings ([#1823](https://github.com/lightdash/lightdash/issues/1823)) ([716f60e](https://github.com/lightdash/lightdash/commit/716f60e5792347f2b9b291303bd98412e52ea723))
+
 ## [0.71.5](https://github.com/lightdash/lightdash/compare/0.71.4...0.71.5) (2022-04-20)
 
 

@@ -97,7 +97,7 @@ const Dashboard = () => {
         if (dashboard?.tiles) {
             setDashboardTiles(dashboard.tiles);
         }
-    }, [dashboard]);
+    }, [dashboard, setDashboardTiles]);
 
     useEffect(() => {
         if (isSuccess) {
@@ -117,53 +117,65 @@ const Dashboard = () => {
         setHaveFiltersChanged,
     ]);
 
-    const updateTiles = useCallback((layout: Layout[]) => {
-        setDashboardTiles((currentDashboardTiles) =>
-            currentDashboardTiles.map((tile) => {
-                const layoutTile = layout.find(({ i }) => i === tile.uuid);
-                if (
-                    layoutTile &&
-                    (tile.x !== layoutTile.x ||
-                        tile.y !== layoutTile.y ||
-                        tile.h !== layoutTile.h ||
-                        tile.w !== layoutTile.w)
-                ) {
-                    return {
-                        ...tile,
-                        x: layoutTile.x,
-                        y: layoutTile.y,
-                        h: layoutTile.h,
-                        w: layoutTile.w,
-                    };
-                }
-                return tile;
-            }),
-        );
-        setHasTilesChanged(true);
-    }, []);
-    const onAddTile = useCallback((tile: IDashboard['tiles'][number]) => {
-        setHasTilesChanged(true);
-        setDashboardTiles((currentDashboardTiles) => [
-            ...currentDashboardTiles,
-            tile,
-        ]);
-    }, []);
-    const onDelete = useCallback((tile: IDashboard['tiles'][number]) => {
-        setDashboardTiles((currentDashboardTiles) =>
-            currentDashboardTiles.filter(
-                (filteredTile) => filteredTile.uuid !== tile.uuid,
-            ),
-        );
-        setHasTilesChanged(true);
-    }, []);
-    const onEdit = useCallback((updatedTile: IDashboard['tiles'][number]) => {
-        setDashboardTiles((currentDashboardTiles) =>
-            currentDashboardTiles.map((tile) =>
-                tile.uuid === updatedTile.uuid ? updatedTile : tile,
-            ),
-        );
-        setHasTilesChanged(true);
-    }, []);
+    const updateTiles = useCallback(
+        (layout: Layout[]) => {
+            setDashboardTiles((currentDashboardTiles) =>
+                currentDashboardTiles.map((tile) => {
+                    const layoutTile = layout.find(({ i }) => i === tile.uuid);
+                    if (
+                        layoutTile &&
+                        (tile.x !== layoutTile.x ||
+                            tile.y !== layoutTile.y ||
+                            tile.h !== layoutTile.h ||
+                            tile.w !== layoutTile.w)
+                    ) {
+                        return {
+                            ...tile,
+                            x: layoutTile.x,
+                            y: layoutTile.y,
+                            h: layoutTile.h,
+                            w: layoutTile.w,
+                        };
+                    }
+                    return tile;
+                }),
+            );
+            setHasTilesChanged(true);
+        },
+        [setDashboardTiles],
+    );
+    const onAddTile = useCallback(
+        (tile: IDashboard['tiles'][number]) => {
+            setHasTilesChanged(true);
+            setDashboardTiles((currentDashboardTiles) => [
+                ...currentDashboardTiles,
+                tile,
+            ]);
+        },
+        [setDashboardTiles],
+    );
+    const onDelete = useCallback(
+        (tile: IDashboard['tiles'][number]) => {
+            setDashboardTiles((currentDashboardTiles) =>
+                currentDashboardTiles.filter(
+                    (filteredTile) => filteredTile.uuid !== tile.uuid,
+                ),
+            );
+            setHasTilesChanged(true);
+        },
+        [setDashboardTiles],
+    );
+    const onEdit = useCallback(
+        (updatedTile: IDashboard['tiles'][number]) => {
+            setDashboardTiles((currentDashboardTiles) =>
+                currentDashboardTiles.map((tile) =>
+                    tile.uuid === updatedTile.uuid ? updatedTile : tile,
+                ),
+            );
+            setHasTilesChanged(true);
+        },
+        [setDashboardTiles],
+    );
 
     const onCancel = useCallback(() => {
         setDashboardTiles(dashboard?.tiles || []);
@@ -171,7 +183,7 @@ const Dashboard = () => {
         history.push(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
         );
-    }, [dashboard, dashboardUuid, history, projectUuid]);
+    }, [dashboard, dashboardUuid, history, projectUuid, setDashboardTiles]);
 
     const updateTitle = (name: string) => {
         setHasTilesChanged(true);
@@ -183,15 +195,15 @@ const Dashboard = () => {
     const [blockedNavigationLocation, setBlockedNavigationLocation] =
         useState<string>();
 
-    const checkReload = (event: BeforeUnloadEvent) => {
-        if (hasTilesChanged || haveFiltersChanged) {
-            const message =
-                'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
-            event.returnValue = message;
-            return message;
-        }
-    };
     useEffect(() => {
+        const checkReload = (event: BeforeUnloadEvent) => {
+            if (hasTilesChanged || haveFiltersChanged) {
+                const message =
+                    'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
+                event.returnValue = message;
+                return message;
+            }
+        };
         window.addEventListener('beforeunload', checkReload);
         return () => window.removeEventListener('beforeunload', checkReload);
     }, [hasTilesChanged, haveFiltersChanged]);
@@ -214,7 +226,13 @@ const Dashboard = () => {
         return () => {
             history.block(() => {});
         };
-    }, [history, hasTilesChanged, haveFiltersChanged]);
+    }, [
+        history,
+        hasTilesChanged,
+        haveFiltersChanged,
+        projectUuid,
+        dashboardUuid,
+    ]);
 
     if (dashboard === undefined) {
         return <Spinner />;

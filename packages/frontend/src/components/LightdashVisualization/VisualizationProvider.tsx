@@ -1,11 +1,4 @@
-import {
-    ApiQueryResults,
-    BigNumber,
-    CartesianChart,
-    ChartConfig,
-    ChartType,
-    Explore,
-} from 'common';
+import { ApiQueryResults, ChartConfig, ChartType, Explore } from 'common';
 import EChartsReact from 'echarts-for-react';
 import React, {
     createContext,
@@ -51,7 +44,6 @@ type Props = {
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
-    onBigNumberLabelChange?: (value: ChartConfig['config']) => void;
     onChartConfigChange?: (value: ChartConfig['config']) => void;
     onChartTypeChange?: (value: ChartType) => void;
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
@@ -66,7 +58,6 @@ export const VisualizationProvider: FC<Props> = ({
     isLoading,
     onSeriesContextMenu,
     onChartConfigChange,
-    onBigNumberLabelChange,
     onChartTypeChange,
     onPivotDimensionsChange,
     children,
@@ -84,22 +75,26 @@ export const VisualizationProvider: FC<Props> = ({
         [onChartTypeChange],
     );
 
-    const chartTypeConfig =
-        chartType === chartConfigs?.type ? chartConfigs.config : undefined;
-
     const {
         bigNumber,
         bigNumberLabel,
         setBigNumberLabel,
         validBigNumberConfig,
-    } = useBigNumberConfig(chartTypeConfig as BigNumber, resultsData, explore);
+    } = useBigNumberConfig(
+        chartConfigs?.type === ChartType.BIG_NUMBER
+            ? chartConfigs.config
+            : undefined,
+        resultsData,
+        explore,
+    );
 
     const cartesianConfig = useCartesianChartConfig(
-        chartTypeConfig as CartesianChart,
+        chartConfigs?.type === ChartType.CARTESIAN
+            ? chartConfigs.config
+            : undefined,
         validPivotDimensions?.[0],
         resultsData,
         chartConfigs !== undefined,
-        setChartType,
         setPivotDimensions,
     );
 
@@ -113,8 +108,27 @@ export const VisualizationProvider: FC<Props> = ({
     );
 
     useEffect(() => {
-        onChartConfigChange?.(validCartesianConfig);
-    }, [validCartesianConfig, onChartConfigChange]);
+        let validConfig: ChartConfig['config'];
+        switch (chartType) {
+            case ChartType.CARTESIAN:
+                validConfig = validCartesianConfig;
+                break;
+            case ChartType.BIG_NUMBER:
+                validConfig = validBigNumberConfig;
+                break;
+            case ChartType.TABLE:
+                break;
+            default:
+                const never: never = chartType;
+                throw new Error(`Unexpected chart type: ${chartType}`);
+        }
+        onChartConfigChange?.(validConfig);
+    }, [
+        validCartesianConfig,
+        onChartConfigChange,
+        chartType,
+        validBigNumberConfig,
+    ]);
 
     useEffect(() => {
         onPivotDimensionsChange?.(validPivotDimensions);
@@ -123,10 +137,6 @@ export const VisualizationProvider: FC<Props> = ({
     useEffect(() => {
         onPivotDimensionsChange?.(validPivotDimensions);
     }, [validPivotDimensions, onPivotDimensionsChange]);
-
-    useEffect(() => {
-        onBigNumberLabelChange?.(validBigNumberConfig);
-    }, [validBigNumberConfig, onBigNumberLabelChange]);
 
     return (
         <Context.Provider

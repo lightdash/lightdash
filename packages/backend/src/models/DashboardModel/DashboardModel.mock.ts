@@ -126,6 +126,7 @@ export const savedChartEntry: SavedChartTable['base'] = {
     saved_query_uuid: '123',
     space_id: 0,
     name: 'chart name',
+    description: 'My description',
     created_at: new Date(),
 };
 

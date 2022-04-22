@@ -52,6 +52,51 @@ This is the folder where your `dbt_project.yml` file is found in the GitHub repo
 - Put `/` if your `dbt_project.yml` file is in the main folder of your repo (e.g. lightdash/lightdash-analytics/dbt_project.yml)
 - Include the path to the sub-folder where your dbt project is if your dbt project is in a sub-folder in your repo. For example, if my project was in lightdash/lightdash-analytics/dbt/dbt_project.yml, I'd write `/dbt` in this field.
 
+#### Host domain 
+
+If you've [customized the domain for your GitHub pages](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/about-custom-domains-and-github-pages), you can add the custom domain for your project in here. 
+
+By default, this is `github.com`
+
+#### Target name
+
+`target` contains information about your dbt connection to your warehouse.
+
+It's the dataset/schema in your data warehouse that Lightdash will look for your dbt models. By default, we set this to be the same value as you have as the default in your `profiles.yml` file.
+
+If you want to change this to be something other than the default `target` defined in dbt, you can enter the target of your choice here (for example `dbt_khindson`.)
+
+To read more about dbt targets, [check out the dbt docs here.](https://docs.getdbt.com/reference/dbt-jinja-functions/target) 
+
+#### Environment variables
+
+If you've used [environment variables in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/dbt-jinja-functions/env_var), you can add these to Lightdash here.
+
+For each environment variable, you'll need to add the `key` + `value` pair for the item. 
+
+You'll normally find these values in a file called `.env` in your dbt project directory. 
+
+For example, I might have something like:
+
+```yaml
+profile:
+  target: prod
+  outputs:
+    prod:
+      type: postgres
+      host: 127.0.0.1
+      user: "{{ env_var('DBT_USER') }}"
+      ....
+```
+
+Then a `.env` file like:
+
+```
+export DBT_USER="myspecialuserkey123"
+```
+
+So, in Lightdash, I'd add a new environment variable and put `key` as `DBT_USER` and `value` as `myspecialuserkey123`.
+
 ----
 
 ### GitLab
@@ -78,6 +123,51 @@ then you don't need to change anything in here. You can just leave the default v
 
 If your dbt project is in a sub-folder in your repo (e.g. `lightdash/lightdash-analytics/dbt/dbt_project.yml`), then
 you'll need to include the path to the sub-folder where your dbt project is (e.g. `/dbt`).
+
+#### Host domain 
+
+If you've [customized the domain for your GitLab pages](https://docs.gitlab.com/ee/user/project/pages/getting_started_part_one.html), you can add the custom domain for your project in here. 
+
+By default, this is `gitlab.io`.
+
+#### Target name
+
+`target` contains information about your dbt connection to your warehouse.
+
+It's the dataset/schema in your data warehouse that Lightdash will look for your dbt models. By default, we set this to be the same value as you have as the default in your `profiles.yml` file.
+
+If you want to change this to be something other than the default `target` defined in dbt, you can enter the target of your choice here (for example `dbt_khindson`.)
+
+To read more about dbt targets, [check out the dbt docs here.](https://docs.getdbt.com/reference/dbt-jinja-functions/target) 
+
+#### Environment variables
+
+If you've used [environment variables in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/dbt-jinja-functions/env_var), you can add these to Lightdash here.
+
+For each environment variable, you'll need to add the `key` + `value` pair for the item. 
+
+You'll normally find these values in a file called `.env` in your dbt project directory. 
+
+For example, I might have something like:
+
+```yaml
+profile:
+  target: prod
+  outputs:
+    prod:
+      type: postgres
+      host: 127.0.0.1
+      user: "{{ env_var('DBT_USER') }}"
+      ....
+```
+
+Then a `.env` file like:
+
+```
+export DBT_USER="myspecialuserkey123"
+```
+
+So, in Lightdash, I'd add a new environment variable and put `key` as `DBT_USER` and `value` as `myspecialuserkey123`.
 
 ----
 
@@ -114,6 +204,45 @@ then you don't need to change anything in here. You can just leave the default v
 If your dbt project is in a sub-folder in your repo (e.g. `lightdash/lightdash-analytics/dbt/dbt_project.yml`), then
 you'll need to include the path to the sub-folder where your dbt project is (e.g. `/dbt`).
 
+#### Target name
+
+`target` contains information about your dbt connection to your warehouse.
+
+It's the dataset/schema in your data warehouse that Lightdash will look for your dbt models. By default, we set this to be the same value as you have as the default in your `profiles.yml` file.
+
+If you want to change this to be something other than the default `target` defined in dbt, you can enter the target of your choice here (for example `dbt_khindson`.)
+
+To read more about dbt targets, [check out the dbt docs here.](https://docs.getdbt.com/reference/dbt-jinja-functions/target) 
+
+#### Environment variables
+
+If you've used [environment variables in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/dbt-jinja-functions/env_var), you can add these to Lightdash here.
+
+For each environment variable, you'll need to add the `key` + `value` pair for the item. 
+
+You'll normally find these values in a file called `.env` in your dbt project directory. 
+
+For example, I might have something like:
+
+```yaml
+profile:
+  target: prod
+  outputs:
+    prod:
+      type: postgres
+      host: 127.0.0.1
+      user: "{{ env_var('DBT_USER') }}"
+      ....
+```
+
+Then a `.env` file like:
+
+```
+export DBT_USER="myspecialuserkey123"
+```
+
+So, in Lightdash, I'd add a new environment variable and put `key` as `DBT_USER` and `value` as `myspecialuserkey123`.
+
 ### Local dbt project
 
 :::caution Prerequisite
@@ -134,51 +263,197 @@ docker compose start
 
 ----
 
+### BitBucket
+
+#### Username
+
+This is the login name for your Bitbucket user. This is usually the same username you use to login to 
+Bitbucket. You can find your username in Bitbucket by:
+1. Going to your avatar in the bottom left and click **Personal settings**.
+2. From the **Account settings** page, check the value next to the **Username**
+
+Alternatively, you can [create a new user through the Bitbucket console](https://confluence.atlassian.com/bitbucketserver/users-and-groups-776640439.html) 
+with a username and password specifically for Lightdash to use.
+
+#### Personal access token
+
+This is used by Lightdash to access your repo.
+See the [instructions for creating a personal access token here](https://confluence.atlassian.com/bitbucketserver/http-access-tokens-939515499.html).
+
+Select `Project read` and `Repository read` scope when you're creating the token.
+
+#### Repository
+This should be in the format `my-org/my-repo`. e.g. `lightdash/lightdash-analytics`
+
+#### Branch
+This is the branch in your Bitbucket repo that Lightdash should sync to. e.g. `main`, `master` or `dev`
+
+By default, we've set this to `main` but you can change it to whatever you'd like.
+
+#### Project directory path
+This is the folder where your `dbt_project.yml` file is found in the Bitbucket repository you entered above.
+
+- Put `/` if your `dbt_project.yml` file is in the main folder of your repo (e.g. lightdash/lightdash-analytics/dbt_project.yml)
+- Include the path to the sub-folder where your dbt project is if your dbt project is in a sub-folder in your repo. For example, if my project was in lightdash/lightdash-analytics/dbt/dbt_project.yml, I'd write `/dbt` in this field.
+
+#### Host domain 
+
+If you've [customized the domain for your Bitbucket server](https://confluence.atlassian.com/bitbucketserver/specify-the-bitbucket-base-url-776640392.html), you can add the custom domain for your project in here. 
+
+#### Target name
+
+`target` contains information about your dbt connection to your warehouse.
+
+It's the dataset/schema in your data warehouse that Lightdash will look for your dbt models. By default, we set this to be the same value as you have as the default in your `profiles.yml` file.
+
+If you want to change this to be something other than the default `target` defined in dbt, you can enter the target of your choice here (for example `dbt_khindson`.)
+
+To read more about dbt targets, [check out the dbt docs here.](https://docs.getdbt.com/reference/dbt-jinja-functions/target) 
+
+#### Environment variables
+
+If you've used [environment variables in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/dbt-jinja-functions/env_var), you can add these to Lightdash here.
+
+For each environment variable, you'll need to add the `key` + `value` pair for the item. 
+
+You'll normally find these values in a file called `.env` in your dbt project directory. 
+
+For example, I might have something like:
+
+```yaml
+profile:
+  target: prod
+  outputs:
+    prod:
+      type: postgres
+      host: 127.0.0.1
+      user: "{{ env_var('DBT_USER') }}"
+      ....
+```
+
+Then a `.env` file like:
+
+```
+export DBT_USER="myspecialuserkey123"
+```
+
+So, in Lightdash, I'd add a new environment variable and put `key` as `DBT_USER` and `value` as `myspecialuserkey123`.
+
+
+----
+
 ## Warehouse connection
+
+We always recommend giving read-only permissions to Lightdash, that way you ensure than no data can be manipulated. See each section below for warehouse specific details.
 
 ### Bigquery
 
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile).
-
 #### Project
 
-This is the GCP project ID.
+This is project ID from Google Cloud Platform for the data that you want to connect Lightdash to.
+
+To find your project ID, head to the [BigQuery Cloud console](https://console.cloud.google.com/).
+
+Once you're in there, click on the project name in the top bar.
+
+![get to projects](./assets/get-to-projects.png)
+
+Then, you should see all of the projects and their project IDs in your organization (that you have access to).
+
+![project id list](./assets/project-id-list.png)
+
+For the project you want to connect Lightdash to, just copy its `id` and pop it into the `project` field in the Warehouse Connection form in Lightdash.
 
 #### Data set
 
-This is the name of your dbt dataset: the dataset in your warehouse where the output of your dbt models is written to.
-If you're not sure what this is, check out the `dataset` value [you've set in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#:~:text=This%20connection%20method%20requires%20local%20OAuth%20via%20gcloud.).
+This is the default dataset used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE 
+or  your local `profiles.yml` file.
+
+If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
+
+![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
+
+If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field 
+named `dataset`:
+
+```yaml
+my-profile:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth
+      project: abc-123
+      dataset: my_dataset # look for this one!
+      ...
+```
 
 #### Location
 
-The location of BigQuery datasets.
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations).
+The data location of the dataset in BigQuery where the output of your dbt models is written to.
+
+The value you enter should be all lower-case (e.g. `us` or `europe-east`).
+
+You can find the location of your dataset [in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations), or in your BigQuery console.
+
+![data location](./assets/data-location.png)
 
 #### Key File
 
-This is the JSON key file.
-You can see [how to create a key here](https://cloud.google.com/docs/authentication/getting-started#cloud-console)
+To connect to BigQuery, you'll need to have a service account that you can use with Lightdash. You can read more about [creating and managing service accounts with Google BigQuery in their docs](https://cloud.google.com/iam/docs/creating-managing-service-accounts). 
+
+:::info
+
+If you're creating a new service account, make sure that you save your JSON key file somewhere safe! You'll need it for connecting to Lightdash.
+
+:::
+
+The service account you use with Lightdash will need to have the following roles in your GCP project:
+- `roles/bigquery.dataViewer` (to see data in your project)
+- `roles/bigquery.jobUser` (to run queries in your project)
+
+If you need to provide access to data across multiple BigQuery projects, the service account will need to be granted `roles/bigquery.dataViewer` on each additional BigQuery project.
+
+Once you have a service account all ready to go, you'll need to add its JSON key file to Lightdash in the `key file` section of the Warehouse Connection page.
 
 #### Threads
-This is the amount of threads dbt can have with the warehouse.
+
+This is the number of multiple concurrent queries Lightdash will run against your Snowflake warehouse. Use a higher 
+number if you have a larger warehouse. A larger number of threads will increase performance for many users Lightdash 
+at the same time.
 
 #### Timeout in seconds
-If a dbt model takes longer than this timeout to complete, then BigQuery may cancel the query.
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#timeouts).
+
+BigQuery supports query timeouts. By default, the timeout is set to 300 seconds. If a query run by Lightdash takes longer than this timeout to complete, then BigQuery may cancel the query and issue the following error:
+
+```
+Operation did not complete within the designated timeout.
+```
+
+To change this timeout, use the `Timeout in seconds` configuration.
 
 #### Priority
-The priority for the BigQuery jobs that dbt executes.
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#priority).
+The priority for the BigQuery jobs that Lightdash executes can be configured with the `priority` configuration in your Warehouse Connection settings. The `priority` field can be set to one of `batch` or `interactive`. 
+
+For more information on query priority, [check out the BigQuery documentation.](https://cloud.google.com/bigquery/docs/running-queries)
 
 #### Retries
 
-The number of times dbt should retry queries that result in unhandled server errors
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#retries).
+The `retries` configuration specifies the number of times Lightdash should retry queries that result in unhandled server errors. 
+
+For example, setting `retries` to 5 means that Lightdash will retry BigQuery queries 5 times with a delay. If the query does not succeed after the fifth attempt, then Lightdash will raise an error.
+
+By default, the number of retries is set to 3.
 
 #### Maximum bytes billed
 
-When a value is configured, queries executed by dbt will fail if they exceed the configured maximum bytes threshold.
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#maximum-bytes-billed).
+If a value for the `Maximum bytes billed` is set, then queries executed by Lightdash will fail if they exceed the configured maximum bytes threshhold. This configuration should be supplied as an integer number of bytes.
+
+For example, setting this to `1000000000` means if a query would bill more than a gigabyte of data (e.g. 2Gb), then BigQuery will reject the query and you'd get an error like this:
+
+```
+  Query exceeded limit for bytes billed: 1000000000. 2000000000 or higher required.
+```
 
 ----
 
@@ -204,7 +479,29 @@ This is the database name.
 
 #### Schema
 
-This is the schema name.
+This is the default schema used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE 
+or  your local `profiles.yml` file.
+
+If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
+
+![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
+
+If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field 
+named `schema`:
+
+```yaml
+company-name:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: [hostname]
+      user: [username]
+      password: [password]
+      port: [port]
+      dbname: [database name]
+      schema: [dbt schema] # look for this one!
+```
 
 #### Port
 
@@ -212,7 +509,9 @@ This is the port where the database is running.
 
 #### Threads
 
-This is the amount of threads dbt can have with the warehouse.
+This is the number of multiple concurrent queries Lightdash will run against your Snowflake warehouse. Use a higher 
+number if you have a larger warehouse. A larger number of threads will increase performance for many users Lightdash 
+at the same time.
 
 #### Keep alive idle (seconds)
 
@@ -251,7 +550,29 @@ This is the database name.
 
 #### Schema
 
-This is the schema name.
+This is the default schema used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE 
+or  your local `profiles.yml` file.
+
+If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
+
+![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
+
+If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field 
+named `schema`:
+
+```yaml
+company-name:
+  target: dev
+  outputs:
+    dev:
+      type: redshift
+      host: hostname.region.redshift.amazonaws.com
+      user: username
+      password: password1
+      port: 5439
+      dbname: analytics
+      schema: analytics # look for this one!
+```
 
 #### Port
 
@@ -259,10 +580,17 @@ This is the port where the database is running.
 
 #### Threads
 
-This is the amount of threads dbt can have with the warehouse.
+This is the number of multiple concurrent queries Lightdash will run against your Snowflake warehouse. Use a higher 
+number if you have a larger warehouse. A larger number of threads will increase performance for many users Lightdash 
+at the same time.
+
 #### Keep alive idle (seconds)
 
 This specifies the amount of seconds with no network activity after which the operating system should send a TCP keepalive message to the client.
+
+If the database closes its connection while Lightdash is waiting for data, you may see the error `SSL SYSCALL error: EOF detected`. Lowering the [`keepalives_idle` value](https://www.postgresql.org/docs/9.3/libpq-connect.html) may prevent this, because the server will send a ping to keep the connection active more frequently.
+
+By default, this value is set to 240 seconds, but can be configured lower (perhaps 120 or 60), at the cost of a chattier network connection.
 
 #### SSL mode
 
@@ -280,45 +608,114 @@ You can see more details in [dbt documentation](https://docs.getdbt.com/referenc
 
 #### Account
 
-This is the account to connect to.
+This is your Snowflake [account identifer](https://docs.snowflake.com/en/user-guide/admin-account-identifier.html#format-1-preferred-account-name-in-your-organization).
+
+The easiest way to find this is to login to snowflake in your browser and your account identifier is whatever comes 
+before `snowflakecomputing.com`.
+
+![snowflake-account-url](./assets/snowflake-account-url.png)
+
+For example in the image above, the user logs in via `https://aaa99827.snowflakecomputing.com/console/login#/` so 
+the account identifier is `aaa99827`.
+
+If you don't have access via the browser, you can use the following format `<organization_name>-<account_name>` where
+`organization_name` and `account_name` can be found by following any of the methods listed in 
+[Managing accounts in your organization](https://docs.snowflake.com/en/user-guide/organizations-manage-accounts.html#label-viewing-organization-name).
 
 #### User
 
-This is the database user name.
+This is the login name for your Snowflake user. This is usually the same username you use to login to 
+Snowflake.
+
+Alternatively, you can [create a new user through the snowflake console](https://docs.snowflake.com/en/user-guide/admin-user-management.html) 
+with a username and password specifically for Lightdash to use.
+
+If you're a snowflake admin you can list all users available in the snowflake console:
+
+![snowflake-users-list](./assets/snowflake-users-list.png)
+
 
 #### Password
 
-This is the database user password.
+This is the password your Snowflake user. This is usually the same password you use to login to Snowflake:
+
+![snowflake-login-form](./assets/snowflake-login-form.png)
+
+Alternatively, you can [create a new user through the snowflake console](https://docs.snowflake.com/en/user-guide/admin-user-management.html) 
+with a username and password specifically for Lightdash to use.
+
+If you're a Snowflake admin you can list all users available in the snowflake console:
+
+![snowflake-users-list](./assets/snowflake-users-list.png)
 
 #### Role
 
-This is the role to assume when running queries as the specified user.
+This is the security role that you would like to use when running queries as the specified user. The role must have 
+access to any warehouses, databases, schemas, and tables you want to use.
+
+If you're a Snowflake admin you can list all roles available in the snowflake console:
+
+![snowflake-roles-list](./assets/snowflake-roles-list.png)
+
+You can configure your role to allow read access to all warehouses, databases, schemas, and tables by following the 
+guide for 
+[Creating custom read-only roles](https://docs.snowflake.com/en/user-guide/security-access-control-configure.html#creating-custom-read-only-roles).
 
 #### Database
 
-This is the database name.
+This is the name of your database. The specified user must be granted access to this database. You can see a list of 
+databases available in the snowflake console:
+
+![snowflake-database-list](./assets/snowflake-database-list.png)
 
 #### Warehouse
 
-This is the warehouse name.
+This is the name of the warehouse you would like to use for running queries. The specified user must be grantend 
+access to use this warehouse. You can see al list of warehouses available in the snowflake console:
+
+![snowflake-warehouse-list](./assets/snowflake-warehouse-list.png)
 
 #### Schema
 
-This is the schema name.
+This is the default schema used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE 
+or  your local `profiles.yml` file.
+
+If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
+
+![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
+
+If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field 
+named `schema`:
+
+```yaml
+my-snowflake-db:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: [account id]
+      user: [username]
+      password: [password]
+      role: [user role]
+      database: [database name]
+      warehouse: [warehouse name]
+      schema: [dbt schema]    # Look for this one!
+```
 
 #### Threads
 
-This is the amount of threads dbt can have with the warehouse.
+This is the number of multiple concurrent queries Lightdash will run against your Snowflake warehouse. Use a higher 
+number if you have a larger warehouse. A larger number of threads will increase performance for many users Lightdash 
+at the same time.
 
 #### Keep client session alive
 
-This is intended to keep Snowflake sessions alive beyond the typical 4 hour timeout limit
+This is intended to keep Snowflake sessions alive beyond the typical 4 hour timeout limit.
 You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive).
 
 #### Query tag
 
-This is Snowflake query tags parameter.
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag).
+A value with which to tag all queries, for later searching in [QUERY_HISTORY view](https://docs.snowflake.com/en/sql-reference/account-usage/query_history.html))
 
 ---
 

@@ -1797,6 +1797,9 @@
                     "name": {
                         "type": "string"
                     },
+                    "description": {
+                        "type": "string"
+                    },
                     "tableName": {
                         "type": "string"
                     },
@@ -1844,6 +1847,9 @@
                         "type": "string"
                     },
                     "name": {
+                        "type": "string"
+                    },
+                    "description": {
                         "type": "string"
                     },
                     "tableName": {

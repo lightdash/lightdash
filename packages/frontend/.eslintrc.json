@@ -22,6 +22,8 @@
     "jsx-a11y/no-noninteractive-element-interactions": "off",
     "react/jsx-props-no-spreading": "off",
     "css-modules/no-unused-class": [2, { "camelCase": true }],
-    "css-modules/no-undef-class": [2, { "camelCase": true }]
+    "css-modules/no-undef-class": [2, { "camelCase": true }],
+    "eqeqeq": "error",
+    "react-hooks/exhaustive-deps": "error"
   }
 }

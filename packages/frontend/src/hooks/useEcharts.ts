@@ -502,6 +502,7 @@ const useEcharts = () => {
         resultsData,
         pivotDimensions,
         originalData,
+        formats,
     ]);
 
     const items = useMemo(() => {
@@ -520,7 +521,7 @@ const useEcharts = () => {
         }
 
         return getEchartAxis({ items, series, validCartesianConfig, formats });
-    }, [items, series, validCartesianConfig]);
+    }, [items, series, validCartesianConfig, formats]);
 
     if (
         !explore ||
