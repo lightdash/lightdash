@@ -2,7 +2,6 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
-    ChartType,
     CompleteCartesianChartLayout,
     getSeriesId,
     isCompleteEchartsConfig,
@@ -12,12 +11,13 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const useCartesianChartConfig = (
-    chartConfigs: CartesianChart,
+    chartConfigs: CartesianChart | undefined,
     pivotKey: string | undefined,
     resultsData: ApiQueryResults | undefined,
     isSaved: boolean,
-    setVisualizationChartType: (chart: ChartType) => void,
-    setPivotDimensions: (s: string[]) => void,
+    setPivotDimensions: React.Dispatch<
+        React.SetStateAction<string[] | undefined>
+    >,
 ) => {
     const [dirtyChartType, setChartType] = useState<CartesianSeriesType>(
         chartConfigs?.eChartsConfig?.series?.[0]?.type ||
@@ -210,11 +210,17 @@ const useCartesianChartConfig = (
                 yField: validYFields.length > 0 ? validYFields : yField,
             };
         };
+
+        const setPivotField = (pivotField: string) => {
+            setPivotDimensions((currentPivots) => {
+                return currentPivots === undefined
+                    ? [pivotField]
+                    : currentPivots;
+            });
+        };
+
         // Only load this if there are no existing chart configuration (not saved)
         if (isSaved) return;
-
-        setPivotDimensions([]); //reset pivot
-        setVisualizationChartType(ChartType.CARTESIAN); // reset table
 
         // one metric , one dimension
         if (availableMetrics.length === 1 && availableDimensions.length === 1) {
@@ -232,7 +238,7 @@ const useCartesianChartConfig = (
                     availableMetrics[0],
                 ]);
             });
-            setPivotDimensions([availableDimensions[1]]);
+            setPivotField(availableDimensions[1]);
         }
 
         // two metrics, one dimension
@@ -253,7 +259,7 @@ const useCartesianChartConfig = (
                     availableMetrics.slice(0, 4),
                 );
             });
-            setPivotDimensions([availableDimensions[1]]);
+            setPivotField(availableDimensions[1]);
         }
 
         // 2+ metrics with no dimensions
@@ -263,9 +269,6 @@ const useCartesianChartConfig = (
                     availableMetrics[1],
                 ]);
             });
-            setVisualizationChartType(ChartType.CARTESIAN);
-
-            setType(CartesianSeriesType.SCATTER, false);
         }
 
         // 2+ dimensions with no metrics
@@ -275,7 +278,6 @@ const useCartesianChartConfig = (
                     availableDimensions[1],
                 ]);
             });
-            setVisualizationChartType(ChartType.TABLE);
         }
 
         // else , default behaviour
@@ -310,7 +312,6 @@ const useCartesianChartConfig = (
         isSaved,
         setPivotDimensions,
         setType,
-        setVisualizationChartType,
     ]);
 
     // Generate expected series

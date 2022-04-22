@@ -13,7 +13,6 @@ import {
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import {
-    ChartConfig,
     ChartType,
     countTotalFilterRules,
     CreateSavedChartVersion,
@@ -88,14 +87,21 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             columnOrder,
             tableCalculations,
             selectedTableCalculations,
+            pivotFields,
+            chartType,
+            chartConfig,
         },
         queryResults,
-        actions: { setRowLimit, setFilters },
+        actions: {
+            setRowLimit,
+            setFilters,
+            setPivotFields,
+            setChartType,
+            setChartConfig,
+        },
     } = useExplorer();
     const explore = useExplore(tableName);
     const { data, isLoading } = useSavedQuery({ id: savedQueryUuid });
-    const [validChartConfig, setValidChartConfig] =
-        useState<ChartConfig['config']>();
 
     const update = useAddVersionMutation();
     const history = useHistory();
@@ -106,9 +112,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const totalActiveFilters: number = countTotalFilterRules(filters);
     const chartId = savedQueryUuid || '';
     const { mutate: duplicateChart } = useDuplicateMutation(chartId);
-    const [activeVizTab, setActiveVizTab] = useState<ChartType>(
-        ChartType.CARTESIAN,
-    );
 
     const searchParams = new URLSearchParams(location.search);
 
@@ -116,16 +119,14 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         ? undefined
         : savedQueryUuid;
 
-    const [pivotDimensions, setPivotDimensions] = useState<string[]>();
-
     const validConfig = () => {
-        switch (activeVizTab) {
+        switch (chartType) {
             case ChartType.TABLE:
                 return undefined;
             case ChartType.BIG_NUMBER:
-                return validChartConfig;
+                return chartConfig;
             default:
-                return validChartConfig || { series: [] };
+                return chartConfig || { series: [] };
         }
     };
     const queryData: CreateSavedChartVersion | undefined = tableName
@@ -143,11 +144,10 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                   ),
                   additionalMetrics: [],
               },
-              pivotConfig: pivotDimensions
-                  ? { columns: pivotDimensions }
-                  : undefined,
+              pivotConfig:
+                  pivotFields.length > 0 ? { columns: pivotFields } : undefined,
               chartConfig: {
-                  type: activeVizTab,
+                  type: chartType,
                   config: validConfig(),
               },
               tableConfig: {
@@ -217,9 +217,9 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
 
     useEffect(() => {
         if (data) {
-            setActiveVizTab(data.chartConfig.type);
+            setChartType(data.chartConfig.type);
         }
-    }, [data]);
+    }, [data, setChartType]);
 
     const hasUnsavedChanges = (): boolean => {
         const filterData = (
@@ -330,15 +330,14 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             <Card style={{ padding: 5, overflowY: 'scroll' }} elevation={1}>
                 <VisualizationProvider
                     chartConfigs={data?.chartConfig}
-                    chartType={activeVizTab}
+                    chartType={chartType}
                     pivotDimensions={data?.pivotConfig?.columns}
                     tableName={tableName}
                     resultsData={queryResults.data}
                     isLoading={queryResults.isLoading || isLoading}
-                    onChartConfigChange={setValidChartConfig}
-                    onBigNumberLabelChange={setValidChartConfig}
-                    onChartTypeChange={setActiveVizTab}
-                    onPivotDimensionsChange={setPivotDimensions}
+                    onChartConfigChange={setChartConfig}
+                    onChartTypeChange={setChartType}
+                    onPivotDimensionsChange={setPivotFields}
                 >
                     <div
                         style={{
@@ -373,7 +372,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                 }}
                             >
                                 <VisualizationCardOptions />
-                                {activeVizTab === ChartType.BIG_NUMBER ? (
+                                {chartType === ChartType.BIG_NUMBER ? (
                                     <BigNumberConfigPanel />
                                 ) : (
                                     <ChartConfigPanel />

@@ -28,8 +28,11 @@ export const useFilters = () => {
     );
 
     const addFilter = useCallback(
-        (field: FilterableField, value: any, syncState?: boolean) =>
-            setFilters(addFilterRule({ filters, field, value }), !!syncState),
+        (field: FilterableField, value: any, shouldFetchResults?: boolean) =>
+            setFilters(
+                addFilterRule({ filters, field, value }),
+                !!shouldFetchResults,
+            ),
         [filters, setFilters],
     );
 

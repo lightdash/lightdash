@@ -25,7 +25,7 @@ import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
 
 type Props = {
     filters: Filters;
-    setFilters: (value: Filters, syncState: boolean) => void;
+    setFilters: (value: Filters, shouldFetchResults: boolean) => void;
 };
 
 const FiltersForm: FC<Props> = ({ filters, setFilters }) => {

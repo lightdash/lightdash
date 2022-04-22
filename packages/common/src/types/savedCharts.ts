@@ -92,6 +92,7 @@ export type SavedChart = {
     uuid: string;
     projectUuid: string;
     name: string;
+    description?: string;
     tableName: string;
     metricQuery: MetricQuery;
     pivotConfig?: {
