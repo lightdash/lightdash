@@ -13,12 +13,20 @@ type ActionCardProps<T> = {
     isChart?: boolean;
 };
 
+export const LinkButtonWrapper = styled(LinkButton)`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left !important;
+    height: 60px;
+`;
 export const UpdatedLabel = styled.p`
     color: ${Colors.GRAY2};
-    font-size: 0.75em;
+    font-size: 12px;
     font-weight: 400;
     margin-top: 0.38em;
     line-height: 12px;
+    margin-bottom: 0;
 `;
 
 export const UpdatedInfo: FC<{
@@ -62,15 +70,9 @@ const ActionCard = <
         isChart,
     } = props;
     return (
-        <LinkButton
+        <LinkButtonWrapper
             href={url}
             minimal
-            style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                textAlign: 'left',
-            }}
             rightIcon={
                 <ModalActionButtons
                     data={data}
@@ -82,7 +84,7 @@ const ActionCard = <
         >
             <strong>{name}</strong>
             <UpdatedInfo updatedAt={data.updatedAt} user={data.updatedByUser} />
-        </LinkButton>
+        </LinkButtonWrapper>
     );
 };
 
