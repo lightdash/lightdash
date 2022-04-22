@@ -11,7 +11,7 @@ describe('Explore', () => {
     beforeEach(() => {
         Cypress.Cookies.preserveOnce('connect.sid');
     });
-    /*
+
     it('Should query orders', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
@@ -21,7 +21,7 @@ describe('Explore', () => {
         cy.get('th b').first().should('have.text', 'First name').click();
         cy.get('td', { timeout: 10000 }).eq(1).should('have.text', 'Aaron');
     });
-*/
+
     it('Should save chart', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
@@ -50,7 +50,7 @@ describe('Explore', () => {
 
         cy.findByText('Success! Chart was saved.');
     });
-    /*
+
     it('Should change chart config type', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
@@ -110,7 +110,7 @@ describe('Explore', () => {
         cy.get('option[value="top"]').parent().select('top');
 
         cy.get('g').children('text').should('have.length.greaterThan', 30); // with labels
-    }); */
+    });
     // TODO test `save chart` from chart list at home
     // TODO test `save chart` from dashboard on `edit chart`
     // TODO test `save chart` from dashboard on `explore here`
