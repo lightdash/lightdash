@@ -222,7 +222,6 @@ export const useAddVersionMutation = () => {
     >(addVersionSavedQuery, {
         mutationKey: ['saved_query_version'],
         onSuccess: async (data) => {
-            console.log('invalidating spaces query');
             await queryClient.invalidateQueries('spaces');
 
             queryClient.setQueryData(['saved_query', data.uuid], data);
