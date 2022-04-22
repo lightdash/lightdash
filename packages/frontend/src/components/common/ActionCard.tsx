@@ -33,7 +33,7 @@ export const UpdatedInfo: FC<{
     updatedAt: Date;
     user: Partial<SessionUser> | undefined;
 }> = ({ updatedAt, user }) => {
-    const timeAgo = moment(updatedAt).fromNow(); //useTimeAgo(updatedAt);
+    const timeAgo = moment(updatedAt).fromNow();
 
     return (
         <UpdatedLabel>
