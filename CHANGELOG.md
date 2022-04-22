@@ -1,3 +1,10 @@
+## [0.74.1](https://github.com/lightdash/lightdash/compare/0.74.0...0.74.1) (2022-04-22)
+
+
+### Bug Fixes
+
+* updated chart delay ([#1866](https://github.com/lightdash/lightdash/issues/1866)) ([b0f3e12](https://github.com/lightdash/lightdash/commit/b0f3e12b8eae1ae18491354ce0f83514fd9544c4))
+
 # [0.74.0](https://github.com/lightdash/lightdash/compare/0.73.0...0.74.0) (2022-04-22)
 
 
