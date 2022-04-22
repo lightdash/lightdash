@@ -17,7 +17,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unixodbc-dev \
     unzip \
     wget \
-    postgresql-client \ 
     && apt-get clean
 
 # dbt
