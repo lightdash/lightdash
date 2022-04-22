@@ -1,8 +1,8 @@
 import { Colors } from '@blueprintjs/core';
 import { SessionUser, UpdatedByUser } from 'common';
-import moment from 'moment';
 import React, { Dispatch, FC, SetStateAction } from 'react';
 import styled from 'styled-components';
+import { useTimeAgo } from '../../hooks/useTimeAgo';
 import LinkButton from './LinkButton';
 import ModalActionButtons from './modal/ModalActionButtons';
 
@@ -33,7 +33,7 @@ export const UpdatedInfo: FC<{
     updatedAt: Date;
     user: Partial<SessionUser> | undefined;
 }> = ({ updatedAt, user }) => {
-    const timeAgo = moment(updatedAt).fromNow();
+    const timeAgo = useTimeAgo(updatedAt);
 
     return (
         <UpdatedLabel>
