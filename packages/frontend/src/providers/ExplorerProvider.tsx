@@ -22,7 +22,6 @@ import { useQueryResults } from '../hooks/useQueryResults';
 
 export enum ActionType {
     RESET,
-    SET_STATE,
     SET_TABLE_NAME,
     TOGGLE_DIMENSION,
     TOGGLE_METRIC,
@@ -44,13 +43,6 @@ export enum ActionType {
 type Action =
     | { type: ActionType.RESET }
     | { type: ActionType.SET_FETCH_RESULTS_FALSE }
-    | {
-          type: ActionType.SET_STATE;
-          payload: Omit<
-              Required<ExplorerReduceState>,
-              'chartType' | 'chartConfig' | 'pivotFields'
-          >;
-      }
     | { type: ActionType.SET_TABLE_NAME; payload: string }
     | {
           type:
@@ -104,7 +96,7 @@ type Action =
           payload: ChartConfig['config'] | undefined;
       };
 
-interface ExplorerReduceState {
+export interface ExplorerReduceState {
     shouldFetchResults: boolean;
     chartName: string | undefined;
     tableName: string | undefined;
@@ -132,12 +124,6 @@ interface ExplorerContext {
     queryResults: ReturnType<typeof useQueryResults>;
     actions: {
         reset: () => void;
-        setState: (
-            state: Omit<
-                Required<ExplorerReduceState>,
-                'chartType' | 'chartConfig' | 'pivotFields'
-            >,
-        ) => void;
         setTableName: (tableName: string) => void;
         toggleActiveField: (fieldId: FieldId, isDimension: boolean) => void;
         toggleSortField: (fieldId: FieldId) => void;
@@ -207,17 +193,6 @@ function reducer(
     switch (action.type) {
         case ActionType.RESET: {
             return defaultState;
-        }
-        case ActionType.SET_STATE: {
-            return {
-                ...state,
-                ...action.payload,
-                columnOrder: calcColumnOrder(action.payload.columnOrder, [
-                    ...action.payload.dimensions,
-                    ...action.payload.metrics,
-                    ...action.payload.selectedTableCalculations,
-                ]),
-            };
         }
         case ActionType.SET_TABLE_NAME: {
             return { ...state, tableName: action.payload };
@@ -415,8 +390,13 @@ function reducer(
     }
 }
 
-export const ExplorerProvider: FC = ({ children }) => {
-    const [reducerState, dispatch] = useReducer(reducer, defaultState);
+export const ExplorerProvider: FC<{
+    initialState?: ExplorerReduceState;
+}> = ({ initialState, children }) => {
+    const [reducerState, dispatch] = useReducer(
+        reducer,
+        initialState || defaultState,
+    );
 
     const [activeFields, isValidQuery] = useMemo<
         [Set<FieldId>, boolean]
@@ -434,24 +414,6 @@ export const ExplorerProvider: FC = ({ children }) => {
             type: ActionType.RESET,
         });
     }, []);
-
-    const setState = useCallback(
-        (
-            state: Omit<
-                Required<ExplorerReduceState>,
-                'chartType' | 'chartConfig' | 'pivotFields'
-            >,
-        ) => {
-            dispatch({
-                type: ActionType.SET_STATE,
-                payload: state,
-                options: {
-                    shouldFetchResults: true,
-                },
-            });
-        },
-        [],
-    );
 
     const setTableName = useCallback((tableName: string) => {
         dispatch({
@@ -611,7 +573,6 @@ export const ExplorerProvider: FC = ({ children }) => {
         actions: useMemo(
             () => ({
                 reset,
-                setState,
                 setTableName,
                 toggleActiveField,
                 toggleSortField,
@@ -628,7 +589,6 @@ export const ExplorerProvider: FC = ({ children }) => {
             }),
             [
                 reset,
-                setState,
                 setTableName,
                 toggleActiveField,
                 toggleSortField,
