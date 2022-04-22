@@ -12,7 +12,7 @@ In Lightdash, the data in your results tables can be visualized in a bunch of di
 - [Scatter chart](#scatter-chart)
 - [Mixed chart](#mixed-chart)
 
-To change how your data is displayed, go into the `charts` tab in the Explore view. You have the option to change the chart type shown by selecting a style from the drop-down:
+The visualization type that you pick determines how Lightdash shows the data series in your chart. To change how your data is displayed, go into the `charts` tab in the Explore view. You have the option to change the chart type shown by selecting a style from the drop-down:
 
 ![chart-types](./assets/chart-types.png)
 
@@ -120,7 +120,7 @@ For bar charts, this is also where you have the option to stack your bars, or le
 
 #### Series
 
-The series tab is where you can adjust the configurations for each of the series on your chart.
+The series tab is where you can adjust how your chart shows each data series. A **data series** is a set of related data points plotted on a chart. For example, the number of new users created each day over a set of dates is a series. In a bar chart, a series is represented by bars of the same color; in a line chart, a series is represented by a single line. You can see a list of the series for your chart in the `series` menu, and on the chart legend.
 
 ![configure series options](./assets/series-configure.png)
 
