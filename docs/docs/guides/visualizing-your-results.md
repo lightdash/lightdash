@@ -54,6 +54,8 @@ You can also stack column graphs to compare proportions across different groups.
 
 ![stacked column chart](./assets/stacked-column-chart.png)
 
+You can see more details about column chart configurations [here](#configure-your-bar-line-and-scatter-charts).
+
 ### Line chart
 
 Line charts are used to show changes in a number over a short or long period of time. When smaller changes exist, or you have lots of x-axis values, line charts are better to use than column graphs.
@@ -64,11 +66,15 @@ Line charts with multiple lines can also be used to compare changes over the sam
 
 ![multiple line chart](./assets/multi-line-chart.png)
 
+You can see more details about line chart configurations [here](#configure-your-bar-line-and-scatter-charts).
+
 ### Bar chart
 
 Bar charts are just column charts, except the columns are placed on the chart horizontally instead of vertically. Bar charts are useful when you're trying to group a number by something with a lot of possible values. They're also useful if your groups have really long label names.
 
 ![bar chart](./assets/bar-chart.png)
+
+You can see more details about bar chart configurations [here](#configure-your-bar-line-and-scatter-charts).
 
 ### Scatter chart
 
@@ -79,6 +85,8 @@ A scatter chart is useful if you want to to look at the relationship, a.k.a. cor
 You can group your scatter chart using a third variable. This will make the points on the scatter the same colour if they have the same group value.
 
 ![scatter chart grouped](./assets/scatter-chart-grouped.png)
+
+You can see more details about scatter chart configurations [here](#configure-your-bar-line-and-scatter-charts).
 
 ### Mixed chart
 
@@ -96,32 +104,39 @@ You can easily revert all of the series on your chart to a single type using the
 
 ![mixed chart convert back to one type](./assets/mixed-chart-convert-to-one.png)
 
-#### Options for bar, line and scatter charts
+You can see more details about mixed chart configurations [here](#configure-your-bar-line-and-scatter-charts).
+
+### Configure your bar, line and scatter charts
 
 These chart types have very similar configuration options, so we thought it would be easiest to talk about them all together:
 
-Data
+#### Layout
 
-Here’s where you can choose the columns you want to plot on your x and y axes. This is mostly useful if your table or result set contains more than two columns, like if you’re trying to graph fields from an unaggregated table. You can also add additional metrics to your chart by clicking the Add another series link below the y-axis dropdown, or break your current metric out by an additional dimension by clicking the Add a series breakout link below the x-axis dropdown (note that you can’t add an additional series breakout if you have more than one metric/series).
+This is where you can pick the columns from your results table that you want to plot on your x and y axes or that you want to group by.
 
-Display
+For bar charts, this is also where you have the option to stack your bars, or leave them unstacked (grouped).
 
-There’s quite a bit you can do in this tab, but the options available will depend on the data in your chart.
+![configure layout options](./assets/configure-layout.png)
 
-Set the colors and labels for the series on your chart.
-Change the style of your lines for Line and Area charts, and choose whether to display dots on the lines.
-Specify how to handle missing values. Use the “Replace missing values with…” setting to change how your chart deals with missing values. You can use linear interpolation, or display those points as zero or as nothing.
-Add a goal line. Goal lines can be used in conjunction with alerts to send an email or a Slack message when your metric cross this line.
-Add a trend line. If you’re looking at a time series chart, you can turn on a trend line to show where things are heading.
-Show values on data points. The default setting will try and fit as many values on your chart as will fit nicely, but you can also force Metabase to show the values for each and every data point, which it will do begrudgingly. Showing values also works with multi-series charts, but be aware that the more data points you add, the more crowded with values the charts will become.
-Axes
+#### Series
 
-There are three main ways to configure axes:
+The series tab is where you can adjust the configurations for each of the series on your chart.
 
-Change the scale for your axes. If you’re looking at a time series chart, your x-axis can use a time series scale or an ordinal one. When using “Timeseries”, it will always be displayed in ascending order, so oldest to newest, while “Ordinal” will display in the order the data is returned. Your y-axis can use a linear, power, or logarithmic scale.
-Hide or show the tick marks on your axes. You can also choose to rotate the tick marks on the x-axis to help them fit better.
-Edit the range of your y-axis. Metabase sets an automatic range by default, but you can toggle that off and input a custom minimum and maximum value for the y-axis if you’d like.
-Labels
+![configure series options](./assets/series-configure.png)
 
-Here’s where you can choose to hide the label for your x- or y-axis. You can also customize the text for your axes labels here.
+The options available in here will depend on the data in your chart. But, in here you can:
 
+- Set the chart type of your series.
+- Put your series on a left or right y-axis.
+- Show the value labels on data points.
+- Show or hide a series from your chart.
+
+If you have multiple series in your chart, you can adjust these settings for **_all_** of the series in your chart at once using the configuration options at the top. Or, you can adjust these setting for each of the series individually.
+
+![configure multiple series options](./assets/multiple-series-configure.png)
+
+#### Axes
+
+Here’s where you can customize the text for your axes labels.
+
+![configure axes options](./assets/configure-axes.png)
