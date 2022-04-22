@@ -1,53 +1,32 @@
 import { SEED_PROJECT } from 'common';
 
-describe(
-    'Dashboard',
-    {
-        retries: {
-            runMode: 3,
-        },
-    },
-    () => {
-        before(() => {
-            // @ts-ignore
-            cy.login();
-            // @ts-ignore
-            cy.preCompileProject();
+describe('Dashboard', () => {
+    before(() => {
+        // @ts-ignore
+        cy.login();
+        // @ts-ignore
+        cy.preCompileProject();
+    });
 
-            ['chat.lightdash.com', 'www.loom.com'].forEach((url) => {
-                cy.intercept(
-                    {
-                        hostname: url,
-                    },
-                    (req) => {
-                        req.destroy();
-                    },
-                );
-            });
-        });
+    beforeEach(() => {
+        Cypress.Cookies.preserveOnce('connect.sid');
+    });
 
-        beforeEach(() => {
-            Cypress.Cookies.preserveOnce('connect.sid');
-        });
+    it('Should see dasbhoard', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
 
-        it('Should see dasbhoard', () => {
-            cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
+        cy.findByText('Jaffle dashboard').click();
 
-            cy.findByText('Jaffle dashboard').click();
+        cy.contains("What's our total revenue to date");
+        cy.contains("What's the average spend per customer?");
 
-            cy.findByText("What's our total revenue to date?", {
-                timeout: 10000,
-            });
-            cy.findByText("What's the average spend per customer?");
+        cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
 
-            cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
+        cy.findAllByText('No chart available').should('have.length', 0);
+        cy.findAllByText('No data available').should('have.length', 0);
 
-            cy.findAllByText('No chart available').should('have.length', 0);
-            cy.findAllByText('No data available').should('have.length', 0);
-
-            cy.get('.echarts-for-react').should('have.length', 3); // Charts
-            cy.contains('Payments total revenue'); // BigNumber chart
-            cy.get('th').should('have.length', 5); // Table chart
-        });
-    },
-);
+        cy.get('.echarts-for-react').should('have.length', 3); // Charts
+        cy.contains('Payments total revenue'); // BigNumber chart
+        cy.get('th').should('have.length', 5); // Table chart
+    });
+});
