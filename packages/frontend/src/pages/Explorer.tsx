@@ -1,4 +1,3 @@
-import { Card } from '@blueprintjs/core';
 import React from 'react';
 import { Explorer } from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
@@ -7,6 +6,7 @@ import {
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
 import { ExplorerProvider } from '../providers/ExplorerProvider';
+import { Main, PageContainer, SideBar } from './Explorer.styles';
 
 const ExplorerWithUrlParams = () => {
     useExplorerRoute();
@@ -17,45 +17,14 @@ const ExplorerPage = () => {
     const explorerUrlState = useExplorerUrlState();
     return (
         <ExplorerProvider initialState={explorerUrlState}>
-            <div
-                style={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    flexWrap: 'nowrap',
-                    justifyContent: 'stretch',
-                    alignItems: 'flex-start',
-                }}
-            >
-                <Card
-                    style={{
-                        height: 'calc(100vh - 50px)',
-                        flexBasis: '400px',
-                        flexGrow: 0,
-                        flexShrink: 0,
-                        marginRight: '10px',
-                        overflow: 'hidden',
-                        position: 'sticky',
-                        top: '50px',
-                        paddingBottom: 0,
-                    }}
-                    elevation={1}
-                >
+            <PageContainer>
+                <SideBar elevation={1}>
                     <ExploreSideBar />
-                </Card>
-                <div
-                    style={{
-                        padding: '10px 10px',
-                        flexGrow: 1,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'flex-start',
-                        alignItems: 'stretch',
-                        minWidth: 0,
-                    }}
-                >
+                </SideBar>
+                <Main>
                     <ExplorerWithUrlParams />
-                </div>
-            </div>
+                </Main>
+            </PageContainer>
         </ExplorerProvider>
     );
 };
