@@ -33,7 +33,7 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
     } = useExplorer();
     const status = useServerStatus();
     const exploresResult = useExplore(activeTableName);
-    if (exploresResult.status === 'loading' || status.data === 'loading') {
+    if (exploresResult.status === 'loading') {
         return <SideBarLoadingState />;
     }
     if (exploresResult.data) {
