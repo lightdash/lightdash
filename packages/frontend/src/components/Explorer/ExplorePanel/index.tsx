@@ -16,7 +16,7 @@ const SideBarLoadingState = () => (
     <LoadingStateWrapper large>
         {[0, 1, 2, 3, 4].map((idx) => (
             <React.Fragment key={idx}>
-                <MenuItem className="bp3-skeleton" text="Hello" />
+                <MenuItem className="bp4-skeleton" text="Hello" />
                 <MenuDivider />
             </React.Fragment>
         ))}

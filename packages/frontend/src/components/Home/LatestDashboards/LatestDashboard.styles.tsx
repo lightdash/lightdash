@@ -8,7 +8,7 @@ export const DashboardLinkButton = styled(LinkButton)`
     text-align: center;
     align-items: center;
     justify-content: center;
-    .bp3-button-text {
+    .bp4-button-text {
         width: 100%;
         display: flex;
         align-items: center;
