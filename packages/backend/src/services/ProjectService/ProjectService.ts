@@ -51,8 +51,6 @@ export class ProjectService {
 
     onboardingModel: OnboardingModel;
 
-    cachedExplores: Record<string, Promise<(Explore | ExploreError)[]>>;
-
     projectLoading: Record<string, boolean>;
 
     projectAdapters: Record<string, ProjectAdapter>;
@@ -68,7 +66,6 @@ export class ProjectService {
         this.onboardingModel = onboardingModel;
         this.projectAdapters = {};
         this.projectLoading = {};
-        this.cachedExplores = {};
         this.savedChartModel = savedChartModel;
     }
 
@@ -81,7 +78,7 @@ export class ProjectService {
         if (isLoading) {
             return 'loading';
         }
-        const explore = this.cachedExplores[projectUuid];
+        const explore = this.projectModel.getExploresFromCache(projectUuid);
         if (explore === undefined) {
             return 'error';
         }
@@ -128,7 +125,7 @@ export class ProjectService {
         });
         this.projectLoading[projectUuid] = false;
         this.projectAdapters[projectUuid] = adapter;
-        this.cachedExplores[projectUuid] = Promise.resolve(explores);
+        this.projectModel.saveExploresToCache(projectUuid, explores);
         return this.getProject(projectUuid, user);
     }
 
@@ -169,7 +166,7 @@ export class ProjectService {
         });
         this.projectLoading[projectUuid] = false;
         this.projectAdapters[projectUuid] = adapter;
-        this.cachedExplores[projectUuid] = Promise.resolve(explores);
+        this.projectModel.saveExploresToCache(projectUuid, explores);
     }
 
     private static async testProjectAdapter(
@@ -431,13 +428,19 @@ export class ProjectService {
         projectUuid: string,
         forceRefresh: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
-        if (!this.cachedExplores[projectUuid] || forceRefresh) {
-            this.cachedExplores[projectUuid] = this.refreshAllTables(
-                user,
-                projectUuid,
-            );
+        const cachedExplores = await this.projectModel.getExploresFromCache(
+            projectUuid,
+        );
+        if (cachedExplores.length === 0 || forceRefresh) {
+            this.projectModel.tryWithProjectLock(projectUuid, () => {
+                const explores = this.refreshAllTables(user, projectUuid);
+                explores.then((ex) => {
+                    this.projectModel.saveExploresToCache(projectUuid, ex);
+                });
+                return explores;
+            });
         }
-        return this.cachedExplores[projectUuid];
+        return cachedExplores;
     }
 
     async getAllExploresSummary(
