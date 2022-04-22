@@ -10,12 +10,13 @@ type DbSavedChart = {
     space_id: number;
     name: string;
     created_at: Date;
+    description: string | undefined;
 };
 
 export type SavedChartTable = Knex.CompositeTableType<
     DbSavedChart,
-    Pick<DbSavedChart, 'name' | 'space_id'>,
-    Pick<DbSavedChart, 'name'>
+    Pick<DbSavedChart, 'name' | 'space_id' | 'description'>,
+    Pick<DbSavedChart, 'name' | 'description'>
 >;
 
 export type DbSavedChartVersion = {
