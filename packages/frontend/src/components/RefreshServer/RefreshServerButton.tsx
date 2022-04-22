@@ -1,14 +1,12 @@
 import { Spinner } from '@blueprintjs/core';
 import React, { ComponentProps, FC } from 'react';
-import { useRefreshServer } from '../hooks/useRefreshServer';
-import { useServerStatus } from '../hooks/useServerStatus';
-import { useTracking } from '../providers/TrackingProvider';
-import { EventName } from '../types/Events';
-import { BigButton } from './common/BigButton';
+import { useRefreshServer } from '../../hooks/useRefreshServer';
+import { useServerStatus } from '../../hooks/useServerStatus';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
+import { BigButton } from '../common/BigButton';
 
-export const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (
-    props,
-) => {
+const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     const refreshServer = useRefreshServer();
     const status = useServerStatus();
     const { track } = useTracking();
@@ -48,3 +46,5 @@ export const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (
         </BigButton>
     );
 };
+
+export default RefreshServerButton;

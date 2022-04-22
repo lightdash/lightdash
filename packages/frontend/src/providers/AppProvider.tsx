@@ -54,6 +54,7 @@ interface AppContext {
     user: UseQueryResult<User, ApiError>;
     showToastSuccess: (props: Message) => void;
     showToastError: (props: Message) => void;
+    showToastInfo: (props: Message) => void;
     errorLogs: ErrorLogs;
 }
 
@@ -182,6 +183,17 @@ export const AppProvider: FC = ({ children }) => {
         },
         [showToastSuccess],
     );
+
+    const showToastInfo = useCallback<AppContext['showToastInfo']>(
+        (props) => {
+            showToastSuccess({
+                icon: 'refresh',
+                ...props,
+            });
+        },
+        [showToastSuccess],
+    );
+
     const errorLogs = useErrorLogs();
 
     const value = {
@@ -189,6 +201,7 @@ export const AppProvider: FC = ({ children }) => {
         user,
         showToastSuccess,
         showToastError,
+        showToastInfo,
         errorLogs,
     };
 
