@@ -6,7 +6,7 @@ export const InputWrapper = styled(FormGroup)`
     width: 25em;
     padding: 1.429em 1.429em;
     margin: 0;
-    & label.bp3-label {
+    & label.bp4-label {
         display: inline-flex;
         gap: 0.214em;
         color: ${Colors.DARK_GRAY1};

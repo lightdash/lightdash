@@ -1,6 +1,5 @@
 import {
     Button,
-    Menu,
     MenuItem,
     PopoverInteractionKind,
     Position,
@@ -9,7 +8,7 @@ import {
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { FC } from 'react';
 import NavLink from '../../NavLink';
-import { FirstItem, SpinnerWrapper } from '../NavBar.styles';
+import { FirstItem, MenuWrapper, SpinnerWrapper } from '../NavBar.styles';
 
 interface Props {
     projectId: string | undefined;
@@ -25,7 +24,7 @@ const ExploreMenu: FC<Props> = ({ projectId }) => (
                         <Spinner size={20} />
                     </SpinnerWrapper>
                 ) : (
-                    <Menu>
+                    <MenuWrapper>
                         <NavLink to={`/projects/${projectId}/tables`}>
                             <FirstItem role="button" icon="th" text="Tables" />
                         </NavLink>
@@ -36,7 +35,7 @@ const ExploreMenu: FC<Props> = ({ projectId }) => (
                                 text="SQL Runner"
                             />
                         </NavLink>
-                    </Menu>
+                    </MenuWrapper>
                 )
             }
             position={Position.BOTTOM_LEFT}

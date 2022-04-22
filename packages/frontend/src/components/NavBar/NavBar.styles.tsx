@@ -1,4 +1,11 @@
-import { HTMLSelect, MenuItem, Navbar, NavbarDivider } from '@blueprintjs/core';
+import {
+    Colors,
+    HTMLSelect,
+    Menu,
+    MenuItem,
+    Navbar,
+    NavbarDivider,
+} from '@blueprintjs/core';
 import styled from 'styled-components';
 import { ReactComponent as Logo } from '../../svgs/logo.svg';
 
@@ -20,6 +27,18 @@ export const LogoContainer = styled(Logo)`
 export const SpinnerWrapper = styled.div`
     padding: 0.714em;
     min-width: 6.429em;
+`;
+
+export const MenuWrapper = styled(Menu)`
+    a[class~='bp4-selected'] {
+        background: ${Colors.BLUE3} !important;
+        color: ${Colors.WHITE} !important;
+
+        svg,
+        path {
+            fill: ${Colors.WHITE} !important;
+        }
+    }
 `;
 
 export const FirstItem = styled(MenuItem)`

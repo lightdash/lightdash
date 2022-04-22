@@ -84,7 +84,7 @@ describe('Explore', () => {
 
         cy.findByText('Customers first name'); // Different label ¿?
 
-        cy.get('.bp3-icon-panel-table').first().parent().click();
+        cy.get('.bp4-icon-panel-table').first().parent().click();
         cy.findByText('Big number').click();
 
         cy.findByText('Orders Unique order count'); // Different label ¿?

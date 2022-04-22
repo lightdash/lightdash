@@ -17,7 +17,7 @@ export const TableCalculationDialog = styled(Dialog)`
 export const DialogButtons = styled.div`
     align-items: center;
 
-    .bp3-switch {
+    .bp4-switch {
         margin: 0;
     }
 `;
@@ -33,10 +33,10 @@ export const TableCalculationSqlInputWrapper = styled.div`
     display: flex;
     flex-direction: column;
 
-    .bp3-form-group {
+    .bp4-form-group {
         flex: 1;
 
-        .bp3-form-content {
+        .bp4-form-content {
             flex: 1;
             min-height: 100px;
 

@@ -174,7 +174,7 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                     <CSVLink
                         role="button"
                         tabIndex={0}
-                        className="bp3-button"
+                        className="bp4-button"
                         data={tableData.map((row: {}) => row)}
                         filename={`lightdash-${
                             activeTableName || 'export'

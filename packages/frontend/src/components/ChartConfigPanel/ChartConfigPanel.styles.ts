@@ -3,7 +3,7 @@ import styled from 'styled-components';
 
 export const InputWrapper = styled(FormGroup)`
     margin: 1.357em 0 0;
-    & label.bp3-label {
+    & label.bp4-label {
         display: inline-flex;
         gap: 0.214em;
         color: ${Colors.DARK_GRAY1};
@@ -33,7 +33,7 @@ export const GridLabel = styled.span`
 export const GridFieldLabel = styled.span`
     display: inline-flex;
     gap: 0.357em;
-    & .bp3-icon {
+    & .bp4-icon {
         margin: 2px;
     }
 `;
@@ -61,7 +61,7 @@ export const AxisFieldDropdown = styled.div`
     align-items: center;
     padding: 0.357em 0;
 
-    .bp3-input-group .bp3-input {
+    .bp4-input-group .bp4-input {
         border: 0.7px solid ${Colors.LIGHT_GRAY1};
         box-sizing: border-box;
         box-shadow: inset 0px 1px 1px rgba(16, 22, 26, 0.2);
@@ -86,7 +86,7 @@ export const StackingWrapper = styled(ButtonGroup)`
     display: grid !important;
     grid-template-columns: 1fr 1fr;
 
-    .bp3-active {
+    .bp4-active {
         background: #4b86be !important;
         color: ${Colors.WHITE};
     }

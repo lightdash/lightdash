@@ -15,7 +15,7 @@ const DownloadCsvButton: FC<Props> = ({ fileName, rows }) => {
         <CSVLink
             role="button"
             tabIndex={0}
-            className="bp3-button"
+            className="bp4-button"
             data={rows}
             filename={`lightdash-${fileName || 'export'}-${new Date()
                 .toISOString()

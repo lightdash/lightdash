@@ -5,17 +5,17 @@
     overflow: hidden;
 }
 
-.user-settings .bp3-vertical {
+.user-settings .bp4-vertical {
     flex: 1;
     overflow: hidden;
 }
 
-.user-settings .bp3-vertical .bp3-tab-list {
+.user-settings .bp4-vertical .bp4-tab-list {
     border-right: 1px solid #bfccd6;
     padding: 20px;
 }
 
-.user-settings .bp3-tab-panel {
+.user-settings .bp4-tab-panel {
     padding: 20px;
     flex: 1;
     overflow: auto;
