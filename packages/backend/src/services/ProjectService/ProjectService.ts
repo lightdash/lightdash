@@ -78,7 +78,7 @@ export class ProjectService {
         if (isLoading) {
             return 'loading';
         }
-        const explore = this.projectModel.getCacheExplores(projectUuid);
+        const explore = this.projectModel.getExploresFromCache(projectUuid);
         if (explore === undefined) {
             return 'error';
         }
@@ -125,7 +125,7 @@ export class ProjectService {
         });
         this.projectLoading[projectUuid] = false;
         this.projectAdapters[projectUuid] = adapter;
-        this.projectModel.saveCacheExplores(projectUuid, explores);
+        this.projectModel.saveExploresToCache(projectUuid, explores);
         return this.getProject(projectUuid, user);
     }
 
@@ -166,7 +166,7 @@ export class ProjectService {
         });
         this.projectLoading[projectUuid] = false;
         this.projectAdapters[projectUuid] = adapter;
-        this.projectModel.saveCacheExplores(projectUuid, explores);
+        this.projectModel.saveExploresToCache(projectUuid, explores);
     }
 
     private static async testProjectAdapter(
@@ -428,14 +428,14 @@ export class ProjectService {
         projectUuid: string,
         forceRefresh: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
-        const cachedExplores = await this.projectModel.getCacheExplores(
+        const cachedExplores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );
         if (cachedExplores.length === 0 || forceRefresh) {
-            this.projectModel.lockProcess(projectUuid, () => {
+            this.projectModel.tryWithProjectLock(projectUuid, () => {
                 const explores = this.refreshAllTables(user, projectUuid);
                 explores.then((ex) => {
-                    this.projectModel.saveCacheExplores(projectUuid, ex);
+                    this.projectModel.saveExploresToCache(projectUuid, ex);
                 });
                 return explores;
             });

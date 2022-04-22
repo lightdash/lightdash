@@ -15,7 +15,7 @@ import {
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
-    CacheExploresTableName,
+    CachedExploresTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
@@ -28,6 +28,8 @@ type ProjectModelDependencies = {
     lightdashConfig: LightdashConfig;
     encryptionService: EncryptionService;
 };
+
+const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
 
 export class ProjectModel {
     private database: Knex;
@@ -389,10 +391,10 @@ export class ProjectModel {
             .where('project_uuid', projectUuid);
     }
 
-    async getCacheExplores(
+    async getExploresFromCache(
         projectUuid: string,
     ): Promise<(Explore | ExploreError)[]> {
-        const explores = await this.database(CacheExploresTableName)
+        const explores = await this.database(CachedExploresTableName)
             .select(['explores'])
             .where('project_uuid', projectUuid)
             .limit(1);
@@ -400,42 +402,42 @@ export class ProjectModel {
         return [];
     }
 
-    async saveCacheExplores(
+    async saveExploresToCache(
         projectUuid: string,
         explores: (Explore | ExploreError)[],
     ): Promise<void> {
         this.database.transaction(async (trx) => {
-            await trx(CacheExploresTableName)
+            await trx(CachedExploresTableName)
                 .where('project_uuid', projectUuid)
                 .delete();
 
-            const result = await trx(CacheExploresTableName).insert({
+            const result = await trx(CachedExploresTableName).insert({
                 project_uuid: projectUuid,
                 explores: JSON.stringify(explores),
             });
         });
     }
 
-    async lockProcess(projectUuid: string, func: () => void): Promise<void> {
+    async tryWithProjectLock(
+        projectUuid: string,
+        func: () => void,
+    ): Promise<void> {
         this.database.transaction(async (trx) => {
             // pg_advisory_xact_lock takes a 64bit integer as key
             // we can't use project_uuid (uuidv4) as key, not even a hash,
             // so we will be using autoinc project_id from DB.
-            const projects = await this.database('projects')
-                .where('project_uuid', projectUuid)
-                .select('project_id')
-                .limit(1);
-            const projectId = projects[0].project_id;
+            const projectLock = await trx.raw(`
+                SELECT
+                    pg_try_advisory_xact_lock(${CACHED_EXPLORES_PG_LOCK_NAMESPACE}, project_id)
+                FROM
+                    projects
+                WHERE
+                    project_uuid = '${projectUuid}'
+                LIMIT 1  `);
 
-            // usage: pg_try_advisory_xact_lock(namespace, key)
-            // for projects we will be using namespace=1
-            const rawLock = await this.database.raw(
-                `SELECT pg_try_advisory_xact_lock('1', ${projectId});`,
-            );
-            const adquiresLock = rawLock.rows[0].pg_try_advisory_xact_lock;
+            const adquiresLock = projectLock.rows[0].pg_try_advisory_xact_lock;
             if (!adquiresLock) return; // Lock is taken by another process, exiting
 
-            await trx.raw(`SELECT pg_advisory_xact_lock('1', ${projectId});`);
             await func();
         });
     }
