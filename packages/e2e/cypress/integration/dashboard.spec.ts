@@ -1,6 +1,6 @@
 import { SEED_PROJECT } from 'common';
 
-describe('Explore', () => {
+describe('Dashboard', () => {
     before(() => {
         // @ts-ignore
         cy.login();
