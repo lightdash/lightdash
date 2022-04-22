@@ -1,5 +1,5 @@
 import moment from 'moment';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useInterval } from 'react-use';
 
 export const useTimeAgo = (timeStamp: Date, interval: number = 10000) => {
@@ -7,5 +7,8 @@ export const useTimeAgo = (timeStamp: Date, interval: number = 10000) => {
     useInterval(() => {
         setTimeAgo(moment(timeStamp).fromNow());
     }, interval);
+    useEffect(() => {
+        setTimeAgo(moment(timeStamp).fromNow());
+    }, [timeStamp]);
     return timeAgo;
 };
