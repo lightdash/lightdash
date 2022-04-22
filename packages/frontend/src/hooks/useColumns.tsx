@@ -42,7 +42,7 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
     const {
         state: {
             activeFields,
-            savedChartVersion: {
+            unsavedChartVersion: {
                 tableName,
                 metricQuery: { sorts: sortFields, tableCalculations },
             },

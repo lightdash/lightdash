@@ -76,7 +76,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         { fromExplorer?: boolean; explore?: boolean } | undefined
     >();
     const {
-        state: { chartName, savedChartVersion },
+        state: { chartName, unsavedChartVersion },
         queryResults,
         actions: {
             setRowLimit,
@@ -86,7 +86,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             setChartConfig,
         },
     } = useExplorer();
-    const explore = useExplore(savedChartVersion.tableName);
+    const explore = useExplore(unsavedChartVersion.tableName);
     const { data, isLoading } = useSavedQuery({ id: savedQueryUuid });
 
     const update = useAddVersionMutation();
@@ -96,7 +96,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     const [sqlIsOpen, setSqlIsOpen] = useState<boolean>(false);
     const [vizIsOpen, setVizisOpen] = useState<boolean>(!!savedQueryUuid);
     const totalActiveFilters: number = countTotalFilterRules(
-        savedChartVersion.metricQuery.filters,
+        unsavedChartVersion.metricQuery.filters,
     );
     const chartId = savedQueryUuid || '';
     const { mutate: duplicateChart } = useDuplicateMutation(chartId);
@@ -159,10 +159,10 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     }, [explore.data, queryResults.data]);
 
     const handleSavedQueryUpdate = () => {
-        if (savedQueryUuid && savedChartVersion) {
+        if (savedQueryUuid && unsavedChartVersion) {
             update.mutate({
                 uuid: savedQueryUuid,
-                payload: savedChartVersion,
+                payload: unsavedChartVersion,
             });
         }
     };
@@ -180,7 +180,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
 
         return (
             JSON.stringify(filterData(data)) !==
-            JSON.stringify(filterData(savedChartVersion))
+            JSON.stringify(filterData(unsavedChartVersion))
         );
     };
     return (
@@ -227,11 +227,11 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                             </Menu>
                         }
                         placement="bottom"
-                        disabled={!savedChartVersion.tableName}
+                        disabled={!unsavedChartVersion.tableName}
                     >
                         <BigButton
                             icon="more"
-                            disabled={!savedChartVersion.tableName}
+                            disabled={!unsavedChartVersion.tableName}
                             style={{
                                 height: 40,
                                 width: 40,
@@ -265,7 +265,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                 <Collapse isOpen={filterIsOpen}>
                     <FiltersProvider fieldsMap={fieldsWithSuggestions}>
                         <FiltersForm
-                            filters={savedChartVersion.metricQuery.filters}
+                            filters={unsavedChartVersion.metricQuery.filters}
                             setFilters={setFilters}
                         />
                     </FiltersProvider>
@@ -276,9 +276,9 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             <Card style={{ padding: 5, overflowY: 'scroll' }} elevation={1}>
                 <VisualizationProvider
                     chartConfigs={data?.chartConfig}
-                    chartType={savedChartVersion.chartConfig.type}
+                    chartType={unsavedChartVersion.chartConfig.type}
                     pivotDimensions={data?.pivotConfig?.columns}
-                    tableName={savedChartVersion.tableName}
+                    tableName={unsavedChartVersion.tableName}
                     resultsData={queryResults.data}
                     isLoading={queryResults.isLoading || isLoading}
                     onChartConfigChange={setChartConfig}
@@ -318,7 +318,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                 }}
                             >
                                 <VisualizationCardOptions />
-                                {savedChartVersion.chartConfig.type ===
+                                {unsavedChartVersion.chartConfig.type ===
                                 ChartType.BIG_NUMBER ? (
                                     <BigNumberConfigPanel />
                                 ) : (
@@ -333,7 +333,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                                 : 'Save chart'
                                         }
                                         disabled={
-                                            !savedChartVersion.tableName ||
+                                            !unsavedChartVersion.tableName ||
                                             !hasUnsavedChanges()
                                         }
                                         onClick={
@@ -347,7 +347,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                         <Popover2
                                             placement="bottom"
                                             disabled={
-                                                !savedChartVersion.tableName
+                                                !unsavedChartVersion.tableName
                                             }
                                             content={
                                                 <Menu>
@@ -416,7 +416,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                             <Button
                                                 icon="more"
                                                 disabled={
-                                                    !savedChartVersion.tableName
+                                                    !unsavedChartVersion.tableName
                                                 }
                                             />
                                         </Popover2>
@@ -465,7 +465,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         </H5>
                         {resultsIsOpen && (
                             <LimitButton
-                                limit={savedChartVersion.metricQuery.limit}
+                                limit={unsavedChartVersion.metricQuery.limit}
                                 onLimitChange={setRowLimit}
                             />
                         )}
@@ -481,7 +481,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                         >
                             <AddColumnButton />
                             <DownloadCsvButton
-                                fileName={savedChartVersion.tableName}
+                                fileName={unsavedChartVersion.tableName}
                                 rows={
                                     queryResults.data &&
                                     getResultValues(queryResults.data.rows)
@@ -517,10 +517,10 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                     <RenderedSql />
                 </Collapse>
             </Card>
-            {savedChartVersion && (
+            {unsavedChartVersion && (
                 <CreateSavedQueryModal
                     isOpen={isQueryModalOpen}
-                    savedData={savedChartVersion}
+                    savedData={unsavedChartVersion}
                     onClose={() => setIsQueryModalOpen(false)}
                 />
             )}

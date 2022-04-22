@@ -45,7 +45,7 @@ const SavedExplorer = () => {
                     ? {
                           shouldFetchResults: true,
                           chartName: data?.name,
-                          savedChartVersion: {
+                          unsavedChartVersion: {
                               tableName: data.tableName,
                               chartConfig: data.chartConfig,
                               metricQuery: data.metricQuery,

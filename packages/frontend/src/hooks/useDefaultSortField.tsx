@@ -12,7 +12,7 @@ import { useExplore } from './useExplore';
 const useDefaultSortField = (): SortField | undefined => {
     const {
         state: {
-            savedChartVersion: {
+            unsavedChartVersion: {
                 tableName,
                 metricQuery: { dimensions, metrics },
                 tableConfig: { columnOrder },

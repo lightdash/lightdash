@@ -43,7 +43,7 @@ export const useExplorerAceEditorCompleter = (): {
     const {
         state: {
             activeFields,
-            savedChartVersion: { tableName },
+            unsavedChartVersion: { tableName },
         },
     } = useExplorer();
     const explore = useExplore(tableName);

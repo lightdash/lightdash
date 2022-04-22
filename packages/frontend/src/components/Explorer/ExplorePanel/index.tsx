@@ -30,7 +30,7 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
     const {
         state: {
             activeFields,
-            savedChartVersion: { tableName: activeTableName },
+            unsavedChartVersion: { tableName: activeTableName },
         },
         actions: { toggleActiveField },
     } = useExplorer();

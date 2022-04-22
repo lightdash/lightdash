@@ -13,7 +13,7 @@ const Content = () => {
     const [showAll, setShowAll] = useState(false);
     const {
         state: {
-            savedChartVersion: { tableName },
+            unsavedChartVersion: { tableName },
         },
     } = useExplorer();
     const currentExplore = useExplore(tableName);

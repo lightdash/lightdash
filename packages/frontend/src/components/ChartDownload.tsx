@@ -113,7 +113,7 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
 
     const {
         state: {
-            savedChartVersion: { tableName: activeTableName },
+            unsavedChartVersion: { tableName: activeTableName },
         },
     } = useExplorer();
 

@@ -101,7 +101,7 @@ type Action =
 export interface ExplorerReduceState {
     shouldFetchResults: boolean;
     chartName: string | undefined;
-    savedChartVersion: CreateSavedChartVersion;
+    unsavedChartVersion: CreateSavedChartVersion;
 }
 
 export interface ExplorerState extends ExplorerReduceState {
@@ -143,7 +143,7 @@ const Context = createContext<ExplorerContext | undefined>(undefined);
 const defaultState: ExplorerReduceState = {
     shouldFetchResults: false,
     chartName: '',
-    savedChartVersion: {
+    unsavedChartVersion: {
         tableName: '',
         metricQuery: {
             dimensions: [],
@@ -224,8 +224,8 @@ function reducer(
         case ActionType.SET_TABLE_NAME: {
             return {
                 ...state,
-                savedChartVersion: {
-                    ...state.savedChartVersion,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
                     tableName: action.payload,
                 },
             };
@@ -235,28 +235,29 @@ function reducer(
         }
         case ActionType.TOGGLE_DIMENSION: {
             const dimensions = toggleArrayValue(
-                state.savedChartVersion.metricQuery.dimensions,
+                state.unsavedChartVersion.metricQuery.dimensions,
                 action.payload,
             );
             return {
                 ...state,
-                savedChartVersion: {
-                    ...state.savedChartVersion,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
                     metricQuery: {
-                        ...state.savedChartVersion.metricQuery,
+                        ...state.unsavedChartVersion.metricQuery,
                         dimensions,
-                        sorts: state.savedChartVersion.metricQuery.sorts.filter(
+                        sorts: state.unsavedChartVersion.metricQuery.sorts.filter(
                             (s) => s.fieldId !== action.payload,
                         ),
                     },
                     tableConfig: {
-                        ...state.savedChartVersion.tableConfig,
+                        ...state.unsavedChartVersion.tableConfig,
                         columnOrder: calcColumnOrder(
-                            state.savedChartVersion.tableConfig.columnOrder,
+                            state.unsavedChartVersion.tableConfig.columnOrder,
                             [
                                 ...dimensions,
-                                ...state.savedChartVersion.metricQuery.metrics,
-                                ...state.savedChartVersion.metricQuery.tableCalculations.map(
+                                ...state.unsavedChartVersion.metricQuery
+                                    .metrics,
+                                ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
                                     ({ name }) => name,
                                 ),
                             ],
@@ -267,29 +268,29 @@ function reducer(
         }
         case ActionType.TOGGLE_METRIC: {
             const metrics = toggleArrayValue(
-                state.savedChartVersion.metricQuery.metrics,
+                state.unsavedChartVersion.metricQuery.metrics,
                 action.payload,
             );
             return {
                 ...state,
-                savedChartVersion: {
-                    ...state.savedChartVersion,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
                     metricQuery: {
-                        ...state.savedChartVersion.metricQuery,
+                        ...state.unsavedChartVersion.metricQuery,
                         metrics,
-                        sorts: state.savedChartVersion.metricQuery.sorts.filter(
+                        sorts: state.unsavedChartVersion.metricQuery.sorts.filter(
                             (s) => s.fieldId !== action.payload,
                         ),
                     },
                     tableConfig: {
-                        ...state.savedChartVersion.tableConfig,
+                        ...state.unsavedChartVersion.tableConfig,
                         columnOrder: calcColumnOrder(
-                            state.savedChartVersion.tableConfig.columnOrder,
+                            state.unsavedChartVersion.tableConfig.columnOrder,
                             [
-                                ...state.savedChartVersion.metricQuery
+                                ...state.unsavedChartVersion.metricQuery
                                     .dimensions,
                                 ...metrics,
-                                ...state.savedChartVersion.metricQuery.tableCalculations.map(
+                                ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
                                     ({ name }) => name,
                                 ),
                             ],
@@ -301,30 +302,31 @@ function reducer(
         case ActionType.TOGGLE_SORT_FIELD: {
             const sortFieldId = action.payload;
             const activeFields = new Set([
-                ...state.savedChartVersion.metricQuery.dimensions,
-                ...state.savedChartVersion.metricQuery.metrics,
+                ...state.unsavedChartVersion.metricQuery.dimensions,
+                ...state.unsavedChartVersion.metricQuery.metrics,
             ]);
             if (!activeFields.has(sortFieldId)) {
                 return state;
             }
-            const sortField = state.savedChartVersion.metricQuery.sorts.find(
+            const sortField = state.unsavedChartVersion.metricQuery.sorts.find(
                 (sf) => sf.fieldId === sortFieldId,
             );
             return {
                 ...state,
-                savedChartVersion: {
-                    ...state.savedChartVersion,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
                     metricQuery: {
-                        ...state.savedChartVersion.metricQuery,
+                        ...state.unsavedChartVersion.metricQuery,
                         sorts: !sortField
                             ? [
-                                  ...state.savedChartVersion.metricQuery.sorts,
+                                  ...state.unsavedChartVersion.metricQuery
+                                      .sorts,
                                   {
                                       fieldId: sortFieldId,
                                       descending: false,
                                   },
                               ]
-                            : state.savedChartVersion.metricQuery.sorts.reduce<
+                            : state.unsavedChartVersion.metricQuery.sorts.reduce<
                                   SortField[]
                               >((acc, sf) => {
                                   if (sf.fieldId !== sortFieldId) {
@@ -348,15 +350,15 @@ function reducer(
         }
         case ActionType.SET_SORT_FIELDS: {
             const activeFields = new Set([
-                ...state.savedChartVersion.metricQuery.dimensions,
-                ...state.savedChartVersion.metricQuery.metrics,
+                ...state.unsavedChartVersion.metricQuery.dimensions,
+                ...state.unsavedChartVersion.metricQuery.metrics,
             ]);
             return {
                 ...state,
-                savedChartVersion: {
-                    ...state.savedChartVersion,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
                     metricQuery: {
-                        ...state.savedChartVersion.metricQuery,
+                        ...state.unsavedChartVersion.metricQuery,
                         sorts: action.payload.filter((sf) =>
                             activeFields.has(sf.fieldId),
                         ),
@@ -367,10 +369,10 @@ function reducer(
         case ActionType.SET_ROW_LIMIT: {
             return {
                 ...state,
-                savedChartVersion: {
-                    ...state.savedChartVersion,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
                     metricQuery: {
-                        ...state.savedChartVersion.metricQuery,
+                        ...state.unsavedChartVersion.metricQuery,
                         limit: action.payload,
                     },
                 },
@@ -379,10 +381,10 @@ function reducer(
         case ActionType.SET_FILTERS: {
             return {
                 ...state,
-                savedChartVersion: {
-                    ...state.savedChartVersion,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
                     metricQuery: {
-                        ...state.savedChartVersion.metricQuery,
+                        ...state.unsavedChartVersion.metricQuery,
                         filters: action.payload,
                     },
                 },
@@ -391,10 +393,10 @@ function reducer(
         case ActionType.SET_ADDITIONAL_METRICS: {
             return {
                 ...state,
-                savedChartVersion: {
-                    ...state.savedChartVersion,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
                     metricQuery: {
-                        ...state.savedChartVersion.metricQuery,
+                        ...state.unsavedChartVersion.metricQuery,
                         additionalMetrics: action.payload,
                     },
                 },
@@ -403,14 +405,14 @@ function reducer(
         case ActionType.SET_COLUMN_ORDER: {
             return {
                 ...state,
-                savedChartVersion: {
-                    ...state.savedChartVersion,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
                     tableConfig: {
-                        ...state.savedChartVersion.tableConfig,
+                        ...state.unsavedChartVersion.tableConfig,
                         columnOrder: calcColumnOrder(action.payload, [
-                            ...state.savedChartVersion.metricQuery.dimensions,
-                            ...state.savedChartVersion.metricQuery.metrics,
-                            ...state.savedChartVersion.metricQuery.tableCalculations.map(
+                            ...state.unsavedChartVersion.metricQuery.dimensions,
+                            ...state.unsavedChartVersion.metricQuery.metrics,
+                            ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
                                 ({ name }) => name,
                             ),
                         ]),
@@ -420,25 +422,26 @@ function reducer(
         }
         case ActionType.ADD_TABLE_CALCULATION: {
             const newTableCalculations = [
-                ...state.savedChartVersion.metricQuery.tableCalculations,
+                ...state.unsavedChartVersion.metricQuery.tableCalculations,
                 action.payload,
             ];
             return {
                 ...state,
-                savedChartVersion: {
-                    ...state.savedChartVersion,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
                     metricQuery: {
-                        ...state.savedChartVersion.metricQuery,
+                        ...state.unsavedChartVersion.metricQuery,
                         tableCalculations: newTableCalculations,
                     },
                     tableConfig: {
-                        ...state.savedChartVersion.tableConfig,
+                        ...state.unsavedChartVersion.tableConfig,
                         columnOrder: calcColumnOrder(
-                            state.savedChartVersion.tableConfig.columnOrder,
+                            state.unsavedChartVersion.tableConfig.columnOrder,
                             [
-                                ...state.savedChartVersion.metricQuery
+                                ...state.unsavedChartVersion.metricQuery
                                     .dimensions,
-                                ...state.savedChartVersion.metricQuery.metrics,
+                                ...state.unsavedChartVersion.metricQuery
+                                    .metrics,
                                 ...newTableCalculations.map(({ name }) => name),
                             ],
                         ),
@@ -449,12 +452,12 @@ function reducer(
         case ActionType.UPDATE_TABLE_CALCULATION: {
             return {
                 ...state,
-                savedChartVersion: {
-                    ...state.savedChartVersion,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
                     metricQuery: {
-                        ...state.savedChartVersion.metricQuery,
+                        ...state.unsavedChartVersion.metricQuery,
                         tableCalculations:
-                            state.savedChartVersion.metricQuery.tableCalculations.map(
+                            state.unsavedChartVersion.metricQuery.tableCalculations.map(
                                 (tableCalculation) =>
                                     tableCalculation.name ===
                                     action.payload.oldName
@@ -463,9 +466,9 @@ function reducer(
                             ),
                     },
                     tableConfig: {
-                        ...state.savedChartVersion.tableConfig,
+                        ...state.unsavedChartVersion.tableConfig,
                         columnOrder:
-                            state.savedChartVersion.tableConfig.columnOrder.map(
+                            state.unsavedChartVersion.tableConfig.columnOrder.map(
                                 (column) =>
                                     column === action.payload.oldName
                                         ? action.payload.tableCalculation.name
@@ -477,26 +480,27 @@ function reducer(
         }
         case ActionType.DELETE_TABLE_CALCULATION: {
             const newTableCalculations =
-                state.savedChartVersion.metricQuery.tableCalculations.filter(
+                state.unsavedChartVersion.metricQuery.tableCalculations.filter(
                     (tableCalculation) =>
                         tableCalculation.name !== action.payload,
                 );
             return {
                 ...state,
-                savedChartVersion: {
-                    ...state.savedChartVersion,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
                     metricQuery: {
-                        ...state.savedChartVersion.metricQuery,
+                        ...state.unsavedChartVersion.metricQuery,
                         tableCalculations: newTableCalculations,
                     },
                     tableConfig: {
-                        ...state.savedChartVersion.tableConfig,
+                        ...state.unsavedChartVersion.tableConfig,
                         columnOrder: calcColumnOrder(
-                            state.savedChartVersion.tableConfig.columnOrder,
+                            state.unsavedChartVersion.tableConfig.columnOrder,
                             [
-                                ...state.savedChartVersion.metricQuery
+                                ...state.unsavedChartVersion.metricQuery
                                     .dimensions,
-                                ...state.savedChartVersion.metricQuery.metrics,
+                                ...state.unsavedChartVersion.metricQuery
+                                    .metrics,
                                 ...newTableCalculations.map(({ name }) => name),
                             ],
                         ),
@@ -507,8 +511,8 @@ function reducer(
         case ActionType.SET_PIVOT_FIELDS: {
             return {
                 ...state,
-                savedChartVersion: {
-                    ...state.savedChartVersion,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
                     pivotConfig: {
                         columns: action.payload,
                     },
@@ -518,11 +522,11 @@ function reducer(
         case ActionType.SET_CHART_TYPE: {
             return {
                 ...state,
-                savedChartVersion: {
-                    ...state.savedChartVersion,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
                     chartConfig: getValidChartConfig(
                         action.payload,
-                        state.savedChartVersion.chartConfig.config,
+                        state.unsavedChartVersion.chartConfig.config,
                     ),
                 },
             };
@@ -530,10 +534,10 @@ function reducer(
         case ActionType.SET_CHART_CONFIG: {
             return {
                 ...state,
-                savedChartVersion: {
-                    ...state.savedChartVersion,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
                     chartConfig: getValidChartConfig(
-                        state.savedChartVersion.chartConfig.type,
+                        state.unsavedChartVersion.chartConfig.type,
                         action.payload,
                     ),
                 },
@@ -557,9 +561,9 @@ export const ExplorerProvider: FC<{
         [Set<FieldId>, boolean]
     >(() => {
         const fields = new Set([
-            ...reducerState.savedChartVersion.metricQuery.dimensions,
-            ...reducerState.savedChartVersion.metricQuery.metrics,
-            ...reducerState.savedChartVersion.metricQuery.tableCalculations.map(
+            ...reducerState.unsavedChartVersion.metricQuery.dimensions,
+            ...reducerState.unsavedChartVersion.metricQuery.metrics,
+            ...reducerState.unsavedChartVersion.metricQuery.tableCalculations.map(
                 ({ name }) => name,
             ),
         ]);
@@ -666,7 +670,7 @@ export const ExplorerProvider: FC<{
     const addTableCalculation = useCallback(
         (tableCalculation: TableCalculation) => {
             if (
-                reducerState.savedChartVersion.metricQuery.tableCalculations.findIndex(
+                reducerState.unsavedChartVersion.metricQuery.tableCalculations.findIndex(
                     ({ name }) => name === tableCalculation.name,
                 ) > -1
             ) {
@@ -685,7 +689,7 @@ export const ExplorerProvider: FC<{
         (oldName: string, tableCalculation: TableCalculation) => {
             if (
                 oldName !== tableCalculation.name &&
-                reducerState.savedChartVersion.metricQuery.tableCalculations.findIndex(
+                reducerState.unsavedChartVersion.metricQuery.tableCalculations.findIndex(
                     ({ name }) => name === tableCalculation.name,
                 ) > -1
             ) {

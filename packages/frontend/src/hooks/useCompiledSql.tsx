@@ -20,7 +20,7 @@ export const useCompliedSql = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const {
         state: {
-            savedChartVersion: {
+            unsavedChartVersion: {
                 tableName: tableId,
                 metricQuery: {
                     dimensions,

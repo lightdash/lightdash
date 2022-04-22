@@ -45,7 +45,7 @@ const TableCalculationModal: FC<Props> = ({
     const { showToastError } = useApp();
     const {
         state: {
-            savedChartVersion: {
+            unsavedChartVersion: {
                 tableName,
                 metricQuery: { dimensions, metrics, tableCalculations },
             },

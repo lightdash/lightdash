@@ -11,7 +11,7 @@ export const RefreshButton = () => {
     const {
         state: {
             isValidQuery,
-            savedChartVersion: {
+            unsavedChartVersion: {
                 metricQuery: { sorts },
             },
         },

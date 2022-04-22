@@ -11,7 +11,7 @@ import { useExplorer } from '../providers/ExplorerProvider';
 export const useFilters = () => {
     const {
         state: {
-            savedChartVersion: {
+            unsavedChartVersion: {
                 metricQuery: { filters },
             },
         },

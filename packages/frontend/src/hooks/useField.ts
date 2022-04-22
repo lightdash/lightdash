@@ -12,7 +12,7 @@ export const useField = (
 } => {
     const {
         state: {
-            savedChartVersion: { tableName: activeTableName },
+            unsavedChartVersion: { tableName: activeTableName },
         },
     } = useExplorer();
     const { data, isLoading } = useExplore(activeTableName);

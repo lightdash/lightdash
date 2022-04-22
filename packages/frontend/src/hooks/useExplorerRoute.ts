@@ -13,7 +13,7 @@ export const useExplorerRoute = () => {
         useParams<{ projectUuid: string; tableId: string | undefined }>();
     const {
         state: {
-            savedChartVersion: {
+            unsavedChartVersion: {
                 tableName,
                 tableConfig: { columnOrder: stateColumnOrder },
             },
@@ -152,7 +152,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                 return {
                     shouldFetchResults: true,
                     chartName: undefined,
-                    savedChartVersion: {
+                    unsavedChartVersion: {
                         tableName: pathParams.tableId,
                         metricQuery: {
                             dimensions,

@@ -147,7 +147,7 @@ const BasePanel = () => {
 const ExploreSideBar = () => {
     const {
         state: {
-            savedChartVersion: { tableName },
+            unsavedChartVersion: { tableName },
         },
         actions: { reset },
     } = useExplorer();

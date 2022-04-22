@@ -18,7 +18,7 @@ export const ExplorerResults = () => {
     const dataColumns = useColumns();
     const {
         state: {
-            savedChartVersion: {
+            unsavedChartVersion: {
                 tableName: activeTableName,
                 metricQuery: { dimensions, metrics },
                 tableConfig: { columnOrder: explorerColumnOrder },
