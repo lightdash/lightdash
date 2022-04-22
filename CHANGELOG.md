@@ -1,3 +1,10 @@
+# [0.72.0](https://github.com/lightdash/lightdash/compare/0.71.7...0.72.0) (2022-04-22)
+
+
+### Features
+
+* add description field to create chart modal ([#1811](https://github.com/lightdash/lightdash/issues/1811)) ([ce82334](https://github.com/lightdash/lightdash/commit/ce82334ac00f2efa318e5d3bf68adb7119267f23))
+
 ## [0.71.7](https://github.com/lightdash/lightdash/compare/0.71.6...0.71.7) (2022-04-21)
 
 
