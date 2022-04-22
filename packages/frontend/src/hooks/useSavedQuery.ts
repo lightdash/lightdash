@@ -221,7 +221,10 @@ export const useAddVersionMutation = () => {
         { uuid: string; payload: CreateSavedChartVersion }
     >(addVersionSavedQuery, {
         mutationKey: ['saved_query_version'],
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
+            console.log('invalidating spaces query');
+            await queryClient.invalidateQueries('spaces');
+
             queryClient.setQueryData(['saved_query', data.uuid], data);
             showToastSuccess({
                 title: `Success! Chart was saved.`,
