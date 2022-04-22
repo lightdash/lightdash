@@ -17,8 +17,8 @@ describe('Dashboard', () => {
 
         cy.findByText('Jaffle dashboard').click();
 
-        cy.contains("What's our total revenue to date");
-        cy.contains("What's the average spend per customer?");
+        cy.contains('our total revenue to date', { timeout: 30000 });
+        cy.contains('the average spend per customer?');
 
         cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
 
