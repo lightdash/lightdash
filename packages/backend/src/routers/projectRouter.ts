@@ -156,14 +156,19 @@ projectRouter.post(
     unauthorisedInDemo,
     async (req, res, next) => {
         try {
-            const jobId = uuidv4();
+            const jobUuid = uuidv4();
             projectService
-                .getAllExplores(req.user!, req.params.projectUuid, jobId, true)
+                .getAllExplores(
+                    req.user!,
+                    req.params.projectUuid,
+                    jobUuid,
+                    true,
+                )
                 .catch((e) => Logger.error(`Error running refresh: ${e}`));
             res.json({
                 status: 'ok',
                 results: {
-                    jobId,
+                    jobUuid,
                 },
             });
         } catch (e) {
