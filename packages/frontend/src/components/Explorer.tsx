@@ -30,7 +30,6 @@ import {
     useAddVersionMutation,
     useDeleteMutation,
     useDuplicateMutation,
-    useSavedQuery,
     useUpdateMutation,
 } from '../hooks/useSavedQuery';
 import { useExplorer } from '../providers/ExplorerProvider';
@@ -59,13 +58,8 @@ import { RenderedSql } from './RenderedSql';
 import AddTilesToDashboardModal from './SavedDashboards/AddTilesToDashboardModal';
 import CreateSavedQueryModal from './SavedQueries/CreateSavedQueryModal';
 
-interface Props {
-    savedQueryUuid?: string;
-}
-
-export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
+export const Explorer: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const updateSavedChart = useUpdateMutation(savedQueryUuid);
     const { mutate: deleteData, isLoading: isDeleting } = useDeleteMutation();
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
@@ -74,7 +68,12 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         { fromExplorer?: boolean; explore?: boolean } | undefined
     >();
     const {
-        state: { chartName, unsavedChartVersion, hasUnsavedChanges },
+        state: {
+            chartName,
+            unsavedChartVersion,
+            hasUnsavedChanges,
+            savedChart,
+        },
         queryResults,
         actions: {
             setRowLimit,
@@ -84,26 +83,25 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
             setChartConfig,
         },
     } = useExplorer();
+    const updateSavedChart = useUpdateMutation(savedChart?.uuid);
     const explore = useExplore(unsavedChartVersion.tableName);
-    const { data, isLoading } = useSavedQuery({ id: savedQueryUuid });
-
     const update = useAddVersionMutation();
     const history = useHistory();
     const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false);
     const [resultsIsOpen, setResultsIsOpen] = useState<boolean>(true);
     const [sqlIsOpen, setSqlIsOpen] = useState<boolean>(false);
-    const [vizIsOpen, setVizisOpen] = useState<boolean>(!!savedQueryUuid);
+    const [vizIsOpen, setVizisOpen] = useState<boolean>(!!savedChart?.uuid);
     const totalActiveFilters: number = countTotalFilterRules(
         unsavedChartVersion.metricQuery.filters,
     );
-    const chartId = savedQueryUuid || '';
+    const chartId = savedChart?.uuid || '';
     const { mutate: duplicateChart } = useDuplicateMutation(chartId);
 
     const searchParams = new URLSearchParams(location.search);
 
     const overrideQueryUuid: string | undefined = searchParams.get('explore')
         ? undefined
-        : savedQueryUuid;
+        : savedChart?.uuid;
 
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
         useState<boolean>(false);
@@ -157,9 +155,9 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
     }, [explore.data, queryResults.data]);
 
     const handleSavedQueryUpdate = () => {
-        if (savedQueryUuid && unsavedChartVersion) {
+        if (savedChart?.uuid && unsavedChartVersion) {
             update.mutate({
-                uuid: savedQueryUuid,
+                uuid: savedChart.uuid,
                 payload: unsavedChartVersion,
             });
         }
@@ -257,12 +255,12 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
 
             <Card style={{ padding: 5, overflowY: 'scroll' }} elevation={1}>
                 <VisualizationProvider
-                    chartConfigs={data?.chartConfig}
+                    chartConfigs={savedChart?.chartConfig}
                     chartType={unsavedChartVersion.chartConfig.type}
-                    pivotDimensions={data?.pivotConfig?.columns}
+                    pivotDimensions={savedChart?.pivotConfig?.columns}
                     tableName={unsavedChartVersion.tableName}
                     resultsData={queryResults.data}
-                    isLoading={queryResults.isLoading || isLoading}
+                    isLoading={queryResults.isLoading}
                     onChartConfigChange={setChartConfig}
                     onChartTypeChange={setChartType}
                     onPivotDimensionsChange={setPivotFields}
@@ -346,7 +344,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                                         }
                                                         onClick={() => {
                                                             if (
-                                                                savedQueryUuid &&
+                                                                savedChart?.uuid &&
                                                                 hasUnsavedChanges
                                                             ) {
                                                                 setIsQueryModalOpen(
@@ -376,7 +374,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                                         onClick={() => {
                                                             getDashboards(
                                                                 projectUuid,
-                                                                savedQueryUuid,
+                                                                savedChart?.uuid,
                                                             ).then(
                                                                 (
                                                                     dashboards,
@@ -507,10 +505,10 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                 />
             )}
 
-            {data && (
+            {savedChart && (
                 <AddTilesToDashboardModal
                     isOpen={isAddToDashboardModalOpen}
-                    savedChart={data}
+                    savedChart={savedChart}
                     onClose={() => setIsAddToDashboardModalOpen(false)}
                 />
             )}
@@ -579,8 +577,8 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                     }
                                 });
 
-                                if (savedQueryUuid) {
-                                    deleteData(savedQueryUuid);
+                                if (savedChart?.uuid) {
+                                    deleteData(savedChart.uuid);
                                     history.goBack();
                                 }
 

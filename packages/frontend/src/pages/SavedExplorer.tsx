@@ -103,7 +103,7 @@ const SavedExplorer = () => {
                         minWidth: 0,
                     }}
                 >
-                    <Explorer savedQueryUuid={pathParams.savedQueryUuid} />
+                    <Explorer />
                 </div>
             </div>
         </ExplorerProvider>

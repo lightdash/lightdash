@@ -111,6 +111,7 @@ export interface ExplorerState extends ExplorerReduceState {
     activeFields: Set<FieldId>;
     isValidQuery: boolean;
     hasUnsavedChanges: boolean;
+    savedChart: SavedChart | undefined;
 }
 
 interface ExplorerContext {
@@ -739,8 +740,15 @@ export const ExplorerProvider: FC<{
             activeFields,
             isValidQuery,
             hasUnsavedChanges,
+            savedChart,
         }),
-        [reducerState, activeFields, isValidQuery, hasUnsavedChanges],
+        [
+            reducerState,
+            activeFields,
+            isValidQuery,
+            hasUnsavedChanges,
+            savedChart,
+        ],
     );
     const queryResults = useQueryResults(state);
 
