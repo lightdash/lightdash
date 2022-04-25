@@ -1,12 +1,12 @@
 import { Colors } from '@blueprintjs/core';
 import { getResultValues } from 'common';
 import React from 'react';
-import { useColumns } from '../../hooks/useColumns';
-import { useExplore } from '../../hooks/useExplore';
-import { useExplorer } from '../../providers/ExplorerProvider';
-import { CellContextMenu } from '../ResultsTable/CellContextMenu';
-import ColumnHeaderContextMenu from '../ResultsTable/ColumnHeaderContextMenu';
-import { ResultsTable as Table } from '../ResultsTable/ResultsTable';
+import { useColumns } from '../../../hooks/useColumns';
+import { useExplore } from '../../../hooks/useExplore';
+import { useExplorer } from '../../../providers/ExplorerProvider';
+import { CellContextMenu } from '../../ResultsTable/CellContextMenu';
+import ColumnHeaderContextMenu from '../../ResultsTable/ColumnHeaderContextMenu';
+import { ResultsTable as Table } from '../../ResultsTable/ResultsTable';
 import {
     EmptyStateExploreLoading,
     EmptyStateNoColumns,

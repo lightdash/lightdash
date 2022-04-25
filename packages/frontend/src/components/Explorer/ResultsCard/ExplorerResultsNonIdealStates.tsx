@@ -1,11 +1,11 @@
 import { Colors, NonIdealState, Spinner } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import { TrackSection } from '../../providers/TrackingProvider';
-import { ReactComponent as NoTableIcon } from '../../svgs/emptystate-no-table.svg';
-import { SectionName } from '../../types/Events';
-import DocumentationHelpButton from '../DocumentationHelpButton';
-import { RefreshButton } from '../RefreshButton';
+import { TrackSection } from '../../../providers/TrackingProvider';
+import { ReactComponent as NoTableIcon } from '../../../svgs/emptystate-no-table.svg';
+import { SectionName } from '../../../types/Events';
+import DocumentationHelpButton from '../../DocumentationHelpButton';
+import { RefreshButton } from '../../RefreshButton';
 
 const Questions = styled('p')`
     color: ${Colors.GRAY1};

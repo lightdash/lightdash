@@ -9,60 +9,34 @@ import {
     H5,
     Menu,
     MenuItem,
-    Tag,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import {
-    ChartType,
-    countTotalFilterRules,
-    DashboardBasicDetails,
-    DimensionType,
-    fieldId,
-    getResultValues,
-    getVisibleFields,
-    isFilterableField,
-} from 'common';
-import { FC, useEffect, useState } from 'react';
+import { ChartType, DashboardBasicDetails } from 'common';
+import { FC, useState } from 'react';
 import { Link, useHistory, useLocation, useParams } from 'react-router-dom';
-import { getDashboards } from '../hooks/dashboard/useDashboards';
-import { useExplore } from '../hooks/useExplore';
+import { getDashboards } from '../../../hooks/dashboard/useDashboards';
 import {
     useAddVersionMutation,
     useDeleteMutation,
     useDuplicateMutation,
-    useUpdateMutation,
-} from '../hooks/useSavedQuery';
-import { useExplorer } from '../providers/ExplorerProvider';
-import { TrackSection } from '../providers/TrackingProvider';
-import { SectionName } from '../types/Events';
-import AddColumnButton from './AddColumnButton';
-import BigNumberConfigPanel from './BigNumberConfig';
-import ChartConfigPanel from './ChartConfigPanel';
-import { ChartDownloadMenu } from './ChartDownload';
-import { BigButton } from './common/BigButton';
-import EditableHeader from './common/EditableHeader';
-import FiltersForm from './common/Filters';
-import {
-    FieldsWithSuggestions,
-    FiltersProvider,
-} from './common/Filters/FiltersProvider';
-import DownloadCsvButton from './DownloadCsvButton';
-import { ExplorerResults } from './Explorer/ExplorerResults';
-import VisualizationCardOptions from './Explorer/VisualizationCardOptions';
-import LightdashVisualization from './LightdashVisualization';
-import VisualizationProvider from './LightdashVisualization/VisualizationProvider';
-import LimitButton from './LimitButton';
-import { RefreshButton } from './RefreshButton';
-import { RefreshServerButton } from './RefreshServerButton';
-import { RenderedSql } from './RenderedSql';
-import AddTilesToDashboardModal from './SavedDashboards/AddTilesToDashboardModal';
-import CreateSavedQueryModal from './SavedQueries/CreateSavedQueryModal';
+} from '../../../hooks/useSavedQuery';
+import { useExplorer } from '../../../providers/ExplorerProvider';
+import BigNumberConfigPanel from '../../BigNumberConfig';
+import ChartConfigPanel from '../../ChartConfigPanel';
+import { ChartDownloadMenu } from '../../ChartDownload';
+import LightdashVisualization from '../../LightdashVisualization';
+import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
+import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
+import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
+import VisualizationCardOptions from '../VisualizationCardOptions';
 
-export const Explorer: FC = () => {
+const VisualizationCard: FC = () => {
+    const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { mutate: deleteData, isLoading: isDeleting } = useDeleteMutation();
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
+        useState<boolean>(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
         useState<boolean>(false);
     const location = useLocation<
         { fromExplorer?: boolean; explore?: boolean } | undefined
@@ -75,84 +49,22 @@ export const Explorer: FC = () => {
             savedChart,
         },
         queryResults,
-        actions: {
-            setRowLimit,
-            setFilters,
-            setPivotFields,
-            setChartType,
-            setChartConfig,
-        },
+        actions: { setPivotFields, setChartType, setChartConfig },
     } = useExplorer();
-    const updateSavedChart = useUpdateMutation(savedChart?.uuid);
-    const explore = useExplore(unsavedChartVersion.tableName);
+    const { mutate: deleteData, isLoading: isDeleting } = useDeleteMutation();
     const update = useAddVersionMutation();
-    const history = useHistory();
-    const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false);
-    const [resultsIsOpen, setResultsIsOpen] = useState<boolean>(true);
-    const [sqlIsOpen, setSqlIsOpen] = useState<boolean>(false);
     const [vizIsOpen, setVizisOpen] = useState<boolean>(!!savedChart?.uuid);
-    const totalActiveFilters: number = countTotalFilterRules(
-        unsavedChartVersion.metricQuery.filters,
-    );
     const chartId = savedChart?.uuid || '';
     const { mutate: duplicateChart } = useDuplicateMutation(chartId);
+    const [relatedDashboards, setRelatedDashboards] = useState<
+        DashboardBasicDetails[]
+    >([]);
 
     const searchParams = new URLSearchParams(location.search);
 
     const overrideQueryUuid: string | undefined = searchParams.get('explore')
         ? undefined
         : savedChart?.uuid;
-
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
-        useState<boolean>(false);
-    const [relatedDashboards, setRelatedDashboards] = useState<
-        DashboardBasicDetails[]
-    >([]);
-
-    const [fieldsWithSuggestions, setFieldsWithSuggestions] =
-        useState<FieldsWithSuggestions>({});
-    useEffect(() => {
-        if (explore.data) {
-            setFieldsWithSuggestions((prev) => {
-                return getVisibleFields(explore.data).reduce((sum, field) => {
-                    if (isFilterableField(field)) {
-                        let suggestions: string[] = [];
-                        if (field.type === DimensionType.STRING) {
-                            const currentSuggestions =
-                                prev[fieldId(field)]?.suggestions || [];
-                            const newSuggestions: string[] =
-                                (queryResults.data &&
-                                    getResultValues(
-                                        queryResults.data.rows,
-                                        true,
-                                    ).reduce<string[]>((acc, row) => {
-                                        const value = row[fieldId(field)];
-                                        if (typeof value === 'string') {
-                                            return [...acc, value];
-                                        }
-                                        return acc;
-                                    }, [])) ||
-                                [];
-                            suggestions = Array.from(
-                                new Set([
-                                    ...currentSuggestions,
-                                    ...newSuggestions,
-                                ]),
-                            ).sort((a, b) => a.localeCompare(b));
-                        }
-                        return {
-                            ...sum,
-                            [fieldId(field)]: {
-                                ...field,
-                                suggestions,
-                            },
-                        };
-                    }
-                    return sum;
-                }, {});
-            });
-        }
-    }, [explore.data, queryResults.data]);
 
     const handleSavedQueryUpdate = () => {
         if (savedChart?.uuid && unsavedChartVersion) {
@@ -165,94 +77,6 @@ export const Explorer: FC = () => {
 
     return (
         <>
-            <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
-                <div
-                    style={{
-                        display: 'flex',
-                        flexDirection: 'row',
-                        justifyContent: 'flex-end',
-                        alignItems: 'center',
-                    }}
-                >
-                    <div
-                        style={{
-                            flex: 1,
-                            justifyContent: 'flex-start',
-                            display: 'flex',
-                            alignItems: 'center',
-                            overflow: 'hidden',
-                            marginRight: 10,
-                        }}
-                    >
-                        {overrideQueryUuid && chartName && (
-                            <EditableHeader
-                                value={chartName}
-                                isDisabled={updateSavedChart.isLoading}
-                                onChange={(newName) =>
-                                    updateSavedChart.mutate({ name: newName })
-                                }
-                            />
-                        )}
-                    </div>
-                    <RefreshButton />
-                    <RefreshServerButton />
-                    <Popover2
-                        content={
-                            <Menu>
-                                <MenuItem
-                                    icon="cog"
-                                    text="Project settings"
-                                    href={`/projects/${projectUuid}/settings`}
-                                />
-                            </Menu>
-                        }
-                        placement="bottom"
-                        disabled={!unsavedChartVersion.tableName}
-                    >
-                        <BigButton
-                            icon="more"
-                            disabled={!unsavedChartVersion.tableName}
-                            style={{
-                                height: 40,
-                                width: 40,
-                                marginLeft: '10px',
-                            }}
-                        />
-                    </Popover2>
-                </div>
-            </TrackSection>
-            <div style={{ paddingTop: '10px' }} />
-            <Card style={{ padding: 5 }} elevation={1}>
-                <div
-                    style={{
-                        display: 'flex',
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                    }}
-                >
-                    <Button
-                        icon={filterIsOpen ? 'chevron-down' : 'chevron-right'}
-                        minimal
-                        onClick={() => setFilterIsOpen((f) => !f)}
-                    />
-                    <H5 style={{ margin: 0, padding: 0 }}>Filters</H5>
-                    {totalActiveFilters > 0 && !filterIsOpen ? (
-                        <Tag style={{ marginLeft: '10px' }}>
-                            {totalActiveFilters} active filters
-                        </Tag>
-                    ) : null}
-                </div>
-                <Collapse isOpen={filterIsOpen}>
-                    <FiltersProvider fieldsMap={fieldsWithSuggestions}>
-                        <FiltersForm
-                            filters={unsavedChartVersion.metricQuery.filters}
-                            setFilters={setFilters}
-                        />
-                    </FiltersProvider>
-                </Collapse>
-            </Card>
-            <div style={{ paddingTop: '10px' }} />
-
             <Card style={{ padding: 5, overflowY: 'scroll' }} elevation={1}>
                 <VisualizationProvider
                     chartConfigs={savedChart?.chartConfig}
@@ -405,7 +229,6 @@ export const Explorer: FC = () => {
                             </div>
                         )}
                     </div>
-
                     <Collapse className="explorer-chart" isOpen={vizIsOpen}>
                         <div
                             style={{ height: '300px' }}
@@ -416,87 +239,6 @@ export const Explorer: FC = () => {
                     </Collapse>
                 </VisualizationProvider>
             </Card>
-            <div style={{ paddingTop: '10px' }} />
-
-            <Card style={{ padding: 5 }} elevation={1}>
-                <div
-                    style={{
-                        display: 'flex',
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                    }}
-                >
-                    <div
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                        }}
-                    >
-                        <Button
-                            icon={
-                                resultsIsOpen ? 'chevron-down' : 'chevron-right'
-                            }
-                            minimal
-                            onClick={() => setResultsIsOpen((f) => !f)}
-                        />
-                        <H5 style={{ margin: 0, padding: 0, marginRight: 10 }}>
-                            Results
-                        </H5>
-                        {resultsIsOpen && (
-                            <LimitButton
-                                limit={unsavedChartVersion.metricQuery.limit}
-                                onLimitChange={setRowLimit}
-                            />
-                        )}
-                    </div>
-                    {resultsIsOpen && (
-                        <div
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                marginRight: 10,
-                                gap: 10,
-                            }}
-                        >
-                            <AddColumnButton />
-                            <DownloadCsvButton
-                                fileName={unsavedChartVersion.tableName}
-                                rows={
-                                    queryResults.data &&
-                                    getResultValues(queryResults.data.rows)
-                                }
-                            />
-                        </div>
-                    )}
-                </div>
-                <Collapse isOpen={resultsIsOpen}>
-                    <ExplorerResults />
-                </Collapse>
-            </Card>
-            <div style={{ paddingTop: '10px' }} />
-            <Card
-                style={{ padding: 5, height: sqlIsOpen ? '100%' : 'auto' }}
-                elevation={1}
-            >
-                <div
-                    style={{
-                        display: 'flex',
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                    }}
-                >
-                    <Button
-                        icon={sqlIsOpen ? 'chevron-down' : 'chevron-right'}
-                        minimal
-                        onClick={() => setSqlIsOpen((f) => !f)}
-                    />
-                    <H5 style={{ margin: 0, padding: 0 }}>SQL</H5>
-                </div>
-                <Collapse isOpen={sqlIsOpen}>
-                    <RenderedSql />
-                </Collapse>
-            </Card>
             {unsavedChartVersion && (
                 <CreateSavedQueryModal
                     isOpen={isQueryModalOpen}
@@ -504,7 +246,6 @@ export const Explorer: FC = () => {
                     onClose={() => setIsQueryModalOpen(false)}
                 />
             )}
-
             {savedChart && (
                 <AddTilesToDashboardModal
                     isOpen={isAddToDashboardModalOpen}
@@ -593,3 +334,5 @@ export const Explorer: FC = () => {
         </>
     );
 };
+
+export default VisualizationCard;
