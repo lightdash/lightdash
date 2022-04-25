@@ -55,6 +55,7 @@ const SavedExplorer = () => {
                       }
                     : undefined
             }
+            savedChart={data}
         >
             <div
                 style={{

@@ -15,14 +15,12 @@ import { Popover2 } from '@blueprintjs/popover2';
 import {
     ChartType,
     countTotalFilterRules,
-    CreateSavedChartVersion,
     DashboardBasicDetails,
     DimensionType,
     fieldId,
     getResultValues,
     getVisibleFields,
     isFilterableField,
-    SavedChart,
 } from 'common';
 import { FC, useEffect, useState } from 'react';
 import { Link, useHistory, useLocation, useParams } from 'react-router-dom';
@@ -76,7 +74,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         { fromExplorer?: boolean; explore?: boolean } | undefined
     >();
     const {
-        state: { chartName, unsavedChartVersion },
+        state: { chartName, unsavedChartVersion, hasUnsavedChanges },
         queryResults,
         actions: {
             setRowLimit,
@@ -167,22 +165,6 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
         }
     };
 
-    const hasUnsavedChanges = (): boolean => {
-        const filterData = (
-            d: SavedChart | CreateSavedChartVersion | undefined,
-        ) => {
-            return {
-                chartConfig: d?.chartConfig,
-                metricQuery: d?.metricQuery,
-                tableConfig: d?.tableConfig,
-            };
-        };
-
-        return (
-            JSON.stringify(filterData(data)) !==
-            JSON.stringify(filterData(unsavedChartVersion))
-        );
-    };
     return (
         <>
             <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
@@ -334,7 +316,7 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                         }
                                         disabled={
                                             !unsavedChartVersion.tableName ||
-                                            !hasUnsavedChanges()
+                                            !hasUnsavedChanges
                                         }
                                         onClick={
                                             overrideQueryUuid
@@ -353,19 +335,19 @@ export const Explorer: FC<Props> = ({ savedQueryUuid }) => {
                                                 <Menu>
                                                     <MenuItem
                                                         icon={
-                                                            hasUnsavedChanges()
+                                                            hasUnsavedChanges
                                                                 ? 'add'
                                                                 : 'duplicate'
                                                         }
                                                         text={
-                                                            hasUnsavedChanges()
+                                                            hasUnsavedChanges
                                                                 ? 'Save chart as'
                                                                 : 'Duplicate'
                                                         }
                                                         onClick={() => {
                                                             if (
                                                                 savedQueryUuid &&
-                                                                hasUnsavedChanges()
+                                                                hasUnsavedChanges
                                                             ) {
                                                                 setIsQueryModalOpen(
                                                                     true,

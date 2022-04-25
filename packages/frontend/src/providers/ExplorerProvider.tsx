@@ -2,11 +2,14 @@ import {
     ChartConfig,
     ChartType,
     CreateSavedChartVersion,
+    deepEqual,
     FieldId,
     isBigNumberConfig,
     isCartesianChartConfig,
     Metric,
     MetricQuery,
+    removeEmptyProperties,
+    SavedChart,
     SortField,
     TableCalculation,
     toggleArrayValue,
@@ -107,6 +110,7 @@ export interface ExplorerReduceState {
 export interface ExplorerState extends ExplorerReduceState {
     activeFields: Set<FieldId>;
     isValidQuery: boolean;
+    hasUnsavedChanges: boolean;
 }
 
 interface ExplorerContext {
@@ -154,9 +158,7 @@ const defaultState: ExplorerReduceState = {
             tableCalculations: [],
             additionalMetrics: [],
         },
-        pivotConfig: {
-            columns: [],
-        },
+        pivotConfig: undefined,
         tableConfig: {
             columnOrder: [],
         },
@@ -513,9 +515,12 @@ function reducer(
                 ...state,
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
-                    pivotConfig: {
-                        columns: action.payload,
-                    },
+                    pivotConfig:
+                        action.payload.length > 0
+                            ? {
+                                  columns: action.payload,
+                              }
+                            : undefined,
                 },
             };
         }
@@ -551,7 +556,8 @@ function reducer(
 
 export const ExplorerProvider: FC<{
     initialState?: ExplorerReduceState;
-}> = ({ initialState, children }) => {
+    savedChart?: SavedChart;
+}> = ({ initialState, savedChart, children }) => {
     const [reducerState, dispatch] = useReducer(
         reducer,
         initialState || defaultState,
@@ -711,9 +717,30 @@ export const ExplorerProvider: FC<{
         });
     }, []);
 
+    const hasUnsavedChanges = useMemo<boolean>(() => {
+        if (savedChart) {
+            return !deepEqual(
+                removeEmptyProperties({
+                    tableName: savedChart.tableName,
+                    chartConfig: savedChart.chartConfig,
+                    metricQuery: savedChart.metricQuery,
+                    tableConfig: savedChart.tableConfig,
+                    pivotConfig: savedChart.pivotConfig,
+                }),
+                removeEmptyProperties(reducerState.unsavedChartVersion),
+            );
+        }
+        return true;
+    }, [reducerState, savedChart]);
+
     const state = useMemo(
-        () => ({ ...reducerState, activeFields, isValidQuery }),
-        [reducerState, activeFields, isValidQuery],
+        () => ({
+            ...reducerState,
+            activeFields,
+            isValidQuery,
+            hasUnsavedChanges,
+        }),
+        [reducerState, activeFields, isValidQuery, hasUnsavedChanges],
     );
     const queryResults = useQueryResults(state);
 
