@@ -10,6 +10,7 @@ import {
     TablesConfiguration,
 } from 'common';
 import express from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import {
     isAuthenticated,
     unauthorisedInDemo,
@@ -155,11 +156,16 @@ projectRouter.post(
     unauthorisedInDemo,
     async (req, res, next) => {
         try {
-            // Runs async - error will appear on status endpoint
+            const jobId = uuidv4();
             projectService
-                .getAllExplores(req.user!, req.params.projectUuid, true)
+                .getAllExplores(req.user!, req.params.projectUuid, jobId, true)
                 .catch((e) => Logger.error(`Error running refresh: ${e}`));
-            res.json({ status: 'ok' });
+            res.json({
+                status: 'ok',
+                results: {
+                    jobId,
+                },
+            });
         } catch (e) {
             next(e);
         }
