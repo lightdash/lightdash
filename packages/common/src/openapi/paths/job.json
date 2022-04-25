@@ -1,7 +1,11 @@
 {
     "get": {
         "summary": "List status of a job",
+<<<<<<< HEAD
         "tags": ["project"],
+=======
+        "tags": ["job"],
+>>>>>>> feat: add openapi docs
         "operationId": "getJob",
         "parameters": [
             {
