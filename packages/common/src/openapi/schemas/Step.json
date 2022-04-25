@@ -1,0 +1,32 @@
+{
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "startedAt": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "stepStatus": {
+            "type": "string",
+            "enum": ["DONE", "RUNNING", "ERROR", "PENDING", "SKIPPED"]
+        },
+        "error": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "required": ["name", "stepStatus", "updatedAt", "startedAt"]
+}

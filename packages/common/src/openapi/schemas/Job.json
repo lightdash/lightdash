@@ -1,0 +1,27 @@
+{
+    "type": "object",
+    "properties": {
+        "createdAt": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "jobStatus": {
+            "type": "string",
+            "enum": ["DONE", "RUNNING", "ERROR"]
+        },
+        "jobResults": {
+            "type": "string"
+        },
+        "steps": {
+            "type": "array",
+            "items": {
+                "$ref": "./Step.json"
+            }
+        }
+    },
+    "required": ["createdAt", "updatedAt", "jobStatus", "steps"]
+}
