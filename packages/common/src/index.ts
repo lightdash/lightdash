@@ -1247,3 +1247,34 @@ export function formatRows(
         }, {}),
     );
 }
+
+const isObject = (object: any) => object != null && typeof object === 'object';
+export const removeEmptyProperties = (object: Record<string, any>) => {
+    const newObj: Record<string, any> = {};
+    Object.keys(object).forEach((key) => {
+        if (object[key] === Object(object[key]))
+            newObj[key] = removeEmptyProperties(object[key]);
+        else if (object[key] !== undefined && object[key] !== null)
+            newObj[key] = object[key];
+    });
+    return newObj;
+};
+export const deepEqual = (
+    object1: Record<string, any>,
+    object2: Record<string, any>,
+): boolean => {
+    const keys1 = Object.keys(object1);
+    const keys2 = Object.keys(object2);
+    if (keys1.length !== keys2.length) {
+        return false;
+    }
+    return keys1.every((key) => {
+        const val1: any = object1[key];
+        const val2: any = object2[key];
+        const areObjects = isObject(val1) && isObject(val2);
+        return !(
+            (areObjects && !deepEqual(val1, val2)) ||
+            (!areObjects && val1 !== val2)
+        );
+    });
+};

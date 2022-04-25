@@ -163,9 +163,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                             tableCalculations,
                             additionalMetrics,
                         },
-                        pivotConfig: {
-                            columns: [],
-                        },
+                        pivotConfig: undefined,
                         tableConfig: {
                             columnOrder,
                         },
