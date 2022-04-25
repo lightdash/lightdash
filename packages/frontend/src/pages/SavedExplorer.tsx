@@ -44,19 +44,14 @@ const SavedExplorer = () => {
                 data
                     ? {
                           shouldFetchResults: true,
-                          chartName: data.name,
-                          tableName: data.tableName,
-                          dimensions: data.metricQuery.dimensions,
-                          metrics: data.metricQuery.metrics,
-                          filters: data.metricQuery.filters,
-                          sorts: data.metricQuery.sorts,
-                          limit: data.metricQuery.limit,
-                          columnOrder: data.tableConfig.columnOrder,
-                          tableCalculations: data.metricQuery.tableCalculations,
-                          additionalMetrics: data.metricQuery.additionalMetrics,
-                          chartType: data.chartConfig.type,
-                          chartConfig: data.chartConfig.config,
-                          pivotFields: data.pivotConfig?.columns || [],
+                          chartName: data?.name,
+                          unsavedChartVersion: {
+                              tableName: data.tableName,
+                              chartConfig: data.chartConfig,
+                              metricQuery: data.metricQuery,
+                              tableConfig: data.tableConfig,
+                              pivotConfig: data.pivotConfig,
+                          },
                       }
                     : undefined
             }

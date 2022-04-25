@@ -10,7 +10,11 @@ import { useExplorer } from '../providers/ExplorerProvider';
 
 export const useFilters = () => {
     const {
-        state: { filters },
+        state: {
+            unsavedChartVersion: {
+                metricQuery: { filters },
+            },
+        },
         actions: { setFilters },
     } = useExplorer();
 

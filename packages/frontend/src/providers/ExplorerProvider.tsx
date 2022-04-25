@@ -1,8 +1,10 @@
 import {
-    AdditionalMetric,
     ChartConfig,
     ChartType,
+    CreateSavedChartVersion,
     FieldId,
+    isBigNumberConfig,
+    isCartesianChartConfig,
     Metric,
     MetricQuery,
     SortField,
@@ -99,18 +101,7 @@ type Action =
 export interface ExplorerReduceState {
     shouldFetchResults: boolean;
     chartName: string | undefined;
-    tableName: string | undefined;
-    pivotFields: FieldId[];
-    dimensions: FieldId[];
-    metrics: FieldId[];
-    filters: MetricQuery['filters'];
-    sorts: SortField[];
-    columnOrder: string[];
-    limit: number;
-    tableCalculations: TableCalculation[];
-    additionalMetrics: AdditionalMetric[] | undefined;
-    chartType: ChartType;
-    chartConfig: ChartConfig['config'] | undefined;
+    unsavedChartVersion: CreateSavedChartVersion;
 }
 
 export interface ExplorerState extends ExplorerReduceState {
@@ -147,23 +138,61 @@ interface ExplorerContext {
     };
 }
 
-const Context = createContext<ExplorerContext>(undefined as any);
+const Context = createContext<ExplorerContext | undefined>(undefined);
 
 const defaultState: ExplorerReduceState = {
     shouldFetchResults: false,
     chartName: '',
-    tableName: undefined,
-    dimensions: [],
-    metrics: [],
-    filters: {},
-    sorts: [],
-    columnOrder: [],
-    limit: 500,
-    tableCalculations: [],
-    additionalMetrics: [],
-    pivotFields: [],
-    chartType: ChartType.CARTESIAN,
-    chartConfig: undefined,
+    unsavedChartVersion: {
+        tableName: '',
+        metricQuery: {
+            dimensions: [],
+            metrics: [],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+        },
+        pivotConfig: {
+            columns: [],
+        },
+        tableConfig: {
+            columnOrder: [],
+        },
+        chartConfig: {
+            type: ChartType.CARTESIAN,
+            config: { layout: {}, eChartsConfig: {} },
+        },
+    },
+};
+
+const getValidChartConfig = (
+    type: ChartType,
+    config: ChartConfig['config'],
+): ChartConfig => {
+    switch (type) {
+        case ChartType.CARTESIAN: {
+            return {
+                type,
+                config: isCartesianChartConfig(config)
+                    ? config
+                    : { layout: {}, eChartsConfig: {} },
+            };
+        }
+        case ChartType.BIG_NUMBER: {
+            return {
+                type,
+                config: isBigNumberConfig(config) ? config : {},
+            };
+        }
+        case ChartType.TABLE: {
+            return {
+                type,
+                config: undefined,
+            };
+        }
+    }
 };
 
 const calcColumnOrder = (
@@ -193,181 +222,325 @@ function reducer(
             return defaultState;
         }
         case ActionType.SET_TABLE_NAME: {
-            return { ...state, tableName: action.payload };
+            return {
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    tableName: action.payload,
+                },
+            };
         }
         case ActionType.SET_FETCH_RESULTS_FALSE: {
             return { ...state, shouldFetchResults: false };
         }
         case ActionType.TOGGLE_DIMENSION: {
             const dimensions = toggleArrayValue(
-                state.dimensions,
+                state.unsavedChartVersion.metricQuery.dimensions,
                 action.payload,
             );
             return {
                 ...state,
-                dimensions,
-                sorts: state.sorts.filter((s) => s.fieldId !== action.payload),
-                columnOrder: calcColumnOrder(state.columnOrder, [
-                    ...dimensions,
-                    ...state.metrics,
-                    ...state.tableCalculations.map(({ name }) => name),
-                ]),
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        dimensions,
+                        sorts: state.unsavedChartVersion.metricQuery.sorts.filter(
+                            (s) => s.fieldId !== action.payload,
+                        ),
+                    },
+                    tableConfig: {
+                        ...state.unsavedChartVersion.tableConfig,
+                        columnOrder: calcColumnOrder(
+                            state.unsavedChartVersion.tableConfig.columnOrder,
+                            [
+                                ...dimensions,
+                                ...state.unsavedChartVersion.metricQuery
+                                    .metrics,
+                                ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
+                                    ({ name }) => name,
+                                ),
+                            ],
+                        ),
+                    },
+                },
             };
         }
         case ActionType.TOGGLE_METRIC: {
-            const metrics = toggleArrayValue(state.metrics, action.payload);
+            const metrics = toggleArrayValue(
+                state.unsavedChartVersion.metricQuery.metrics,
+                action.payload,
+            );
             return {
                 ...state,
-                metrics,
-                sorts: state.sorts.filter((s) => s.fieldId !== action.payload),
-                columnOrder: calcColumnOrder(state.columnOrder, [
-                    ...state.dimensions,
-                    ...metrics,
-                    ...state.tableCalculations.map(({ name }) => name),
-                ]),
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        metrics,
+                        sorts: state.unsavedChartVersion.metricQuery.sorts.filter(
+                            (s) => s.fieldId !== action.payload,
+                        ),
+                    },
+                    tableConfig: {
+                        ...state.unsavedChartVersion.tableConfig,
+                        columnOrder: calcColumnOrder(
+                            state.unsavedChartVersion.tableConfig.columnOrder,
+                            [
+                                ...state.unsavedChartVersion.metricQuery
+                                    .dimensions,
+                                ...metrics,
+                                ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
+                                    ({ name }) => name,
+                                ),
+                            ],
+                        ),
+                    },
+                },
             };
         }
         case ActionType.TOGGLE_SORT_FIELD: {
             const sortFieldId = action.payload;
             const activeFields = new Set([
-                ...state.dimensions,
-                ...state.metrics,
+                ...state.unsavedChartVersion.metricQuery.dimensions,
+                ...state.unsavedChartVersion.metricQuery.metrics,
             ]);
             if (!activeFields.has(sortFieldId)) {
                 return state;
             }
-            const sortField = state.sorts.find(
+            const sortField = state.unsavedChartVersion.metricQuery.sorts.find(
                 (sf) => sf.fieldId === sortFieldId,
             );
             return {
                 ...state,
-                sorts: !sortField
-                    ? [
-                          ...state.sorts,
-                          {
-                              fieldId: sortFieldId,
-                              descending: false,
-                          },
-                      ]
-                    : state.sorts.reduce<SortField[]>((acc, sf) => {
-                          if (sf.fieldId !== sortFieldId) {
-                              return [...acc, sf];
-                          }
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        sorts: !sortField
+                            ? [
+                                  ...state.unsavedChartVersion.metricQuery
+                                      .sorts,
+                                  {
+                                      fieldId: sortFieldId,
+                                      descending: false,
+                                  },
+                              ]
+                            : state.unsavedChartVersion.metricQuery.sorts.reduce<
+                                  SortField[]
+                              >((acc, sf) => {
+                                  if (sf.fieldId !== sortFieldId) {
+                                      return [...acc, sf];
+                                  }
 
-                          if (sf.descending) {
-                              return acc;
-                          }
-                          return [
-                              ...acc,
-                              {
-                                  ...sf,
-                                  descending: true,
-                              },
-                          ];
-                      }, []),
-            } as ExplorerReduceState;
+                                  if (sf.descending) {
+                                      return acc;
+                                  }
+                                  return [
+                                      ...acc,
+                                      {
+                                          ...sf,
+                                          descending: true,
+                                      },
+                                  ];
+                              }, []),
+                    },
+                },
+            };
         }
         case ActionType.SET_SORT_FIELDS: {
             const activeFields = new Set([
-                ...state.dimensions,
-                ...state.metrics,
+                ...state.unsavedChartVersion.metricQuery.dimensions,
+                ...state.unsavedChartVersion.metricQuery.metrics,
             ]);
             return {
                 ...state,
-                sorts: action.payload.filter((sf) =>
-                    activeFields.has(sf.fieldId),
-                ),
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        sorts: action.payload.filter((sf) =>
+                            activeFields.has(sf.fieldId),
+                        ),
+                    },
+                },
             };
         }
         case ActionType.SET_ROW_LIMIT: {
             return {
                 ...state,
-                limit: action.payload,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        limit: action.payload,
+                    },
+                },
             };
         }
         case ActionType.SET_FILTERS: {
             return {
                 ...state,
-                filters: action.payload,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        filters: action.payload,
+                    },
+                },
             };
         }
         case ActionType.SET_ADDITIONAL_METRICS: {
             return {
                 ...state,
-                additionalMetrics: action.payload,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        additionalMetrics: action.payload,
+                    },
+                },
             };
         }
         case ActionType.SET_COLUMN_ORDER: {
             return {
                 ...state,
-                columnOrder: calcColumnOrder(action.payload, [
-                    ...state.dimensions,
-                    ...state.metrics,
-                    ...state.tableCalculations.map(({ name }) => name),
-                ]),
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    tableConfig: {
+                        ...state.unsavedChartVersion.tableConfig,
+                        columnOrder: calcColumnOrder(action.payload, [
+                            ...state.unsavedChartVersion.metricQuery.dimensions,
+                            ...state.unsavedChartVersion.metricQuery.metrics,
+                            ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
+                                ({ name }) => name,
+                            ),
+                        ]),
+                    },
+                },
             };
         }
         case ActionType.ADD_TABLE_CALCULATION: {
             const newTableCalculations = [
-                ...state.tableCalculations,
+                ...state.unsavedChartVersion.metricQuery.tableCalculations,
                 action.payload,
             ];
             return {
                 ...state,
-                tableCalculations: newTableCalculations,
-                columnOrder: calcColumnOrder(state.columnOrder, [
-                    ...state.dimensions,
-                    ...state.metrics,
-                    ...newTableCalculations.map(({ name }) => name),
-                ]),
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        tableCalculations: newTableCalculations,
+                    },
+                    tableConfig: {
+                        ...state.unsavedChartVersion.tableConfig,
+                        columnOrder: calcColumnOrder(
+                            state.unsavedChartVersion.tableConfig.columnOrder,
+                            [
+                                ...state.unsavedChartVersion.metricQuery
+                                    .dimensions,
+                                ...state.unsavedChartVersion.metricQuery
+                                    .metrics,
+                                ...newTableCalculations.map(({ name }) => name),
+                            ],
+                        ),
+                    },
+                },
             };
         }
         case ActionType.UPDATE_TABLE_CALCULATION: {
             return {
                 ...state,
-                tableCalculations: state.tableCalculations.map(
-                    (tableCalculation) =>
-                        tableCalculation.name === action.payload.oldName
-                            ? action.payload.tableCalculation
-                            : tableCalculation,
-                ),
-                columnOrder: state.columnOrder.map((column) =>
-                    column === action.payload.oldName
-                        ? action.payload.tableCalculation.name
-                        : column,
-                ),
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        tableCalculations:
+                            state.unsavedChartVersion.metricQuery.tableCalculations.map(
+                                (tableCalculation) =>
+                                    tableCalculation.name ===
+                                    action.payload.oldName
+                                        ? action.payload.tableCalculation
+                                        : tableCalculation,
+                            ),
+                    },
+                    tableConfig: {
+                        ...state.unsavedChartVersion.tableConfig,
+                        columnOrder:
+                            state.unsavedChartVersion.tableConfig.columnOrder.map(
+                                (column) =>
+                                    column === action.payload.oldName
+                                        ? action.payload.tableCalculation.name
+                                        : column,
+                            ),
+                    },
+                },
             };
         }
         case ActionType.DELETE_TABLE_CALCULATION: {
-            const newTableCalculations = state.tableCalculations.filter(
-                (tableCalculation) => tableCalculation.name !== action.payload,
-            );
+            const newTableCalculations =
+                state.unsavedChartVersion.metricQuery.tableCalculations.filter(
+                    (tableCalculation) =>
+                        tableCalculation.name !== action.payload,
+                );
             return {
                 ...state,
-                tableCalculations: newTableCalculations,
-                columnOrder: calcColumnOrder(state.columnOrder, [
-                    ...state.dimensions,
-                    ...state.metrics,
-                    ...newTableCalculations.map(({ name }) => name),
-                ]),
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        tableCalculations: newTableCalculations,
+                    },
+                    tableConfig: {
+                        ...state.unsavedChartVersion.tableConfig,
+                        columnOrder: calcColumnOrder(
+                            state.unsavedChartVersion.tableConfig.columnOrder,
+                            [
+                                ...state.unsavedChartVersion.metricQuery
+                                    .dimensions,
+                                ...state.unsavedChartVersion.metricQuery
+                                    .metrics,
+                                ...newTableCalculations.map(({ name }) => name),
+                            ],
+                        ),
+                    },
+                },
             };
         }
         case ActionType.SET_PIVOT_FIELDS: {
             return {
                 ...state,
-                pivotFields: action.payload,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    pivotConfig: {
+                        columns: action.payload,
+                    },
+                },
             };
         }
         case ActionType.SET_CHART_TYPE: {
             return {
                 ...state,
-                chartType: action.payload,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    chartConfig: getValidChartConfig(
+                        action.payload,
+                        state.unsavedChartVersion.chartConfig.config,
+                    ),
+                },
             };
         }
         case ActionType.SET_CHART_CONFIG: {
             return {
                 ...state,
-                chartConfig: action.payload,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    chartConfig: getValidChartConfig(
+                        state.unsavedChartVersion.chartConfig.type,
+                        action.payload,
+                    ),
+                },
             };
         }
         default: {
@@ -388,9 +561,11 @@ export const ExplorerProvider: FC<{
         [Set<FieldId>, boolean]
     >(() => {
         const fields = new Set([
-            ...reducerState.dimensions,
-            ...reducerState.metrics,
-            ...reducerState.tableCalculations.map(({ name }) => name),
+            ...reducerState.unsavedChartVersion.metricQuery.dimensions,
+            ...reducerState.unsavedChartVersion.metricQuery.metrics,
+            ...reducerState.unsavedChartVersion.metricQuery.tableCalculations.map(
+                ({ name }) => name,
+            ),
         ]);
         return [fields, fields.size > 0];
     }, [reducerState]);
@@ -495,7 +670,7 @@ export const ExplorerProvider: FC<{
     const addTableCalculation = useCallback(
         (tableCalculation: TableCalculation) => {
             if (
-                reducerState.tableCalculations.findIndex(
+                reducerState.unsavedChartVersion.metricQuery.tableCalculations.findIndex(
                     ({ name }) => name === tableCalculation.name,
                 ) > -1
             ) {
@@ -514,7 +689,7 @@ export const ExplorerProvider: FC<{
         (oldName: string, tableCalculation: TableCalculation) => {
             if (
                 oldName !== tableCalculation.name &&
-                reducerState.tableCalculations.findIndex(
+                reducerState.unsavedChartVersion.metricQuery.tableCalculations.findIndex(
                     ({ name }) => name === tableCalculation.name,
                 ) > -1
             ) {

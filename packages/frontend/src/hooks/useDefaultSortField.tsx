@@ -11,7 +11,13 @@ import { useExplore } from './useExplore';
 
 const useDefaultSortField = (): SortField | undefined => {
     const {
-        state: { dimensions, metrics, columnOrder, tableName },
+        state: {
+            unsavedChartVersion: {
+                tableName,
+                metricQuery: { dimensions, metrics },
+                tableConfig: { columnOrder },
+            },
+        },
     } = useExplorer();
     const { data } = useExplore(tableName);
 
@@ -20,6 +26,7 @@ const useDefaultSortField = (): SortField | undefined => {
             const dimensionFields = getDimensions(data).filter((field) =>
                 dimensions.includes(getFieldId(field)),
             );
+
             const timeDimension = dimensionFields.find(({ type }) =>
                 [DimensionType.DATE, DimensionType.TIMESTAMP].includes(type),
             );

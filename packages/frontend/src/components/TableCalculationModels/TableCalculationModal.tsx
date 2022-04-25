@@ -44,7 +44,12 @@ const TableCalculationModal: FC<Props> = ({
     const [isFullscreen, toggleFullscreen] = useToggle(false);
     const { showToastError } = useApp();
     const {
-        state: { dimensions, metrics, tableCalculations, tableName },
+        state: {
+            unsavedChartVersion: {
+                tableName,
+                metricQuery: { dimensions, metrics, tableCalculations },
+            },
+        },
     } = useExplorer();
     const { setAceEditor } = useExplorerAceEditorCompleter();
     const { data: { targetDatabase } = {} } = useExplore(tableName);

@@ -9,7 +9,12 @@ import { BigButton } from './common/BigButton';
 
 export const RefreshButton = () => {
     const {
-        state: { isValidQuery, sorts },
+        state: {
+            isValidQuery,
+            unsavedChartVersion: {
+                metricQuery: { sorts },
+            },
+        },
         queryResults: { mutate, isLoading: isLoadingResults },
         actions: { setSortFields },
     } = useExplorer();

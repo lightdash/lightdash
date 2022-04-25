@@ -12,7 +12,12 @@ export const useExplorerRoute = () => {
     const pathParams =
         useParams<{ projectUuid: string; tableId: string | undefined }>();
     const {
-        state: { tableName, columnOrder: stateColumnOrder },
+        state: {
+            unsavedChartVersion: {
+                tableName,
+                tableConfig: { columnOrder: stateColumnOrder },
+            },
+        },
         queryResults: { data: queryResultsData },
         actions: { reset, setTableName },
     } = useExplorer();
@@ -147,18 +152,28 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                 return {
                     shouldFetchResults: true,
                     chartName: undefined,
-                    tableName: pathParams.tableId,
-                    dimensions,
-                    metrics,
-                    filters,
-                    sorts,
-                    limit,
-                    columnOrder,
-                    tableCalculations,
-                    additionalMetrics,
-                    chartType: ChartType.CARTESIAN,
-                    chartConfig: undefined,
-                    pivotFields: [],
+                    unsavedChartVersion: {
+                        tableName: pathParams.tableId,
+                        metricQuery: {
+                            dimensions,
+                            metrics,
+                            filters,
+                            sorts,
+                            limit,
+                            tableCalculations,
+                            additionalMetrics,
+                        },
+                        pivotConfig: {
+                            columns: [],
+                        },
+                        tableConfig: {
+                            columnOrder,
+                        },
+                        chartConfig: {
+                            type: ChartType.CARTESIAN,
+                            config: { layout: {}, eChartsConfig: {} },
+                        },
+                    },
                 };
             } catch (e: any) {
                 showToastError({ title: 'Error parsing url', subtitle: e });

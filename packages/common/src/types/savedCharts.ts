@@ -128,6 +128,15 @@ export const isCompleteEchartsConfig = (
 ): value is CompleteEChartsConfig =>
     !!value && !!value.series && value.series.length > 0;
 
+export const isCartesianChartConfig = (
+    value: ChartConfig['config'],
+): value is CartesianChart =>
+    !!value && 'layout' in value && 'eChartsConfig' in value;
+
+export const isBigNumberConfig = (
+    value: ChartConfig['config'],
+): value is BigNumber => !!value && !isCartesianChartConfig(value);
+
 export const hashFieldReference = (reference: PivotReference) =>
     reference.pivotValues
         ? `${reference.field}.${reference.pivotValues

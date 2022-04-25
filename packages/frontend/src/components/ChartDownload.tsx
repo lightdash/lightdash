@@ -112,7 +112,9 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     const [type, setType] = useState<DownloadType>(DownloadType.JPEG);
 
     const {
-        state: { tableName: activeTableName },
+        state: {
+            unsavedChartVersion: { tableName: activeTableName },
+        },
     } = useExplorer();
 
     const isTable = chartType === ChartType.TABLE;
