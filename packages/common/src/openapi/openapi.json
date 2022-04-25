@@ -84,6 +84,9 @@
         },
         "/saved/{savedChartUuid}/version": {
             "$ref": "./paths/savedChartVersions.json"
+        },
+        "/jobs/{jobUuid}": {
+            "$ref": "./paths/job.json"
         }
     },
     "security": [

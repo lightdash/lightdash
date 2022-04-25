@@ -1305,6 +1305,51 @@
                     }
                 }
             }
+        },
+        "/jobs/{jobUuid}": {
+            "get": {
+                "summary": "List status of a job",
+                "tags": ["job"],
+                "operationId": "getJob",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "jobUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully got job status",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "$ref": "#/components/schemas/Job"
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
+            }
         }
     },
     "security": [
@@ -2061,6 +2106,71 @@
                     "chartConfig",
                     "tableConfig"
                 ]
+            },
+            "Step": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "startedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "stepStatus": {
+                        "type": "string",
+                        "enum": [
+                            "DONE",
+                            "RUNNING",
+                            "ERROR",
+                            "PENDING",
+                            "SKIPPED"
+                        ]
+                    },
+                    "error": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "message": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "required": ["name", "stepStatus", "updatedAt", "startedAt"]
+            },
+            "Job": {
+                "type": "object",
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "jobStatus": {
+                        "type": "string",
+                        "enum": ["DONE", "RUNNING", "ERROR"]
+                    },
+                    "jobResults": {
+                        "type": "string"
+                    },
+                    "steps": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Step"
+                        }
+                    }
+                },
+                "required": ["createdAt", "updatedAt", "jobStatus", "steps"]
             }
         },
         "responses": {
