@@ -22,11 +22,17 @@ const statusInfo = (status: string) => {
 };
 
 export const RefreshStepsHeadingWrapper = styled.div`
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 18px auto;
+    column-gap: 15px;
     align-items: flex-start;
     margin: 13px 0;
     padding: 0;
     box-shadow: none;
+
+    .bp4-icon {
+        padding-top: 3px !important;
+    }
 `;
 
 export const RefreshStepsTitle = styled(H4)`

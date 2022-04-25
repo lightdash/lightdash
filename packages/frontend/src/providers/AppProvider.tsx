@@ -187,6 +187,7 @@ export const AppProvider: FC = ({ children }) => {
     const showToastInfo = useCallback<AppContext['showToastInfo']>(
         (props) => {
             showToastSuccess({
+                intent: Intent.NONE,
                 icon: 'refresh',
                 ...props,
             });

@@ -1,5 +1,5 @@
-import { Classes, Drawer, IconName, Position } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { Classes, Drawer, Icon, IconName, Position } from '@blueprintjs/core';
+import React, { Dispatch, FC, SetStateAction } from 'react';
 import {
     ErrorMessageWrapper,
     RefreshStepsHeadingWrapper,
@@ -49,7 +49,12 @@ const refreshStepsMockup = {
     ],
 };
 
-const RefreshStepsModal: FC = () => {
+interface Props {
+    closeModal: Dispatch<SetStateAction<boolean>>;
+    isOpen: boolean;
+}
+
+const RefreshStepsModal: FC<Props> = ({ closeModal, isOpen }) => {
     const statusInfo = (
         status: string,
     ): { title: string; icon: IconName; status: string } => {
@@ -101,19 +106,23 @@ const RefreshStepsModal: FC = () => {
             canOutsideClickClose
             enforceFocus
             hasBackdrop
-            icon={statusInfo(refreshStepsMockup.jobStatus).icon}
             isCloseButtonShown
-            isOpen={true}
-            // onClose={() => errorLogs.setErrorLogsVisible(false)}
-            // onClosed={errorLogs.setAllLogsRead}
+            isOpen={isOpen}
+            onClose={() => closeModal(false)}
             shouldReturnFocusOnClose
             size={'400px'}
             title={
                 <RefreshStepsHeadingWrapper className={Classes.DIALOG_HEADER}>
-                    <RefreshStepsTitle>
-                        {statusInfo(refreshStepsMockup.jobStatus).title}
-                    </RefreshStepsTitle>
-                    <StepsCompletionOverview>{`${numberOfCompletedSteps.length}/${totalSteps} steps complete - 00:01:30`}</StepsCompletionOverview>
+                    <Icon
+                        icon={statusInfo(refreshStepsMockup.jobStatus).icon}
+                        size={18}
+                    />
+                    <div>
+                        <RefreshStepsTitle>
+                            {statusInfo(refreshStepsMockup.jobStatus).title}
+                        </RefreshStepsTitle>
+                        <StepsCompletionOverview>{`${numberOfCompletedSteps.length}/${totalSteps} steps complete - 00:01:30`}</StepsCompletionOverview>
+                    </div>
                 </RefreshStepsHeadingWrapper>
             }
             position={Position.RIGHT}
