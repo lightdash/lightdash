@@ -14,7 +14,7 @@ import {
 } from './RefreshStepsModal.style';
 
 const refreshStepsMockup = {
-    jobStatus: 'DONE', // refresh status ('DONE' | 'RUNNING' | 'ERROR')
+    jobStatus: 'RUNNING', // refresh status ('DONE' | 'RUNNING' | 'ERROR')
     jobResults: '/projects/{projectUuid}/explores',
     steps: [
         {

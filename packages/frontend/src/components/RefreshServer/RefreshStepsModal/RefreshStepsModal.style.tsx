@@ -80,7 +80,7 @@ export const StepStatus = styled.span<{ status: string }>`
 export const StepIcon = styled(Icon)<{ status: string }>`
     width: 15px;
     height: 15px;
-    padding-top: 3px;
+    padding-top: 2px;
     path {
         fill: ${({ status }) => statusInfo(status).color};
     }
