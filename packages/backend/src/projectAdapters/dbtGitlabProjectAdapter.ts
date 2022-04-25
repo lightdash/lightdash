@@ -2,7 +2,7 @@ import {
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
 } from 'common';
-import { WarehouseClient } from '../types';
+import { CachedWarehouse, WarehouseClient } from '../types';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 
 const DEFAULT_GITLAB_HOST_DOMAIN = 'gitlab.com';
@@ -17,6 +17,7 @@ type DbtGitlabProjectAdapterArgs = {
     hostDomain?: string;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
+    cachedWarehouse: CachedWarehouse;
 };
 
 export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
@@ -30,6 +31,7 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
         hostDomain,
         targetName,
         environment,
+        cachedWarehouse,
     }: DbtGitlabProjectAdapterArgs) {
         const remoteRepositoryUrl = `https://:${gitlabPersonalAccessToken}@${
             hostDomain || DEFAULT_GITLAB_HOST_DOMAIN
@@ -42,6 +44,7 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
             warehouseCredentials,
             targetName,
             environment,
+            cachedWarehouse,
         });
     }
 }

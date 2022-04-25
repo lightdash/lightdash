@@ -1,5 +1,5 @@
 import { DbtCliClient } from '../dbt/dbtCliClient';
-import { WarehouseClient } from '../types';
+import { CachedWarehouse, WarehouseClient } from '../types';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
 type DbtLocalProjectAdapterArgs = {
@@ -9,6 +9,7 @@ type DbtLocalProjectAdapterArgs = {
     target: string | undefined;
     profileName?: string | undefined;
     environment?: Record<string, string>;
+    cachedWarehouse: CachedWarehouse;
 };
 
 export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
@@ -19,6 +20,7 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
         target,
         profileName,
         environment,
+        cachedWarehouse,
     }: DbtLocalProjectAdapterArgs) {
         const dbtClient = new DbtCliClient({
             dbtProjectDirectory: projectDir,
@@ -27,6 +29,6 @@ export class DbtLocalProjectAdapter extends DbtBaseProjectAdapter {
             profileName,
             target,
         });
-        super(dbtClient, warehouseClient);
+        super(dbtClient, warehouseClient, cachedWarehouse);
     }
 }

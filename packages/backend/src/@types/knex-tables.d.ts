@@ -44,7 +44,14 @@ import {
     PasswordResetTable,
     PasswordResetTableName,
 } from '../database/entities/passwordResetLinks';
-import { ProjectTable, ProjectTableName } from '../database/entities/projects';
+import {
+    CachedExploresTable,
+    CachedExploresTableName,
+    CachedWarehouseTable,
+    CachedWarehouseTableName,
+    ProjectTable,
+    ProjectTableName,
+} from '../database/entities/projects';
 import {
     SavedChartsTableName,
     SavedChartVersionFieldsTable,
@@ -93,5 +100,7 @@ declare module 'knex/types/tables' {
         [OrganizationMembershipsTableName]: OrganizationMembershipsTable;
         [PasswordResetTableName]: PasswordResetTable;
         [PasswordLoginTableName]: PasswordLoginTable;
+        [CachedExploresTableName]: CachedExploresTable;
+        [CachedWarehouseTableName]: CachedWarehouseTable;
     }
 }

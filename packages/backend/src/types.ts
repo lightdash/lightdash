@@ -8,7 +8,9 @@ import {
 } from 'common';
 
 export interface ProjectAdapter {
-    compileAllExplores(): Promise<(Explore | ExploreError)[]>;
+    compileAllExplores(
+        projectUuid: string,
+    ): Promise<(Explore | ExploreError)[]>;
     getDbtPackages(): Promise<DbtPackages | undefined>;
     runQuery(sql: string): Promise<Record<string, any>[]>;
     test(): Promise<void>;
@@ -47,3 +49,8 @@ export interface WarehouseClient {
     runQuery(sql: string): Promise<Record<string, any>[]>;
     test(): Promise<void>;
 }
+
+export type CachedWarehouse = {
+    warehouseCatalog: WarehouseCatalog | undefined;
+    onWarehouseCatalogChange: (warehouseCatalog: WarehouseCatalog) => void;
+};

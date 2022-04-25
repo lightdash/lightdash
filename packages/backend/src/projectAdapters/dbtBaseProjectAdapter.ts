@@ -25,9 +25,9 @@ import Logger from '../logger';
 import dbtManifestSchema from '../manifestv4.json';
 import lightdashDbtSchema from '../schema.json';
 import {
+    CachedWarehouse,
     DbtClient,
     ProjectAdapter,
-    WarehouseCatalog,
     WarehouseClient,
 } from '../types';
 
@@ -64,11 +64,16 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     warehouseClient: WarehouseClient;
 
-    warehouseCatalog: WarehouseCatalog | undefined;
+    cachedWarehouse: CachedWarehouse;
 
-    constructor(dbtClient: DbtClient, warehouseClient: WarehouseClient) {
+    constructor(
+        dbtClient: DbtClient,
+        warehouseClient: WarehouseClient,
+        cachedWarehouse: CachedWarehouse,
+    ) {
         this.dbtClient = dbtClient;
         this.warehouseClient = warehouseClient;
+        this.cachedWarehouse = cachedWarehouse;
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -92,6 +97,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     }
 
     public async compileAllExplores(
+        projectUuid: string,
         loadSources: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
         Logger.debug('Install dependencies');
@@ -124,10 +130,16 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
         // Be lazy and try to attach types to the remaining models without refreshing the catalog
         try {
+            if (this.cachedWarehouse?.warehouseCatalog === undefined) {
+                throw new MissingCatalogEntryError(
+                    `Could not find cached warehouse catalog for project ${projectUuid}`,
+                    {},
+                );
+            }
             Logger.debug(`Attach types to ${validModels.length} models`);
             const lazyTypedModels = attachTypesToModels(
                 validModels,
-                this.warehouseCatalog || {},
+                this.cachedWarehouse.warehouseCatalog,
                 true,
             );
             Logger.debug('Convert explores');
@@ -143,16 +155,20 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 Logger.debug(
                     'Get warehouse catalog after missing catalog error',
                 );
-                this.warehouseCatalog = await this.warehouseClient.getCatalog(
+                const warehouseCatalog = await this.warehouseClient.getCatalog(
                     getSchemaStructureFromDbtModels(validModels),
                 );
+                await this.cachedWarehouse?.onWarehouseCatalogChange(
+                    warehouseCatalog,
+                );
+
                 Logger.debug(
                     'Attach types to models after missing catalog error',
                 );
                 // Some types were missing so refresh the schema and try again
                 const typedModels = attachTypesToModels(
                     validModels,
-                    this.warehouseCatalog,
+                    warehouseCatalog,
                     false,
                 );
                 Logger.debug('Convert explores after missing catalog error');

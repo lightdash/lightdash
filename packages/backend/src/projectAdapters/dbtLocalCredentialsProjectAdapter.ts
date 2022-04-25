@@ -12,7 +12,7 @@ import {
     profileFromCredentials,
 } from '../dbt/profiles';
 import Logger from '../logger';
-import { WarehouseClient } from '../types';
+import { CachedWarehouse, WarehouseClient } from '../types';
 import { DbtLocalProjectAdapter } from './dbtLocalProjectAdapter';
 
 type DbtLocalCredentialsProjectAdapterArgs = {
@@ -21,6 +21,7 @@ type DbtLocalCredentialsProjectAdapterArgs = {
     warehouseCredentials: CreateWarehouseCredentials;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
+    cachedWarehouse: CachedWarehouse;
 };
 
 export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
@@ -32,6 +33,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         warehouseCredentials,
         targetName,
         environment,
+        cachedWarehouse,
     }: DbtLocalCredentialsProjectAdapterArgs) {
         const profilesDir = tempy.directory();
         const profilesFilename = path.join(profilesDir, 'profiles.yml');
@@ -56,6 +58,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
             profilesDir,
             projectDir,
             environment: updatedEnvironment,
+            cachedWarehouse,
         });
         this.profilesDir = profilesDir;
     }

@@ -12,7 +12,7 @@ import {
     UnexpectedServerError,
 } from '../errors';
 import Logger from '../logger';
-import { WarehouseClient } from '../types';
+import { CachedWarehouse, WarehouseClient } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 
 export type DbtGitProjectAdapterArgs = {
@@ -23,6 +23,7 @@ export type DbtGitProjectAdapterArgs = {
     warehouseCredentials: CreateWarehouseCredentials;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
+    cachedWarehouse: CachedWarehouse;
 };
 
 export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
@@ -44,6 +45,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         warehouseCredentials,
         targetName,
         environment,
+        cachedWarehouse,
     }: DbtGitProjectAdapterArgs) {
         const localRepositoryDir = tempy.directory({
             prefix: 'git_',
@@ -58,6 +60,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
             warehouseCredentials,
             targetName,
             environment,
+            cachedWarehouse,
         });
         this.projectDirectorySubPath = projectDirectorySubPath;
         this.localRepositoryDir = localRepositoryDir;
@@ -164,9 +167,9 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         }
     }
 
-    public async compileAllExplores() {
+    public async compileAllExplores(projectUuid: string) {
         await this._refreshRepo();
-        return super.compileAllExplores();
+        return super.compileAllExplores(projectUuid);
     }
 
     public async test() {

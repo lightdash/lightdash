@@ -5,7 +5,7 @@ import {
 } from 'common';
 import Logger from '../logger';
 import { warehouseClientFromCredentials } from '../services/warehouseClients/warehouseClientFromCredentials';
-import { ProjectAdapter } from '../types';
+import { CachedWarehouse, ProjectAdapter } from '../types';
 import { DbtAzureDevOpsProjectAdapter } from './dbtAzureDevOpsProjectAdapter';
 import { DbtBitBucketProjectAdapter } from './dbtBitBucketProjectAdapter';
 import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
@@ -16,6 +16,7 @@ import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectA
 export const projectAdapterFromConfig = async (
     config: DbtProjectConfig,
     warehouseCredentials: CreateWarehouseCredentials,
+    cachedWarehouse: CachedWarehouse,
 ): Promise<ProjectAdapter> => {
     const warehouseClient =
         warehouseClientFromCredentials(warehouseCredentials);
@@ -29,6 +30,7 @@ export const projectAdapterFromConfig = async (
                 warehouseCredentials,
                 targetName: config.target,
                 environment: config.environment,
+                cachedWarehouse,
             });
         case ProjectType.DBT_CLOUD_IDE:
             return new DbtCloudIdeProjectAdapter({
@@ -37,6 +39,7 @@ export const projectAdapterFromConfig = async (
                 environmentId: `${config.environment_id}`,
                 projectId: `${config.project_id}`,
                 apiKey: config.api_key,
+                cachedWarehouse,
             });
         case ProjectType.GITHUB:
             return new DbtGithubProjectAdapter({
@@ -49,6 +52,7 @@ export const projectAdapterFromConfig = async (
                 warehouseCredentials,
                 targetName: config.target,
                 environment: config.environment,
+                cachedWarehouse,
             });
         case ProjectType.GITLAB:
             return new DbtGitlabProjectAdapter({
@@ -61,6 +65,7 @@ export const projectAdapterFromConfig = async (
                 warehouseCredentials,
                 targetName: config.target,
                 environment: config.environment,
+                cachedWarehouse,
             });
         case ProjectType.BITBUCKET:
             return new DbtBitBucketProjectAdapter({
@@ -74,6 +79,7 @@ export const projectAdapterFromConfig = async (
                 warehouseCredentials,
                 targetName: config.target,
                 environment: config.environment,
+                cachedWarehouse,
             });
         case ProjectType.AZURE_DEVOPS:
             return new DbtAzureDevOpsProjectAdapter({
@@ -87,6 +93,7 @@ export const projectAdapterFromConfig = async (
                 warehouseCredentials,
                 targetName: config.target,
                 environment: config.environment,
+                cachedWarehouse,
             });
         default:
             const never: never = config;

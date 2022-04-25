@@ -108,13 +108,12 @@ export class ProjectService {
         if (user.ability.cannot('create', 'Project')) {
             throw new ForbiddenError();
         }
-        const [adapter, explores] = await ProjectService.testProjectAdapter(
-            data,
-        );
+        const adapter = await ProjectService.testProjectAdapter(data);
         const projectUuid = await this.projectModel.create(
             user.organizationUuid,
             data,
         );
+
         analytics.track({
             event: 'project.created',
             userId: user.userUuid,
@@ -129,7 +128,6 @@ export class ProjectService {
         });
         this.projectLoading[projectUuid] = false;
         this.projectAdapters[projectUuid] = adapter;
-        this.projectModel.saveExploresToCache(projectUuid, explores);
         return this.getProject(projectUuid, user);
     }
 
@@ -151,9 +149,8 @@ export class ProjectService {
         );
 
         this.projectLoading[projectUuid] = true;
-        const [adapter, explores] = await ProjectService.testProjectAdapter(
-            updatedProject,
-        );
+
+        const adapter = await ProjectService.testProjectAdapter(updatedProject);
         await this.projectModel.update(projectUuid, updatedProject);
         analytics.track({
             event: 'project.updated',
@@ -170,25 +167,26 @@ export class ProjectService {
         });
         this.projectLoading[projectUuid] = false;
         this.projectAdapters[projectUuid] = adapter;
-        this.projectModel.saveExploresToCache(projectUuid, explores);
     }
 
     private static async testProjectAdapter(
         data: UpdateProject,
-    ): Promise<[ProjectAdapter, (Explore | ExploreError)[]]> {
+    ): Promise<ProjectAdapter> {
         const adapter = await projectAdapterFromConfig(
             data.dbtConnection,
             data.warehouseConnection,
+            {
+                warehouseCatalog: undefined,
+                onWarehouseCatalogChange: () => {},
+            },
         );
-        let explores: (Explore | ExploreError)[];
         try {
             await adapter.test();
-            explores = await adapter.compileAllExplores();
         } catch (e) {
             await adapter.destroy();
             throw e;
         }
-        return [adapter, explores];
+        return adapter;
     }
 
     async delete(projectUuid: string, user: SessionUser): Promise<void> {
@@ -226,9 +224,20 @@ export class ProjectService {
                 'Warehouse credentials must be provided to connect to your dbt project',
             );
         }
+        const cachedWarehouseCatalog =
+            await this.projectModel.getWarehouseFromCache(projectUuid);
         const adapter = await projectAdapterFromConfig(
             project.dbtConnection,
             project.warehouseConnection,
+            {
+                warehouseCatalog: cachedWarehouseCatalog,
+                onWarehouseCatalogChange: async (warehouseCatalog) => {
+                    await this.projectModel.saveWarehouseToCache(
+                        projectUuid,
+                        warehouseCatalog,
+                    );
+                },
+            },
         );
         this.projectAdapters[projectUuid] = adapter;
         return adapter;
@@ -340,7 +349,7 @@ export class ProjectService {
         const adapter = await this.restartAdapter(projectUuid);
         const packages = await adapter.getDbtPackages();
         try {
-            const explores = await adapter.compileAllExplores();
+            const explores = await adapter.compileAllExplores(projectUuid);
             analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,
@@ -461,7 +470,7 @@ export class ProjectService {
         const cachedExplores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );
-        if (cachedExplores.length === 0 || forceRefresh) {
+        if (!cachedExplores || cachedExplores.length === 0 || forceRefresh) {
             this.projectModel.tryWithProjectLock(
                 projectUuid,
                 jobUuid || uuidv4(),
@@ -477,7 +486,7 @@ export class ProjectService {
                 },
             );
         }
-        return cachedExplores;
+        return cachedExplores || [];
     }
 
     async getAllExploresSummary(

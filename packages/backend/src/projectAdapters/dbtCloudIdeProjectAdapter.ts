@@ -1,6 +1,6 @@
 import { Explore, ExploreError } from 'common';
 import { DbtCloudV2RpcClient } from '../dbt/dbtCloudV2RpcClient';
-import { WarehouseClient } from '../types';
+import { CachedWarehouse, WarehouseClient } from '../types';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
 type DbtCloudideProjectAdapterArgs = {
@@ -9,6 +9,7 @@ type DbtCloudideProjectAdapterArgs = {
     environmentId: string | number;
     projectId: string | number;
     apiKey: string;
+    cachedWarehouse: CachedWarehouse;
 };
 
 export class DbtCloudIdeProjectAdapter extends DbtBaseProjectAdapter {
@@ -18,6 +19,7 @@ export class DbtCloudIdeProjectAdapter extends DbtBaseProjectAdapter {
         environmentId,
         projectId,
         apiKey,
+        cachedWarehouse,
     }: DbtCloudideProjectAdapterArgs) {
         const rpcClient = new DbtCloudV2RpcClient(
             accountId,
@@ -25,10 +27,12 @@ export class DbtCloudIdeProjectAdapter extends DbtBaseProjectAdapter {
             projectId,
             apiKey,
         );
-        super(rpcClient, warehouseClient);
+        super(rpcClient, warehouseClient, cachedWarehouse);
     }
 
-    public async compileAllExplores(): Promise<(Explore | ExploreError)[]> {
-        return super.compileAllExplores(false);
+    public async compileAllExplores(
+        projectUuid: string,
+    ): Promise<(Explore | ExploreError)[]> {
+        return super.compileAllExplores(projectUuid, false);
     }
 }
