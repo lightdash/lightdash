@@ -8,7 +8,7 @@ import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import EditableHeader from '../../common/EditableHeader';
 import { RefreshButton } from '../../RefreshButton';
-import RefreshServerButton from '../../RefreshServer/RefreshServerButton';
+import RefreshServerButton from '../../RefreshServer';
 import { OptionsButton, TitleWrapper, Wrapper } from './ExploreHeader.styles';
 
 const ExploreHeader: FC = () => {
