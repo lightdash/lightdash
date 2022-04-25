@@ -23,6 +23,7 @@ import React, {
     useMemo,
     useReducer,
 } from 'react';
+import useDefaultSortField from '../hooks/useDefaultSortField';
 import { useQueryResults } from '../hooks/useQueryResults';
 
 export enum ActionType {
@@ -140,6 +141,7 @@ interface ExplorerContext {
         setChartConfig: (
             chartConfig: ChartConfig['config'] | undefined,
         ) => void;
+        fetchResults: () => void;
     };
 }
 
@@ -763,6 +765,24 @@ export const ExplorerProvider: FC<{
         }
     }, [mutate, state]);
 
+    const defaultSort = useDefaultSortField(reducerState.unsavedChartVersion);
+
+    const fetchResults = useCallback(() => {
+        if (
+            reducerState.unsavedChartVersion.metricQuery.sorts.length <= 0 &&
+            defaultSort
+        ) {
+            setSortFields([defaultSort]);
+        } else {
+            mutate();
+        }
+    }, [
+        defaultSort,
+        mutate,
+        reducerState.unsavedChartVersion.metricQuery.sorts.length,
+        setSortFields,
+    ]);
+
     const value: ExplorerContext = {
         state,
         queryResults,
@@ -782,6 +802,7 @@ export const ExplorerProvider: FC<{
                 setPivotFields,
                 setChartType,
                 setChartConfig,
+                fetchResults,
             }),
             [
                 reset,
@@ -798,6 +819,7 @@ export const ExplorerProvider: FC<{
                 setPivotFields,
                 setChartType,
                 setChartConfig,
+                fetchResults,
             ],
         ),
     };

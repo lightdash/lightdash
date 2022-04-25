@@ -1,7 +1,6 @@
 import { KeyCombo, useHotkeys } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import React, { useCallback, useMemo } from 'react';
-import useDefaultSortField from '../hooks/useDefaultSortField';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
@@ -9,29 +8,18 @@ import { BigButton } from './common/BigButton';
 
 export const RefreshButton = () => {
     const {
-        state: {
-            isValidQuery,
-            unsavedChartVersion: {
-                metricQuery: { sorts },
-            },
-        },
-        queryResults: { mutate, isLoading: isLoadingResults },
-        actions: { setSortFields },
+        state: { isValidQuery },
+        queryResults: { isLoading: isLoadingResults },
+        actions: { fetchResults },
     } = useExplorer();
     const { track } = useTracking();
-    const defaultSort = useDefaultSortField();
     const isDisabled = !isValidQuery;
     const onClick = useCallback(async () => {
-        if (sorts.length <= 0 && defaultSort) {
-            setSortFields([defaultSort]);
-        } else {
-            mutate();
-        }
-
+        fetchResults();
         track({
             name: EventName.RUN_QUERY_BUTTON_CLICKED,
         });
-    }, [defaultSort, mutate, setSortFields, sorts, track]);
+    }, [fetchResults, track]);
     const hotkeys = useMemo(() => {
         const runQueryHotkey = {
             combo: 'ctrl+enter',
