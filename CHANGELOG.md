@@ -1,3 +1,10 @@
+## [0.74.2](https://github.com/lightdash/lightdash/compare/0.74.1...0.74.2) (2022-04-25)
+
+
+### Bug Fixes
+
+* compare all chart properies to detect unsaved changes ([#1880](https://github.com/lightdash/lightdash/issues/1880)) ([3e09b7f](https://github.com/lightdash/lightdash/commit/3e09b7f45eb6a28b8ba24be3b3bd806bb194f465))
+
 ## [0.74.1](https://github.com/lightdash/lightdash/compare/0.74.0...0.74.1) (2022-04-22)
 
 
