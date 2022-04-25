@@ -1,4 +1,5 @@
 import {
+    CreateSavedChartVersion,
     DimensionType,
     fieldId as getFieldId,
     getDimensions,
@@ -6,19 +7,16 @@ import {
     SortField,
 } from 'common';
 import { useMemo } from 'react';
-import { useExplorer } from '../providers/ExplorerProvider';
 import { useExplore } from './useExplore';
 
-const useDefaultSortField = (): SortField | undefined => {
+const useDefaultSortField = (
+    savedChart: CreateSavedChartVersion,
+): SortField | undefined => {
     const {
-        state: {
-            unsavedChartVersion: {
-                tableName,
-                metricQuery: { dimensions, metrics },
-                tableConfig: { columnOrder },
-            },
-        },
-    } = useExplorer();
+        tableName,
+        metricQuery: { dimensions, metrics },
+        tableConfig: { columnOrder },
+    } = savedChart;
     const { data } = useExplore(tableName);
 
     return useMemo(() => {
