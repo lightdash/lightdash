@@ -1,3 +1,10 @@
+# [0.75.0](https://github.com/lightdash/lightdash/compare/0.74.2...0.75.0) (2022-04-25)
+
+
+### Features
+
+* add openapi docs ([#1883](https://github.com/lightdash/lightdash/issues/1883)) ([6cbd72e](https://github.com/lightdash/lightdash/commit/6cbd72e5e72ab59aae1dbb1557dd73dd9c75387c))
+
 ## [0.74.2](https://github.com/lightdash/lightdash/compare/0.74.1...0.74.2) (2022-04-25)
 
 
