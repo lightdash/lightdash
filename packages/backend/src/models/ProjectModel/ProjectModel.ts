@@ -4,6 +4,7 @@ import {
     DbtProjectConfig,
     Explore,
     ExploreError,
+    Job,
     OrganizationProject,
     Project,
     sensitiveCredentialsFieldNames,
@@ -20,7 +21,11 @@ import {
     ProjectTableName,
 } from '../../database/entities/projects';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
-import { NotExistsError, UnexpectedServerError } from '../../errors';
+import {
+    NotExistsError,
+    NotFoundError,
+    UnexpectedServerError,
+} from '../../errors';
 import Logger from '../../logger';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 
@@ -34,15 +39,8 @@ type ProjectModelDependencies = {
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
 
-const enum JobStepStatusType {
-    DONE = 'DONE',
-    RUNNING = 'RUNNING',
-    ERROR = 'ERROR',
-    PENDING = 'PENDING',
-    SKIPPED = 'SKIPPED',
-}
-
-const enum JobStatusType {
+export const enum JobStatusType {
+    STARTED = 'STARTED',
     DONE = 'DONE',
     RUNNING = 'RUNNING',
     ERROR = 'ERROR',
@@ -406,6 +404,28 @@ export class ProjectModel {
                 table_selection_value: data.tableSelection.value,
             })
             .where('project_uuid', projectUuid);
+    }
+
+    async getJobstatus(jobUuid: string): Promise<Job> {
+        const jobs = await this.database(JobsTableName).where(
+            'job_uuid',
+            jobUuid,
+        );
+
+        if (jobs.length === 0)
+            throw new NotFoundError(
+                `job with jobUuid ${jobUuid} does not exist`,
+            );
+
+        const job = jobs[0];
+        return {
+            createdAt: job.created_at,
+            updatedAt: job.updated_at,
+            projectUuid: job.project_uuid,
+            jobUuid: job.job_uuid,
+            jobStatus: job.job_status,
+            steps: [],
+        };
     }
 
     async updateJobStatus(

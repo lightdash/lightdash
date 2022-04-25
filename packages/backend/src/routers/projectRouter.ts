@@ -157,6 +157,8 @@ projectRouter.post(
     async (req, res, next) => {
         try {
             const jobUuid = uuidv4();
+
+            projectService.startJob(jobUuid, req.params.projectUuid); // So we don't get a 404 when requesting this jobUuid
             projectService
                 .getAllExplores(
                     req.user!,
