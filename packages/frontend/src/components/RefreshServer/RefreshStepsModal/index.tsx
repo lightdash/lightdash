@@ -1,90 +1,155 @@
+import { Classes, Drawer, IconName, Position } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import {
-    InfoWrapper,
+    ErrorMessageWrapper,
     RefreshStepsHeadingWrapper,
-    RefreshStepsModalWrapper,
     RefreshStepsTitle,
     Step,
+    StepIcon,
     StepName,
     StepsCompletionOverview,
+    StepStatus,
+    StepStatusWrapper,
     StepsWrapper,
 } from './RefreshStepsModal.style';
 
-interface Props {
-    title: string;
-}
-
 const refreshStepsMockup = {
-    status: 'success', // refresh status ('success' | 'inProgress' | 'pending' | 'error')
+    jobStatus: 'DONE', // refresh status ('DONE' | 'RUNNING' | 'ERROR')
+    jobResults: '/projects/{projectUuid}/explores',
     steps: [
         {
             name: 'Clone dbt project from github', // step name
-            status: 'inProgress', // step status ('success' | 'inProgress' | 'pending' | 'error')
-            runningTime: 2, // time it has run for in mins/secs
+            stepStatus: 'DONE', // step status ('DONE' | 'RUNNING' | 'ERROR' | 'PENDING' | 'SKIPPED')
+            runningTime: '00:00:31', // time it has run for in mins/secs
         },
         {
             name: 'Install dbt project dependencies ', // step name
-            status: 'inProgress', // step status ('success' | 'inProgress' | 'pending' | 'error')
-            runningTime: 2, // time it has run for in mins/secs
+            stepStatus: 'RUNNING', // step status ('DONE' | 'RUNNING' | 'ERROR' | 'PENDING' | 'SKIPPED')
+            runningTime: '00:00:31', // time it has run for in mins/secs
         },
         {
             name: 'Compile dbt project', // step name
-            status: 'inProgress', // step status ('success' | 'inProgress' | 'pending' | 'error')
-            runningTime: 2, // time it has run for in mins/secs
+            stepStatus: 'ERROR', // step status ('DONE' | 'RUNNING' | 'ERROR' | 'PENDING' | 'SKIPPED')
+            error: {
+                name: 'Name n_stores not found inside',
+                message: 'campaign_all_brand-hist at [2:33]',
+            },
+            runningTime: '00:00:31', // time it has run for in mins/secs
         },
         {
             name: 'Get latest data warehouse schema', // step name
-            status: 'inProgress', // step status ('success' | 'inProgress' | 'pending' | 'error')
-            runningTime: 2, // time it has run for in mins/secs
+            stepStatus: 'PENDING', // step status ('DONE' | 'RUNNING' | 'ERROR' | 'PENDING' | 'SKIPPED')
+            runningTime: '00:00:31', // time it has run for in mins/secs
         },
         {
             name: 'Compile metrics and dimensions', // step name
-            status: 'inProgress', // step status ('success' | 'inProgress' | 'pending' | 'error')
-            runningTime: 2, // time it has run for in mins/secs
+            stepStatus: 'PENDING', // step status ('DONE' | 'RUNNING' | 'ERROR' | 'PENDING' | 'SKIPPED')
+            runningTime: '00:00:31', // time it has run for in mins/secs
         },
     ],
 };
 
 const RefreshStepsModal: FC = () => {
-    const statusTitle = () => {
-        switch (refreshStepsMockup.status) {
-            case 'success':
-                return 'Sync successful!';
-            case 'error':
-                return 'Error in sync';
-            case 'inProgress':
-                return 'Sync in progress';
+    const statusInfo = (
+        status: string,
+    ): { title: string; icon: IconName; status: string } => {
+        switch (status) {
+            case 'DONE':
+                return {
+                    title: 'Sync successful!',
+                    icon: 'tick-circle',
+                    status: 'Success',
+                };
+            case 'ERROR':
+                return {
+                    title: 'Error in sync',
+                    icon: 'warning-sign',
+                    status: 'Error',
+                };
+            case 'RUNNING':
+                return {
+                    title: 'Sync in progress',
+                    icon: 'refresh',
+                    status: 'In progress',
+                };
+
+            case 'PENDING':
+                return {
+                    title: 'Sync in progress',
+                    icon: 'refresh',
+                    status: 'Queued',
+                };
 
             default:
-                break;
+                return {
+                    title: 'Sync in progress',
+                    icon: 'refresh',
+                    status: 'Success',
+                };
         }
     };
 
     const totalSteps = refreshStepsMockup.steps.length;
     const numberOfCompletedSteps = refreshStepsMockup.steps.filter((step) => {
-        return step.status === 'completed';
+        return step.stepStatus === 'DONE';
     });
 
     return (
-        <RefreshStepsModalWrapper>
-            <RefreshStepsHeadingWrapper>
-                <RefreshStepsTitle>{statusTitle}</RefreshStepsTitle>
-                <StepsCompletionOverview>{`${numberOfCompletedSteps.length}/${totalSteps} steps complete - `}</StepsCompletionOverview>
-            </RefreshStepsHeadingWrapper>
+        <Drawer
+            autoFocus
+            canEscapeKeyClose
+            canOutsideClickClose
+            enforceFocus
+            hasBackdrop
+            icon={statusInfo(refreshStepsMockup.jobStatus).icon}
+            isCloseButtonShown
+            isOpen={true}
+            // onClose={() => errorLogs.setErrorLogsVisible(false)}
+            // onClosed={errorLogs.setAllLogsRead}
+            shouldReturnFocusOnClose
+            size={'400px'}
+            title={
+                <RefreshStepsHeadingWrapper className={Classes.DIALOG_HEADER}>
+                    <RefreshStepsTitle>
+                        {statusInfo(refreshStepsMockup.jobStatus).title}
+                    </RefreshStepsTitle>
+                    <StepsCompletionOverview>{`${numberOfCompletedSteps.length}/${totalSteps} steps complete - 00:01:30`}</StepsCompletionOverview>
+                </RefreshStepsHeadingWrapper>
+            }
+            position={Position.RIGHT}
+        >
             <StepsWrapper>
                 {refreshStepsMockup.steps.map((step) => (
-                    <Step>
-                        <StepName>{step.name}</StepName>
-                        <InfoWrapper>
-                            <p>
-                                {step.status}
-                                <span>{step.runningTime}</span>
-                            </p>
-                        </InfoWrapper>
+                    <Step status={step.stepStatus}>
+                        <div>
+                            {step.stepStatus !== 'PENDING' && (
+                                <StepIcon
+                                    icon={statusInfo(step.stepStatus).icon}
+                                    status={step.stepStatus}
+                                />
+                            )}
+                        </div>
+                        <div>
+                            <StepName>{step.name}</StepName>
+                            <StepStatusWrapper>
+                                <StepStatus status={step.stepStatus}>
+                                    {statusInfo(step.stepStatus).status}{' '}
+                                </StepStatus>
+                                {!step.error && step.runningTime}
+                            </StepStatusWrapper>
+                            {step.error && (
+                                <ErrorMessageWrapper>
+                                    <p>
+                                        {step.error.name}
+                                        <br /> {step.error.message}
+                                    </p>
+                                </ErrorMessageWrapper>
+                            )}
+                        </div>
                     </Step>
                 ))}
             </StepsWrapper>
-        </RefreshStepsModalWrapper>
+        </Drawer>
     );
 };
 
