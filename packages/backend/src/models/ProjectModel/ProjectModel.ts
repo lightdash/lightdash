@@ -31,6 +31,20 @@ type ProjectModelDependencies = {
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
 
+const enum JobStepStatusType {
+    DONE = 'DONE',
+    RUNNING = 'RUNNING',
+    ERROR = 'ERROR',
+    PENDING = 'PENDING',
+    SKIPPED = 'SKIPPED',
+}
+
+const enum JobStatusType {
+    DONE = 'DONE',
+    RUNNING = 'RUNNING',
+    ERROR = 'ERROR',
+}
+
 export class ProjectModel {
     private database: Knex;
 
@@ -390,6 +404,14 @@ export class ProjectModel {
             })
             .where('project_uuid', projectUuid);
     }
+
+    async updateJobStatus(jobId: string, status: JobStatusType): Promise<void> {
+        const explores = await this.database(CachedExploresTableName)
+            .select(['explores'])
+            .where('project_uuid', projectUuid)
+            .limit(1);
+    }
+    // TODO save steps
 
     async getExploresFromCache(
         projectUuid: string,

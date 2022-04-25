@@ -426,6 +426,7 @@ export class ProjectService {
     async getAllExplores(
         user: SessionUser,
         projectUuid: string,
+        jobId: string,
         forceRefresh: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
         const cachedExplores = await this.projectModel.getExploresFromCache(
