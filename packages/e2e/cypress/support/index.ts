@@ -13,8 +13,23 @@
 // https://on.cypress.io/configuration
 // ***********************************************************
 
-// Import commands.js using ES2015 syntax:
 import './commands';
 
-// Alternatively you can use CommonJS syntax:
-// require('./commands')
+before(() => {
+    // Block some external URLs
+    [
+        'static.cohere.so',
+        'cdn.headwayapp.co',
+        'chat.lightdash.com',
+        'www.loom.com',
+    ].forEach((url) => {
+        cy.intercept(
+            {
+                hostname: url,
+            },
+            (req) => {
+                req.destroy();
+            },
+        );
+    });
+});
