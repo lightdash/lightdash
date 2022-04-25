@@ -2,7 +2,7 @@
 name: Discussion
 about: Some ideas just need to be discussed before they become feature proposals.
 title: ''
-labels: discussion
+labels: "\U0001F4AC discussion"
 assignees: ''
 
 ---
