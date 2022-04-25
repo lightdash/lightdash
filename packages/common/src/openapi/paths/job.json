@@ -1,7 +1,7 @@
 {
     "get": {
         "summary": "List status of a job",
-        "tags": ["job"],
+        "tags": ["project"],
         "operationId": "getJob",
         "parameters": [
             {
