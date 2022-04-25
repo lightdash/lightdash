@@ -41,6 +41,7 @@ export * from './types/dashboard';
 export * from './types/dbt';
 export * from './types/field';
 export * from './types/filter';
+export * from './types/job';
 export * from './types/metricQuery';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';

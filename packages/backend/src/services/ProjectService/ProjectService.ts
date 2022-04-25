@@ -14,6 +14,7 @@ import {
     hasIntersection,
     isExploreError,
     isFilterableDimension,
+    Job,
     MetricQuery,
     Project,
     ProjectCatalog,
@@ -34,7 +35,10 @@ import {
 } from '../../errors';
 import Logger from '../../logger';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import {
+    JobStatusType,
+    ProjectModel,
+} from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
@@ -422,6 +426,18 @@ export class ProjectService {
         } finally {
             this.projectLoading[projectUuid] = false;
         }
+    }
+
+    async getJobStatus(jobUuid: string): Promise<Job> {
+        return this.projectModel.getJobstatus(jobUuid);
+    }
+
+    async startJob(jobUuid: string, projectUuid: string): Promise<void> {
+        this.projectModel.updateJobStatus(
+            jobUuid,
+            projectUuid,
+            JobStatusType.STARTED,
+        );
     }
 
     async getAllExplores(
