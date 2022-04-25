@@ -2,7 +2,7 @@ import { Card, NonIdealState, Spinner } from '@blueprintjs/core';
 import React from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import AboutFooter from '../components/AboutFooter';
-import { Explorer } from '../components/Explorer';
+import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel/index';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import { ExplorerProvider } from '../providers/ExplorerProvider';
