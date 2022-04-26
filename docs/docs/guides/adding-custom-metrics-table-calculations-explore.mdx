@@ -144,7 +144,7 @@ ${table.column_i_want_to_see_the_percent_of_total} * 100 / SUM(${table.column_i_
   ROUND(${table.column_i_want_to_see_the_percent_of_total} * 100 / SUM(${table.  column_i_want_to_see_the_percent_of_total}) OVER(), 2)
   ```
 
-<img src={PercentOfTotalRounded} width="320" height="388" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={PercentOfTotalRounded} width="160" height="194" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Percent of previous
 
@@ -180,7 +180,7 @@ ${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare})
   ROUND(${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by}), 2)
   ```
 
-<img src={PercentOfTotalRounded} width="320" height="388" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={PercentOfTotalRounded} width="160" height="194" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Percent change from previous
 
@@ -216,7 +216,7 @@ So, the SQL for the percent change from the previous will always look something 
   ROUND((${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})) - 100, 2)
   ```
 
-<img src={PercentOfTotalRounded} width="320" height="388" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={PercentOfTotalRounded} width="160" height="194" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Rank in column
 
