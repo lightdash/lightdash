@@ -5,6 +5,9 @@ import WriteNewCalc from './assets/add-table-calc-sql.png';
 import RunQuerySeeCalc from './assets/run-query-to-see-table-calcs.png';
 import EditDeleteCalc from './assets/edit-delete-table-calc.png';
 import RunningTotal from './assets/running-total.png';
+import PercentOfTotal from './assets/percent-of-total.png';
+import PercentOfTotalRounded from './assets/percent-of-total-rounded.png';
+import PercentOfPrevious from './assets/percent-of-previous.png';
 
 # Adding custom metrics + table calculations in your Explore
 
@@ -90,6 +93,100 @@ Here's an example of a running total:
 
 <img src={RunningTotal} width="1260" height="516" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
+And here's the SQL used in the table calculation:
+
 ```sql
-SUM(${table.field_I_want_to_sum}) OVER(ORDER BY ${table.field_I_want_to_order_by}, ${table.optional_other_field_I_want_to_order_by})
+SUM(${pages.page_view_count}) OVER(ORDER BY ${pages.date_day}, ${pages.path})
 ```
+
+In general, the SQL used for calculating running totals has two bits (with an optional third bit):
+
+- `column_I_want_to_sum` - this is the column with the values you want to add up 
+- `column_I_want_to_order_by` - this is the column you want to order your running total over
+- `optional_other_column_I_want_to_order_by` - this column is optional and you can add as many more `order by` columns as you need. For your running total to only go up an increment of one row, you'll need to add every dimension in your results table to the `ORDER BY` bit in your SQL. And, the order of these will need to be the same as the ordering you've added to the columns in your results table.
+
+So, the SQL for running totals will always look something like:
+
+```sql
+SUM(${table.column_I_want_to_sum}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})
+```
+
+**Level up your SQL**:
+
+- You can specify if you want to order your columns in ascending order (1, 2, 3, 4) or descending order (4, 3, 2, 1) using the key words `ASC` and `DESC` in your `ORDER BY` clause. 
+By default, a column will be ordered in ascending order - so if you want it ordered ascending, you don't need to add anything:
+
+  ```sql
+  SUM(${table.column_I_want_to_sum}) OVER(ORDER BY ${table.column_I_want_to_order_by} ASC, ${table.optional_other_column_I_want_to_order_by} DESC)
+  ```
+
+#### Percent of total column
+
+The percent of total column will give you the percentage of each value in the  column out of the total sum of the values in the column.
+
+Here's an example of a percent of the total column:
+
+<img src={PercentOfTotal} width="1254" height="561" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+And here's the SQL used in the table calculation:
+
+```sql
+${pages.page_view_count} * 100 / SUM(${pages.page_view_count}) OVER()
+```
+
+In general, the SQL used for calculating the percent of the total has just one important column:
+
+- `column_i_want_to_see_the_percent_of_total` - this is the column that you want to see each value's percent of the total values in that column
+
+So, the SQL for the percent of a total will always look something like:
+
+```sql
+${table.column_i_want_to_see_the_percent_of_total} * 100 / SUM(${table.column_i_want_to_see_the_percent_of_total}) OVER()
+```
+
+**Level up your SQL**:
+
+- You can round your table calculation to only show a certain number of decimal points. Here's an example where I only show two decimal points:
+
+  ```sql
+  ROUND(${table.column_i_want_to_see_the_percent_of_total} * 100 / SUM(${table.  column_i_want_to_see_the_percent_of_total}) OVER(), 2)
+  ```
+
+<img src={PercentOfTotalRounded} width="320" height="388" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+#### Percent of previous
+
+The percent of previous gives you the percent of a value compared to the value in the row above it.
+
+Here's an example of a percent of previous calculation:
+
+<img src={PercentOfPrevious} width="1227" height="473" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+And here's the SQL that was used to generate it:
+
+```sql
+${pages.page_view_count} * 100 / LAG(${pages.page_view_count}) OVER(ORDER BY ${pages.date_day}, ${pages.path})
+```
+
+In general, the SQL used for calculating the percent of the previous value has two bits (with an optional third bit):
+
+- `column_I_want_to_compare` - this is the column with the values you want to compare
+- `column_I_want_to_order_by` - this is the column you want to use to order the values you want to compare
+- `optional_other_column_I_want_to_order_by` - this column is optional and you can add as many more `order by` columns as you need. Normally, you'll need to add every dimension in your results table to the `ORDER BY` bit in your SQL. And, the order of these will need to be the same as the ordering you've added to the columns in your results table.
+
+So, the SQL for the percent of previous will always look something like:
+
+```sql
+${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})
+```
+
+**Level up your SQL**:
+
+- You can round your table calculation to only show a certain number of decimal points. Here's an example where I only show two decimal points:
+
+  ```sql
+  ROUND(${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by}), 2)
+  ```
+
+<img src={PercentOfTotalRounded} width="320" height="388" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
