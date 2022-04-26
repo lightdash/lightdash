@@ -9,7 +9,7 @@ import {
     LoadingSpinner,
     RefreshButton,
     RefreshSpinnerButton,
-} from './RefreshServerButton.style';
+} from './RefreshServerButton.styles';
 import RefreshStepsModal from './RefreshStepsModal';
 
 const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
@@ -24,6 +24,7 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
         refreshServer.mutate();
         showToastInfo({
             title: `Sync in progress  Step 1/5: Cloning dbt project from Github`,
+            icon: 'refresh',
             action: {
                 text: 'View log ',
                 icon: 'arrow-right',
@@ -55,7 +56,7 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
 
             <RefreshStepsModal
                 isOpen={isRefreshStepsOpen}
-                closeModal={setIsRefreshStepsOpen}
+                onClose={setIsRefreshStepsOpen}
             />
         </>
     );
