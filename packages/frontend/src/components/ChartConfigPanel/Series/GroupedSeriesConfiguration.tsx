@@ -8,6 +8,7 @@ import {
     getSeriesId,
     isDimension,
     isField,
+    isSeriesWithMixedChartTypes,
     Series,
     TableCalculation,
 } from 'common';
@@ -126,7 +127,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         .size === 1;
 
                 const isChartTypeTheSameForAllSeries: boolean =
-                    new Set(seriesGroup.map(({ type }) => type)).size === 1;
+                    !isSeriesWithMixedChartTypes(seriesGroup);
 
                 const hasDivider = layout?.yField?.length !== i + 1;
 

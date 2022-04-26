@@ -14,11 +14,11 @@ const useCartesianChartConfig = (
     chartConfigs: CartesianChart | undefined,
     pivotKey: string | undefined,
     resultsData: ApiQueryResults | undefined,
-    isSaved: boolean,
     setPivotDimensions: React.Dispatch<
         React.SetStateAction<string[] | undefined>
     >,
 ) => {
+    const hasInitialValue = !!chartConfigs;
     const [dirtyChartType, setChartType] = useState<CartesianSeriesType>(
         chartConfigs?.eChartsConfig?.series?.[0]?.type ||
             CartesianSeriesType.BAR,
@@ -220,7 +220,7 @@ const useCartesianChartConfig = (
         };
 
         // Only load this if there are no existing chart configuration (not saved)
-        if (isSaved) return;
+        if (hasInitialValue) return;
 
         // one metric , one dimension
         if (availableMetrics.length === 1 && availableDimensions.length === 1) {
@@ -309,7 +309,7 @@ const useCartesianChartConfig = (
         availableDimensions,
         availableMetrics,
         availableTableCalculations,
-        isSaved,
+        hasInitialValue,
         setPivotDimensions,
         setType,
     ]);
