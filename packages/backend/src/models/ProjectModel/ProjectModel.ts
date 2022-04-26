@@ -406,6 +406,26 @@ export class ProjectModel {
             .where('project_uuid', projectUuid);
     }
 
+    async getLastJob(projectUuid: string): Promise<Job | undefined> {
+        const jobs = await this.database(JobsTableName)
+            .where('project_uuid', projectUuid)
+            .orderBy('updated_at', 'desc')
+            .limit(1);
+
+        if (jobs.length === 0) return undefined;
+        
+            const job = jobs[0];
+            return {
+                createdAt: job.created_at,
+                updatedAt: job.updated_at,
+                projectUuid: job.project_uuid,
+                jobUuid: job.job_uuid,
+                jobStatus: job.job_status,
+                steps: [],
+            };
+        
+    }
+
     async getJobstatus(jobUuid: string): Promise<Job> {
         const jobs = await this.database(JobsTableName).where(
             'job_uuid',
