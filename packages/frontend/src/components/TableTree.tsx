@@ -458,6 +458,10 @@ const TableTree: FC<TableTreeProps> = ({
                   })),
     };
 
+    const tableAdditionalMetrics = additionalMetrics?.filter(
+        (metric) => metric.table === table.name,
+    );
+
     const customMetricsNode = {
         id: 'customMetrics',
         label: (
@@ -475,7 +479,7 @@ const TableTree: FC<TableTreeProps> = ({
         hasCaret: false,
         isExpanded: true,
         childNodes:
-            !additionalMetrics || additionalMetrics.length <= 0
+            !tableAdditionalMetrics || tableAdditionalMetrics.length <= 0
                 ? [
                       {
                           key: 'no_custom_metrics',
@@ -484,8 +488,7 @@ const TableTree: FC<TableTreeProps> = ({
                           disabled: true,
                       },
                   ]
-                : additionalMetrics
-                      .filter((metric) => metric.table === table.name)
+                : tableAdditionalMetrics
                       .sort((a, b) => a.name.localeCompare(b.name))
                       .map((metric) => ({
                           key: metric.name,

@@ -6,6 +6,7 @@ import {
     defineAbilityForOrganizationMember,
     Explore,
     ExploreError,
+    fieldId,
     FilterableField,
     formatRows,
     getDimensions,
@@ -288,8 +289,11 @@ export class ProjectService {
                 filtersCount: countTotalFilterRules(metricQuery.filters),
                 sortsCount: metricQuery.sorts.length,
                 tableCalculationsCount: metricQuery.tableCalculations.length,
-                additionalMetricsCount: (metricQuery.additionalMetrics || [])
-                    .length,
+                additionalMetricsCount: (
+                    metricQuery.additionalMetrics || []
+                ).filter((metric) =>
+                    metricQuery.metrics.includes(fieldId(metric)),
+                ).length,
             },
         });
         const explore = await this.getExplore(user, projectUuid, exploreName);

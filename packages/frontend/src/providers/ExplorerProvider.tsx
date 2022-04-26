@@ -41,7 +41,7 @@ export enum ActionType {
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
     SET_FETCH_RESULTS_FALSE,
-    ADD_ADDITIONAL_METRICS,
+    ADD_ADDITIONAL_METRIC,
     SET_PIVOT_FIELDS,
     SET_CHART_TYPE,
     SET_CHART_CONFIG,
@@ -87,7 +87,7 @@ type Action =
           payload: string[];
       }
     | {
-          type: ActionType.ADD_ADDITIONAL_METRICS;
+          type: ActionType.ADD_ADDITIONAL_METRIC;
           payload: Metric;
       }
     | {
@@ -397,7 +397,7 @@ function reducer(
                 },
             };
         }
-        case ActionType.ADD_ADDITIONAL_METRICS: {
+        case ActionType.ADD_ADDITIONAL_METRIC: {
             return {
                 ...state,
                 unsavedChartVersion: {
@@ -679,7 +679,7 @@ export const ExplorerProvider: FC<{
 
     const addAdditionalMetric = useCallback((additionalMetric: Metric) => {
         dispatch({
-            type: ActionType.ADD_ADDITIONAL_METRICS,
+            type: ActionType.ADD_ADDITIONAL_METRIC,
             payload: additionalMetric,
         });
         dispatch({
