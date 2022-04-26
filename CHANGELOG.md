@@ -1,3 +1,10 @@
+## [0.75.1](https://github.com/lightdash/lightdash/compare/0.75.0...0.75.1) (2022-04-26)
+
+
+### Bug Fixes
+
+* updating saved visualization type no longer breaks UI ([#1897](https://github.com/lightdash/lightdash/issues/1897)) ([568569d](https://github.com/lightdash/lightdash/commit/568569de421fdbf760c66c0f175c0d0cbe91092a))
+
 # [0.75.0](https://github.com/lightdash/lightdash/compare/0.74.2...0.75.0) (2022-04-25)
 
 
