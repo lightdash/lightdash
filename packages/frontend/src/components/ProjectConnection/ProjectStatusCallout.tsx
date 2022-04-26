@@ -10,14 +10,24 @@ const ProjectStatusCallout: FC<
         mutation: ReturnType<
             typeof useUpdateMutation | typeof useCreateMutation
         >;
-    }
-> = ({ mutation: { isSuccess, error, isLoading, isError }, ...props }) => {
+    } & { isCompiling: boolean }
+> = ({
+    mutation: { isSuccess, error, isLoading, isError },
+    isCompiling,
+    ...props
+}) => {
     let stateProps: CalloutProps;
 
     if (isLoading) {
         stateProps = {
             intent: 'primary',
             title: 'Testing connection',
+            icon: <Spinner size={20} className={Classes.ICON} />,
+        };
+    } else if (isCompiling) {
+        stateProps = {
+            intent: 'primary',
+            title: 'Compiling schema.',
             icon: <Spinner size={20} className={Classes.ICON} />,
         };
     } else if (isSuccess) {

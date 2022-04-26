@@ -5,15 +5,17 @@ import {
     friendlyName,
     ProjectType,
 } from 'common';
-import React, { FC, useEffect } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import {
     useCreateMutation,
     useProject,
     useUpdateMutation,
 } from '../../hooks/useProject';
+import { useRefreshServer } from '../../hooks/useRefreshServer';
+import { useServerStatus } from '../../hooks/useServerStatus';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
@@ -226,6 +228,7 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
                 <ProjectStatusCallout
                     style={{ marginBottom: '20px' }}
                     mutation={updateMutation}
+                    isCompiling={false}
                 />
             )}
             <Button
@@ -244,13 +247,23 @@ export const CreateProjectConnection: FC = () => {
     const { user, health } = useApp();
     const onError = useOnProjectError();
     const createMutation = useCreateMutation();
+    const refreshServer = useRefreshServer();
+
+    const [refreshStatus, setRefreshStatus] = useState<string>();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const status = useServerStatus(projectUuid ? 1000 : 60000);
+    const isRefreshLoading = status.data === 'loading';
+    const isCompiling = refreshStatus ? refreshStatus !== 'COMPLETED' : false;
     const {
-        isLoading: isSaving,
+        isLoading: isCreateSaving,
         mutateAsync,
         isIdle,
         isSuccess,
         data,
     } = createMutation;
+    const isFinished = refreshStatus === 'COMPLETED';
+
+    const isSaving = isCreateSaving || isRefreshLoading;
     const methods = useForm<ProjectConnectionForm>({
         shouldUnregister: true,
         defaultValues: {
@@ -260,6 +273,21 @@ export const CreateProjectConnection: FC = () => {
     });
     const { track } = useTracking();
 
+    useEffect(() => {
+        if (refreshStatus === 'QUEUED' && projectUuid) {
+            refreshServer.mutate();
+            setRefreshStatus('STARTED');
+        }
+    }, [projectUuid, refreshStatus, refreshServer]);
+
+    useEffect(() => {
+        if (refreshStatus === 'STARTED' && status.data === 'loading') {
+            setRefreshStatus('RUNNING');
+        } else if (refreshStatus === 'RUNNING' && status.data === 'ready') {
+            setRefreshStatus('COMPLETED');
+        }
+    }, [refreshStatus, status]);
+
     const onSubmit = async ({
         name,
         dbt: dbtConnection,
@@ -268,10 +296,14 @@ export const CreateProjectConnection: FC = () => {
         track({
             name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
         });
-        await mutateAsync({
+        const result = await mutateAsync({
             name: name || user.data?.organizationName || 'My project',
             dbtConnection,
             warehouseConnection,
+        });
+        setRefreshStatus('QUEUED');
+        history.push({
+            pathname: `/createProject/${result.projectUuid}`,
         });
     };
 
@@ -293,9 +325,10 @@ export const CreateProjectConnection: FC = () => {
                 <ProjectStatusCallout
                     style={{ marginBottom: '20px' }}
                     mutation={createMutation}
+                    isCompiling={isCompiling}
                 />
             )}
-            {isSuccess ? (
+            {isFinished ? (
                 <Button
                     intent={Intent.PRIMARY}
                     text="Next"
@@ -311,7 +344,7 @@ export const CreateProjectConnection: FC = () => {
                     type="submit"
                     intent={Intent.PRIMARY}
                     text="Test & save connection"
-                    loading={isSaving}
+                    loading={isSaving || isCompiling}
                     style={{ float: 'right' }}
                 />
             )}
