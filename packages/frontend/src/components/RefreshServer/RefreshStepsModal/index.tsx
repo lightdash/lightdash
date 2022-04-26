@@ -1,5 +1,6 @@
-import { Classes, Drawer, Icon, IconName, Position } from '@blueprintjs/core';
-import React, { Dispatch, FC, SetStateAction, useMemo } from 'react';
+import { Classes, Drawer, Icon, Position } from '@blueprintjs/core';
+import React, { Dispatch, FC, SetStateAction } from 'react';
+import { refreshStatusInfo } from '../../../utils/refreshStatusInput';
 import {
     ErrorMessageWrapper,
     RefreshStepsHeadingWrapper,
@@ -63,50 +64,6 @@ interface Props {
 }
 
 const RefreshStepsModal: FC<Props> = ({ onClose, isOpen }) => {
-    const statusInfo: (status: string) => {
-        title: string;
-        icon: IconName;
-        status: string;
-    } = useMemo(
-        () => (status: string) => {
-            switch (status) {
-                case 'DONE':
-                    return {
-                        title: 'Sync successful!',
-                        icon: 'tick-circle',
-                        status: 'Success',
-                    };
-                case 'ERROR':
-                    return {
-                        title: 'Error in sync',
-                        icon: 'warning-sign',
-                        status: 'Error',
-                    };
-                case 'RUNNING':
-                    return {
-                        title: 'Sync in progress',
-                        icon: 'refresh',
-                        status: 'In progress',
-                    };
-
-                case 'PENDING':
-                    return {
-                        title: 'Sync in progress',
-                        icon: 'refresh',
-                        status: 'Queued',
-                    };
-
-                default:
-                    return {
-                        title: 'Sync in progress',
-                        icon: 'refresh',
-                        status: 'Success',
-                    };
-            }
-        },
-        [],
-    );
-
     const totalSteps = refreshStepsMockup.steps.length;
     const numberOfCompletedSteps = refreshStepsMockup.steps.filter((step) => {
         return step.stepStatus === 'DONE';
@@ -127,12 +84,17 @@ const RefreshStepsModal: FC<Props> = ({ onClose, isOpen }) => {
             title={
                 <RefreshStepsHeadingWrapper className={Classes.DIALOG_HEADER}>
                     <Icon
-                        icon={statusInfo(refreshStepsMockup.jobStatus).icon}
+                        icon={
+                            refreshStatusInfo(refreshStepsMockup.jobStatus).icon
+                        }
                         size={18}
                     />
                     <div>
                         <RefreshStepsTitle>
-                            {statusInfo(refreshStepsMockup.jobStatus).title}
+                            {
+                                refreshStatusInfo(refreshStepsMockup.jobStatus)
+                                    .title
+                            }
                         </RefreshStepsTitle>
                         <StepsCompletionOverview>{`${numberOfCompletedSteps}/${totalSteps} steps complete - `}</StepsCompletionOverview>
                     </div>
@@ -146,7 +108,7 @@ const RefreshStepsModal: FC<Props> = ({ onClose, isOpen }) => {
                         <StepIcon
                             icon={
                                 step.stepStatus !== 'PENDING'
-                                    ? statusInfo(step.stepStatus).icon
+                                    ? refreshStatusInfo(step.stepStatus).icon
                                     : null
                             }
                             status={step.stepStatus}
@@ -155,7 +117,7 @@ const RefreshStepsModal: FC<Props> = ({ onClose, isOpen }) => {
                             <StepName>{step.name}</StepName>
                             <StepStatusWrapper>
                                 <StepStatus status={step.stepStatus}>
-                                    {statusInfo(step.stepStatus).status}{' '}
+                                    {refreshStatusInfo(step.stepStatus).status}{' '}
                                 </StepStatus>
 
                                 {step.stepStatus !== 'ERROR'
