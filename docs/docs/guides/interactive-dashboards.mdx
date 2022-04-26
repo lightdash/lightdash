@@ -1,0 +1,24 @@
+import CrossFilteringImage from './assets/cross-filtering.png';
+import CrossFilteringAppliedImage from './assets/cross-filtering-applied.png';
+
+# Interacting with your dashboards
+
+## Using a chart to filter your dashboard (a.k.a. cross-filtering)
+
+When you right-click on the value in a chart (e.g. a point in your scatter plot), you can choose to filter on that value and update all of the other relevant charts in the dashboard. This type of chart-to-dashboard filtering is sometimes called `cross-filtering`. 
+
+<img src={CrossFilteringImage} width="1388" height="702" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+### You can see which tiles had the filter applied by hovering over the `dashboard filter applied` text on your chart tile.
+
+Once you've clicked on your filter, all of the tiles in your dashboard with the filter field will be filtered to the value you selected. 
+
+You can see which tiles had the filter applied by hovering over the `dashboard filter applied` text on your chart tile.
+
+<img src={CrossFilteringAppliedImage} width="1400" height="724" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+### Your cross-filtering will not change the saved chart unless you're in `edit` mode
+
+The filters you add using cross-filtering won't be saved unless you're in `edit` mode (i.e. you've clicked `edit` in your dashboard) and you save the filters you applied. 
+
+Otherwise, you can cross-filter away without any worry that you'll be changing the chart for everyone else! 😊
