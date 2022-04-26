@@ -16,12 +16,11 @@ export const useRefreshServer = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const setErrorResponse = useQueryError();
+
     return useMutation<void, ApiError>({
         mutationKey: ['refresh', projectUuid],
         mutationFn: () => refresh(projectUuid),
-        onSettled: async () => {
-            queryClient.setQueryData('status', 'loading');
-        },
+        onSettled: async () => queryClient.setQueryData('status', 'loading'),
         onError: (result) => setErrorResponse(result),
     });
 };

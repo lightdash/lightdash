@@ -1,0 +1,64 @@
+import React, { ComponentProps, FC, useState } from 'react';
+import { useRefreshServer } from '../../hooks/useRefreshServer';
+import { useServerStatus } from '../../hooks/useServerStatus';
+import { useApp } from '../../providers/AppProvider';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
+import { BigButton } from '../common/BigButton';
+import {
+    LoadingSpinner,
+    RefreshButton,
+    RefreshSpinnerButton,
+} from './RefreshServerButton.style';
+import RefreshStepsModal from './RefreshStepsModal';
+
+const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
+    const [isRefreshStepsOpen, setIsRefreshStepsOpen] = useState(false);
+    const refreshServer = useRefreshServer();
+    const status = useServerStatus();
+    const { track } = useTracking();
+    const { showToastInfo } = useApp();
+    const isLoading = status.data === 'loading';
+
+    const onClick = () => {
+        refreshServer.mutate();
+        showToastInfo({
+            title: `Sync in progress  Step 1/5: Cloning dbt project from Github`,
+            action: {
+                text: 'View log ',
+                icon: 'arrow-right',
+                onClick: () => setIsRefreshStepsOpen(true),
+            },
+        });
+        track({
+            name: EventName.REFRESH_DBT_CONNECTION_BUTTON_CLICKED,
+        });
+    };
+
+    return (
+        <>
+            <RefreshButton
+                {...props}
+                disabled={isLoading}
+                icon={!isLoading && 'refresh'}
+                onClick={onClick}
+            >
+                {isLoading ? (
+                    <RefreshSpinnerButton>
+                        <LoadingSpinner size={15} />
+                        Refreshing dbt
+                    </RefreshSpinnerButton>
+                ) : (
+                    'Refresh dbt'
+                )}
+            </RefreshButton>
+
+            <RefreshStepsModal
+                isOpen={isRefreshStepsOpen}
+                closeModal={setIsRefreshStepsOpen}
+            />
+        </>
+    );
+};
+
+export default RefreshServerButton;
