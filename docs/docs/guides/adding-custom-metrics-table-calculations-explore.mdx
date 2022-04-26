@@ -13,17 +13,23 @@ import RankInColumn from './assets/rank-in-column.png';
 
 # Adding custom metrics + table calculations in your Explore
 
-## Adding custom metrics in your Explore (coming soon!)
+---
+
+## 🪄 Adding custom metrics in your Explore (coming soon!)
 
 ...Coming soon! Follow along with our progress in GitHub here: https://github.com/lightdash/lightdash/milestone/31
 
-## Adding metrics in your dbt project
+---
+
+## 👩‍💻 Adding metrics in your dbt project
 
 You can add metrics to your dbt project that you'll be able to use when you're in the Explore view. Learn all about adding metrics in your dbt project [in this tutorial](https://docs.lightdash.com/get-started/setup-lightdash/add-metrics). 
 
 You can also read more about specific metric types and configurations in [the metrics reference doc here](https://docs.lightdash.com/references/metrics).
 
-## Adding table calculations in your Explore
+---
+
+## 🧮 Adding table calculations in your Explore
 
 Table calculations make it easy to create metrics on the fly (for example, aggregating the data in your table over some window, or getting a running total of a column). You add table calculations in the Explore view and they appear as green columns in your results table (remember, [dimensions](https://docs.lightdash.com/references/dimensions) are blue, and [metrics](https://docs.lightdash.com/references/metrics) are orange).
 
@@ -73,7 +79,9 @@ If you need to edit or delete a table calculation, you can just click on the gea
 
 <img src={EditDeleteCalc} width="300" height="135" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-## Table calculation SQL templates
+---
+
+## 📝 Table calculation SQL templates
 
 I'm not sure about you, but I definitely rely on copy-pasting old SQL code to write 90% of my new SQL queries. So, we thought it might be useful to give you some snippets of SQL code to help you get started with your most common table calculations.
 
@@ -103,7 +111,7 @@ So, the SQL for running totals will always look something like:
 SUM(${table.column_I_want_to_sum}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})
 ```
 
-**Level up your SQL**:
+**💎 Level up your SQL**:
 
 - You can specify if you want to order your columns in ascending order (1, 2, 3, 4) or descending order (4, 3, 2, 1) using the key words `ASC` and `DESC` in your `ORDER BY` clause. 
 By default, a column will be ordered in ascending order - so if you want it ordered ascending, you don't need to add anything:
@@ -136,7 +144,7 @@ So, the SQL for the percent of a total will always look something like:
 ${table.column_i_want_to_see_the_percent_of_total} * 100 / SUM(${table.column_i_want_to_see_the_percent_of_total}) OVER()
 ```
 
-**Level up your SQL**:
+**💎 Level up your SQL**:
 
 - You can round your table calculation to only show a certain number of decimal points. Here's an example where I only show two decimal points:
 
@@ -172,7 +180,7 @@ So, the SQL for the percent of previous will always look something like:
 ${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})
 ```
 
-**Level up your SQL**:
+**💎 Level up your SQL**:
 
 - You can round your table calculation to only show a certain number of decimal points. Here's an example where I only show two decimal points:
 
@@ -208,7 +216,7 @@ So, the SQL for the percent change from the previous will always look something 
 (${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})) - 100
 ```
 
-**Level up your SQL**:
+**💎 Level up your SQL**:
 
 - You can round your table calculation to only show a certain number of decimal points. Here's an example where I only show two decimal points:
 
