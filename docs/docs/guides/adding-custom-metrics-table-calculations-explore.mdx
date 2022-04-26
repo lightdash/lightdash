@@ -77,16 +77,6 @@ If you need to edit or delete a table calculation, you can just click on the gea
 
 I'm not sure about you, but I definitely rely on copy-pasting old SQL code to write 90% of my new SQL queries. So, we thought it might be useful to give you some snippets of SQL code to help you get started with your most common table calculations.
 
-A lot of commonly used table calculations rely on something called [Window Functions](https://www.sqltutorial.org/sql-window-functions/). The specific way of writing these functions will depend on your data warehouse, but normally they look something like this:
-
-```sql
-SELECT
-amount,
-company_name,
-date,
-SUM(amount) OVER(PARTITION BY company_name ORDER BY date ASC) AS running_total_amount_per_company
-```
-
 #### Running total
 
 Running totals give you the sum of a value + all of the previous values in that column.
