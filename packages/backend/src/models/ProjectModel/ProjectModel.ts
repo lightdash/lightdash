@@ -4,6 +4,7 @@ import {
     DbtProjectConfig,
     Explore,
     ExploreError,
+    Job,
     OrganizationProject,
     Project,
     sensitiveCredentialsFieldNames,
@@ -16,11 +17,18 @@ import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
     CachedExploresTableName,
+    JobsTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
-import { NotExistsError, UnexpectedServerError } from '../../errors';
+import {
+    NotExistsError,
+    NotFoundError,
+    UnexpectedServerError,
+} from '../../errors';
+import Logger from '../../logger';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
+
 import Transaction = Knex.Transaction;
 
 type ProjectModelDependencies = {
@@ -30,6 +38,13 @@ type ProjectModelDependencies = {
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
+
+export const enum JobStatusType {
+    STARTED = 'STARTED',
+    DONE = 'DONE',
+    RUNNING = 'RUNNING',
+    ERROR = 'ERROR',
+}
 
 export class ProjectModel {
     private database: Knex;
@@ -391,6 +406,47 @@ export class ProjectModel {
             .where('project_uuid', projectUuid);
     }
 
+    async getJobstatus(jobUuid: string): Promise<Job> {
+        const jobs = await this.database(JobsTableName).where(
+            'job_uuid',
+            jobUuid,
+        );
+
+        if (jobs.length === 0)
+            throw new NotFoundError(
+                `job with jobUuid ${jobUuid} does not exist`,
+            );
+
+        const job = jobs[0];
+        return {
+            createdAt: job.created_at,
+            updatedAt: job.updated_at,
+            projectUuid: job.project_uuid,
+            jobUuid: job.job_uuid,
+            jobStatus: job.job_status,
+            steps: [],
+        };
+    }
+
+    async updateJobStatus(
+        jobUuid: string,
+        projectUuid: string,
+        status: JobStatusType,
+    ): Promise<void> {
+        Logger.debug(
+            `Updating job status ${jobUuid} for project ${projectUuid} with status ${status}`,
+        );
+        await this.database(JobsTableName)
+            .insert({
+                project_uuid: projectUuid,
+                job_uuid: jobUuid,
+                job_status: status,
+                updated_at: new Date(),
+            })
+            .onConflict('job_uuid')
+            .merge();
+    }
+
     async getExploresFromCache(
         projectUuid: string,
     ): Promise<(Explore | ExploreError)[]> {
@@ -420,9 +476,10 @@ export class ProjectModel {
 
     async tryWithProjectLock(
         projectUuid: string,
-        func: () => void,
+        jobUuid: string,
+        func: () => Promise<void>,
     ): Promise<void> {
-        this.database.transaction(async (trx) => {
+        await this.database.transaction(async (trx) => {
             // pg_advisory_xact_lock takes a 64bit integer as key
             // we can't use project_uuid (uuidv4) as key, not even a hash,
             // so we will be using autoinc project_id from DB.
@@ -435,11 +492,30 @@ export class ProjectModel {
                     project_uuid = '${projectUuid}'
                 LIMIT 1  `);
 
+            await this.updateJobStatus(
+                jobUuid,
+                projectUuid,
+                JobStatusType.RUNNING,
+            );
+
             if (projectLock.rows.length === 0) return; // No project with uuid in DB
             const adquiresLock = projectLock.rows[0].pg_try_advisory_xact_lock;
             if (!adquiresLock) return; // Lock is taken by another process, exiting
 
-            await func();
+            try {
+                await func();
+                await this.updateJobStatus(
+                    jobUuid,
+                    projectUuid,
+                    JobStatusType.DONE,
+                );
+            } catch (e) {
+                await this.updateJobStatus(
+                    jobUuid,
+                    projectUuid,
+                    JobStatusType.ERROR,
+                );
+            }
         });
     }
 }
