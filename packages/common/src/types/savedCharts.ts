@@ -163,3 +163,7 @@ export const ECHARTS_DEFAULT_COLORS = [
 
 export const getDefaultSeriesColor = (index: number) =>
     ECHARTS_DEFAULT_COLORS[index % ECHARTS_DEFAULT_COLORS.length];
+
+export const isSeriesWithMixedChartTypes = (
+    series: Series[] | undefined,
+): boolean => new Set(series?.map(({ type }) => type)).size >= 2;
