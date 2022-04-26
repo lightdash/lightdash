@@ -392,9 +392,9 @@ my-profile:
 
 The data location of the dataset in BigQuery where the output of your dbt models is written to.
 
-The value you enter should be all lower-case (e.g. `us` or `europe-east`).
+`location` may be either a multi-regional location (e.g. `EU`, `US`), or a regional location (e.g. `us-west2` ). Check out the [BigQuery documentation](https://cloud.google.com/bigquery/docs/locations) for more information on dataset locations.
 
-You can find the location of your dataset [in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations), or in your BigQuery console.
+You can find the location of the dataset you're using for your dbt project [in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations), or in your BigQuery console.
 
 ![data location](./assets/data-location.png)
 
