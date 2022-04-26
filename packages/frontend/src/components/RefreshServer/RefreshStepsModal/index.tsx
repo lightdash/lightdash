@@ -60,9 +60,12 @@ const refreshStepsMockup = {
 interface Props {
     onClose: Dispatch<SetStateAction<boolean>>;
     isOpen: boolean;
+    jobId: string;
 }
 
-const RefreshStepsModal: FC<Props> = ({ onClose, isOpen }) => {
+const RefreshStepsModal: FC<Props> = ({ onClose, isOpen, jobId }) => {
+    // const { data } = useGetRefreshData(jobId);
+
     const statusInfo: (status: string) => {
         title: string;
         icon: IconName;

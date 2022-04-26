@@ -14,14 +14,15 @@ import RefreshStepsModal from './RefreshStepsModal';
 
 const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     const [isRefreshStepsOpen, setIsRefreshStepsOpen] = useState(false);
-    const refreshServer = useRefreshServer();
+    const { data, mutate } = useRefreshServer();
+    const [jobId, setJobId] = useState('');
     const status = useServerStatus();
     const { track } = useTracking();
     const { showToastInfo } = useApp();
     const isLoading = status.data === 'loading';
 
     const onClick = () => {
-        refreshServer.mutate();
+        mutate();
         showToastInfo({
             title: `Sync in progress  Step 1/5: Cloning dbt project from Github`,
             icon: 'refresh',
@@ -34,6 +35,7 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
         track({
             name: EventName.REFRESH_DBT_CONNECTION_BUTTON_CLICKED,
         });
+        setJobId(data || '');
     };
 
     return (
@@ -53,10 +55,10 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                     'Refresh dbt'
                 )}
             </RefreshButton>
-
             <RefreshStepsModal
                 isOpen={isRefreshStepsOpen}
                 onClose={setIsRefreshStepsOpen}
+                jobId={jobId}
             />
         </>
     );
