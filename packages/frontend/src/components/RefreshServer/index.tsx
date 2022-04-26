@@ -1,5 +1,8 @@
 import React, { ComponentProps, FC, useState } from 'react';
-import { useRefreshServer } from '../../hooks/useRefreshServer';
+import {
+    useGetRefreshData,
+    useRefreshServer,
+} from '../../hooks/useRefreshServer';
 import { useServerStatus } from '../../hooks/useServerStatus';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
@@ -15,11 +18,11 @@ import RefreshStepsModal from './RefreshStepsModal';
 const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     const [isRefreshStepsOpen, setIsRefreshStepsOpen] = useState(false);
     const { data, mutate } = useRefreshServer();
-    const [jobId, setJobId] = useState('');
     const status = useServerStatus();
+    const isLoading = status.data === 'loading';
+    const { data: statusInfo } = useGetRefreshData(data?.jobUuid);
     const { track } = useTracking();
     const { showToastInfo } = useApp();
-    const isLoading = status.data === 'loading';
 
     const onClick = () => {
         mutate();
@@ -35,7 +38,6 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
         track({
             name: EventName.REFRESH_DBT_CONNECTION_BUTTON_CLICKED,
         });
-        setJobId(data || '');
     };
 
     return (
@@ -58,7 +60,7 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
             <RefreshStepsModal
                 isOpen={isRefreshStepsOpen}
                 onClose={setIsRefreshStepsOpen}
-                jobId={jobId}
+                statusData={statusInfo}
             />
         </>
     );
