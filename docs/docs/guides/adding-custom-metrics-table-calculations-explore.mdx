@@ -1,3 +1,11 @@
+import TableCalculationsAddImage from './assets/table-calculations-add.png';
+import DataResultsTable from './assets/data-in-results-table.png';
+import CreateNewCalc from './assets/create-new-table-calc.png';
+import WriteNewCalc from './assets/add-table-calc-sql.png';
+import RunQuerySeeCalc from './assets/run-query-to-see-table-calcs.png';
+import EditDeleteCalc from './assets/edit-delete-table-calc.png';
+import RunningTotal from './assets/running-total.png';
+
 # Adding custom metrics + table calculations in your Explore
 
 ## Adding custom metrics in your Explore (coming soon!)
@@ -11,3 +19,77 @@ You can add metrics to your dbt project that you'll be able to use when you're i
 You can also read more about specific metric types and configurations in [the metrics reference doc here](https://docs.lightdash.com/references/metrics).
 
 ## Adding table calculations in your Explore
+
+Table calculations make it easy to create metrics on the fly (for example, aggregating the data in your table over some window, or getting a running total of a column). You add table calculations in the Explore view and they appear as green columns in your results table (remember, [dimensions](https://docs.lightdash.com/references/dimensions) are blue, and [metrics](https://docs.lightdash.com/references/metrics) are orange).
+
+<img src={TableCalculationsAddImage} width="1280" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Table calculations are built using raw SQL. That means you can use table calculations to build mathematical, True/False, text, and date-based calculations (basically, anything you can do in SQL, you can do in table calculations).
+
+### When to use table calculations
+
+Typically, in your Lightdash project, you'll have one or more Explores that you've pre-defined in your dbt project (this is probably done by the data analysts/engineers/analytics engineers). But sometimes, you'll need particular logic which hasn't been defined as a dimension or metric in your dbt project - maybe because you have a new kind of question or use case.
+
+This is when you might need a table calculation.
+
+Watch out: table calculations can be easier to create than regular metrics/dimensions, but they are not as easy to manage. If you find yourself creating the same table calculation over and over again in an Explore, then it might be worth adding it in as a more permanent metric in your dbt project! You can read more about [adding metrics to your dbt project here](https://docs.lightdash.com/references/metrics).
+
+### Creating table calculations
+
+#### 1. Before you create a table calculation, you need to add some dimensions and/or metrics to your results table.
+
+Table calculations can only be built using the dimensions + metrics that you've included in your results table. So, to create a table calculation, first, you need to add the dimensions and/or metrics for your table calculation to your results table.
+
+<img src={DataResultsTable} width="1280" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+#### 2. To add a table calculation just click on `+ Table calculation` in the `Results` tab
+
+Once you've got some data in your results table, you can create a table calculation by clicking on the `+ Table calculation` in the `Results` tab of the Explore view:
+
+<img src={CreateNewCalc} width="1280" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+#### 3. Write the SQL for your table calculation in the pop-up box
+
+Your table calculation is defined using raw SQL that you write up in this pop up box. If you're not sure what to write here, you can [check out some of our table calculation SQL templates](#table-calculation-sql-templates).
+
+To reference the metrics and dimensions in your results table, you can either use the autocomplete, or you can manually write the full field name using the format `${table_name.field_name}`.
+
+<img src={WriteNewCalc} width="1052" height="566" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+#### 4. Once you've saved your new table calculation, hit `run query` to see the results
+
+Once you've created a new table calculation, you need to hit `run query` to see the values in your results table. And voilà!
+
+<img src={RunQuerySeeCalc} width="1296" height="548" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+#### 5. To delete or edit your table calculation, just click on the gear icon by the field name
+
+If you need to edit or delete a table calculation, you can just click on the gear icon beside the field and do what you need to do!
+
+<img src={EditDeleteCalc} width="592" height="268" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+### Table calculation SQL templates
+
+I'm not sure about you, but I definitely rely on copy-pasting old SQL code to write 90% of my new SQL queries. So, we thought it might be useful to give you some snippets of SQL code to help you get started with your most common table calculations.
+
+A lot of commonly used table calculations rely on something called [Window Functions](https://www.sqltutorial.org/sql-window-functions/). The specific way of writing these functions will depend on your data warehouse, but normally they look something like this:
+
+```sql
+SELECT
+amount,
+company_name,
+date,
+SUM(amount) OVER(PARTITION BY company_name ORDER BY date ASC) AS running_total_amount_per_company
+```
+
+#### Running total
+
+Running totals give you the sum of a value + all of the previous values in that column.
+
+Here's an example of a running total:
+
+<img src={RunningTotal} width="1260" height="516" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+```sql
+SUM(${table.field_I_want_to_sum}) OVER(ORDER BY ${table.field_I_want_to_order_by}, ${table.optional_other_field_I_want_to_order_by})
+```
