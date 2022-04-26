@@ -8,6 +8,8 @@ import RunningTotal from './assets/running-total.png';
 import PercentOfTotal from './assets/percent-of-total.png';
 import PercentOfTotalRounded from './assets/percent-of-total-rounded.png';
 import PercentOfPrevious from './assets/percent-of-previous.png';
+import PercentChange from './assets/percent-change.png';
+import RankInColumn from './assets/rank-in-column.png';
 
 # Adding custom metrics + table calculations in your Explore
 
@@ -190,3 +192,63 @@ ${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare})
 
 <img src={PercentOfTotalRounded} width="320" height="388" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
+#### Percent change from previous
+
+The percent change gives you the percent change in a value compared to the value in the row above it. This calculation is very similar to [percent of previous](#percent-of-previous).
+
+Here's an example of a percent change calculation:
+
+<img src={PercentChange} width="1274" height="630" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+And here's the SQL that was used to generate it:
+
+```sql
+(${pages.page_view_count} * 100 / LAG(${pages.page_view_count}) OVER(ORDER BY ${pages.date_day}, ${pages.path})) - 100
+```
+
+In general, the SQL used for calculating the percent change from the previous value has two bits (with an optional third bit):
+
+- `column_I_want_to_compare` - this is the column with the values you want to compare
+- `column_I_want_to_order_by` - this is the column you want to use to order the values you want to compare
+- `optional_other_column_I_want_to_order_by` - this column is optional and you can add as many more `order by` columns as you need. Normally, you'll need to add every dimension in your results table to the `ORDER BY` bit in your SQL. And, the order of these will need to be the same as the ordering you've added to the columns in your results table.
+
+So, the SQL for the percent change from the previous will always look something like:
+
+```sql
+(${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})) - 100
+```
+
+**Level up your SQL**:
+
+- You can round your table calculation to only show a certain number of decimal points. Here's an example where I only show two decimal points:
+
+  ```sql
+  ROUND((${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})) - 100, 2)
+  ```
+
+<img src={PercentOfTotalRounded} width="320" height="388" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+#### Rank in column
+
+Ranking values in a column is when you set every value as a number either higher than or lower than the other values. The lowest value (rank = 1) indicates the value with the first rank in your set of values.
+
+Here's an example of a percent change calculation:
+
+<img src={RankInColumn} width="1259" height="548" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+And here's the SQL used to generate it:
+
+```sql
+ROW_NUMBER() OVER(ORDER BY ${pages.page_view_count} DESC)
+```
+
+In general, the SQL used for calculating the rank in a column has just one important column and one other important parameter:
+
+- `column_i_want_to_rank` - this is the column that you want to rank
+- `ASC` and `DESC` - if you want to have the **biggest values** with rank = 1, then you need to add `DESC` to your `ORDER BY` clause. If you want the **smallest values** with rank = 1 then you can add `ASC` to your `ORDER BY` clause (this isn't required, since the ordering is `ASC` by default).
+
+So, the SQL for the percent of a total will always look something like:
+
+```sql
+ROW_NUMBER() OVER(ORDER BY ${table.column_i_want_to_rank} DESC)
+```
