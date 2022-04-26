@@ -48,6 +48,7 @@ const ChartConfigTabs: FC = () => {
         explore
             ? [
                   ...getMetrics(explore),
+                  ...(resultsData?.metricQuery.additionalMetrics || []),
                   ...(resultsData?.metricQuery.tableCalculations || []),
               ].filter((item) => {
                   if (isField(item)) {

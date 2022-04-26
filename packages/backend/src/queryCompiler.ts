@@ -1,16 +1,15 @@
 import {
-    AdditionalMetric,
     CompiledMetric,
     CompiledMetricQuery,
     CompiledTableCalculation,
     Explore,
     FieldId,
+    Metric,
     MetricQuery,
     TableCalculation,
 } from 'common';
-import { convertMetric } from './dbt/translator';
 import { CompileError } from './errors';
-import { compileMetricSql, lightdashVariablePattern } from './exploreCompiler';
+import { compileMetric, lightdashVariablePattern } from './exploreCompiler';
 import { getQuoteChar } from './queryBuilder';
 
 const resolveQueryFieldReference = (ref: string): FieldId => {
@@ -58,7 +57,7 @@ const compileTableCalculation = (
 };
 
 type CompileAdditionalMetricArgs = {
-    additionalMetric: AdditionalMetric;
+    additionalMetric: Metric;
     explore: Pick<Explore, 'tables'>;
 };
 const compileAdditionalMetric = ({
@@ -72,14 +71,7 @@ const compileAdditionalMetric = ({
             {},
         );
     }
-    const metric = convertMetric({
-        modelName: table.name,
-        columnName: '',
-        name: additionalMetric.name,
-        metric: additionalMetric,
-        tableLabel: table.label,
-    });
-    return { ...metric, compiledSql: compileMetricSql(metric, explore.tables) };
+    return compileMetric(additionalMetric, explore.tables);
 };
 
 type CompileMetricQueryArgs = {

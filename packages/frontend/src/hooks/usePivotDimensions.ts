@@ -21,6 +21,7 @@ const usePivotDimensions = (
             const availableMetricsAndTableCalculations = resultsData
                 ? [
                       ...resultsData.metricQuery.metrics,
+                      ...(resultsData.metricQuery.additionalMetrics || []),
                       ...resultsData.metricQuery.tableCalculations.map(
                           ({ name }) => name,
                       ),

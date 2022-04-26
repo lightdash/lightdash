@@ -1109,7 +1109,13 @@ export type CreateProject = Omit<Project, 'projectUuid'> & {
 export type UpdateProject = Omit<Project, 'projectUuid'> & {
     warehouseConnection: CreateWarehouseCredentials;
 };
-
+export const findItem = (
+    items: Array<Field | TableCalculation>,
+    id: string | undefined,
+) =>
+    items.find((item) =>
+        isField(item) ? fieldId(item) === id : item.name === id,
+    );
 export const getItemId = (item: Field | TableCalculation) =>
     isField(item) ? fieldId(item) : item.name;
 export const getItemLabel = (item: Field | TableCalculation) =>

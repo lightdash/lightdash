@@ -176,7 +176,7 @@ const compileDimension = (
     compiledSql: compileDimensionSql(dimension, tables),
 });
 
-const compileMetric = (
+export const compileMetric = (
     metric: Metric,
     tables: Record<string, Table>,
 ): CompiledMetric => ({
