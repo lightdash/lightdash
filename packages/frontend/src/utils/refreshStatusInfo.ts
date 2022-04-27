@@ -38,3 +38,15 @@ export const refreshStatusInfo = (
             };
     }
 };
+
+export const runningStepsInfo = (steps: any[]) => {
+    const runningStep = steps.find((step: any) => {
+        return step.jobStatus === 'RUNNING';
+    });
+    const numberOfCompletedSteps = steps.filter((step: any) => {
+        return step.stepStatus === 'DONE';
+    }).length;
+    const completedStepsMessage = `${numberOfCompletedSteps}/${steps.length}`;
+
+    return { runningStep, numberOfCompletedSteps, completedStepsMessage };
+};

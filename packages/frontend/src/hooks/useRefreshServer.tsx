@@ -2,6 +2,7 @@ import { ApiError } from 'common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
+import { useApp } from '../providers/AppProvider';
 import useQueryError from './useQueryError';
 
 const refresh = async (projectUuid: string) =>
@@ -20,6 +21,7 @@ const getJob = async (jobUuid: string) =>
 
 export const useGetRefreshData = (jobId: string | undefined) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { showToastSuccess } = useApp();
     const queryClient = useQueryClient();
     const setErrorResponse = useQueryError();
     return useQuery<any, ApiError>({
@@ -27,8 +29,13 @@ export const useGetRefreshData = (jobId: string | undefined) => {
         queryFn: () => getJob(jobId || ''),
         enabled: jobId !== undefined,
         refetchInterval: (data) => data === 'loading' && 1000,
-        onSuccess: async () => {
+        onSuccess: async (data) => {
             await queryClient.invalidateQueries('refresh');
+            if (data.jobStatus === 'DONE') {
+                showToastSuccess({
+                    title: `Sync successful!`,
+                });
+            }
         },
         onError: (result) => setErrorResponse(result),
         refetchIntervalInBackground: false,

@@ -1,4 +1,4 @@
-import React, { ComponentProps, FC, useState } from 'react';
+import React, { ComponentProps, FC, useEffect, useState } from 'react';
 import {
     useGetRefreshData,
     useRefreshServer,
@@ -7,6 +7,10 @@ import { useServerStatus } from '../../hooks/useServerStatus';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
+import {
+    refreshStatusInfo,
+    runningStepsInfo,
+} from '../../utils/refreshStatusInfo';
 import { BigButton } from '../common/BigButton';
 import {
     LoadingSpinner,
@@ -20,21 +24,36 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     const { data, mutate } = useRefreshServer();
     const status = useServerStatus();
     const isLoading = status.data === 'loading';
-    const { data: statusInfo } = useGetRefreshData(data?.jobUuid);
+    const { data: statusInfo } = useGetRefreshData(
+        isLoading ? data?.jobUuid : undefined,
+    );
     const { track } = useTracking();
     const { showToastInfo } = useApp();
+    const hasSteps = !!statusInfo?.steps.length;
+
+    useEffect(() => {
+        if (statusInfo && isLoading && statusInfo.jobStatus !== 'DONE') {
+            showToastInfo({
+                title: `${refreshStatusInfo(statusInfo?.jobStatus).title} `,
+                subtitle: hasSteps
+                    ? `Steps ${
+                          runningStepsInfo(statusInfo?.steps)
+                              .completedStepsMessage
+                      }: ${runningStepsInfo(statusInfo?.steps).runningStep}`
+                    : '',
+                icon: `${refreshStatusInfo(statusInfo?.jobStatus).icon}`,
+                // TO BE UNCOMMENTED WHEN STEPS ARE IMPLEMENTED ON THE BE
+                // action: {
+                //     text: 'View log ',
+                //     icon: 'arrow-right',
+                //     onClick: () => setIsRefreshStepsOpen(true),
+                // },
+            });
+        }
+    }, [isLoading, statusInfo, showToastInfo, hasSteps]);
 
     const onClick = () => {
         mutate();
-        showToastInfo({
-            title: `Sync in progress  Step 1/5: Cloning dbt project from Github`,
-            icon: 'refresh',
-            action: {
-                text: 'View log ',
-                icon: 'arrow-right',
-                onClick: () => setIsRefreshStepsOpen(true),
-            },
-        });
         track({
             name: EventName.REFRESH_DBT_CONNECTION_BUTTON_CLICKED,
         });

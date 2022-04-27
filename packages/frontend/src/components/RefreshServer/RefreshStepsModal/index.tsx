@@ -1,6 +1,9 @@
 import { Classes, Drawer, Icon, Position } from '@blueprintjs/core';
 import React, { Dispatch, FC, SetStateAction } from 'react';
-import { refreshStatusInfo } from '../../../utils/refreshStatusInfo';
+import {
+    refreshStatusInfo,
+    runningStepsInfo,
+} from '../../../utils/refreshStatusInfo';
 import {
     ErrorMessageWrapper,
     RefreshStepsHeadingWrapper,
@@ -21,10 +24,7 @@ interface Props {
     statusData: any;
 }
 const RefreshStepsModal: FC<Props> = ({ onClose, isOpen, statusData }) => {
-    const totalSteps = statusData?.steps?.length;
-    const numberOfCompletedSteps = statusData?.steps?.filter((step: any) => {
-        return step.stepStatus === 'DONE';
-    }).length;
+    const hasSteps = !!statusData?.steps.length;
 
     return (
         <Drawer
@@ -48,7 +48,12 @@ const RefreshStepsModal: FC<Props> = ({ onClose, isOpen, statusData }) => {
                         <RefreshStepsTitle>
                             {refreshStatusInfo(statusData?.jobStatus).title}
                         </RefreshStepsTitle>
-                        <StepsCompletionOverview>{`${numberOfCompletedSteps}/${totalSteps} steps complete - `}</StepsCompletionOverview>
+                        {hasSteps && (
+                            <StepsCompletionOverview>{`${
+                                runningStepsInfo(statusData?.steps)
+                                    .numberOfCompletedSteps
+                            } steps complete `}</StepsCompletionOverview>
+                        )}
                     </div>
                 </RefreshStepsHeadingWrapper>
             }
