@@ -435,7 +435,7 @@ export class ProjectService {
     }
 
     async startJob(jobUuid: string, projectUuid: string): Promise<void> {
-        this.projectModel.updateJobStatus(
+        this.projectModel.upsertJobStatus(
             jobUuid,
             projectUuid,
             JobStatusType.STARTED,

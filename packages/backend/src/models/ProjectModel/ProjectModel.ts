@@ -441,7 +441,7 @@ export class ProjectModel {
         };
     }
 
-    async updateJobStatus(
+    async upsertJobStatus(
         jobUuid: string,
         projectUuid: string,
         status: JobStatusType,
@@ -505,7 +505,7 @@ export class ProjectModel {
                     project_uuid = '${projectUuid}'
                 LIMIT 1  `);
 
-            await this.updateJobStatus(
+            await this.upsertJobStatus(
                 jobUuid,
                 projectUuid,
                 JobStatusType.RUNNING,
@@ -517,13 +517,13 @@ export class ProjectModel {
 
             try {
                 await func();
-                await this.updateJobStatus(
+                await this.upsertJobStatus(
                     jobUuid,
                     projectUuid,
                     JobStatusType.DONE,
                 );
             } catch (e) {
-                await this.updateJobStatus(
+                await this.upsertJobStatus(
                     jobUuid,
                     projectUuid,
                     JobStatusType.ERROR,
