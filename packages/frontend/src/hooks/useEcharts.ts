@@ -3,6 +3,7 @@ import {
     CartesianChart,
     CartesianSeriesType,
     CompiledField,
+    convertAdditionalMetric,
     Dimension,
     DimensionType,
     Explore,
@@ -20,6 +21,7 @@ import {
     getItemLabel,
     hashFieldReference,
     isField,
+    Metric,
     MetricType,
     Series,
     TableCalculation,
@@ -472,7 +474,19 @@ const useEcharts = () => {
         }
         return [
             ...getFields(explore),
-            ...(resultsData?.metricQuery.additionalMetrics || []),
+            ...(resultsData?.metricQuery.additionalMetrics || []).reduce<
+                Metric[]
+            >((acc, additionalMetric) => {
+                const table = explore.tables[additionalMetric.table];
+                if (table) {
+                    const metric = convertAdditionalMetric({
+                        additionalMetric,
+                        table,
+                    });
+                    return [...acc, metric];
+                }
+                return acc;
+            }, []),
             ...(resultsData?.metricQuery.tableCalculations || []),
         ];
     }, [explore, resultsData]);

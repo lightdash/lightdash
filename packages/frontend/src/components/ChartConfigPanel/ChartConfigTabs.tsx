@@ -1,5 +1,6 @@
 import { InputGroup, Tab, Tabs } from '@blueprintjs/core';
 import {
+    convertAdditionalMetric,
     fieldId,
     getAxisName,
     getDefaultSeriesColor,
@@ -48,7 +49,19 @@ const ChartConfigTabs: FC = () => {
         explore
             ? [
                   ...getMetrics(explore),
-                  ...(resultsData?.metricQuery.additionalMetrics || []),
+                  ...(resultsData?.metricQuery.additionalMetrics || []).reduce<
+                      Metric[]
+                  >((acc, additionalMetric) => {
+                      const table = explore.tables[additionalMetric.table];
+                      if (table) {
+                          const metric = convertAdditionalMetric({
+                              additionalMetric,
+                              table,
+                          });
+                          return [...acc, metric];
+                      }
+                      return acc;
+                  }, []),
                   ...(resultsData?.metricQuery.tableCalculations || []),
               ].filter((item) => {
                   if (isField(item)) {

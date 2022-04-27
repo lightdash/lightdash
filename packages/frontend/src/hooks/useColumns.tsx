@@ -1,8 +1,10 @@
 import {
+    convertAdditionalMetric,
     fieldId as getFieldId,
     friendlyName,
     getFields,
     isDimension,
+    Metric,
     SortField,
 } from 'common';
 import React, { useMemo } from 'react';
@@ -58,7 +60,20 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
         if (data) {
             const fieldColumns = [
                 ...getFields(data),
-                ...(additionalMetrics || []),
+                ...(additionalMetrics || []).reduce<Metric[]>(
+                    (acc, additionalMetric) => {
+                        const table = data.tables[additionalMetric.table];
+                        if (table) {
+                            const metric = convertAdditionalMetric({
+                                additionalMetric,
+                                table,
+                            });
+                            return [...acc, metric];
+                        }
+                        return acc;
+                    },
+                    [],
+                ),
             ].reduce<Column<{ [col: string]: any }>[]>((acc, field) => {
                 const fieldId = getFieldId(field);
                 if (activeFields.has(fieldId)) {

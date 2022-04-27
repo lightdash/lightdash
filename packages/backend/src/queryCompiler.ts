@@ -1,15 +1,16 @@
 import {
+    AdditionalMetric,
     CompiledMetric,
     CompiledMetricQuery,
     CompiledTableCalculation,
+    convertAdditionalMetric,
     Explore,
     FieldId,
-    Metric,
     MetricQuery,
     TableCalculation,
 } from 'common';
 import { CompileError } from './errors';
-import { compileMetric, lightdashVariablePattern } from './exploreCompiler';
+import { compileMetricSql, lightdashVariablePattern } from './exploreCompiler';
 import { getQuoteChar } from './queryBuilder';
 
 const resolveQueryFieldReference = (ref: string): FieldId => {
@@ -57,7 +58,7 @@ const compileTableCalculation = (
 };
 
 type CompileAdditionalMetricArgs = {
-    additionalMetric: Metric;
+    additionalMetric: AdditionalMetric;
     explore: Pick<Explore, 'tables'>;
 };
 const compileAdditionalMetric = ({
@@ -71,7 +72,8 @@ const compileAdditionalMetric = ({
             {},
         );
     }
-    return compileMetric(additionalMetric, explore.tables);
+    const metric = convertAdditionalMetric({ additionalMetric, table });
+    return { ...metric, compiledSql: compileMetricSql(metric, explore.tables) };
 };
 
 type CompileMetricQueryArgs = {

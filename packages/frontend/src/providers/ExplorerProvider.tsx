@@ -1,4 +1,5 @@
 import {
+    AdditionalMetric,
     ChartConfig,
     ChartType,
     CreateSavedChartVersion,
@@ -7,7 +8,6 @@ import {
     fieldId as getFieldId,
     isBigNumberConfig,
     isCartesianChartConfig,
-    Metric,
     MetricQuery,
     removeEmptyProperties,
     SavedChart,
@@ -88,7 +88,7 @@ type Action =
       }
     | {
           type: ActionType.ADD_ADDITIONAL_METRIC;
-          payload: Metric;
+          payload: AdditionalMetric;
       }
     | {
           type: ActionType.SET_PIVOT_FIELDS;
@@ -130,7 +130,7 @@ interface ExplorerContext {
             filters: MetricQuery['filters'],
             syncPristineState: boolean,
         ) => void;
-        addAdditionalMetric: (metric: Metric) => void;
+        addAdditionalMetric: (metric: AdditionalMetric) => void;
         setColumnOrder: (order: string[]) => void;
         addTableCalculation: (tableCalculation: TableCalculation) => void;
         updateTableCalculation: (
@@ -677,16 +677,19 @@ export const ExplorerProvider: FC<{
         [],
     );
 
-    const addAdditionalMetric = useCallback((additionalMetric: Metric) => {
-        dispatch({
-            type: ActionType.ADD_ADDITIONAL_METRIC,
-            payload: additionalMetric,
-        });
-        dispatch({
-            type: ActionType.TOGGLE_METRIC,
-            payload: getFieldId(additionalMetric),
-        });
-    }, []);
+    const addAdditionalMetric = useCallback(
+        (additionalMetric: AdditionalMetric) => {
+            dispatch({
+                type: ActionType.ADD_ADDITIONAL_METRIC,
+                payload: additionalMetric,
+            });
+            dispatch({
+                type: ActionType.TOGGLE_METRIC,
+                payload: getFieldId(additionalMetric),
+            });
+        },
+        [],
+    );
 
     const setColumnOrder = useCallback((order: string[]) => {
         dispatch({

@@ -1,4 +1,4 @@
-import { ApiQueryResults } from 'common';
+import { ApiQueryResults, fieldId } from 'common';
 import { useEffect, useMemo, useState } from 'react';
 
 const usePivotDimensions = (
@@ -21,7 +21,9 @@ const usePivotDimensions = (
             const availableMetricsAndTableCalculations = resultsData
                 ? [
                       ...resultsData.metricQuery.metrics,
-                      ...(resultsData.metricQuery.additionalMetrics || []),
+                      ...(resultsData.metricQuery.additionalMetrics || []).map(
+                          (additionalMetric) => fieldId(additionalMetric),
+                      ),
                       ...resultsData.metricQuery.tableCalculations.map(
                           ({ name }) => name,
                       ),
