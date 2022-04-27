@@ -27,6 +27,6 @@ describe('Dashboard', () => {
 
         cy.get('.echarts-for-react').should('have.length', 3); // Charts
         cy.contains('Payments total revenue'); // BigNumber chart
-        cy.get('th').should('have.length', 5); // Table chart
+        cy.get('th').should('have.length', 3); // Table chart
     });
 });
