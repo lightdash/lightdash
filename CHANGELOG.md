@@ -1,3 +1,10 @@
+## [0.75.3](https://github.com/lightdash/lightdash/compare/0.75.2...0.75.3) (2022-04-27)
+
+
+### Bug Fixes
+
+* table visualization pivot ([#1913](https://github.com/lightdash/lightdash/issues/1913)) ([30866d5](https://github.com/lightdash/lightdash/commit/30866d529fca4d1dee19020c40fd44ee91fbf0e4))
+
 ## [0.75.2](https://github.com/lightdash/lightdash/compare/0.75.1...0.75.2) (2022-04-26)
 
 
