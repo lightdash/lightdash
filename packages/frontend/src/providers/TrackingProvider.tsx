@@ -39,7 +39,9 @@ type GenericEvent = {
         | EventName.ADD_FILTER_CLICKED
         | EventName.NOTIFICATIONS_CLICKED
         | EventName.NOTIFICATIONS_ITEM_CLICKED
-        | EventName.NOTIFICATIONS_READ_MORE_CLICKED;
+        | EventName.NOTIFICATIONS_READ_MORE_CLICKED
+        | EventName.ADD_CUSTOM_METRIC_CLICKED
+        | EventName.REMOVE_CUSTOM_METRIC_CLICKED;
     properties?: {};
 };
 
