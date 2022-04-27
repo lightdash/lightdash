@@ -15,6 +15,7 @@ import {
     isExploreError,
     isFilterableDimension,
     Job,
+    JobStatusType,
     MetricQuery,
     Project,
     ProjectCatalog,
@@ -35,10 +36,7 @@ import {
 } from '../../errors';
 import Logger from '../../logger';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
-import {
-    JobStatusType,
-    ProjectModel,
-} from '../../models/ProjectModel/ProjectModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
@@ -436,12 +434,16 @@ export class ProjectService {
         return this.projectModel.getJobstatus(jobUuid);
     }
 
-    async startJob(jobUuid: string, projectUuid: string): Promise<void> {
-        this.projectModel.updateJobStatus(
+    async startJob(projectUuid: string): Promise<string> {
+        const jobUuid = uuidv4();
+
+        await this.projectModel.upsertJobStatus(
             jobUuid,
             projectUuid,
             JobStatusType.STARTED,
         );
+
+        return jobUuid;
     }
 
     async getAllExplores(

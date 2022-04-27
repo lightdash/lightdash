@@ -5,6 +5,7 @@ import {
     Explore,
     ExploreError,
     Job,
+    JobStatusType,
     OrganizationProject,
     Project,
     sensitiveCredentialsFieldNames,
@@ -38,13 +39,6 @@ type ProjectModelDependencies = {
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
-
-export const enum JobStatusType {
-    STARTED = 'STARTED',
-    DONE = 'DONE',
-    RUNNING = 'RUNNING',
-    ERROR = 'ERROR',
-}
 
 export class ProjectModel {
     private database: Knex;
@@ -447,7 +441,7 @@ export class ProjectModel {
         };
     }
 
-    async updateJobStatus(
+    async upsertJobStatus(
         jobUuid: string,
         projectUuid: string,
         status: JobStatusType,
@@ -511,7 +505,7 @@ export class ProjectModel {
                     project_uuid = '${projectUuid}'
                 LIMIT 1  `);
 
-            await this.updateJobStatus(
+            await this.upsertJobStatus(
                 jobUuid,
                 projectUuid,
                 JobStatusType.RUNNING,
@@ -523,13 +517,13 @@ export class ProjectModel {
 
             try {
                 await func();
-                await this.updateJobStatus(
+                await this.upsertJobStatus(
                     jobUuid,
                     projectUuid,
                     JobStatusType.DONE,
                 );
             } catch (e) {
-                await this.updateJobStatus(
+                await this.upsertJobStatus(
                     jobUuid,
                     projectUuid,
                     JobStatusType.ERROR,
