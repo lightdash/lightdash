@@ -1,3 +1,10 @@
+## [0.77.1](https://github.com/lightdash/lightdash/compare/0.77.0...0.77.1) (2022-04-27)
+
+
+### Bug Fixes
+
+* revert change to pivotDimensions ([#1923](https://github.com/lightdash/lightdash/issues/1923)) ([723f5f0](https://github.com/lightdash/lightdash/commit/723f5f0e9ff8310a87c2e7a0f909818963f8aa74))
+
 # [0.77.0](https://github.com/lightdash/lightdash/compare/0.76.0...0.77.0) (2022-04-27)
 
 
