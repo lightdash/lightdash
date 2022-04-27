@@ -22,7 +22,7 @@ const getJob = async (jobUuid: string) =>
 
 export const useGetRefreshData = (jobId: string | undefined) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { showToastSuccess } = useApp();
+    const { showToastRefreshSuccess } = useApp();
     const setErrorResponse = useQueryError();
     return useQuery<Job, ApiError>({
         queryKey: ['refresh', projectUuid],
@@ -31,7 +31,7 @@ export const useGetRefreshData = (jobId: string | undefined) => {
         refetchInterval: (data) => data?.jobStatus === 'RUNNING' && 1000,
         onSuccess: async (data) => {
             if (data.jobStatus === 'DONE') {
-                showToastSuccess({
+                showToastRefreshSuccess({
                     title: `Sync successful!`,
                 });
             }

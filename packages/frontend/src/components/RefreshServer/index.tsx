@@ -26,12 +26,12 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     );
     const isLoading = statusInfo ? statusInfo.jobStatus !== 'DONE' : false;
     const { track } = useTracking();
-    const { showToastInfo } = useApp();
+    const { showToastRefreshInfo } = useApp();
     const hasSteps = !!statusInfo?.steps.length;
 
     useEffect(() => {
         if (statusInfo && isLoading && statusInfo.jobStatus !== 'DONE') {
-            showToastInfo({
+            showToastRefreshInfo({
                 title: `${refreshStatusInfo(statusInfo?.jobStatus).title} `,
                 subtitle: hasSteps
                     ? `Steps ${
@@ -49,7 +49,7 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                 // },
             });
         }
-    }, [isLoading, statusInfo, showToastInfo, hasSteps]);
+    }, [isLoading, statusInfo, showToastRefreshInfo, hasSteps]);
 
     const onClick = () => {
         mutate();
