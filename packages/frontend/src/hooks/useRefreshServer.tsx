@@ -6,6 +6,8 @@ import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 import useQueryError from './useQueryError';
 
+export const TOAST_KEY_FOR_REFRESH_JOB = 'refresh-job';
+
 const refresh = async (projectUuid: string) =>
     lightdashApi<ApiRefreshResults>({
         method: 'POST',
@@ -22,7 +24,8 @@ const getJob = async (jobUuid: string) =>
 
 export const useGetRefreshData = (jobId: string | undefined) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { showToastRefreshSuccess } = useApp();
+    const { showToastRefreshSuccess, showToastInfo, showToastSuccess } =
+        useApp();
     const setErrorResponse = useQueryError();
     return useQuery<Job, ApiError>({
         queryKey: ['refresh', projectUuid],
@@ -30,6 +33,32 @@ export const useGetRefreshData = (jobId: string | undefined) => {
         enabled: jobId !== undefined,
         refetchInterval: (data) => data?.jobStatus === 'RUNNING' && 1000,
         onSuccess: async (data) => {
+            switch (data.jobStatus) {
+                case 'STARTED':
+                    showToastInfo({
+                        key: TOAST_KEY_FOR_REFRESH_JOB,
+                        title: 'started',
+                    });
+                    break;
+                case 'DONE':
+                    showToastSuccess({
+                        key: TOAST_KEY_FOR_REFRESH_JOB,
+                        title: 'success',
+                    });
+                    break;
+                case 'RUNNING':
+                    showToastInfo({
+                        key: TOAST_KEY_FOR_REFRESH_JOB,
+                        title: 'running',
+                        timeout: 0,
+                    });
+                    break;
+                case 'ERROR':
+                    showToastInfo({
+                        key: TOAST_KEY_FOR_REFRESH_JOB,
+                        title: 'error',
+                    });
+            }
             if (data.jobStatus === 'DONE') {
                 showToastRefreshSuccess({
                     title: `Sync successful!`,
