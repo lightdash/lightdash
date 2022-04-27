@@ -1,6 +1,10 @@
 import { Button, IconName } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import { CartesianSeriesType, ChartType } from 'common';
+import {
+    CartesianSeriesType,
+    ChartType,
+    isSeriesWithMixedChartTypes,
+} from 'common';
 import React, { FC, useMemo, useState } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import {
@@ -22,9 +26,9 @@ const VisualizationCardOptions: FC = () => {
     const cartesianFlipAxis = cartesianConfig.dirtyLayout?.flipAxes;
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const isChartTypeTheSameForAllSeries: boolean =
-        new Set(
-            cartesianConfig.dirtyEchartsConfig?.series?.map(({ type }) => type),
-        ).size === 1;
+        !isSeriesWithMixedChartTypes(
+            cartesianConfig.dirtyEchartsConfig?.series,
+        );
 
     const selectedChartType = useMemo<{ text: string; icon: IconName }>(() => {
         switch (chartType) {

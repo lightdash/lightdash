@@ -51,6 +51,7 @@ module.exports = {
         "guides/how-to-create-multiple-projects",
         "guides/limiting-data-using-filters",
         "guides/visualizing-your-results",
+        "guides/interactive-dashboards",
       ],
     },
     {
