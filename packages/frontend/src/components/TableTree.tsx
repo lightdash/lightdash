@@ -16,7 +16,6 @@ import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import {
     CompiledMetric,
     CompiledTable,
-    defaultSql,
     Dimension,
     DimensionType,
     fieldId,
@@ -171,7 +170,7 @@ const NodeItemButtons: FC<{
                 name: `${dimension.name}_${type}`,
                 label: `${friendlyName(type)} of ${dimension.label}`,
                 table: dimension.table,
-                sql: defaultSql(dimension.name),
+                sql: dimension.sql,
                 description: `${friendlyName(type)} of ${
                     dimension.label
                 } on the table ${dimension.tableLabel}`,
