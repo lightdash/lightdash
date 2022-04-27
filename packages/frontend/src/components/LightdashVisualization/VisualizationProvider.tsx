@@ -103,7 +103,9 @@ export const VisualizationProvider: FC<Props> = ({
         explore,
         validCartesianConfig,
         resultsData,
-        validPivotDimensions,
+        chartConfigs?.type === ChartType.CARTESIAN
+            ? validPivotDimensions
+            : undefined,
     );
 
     useEffect(() => {
