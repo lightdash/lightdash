@@ -1,3 +1,10 @@
+# [0.76.0](https://github.com/lightdash/lightdash/compare/0.75.3...0.76.0) (2022-04-27)
+
+
+### Features
+
+* new sync status ([#1896](https://github.com/lightdash/lightdash/issues/1896)) ([9d008c9](https://github.com/lightdash/lightdash/commit/9d008c941b8698b1ea2fe8c7e0622d770252be03)), closes [#1891](https://github.com/lightdash/lightdash/issues/1891) [#1893](https://github.com/lightdash/lightdash/issues/1893)
+
 ## [0.75.3](https://github.com/lightdash/lightdash/compare/0.75.2...0.75.3) (2022-04-27)
 
 
