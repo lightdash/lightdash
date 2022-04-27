@@ -1,5 +1,8 @@
 import React, { ComponentProps, FC, useState } from 'react';
-import { useRefreshServer } from '../../hooks/useRefreshServer';
+import {
+    useGetRefreshData,
+    useRefreshServer,
+} from '../../hooks/useRefreshServer';
 import { useServerStatus } from '../../hooks/useServerStatus';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
@@ -9,21 +12,23 @@ import {
     LoadingSpinner,
     RefreshButton,
     RefreshSpinnerButton,
-} from './RefreshServerButton.style';
+} from './RefreshServerButton.styles';
 import RefreshStepsModal from './RefreshStepsModal';
 
 const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     const [isRefreshStepsOpen, setIsRefreshStepsOpen] = useState(false);
-    const refreshServer = useRefreshServer();
+    const { data, mutate } = useRefreshServer();
     const status = useServerStatus();
+    const isLoading = status.data === 'loading';
+    const { data: statusInfo } = useGetRefreshData(data?.jobUuid);
     const { track } = useTracking();
     const { showToastInfo } = useApp();
-    const isLoading = status.data === 'loading';
 
     const onClick = () => {
-        refreshServer.mutate();
+        mutate();
         showToastInfo({
             title: `Sync in progress  Step 1/5: Cloning dbt project from Github`,
+            icon: 'refresh',
             action: {
                 text: 'View log ',
                 icon: 'arrow-right',
@@ -52,10 +57,10 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                     'Refresh dbt'
                 )}
             </RefreshButton>
-
             <RefreshStepsModal
                 isOpen={isRefreshStepsOpen}
-                closeModal={setIsRefreshStepsOpen}
+                onClose={setIsRefreshStepsOpen}
+                statusData={statusInfo}
             />
         </>
     );

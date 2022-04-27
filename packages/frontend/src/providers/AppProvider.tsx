@@ -188,7 +188,8 @@ export const AppProvider: FC = ({ children }) => {
         (props) => {
             showToastSuccess({
                 intent: Intent.NONE,
-                icon: 'refresh',
+                icon: 'info-sign',
+                timeout: 0,
                 ...props,
             });
         },

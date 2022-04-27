@@ -50,6 +50,10 @@ export const StepsWrapper = styled.div`
     padding: 20px 22px;
 `;
 
+export const StepInfo = styled.div`
+    grid-column: 2;
+`;
+
 export const Step = styled.div<{ status: string }>`
     background: ${({ status }) => statusInfo(status).background};
     border-radius: 3px;

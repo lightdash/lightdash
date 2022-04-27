@@ -1,14 +1,38 @@
-import { ApiError, ApiRefreshResults } from 'common';
-import { useMutation, useQueryClient } from 'react-query';
+import { ApiError } from 'common';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import useQueryError from './useQueryError';
 
-const refresh = async (projectUuid: string) => {
-    await lightdashApi<ApiRefreshResults>({
+const refresh = async (projectUuid: string) =>
+    lightdashApi<any>({
         method: 'POST',
         url: `/projects/${projectUuid}/refresh`,
         body: undefined,
+    });
+
+const getJob = async (jobUuid: string) =>
+    lightdashApi<any>({
+        method: 'GET',
+        url: `/jobs/${jobUuid}`,
+        body: undefined,
+    });
+
+export const useGetRefreshData = (jobId: string | undefined) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const queryClient = useQueryClient();
+    const setErrorResponse = useQueryError();
+    return useQuery<any, ApiError>({
+        queryKey: ['refresh', projectUuid],
+        queryFn: () => getJob(jobId || ''),
+        enabled: jobId !== undefined,
+        refetchInterval: (data) => data === 'loading' && 1000,
+        onSuccess: async () => {
+            await queryClient.invalidateQueries('refresh');
+        },
+        onError: (result) => setErrorResponse(result),
+        refetchIntervalInBackground: false,
+        refetchOnMount: false,
     });
 };
 
@@ -17,7 +41,7 @@ export const useRefreshServer = () => {
     const queryClient = useQueryClient();
     const setErrorResponse = useQueryError();
 
-    return useMutation<void, ApiError>({
+    return useMutation<any, ApiError>({
         mutationKey: ['refresh', projectUuid],
         mutationFn: () => refresh(projectUuid),
         onSettled: async () => queryClient.setQueryData('status', 'loading'),
