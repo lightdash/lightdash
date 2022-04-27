@@ -398,19 +398,25 @@ function reducer(
             };
         }
         case ActionType.ADD_ADDITIONAL_METRIC: {
+            const isMetricAlreadyInList = (
+                state.unsavedChartVersion.metricQuery.additionalMetrics || []
+            ).find(
+                (metric) => getFieldId(metric) === getFieldId(action.payload),
+            );
             return {
                 ...state,
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
                     metricQuery: {
                         ...state.unsavedChartVersion.metricQuery,
-                        additionalMetrics: Array.from(
-                            new Set([
-                                ...(state.unsavedChartVersion.metricQuery
-                                    .additionalMetrics || []),
-                                action.payload,
-                            ]),
-                        ),
+                        additionalMetrics: isMetricAlreadyInList
+                            ? state.unsavedChartVersion.metricQuery
+                                  .additionalMetrics
+                            : [
+                                  ...(state.unsavedChartVersion.metricQuery
+                                      .additionalMetrics || []),
+                                  action.payload,
+                              ],
                     },
                 },
             };

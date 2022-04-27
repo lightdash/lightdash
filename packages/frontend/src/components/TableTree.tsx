@@ -124,6 +124,34 @@ const TableButtons: FC<{
     );
 };
 
+const getCustomMetricType = (type: DimensionType): MetricType[] => {
+    switch (type) {
+        case DimensionType.STRING:
+        case DimensionType.TIMESTAMP:
+        case DimensionType.DATE:
+            return [
+                MetricType.COUNT_DISTINCT,
+                MetricType.COUNT,
+                MetricType.MIN,
+                MetricType.MAX,
+            ];
+
+        case DimensionType.NUMBER:
+            return [
+                MetricType.MIN,
+                MetricType.MAX,
+                MetricType.SUM,
+                MetricType.AVERAGE,
+                MetricType.COUNT_DISTINCT,
+                MetricType.COUNT,
+            ];
+        case DimensionType.BOOLEAN:
+            return [MetricType.COUNT_DISTINCT, MetricType.COUNT];
+        default:
+            return [];
+    }
+};
+
 const NodeItemButtons: FC<{
     node: Metric | Dimension;
     onOpenSourceDialog: (source: Source) => void;
@@ -132,100 +160,84 @@ const NodeItemButtons: FC<{
     const { isFilteredField, addFilter } = useFilters();
     const isFiltered = isFilteredField(node);
     const { track } = useTracking();
-    const menuItems: ReactNode[] = [];
+
     const {
         actions: { addAdditionalMetric },
     } = useExplorer();
 
-    const createCustomMetric = (dimension: Dimension, type: MetricType) => {
-        addAdditionalMetric({
-            name: `${dimension.name}_${type}`,
-            label: `${friendlyName(type)} of ${dimension.label}`,
-            table: dimension.table,
-            sql: defaultSql(dimension.name),
-            description: `${friendlyName(type)} of ${
-                dimension.label
-            } on the table ${dimension.tableLabel}`,
-            type,
-        });
-    };
+    const createCustomMetric = useCallback(
+        (dimension: Dimension, type: MetricType) => {
+            addAdditionalMetric({
+                name: `${dimension.name}_${type}`,
+                label: `${friendlyName(type)} of ${dimension.label}`,
+                table: dimension.table,
+                sql: defaultSql(dimension.name),
+                description: `${friendlyName(type)} of ${
+                    dimension.label
+                } on the table ${dimension.tableLabel}`,
+                type,
+            });
+        },
+        [addAdditionalMetric],
+    );
 
-    const customMetricType = (type: DimensionType): MetricType[] => {
-        switch (type) {
-            case DimensionType.STRING ||
-                DimensionType.BOOLEAN ||
-                DimensionType.TIMESTAMP ||
-                DimensionType.DATE:
-                return [
-                    MetricType.COUNT_DISTINCT,
-                    MetricType.COUNT,
-                    MetricType.MIN,
-                    MetricType.MAX,
-                ];
-
-            case DimensionType.NUMBER:
-                return [
-                    MetricType.MIN,
-                    MetricType.MAX,
-                    MetricType.SUM,
-                    MetricType.AVERAGE,
-                    MetricType.COUNT_DISTINCT,
-                    MetricType.COUNT,
-                ];
-            default:
-                return [];
+    const menuItems = useMemo<ReactNode[]>(() => {
+        const items: ReactNode[] = [];
+        if (node.source) {
+            items.push(
+                <MenuItem
+                    key="source"
+                    icon={<Icon icon="console" />}
+                    text="Source"
+                    onClick={(e) => {
+                        if (node.source === undefined) {
+                            return;
+                        }
+                        e.stopPropagation();
+                        onOpenSourceDialog(node.source);
+                    }}
+                />,
+            );
         }
-    };
+        if (isFilterableField(node)) {
+            items.push(
+                <MenuItem
+                    key="filter"
+                    icon="filter"
+                    text="Add filter"
+                    onClick={(e) => {
+                        track({
+                            name: EventName.ADD_FILTER_CLICKED,
+                        });
+                        e.stopPropagation();
+                        addFilter(node, undefined);
+                    }}
+                />,
+            );
+        }
 
-    if (node.source) {
-        menuItems.push(
-            <MenuItem
-                key="source"
-                icon={<Icon icon="console" />}
-                text="Source"
-                onClick={(e) => {
-                    if (node.source === undefined) {
-                        return;
-                    }
-                    e.stopPropagation();
-                    onOpenSourceDialog(node.source);
-                }}
-            />,
-        );
-    }
-    if (isFilterableField(node)) {
-        menuItems.push(
-            <MenuItem
-                key="filter"
-                icon="filter"
-                text="Add filter"
-                onClick={(e) => {
-                    track({
-                        name: EventName.ADD_FILTER_CLICKED,
-                    });
-                    e.stopPropagation();
-                    addFilter(node, undefined);
-                }}
-            />,
-        );
-    }
+        if (
+            node.fieldType === 'dimension' &&
+            getCustomMetricType(node.type).length > 0
+        ) {
+            items.push(
+                <MenuItem key="Add metric" icon="numerical" text="Add metric">
+                    {getCustomMetricType(node.type)?.map((metric) => (
+                        <MenuItem
+                            key={metric}
+                            text={friendlyName(metric)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                createCustomMetric(node, metric);
+                            }}
+                        />
+                    ))}
+                </MenuItem>,
+            );
+        }
+        return items;
+    }, [addFilter, createCustomMetric, node, onOpenSourceDialog, track]);
 
-    if (node.fieldType === 'dimension') {
-        menuItems.push(
-            <MenuItem key="Add metric" icon="numerical" text="Add metric">
-                {customMetricType(node.type)?.map((metric) => (
-                    <MenuItem
-                        key={metric}
-                        text={friendlyName(metric)}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            createCustomMetric(node, metric);
-                        }}
-                    />
-                ))}
-            </MenuItem>,
-        );
-    }
     return (
         <div
             style={{
@@ -460,14 +472,14 @@ const TableTree: FC<TableTreeProps> = ({
     const customMetricsNode = {
         id: 'customMetrics',
         label: (
-            <span style={{ color: Colors.GREEN1 }}>
+            <span style={{ color: Colors.ORANGE1 }}>
                 <strong>Custom metrics</strong>
             </span>
         ),
         icon: (
             <Icon
                 icon="clean"
-                intent={Intent.SUCCESS}
+                intent={Intent.WARNING}
                 className={Classes.TREE_NODE_ICON}
             />
         ),
