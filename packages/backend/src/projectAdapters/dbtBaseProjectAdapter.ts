@@ -97,7 +97,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     }
 
     public async compileAllExplores(
-        projectUuid: string,
         loadSources: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
         Logger.debug('Install dependencies');
@@ -132,7 +131,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         try {
             if (this.cachedWarehouse?.warehouseCatalog === undefined) {
                 throw new MissingCatalogEntryError(
-                    `Could not find cached warehouse catalog for project ${projectUuid}`,
+                    `Warehouse catalog is undefined`,
                     {},
                 );
             }

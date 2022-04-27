@@ -8,9 +8,7 @@ import {
 } from 'common';
 
 export interface ProjectAdapter {
-    compileAllExplores(
-        projectUuid: string,
-    ): Promise<(Explore | ExploreError)[]>;
+    compileAllExplores(): Promise<(Explore | ExploreError)[]>;
     getDbtPackages(): Promise<DbtPackages | undefined>;
     runQuery(sql: string): Promise<Record<string, any>[]>;
     test(): Promise<void>;

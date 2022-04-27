@@ -109,10 +109,12 @@ export class ProjectService {
             throw new ForbiddenError();
         }
         const adapter = await ProjectService.testProjectAdapter(data);
+        const explores = await adapter.compileAllExplores();
         const projectUuid = await this.projectModel.create(
             user.organizationUuid,
             data,
         );
+        await this.projectModel.saveExploresToCache(projectUuid, explores);
 
         analytics.track({
             event: 'project.created',
@@ -349,7 +351,7 @@ export class ProjectService {
         const adapter = await this.restartAdapter(projectUuid);
         const packages = await adapter.getDbtPackages();
         try {
-            const explores = await adapter.compileAllExplores(projectUuid);
+            const explores = await adapter.compileAllExplores();
             analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,
@@ -471,7 +473,7 @@ export class ProjectService {
             projectUuid,
         );
         if (!cachedExplores || cachedExplores.length === 0 || forceRefresh) {
-            this.projectModel.tryWithProjectLock(
+            await this.projectModel.tryWithProjectLock(
                 projectUuid,
                 jobUuid || uuidv4(),
                 async () => {

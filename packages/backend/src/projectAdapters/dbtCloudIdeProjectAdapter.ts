@@ -30,9 +30,7 @@ export class DbtCloudIdeProjectAdapter extends DbtBaseProjectAdapter {
         super(rpcClient, warehouseClient, cachedWarehouse);
     }
 
-    public async compileAllExplores(
-        projectUuid: string,
-    ): Promise<(Explore | ExploreError)[]> {
-        return super.compileAllExplores(projectUuid, false);
+    public async compileAllExplores(): Promise<(Explore | ExploreError)[]> {
+        return super.compileAllExplores(false);
     }
 }
