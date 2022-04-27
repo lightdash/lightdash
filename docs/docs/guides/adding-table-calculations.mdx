@@ -11,25 +11,9 @@ import PercentOfPrevious from './assets/percent-of-previous.png';
 import PercentChange from './assets/percent-change.png';
 import RankInColumn from './assets/rank-in-column.png';
 
-# Adding custom metrics + table calculations in your Explore
+# 🧮 Adding table calculations in your Explore
 
 ---
-
-## 🪄 Adding custom metrics in your Explore (coming soon!)
-
-...Coming soon! Follow along with our progress in GitHub here: https://github.com/lightdash/lightdash/milestone/31
-
----
-
-## 👩‍💻 Adding metrics in your dbt project
-
-You can add metrics to your dbt project that you'll be able to use when you're in the Explore view. Learn all about adding metrics in your dbt project [in this tutorial](https://docs.lightdash.com/get-started/setup-lightdash/add-metrics). 
-
-You can also read more about specific metric types and configurations in [the metrics reference doc here](https://docs.lightdash.com/references/metrics).
-
----
-
-## 🧮 Adding table calculations in your Explore
 
 Table calculations make it easy to create metrics on the fly (for example, aggregating the data in your table over some window, or getting a running total of a column). You add table calculations in the Explore view and they appear as green columns in your results table (remember, [dimensions](https://docs.lightdash.com/references/dimensions) are blue, and [metrics](https://docs.lightdash.com/references/metrics) are orange).
 
@@ -37,7 +21,7 @@ Table calculations make it easy to create metrics on the fly (for example, aggre
 
 Table calculations are built using raw SQL. That means you can use table calculations to build mathematical, True/False, text, and date-based calculations (basically, anything you can do in SQL, you can do in table calculations).
 
-### When to use table calculations
+## When to use table calculations
 
 Typically, in your Lightdash project, you'll have one or more Explores that you've pre-defined in your dbt project (this is probably done by the data analysts/engineers/analytics engineers). But sometimes, you'll need particular logic which hasn't been defined as a dimension or metric in your dbt project - maybe because you have a new kind of question or use case.
 
@@ -45,21 +29,21 @@ This is when you might need a table calculation.
 
 Watch out: table calculations can be easier to create than regular metrics/dimensions, but they are not as easy to manage. If you find yourself creating the same table calculation over and over again in an Explore, then it might be worth adding it in as a more permanent metric in your dbt project! You can read more about [adding metrics to your dbt project here](https://docs.lightdash.com/references/metrics).
 
-### Creating table calculations
+## Creating table calculations
 
-#### 1. Before you create a table calculation, you need to add some dimensions and/or metrics to your results table.
+### 1. Before you create a table calculation, you need to add some dimensions and/or metrics to your results table.
 
 Table calculations can only be built using the dimensions + metrics that you've included in your results table. So, to create a table calculation, first, you need to add the dimensions and/or metrics for your table calculation to your results table.
 
 <img src={DataResultsTable} width="1280" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-#### 2. To add a table calculation just click on `+ Table calculation` in the `Results` tab
+### 2. To add a table calculation just click on `+ Table calculation` in the `Results` tab
 
 Once you've got some data in your results table, you can create a table calculation by clicking on the `+ Table calculation` in the `Results` tab of the Explore view:
 
 <img src={CreateNewCalc} width="1280" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-#### 3. Write the SQL for your table calculation in the pop-up box
+### 3. Write the SQL for your table calculation in the pop-up box
 
 Your table calculation is defined using raw SQL that you write up in this pop up box. If you're not sure what to write here, you can [check out some of our table calculation SQL templates](#table-calculation-sql-templates).
 
@@ -67,13 +51,13 @@ To reference the metrics and dimensions in your results table, you can either us
 
 <img src={WriteNewCalc} width="1052" height="566" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-#### 4. Once you've saved your new table calculation, hit `run query` to see the results
+### 4. Once you've saved your new table calculation, hit `run query` to see the results
 
 Once you've created a new table calculation, you need to hit `run query` to see the values in your results table. And voilà!
 
 <img src={RunQuerySeeCalc} width="1296" height="548" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-#### 5. To delete or edit your table calculation, just click on the gear icon by the field name
+### 5. To delete or edit your table calculation, just click on the gear icon by the field name
 
 If you need to edit or delete a table calculation, you can just click on the gear icon beside the field and do what you need to do!
 
@@ -81,11 +65,13 @@ If you need to edit or delete a table calculation, you can just click on the gea
 
 ---
 
-## 📝 Table calculation SQL templates
+# 📝 Table calculation SQL templates
 
 I'm not sure about you, but I definitely rely on copy-pasting old SQL code to write 90% of my new SQL queries. So, we thought it might be useful to give you some snippets of SQL code to help you get started with your most common table calculations.
 
-### Running total
+---
+
+## Running total
 
 Running totals give you the sum of a value + all of the previous values in that column.
 
@@ -95,9 +81,7 @@ Here's an example of a running total:
 
 And here's the SQL used in the table calculation:
 
-```sql
-SUM(${pages.page_view_count}) OVER(ORDER BY ${pages.date_day}, ${pages.path})
-```
+>```SUM(${pages.page_view_count}) OVER(ORDER BY ${pages.date_day}, ${pages.path})```
 
 In general, the SQL used for calculating running totals has two bits (with an optional third bit):
 
@@ -105,22 +89,24 @@ In general, the SQL used for calculating running totals has two bits (with an op
 - `column_I_want_to_order_by` - this is the column you want to order your running total over
 - `optional_other_column_I_want_to_order_by` - this column is optional and you can add as many more `order by` columns as you need. For your running total to only go up an increment of one row, you'll need to add every dimension in your results table to the `ORDER BY` bit in your SQL. And, the order of these will need to be the same as the ordering you've added to the columns in your results table.
 
-So, the SQL for running totals will always look something like:
+#### 👀 Here's the SQL you can copy-paste to calculate a running total:
 
-```sql
-SUM(${table.column_I_want_to_sum}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})
-```
+>```SUM(${table.column_I_want_to_sum}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})```
+
+:::info
 
 **💎 Level up your SQL**:
 
 - You can specify if you want to order your columns in ascending order (1, 2, 3, 4) or descending order (4, 3, 2, 1) using the key words `ASC` and `DESC` in your `ORDER BY` clause. 
-By default, a column will be ordered in ascending order - so if you want it ordered ascending, you don't need to add anything:
+By default, a column will be ordered in ascending order - so if you want it ordered ascending, you don't need to add anything.
 
-  ```sql
-  SUM(${table.column_I_want_to_sum}) OVER(ORDER BY ${table.column_I_want_to_order_by} ASC, ${table.optional_other_column_I_want_to_order_by} DESC)
-  ```
+>```SUM(${table.column_I_want_to_sum}) OVER(ORDER BY ${table.column_I_want_to_order_by} ASC, ${table.optional_other_column_I_want_to_order_by} DESC)```
 
-### Percent of total column
+:::
+
+---
+
+## Percent of total column
 
 The percent of total column will give you the percentage of each value in the  column out of the total sum of the values in the column.
 
@@ -138,35 +124,33 @@ In general, the SQL used for calculating the percent of the total has just one i
 
 - `column_i_want_to_see_the_percent_of_total` - this is the column that you want to see each value's percent of the total values in that column
 
-So, the SQL for the percent of a total will always look something like:
+#### 👀 Here's the SQL you can copy-paste to calculate the percent of a total column:
 
-```sql
-${table.column_i_want_to_see_the_percent_of_total} * 100 / SUM(${table.column_i_want_to_see_the_percent_of_total}) OVER()
-```
+>```${table.column_i_want_to_see_the_percent_of_total} * 100 / SUM(${table.column_i_want_to_see_the_percent_of_total}) OVER()```
+
+:::info
 
 **💎 Level up your SQL**:
 
 - You can round your table calculation to only show a certain number of decimal points. Here's an example where I only show two decimal points:
 
-  ```sql
-  ROUND(${table.column_i_want_to_see_the_percent_of_total} * 100 / SUM(${table.  column_i_want_to_see_the_percent_of_total}) OVER(), 2)
-  ```
+ >```ROUND(${table.column_i_want_to_see_the_percent_of_total} * 100 / SUM(${table.  column_i_want_to_see_the_percent_of_total}) OVER(), 2)```
 
 <img src={PercentOfTotalRounded} width="160" height="194" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-### Percent of previous
+:::
 
-The percent of previous gives you the percent of a value compared to the value in the row above it.
+## Percent of previous value
 
-Here's an example of a percent of previous calculation:
+The percent of previous value gives you the percent of a value compared to the value in the row above it.
+
+Here's an example of a percent of previous value calculation:
 
 <img src={PercentOfPrevious} width="1227" height="473" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 And here's the SQL that was used to generate it:
 
-```sql
-${pages.page_view_count} * 100 / LAG(${pages.page_view_count}) OVER(ORDER BY ${pages.date_day}, ${pages.path})
-```
+>```${pages.page_view_count} * 100 / LAG(${pages.page_view_count}) OVER(ORDER BY ${pages.date_day}, ${pages.path})```
 
 In general, the SQL used for calculating the percent of the previous value has two bits (with an optional third bit):
 
@@ -174,23 +158,19 @@ In general, the SQL used for calculating the percent of the previous value has t
 - `column_I_want_to_order_by` - this is the column you want to use to order the values you want to compare
 - `optional_other_column_I_want_to_order_by` - this column is optional and you can add as many more `order by` columns as you need. Normally, you'll need to add every dimension in your results table to the `ORDER BY` bit in your SQL. And, the order of these will need to be the same as the ordering you've added to the columns in your results table.
 
-So, the SQL for the percent of previous will always look something like:
+#### 👀 Here's the SQL you can copy-paste to calculate the percent of the previous value:
 
-```sql
-${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})
-```
+>```${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})```
 
 **💎 Level up your SQL**:
 
 - You can round your table calculation to only show a certain number of decimal points. Here's an example where I only show two decimal points:
 
-  ```sql
-  ROUND(${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by}), 2)
-  ```
+>```ROUND(${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by}), 2)```
 
 <img src={PercentOfTotalRounded} width="160" height="194" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-### Percent change from previous
+## Percent change from previous
 
 The percent change gives you the percent change in a value compared to the value in the row above it. This calculation is very similar to [percent of previous](#percent-of-previous).
 
@@ -200,9 +180,7 @@ Here's an example of a percent change calculation:
 
 And here's the SQL that was used to generate it:
 
-```sql
-(${pages.page_view_count} * 100 / LAG(${pages.page_view_count}) OVER(ORDER BY ${pages.date_day}, ${pages.path})) - 100
-```
+>```(${pages.page_view_count} * 100 / LAG(${pages.page_view_count}) OVER(ORDER BY ${pages.date_day}, ${pages.path})) - 100```
 
 In general, the SQL used for calculating the percent change from the previous value has two bits (with an optional third bit):
 
@@ -212,21 +190,17 @@ In general, the SQL used for calculating the percent change from the previous va
 
 So, the SQL for the percent change from the previous will always look something like:
 
-```sql
-(${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})) - 100
-```
+>```(${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})) - 100```
 
 **💎 Level up your SQL**:
 
 - You can round your table calculation to only show a certain number of decimal points. Here's an example where I only show two decimal points:
 
-  ```sql
-  ROUND((${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})) - 100, 2)
-  ```
+>```ROUND((${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})) - 100, 2)```
 
 <img src={PercentOfTotalRounded} width="160" height="194" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-### Rank in column
+## Rank in column
 
 Ranking values in a column is when you set every value as a number either higher than or lower than the other values. The lowest value (rank = 1) indicates the value with the first rank in your set of values.
 
@@ -236,9 +210,7 @@ Here's an example of a percent change calculation:
 
 And here's the SQL used to generate it:
 
-```sql
-ROW_NUMBER() OVER(ORDER BY ${pages.page_view_count} DESC)
-```
+>```ROW_NUMBER() OVER(ORDER BY ${pages.page_view_count} DESC)```
 
 In general, the SQL used for calculating the rank in a column has just one important column and one other important parameter:
 
@@ -247,6 +219,4 @@ In general, the SQL used for calculating the rank in a column has just one impor
 
 So, the SQL for the percent of a total will always look something like:
 
-```sql
-ROW_NUMBER() OVER(ORDER BY ${table.column_i_want_to_rank} DESC)
-```
+>```ROW_NUMBER() OVER(ORDER BY ${table.column_i_want_to_rank} DESC)```

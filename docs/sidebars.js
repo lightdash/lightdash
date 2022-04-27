@@ -52,7 +52,8 @@ module.exports = {
         "guides/limiting-data-using-filters",
         "guides/visualizing-your-results",
         "guides/interactive-dashboards",
-        "guides/adding-custom-metrics-table-calculations-explore",
+        "guides/adding-table-calculations",
+        "guides/adding-custom-metrics",
       ],
     },
     {
