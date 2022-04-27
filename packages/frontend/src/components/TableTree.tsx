@@ -220,7 +220,11 @@ const NodeItemButtons: FC<{
             getCustomMetricType(node.type).length > 0
         ) {
             items.push(
-                <MenuItem key="Add metric" icon="numerical" text="Add metric">
+                <MenuItem
+                    key="custommetric"
+                    icon="clean"
+                    text="Add custom metric"
+                >
                     {getCustomMetricType(node.type)?.map((metric) => (
                         <MenuItem
                             key={metric}
