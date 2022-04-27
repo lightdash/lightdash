@@ -413,17 +413,16 @@ export class ProjectModel {
             .limit(1);
 
         if (jobs.length === 0) return undefined;
-        
-            const job = jobs[0];
-            return {
-                createdAt: job.created_at,
-                updatedAt: job.updated_at,
-                projectUuid: job.project_uuid,
-                jobUuid: job.job_uuid,
-                jobStatus: job.job_status,
-                steps: [],
-            };
-        
+
+        const job = jobs[0];
+        return {
+            createdAt: job.created_at,
+            updatedAt: job.updated_at,
+            projectUuid: job.project_uuid,
+            jobUuid: job.job_uuid,
+            jobStatus: job.job_status,
+            steps: [],
+        };
     }
 
     async getJobstatus(jobUuid: string): Promise<Job> {
