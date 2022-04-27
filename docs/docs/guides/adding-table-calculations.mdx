@@ -77,6 +77,8 @@ I'm not sure about you, but I definitely rely on copy-pasting old SQL code to wr
 
 Running totals give you the sum of a value + all of the previous values in that column.
 
+[Just gimme the code! 👾](#👀-heres-the-sql-you-can-copy-paste-to-calculate-a-running-total)
+
 Here's an example of a running total:
 
 <img src={RunningTotal} width="1260" height="516" style={{display: "block", margin: "0 auto 20px auto"}}/>
@@ -91,7 +93,7 @@ In general, the SQL used for calculating running totals has two bits (with an op
 - `column_I_want_to_order_by` - this is the column you want to order your running total over
 - `optional_other_column_I_want_to_order_by` - this column is optional and you can add as many more `order by` columns as you need. For your running total to only go up an increment of one row, you'll need to add every dimension in your results table to the `ORDER BY` bit in your SQL. And, the order of these will need to be the same as the ordering you've added to the columns in your results table.
 
-#### 👀 Here's the SQL you can copy-paste to calculate a running total:
+#### 👀 Here's the SQL you can copy-paste to calculate a running total
 
 >```SUM(${table.column_I_want_to_sum}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})```
 
@@ -112,6 +114,8 @@ By default, a column will be ordered in ascending order - so if you want it orde
 
 The percent of total column will give you the percentage of each value in the  column out of the total sum of the values in the column.
 
+[Just gimme the code! 👾](#👀-heres-the-sql-you-can-copy-paste-to-calculate-the-percent-of-a-total-column)
+
 Here's an example of a percent of the total column:
 
 <img src={PercentOfTotal} width="1254" height="561" style={{display: "block", margin: "0 auto 20px auto"}}/>
@@ -126,7 +130,7 @@ In general, the SQL used for calculating the percent of the total has just one i
 
 - `column_i_want_to_see_the_percent_of_total` - this is the column that you want to see each value's percent of the total values in that column
 
-#### 👀 Here's the SQL you can copy-paste to calculate the percent of a total column:
+#### 👀 Here's the SQL you can copy-paste to calculate the percent of a total column
 
 >```${table.column_i_want_to_see_the_percent_of_total} * 100 / SUM(${table.column_i_want_to_see_the_percent_of_total}) OVER()```
 
@@ -146,6 +150,8 @@ In general, the SQL used for calculating the percent of the total has just one i
 
 The percent of previous value gives you the percent of a value compared to the value in the row above it.
 
+[Just gimme the code! 👾](#👀-heres-the-sql-you-can-copy-paste-to-calculate-the-percent-of-the-previous-value)
+
 Here's an example of a percent of previous value calculation:
 
 <img src={PercentOfPrevious} width="1227" height="473" style={{display: "block", margin: "0 auto 20px auto"}}/>
@@ -160,7 +166,7 @@ In general, the SQL used for calculating the percent of the previous value has t
 - `column_I_want_to_order_by` - this is the column you want to use to order the values you want to compare
 - `optional_other_column_I_want_to_order_by` - this column is optional and you can add as many more `order by` columns as you need. Normally, you'll need to add every dimension in your results table to the `ORDER BY` bit in your SQL. And, the order of these will need to be the same as the ordering you've added to the columns in your results table.
 
-#### 👀 Here's the SQL you can copy-paste to calculate the percent of the previous value:
+#### 👀 Here's the SQL you can copy-paste to calculate the percent of the previous value
 
 >```${table.column_i_want_to_compare} * 100 / LAG(${table.column_i_want_to_compare}) OVER(ORDER BY ${table.column_I_want_to_order_by}, ${table.optional_other_column_I_want_to_order_by})```
 
@@ -181,6 +187,8 @@ In general, the SQL used for calculating the percent of the previous value has t
 ### Percent change from previous
 
 The percent change gives you the percent change in a value compared to the value in the row above it. This calculation is very similar to [percent of previous](#percent-of-previous).
+
+[Just gimme the code! 👾](#👀-heres-the-sql-you-can-copy-paste-to-calculate-the-percent-change-from-the-previous)
 
 Here's an example of a percent change calculation:
 
@@ -217,6 +225,8 @@ In general, the SQL used for calculating the percent change from the previous va
 ### Rank in column
 
 Ranking values in a column is when you set every value as a number either higher than or lower than the other values. The lowest value (rank = 1) indicates the value with the first rank in your set of values.
+
+[Just gimme the code! 👾](#👀-heres-the-sql-you-can-copy-paste-to-calculate-your-rank-in-column)
 
 Here's an example of a percent change calculation:
 
