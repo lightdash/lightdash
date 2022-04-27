@@ -1,3 +1,10 @@
+# [0.77.0](https://github.com/lightdash/lightdash/compare/0.76.0...0.77.0) (2022-04-27)
+
+
+### Features
+
+* users can create additional metrics from explorer view ([#1788](https://github.com/lightdash/lightdash/issues/1788)) ([38a94fc](https://github.com/lightdash/lightdash/commit/38a94fc0b97cf6d42692bd35f16cb1bcc2ce01d4))
+
 # [0.76.0](https://github.com/lightdash/lightdash/compare/0.75.3...0.76.0) (2022-04-27)
 
 
