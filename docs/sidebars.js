@@ -61,7 +61,13 @@ module.exports = {
             {
               type: "category",
               label: "Table calculation SQL templates",
-              link: {type: 'doc', id: 'sql-templates-intro'},
+              link: {
+                type: 'generated-index',
+                title: 'SQL templates',
+                description: 'Use our SQL templates to get started with your table calculations!',
+                slug: '/guides/table-calculations/sql-templates',
+                keywords: ['sql', 'templates'],
+              },
               items: [
                 "guides/table-calculations/table-calculation-sql-templates/percent-change-from-previous",
                 "guides/table-calculations/table-calculation-sql-templates/percent-of-previous-value",

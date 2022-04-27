@@ -1,6 +1,6 @@
 ---
 id: sql-templates-intro
-title: Hello
+title: Table calculation SQL templates
 ---
 
 ## 📝 Table calculation SQL templates
