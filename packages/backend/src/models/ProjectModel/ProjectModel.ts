@@ -5,6 +5,7 @@ import {
     Explore,
     ExploreError,
     Job,
+    JobStatusType,
     OrganizationProject,
     Project,
     sensitiveCredentialsFieldNames,
@@ -38,13 +39,6 @@ type ProjectModelDependencies = {
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
-
-export const enum JobStatusType {
-    STARTED = 'STARTED',
-    DONE = 'DONE',
-    RUNNING = 'RUNNING',
-    ERROR = 'ERROR',
-}
 
 export class ProjectModel {
     private database: Knex;

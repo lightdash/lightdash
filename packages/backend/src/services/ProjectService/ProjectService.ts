@@ -15,6 +15,7 @@ import {
     isExploreError,
     isFilterableDimension,
     Job,
+    JobStatusType,
     MetricQuery,
     Project,
     ProjectCatalog,
@@ -35,10 +36,7 @@ import {
 } from '../../errors';
 import Logger from '../../logger';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
-import {
-    JobStatusType,
-    ProjectModel,
-} from '../../models/ProjectModel/ProjectModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
