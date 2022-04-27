@@ -1,7 +1,6 @@
 import { Button, Divider, H3, MenuDivider, MenuItem } from '@blueprintjs/core';
 import React from 'react';
 import { useExplore } from '../../../hooks/useExplore';
-import { useServerStatus } from '../../../hooks/useServerStatus';
 import { useExplorer } from '../../../providers/ExplorerProvider';
 import ExploreTree from '../../ExploreTree';
 import { LineageButton } from '../../LineageButton';
@@ -34,7 +33,6 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
         },
         actions: { toggleActiveField },
     } = useExplorer();
-    const status = useServerStatus();
     const exploresResult = useExplore(activeTableName);
     if (exploresResult.status === 'loading') {
         return <SideBarLoadingState />;
