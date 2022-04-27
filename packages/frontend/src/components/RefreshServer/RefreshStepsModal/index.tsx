@@ -3,7 +3,7 @@ import React, { Dispatch, FC, SetStateAction } from 'react';
 import {
     refreshStatusInfo,
     runningStepsInfo,
-} from '../../../utils/refreshStatusInfo';
+} from '../../../hooks/useRefreshServer';
 import {
     ErrorMessageWrapper,
     RefreshStepsHeadingWrapper,

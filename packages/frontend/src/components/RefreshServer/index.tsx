@@ -1,15 +1,13 @@
 import React, { ComponentProps, FC, useEffect, useState } from 'react';
 import {
+    refreshStatusInfo,
+    runningStepsInfo,
     useGetRefreshData,
     useRefreshServer,
 } from '../../hooks/useRefreshServer';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
-import {
-    refreshStatusInfo,
-    runningStepsInfo,
-} from '../../utils/refreshStatusInfo';
 import { BigButton } from '../common/BigButton';
 import {
     LoadingSpinner,
@@ -42,6 +40,7 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                       }: ${runningStepsInfo(statusInfo?.steps).runningStep}`
                     : '',
                 icon: `${refreshStatusInfo(statusInfo?.jobStatus).icon}`,
+                timeout: 0,
                 // TO BE UNCOMMENTED WHEN STEPS ARE IMPLEMENTED ON THE BE
                 // action: {
                 //     text: 'View log ',
