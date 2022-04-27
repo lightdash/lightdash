@@ -52,8 +52,26 @@ module.exports = {
         "guides/limiting-data-using-filters",
         "guides/visualizing-your-results",
         "guides/interactive-dashboards",
-        "guides/adding-table-calculations",
         "guides/adding-custom-metrics",
+        {
+          type: "category",
+          label: "Using table calculations",
+          items: [
+            "guides/table-calculations/adding-table-calculations",
+            {
+              type: "category",
+              label: "Table calculation SQL templates",
+              link: {type: 'doc', id: 'sql-templates-intro'},
+              items: [
+                "guides/table-calculations/table-calculation-sql-templates/percent-change-from-previous",
+                "guides/table-calculations/table-calculation-sql-templates/percent-of-previous-value",
+                "guides/table-calculations/table-calculation-sql-templates/percent-of-total-column",
+                "guides/table-calculations/table-calculation-sql-templates/rank-in-column",
+                "guides/table-calculations/table-calculation-sql-templates/running-total",
+              ],
+            },
+          ],
+        },
       ],
     },
     {
