@@ -22,7 +22,7 @@ In general, the SQL used for calculating running totals has two bits (with an op
 - `column_I_want_to_order_by` - this is the column you want to order your running total over
 - `optional_other_column_I_want_to_order_by` - this column is optional and you can add as many more `order by` columns as you need. For your running total to only go up an increment of one row, you'll need to add every dimension in your results table to the `ORDER BY` bit in your SQL. And, the order of these will need to be the same as the ordering you've added to the columns in your results table.
 
-## 👀 Here's the SQL you can copy-paste to calculate a running total
+### 👀 Here's the SQL you can copy-paste to calculate a running total
 
 ```sql
 SUM(${table.column_I_want_to_sum}) OVER(

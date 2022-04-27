@@ -21,7 +21,7 @@ In general, the SQL used for calculating the rank in a column has just one impor
 - `column_i_want_to_rank` - this is the column that you want to rank
 - `ASC` and `DESC` - if you want to have the **biggest values** with rank = 1, then you need to add `DESC` to your `ORDER BY` clause. If you want the **smallest values** with rank = 1 then you can add `ASC` to your `ORDER BY` clause (this isn't required, since the ordering is `ASC` by default).
 
-## 👀 Here's the SQL you can copy-paste to calculate your rank in column
+### 👀 Here's the SQL you can copy-paste to calculate your rank in column
 
 ```sql
 ROW_NUMBER() OVER(ORDER BY ${table.column_i_want_to_rank} DESC)
