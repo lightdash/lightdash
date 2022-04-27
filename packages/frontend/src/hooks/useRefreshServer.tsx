@@ -48,7 +48,8 @@ export const useRefreshServer = () => {
     return useMutation<ApiRefreshResults, ApiError>({
         mutationKey: ['refresh', projectUuid],
         mutationFn: () => refresh(projectUuid),
-        onSettled: async () => queryClient.setQueryData('status', 'loading'),
+        onSettled: async () =>
+            queryClient.setQueryData(['status', projectUuid], 'loading'),
         onError: (result) => setErrorResponse(result),
     });
 };
