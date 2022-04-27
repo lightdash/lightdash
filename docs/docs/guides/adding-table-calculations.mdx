@@ -11,9 +11,11 @@ import PercentOfPrevious from './assets/percent-of-previous.png';
 import PercentChange from './assets/percent-change.png';
 import RankInColumn from './assets/rank-in-column.png';
 
-# 🧮 Adding table calculations in your Explore
+# Adding table calculations in your Explore
 
 ---
+
+## 🧐 What are table calculations?
 
 Table calculations make it easy to create metrics on the fly (for example, aggregating the data in your table over some window, or getting a running total of a column). You add table calculations in the Explore view and they appear as green columns in your results table (remember, [dimensions](https://docs.lightdash.com/references/dimensions) are blue, and [metrics](https://docs.lightdash.com/references/metrics) are orange).
 
@@ -21,7 +23,7 @@ Table calculations make it easy to create metrics on the fly (for example, aggre
 
 Table calculations are built using raw SQL. That means you can use table calculations to build mathematical, True/False, text, and date-based calculations (basically, anything you can do in SQL, you can do in table calculations).
 
-## When to use table calculations
+## 🧮 When to use table calculations
 
 Typically, in your Lightdash project, you'll have one or more Explores that you've pre-defined in your dbt project (this is probably done by the data analysts/engineers/analytics engineers). But sometimes, you'll need particular logic which hasn't been defined as a dimension or metric in your dbt project - maybe because you have a new kind of question or use case.
 
@@ -29,21 +31,21 @@ This is when you might need a table calculation.
 
 Watch out: table calculations can be easier to create than regular metrics/dimensions, but they are not as easy to manage. If you find yourself creating the same table calculation over and over again in an Explore, then it might be worth adding it in as a more permanent metric in your dbt project! You can read more about [adding metrics to your dbt project here](https://docs.lightdash.com/references/metrics).
 
-## Creating table calculations
+## 🛠 Creating table calculations
 
-### 1. Before you create a table calculation, you need to add some dimensions and/or metrics to your results table.
+#### 1. Before you create a table calculation, you need to add some dimensions and/or metrics to your results table.
 
 Table calculations can only be built using the dimensions + metrics that you've included in your results table. So, to create a table calculation, first, you need to add the dimensions and/or metrics for your table calculation to your results table.
 
 <img src={DataResultsTable} width="1280" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-### 2. To add a table calculation just click on `+ Table calculation` in the `Results` tab
+#### 2. To add a table calculation just click on `+ Table calculation` in the `Results` tab
 
 Once you've got some data in your results table, you can create a table calculation by clicking on the `+ Table calculation` in the `Results` tab of the Explore view:
 
 <img src={CreateNewCalc} width="1280" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-### 3. Write the SQL for your table calculation in the pop-up box
+#### 3. Write the SQL for your table calculation in the pop-up box
 
 Your table calculation is defined using raw SQL that you write up in this pop up box. If you're not sure what to write here, you can [check out some of our table calculation SQL templates](#table-calculation-sql-templates).
 
@@ -51,13 +53,13 @@ To reference the metrics and dimensions in your results table, you can either us
 
 <img src={WriteNewCalc} width="1052" height="566" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-### 4. Once you've saved your new table calculation, hit `run query` to see the results
+#### 4. Once you've saved your new table calculation, hit `run query` to see the results
 
 Once you've created a new table calculation, you need to hit `run query` to see the values in your results table. And voilà!
 
 <img src={RunQuerySeeCalc} width="1296" height="548" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-### 5. To delete or edit your table calculation, just click on the gear icon by the field name
+#### 5. To delete or edit your table calculation, just click on the gear icon by the field name
 
 If you need to edit or delete a table calculation, you can just click on the gear icon beside the field and do what you need to do!
 
@@ -65,13 +67,13 @@ If you need to edit or delete a table calculation, you can just click on the gea
 
 ---
 
-# 📝 Table calculation SQL templates
+## 📝 Table calculation SQL templates
 
 I'm not sure about you, but I definitely rely on copy-pasting old SQL code to write 90% of my new SQL queries. So, we thought it might be useful to give you some snippets of SQL code to help you get started with your most common table calculations.
 
 ---
 
-## Running total
+### Running total
 
 Running totals give you the sum of a value + all of the previous values in that column.
 
@@ -106,7 +108,7 @@ By default, a column will be ordered in ascending order - so if you want it orde
 
 ---
 
-## Percent of total column
+### Percent of total column
 
 The percent of total column will give you the percentage of each value in the  column out of the total sum of the values in the column.
 
@@ -140,7 +142,7 @@ In general, the SQL used for calculating the percent of the total has just one i
 
 :::
 
-## Percent of previous value
+### Percent of previous value
 
 The percent of previous value gives you the percent of a value compared to the value in the row above it.
 
@@ -176,7 +178,7 @@ In general, the SQL used for calculating the percent of the previous value has t
 
 ---
 
-## Percent change from previous
+### Percent change from previous
 
 The percent change gives you the percent change in a value compared to the value in the row above it. This calculation is very similar to [percent of previous](#percent-of-previous).
 
@@ -212,7 +214,7 @@ In general, the SQL used for calculating the percent change from the previous va
 
 ---
 
-## Rank in column
+### Rank in column
 
 Ranking values in a column is when you set every value as a number either higher than or lower than the other values. The lowest value (rank = 1) indicates the value with the first rank in your set of values.
 
