@@ -35,9 +35,9 @@ const getLabelFromField = (
     fields: Array<Field | TableCalculation>,
     key: string | undefined,
 ) => {
-    const field = findItem(fields, key);
-    if (field) {
-        return isField(field) ? getFieldLabel(field) : field.displayName;
+    const item = findItem(fields, key);
+    if (item) {
+        return isField(item) ? getFieldLabel(item) : item.displayName;
     } else if (key) {
         return friendlyName(key);
     } else {
