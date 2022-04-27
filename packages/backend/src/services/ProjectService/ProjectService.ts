@@ -434,12 +434,16 @@ export class ProjectService {
         return this.projectModel.getJobstatus(jobUuid);
     }
 
-    async startJob(jobUuid: string, projectUuid: string): Promise<void> {
-        this.projectModel.upsertJobStatus(
+    async startJob(projectUuid: string): Promise<string> {
+        const jobUuid = uuidv4();
+
+        await this.projectModel.upsertJobStatus(
             jobUuid,
             projectUuid,
             JobStatusType.STARTED,
         );
+
+        return jobUuid;
     }
 
     async getAllExplores(

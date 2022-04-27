@@ -10,7 +10,6 @@ import {
     TablesConfiguration,
 } from 'common';
 import express from 'express';
-import { v4 as uuidv4 } from 'uuid';
 import {
     isAuthenticated,
     unauthorisedInDemo,
@@ -156,9 +155,9 @@ projectRouter.post(
     unauthorisedInDemo,
     async (req, res, next) => {
         try {
-            const jobUuid = uuidv4();
-
-            projectService.startJob(jobUuid, req.params.projectUuid); // So we don't get a 404 when requesting this jobUuid
+            const jobUuid = await projectService.startJob(
+                req.params.projectUuid,
+            ); // So we don't get a 404 when requesting this jobUuid
             projectService
                 .getAllExplores(
                     req.user!,
