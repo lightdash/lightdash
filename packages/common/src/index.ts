@@ -616,7 +616,8 @@ type ApiResults =
     | ApiFlashResults
     | OpenIdIdentitySummary[]
     | FilterableField[]
-    | ProjectSavedChartStatus;
+    | ProjectSavedChartStatus
+    | undefined;
 
 export type ApiResponse = {
     status: 'ok';
