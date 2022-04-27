@@ -1,0 +1,41 @@
+import PercentOfTotal from './assets/percent-of-total.png';
+import PercentOfTotalRounded from './assets/percent-of-total-rounded.png';
+
+# Percent of total column
+
+The percent of total column will give you the percentage of each value in the  column out of the total sum of the values in the column.
+
+[Just gimme the code! 👾](#-heres-the-sql-you-can-copy-paste-to-calculate-the-percent-of-a-total-column)
+
+Here's an example of a percent of the total column:
+
+<img src={PercentOfTotal} width="1254" height="561" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+And here's the SQL used in the table calculation:
+
+```sql
+${pages.page_view_count} * 100 / SUM(${pages.page_view_count}) OVER()
+```
+
+In general, the SQL used for calculating the percent of the total has just one important column:
+
+- `column_i_want_to_see_the_percent_of_total` - this is the column that you want to see each value's percent of the total values in that column
+
+### 👀 Here's the SQL you can copy-paste to calculate the percent of a total column
+
+```sql
+${table.column_i_want_to_see_the_percent_of_total} * 100 / 
+  SUM(${table.column_i_want_to_see_the_percent_of_total}) OVER()
+```
+
+:::info
+
+**💎 Level up your SQL**:
+
+- You can round your table calculation to only show a certain number of decimal points. Here's an example where I only show two decimal points:
+
+ >```ROUND(${table.column_i_want_to_see_the_percent_of_total} * 100 / SUM(${table.  column_i_want_to_see_the_percent_of_total}) OVER(), 2)```
+
+<img src={PercentOfTotalRounded} width="160" height="194" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+:::
