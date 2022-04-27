@@ -3,7 +3,6 @@ import {
     useGetRefreshData,
     useRefreshServer,
 } from '../../hooks/useRefreshServer';
-import { useServerStatus } from '../../hooks/useServerStatus';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
@@ -22,11 +21,12 @@ import RefreshStepsModal from './RefreshStepsModal';
 const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     const [isRefreshStepsOpen, setIsRefreshStepsOpen] = useState(false);
     const { data, mutate } = useRefreshServer();
-    const status = useServerStatus();
-    const isLoading = status.data === 'loading';
+    const [isRefreshTriggered, setIsRefreshTriggered] = useState(false);
+
     const { data: statusInfo } = useGetRefreshData(
-        isLoading ? data?.jobUuid : undefined,
+        isRefreshTriggered ? data?.jobUuid : undefined,
     );
+    const isLoading = statusInfo ? statusInfo.jobStatus !== 'DONE' : false;
     const { track } = useTracking();
     const { showToastInfo } = useApp();
     const hasSteps = !!statusInfo?.steps.length;
@@ -54,6 +54,7 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
 
     const onClick = () => {
         mutate();
+        setIsRefreshTriggered(true);
         track({
             name: EventName.REFRESH_DBT_CONNECTION_BUTTON_CLICKED,
         });
