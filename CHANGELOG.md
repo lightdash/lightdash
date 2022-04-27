@@ -1,3 +1,17 @@
+## [0.75.2](https://github.com/lightdash/lightdash/compare/0.75.1...0.75.2) (2022-04-26)
+
+
+### Bug Fixes
+
+* refresh user permissions after register ([#1898](https://github.com/lightdash/lightdash/issues/1898)) ([eef8d5f](https://github.com/lightdash/lightdash/commit/eef8d5fbdf6ef2c026299af2ced19a69e6a265b7))
+
+## [0.75.1](https://github.com/lightdash/lightdash/compare/0.75.0...0.75.1) (2022-04-26)
+
+
+### Bug Fixes
+
+* updating saved visualization type no longer breaks UI ([#1897](https://github.com/lightdash/lightdash/issues/1897)) ([568569d](https://github.com/lightdash/lightdash/commit/568569de421fdbf760c66c0f175c0d0cbe91092a))
+
 # [0.75.0](https://github.com/lightdash/lightdash/compare/0.74.2...0.75.0) (2022-04-25)
 
 
