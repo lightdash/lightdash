@@ -155,11 +155,23 @@ projectRouter.post(
     unauthorisedInDemo,
     async (req, res, next) => {
         try {
-            // Runs async - error will appear on status endpoint
+            const jobUuid = await projectService.startJob(
+                req.params.projectUuid,
+            ); // So we don't get a 404 when requesting this jobUuid
             projectService
-                .getAllExplores(req.user!, req.params.projectUuid, true)
+                .getAllExplores(
+                    req.user!,
+                    req.params.projectUuid,
+                    jobUuid,
+                    true,
+                )
                 .catch((e) => Logger.error(`Error running refresh: ${e}`));
-            res.json({ status: 'ok' });
+            res.json({
+                status: 'ok',
+                results: {
+                    jobUuid,
+                },
+            });
         } catch (e) {
             next(e);
         }
@@ -172,9 +184,11 @@ projectRouter.get('/status', isAuthenticated, async (req, res, next) => {
             req.params.projectUuid,
             req.user!,
         );
+        const lastJob = await projectService.getLastJob(req.params.projectUuid);
         res.json({
             status: 'ok',
             results,
+            lastJob,
         });
     } catch (e) {
         next(e);

@@ -72,7 +72,6 @@ const compileAdditionalMetric = ({
             {},
         );
     }
-    console.log(additionalMetric);
     const metric = convertMetric({
         modelName: table.name,
         columnName: '',

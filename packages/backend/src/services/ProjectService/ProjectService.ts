@@ -14,6 +14,8 @@ import {
     hasIntersection,
     isExploreError,
     isFilterableDimension,
+    Job,
+    JobStatusType,
     MetricQuery,
     Project,
     ProjectCatalog,
@@ -23,6 +25,7 @@ import {
     TableSelectionType,
     UpdateProject,
 } from 'common';
+import { v4 as uuidv4 } from 'uuid';
 import { analytics } from '../../analytics/client';
 import {
     AuthorizationError,
@@ -423,22 +426,50 @@ export class ProjectService {
         }
     }
 
+    async getLastJob(projectUuid: string): Promise<Job | undefined> {
+        return this.projectModel.getLastJob(projectUuid);
+    }
+
+    async getJobStatus(jobUuid: string): Promise<Job> {
+        return this.projectModel.getJobstatus(jobUuid);
+    }
+
+    async startJob(projectUuid: string): Promise<string> {
+        const jobUuid = uuidv4();
+
+        await this.projectModel.upsertJobStatus(
+            jobUuid,
+            projectUuid,
+            JobStatusType.STARTED,
+        );
+
+        return jobUuid;
+    }
+
     async getAllExplores(
         user: SessionUser,
         projectUuid: string,
+        jobUuid?: string,
         forceRefresh: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
         const cachedExplores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );
         if (cachedExplores.length === 0 || forceRefresh) {
-            this.projectModel.tryWithProjectLock(projectUuid, () => {
-                const explores = this.refreshAllTables(user, projectUuid);
-                explores.then((ex) => {
-                    this.projectModel.saveExploresToCache(projectUuid, ex);
-                });
-                return explores;
-            });
+            this.projectModel.tryWithProjectLock(
+                projectUuid,
+                jobUuid || uuidv4(),
+                async () => {
+                    const explores = await this.refreshAllTables(
+                        user,
+                        projectUuid,
+                    );
+                    await this.projectModel.saveExploresToCache(
+                        projectUuid,
+                        explores,
+                    );
+                },
+            );
         }
         return cachedExplores;
     }
