@@ -145,7 +145,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                     ? []
                     : JSON.parse(tableCalculationsSearchParam);
                 const additionalMetricsParam =
-                    searchParams.get('additionalMetrics');
+                    searchParams.get('additional_metrics');
                 const additionalMetrics = !additionalMetricsParam
                     ? []
                     : JSON.parse(additionalMetricsParam);

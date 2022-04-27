@@ -1,12 +1,13 @@
 import {
+    AdditionalMetric,
     ChartConfig,
     ChartType,
     CreateSavedChartVersion,
     deepEqual,
     FieldId,
+    fieldId as getFieldId,
     isBigNumberConfig,
     isCartesianChartConfig,
-    Metric,
     MetricQuery,
     removeEmptyProperties,
     SavedChart,
@@ -40,7 +41,7 @@ export enum ActionType {
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
     SET_FETCH_RESULTS_FALSE,
-    SET_ADDITIONAL_METRICS,
+    ADD_ADDITIONAL_METRIC,
     SET_PIVOT_FIELDS,
     SET_CHART_TYPE,
     SET_CHART_CONFIG,
@@ -86,8 +87,8 @@ type Action =
           payload: string[];
       }
     | {
-          type: ActionType.SET_ADDITIONAL_METRICS;
-          payload: Metric[];
+          type: ActionType.ADD_ADDITIONAL_METRIC;
+          payload: AdditionalMetric;
       }
     | {
           type: ActionType.SET_PIVOT_FIELDS;
@@ -129,6 +130,7 @@ interface ExplorerContext {
             filters: MetricQuery['filters'],
             syncPristineState: boolean,
         ) => void;
+        addAdditionalMetric: (metric: AdditionalMetric) => void;
         setColumnOrder: (order: string[]) => void;
         addTableCalculation: (tableCalculation: TableCalculation) => void;
         updateTableCalculation: (
@@ -395,14 +397,26 @@ function reducer(
                 },
             };
         }
-        case ActionType.SET_ADDITIONAL_METRICS: {
+        case ActionType.ADD_ADDITIONAL_METRIC: {
+            const isMetricAlreadyInList = (
+                state.unsavedChartVersion.metricQuery.additionalMetrics || []
+            ).find(
+                (metric) => getFieldId(metric) === getFieldId(action.payload),
+            );
             return {
                 ...state,
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
                     metricQuery: {
                         ...state.unsavedChartVersion.metricQuery,
-                        additionalMetrics: action.payload,
+                        additionalMetrics: isMetricAlreadyInList
+                            ? state.unsavedChartVersion.metricQuery
+                                  .additionalMetrics
+                            : [
+                                  ...(state.unsavedChartVersion.metricQuery
+                                      .additionalMetrics || []),
+                                  action.payload,
+                              ],
                     },
                 },
             };
@@ -669,6 +683,20 @@ export const ExplorerProvider: FC<{
         [],
     );
 
+    const addAdditionalMetric = useCallback(
+        (additionalMetric: AdditionalMetric) => {
+            dispatch({
+                type: ActionType.ADD_ADDITIONAL_METRIC,
+                payload: additionalMetric,
+            });
+            dispatch({
+                type: ActionType.TOGGLE_METRIC,
+                payload: getFieldId(additionalMetric),
+            });
+        },
+        [],
+    );
+
     const setColumnOrder = useCallback((order: string[]) => {
         dispatch({
             type: ActionType.SET_COLUMN_ORDER,
@@ -796,6 +824,7 @@ export const ExplorerProvider: FC<{
                 setFilters,
                 setRowLimit,
                 setColumnOrder,
+                addAdditionalMetric,
                 addTableCalculation,
                 deleteTableCalculation,
                 updateTableCalculation,
@@ -813,6 +842,7 @@ export const ExplorerProvider: FC<{
                 setFilters,
                 setRowLimit,
                 setColumnOrder,
+                addAdditionalMetric,
                 addTableCalculation,
                 deleteTableCalculation,
                 updateTableCalculation,

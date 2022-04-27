@@ -3,12 +3,12 @@ import {
     CompiledMetric,
     CompiledMetricQuery,
     CompiledTableCalculation,
+    convertAdditionalMetric,
     Explore,
     FieldId,
     MetricQuery,
     TableCalculation,
 } from 'common';
-import { convertMetric } from './dbt/translator';
 import { CompileError } from './errors';
 import { compileMetricSql, lightdashVariablePattern } from './exploreCompiler';
 import { getQuoteChar } from './queryBuilder';
@@ -72,13 +72,7 @@ const compileAdditionalMetric = ({
             {},
         );
     }
-    const metric = convertMetric({
-        modelName: table.name,
-        columnName: '',
-        name: additionalMetric.name,
-        metric: additionalMetric,
-        tableLabel: table.label,
-    });
+    const metric = convertAdditionalMetric({ additionalMetric, table });
     return { ...metric, compiledSql: compileMetricSql(metric, explore.tables) };
 };
 

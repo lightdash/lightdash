@@ -3,12 +3,13 @@ import {
     CartesianChart,
     CartesianSeriesType,
     CompiledField,
+    convertAdditionalMetric,
     Dimension,
     DimensionType,
     Explore,
     Field,
     fieldId,
-    findFieldByIdInExplore,
+    findItem,
     formatValue,
     friendlyName,
     getAxisName,
@@ -20,6 +21,7 @@ import {
     getItemLabel,
     hashFieldReference,
     isField,
+    Metric,
     MetricType,
     Series,
     TableCalculation,
@@ -30,16 +32,12 @@ import { getDimensionFormatter } from '../utils/resultFormatter';
 import { useOrganisation } from './organisation/useOrganisation';
 
 const getLabelFromField = (
-    explore: Explore,
-    tableCalculations: TableCalculation[],
+    fields: Array<Field | TableCalculation>,
     key: string | undefined,
 ) => {
-    const field = key ? findFieldByIdInExplore(explore, key) : undefined;
-    const tableCalculation = tableCalculations.find(({ name }) => name === key);
-    if (field) {
-        return getFieldLabel(field);
-    } else if (tableCalculation) {
-        return tableCalculation.displayName;
+    const item = findItem(fields, key);
+    if (item) {
+        return isField(item) ? getFieldLabel(item) : item.displayName;
     } else if (key) {
         return friendlyName(key);
     } else {
@@ -140,7 +138,7 @@ const valueFormatter =
 
 export const getEchartsSeries = (
     explore: Explore,
-    tableCalculations: TableCalculation[],
+    items: Array<Field | TableCalculation>,
     originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,
     pivotKey: string | undefined,
@@ -183,11 +181,7 @@ export const getEchartsSeries = (
                     dimensions: [
                         {
                             name: xFieldHash,
-                            displayName: getLabelFromField(
-                                explore,
-                                tableCalculations,
-                                xFieldHash,
-                            ),
+                            displayName: getLabelFromField(items, xFieldHash),
                         },
                         {
                             name: yFieldHash,
@@ -195,8 +189,7 @@ export const getEchartsSeries = (
                                 cartesianChart.layout.yField &&
                                 cartesianChart.layout.yField.length > 1
                                     ? `[${value}] ${getLabelFromField(
-                                          explore,
-                                          tableCalculations,
+                                          items,
                                           series.encode.yRef.field,
                                       )}`
                                     : value,
@@ -255,19 +248,11 @@ export const getEchartsSeries = (
                     dimensions: [
                         {
                             name: xField,
-                            displayName: getLabelFromField(
-                                explore,
-                                tableCalculations,
-                                xField,
-                            ),
+                            displayName: getLabelFromField(items, xField),
                         },
                         {
                             name: yField,
-                            displayName: getLabelFromField(
-                                explore,
-                                tableCalculations,
-                                yField,
-                            ),
+                            displayName: getLabelFromField(items, yField),
                         },
                     ],
                     tooltip: {
@@ -483,6 +468,29 @@ const useEcharts = () => {
     const formats = explore ? getFieldMap(explore) : undefined;
     const { data: organisationData } = useOrganisation();
 
+    const items = useMemo(() => {
+        if (!explore || !resultsData) {
+            return [];
+        }
+        return [
+            ...getFields(explore),
+            ...(resultsData?.metricQuery.additionalMetrics || []).reduce<
+                Metric[]
+            >((acc, additionalMetric) => {
+                const table = explore.tables[additionalMetric.table];
+                if (table) {
+                    const metric = convertAdditionalMetric({
+                        additionalMetric,
+                        table,
+                    });
+                    return [...acc, metric];
+                }
+                return acc;
+            }, []),
+            ...(resultsData?.metricQuery.tableCalculations || []),
+        ];
+    }, [explore, resultsData]);
+
     const series = useMemo(() => {
         if (!explore || !validCartesianConfig || !resultsData) {
             return [];
@@ -490,7 +498,7 @@ const useEcharts = () => {
 
         return getEchartsSeries(
             explore,
-            resultsData.metricQuery.tableCalculations,
+            items,
             originalData,
             validCartesianConfig,
             pivotDimensions?.[0],
@@ -503,17 +511,8 @@ const useEcharts = () => {
         pivotDimensions,
         originalData,
         formats,
+        items,
     ]);
-
-    const items = useMemo(() => {
-        if (!explore || !resultsData) {
-            return [];
-        }
-        return [
-            ...getFields(explore),
-            ...(resultsData?.metricQuery.tableCalculations || []),
-        ];
-    }, [explore, resultsData]);
 
     const axis = useMemo(() => {
         if (!validCartesianConfig) {

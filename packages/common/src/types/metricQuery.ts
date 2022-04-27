@@ -11,6 +11,7 @@ export type TableCalculation = {
 export type CompiledTableCalculation = TableCalculation & {
     compiledSql: string;
 };
+
 export interface AdditionalMetric extends DbtColumnLightdashMetric {
     table: string;
     name: string;

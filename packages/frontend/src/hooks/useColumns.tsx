@@ -1,8 +1,10 @@
 import {
+    convertAdditionalMetric,
     fieldId as getFieldId,
     friendlyName,
     getFields,
     isDimension,
+    Metric,
     SortField,
 } from 'common';
 import React, { useMemo } from 'react';
@@ -44,7 +46,11 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
             activeFields,
             unsavedChartVersion: {
                 tableName,
-                metricQuery: { sorts: sortFields, tableCalculations },
+                metricQuery: {
+                    sorts: sortFields,
+                    tableCalculations,
+                    additionalMetrics,
+                },
             },
         },
         actions: { toggleSortField },
@@ -52,9 +58,23 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
     const { data } = useExplore(tableName);
     return useMemo(() => {
         if (data) {
-            const fieldColumns = getFields(data).reduce<
-                Column<{ [col: string]: any }>[]
-            >((acc, field) => {
+            const fieldColumns = [
+                ...getFields(data),
+                ...(additionalMetrics || []).reduce<Metric[]>(
+                    (acc, additionalMetric) => {
+                        const table = data.tables[additionalMetric.table];
+                        if (table) {
+                            const metric = convertAdditionalMetric({
+                                additionalMetric,
+                                table,
+                            });
+                            return [...acc, metric];
+                        }
+                        return acc;
+                    },
+                    [],
+                ),
+            ].reduce<Column<{ [col: string]: any }>[]>((acc, field) => {
                 const fieldId = getFieldId(field);
                 if (activeFields.has(fieldId)) {
                     return [
@@ -117,5 +137,12 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
             return [...fieldColumns, ...tableCalculationColumns];
         }
         return [];
-    }, [activeFields, data, sortFields, tableCalculations, toggleSortField]);
+    }, [
+        activeFields,
+        data,
+        sortFields,
+        tableCalculations,
+        additionalMetrics,
+        toggleSortField,
+    ]);
 };
