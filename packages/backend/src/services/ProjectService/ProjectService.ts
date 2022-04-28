@@ -515,11 +515,11 @@ export class ProjectService {
     }
 
     async getLastJob(projectUuid: string): Promise<Job | undefined> {
-        return this.projectModel.getLastJob(projectUuid);
+        return this.jobModel.getLastJob(projectUuid);
     }
 
     async getJobStatus(jobUuid: string): Promise<Job> {
-        return this.projectModel.getJobstatus(jobUuid);
+        return this.jobModel.getJobstatus(jobUuid);
     }
 
     async startJob(projectUuid: string | undefined): Promise<string> {
@@ -547,6 +547,7 @@ export class ProjectService {
             await this.projectModel.tryWithProjectLock(
                 projectUuid,
                 jobUuid || uuidv4(),
+                this.jobModel,
                 async () => {
                     const explores = await this.refreshAllTables(
                         user,

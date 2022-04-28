@@ -2,14 +2,12 @@ import {
     Job,
     JobLabels,
     JobStatusType,
+    JobStep,
     JobStepStatusType,
     JobStepType,
 } from 'common';
 import { Knex } from 'knex';
-import {
-    JobsTableName,
-    JobStepsTableName,
-} from '../../database/entities/projects';
+import { JobsTableName, JobStepsTableName } from '../../database/entities/jobs';
 import { NotFoundError } from '../../errors';
 import Logger from '../../logger';
 
@@ -32,15 +30,16 @@ export class JobModel {
 
         if (jobs.length === 0) return undefined;
 
-        // TODO get steps
         const job = jobs[0];
+        const steps = await this.getSteps(job.job_uuid);
+
         return {
             createdAt: job.created_at,
             updatedAt: job.updated_at,
             projectUuid: job.project_uuid,
             jobUuid: job.job_uuid,
             jobStatus: job.job_status,
-            steps: [],
+            steps,
         };
     }
 
@@ -50,22 +49,36 @@ export class JobModel {
             jobUuid,
         );
 
-        // TODO get steps
-
         if (jobs.length === 0)
             throw new NotFoundError(
                 `job with jobUuid ${jobUuid} does not exist`,
             );
 
         const job = jobs[0];
+        const steps = await this.getSteps(jobUuid);
         return {
             createdAt: job.created_at,
             updatedAt: job.updated_at,
             projectUuid: job.project_uuid,
             jobUuid: job.job_uuid,
             jobStatus: job.job_status,
-            steps: [],
+            steps,
         };
+    }
+
+    async getSteps(jobUuid: string): Promise<JobStep[]> {
+        const steps = await this.database(JobStepsTableName).where(
+            'job_uuid',
+            jobUuid,
+        );
+
+        return steps.map((step) => ({
+            jobUuid: step.job_uuid,
+            createdAt: step.created_at,
+            stepStatus: step.step_status,
+            stepType: step.step_type,
+            stepLabel: step.step_label,
+        }));
     }
 
     async upsertJobStatus(
