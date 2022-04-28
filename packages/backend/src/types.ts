@@ -47,3 +47,8 @@ export interface WarehouseClient {
     runQuery(sql: string): Promise<Record<string, any>[]>;
     test(): Promise<void>;
 }
+
+export type CachedWarehouse = {
+    warehouseCatalog: WarehouseCatalog | undefined;
+    onWarehouseCatalogChange: (warehouseCatalog: WarehouseCatalog) => void;
+};

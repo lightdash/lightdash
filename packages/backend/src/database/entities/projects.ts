@@ -3,6 +3,7 @@ import { Knex } from 'knex';
 
 export const ProjectTableName = 'projects';
 export const CachedExploresTableName = 'cached_explores';
+export const CachedWarehouseTableName = 'cached_warehouse';
 export const JobsTableName = 'jobs';
 
 type DbProject = {
@@ -37,3 +38,17 @@ export type ProjectTable = Knex.CompositeTableType<
     CreateDbProject,
     UpdateDbProject
 >;
+
+export type DbCachedExplores = {
+    project_uuid: string;
+    explores: any;
+};
+
+export type CachedExploresTable = Knex.CompositeTableType<DbCachedExplores>;
+
+export type DbCachedWarehouse = {
+    project_uuid: string;
+    warehouse: any;
+};
+
+export type CachedWarehouseTable = Knex.CompositeTableType<DbCachedWarehouse>;

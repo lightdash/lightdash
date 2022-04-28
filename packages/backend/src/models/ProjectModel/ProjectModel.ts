@@ -18,6 +18,9 @@ import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
     CachedExploresTableName,
+    CachedWarehouseTableName,
+    DbCachedExplores,
+    DbCachedWarehouse,
     JobsTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
@@ -29,6 +32,7 @@ import {
 } from '../../errors';
 import Logger from '../../logger';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
+import { WarehouseCatalog } from '../../types';
 
 import Transaction = Knex.Transaction;
 
@@ -462,29 +466,28 @@ export class ProjectModel {
 
     async getExploresFromCache(
         projectUuid: string,
-    ): Promise<(Explore | ExploreError)[]> {
+    ): Promise<(Explore | ExploreError)[] | undefined> {
         const explores = await this.database(CachedExploresTableName)
             .select(['explores'])
             .where('project_uuid', projectUuid)
             .limit(1);
         if (explores.length > 0) return explores[0].explores;
-        return [];
+        return undefined;
     }
 
     async saveExploresToCache(
         projectUuid: string,
         explores: (Explore | ExploreError)[],
-    ): Promise<void> {
-        this.database.transaction(async (trx) => {
-            await trx(CachedExploresTableName)
-                .where('project_uuid', projectUuid)
-                .delete();
-
-            const result = await trx(CachedExploresTableName).insert({
+    ): Promise<DbCachedExplores> {
+        const [cachedExplores] = await this.database(CachedExploresTableName)
+            .insert({
                 project_uuid: projectUuid,
                 explores: JSON.stringify(explores),
-            });
-        });
+            })
+            .onConflict('project_uuid')
+            .merge()
+            .returning('*');
+        return cachedExplores;
     }
 
     async tryWithProjectLock(
@@ -530,5 +533,32 @@ export class ProjectModel {
                 );
             }
         });
+    }
+
+    async getWarehouseFromCache(
+        projectUuid: string,
+    ): Promise<WarehouseCatalog | undefined> {
+        const warehouses = await this.database(CachedWarehouseTableName)
+            .select(['warehouse'])
+            .where('project_uuid', projectUuid)
+            .limit(1);
+        if (warehouses.length > 0) return warehouses[0].warehouse;
+        return undefined;
+    }
+
+    async saveWarehouseToCache(
+        projectUuid: string,
+        warehouse: WarehouseCatalog,
+    ): Promise<DbCachedWarehouse> {
+        const [cachedWarehouse] = await this.database(CachedWarehouseTableName)
+            .insert({
+                project_uuid: projectUuid,
+                warehouse: JSON.stringify(warehouse),
+            })
+            .onConflict('project_uuid')
+            .merge()
+            .returning('*');
+
+        return cachedWarehouse;
     }
 }

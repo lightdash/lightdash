@@ -2,7 +2,7 @@ import {
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
 } from 'common';
-import { WarehouseClient } from '../types';
+import { CachedWarehouse, WarehouseClient } from '../types';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 
 const DEFAULT_GITHUB_HOST_DOMAIN = 'github.com';
@@ -17,6 +17,7 @@ type DbtGithubProjectAdapterArgs = {
     hostDomain?: string;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
+    cachedWarehouse: CachedWarehouse;
 };
 
 export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
@@ -30,6 +31,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         hostDomain,
         targetName,
         environment,
+        cachedWarehouse,
     }: DbtGithubProjectAdapterArgs) {
         const remoteRepositoryUrl = `https://${githubPersonalAccessToken}@${
             hostDomain || DEFAULT_GITHUB_HOST_DOMAIN
@@ -42,6 +44,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             gitBranch: githubBranch,
             targetName,
             environment,
+            cachedWarehouse,
         });
     }
 }
