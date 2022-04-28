@@ -9,6 +9,7 @@ import {
     ApiHealthResults,
     defineAbilityForOrganizationMember,
     HealthState,
+    Job,
     LightdashUser,
     OrganizationMemberAbility,
 } from 'common';
@@ -27,6 +28,7 @@ import { UseQueryResult } from 'react-query/types/react/types';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';
 import { ErrorLogs, useErrorLogs } from '../hooks/useErrorLogs';
+import { useGetRefreshData } from '../hooks/useRefreshServer';
 
 const getHealthState = async () =>
     lightdashApi<ApiHealthResults>({
@@ -56,6 +58,9 @@ interface AppContext {
     user: UseQueryResult<User, ApiError>;
     isRefreshStepsOpen: boolean;
     setIsRefreshStepsOpen: Dispatch<SetStateAction<boolean>>;
+    jobId: string | undefined;
+    setJobId: Dispatch<SetStateAction<any>>;
+    statusInfo: Job | undefined;
     showToastSuccess: (props: Message) => void;
     showToastError: (props: Message) => void;
     showToastInfo: (props: Message) => void;
@@ -69,6 +74,10 @@ export const AppProvider: FC = ({ children }) => {
     const [isCohereLoaded, setIsCohereLoaded] = useState(false);
     const [isChatwootLoaded, setIsChatwootLoaded] = useState(false);
     const [isRefreshStepsOpen, setIsRefreshStepsOpen] = useState(false);
+    const [jobId, setJobId] = useState();
+
+    const { data: statusInfo } = useGetRefreshData(jobId);
+
     const health = useQuery<HealthState, ApiError>({
         queryKey: 'health',
         queryFn: getHealthState,
@@ -210,6 +219,9 @@ export const AppProvider: FC = ({ children }) => {
         showToastInfo,
         isRefreshStepsOpen,
         setIsRefreshStepsOpen,
+        jobId,
+        setJobId,
+        statusInfo,
         errorLogs,
     };
 

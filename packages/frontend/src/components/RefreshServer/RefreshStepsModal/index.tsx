@@ -19,12 +19,17 @@ import {
     StepsWrapper,
 } from './RefreshStepsModal.styles';
 
-interface Props {
-    statusData: any;
-}
-const RefreshStepsModal: FC<Props> = ({ statusData }) => {
-    const { isRefreshStepsOpen, setIsRefreshStepsOpen } = useApp();
+const RefreshStepsModal: FC = () => {
+    const {
+        isRefreshStepsOpen,
+        setIsRefreshStepsOpen,
+        statusInfo: statusData,
+    } = useApp();
     const hasSteps = !!statusData?.steps.length;
+
+    if (!statusData) {
+        return null;
+    }
 
     return (
         <Drawer

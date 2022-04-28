@@ -1,8 +1,6 @@
-import React, { ComponentProps, FC, useState } from 'react';
-import {
-    useGetRefreshData,
-    useRefreshServer,
-} from '../../hooks/useRefreshServer';
+import React, { ComponentProps, FC, useEffect, useState } from 'react';
+import { useRefreshServer } from '../../hooks/useRefreshServer';
+import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { BigButton } from '../common/BigButton';
@@ -11,15 +9,18 @@ import {
     RefreshButton,
     RefreshSpinnerButton,
 } from './RefreshServerButton.styles';
-import RefreshStepsModal from './RefreshStepsModal';
 
 const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
+    const { setJobId, statusInfo } = useApp();
     const { data, mutate } = useRefreshServer();
     const [isRefreshTriggered, setIsRefreshTriggered] = useState(false);
 
-    const { data: statusInfo } = useGetRefreshData(
-        isRefreshTriggered ? data?.jobUuid : undefined,
-    );
+    useEffect(() => {
+        if (isRefreshTriggered && data) {
+            setJobId(data?.jobUuid);
+        }
+    }, [setJobId, isRefreshTriggered, data]);
+
     const isLoading = statusInfo ? statusInfo.jobStatus !== 'DONE' : false;
     const { track } = useTracking();
 
@@ -48,7 +49,6 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                     'Refresh dbt'
                 )}
             </RefreshButton>
-            <RefreshStepsModal statusData={statusInfo} />
         </>
     );
 };
