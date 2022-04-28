@@ -427,7 +427,7 @@ export class ProjectModel {
     async tryWithProjectLock(
         projectUuid: string,
         jobUuid: string,
-        jobModel: JobModel, 
+        jobModel: JobModel,
         func: () => Promise<void>,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
