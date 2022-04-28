@@ -1225,27 +1225,41 @@ export function formatValue<T>(
     }
 }
 
-export function getFieldMap(explore: Explore): Record<string, CompiledField> {
+export function getFieldMap(
+    explore: Explore,
+    additionalMetrics: AdditionalMetric[] = [],
+): Record<string, Pick<CompiledField, 'format' | 'round'>> {
+    const additionalMetricFields = additionalMetrics.reduce(
+        (acc, additionalMetric) => ({
+            ...acc,
+            [fieldId(additionalMetric)]: {
+                format: additionalMetric.format,
+                round: additionalMetric.round,
+            },
+        }),
+        {},
+    );
     return getFields(explore).reduce(
         (sum, field) => ({
             ...sum,
             [fieldId(field)]: { format: field.format, round: field.round },
         }),
-        {},
+        additionalMetricFields,
     ); // e.g { 'my_table_my_dimension': {format: 'usd', round: 1} }}
 }
 
 export function formatRows(
     rows: { [col: string]: any }[],
     explore: Explore,
+    additionalMetrics: AdditionalMetric[] = [],
 ): ResultRow[] {
-    const fieldMap = getFieldMap(explore);
+    const fieldMap = getFieldMap(explore, additionalMetrics);
 
     return rows.map((row) =>
         Object.keys(row).reduce((acc, columnName) => {
             const col = row[columnName];
 
-            const field: CompiledField | undefined = fieldMap[columnName];
+            const field = fieldMap[columnName];
             const formattedColumn =
                 field === undefined
                     ? col

@@ -176,6 +176,7 @@ const NodeItemButtons: FC<{
                     dimension.label
                 } on the table ${dimension.tableLabel}`,
                 type,
+                ...(type === MetricType.AVERAGE ? { round: 2 } : {}),
             });
         },
         [addAdditionalMetric],
