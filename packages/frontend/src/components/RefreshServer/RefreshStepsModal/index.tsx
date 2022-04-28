@@ -20,17 +20,13 @@ import {
 } from './RefreshStepsModal.styles';
 
 const RefreshStepsModal: FC = () => {
-    const {
-        isRefreshStepsOpen,
-        setIsRefreshStepsOpen,
-        statusInfo: statusData,
-    } = useApp();
-    const hasSteps = !!statusData?.steps.length;
+    const { isRefreshStepsOpen, setIsRefreshStepsOpen, statusInfo } = useApp();
 
-    if (!statusData) {
+    if (!statusInfo) {
         return null;
     }
 
+    const hasSteps = !!statusInfo?.steps.length;
     return (
         <Drawer
             autoFocus
@@ -46,16 +42,16 @@ const RefreshStepsModal: FC = () => {
             title={
                 <RefreshStepsHeadingWrapper className={Classes.DIALOG_HEADER}>
                     <Icon
-                        icon={refreshStatusInfo(statusData?.jobStatus).icon}
+                        icon={refreshStatusInfo(statusInfo?.jobStatus).icon}
                         size={18}
                     />
                     <div>
                         <RefreshStepsTitle>
-                            {refreshStatusInfo(statusData?.jobStatus).title}
+                            {refreshStatusInfo(statusInfo?.jobStatus).title}
                         </RefreshStepsTitle>
                         {hasSteps && (
                             <StepsCompletionOverview>{`${
-                                runningStepsInfo(statusData?.steps)
+                                runningStepsInfo(statusInfo?.steps)
                                     .numberOfCompletedSteps
                             } steps complete `}</StepsCompletionOverview>
                         )}
@@ -65,7 +61,7 @@ const RefreshStepsModal: FC = () => {
             position={Position.RIGHT}
         >
             <StepsWrapper>
-                {statusData?.steps?.map((step: any) => (
+                {statusInfo?.steps?.map((step: any) => (
                     <Step status={step.stepStatus}>
                         <StepIcon
                             icon={

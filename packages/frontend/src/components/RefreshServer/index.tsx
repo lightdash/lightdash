@@ -1,5 +1,6 @@
 import React, { ComponentProps, FC, useEffect, useState } from 'react';
 import { useRefreshServer } from '../../hooks/useRefreshServer';
+import { useServerStatus } from '../../hooks/useServerStatus';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
@@ -11,9 +12,11 @@ import {
 } from './RefreshServerButton.styles';
 
 const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
-    const { setJobId, statusInfo } = useApp();
+    const { setJobId } = useApp();
     const { data, mutate } = useRefreshServer();
     const [isRefreshTriggered, setIsRefreshTriggered] = useState(false);
+    const status = useServerStatus();
+    const isLoading = status.data === 'loading';
 
     useEffect(() => {
         if (isRefreshTriggered && data) {
@@ -21,7 +24,6 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
         }
     }, [setJobId, isRefreshTriggered, data]);
 
-    const isLoading = statusInfo ? statusInfo.jobStatus !== 'DONE' : false;
     const { track } = useTracking();
 
     const onClick = () => {

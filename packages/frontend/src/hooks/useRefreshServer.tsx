@@ -3,7 +3,6 @@ import { ApiError, ApiRefreshResults, Job } from 'common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
 import useQueryError from './useQueryError';
 
 export const refreshStatusInfo = (
@@ -74,57 +73,12 @@ const getJob = async (jobUuid: string) =>
     });
 
 export const useGetRefreshData = (jobId: string | undefined) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const {
-        showToastInfo,
-        showToastSuccess,
-        showToastError,
-        setIsRefreshStepsOpen,
-    } = useApp();
-    const setErrorResponse = useQueryError();
     return useQuery<Job, ApiError>({
-        queryKey: ['refresh', projectUuid],
+        queryKey: ['refresh'],
         queryFn: () => getJob(jobId || ''),
         enabled: jobId !== undefined,
         refetchInterval: (data) => data?.jobStatus === 'RUNNING' && 1000,
-        onSuccess: async (data) => {
-            const toastTitle = `${refreshStatusInfo(data?.jobStatus).title}`;
-            const hasSteps = !!data.steps.length;
-            switch (data.jobStatus) {
-                case 'DONE':
-                    showToastSuccess({
-                        key: TOAST_KEY_FOR_REFRESH_JOB,
-                        title: toastTitle,
-                    });
-                    break;
-                case 'RUNNING':
-                    showToastInfo({
-                        key: TOAST_KEY_FOR_REFRESH_JOB,
-                        title: toastTitle,
-                        subtitle: hasSteps
-                            ? `Steps ${
-                                  runningStepsInfo(data?.steps)
-                                      .completedStepsMessage
-                              }: ${runningStepsInfo(data?.steps).runningStep}`
-                            : '',
-                        icon: `${refreshStatusInfo(data?.jobStatus).icon}`,
-                        timeout: 0,
-                        // TO BE UNCOMMENTED WHEN STEPS ARE IMPLEMENTED ON THE BE
-                        // action: {
-                        //     text: 'View log ',
-                        //     icon: 'arrow-right',
-                        //     onClick: () => setIsRefreshStepsOpen(true),
-                        // },
-                    });
-                    break;
-                case 'ERROR':
-                    showToastError({
-                        key: TOAST_KEY_FOR_REFRESH_JOB,
-                        title: toastTitle,
-                    });
-            }
-        },
-        onError: (result) => setErrorResponse(result),
+        onError: (result) => result,
     });
 };
 

@@ -28,7 +28,12 @@ import { UseQueryResult } from 'react-query/types/react/types';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';
 import { ErrorLogs, useErrorLogs } from '../hooks/useErrorLogs';
-import { useGetRefreshData } from '../hooks/useRefreshServer';
+import {
+    refreshStatusInfo,
+    runningStepsInfo,
+    TOAST_KEY_FOR_REFRESH_JOB,
+    useGetRefreshData,
+} from '../hooks/useRefreshServer';
 
 const getHealthState = async () =>
     lightdashApi<ApiHealthResults>({
@@ -75,8 +80,6 @@ export const AppProvider: FC = ({ children }) => {
     const [isChatwootLoaded, setIsChatwootLoaded] = useState(false);
     const [isRefreshStepsOpen, setIsRefreshStepsOpen] = useState(false);
     const [jobId, setJobId] = useState();
-
-    const { data: statusInfo } = useGetRefreshData(jobId);
 
     const health = useQuery<HealthState, ApiError>({
         queryKey: 'health',
@@ -208,6 +211,56 @@ export const AppProvider: FC = ({ children }) => {
         },
         [showToastSuccess],
     );
+
+    // DBT refresh
+    const { data: statusInfo } = useGetRefreshData(jobId);
+
+    useEffect(() => {
+        if (statusInfo) {
+            const toastTitle = `${
+                refreshStatusInfo(statusInfo?.jobStatus).title
+            }`;
+            const hasSteps = !!statusInfo.steps.length;
+            switch (statusInfo.jobStatus) {
+                case 'DONE':
+                    showToastSuccess({
+                        key: TOAST_KEY_FOR_REFRESH_JOB,
+                        title: toastTitle,
+                    });
+                    break;
+                case 'RUNNING':
+                    showToastInfo({
+                        key: TOAST_KEY_FOR_REFRESH_JOB,
+                        title: toastTitle,
+                        subtitle: hasSteps
+                            ? `Steps ${
+                                  runningStepsInfo(statusInfo?.steps)
+                                      .completedStepsMessage
+                              }: ${
+                                  runningStepsInfo(statusInfo?.steps)
+                                      .runningStep
+                              }`
+                            : '',
+                        icon: `${
+                            refreshStatusInfo(statusInfo?.jobStatus).icon
+                        }`,
+                        timeout: 0,
+                        // TO BE UNCOMMENTED WHEN STEPS ARE IMPLEMENTED ON THE BE
+                        // action: {
+                        //     text: 'View log ',
+                        //     icon: 'arrow-right',
+                        //     onClick: () => setIsRefreshStepsOpen(true),
+                        // },
+                    });
+                    break;
+                case 'ERROR':
+                    showToastError({
+                        key: TOAST_KEY_FOR_REFRESH_JOB,
+                        title: toastTitle,
+                    });
+            }
+        }
+    }, [statusInfo, showToastError, showToastInfo, showToastSuccess]);
 
     const errorLogs = useErrorLogs();
 
