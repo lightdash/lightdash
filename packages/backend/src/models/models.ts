@@ -4,6 +4,7 @@ import { EncryptionService } from '../services/EncryptionService/EncryptionServi
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { EmailModel } from './EmailModel';
 import { InviteLinkModel } from './InviteLinkModel';
+import { JobModel } from './JobModel/JobModel';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel';
@@ -36,3 +37,4 @@ export const passwordResetLinkModel = new PasswordResetLinkModel({
 export const organizationMemberProfileModel =
     new OrganizationMemberProfileModel({ database });
 export const savedChartModel = new SavedChartModel({ database });
+export const jobModel = new JobModel({ database });

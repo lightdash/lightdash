@@ -4,7 +4,6 @@ import {
     DbtProjectConfig,
     Explore,
     ExploreError,
-    Job,
     JobStatusType,
     OrganizationProject,
     Project,
@@ -21,18 +20,13 @@ import {
     CachedWarehouseTableName,
     DbCachedExplores,
     DbCachedWarehouse,
-    JobsTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
-import {
-    NotExistsError,
-    NotFoundError,
-    UnexpectedServerError,
-} from '../../errors';
-import Logger from '../../logger';
+import { NotExistsError, UnexpectedServerError } from '../../errors';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import { WarehouseCatalog } from '../../types';
+import { JobModel } from '../JobModel/JobModel';
 
 import Transaction = Knex.Transaction;
 
@@ -404,84 +398,6 @@ export class ProjectModel {
             .where('project_uuid', projectUuid);
     }
 
-    async getLastJob(projectUuid: string): Promise<Job | undefined> {
-        const jobs = await this.database(JobsTableName)
-            .where('project_uuid', projectUuid)
-            .orderBy('updated_at', 'desc')
-            .limit(1);
-
-        if (jobs.length === 0) return undefined;
-
-        // TODO get steps
-        const job = jobs[0];
-        return {
-            createdAt: job.created_at,
-            updatedAt: job.updated_at,
-            projectUuid: job.project_uuid,
-            jobUuid: job.job_uuid,
-            jobStatus: job.job_status,
-            steps: [],
-        };
-    }
-
-    async getJobstatus(jobUuid: string): Promise<Job> {
-        const jobs = await this.database(JobsTableName).where(
-            'job_uuid',
-            jobUuid,
-        );
-
-        // TODO get steps
-
-        if (jobs.length === 0)
-            throw new NotFoundError(
-                `job with jobUuid ${jobUuid} does not exist`,
-            );
-
-        const job = jobs[0];
-        return {
-            createdAt: job.created_at,
-            updatedAt: job.updated_at,
-            projectUuid: job.project_uuid,
-            jobUuid: job.job_uuid,
-            jobStatus: job.job_status,
-            steps: [],
-        };
-    }
-
-    async upsertJobStatus(
-        jobUuid: string | undefined,
-        projectUuid: string,
-        status: JobStatusType,
-    ): Promise<void> {
-        Logger.debug(
-            `Updating job status ${jobUuid} for project ${projectUuid} with status ${status}`,
-        );
-        await this.database(JobsTableName)
-            .insert({
-                project_uuid: projectUuid,
-                job_uuid: jobUuid,
-                job_status: status,
-                updated_at: new Date(),
-            })
-            .onConflict('job_uuid')
-            .merge();
-    }
-
-    async addJobStep(
-        jobUuid: string,
-        status: JobStepStatusType,
-        description: JobStepType,
-    ): Promise<void> {
-        Logger.debug(
-            `Updating job status ${jobUuid} for project ${projectUuid} with status ${status}`,
-        );
-        await this.database(JobStepsTableName).insert({
-            job_uuid: jobUuid,
-            step_status: jobUuid,
-            step_description: description,
-        });
-    }
-
     async getExploresFromCache(
         projectUuid: string,
     ): Promise<(Explore | ExploreError)[] | undefined> {
@@ -511,6 +427,7 @@ export class ProjectModel {
     async tryWithProjectLock(
         projectUuid: string,
         jobUuid: string,
+        jobModel: JobModel, 
         func: () => Promise<void>,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
@@ -526,7 +443,7 @@ export class ProjectModel {
                     project_uuid = '${projectUuid}'
                 LIMIT 1  `);
 
-            await this.upsertJobStatus(
+            await jobModel.upsertJobStatus(
                 jobUuid,
                 projectUuid,
                 JobStatusType.RUNNING,
@@ -538,13 +455,13 @@ export class ProjectModel {
 
             try {
                 await func();
-                await this.upsertJobStatus(
+                await jobModel.upsertJobStatus(
                     jobUuid,
                     projectUuid,
                     JobStatusType.DONE,
                 );
             } catch (e) {
-                await this.upsertJobStatus(
+                await jobModel.upsertJobStatus(
                     jobUuid,
                     projectUuid,
                     JobStatusType.ERROR,

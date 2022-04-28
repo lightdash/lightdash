@@ -36,6 +36,7 @@ import {
     NotExistsError,
 } from '../../errors';
 import Logger from '../../logger';
+import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -48,6 +49,7 @@ type ProjectServiceDependencies = {
     projectModel: ProjectModel;
     onboardingModel: OnboardingModel;
     savedChartModel: SavedChartModel;
+    jobModel: JobModel;
 };
 
 export class ProjectService {
@@ -61,16 +63,20 @@ export class ProjectService {
 
     savedChartModel: SavedChartModel;
 
+    jobModel: JobModel;
+
     constructor({
         projectModel,
         onboardingModel,
         savedChartModel,
+        jobModel,
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
         this.projectAdapters = {};
         this.projectLoading = {};
         this.savedChartModel = savedChartModel;
+        this.jobModel = jobModel;
     }
 
     async getProjectStatus(

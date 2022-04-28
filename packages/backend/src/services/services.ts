@@ -4,6 +4,7 @@ import {
     dashboardModel,
     emailModel,
     inviteLinkModel,
+    jobModel,
     onboardingModel,
     openIdIdentityModel,
     organizationMemberProfileModel,
@@ -46,6 +47,7 @@ export const projectService = new ProjectService({
     projectModel,
     onboardingModel,
     savedChartModel,
+    jobModel,
 });
 
 export const healthService = new HealthService({

@@ -6,7 +6,7 @@ const COMPILE_JOB_TABLE_NAME = 'jobs';
 export async function up(knex: Knex): Promise<void> {
     // https://github.com/knex/knex/pull/4657
     await knex.schema.alterTable(COMPILE_JOB_TABLE_NAME, (tableBuilder) => {
-        tableBuilder.uuid('project_uuid').notNullable().alter();
+        tableBuilder.uuid('project_uuid').nullable().alter();
     });
 
     await knex.schema.createTable(
@@ -35,7 +35,7 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
     await knex.schema.alterTable(COMPILE_JOB_TABLE_NAME, (tableBuilder) => {
-        tableBuilder.uuid('project_uuid').nullable().alter();
+        tableBuilder.uuid('project_uuid').notNullable().alter();
     });
 
     await knex.schema.dropTableIfExists(COMPILE_JOB_STEPS_TABLE_NAME);
