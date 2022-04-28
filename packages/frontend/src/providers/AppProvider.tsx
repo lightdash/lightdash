@@ -24,7 +24,6 @@ import { useQuery } from 'react-query';
 import { UseQueryResult } from 'react-query/types/react/types';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';
-import { RefreshToaster } from '../components/RefreshServer/RefreshToaster';
 import { ErrorLogs, useErrorLogs } from '../hooks/useErrorLogs';
 
 const getHealthState = async () =>
@@ -56,8 +55,6 @@ interface AppContext {
     showToastSuccess: (props: Message) => void;
     showToastError: (props: Message) => void;
     showToastInfo: (props: Message) => void;
-    showToastRefreshSuccess: (props: Message) => void;
-    showToastRefreshInfo: (props: Message) => void;
     errorLogs: ErrorLogs;
 }
 
@@ -176,46 +173,6 @@ export const AppProvider: FC = ({ children }) => {
         [],
     );
 
-    const showToastRefreshSuccess = useCallback<
-        AppContext['showToastRefreshSuccess']
-    >(({ title, subtitle, key, ...rest }) => {
-        RefreshToaster.show(
-            {
-                intent: Intent.SUCCESS,
-                icon: 'tick-circle',
-                timeout: 5000,
-                message: (
-                    <div>
-                        <p style={{ fontWeight: 'bold', marginBottom: 0 }}>
-                            {title}
-                        </p>
-                        {subtitle && (
-                            <MDEditor.Markdown
-                                source={subtitle}
-                                linkTarget="_blank"
-                            />
-                        )}
-                    </div>
-                ),
-                ...rest,
-            },
-            key || title,
-        );
-    }, []);
-
-    const showToastRefreshInfo = useCallback<
-        AppContext['showToastRefreshInfo']
-    >(
-        (props) => {
-            showToastSuccess({
-                intent: Intent.NONE,
-                icon: 'info-sign',
-                ...props,
-            });
-        },
-        [showToastSuccess],
-    );
-
     const showToastError = useCallback<AppContext['showToastError']>(
         (props) => {
             showToastSuccess({
@@ -247,8 +204,6 @@ export const AppProvider: FC = ({ children }) => {
         showToastError,
         showToastInfo,
         errorLogs,
-        showToastRefreshInfo,
-        showToastRefreshSuccess,
     };
 
     useEffect(() => {

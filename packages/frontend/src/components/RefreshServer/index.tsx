@@ -1,11 +1,8 @@
-import React, { ComponentProps, FC, useEffect, useState } from 'react';
+import React, { ComponentProps, FC, useState } from 'react';
 import {
-    refreshStatusInfo,
-    runningStepsInfo,
     useGetRefreshData,
     useRefreshServer,
 } from '../../hooks/useRefreshServer';
-import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { BigButton } from '../common/BigButton';
@@ -26,30 +23,6 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     );
     const isLoading = statusInfo ? statusInfo.jobStatus !== 'DONE' : false;
     const { track } = useTracking();
-    const { showToastRefreshInfo } = useApp();
-    const hasSteps = !!statusInfo?.steps.length;
-
-    useEffect(() => {
-        if (statusInfo && isLoading && statusInfo.jobStatus !== 'DONE') {
-            showToastRefreshInfo({
-                title: `${refreshStatusInfo(statusInfo?.jobStatus).title} `,
-                subtitle: hasSteps
-                    ? `Steps ${
-                          runningStepsInfo(statusInfo?.steps)
-                              .completedStepsMessage
-                      }: ${runningStepsInfo(statusInfo?.steps).runningStep}`
-                    : '',
-                icon: `${refreshStatusInfo(statusInfo?.jobStatus).icon}`,
-                timeout: 0,
-                // TO BE UNCOMMENTED WHEN STEPS ARE IMPLEMENTED ON THE BE
-                // action: {
-                //     text: 'View log ',
-                //     icon: 'arrow-right',
-                //     onClick: () => setIsRefreshStepsOpen(true),
-                // },
-            });
-        }
-    }, [isLoading, statusInfo, showToastRefreshInfo, hasSteps]);
 
     const onClick = () => {
         mutate();
