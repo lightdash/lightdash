@@ -75,7 +75,12 @@ const getJob = async (jobUuid: string) =>
 
 export const useGetRefreshData = (jobId: string | undefined) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { showToastInfo, showToastSuccess, showToastError } = useApp();
+    const {
+        showToastInfo,
+        showToastSuccess,
+        showToastError,
+        setIsRefreshStepsOpen,
+    } = useApp();
     const setErrorResponse = useQueryError();
     return useQuery<Job, ApiError>({
         queryKey: ['refresh', projectUuid],

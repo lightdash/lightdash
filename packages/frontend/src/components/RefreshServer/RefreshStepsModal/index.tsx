@@ -1,9 +1,10 @@
 import { Classes, Drawer, Icon, Position } from '@blueprintjs/core';
-import React, { Dispatch, FC, SetStateAction } from 'react';
+import React, { FC } from 'react';
 import {
     refreshStatusInfo,
     runningStepsInfo,
 } from '../../../hooks/useRefreshServer';
+import { useApp } from '../../../providers/AppProvider';
 import {
     ErrorMessageWrapper,
     RefreshStepsHeadingWrapper,
@@ -19,11 +20,10 @@ import {
 } from './RefreshStepsModal.styles';
 
 interface Props {
-    onClose: Dispatch<SetStateAction<boolean>>;
-    isOpen: boolean;
     statusData: any;
 }
-const RefreshStepsModal: FC<Props> = ({ onClose, isOpen, statusData }) => {
+const RefreshStepsModal: FC<Props> = ({ statusData }) => {
+    const { isRefreshStepsOpen, setIsRefreshStepsOpen } = useApp();
     const hasSteps = !!statusData?.steps.length;
 
     return (
@@ -34,8 +34,8 @@ const RefreshStepsModal: FC<Props> = ({ onClose, isOpen, statusData }) => {
             enforceFocus
             hasBackdrop
             isCloseButtonShown
-            isOpen={isOpen}
-            onClose={() => onClose(false)}
+            isOpen={isRefreshStepsOpen}
+            onClose={() => setIsRefreshStepsOpen(false)}
             shouldReturnFocusOnClose
             size={'400px'}
             title={

@@ -14,7 +14,9 @@ import {
 } from 'common';
 import React, {
     createContext,
+    Dispatch,
     FC,
+    SetStateAction,
     useCallback,
     useContext,
     useEffect,
@@ -52,6 +54,8 @@ interface Message extends Omit<IToastProps, 'message'> {
 interface AppContext {
     health: UseQueryResult<HealthState, ApiError>;
     user: UseQueryResult<User, ApiError>;
+    isRefreshStepsOpen: boolean;
+    setIsRefreshStepsOpen: Dispatch<SetStateAction<boolean>>;
     showToastSuccess: (props: Message) => void;
     showToastError: (props: Message) => void;
     showToastInfo: (props: Message) => void;
@@ -64,6 +68,7 @@ export const AppProvider: FC = ({ children }) => {
     const [isSentryLoaded, setIsSentryLoaded] = useState(false);
     const [isCohereLoaded, setIsCohereLoaded] = useState(false);
     const [isChatwootLoaded, setIsChatwootLoaded] = useState(false);
+    const [isRefreshStepsOpen, setIsRefreshStepsOpen] = useState(false);
     const health = useQuery<HealthState, ApiError>({
         queryKey: 'health',
         queryFn: getHealthState,
@@ -203,6 +208,8 @@ export const AppProvider: FC = ({ children }) => {
         showToastSuccess,
         showToastError,
         showToastInfo,
+        isRefreshStepsOpen,
+        setIsRefreshStepsOpen,
         errorLogs,
     };
 

@@ -14,7 +14,6 @@ import {
 import RefreshStepsModal from './RefreshStepsModal';
 
 const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
-    const [isRefreshStepsOpen, setIsRefreshStepsOpen] = useState(false);
     const { data, mutate } = useRefreshServer();
     const [isRefreshTriggered, setIsRefreshTriggered] = useState(false);
 
@@ -49,11 +48,7 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                     'Refresh dbt'
                 )}
             </RefreshButton>
-            <RefreshStepsModal
-                isOpen={isRefreshStepsOpen}
-                onClose={setIsRefreshStepsOpen}
-                statusData={statusInfo}
-            />
+            <RefreshStepsModal statusData={statusInfo} />
         </>
     );
 };
