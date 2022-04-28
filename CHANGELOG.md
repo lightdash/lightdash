@@ -1,3 +1,10 @@
+# [0.78.0](https://github.com/lightdash/lightdash/compare/0.77.1...0.78.0) (2022-04-28)
+
+
+### Features
+
+* cache warehouse ([#1881](https://github.com/lightdash/lightdash/issues/1881)) ([ff795ac](https://github.com/lightdash/lightdash/commit/ff795ac8176bd7e1da1b3e8de117e80637b030a1))
+
 ## [0.77.1](https://github.com/lightdash/lightdash/compare/0.77.0...0.77.1) (2022-04-27)
 
 
