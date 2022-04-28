@@ -412,6 +412,7 @@ export class ProjectModel {
 
         if (jobs.length === 0) return undefined;
 
+        // TODO get steps
         const job = jobs[0];
         return {
             createdAt: job.created_at,
@@ -428,6 +429,8 @@ export class ProjectModel {
             'job_uuid',
             jobUuid,
         );
+
+        // TODO get steps
 
         if (jobs.length === 0)
             throw new NotFoundError(
@@ -446,7 +449,7 @@ export class ProjectModel {
     }
 
     async upsertJobStatus(
-        jobUuid: string,
+        jobUuid: string | undefined,
         projectUuid: string,
         status: JobStatusType,
     ): Promise<void> {
@@ -462,6 +465,21 @@ export class ProjectModel {
             })
             .onConflict('job_uuid')
             .merge();
+    }
+
+    async addJobStep(
+        jobUuid: string,
+        status: JobStepStatusType,
+        description: JobStepType,
+    ): Promise<void> {
+        Logger.debug(
+            `Updating job status ${jobUuid} for project ${projectUuid} with status ${status}`,
+        );
+        await this.database(JobStepsTableName).insert({
+            job_uuid: jobUuid,
+            step_status: jobUuid,
+            step_description: description,
+        });
     }
 
     async getExploresFromCache(
