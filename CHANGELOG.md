@@ -1,3 +1,10 @@
+## [0.78.1](https://github.com/lightdash/lightdash/compare/0.78.0...0.78.1) (2022-04-28)
+
+
+### Bug Fixes
+
+* table visualization shows pivoted data ([#1928](https://github.com/lightdash/lightdash/issues/1928)) ([3b46421](https://github.com/lightdash/lightdash/commit/3b46421bed8c2f596deab0a55a2c4b55e9d0cd46))
+
 # [0.78.0](https://github.com/lightdash/lightdash/compare/0.77.1...0.78.0) (2022-04-28)
 
 
