@@ -1,5 +1,5 @@
 import { Colors, HTMLTable, NonIdealState } from '@blueprintjs/core';
-import { friendlyName } from 'common';
+import { friendlyName, getResultValues } from 'common';
 import React, { FC } from 'react';
 import { mapDataToTable, modifiedItem } from '../../utils/tableData';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -11,8 +11,10 @@ import {
 } from './SimpleTable.styles';
 
 const SimpleTable: FC = () => {
-    const { plotData, isLoading } = useVisualizationContext();
-    const tableItems = plotData ? plotData.slice(0, 25) : [];
+    const { resultsData, isLoading } = useVisualizationContext();
+    const tableItems = resultsData?.rows
+        ? getResultValues(resultsData?.rows).slice(0, 25)
+        : [];
 
     const { headers, rows } = mapDataToTable(tableItems);
     const validData = rows && headers;
