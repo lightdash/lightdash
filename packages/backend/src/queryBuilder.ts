@@ -1,4 +1,5 @@
 import {
+    CompiledField,
     CompiledMetricQuery,
     DateFilterRule,
     DimensionType,
@@ -172,17 +173,9 @@ const renderBooleanFilterSql = (
 
 const renderFilterRuleSql = (
     filterRule: FilterRule,
-    explore: Explore,
+    field: CompiledField,
     quoteChar: string,
 ): string => {
-    const field = getFields(explore).find(
-        (d) => fieldId(d) === filterRule.target.fieldId,
-    );
-    if (!field) {
-        throw new Error(
-            `Filter has a reference to an unknown field: ${filterRule.target.fieldId}`,
-        );
-    }
     const fieldType = field.type;
     const fieldSql = isMetric(field)
         ? `${quoteChar}${filterRule.target.fieldId}${quoteChar}`
@@ -375,7 +368,17 @@ export const buildQuery = ({
         fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
 
     const whereFilters = getFilterRulesFromGroup(filters.dimensions).map(
-        (filter) => renderFilterRuleSql(filter, explore, q),
+        (filter) => {
+            const field = getFields(explore).find(
+                (d) => fieldId(d) === filter.target.fieldId,
+            );
+            if (!field) {
+                throw new Error(
+                    `Filter has a reference to an unknown dimension: ${filter.target.fieldId}`,
+                );
+            }
+            return renderFilterRuleSql(filter, field, q);
+        },
     );
     const sqlWhere =
         whereFilters.length > 0
@@ -385,7 +388,19 @@ export const buildQuery = ({
             : '';
 
     const whereMetricFilters = getFilterRulesFromGroup(filters.metrics).map(
-        (filter) => renderFilterRuleSql(filter, explore, q),
+        (filter) => {
+            const field = getMetricFromId(
+                filter.target.fieldId,
+                explore,
+                compiledMetricQuery,
+            );
+            if (!field) {
+                throw new Error(
+                    `Filter has a reference to an unknown metric: ${filter.target.fieldId}`,
+                );
+            }
+            return renderFilterRuleSql(filter, field, q);
+        },
     );
 
     const sqlLimit = `LIMIT ${limit}`;
