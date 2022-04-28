@@ -114,7 +114,7 @@ export class ProjectService {
         if (user.ability.cannot('create', 'Project')) {
             throw new ForbiddenError();
         }
-       
+
         const jobUuid = await this.startJob(undefined);
 
         this.createProject(user, data);
@@ -123,8 +123,10 @@ export class ProjectService {
         return jobUuid;
     }
 
-    async createProject(user: SessionUser, data: CreateProject): Promise<Project> {
-
+    async createProject(
+        user: SessionUser,
+        data: CreateProject,
+    ): Promise<Project> {
         const adapter = await ProjectService.testProjectAdapter(data);
         const explores = await adapter.compileAllExplores();
         const projectUuid = await this.projectModel.create(
@@ -149,7 +151,7 @@ export class ProjectService {
         this.projectAdapters[projectUuid] = adapter;
         return this.getProject(projectUuid, user);
     }
-/*
+    /*
     async create(user: SessionUser, data: CreateProject): Promise<string> {
         if (user.ability.cannot('create', 'Project')) {
             throw new ForbiddenError();
@@ -161,7 +163,7 @@ export class ProjectService {
         console.log('returning jobUuid', jobUuid);
 
         return jobUuid;
-    }*/
+    } */
 
     /*
     async createProject(
@@ -200,9 +202,7 @@ export class ProjectService {
         this.projectModel.addJobStep(jobUuid, 'done');
 
         return this.getProject(projectUuid, user);
-    }*/
-
-
+    } */
 
     async update(
         projectUuid: string,
@@ -522,10 +522,10 @@ export class ProjectService {
         return this.projectModel.getJobstatus(jobUuid);
     }
 
-    async startJob(projectUuid: string): Promise<string> {
+    async startJob(projectUuid: string | undefined): Promise<string> {
         const jobUuid = uuidv4();
 
-        await this.projectModel.upsertJobStatus(
+        await this.jobModel.upsertJobStatus(
             jobUuid,
             projectUuid,
             JobStatusType.STARTED,

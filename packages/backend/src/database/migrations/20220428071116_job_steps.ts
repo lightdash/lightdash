@@ -22,13 +22,13 @@ export async function up(knex: Knex): Promise<void> {
                 .references('job_uuid')
                 .inTable(COMPILE_JOB_TABLE_NAME)
                 .onDelete('CASCADE');
-            tableBuilder.uuid('job_uuid').notNullable();
             tableBuilder
                 .timestamp('created_at', { useTz: false })
                 .notNullable()
                 .defaultTo(knex.fn.now());
             tableBuilder.text('step_status').notNullable();
-            tableBuilder.text('step_description').notNullable();
+            tableBuilder.text('step_type').notNullable();
+            tableBuilder.text('step_label').notNullable();
         },
     );
 }

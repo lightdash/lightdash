@@ -5,6 +5,7 @@ export const ProjectTableName = 'projects';
 export const CachedExploresTableName = 'cached_explores';
 export const CachedWarehouseTableName = 'cached_warehouse';
 export const JobsTableName = 'jobs';
+export const JobStepsTableName = 'job_steps';
 
 type DbProject = {
     project_id: number;

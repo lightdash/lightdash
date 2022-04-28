@@ -1,16 +1,21 @@
-import { Job, JobStatusType } from 'common';
+import {
+    Job,
+    JobLabels,
+    JobStatusType,
+    JobStepStatusType,
+    JobStepType,
+} from 'common';
 import { Knex } from 'knex';
-import { JobsTableName } from '../../database/entities/projects';
+import {
+    JobsTableName,
+    JobStepsTableName,
+} from '../../database/entities/projects';
 import { NotFoundError } from '../../errors';
 import Logger from '../../logger';
-
-import Transaction = Knex.Transaction;
 
 type JobModelDependencies = {
     database: Knex;
 };
-
-const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
 
 export class JobModel {
     private database: Knex;
@@ -65,7 +70,7 @@ export class JobModel {
 
     async upsertJobStatus(
         jobUuid: string | undefined,
-        projectUuid: string,
+        projectUuid: string | undefined,
         status: JobStatusType,
     ): Promise<void> {
         Logger.debug(
@@ -84,16 +89,21 @@ export class JobModel {
 
     async addJobStep(
         jobUuid: string,
-        status: JobStepStatusType,
-        description: JobStepType,
+        stepStatus: JobStepStatusType,
+        stepType: JobStepType,
     ): Promise<void> {
-        Logger.debug(
-            `Updating job status ${jobUuid} for project ${projectUuid} with status ${status}`,
-        );
+        const stepLabel = JobLabels[stepType];
         await this.database(JobStepsTableName).insert({
             job_uuid: jobUuid,
-            step_status: jobUuid,
-            step_description: description,
+            step_status: stepStatus,
+            step_type: stepType,
+            step_label: stepLabel,
         });
+
+        await this.database(JobsTableName)
+            .update({
+                updated_at: new Date(),
+            })
+            .where('job_uuid', jobUuid);
     }
 }
