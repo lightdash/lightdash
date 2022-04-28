@@ -20,13 +20,13 @@ import {
 } from './RefreshStepsModal.styles';
 
 const RefreshStepsModal: FC = () => {
-    const { isRefreshStepsOpen, setIsRefreshStepsOpen, statusInfo } = useApp();
+    const { isJobsDrawerOpen, setIsJobsDrawerOpen, activeJob } = useApp();
 
-    if (!statusInfo) {
+    if (!activeJob) {
         return null;
     }
 
-    const hasSteps = !!statusInfo?.steps.length;
+    const hasSteps = !!activeJob?.steps.length;
     return (
         <Drawer
             autoFocus
@@ -35,23 +35,23 @@ const RefreshStepsModal: FC = () => {
             enforceFocus
             hasBackdrop
             isCloseButtonShown
-            isOpen={isRefreshStepsOpen}
-            onClose={() => setIsRefreshStepsOpen(false)}
+            isOpen={isJobsDrawerOpen}
+            onClose={() => setIsJobsDrawerOpen(false)}
             shouldReturnFocusOnClose
             size={'400px'}
             title={
                 <RefreshStepsHeadingWrapper className={Classes.DIALOG_HEADER}>
                     <Icon
-                        icon={refreshStatusInfo(statusInfo?.jobStatus).icon}
+                        icon={refreshStatusInfo(activeJob?.jobStatus).icon}
                         size={18}
                     />
                     <div>
                         <RefreshStepsTitle>
-                            {refreshStatusInfo(statusInfo?.jobStatus).title}
+                            {refreshStatusInfo(activeJob?.jobStatus).title}
                         </RefreshStepsTitle>
                         {hasSteps && (
                             <StepsCompletionOverview>{`${
-                                runningStepsInfo(statusInfo?.steps)
+                                runningStepsInfo(activeJob?.steps)
                                     .numberOfCompletedSteps
                             } steps complete `}</StepsCompletionOverview>
                         )}
@@ -61,7 +61,7 @@ const RefreshStepsModal: FC = () => {
             position={Position.RIGHT}
         >
             <StepsWrapper>
-                {statusInfo?.steps?.map((step: any) => (
+                {activeJob?.steps?.map((step: any) => (
                     <Step status={step.stepStatus}>
                         <StepIcon
                             icon={

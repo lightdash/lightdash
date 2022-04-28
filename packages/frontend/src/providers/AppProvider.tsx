@@ -61,11 +61,11 @@ interface Message extends Omit<IToastProps, 'message'> {
 interface AppContext {
     health: UseQueryResult<HealthState, ApiError>;
     user: UseQueryResult<User, ApiError>;
-    isRefreshStepsOpen: boolean;
-    setIsRefreshStepsOpen: Dispatch<SetStateAction<boolean>>;
-    jobId: string | undefined;
-    setJobId: Dispatch<SetStateAction<any>>;
-    statusInfo: Job | undefined;
+    isJobsDrawerOpen: boolean;
+    setIsJobsDrawerOpen: Dispatch<SetStateAction<boolean>>;
+    activeJobId: string | undefined;
+    setActiveJobId: Dispatch<SetStateAction<any>>;
+    activeJob: Job | undefined;
     showToastSuccess: (props: Message) => void;
     showToastError: (props: Message) => void;
     showToastInfo: (props: Message) => void;
@@ -78,8 +78,8 @@ export const AppProvider: FC = ({ children }) => {
     const [isSentryLoaded, setIsSentryLoaded] = useState(false);
     const [isCohereLoaded, setIsCohereLoaded] = useState(false);
     const [isChatwootLoaded, setIsChatwootLoaded] = useState(false);
-    const [isRefreshStepsOpen, setIsRefreshStepsOpen] = useState(false);
-    const [jobId, setJobId] = useState();
+    const [isJobsDrawerOpen, setIsJobsDrawerOpen] = useState(false);
+    const [activeJobId, setActiveJobId] = useState();
 
     const health = useQuery<HealthState, ApiError>({
         queryKey: 'health',
@@ -213,54 +213,45 @@ export const AppProvider: FC = ({ children }) => {
     );
 
     // DBT refresh
-    const { data: statusInfo } = useGetRefreshData(jobId);
+    const { data: activeJob } = useGetRefreshData(activeJobId);
 
-    useEffect(() => {
-        if (statusInfo) {
-            const toastTitle = `${
-                refreshStatusInfo(statusInfo?.jobStatus).title
-            }`;
-            const hasSteps = !!statusInfo.steps.length;
-            switch (statusInfo.jobStatus) {
-                case 'DONE':
-                    showToastSuccess({
-                        key: TOAST_KEY_FOR_REFRESH_JOB,
-                        title: toastTitle,
-                    });
-                    break;
-                case 'RUNNING':
-                    showToastInfo({
-                        key: TOAST_KEY_FOR_REFRESH_JOB,
-                        title: toastTitle,
-                        subtitle: hasSteps
-                            ? `Steps ${
-                                  runningStepsInfo(statusInfo?.steps)
-                                      .completedStepsMessage
-                              }: ${
-                                  runningStepsInfo(statusInfo?.steps)
-                                      .runningStep
-                              }`
-                            : '',
-                        icon: `${
-                            refreshStatusInfo(statusInfo?.jobStatus).icon
-                        }`,
-                        timeout: 0,
-                        // TO BE UNCOMMENTED WHEN STEPS ARE IMPLEMENTED ON THE BE
-                        // action: {
-                        //     text: 'View log ',
-                        //     icon: 'arrow-right',
-                        //     onClick: () => setIsRefreshStepsOpen(true),
-                        // },
-                    });
-                    break;
-                case 'ERROR':
-                    showToastError({
-                        key: TOAST_KEY_FOR_REFRESH_JOB,
-                        title: toastTitle,
-                    });
-            }
+    if (activeJob) {
+        const toastTitle = `${refreshStatusInfo(activeJob?.jobStatus).title}`;
+        const hasSteps = !!activeJob.steps.length;
+        switch (activeJob.jobStatus) {
+            case 'DONE':
+                showToastSuccess({
+                    key: TOAST_KEY_FOR_REFRESH_JOB,
+                    title: toastTitle,
+                });
+                break;
+            case 'RUNNING':
+                showToastInfo({
+                    key: TOAST_KEY_FOR_REFRESH_JOB,
+                    title: toastTitle,
+                    subtitle: hasSteps
+                        ? `Steps ${
+                              runningStepsInfo(activeJob?.steps)
+                                  .completedStepsMessage
+                          }: ${runningStepsInfo(activeJob?.steps).runningStep}`
+                        : '',
+                    icon: `${refreshStatusInfo(activeJob?.jobStatus).icon}`,
+                    timeout: 0,
+                    // TO BE UNCOMMENTED WHEN STEPS ARE IMPLEMENTED ON THE BE
+                    // action: {
+                    //     text: 'View log ',
+                    //     icon: 'arrow-right',
+                    //     onClick: () => setIsJobsDrawerOpen(true),
+                    // },
+                });
+                break;
+            case 'ERROR':
+                showToastError({
+                    key: TOAST_KEY_FOR_REFRESH_JOB,
+                    title: toastTitle,
+                });
         }
-    }, [statusInfo, showToastError, showToastInfo, showToastSuccess]);
+    }
 
     const errorLogs = useErrorLogs();
 
@@ -270,11 +261,11 @@ export const AppProvider: FC = ({ children }) => {
         showToastSuccess,
         showToastError,
         showToastInfo,
-        isRefreshStepsOpen,
-        setIsRefreshStepsOpen,
-        jobId,
-        setJobId,
-        statusInfo,
+        isJobsDrawerOpen,
+        setIsJobsDrawerOpen,
+        activeJobId,
+        setActiveJobId,
+        activeJob,
         errorLogs,
     };
 
