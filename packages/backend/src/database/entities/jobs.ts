@@ -14,6 +14,7 @@ export type DbJobs = {
 export type JobsTable = Knex.CompositeTableType<DbJobs>;
 
 export type DbJobSteps = {
+    step_id: number;
     job_uuid: string;
     created_at: Date;
     step_status: string;

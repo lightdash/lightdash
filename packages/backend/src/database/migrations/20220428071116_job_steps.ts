@@ -26,6 +26,10 @@ export async function up(knex: Knex): Promise<void> {
                 .timestamp('created_at', { useTz: false })
                 .notNullable()
                 .defaultTo(knex.fn.now());
+            tableBuilder
+                .timestamp('updated_at', { useTz: false })
+                .notNullable()
+                .defaultTo(knex.fn.now());
             tableBuilder.text('step_status').notNullable();
             tableBuilder.text('step_type').notNullable();
             tableBuilder.text('step_label').notNullable();

@@ -17,6 +17,8 @@ import {
     isFilterableDimension,
     Job,
     JobStatusType,
+    JobStepStatusType,
+    JobStepType,
     MetricQuery,
     Project,
     ProjectCatalog,
@@ -117,7 +119,7 @@ export class ProjectService {
 
         const jobUuid = await this.startJob(undefined);
 
-        this.createProject(user, data);
+        this.createProject(user, data, jobUuid);
         console.log('returning jobUuid', jobUuid);
 
         return jobUuid;
@@ -126,14 +128,78 @@ export class ProjectService {
     async createProject(
         user: SessionUser,
         data: CreateProject,
+        jobUuid: string,
     ): Promise<Project> {
+        // Initialize job steps
+        await this.jobModel.createJobSteps(jobUuid, [
+            JobStepType.TESTING_ADAPTOR,
+            JobStepType.COMPILING,
+            JobStepType.CREATING_PROJECT,
+            JobStepType.CACHING,
+        ]);
+
+        await this.jobModel.updateJobStep(
+            jobUuid,
+            JobStepStatusType.RUNNING,
+            JobStepType.TESTING_ADAPTOR,
+        );
         const adapter = await ProjectService.testProjectAdapter(data);
+        await this.jobModel.updateJobStep(
+            jobUuid,
+            JobStepStatusType.DONE,
+            JobStepType.TESTING_ADAPTOR,
+        );
+        await this.jobModel.updateJobStep(
+            jobUuid,
+            JobStepStatusType.RUNNING,
+            JobStepType.COMPILING,
+        );
+
         const explores = await adapter.compileAllExplores();
+        await this.jobModel.updateJobStep(
+            jobUuid,
+            JobStepStatusType.DONE,
+            JobStepType.COMPILING,
+        );
+        await this.jobModel.updateJobStep(
+            jobUuid,
+            JobStepStatusType.RUNNING,
+            JobStepType.CREATING_PROJECT,
+        );
+
         const projectUuid = await this.projectModel.create(
             user.organizationUuid,
             data,
         );
+        await this.jobModel.upsertJobStatus(
+            jobUuid,
+            projectUuid,
+            JobStatusType.RUNNING,
+        );
+
+        await this.jobModel.updateJobStep(
+            jobUuid,
+            JobStepStatusType.DONE,
+            JobStepType.CREATING_PROJECT,
+        );
+        await this.jobModel.updateJobStep(
+            jobUuid,
+            JobStepStatusType.RUNNING,
+            JobStepType.CACHING,
+        );
+
         await this.projectModel.saveExploresToCache(projectUuid, explores);
+        await this.jobModel.updateJobStep(
+            jobUuid,
+            JobStepStatusType.DONE,
+            JobStepType.CACHING,
+        );
+
+        await this.jobModel.upsertJobStatus(
+            jobUuid,
+            projectUuid,
+            JobStatusType.DONE,
+        );
 
         analytics.track({
             event: 'project.created',
@@ -151,58 +217,6 @@ export class ProjectService {
         this.projectAdapters[projectUuid] = adapter;
         return this.getProject(projectUuid, user);
     }
-    /*
-    async create(user: SessionUser, data: CreateProject): Promise<string> {
-        if (user.ability.cannot('create', 'Project')) {
-            throw new ForbiddenError();
-        }
-
-        const jobUuid = await this.startJob(undefined);
-
-        createProject(user, data);
-        console.log('returning jobUuid', jobUuid);
-
-        return jobUuid;
-    } */
-
-    /*
-    async createProject(
-        user: SessionUser,
-        data: CreateProject,
-    ): Promise<Project> {
-        this.projectModel.addJobStep(jobUuid, 'testing project adapter');
-
-        const [adapter, explores] = await ProjectService.testProjectAdapter(
-            data,
-        );
-
-        this.projectModel.addJobStep(jobUuid, 'creating job');
-        const projectUuid = await this.projectModel.create(
-            user.organizationUuid,
-            data,
-        );
-
-        analytics.track({
-            event: 'project.created',
-            userId: user.userUuid,
-            properties: {
-                projectName: data.name,
-                projectId: projectUuid,
-                projectType: data.dbtConnection.type,
-                warehouseConnectionType: data.warehouseConnection.type,
-                organizationId: user.organizationUuid,
-                dbtConnectionType: data.dbtConnection.type,
-            },
-        });
-        this.projectLoading[projectUuid] = false;
-        this.projectAdapters[projectUuid] = adapter;
-        this.projectModel.addJobStep(jobUuid, 'saving explorers to cache');
-
-        this.projectModel.saveExploresToCache(projectUuid, explores);
-        this.projectModel.addJobStep(jobUuid, 'done');
-
-        return this.getProject(projectUuid, user);
-    } */
 
     async update(
         projectUuid: string,

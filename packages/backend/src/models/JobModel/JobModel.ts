@@ -10,6 +10,7 @@ import { Knex } from 'knex';
 import { JobsTableName, JobStepsTableName } from '../../database/entities/jobs';
 import { NotFoundError } from '../../errors';
 import Logger from '../../logger';
+import Transaction = Knex.Transaction;
 
 type JobModelDependencies = {
     database: Knex;
@@ -67,14 +68,14 @@ export class JobModel {
     }
 
     async getSteps(jobUuid: string): Promise<JobStep[]> {
-        const steps = await this.database(JobStepsTableName).where(
-            'job_uuid',
-            jobUuid,
-        );
+        const steps = await this.database(JobStepsTableName)
+            .where('job_uuid', jobUuid)
+            .orderBy('step_id', 'desc');
 
         return steps.map((step) => ({
             jobUuid: step.job_uuid,
             createdAt: step.created_at,
+            updatedAt: step.updated_at,
             stepStatus: step.step_status,
             stepType: step.step_type,
             stepLabel: step.step_label,
@@ -100,22 +101,40 @@ export class JobModel {
             .merge();
     }
 
-    async addJobStep(
+    async createJobSteps(
+        jobUuid: string,
+        stepTypes: JobStepType[],
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await stepTypes.forEach(async (step) => {
+                const stepLabel = JobLabels[step];
+                await trx(JobStepsTableName).insert({
+                    job_uuid: jobUuid,
+                    step_status: JobStepStatusType.PENDING,
+                    step_type: step,
+                    step_label: stepLabel,
+                });
+            });
+        });
+    }
+
+    async updateJobStep(
         jobUuid: string,
         stepStatus: JobStepStatusType,
         stepType: JobStepType,
     ): Promise<void> {
-        const stepLabel = JobLabels[stepType];
-        await this.database(JobStepsTableName).insert({
-            job_uuid: jobUuid,
-            step_status: stepStatus,
-            step_type: stepType,
-            step_label: stepLabel,
-        });
+        await this.database(JobStepsTableName)
+            .update({
+                step_status: stepStatus,
+                updated_at: new Date(),
+            })
+            .where('job_uuid', jobUuid)
+            .andWhere('step_type', stepType);
 
         await this.database(JobsTableName)
             .update({
                 updated_at: new Date(),
+                job_status: JobStatusType.RUNNING, // TODO handle step error
             })
             .where('job_uuid', jobUuid);
     }
