@@ -1,3 +1,10 @@
+# [0.80.0](https://github.com/lightdash/lightdash/compare/0.79.0...0.80.0) (2022-04-29)
+
+
+### Features
+
+* deselect columns on results ([#1939](https://github.com/lightdash/lightdash/issues/1939)) ([5bef52a](https://github.com/lightdash/lightdash/commit/5bef52a50d62a22560c6f53909ff731194913596))
+
 # [0.79.0](https://github.com/lightdash/lightdash/compare/0.78.1...0.79.0) (2022-04-29)
 
 
