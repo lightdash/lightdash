@@ -567,6 +567,11 @@ const TableTree: FC<TableTreeProps> = ({
     const handleNodeClick: TreeEventHandler<NodeDataProps> = useCallback(
         (nodeData: TreeNodeInfo<NodeDataProps>, _nodePath: number[]) => {
             if (_nodePath.length !== 1 && nodeData.nodeData) {
+                console.log(
+                    'onSelectedNodeChange',
+                    nodeData.nodeData.fieldId,
+                    nodeData.nodeData.isDimension,
+                );
                 onSelectedNodeChange(
                     nodeData.nodeData.fieldId,
                     nodeData.nodeData.isDimension,
