@@ -99,7 +99,7 @@ const ActionCardList = <
                                 onClick={() => setSearch('')}
                             />
                         }
-                        placeholder="Search tables"
+                        placeholder="Search saved charts"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
