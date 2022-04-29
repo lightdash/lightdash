@@ -42,6 +42,7 @@ export enum ActionType {
     DELETE_TABLE_CALCULATION,
     SET_FETCH_RESULTS_FALSE,
     ADD_ADDITIONAL_METRIC,
+    REMOVE_ADDITIONAL_METRIC,
     SET_PIVOT_FIELDS,
     SET_CHART_TYPE,
     SET_CHART_CONFIG,
@@ -91,6 +92,10 @@ type Action =
           payload: AdditionalMetric;
       }
     | {
+          type: ActionType.REMOVE_ADDITIONAL_METRIC;
+          payload: FieldId;
+      }
+    | {
           type: ActionType.SET_PIVOT_FIELDS;
           payload: FieldId[];
       }
@@ -131,6 +136,7 @@ interface ExplorerContext {
             syncPristineState: boolean,
         ) => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
+        removeAdditionalMetric: (key: FieldId) => void;
         setColumnOrder: (order: string[]) => void;
         addTableCalculation: (tableCalculation: TableCalculation) => void;
         updateTableCalculation: (
@@ -421,6 +427,30 @@ function reducer(
                 },
             };
         }
+        case ActionType.REMOVE_ADDITIONAL_METRIC: {
+            return {
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        additionalMetrics: (
+                            state.unsavedChartVersion.metricQuery
+                                .additionalMetrics || []
+                        ).filter(
+                            (metric) => getFieldId(metric) !== action.payload,
+                        ),
+                        metrics:
+                            state.unsavedChartVersion.metricQuery.metrics.filter(
+                                (metric) => metric !== action.payload,
+                            ),
+                        sorts: state.unsavedChartVersion.metricQuery.sorts.filter(
+                            (sort) => sort.fieldId !== action.payload,
+                        ),
+                    },
+                },
+            };
+        }
         case ActionType.SET_COLUMN_ORDER: {
             return {
                 ...state,
@@ -697,6 +727,13 @@ export const ExplorerProvider: FC<{
         [],
     );
 
+    const removeAdditionalMetric = useCallback((key: FieldId) => {
+        dispatch({
+            type: ActionType.REMOVE_ADDITIONAL_METRIC,
+            payload: key,
+        });
+    }, []);
+
     const setColumnOrder = useCallback((order: string[]) => {
         dispatch({
             type: ActionType.SET_COLUMN_ORDER,
@@ -825,6 +862,7 @@ export const ExplorerProvider: FC<{
                 setRowLimit,
                 setColumnOrder,
                 addAdditionalMetric,
+                removeAdditionalMetric,
                 addTableCalculation,
                 deleteTableCalculation,
                 updateTableCalculation,
@@ -843,6 +881,7 @@ export const ExplorerProvider: FC<{
                 setRowLimit,
                 setColumnOrder,
                 addAdditionalMetric,
+                removeAdditionalMetric,
                 addTableCalculation,
                 deleteTableCalculation,
                 updateTableCalculation,

@@ -67,6 +67,8 @@ export enum EventName {
     SETUP_STEP_CLICKED = 'setup_step.click',
     FORM_STATE_CHANGED = 'form-state.changed',
     ADD_FILTER_CLICKED = 'add_filter.click',
+    ADD_CUSTOM_METRIC_CLICKED = 'add_custom_metric.click',
+    REMOVE_CUSTOM_METRIC_CLICKED = 'remove_custom_metric.click',
     NOTIFICATIONS_CLICKED = 'notifications.clicked',
     NOTIFICATIONS_ITEM_CLICKED = 'notifications_item.clicked',
     NOTIFICATIONS_READ_MORE_CLICKED = 'notifications_read_more.clicked',

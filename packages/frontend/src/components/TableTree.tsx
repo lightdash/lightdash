@@ -14,6 +14,7 @@ import { TreeEventHandler } from '@blueprintjs/core/src/components/tree/tree';
 import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import {
+    AdditionalMetric,
     CompiledMetric,
     CompiledTable,
     Dimension,
@@ -231,6 +232,9 @@ const NodeItemButtons: FC<{
                             text={friendlyName(metric)}
                             onClick={(e) => {
                                 e.stopPropagation();
+                                track({
+                                    name: EventName.ADD_CUSTOM_METRIC_CLICKED,
+                                });
                                 createCustomMetric(node, metric);
                             }}
                         />
@@ -281,6 +285,68 @@ const NodeItemButtons: FC<{
                 />
             ) : (
                 <div style={{ width: '34px' }} />
+            )}
+        </div>
+    );
+};
+
+const CustomMetricButtons: FC<{
+    node: AdditionalMetric;
+    isHovered: boolean;
+}> = ({ node, isHovered }) => {
+    const { track } = useTracking();
+
+    const {
+        actions: { removeAdditionalMetric },
+    } = useExplorer();
+
+    const menuItems = useMemo<ReactNode[]>(() => {
+        return [
+            <MenuItem
+                key="custommetric"
+                icon="delete"
+                text="Remove custom metric"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    track({
+                        name: EventName.REMOVE_CUSTOM_METRIC_CLICKED,
+                    });
+                    removeAdditionalMetric(fieldId(node));
+                }}
+            />,
+        ];
+    }, [removeAdditionalMetric, node, track]);
+
+    return (
+        <div
+            style={{
+                display: 'inline-flex',
+                gap: '10px',
+            }}
+        >
+            {menuItems.length > 0 && isHovered && (
+                <Popover2
+                    content={<Menu>{menuItems}</Menu>}
+                    autoFocus={false}
+                    position={PopoverPosition.BOTTOM_LEFT}
+                    minimal
+                    lazy
+                    interactionKind="click"
+                    renderTarget={({ isOpen, ref, ...targetProps }) => (
+                        <Tooltip2 content="View options">
+                            <Button
+                                {...targetProps}
+                                elementRef={ref === null ? undefined : ref}
+                                icon="more"
+                                minimal
+                                onClick={(e) => {
+                                    (targetProps as any).onClick(e);
+                                    e.stopPropagation();
+                                }}
+                            />
+                        </Tooltip2>
+                    )}
+                />
             )}
         </div>
     );
@@ -516,6 +582,12 @@ const TableTree: FC<TableTreeProps> = ({
                               isDimension: false,
                           } as NodeDataProps,
                           isSelected: selectedNodes.has(fieldId(metric)),
+                          secondaryLabel: (
+                              <CustomMetricButtons
+                                  node={metric}
+                                  isHovered={hoveredFieldId === fieldId(metric)}
+                              />
+                          ),
                       })),
     };
 
