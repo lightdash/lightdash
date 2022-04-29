@@ -1,7 +1,6 @@
 import { Card, NonIdealState, Spinner } from '@blueprintjs/core';
 import React from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import AboutFooter from '../components/AboutFooter';
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel/index';
 import { useSavedQuery } from '../hooks/useSavedQuery';
@@ -76,7 +75,6 @@ const SavedExplorer = () => {
                         overflow: 'hidden',
                         position: 'sticky',
                         top: '50px',
-                        paddingBottom: 0,
                     }}
                     elevation={1}
                 >
@@ -89,7 +87,6 @@ const SavedExplorer = () => {
                         }}
                     >
                         <ExplorePanel onBack={onBack} />
-                        <AboutFooter minimal />
                     </div>
                 </Card>
                 <div

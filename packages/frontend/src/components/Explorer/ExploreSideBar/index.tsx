@@ -18,7 +18,6 @@ import { useApp } from '../../../providers/AppProvider';
 import { useExplorer } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
-import AboutFooter from '../../AboutFooter';
 import { ExploreMenuItem } from '../../ExploreMenuItem';
 import { ShowErrorsButton } from '../../ShowErrorsButton';
 import ExplorePanel from '../ExplorePanel/index';
@@ -164,7 +163,6 @@ const ExploreSideBar = () => {
         <TrackSection name={SectionName.SIDEBAR}>
             <FooterWrapper>
                 {!tableName ? <BasePanel /> : <ExplorePanel onBack={onBack} />}
-                <AboutFooter minimal />
             </FooterWrapper>
         </TrackSection>
     );

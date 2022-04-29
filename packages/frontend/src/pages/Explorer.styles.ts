@@ -18,7 +18,6 @@ export const SideBar = styled(Card)`
     overflow: hidden;
     position: sticky;
     top: 50px;
-    padding-bottom: 0;
 `;
 
 export const Main = styled.div`
