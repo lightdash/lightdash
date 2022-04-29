@@ -37,7 +37,7 @@ import { EventName, SectionName } from '../types/Events';
 
 const TreeWrapper = styled.div<{ hasMultipleTables: boolean }>`
     margin-left: ${({ hasMultipleTables }) =>
-        hasMultipleTables ? '0' : '-23'}px;
+        hasMultipleTables ? '0' : '-20'}px;
 `;
 
 type NodeDataProps = {
