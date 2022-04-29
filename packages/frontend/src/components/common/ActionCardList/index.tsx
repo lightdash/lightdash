@@ -58,7 +58,7 @@ const ActionCardList = <
         actionType: ActionTypeModal.CLOSE,
     });
 
-    const displaySearch = isChart && dataList.length >= 5;
+    const displaySearch = isChart && dataList.length >= 5 && !isHomePage;
 
     const filteredQueries = useMemo(() => {
         const validSearch = search ? search.toLowerCase() : '';
