@@ -29,10 +29,16 @@ import {
 } from 'common';
 import Fuse from 'fuse.js';
 import React, { FC, ReactNode, useCallback, useMemo, useState } from 'react';
+import styled from 'styled-components';
 import { useFilters } from '../hooks/useFilters';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { TrackSection, useTracking } from '../providers/TrackingProvider';
 import { EventName, SectionName } from '../types/Events';
+
+const TreeWrapper = styled.div<{ hasMultipleTables: boolean }>`
+    margin-left: ${({ hasMultipleTables }) =>
+        hasMultipleTables ? '0' : '-20'}px;
+`;
 
 type NodeDataProps = {
     fieldId: FieldId;
@@ -47,6 +53,7 @@ type TableTreeProps = {
     onSelectedNodeChange: (fieldId: string, isDimension: boolean) => void;
     selectedNodes: Set<string>;
     onOpenSourceDialog: (source: Source) => void;
+    hasMultipleTables: boolean;
 };
 
 const TableButtons: FC<{
@@ -414,6 +421,7 @@ const TableTree: FC<TableTreeProps> = ({
     selectedNodes,
     onSelectedNodeChange,
     onOpenSourceDialog,
+    hasMultipleTables,
 }) => {
     const {
         state: {
@@ -620,21 +628,23 @@ const TableTree: FC<TableTreeProps> = ({
             ),
     };
 
-    const contents: TreeNodeInfo<NodeDataProps>[] = [
-        {
-            id: table.name,
-            label: table.label,
-            isExpanded: expandedNodes.includes(table.name),
-            secondaryLabel: (
-                <TableButtons
-                    joinSql={joinSql}
-                    table={table}
-                    onOpenSourceDialog={onOpenSourceDialog}
-                />
-            ),
-            childNodes: [metricNode, customMetricsNode, dimensionNode],
-        },
-    ];
+    const contents: TreeNodeInfo<NodeDataProps>[] = hasMultipleTables
+        ? [
+              {
+                  id: table.name,
+                  label: table.label,
+                  isExpanded: expandedNodes.includes(table.name),
+                  secondaryLabel: (
+                      <TableButtons
+                          joinSql={joinSql}
+                          table={table}
+                          onOpenSourceDialog={onOpenSourceDialog}
+                      />
+                  ),
+                  childNodes: [metricNode, customMetricsNode, dimensionNode],
+              },
+          ]
+        : [metricNode, customMetricsNode, dimensionNode];
 
     const handleNodeClick: TreeEventHandler<NodeDataProps> = useCallback(
         (nodeData: TreeNodeInfo<NodeDataProps>, _nodePath: number[]) => {
@@ -664,20 +674,25 @@ const TableTree: FC<TableTreeProps> = ({
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
-            <Tree
-                contents={contents}
-                onNodeCollapse={(node) => {
-                    setExpandedNodes((prevState) =>
-                        prevState.filter((id) => id !== node.id),
-                    );
-                }}
-                onNodeExpand={(node) => {
-                    setExpandedNodes((prevState) => [...prevState, node.id]);
-                }}
-                onNodeClick={handleNodeClick}
-                onNodeMouseEnter={onNodeMouseEnter}
-                onNodeMouseLeave={onNodeMouseLeave}
-            />
+            <TreeWrapper hasMultipleTables={hasMultipleTables}>
+                <Tree
+                    contents={contents}
+                    onNodeCollapse={(node) => {
+                        setExpandedNodes((prevState) =>
+                            prevState.filter((id) => id !== node.id),
+                        );
+                    }}
+                    onNodeExpand={(node) => {
+                        setExpandedNodes((prevState) => [
+                            ...prevState,
+                            node.id,
+                        ]);
+                    }}
+                    onNodeClick={handleNodeClick}
+                    onNodeMouseEnter={onNodeMouseEnter}
+                    onNodeMouseLeave={onNodeMouseLeave}
+                />
+            </TreeWrapper>
         </TrackSection>
     );
 };
