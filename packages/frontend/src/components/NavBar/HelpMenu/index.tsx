@@ -7,6 +7,7 @@ import {
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { FC, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { useIntercom } from 'react-use-intercom';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -23,6 +24,7 @@ import {
 } from './HelpMenu.styles';
 
 const HelpMenu: FC = () => {
+    const { show } = useIntercom();
     const { track } = useTracking();
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -64,10 +66,6 @@ const HelpMenu: FC = () => {
         }
     }, [track, projectUuid, user.data?.organizationUuid, user.data?.userUuid]);
 
-    const openChatWindow = () => {
-        (window as any).$chatwoot?.toggle('true');
-    };
-
     return (
         <>
             <NotificationWrapper>
@@ -78,7 +76,7 @@ const HelpMenu: FC = () => {
                 interactionKind={PopoverInteractionKind.CLICK}
                 content={
                     <MenuWrapper>
-                        <ButtonWrapper onClick={() => openChatWindow()}>
+                        <ButtonWrapper onClick={() => show()}>
                             <HelpItem>
                                 <IconContainer>
                                     <Icon icon="chat" />

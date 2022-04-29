@@ -25,6 +25,7 @@ import React, {
 } from 'react';
 import { useQuery } from 'react-query';
 import { UseQueryResult } from 'react-query/types/react/types';
+import { IntercomProvider } from 'react-use-intercom';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';
 import { ErrorLogs, useErrorLogs } from '../hooks/useErrorLogs';
@@ -78,10 +79,8 @@ const Context = createContext<AppContext>(undefined as any);
 export const AppProvider: FC = ({ children }) => {
     const [isSentryLoaded, setIsSentryLoaded] = useState(false);
     const [isCohereLoaded, setIsCohereLoaded] = useState(false);
-    const [isChatwootLoaded, setIsChatwootLoaded] = useState(false);
     const [isJobsDrawerOpen, setIsJobsDrawerOpen] = useState(false);
     const [activeJobId, setActiveJobId] = useState();
-
     const health = useQuery<HealthState, ApiError>({
         queryKey: 'health',
         queryFn: getHealthState,
@@ -123,35 +122,6 @@ export const AppProvider: FC = ({ children }) => {
             });
         }
     }, [health, isCohereLoaded, user]);
-
-    useEffect(() => {
-        if (
-            !isChatwootLoaded &&
-            health.data &&
-            health.data.chatwoot.websiteToken.length > 0 &&
-            health.data.chatwoot.baseUrl.length > 0
-        ) {
-            (window as any).chatwootSettings = {
-                hideMessageBubble: true,
-                position: 'right',
-                locale: 'en',
-                type: 'standard',
-            };
-            const script = document.createElement('script');
-            const ref = document.getElementsByTagName('script')[0];
-            script.src = `${health.data.chatwoot.baseUrl}/packs/js/sdk.js`;
-            script.defer = true;
-            script.async = true;
-            ref.parentNode?.insertBefore(script, ref);
-            script.onload = () => {
-                (window as any).chatwootSDK.run({
-                    websiteToken: health.data.chatwoot.websiteToken,
-                    baseUrl: health.data.chatwoot.baseUrl,
-                });
-            };
-            setIsChatwootLoaded(true);
-        }
-    }, [isChatwootLoaded, health, user]);
 
     useEffect(() => {
         if (!isHeadwayLoaded) {
@@ -312,7 +282,18 @@ export const AppProvider: FC = ({ children }) => {
         }
     }, [health]);
 
-    return <Context.Provider value={value}>{children}</Context.Provider>;
+    return (
+        <Context.Provider value={value}>
+            <IntercomProvider
+                appId={health.data?.intercom.appId || ''}
+                shouldInitialize={!!health.data?.intercom.appId}
+                apiBase={health.data?.intercom.apiBase || ''}
+                autoBoot
+            >
+                {children}
+            </IntercomProvider>
+        </Context.Provider>
+    );
 };
 
 export function useApp(): AppContext {

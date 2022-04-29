@@ -39,7 +39,7 @@ export type LightdashConfig = {
     sentry: SentryConfig;
     auth: AuthConfig;
     cohere: CohereConfig;
-    chatwoot: ChatwootConfig;
+    intercom: IntercomConfig;
     siteUrl: string;
     database: {
         connectionUri: string | undefined;
@@ -48,9 +48,9 @@ export type LightdashConfig = {
     };
 };
 
-export type ChatwootConfig = {
-    baseUrl: string;
-    websiteToken: string;
+export type IntercomConfig = {
+    appId: string;
+    apiBase: string;
 };
 
 type CohereConfig = {
@@ -181,11 +181,10 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 callbackPath: '/oauth/redirect/google',
             },
         },
-        chatwoot: {
-            websiteToken:
-                process.env.CHATWOOT_TOKEN || 'qUs8eBDFmn9id6R8aa1pAePq',
-            baseUrl:
-                process.env.CHATWOOT_BASE_URL || 'https://chat.lightdash.com',
+        intercom: {
+            appId: process.env.INTERCOM_APP_ID || 'zppxyjpp',
+            apiBase:
+                process.env.INTERCOM_APP_BASE || 'https://api-iam.intercom.io',
         },
         cohere: {
             token: process.env.COHERE_TOKEN || '',

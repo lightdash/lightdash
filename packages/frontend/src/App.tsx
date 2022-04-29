@@ -13,6 +13,7 @@ import {
 import './App.css';
 import AppStyle from './App.styles';
 import AppRoute from './components/AppRoute';
+import { Intercom } from './components/Intercom';
 import MobileView from './components/Mobile';
 import NavBar from './components/NavBar';
 import PrivateRoute from './components/PrivateRoute';
@@ -66,6 +67,7 @@ const App = () => (
         <QueryClientProvider client={queryClient}>
             <HotkeysProvider>
                 <AppProvider>
+                    <Intercom />
                     <TrackingProvider>
                         {isMobile ? (
                             <MobileView />
