@@ -1,56 +1,21 @@
-import React, { ComponentProps, FC, useEffect, useState } from 'react';
-import {
-    useGetRefreshData,
-    useRefreshServer,
-} from '../../hooks/useRefreshServer';
-import { useServerStatus } from '../../hooks/useServerStatus';
+import React, { ComponentProps, FC } from 'react';
+import { useRefreshServer } from '../../hooks/useRefreshServer';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
-import {
-    refreshStatusInfo,
-    runningStepsInfo,
-} from '../../utils/refreshStatusInfo';
 import { BigButton } from '../common/BigButton';
 import {
     LoadingSpinner,
     RefreshButton,
     RefreshSpinnerButton,
 } from './RefreshServerButton.styles';
-import RefreshStepsModal from './RefreshStepsModal';
 
 const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
-    const [isRefreshStepsOpen, setIsRefreshStepsOpen] = useState(false);
-    const { data, mutate } = useRefreshServer();
-    const status = useServerStatus();
-    const isLoading = status.data === 'loading';
-    const { data: statusInfo } = useGetRefreshData(
-        isLoading ? data?.jobUuid : undefined,
-    );
-    const { track } = useTracking();
-    const { showToastInfo } = useApp();
-    const hasSteps = !!statusInfo?.steps.length;
+    const { activeJob } = useApp();
+    const { mutate } = useRefreshServer();
+    const isLoading = activeJob && activeJob?.jobStatus === 'RUNNING';
 
-    useEffect(() => {
-        if (statusInfo && isLoading && statusInfo.jobStatus !== 'DONE') {
-            showToastInfo({
-                title: `${refreshStatusInfo(statusInfo?.jobStatus).title} `,
-                subtitle: hasSteps
-                    ? `Steps ${
-                          runningStepsInfo(statusInfo?.steps)
-                              .completedStepsMessage
-                      }: ${runningStepsInfo(statusInfo?.steps).runningStep}`
-                    : '',
-                icon: `${refreshStatusInfo(statusInfo?.jobStatus).icon}`,
-                // TO BE UNCOMMENTED WHEN STEPS ARE IMPLEMENTED ON THE BE
-                // action: {
-                //     text: 'View log ',
-                //     icon: 'arrow-right',
-                //     onClick: () => setIsRefreshStepsOpen(true),
-                // },
-            });
-        }
-    }, [isLoading, statusInfo, showToastInfo, hasSteps]);
+    const { track } = useTracking();
 
     const onClick = () => {
         mutate();
@@ -76,11 +41,6 @@ const RefreshServerButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                     'Refresh dbt'
                 )}
             </RefreshButton>
-            <RefreshStepsModal
-                isOpen={isRefreshStepsOpen}
-                onClose={setIsRefreshStepsOpen}
-                statusData={statusInfo}
-            />
         </>
     );
 };

@@ -16,6 +16,7 @@ import AppRoute from './components/AppRoute';
 import MobileView from './components/Mobile';
 import NavBar from './components/NavBar';
 import PrivateRoute from './components/PrivateRoute';
+import JobDetailsDrawer from './components/RefreshServer/JobDetailsDrawer';
 import UserCompletionModal from './components/UserCompletionModal';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
@@ -244,6 +245,7 @@ const App = () => (
                                         </div>
                                     </PrivateRoute>
                                 </Switch>
+                                <JobDetailsDrawer />
                             </Router>
                         )}
                     </TrackingProvider>

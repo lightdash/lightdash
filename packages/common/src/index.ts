@@ -494,7 +494,9 @@ export type ApiExploreResults = Explore;
 
 export type ApiStatusResults = 'loading' | 'ready' | 'error';
 
-export type ApiRefreshResults = undefined;
+export type ApiRefreshResults = {
+    jobUuid: string;
+};
 
 export type CreateUserArgs = {
     firstName: string;
@@ -623,7 +625,8 @@ type ApiResults =
     | ApiFlashResults
     | OpenIdIdentitySummary[]
     | FilterableField[]
-    | ProjectSavedChartStatus;
+    | ProjectSavedChartStatus
+    | undefined;
 
 export type ApiResponse = {
     status: 'ok';

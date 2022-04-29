@@ -1,9 +1,10 @@
 import { Classes, Drawer, Icon, Position } from '@blueprintjs/core';
-import React, { Dispatch, FC, SetStateAction } from 'react';
+import React, { FC } from 'react';
 import {
     refreshStatusInfo,
     runningStepsInfo,
-} from '../../../utils/refreshStatusInfo';
+} from '../../../hooks/useRefreshServer';
+import { useApp } from '../../../providers/AppProvider';
 import {
     ErrorMessageWrapper,
     RefreshStepsHeadingWrapper,
@@ -16,16 +17,16 @@ import {
     StepStatus,
     StepStatusWrapper,
     StepsWrapper,
-} from './RefreshStepsModal.styles';
+} from './JobDetailsDrawer.styles';
 
-interface Props {
-    onClose: Dispatch<SetStateAction<boolean>>;
-    isOpen: boolean;
-    statusData: any;
-}
-const RefreshStepsModal: FC<Props> = ({ onClose, isOpen, statusData }) => {
-    const hasSteps = !!statusData?.steps.length;
+const JobDetailsDrawer: FC = () => {
+    const { isJobsDrawerOpen, setIsJobsDrawerOpen, activeJob } = useApp();
 
+    if (!activeJob) {
+        return null;
+    }
+
+    const hasSteps = !!activeJob?.steps.length;
     return (
         <Drawer
             autoFocus
@@ -34,23 +35,23 @@ const RefreshStepsModal: FC<Props> = ({ onClose, isOpen, statusData }) => {
             enforceFocus
             hasBackdrop
             isCloseButtonShown
-            isOpen={isOpen}
-            onClose={() => onClose(false)}
+            isOpen={isJobsDrawerOpen}
+            onClose={() => setIsJobsDrawerOpen(false)}
             shouldReturnFocusOnClose
             size={'400px'}
             title={
                 <RefreshStepsHeadingWrapper className={Classes.DIALOG_HEADER}>
                     <Icon
-                        icon={refreshStatusInfo(statusData?.jobStatus).icon}
+                        icon={refreshStatusInfo(activeJob?.jobStatus).icon}
                         size={18}
                     />
                     <div>
                         <RefreshStepsTitle>
-                            {refreshStatusInfo(statusData?.jobStatus).title}
+                            {refreshStatusInfo(activeJob?.jobStatus).title}
                         </RefreshStepsTitle>
                         {hasSteps && (
                             <StepsCompletionOverview>{`${
-                                runningStepsInfo(statusData?.steps)
+                                runningStepsInfo(activeJob?.steps)
                                     .numberOfCompletedSteps
                             } steps complete `}</StepsCompletionOverview>
                         )}
@@ -60,7 +61,7 @@ const RefreshStepsModal: FC<Props> = ({ onClose, isOpen, statusData }) => {
             position={Position.RIGHT}
         >
             <StepsWrapper>
-                {statusData?.steps?.map((step: any) => (
+                {activeJob?.steps?.map((step: any) => (
                     <Step status={step.stepStatus}>
                         <StepIcon
                             icon={
@@ -99,4 +100,4 @@ const RefreshStepsModal: FC<Props> = ({ onClose, isOpen, statusData }) => {
     );
 };
 
-export default RefreshStepsModal;
+export default JobDetailsDrawer;
