@@ -1,5 +1,3 @@
-import { Menu, MenuItem } from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
 import { FC } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
@@ -9,7 +7,7 @@ import { SectionName } from '../../../types/Events';
 import EditableHeader from '../../common/EditableHeader';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshServerButton from '../../RefreshServer';
-import { OptionsButton, TitleWrapper, Wrapper } from './ExploreHeader.styles';
+import { TitleWrapper, Wrapper } from './ExploreHeader.styles';
 
 const ExploreHeader: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -42,24 +40,6 @@ const ExploreHeader: FC = () => {
                 </TitleWrapper>
                 <RefreshButton />
                 <RefreshServerButton />
-                <Popover2
-                    content={
-                        <Menu>
-                            <MenuItem
-                                icon="cog"
-                                text="Project settings"
-                                href={`/projects/${projectUuid}/settings`}
-                            />
-                        </Menu>
-                    }
-                    placement="bottom"
-                    disabled={!unsavedChartVersion.tableName}
-                >
-                    <OptionsButton
-                        icon="more"
-                        disabled={!unsavedChartVersion.tableName}
-                    />
-                </Popover2>
             </Wrapper>
         </TrackSection>
     );
