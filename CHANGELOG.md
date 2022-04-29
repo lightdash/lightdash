@@ -1,3 +1,11 @@
+# [0.79.0](https://github.com/lightdash/lightdash/compare/0.78.1...0.79.0) (2022-04-29)
+
+
+### Features
+
+* remove custom metric option ([#1921](https://github.com/lightdash/lightdash/issues/1921)) skip-ci ([74b66d0](https://github.com/lightdash/lightdash/commit/74b66d00b0d05c4e8383ac434511ad375e061a0b))
+* use custom metric in filters and table calculations ([#1934](https://github.com/lightdash/lightdash/issues/1934)) ([aba979b](https://github.com/lightdash/lightdash/commit/aba979bb53139790be9f02140937d1598940933b))
+
 ## [0.78.1](https://github.com/lightdash/lightdash/compare/0.78.0...0.78.1) (2022-04-28)
 
 
