@@ -633,7 +633,6 @@ const TableTree: FC<TableTreeProps> = ({
               {
                   id: table.name,
                   label: table.label,
-                  hasCaret: hasMultipleTables,
                   isExpanded: expandedNodes.includes(table.name),
                   secondaryLabel: (
                       <TableButtons
