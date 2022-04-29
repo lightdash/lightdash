@@ -75,7 +75,6 @@ const SavedExplorer = () => {
                         overflow: 'hidden',
                         position: 'sticky',
                         top: '50px',
-                        paddingBottom: 0,
                     }}
                     elevation={1}
                 >
