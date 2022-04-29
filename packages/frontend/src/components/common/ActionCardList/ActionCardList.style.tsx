@@ -39,3 +39,7 @@ export const ActionCardWrapper = styled.div`
 export const NoIdealStateWrapper = styled.div`
     padding: 50px 0;
 `;
+
+export const SearchWrapper = styled.div`
+    margin-bottom: 20px;
+`;
