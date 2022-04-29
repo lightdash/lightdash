@@ -2,7 +2,13 @@
 import { Ace } from 'ace-builds';
 import 'react-ace'; // Note: we need this import before the langTools import
 import langTools from 'ace-builds/src-noconflict/ext-language_tools';
-import { Field, fieldId, friendlyName, getFieldRef } from 'common';
+import {
+    convertAdditionalMetric,
+    Field,
+    fieldId,
+    getFieldRef,
+    Metric,
+} from 'common';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useExplore } from './useExplore';
@@ -43,7 +49,10 @@ export const useExplorerAceEditorCompleter = (): {
     const {
         state: {
             activeFields,
-            unsavedChartVersion: { tableName },
+            unsavedChartVersion: {
+                tableName,
+                metricQuery: { additionalMetrics },
+            },
         },
     } = useExplorer();
     const explore = useExplore(tableName);
@@ -52,13 +61,33 @@ export const useExplorerAceEditorCompleter = (): {
     useEffect(() => {
         if (aceEditor && explore.data) {
             const activeExplore = explore.data;
+            const customMetrics = (additionalMetrics || []).reduce<Metric[]>(
+                (acc, additionalMetric) => {
+                    const table = explore.data.tables[additionalMetric.table];
+                    if (table) {
+                        const metric = convertAdditionalMetric({
+                            additionalMetric,
+                            table,
+                        });
+                        return [...acc, metric];
+                    }
+                    return acc;
+                },
+                [],
+            );
             const fields = Object.values(activeExplore.tables).reduce<
                 Ace.Completion[]
             >(
                 (acc, table) => [
                     ...acc,
                     ...mapActiveFieldsToCompletions(
-                        Object.values(table.metrics),
+                        [
+                            ...Object.values(table.metrics),
+                            ...customMetrics.filter(
+                                (customMetric) =>
+                                    customMetric.table === table.name,
+                            ),
+                        ],
                         activeFields,
                         'Metric',
                     ),
@@ -75,7 +104,7 @@ export const useExplorerAceEditorCompleter = (): {
         return () => {
             langTools.setCompleters([]);
         };
-    }, [aceEditor, explore, activeFields]);
+    }, [aceEditor, explore, activeFields, additionalMetrics]);
 
     return {
         setAceEditor,
