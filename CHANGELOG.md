@@ -1,3 +1,10 @@
+# [0.82.0](https://github.com/lightdash/lightdash/compare/0.81.0...0.82.0) (2022-04-29)
+
+
+### Features
+
+* add search to saved charts ([#1943](https://github.com/lightdash/lightdash/issues/1943)) ([f4a51c0](https://github.com/lightdash/lightdash/commit/f4a51c0e00f7c6f4df6c2405516ae68a0184dc31))
+
 # [0.81.0](https://github.com/lightdash/lightdash/compare/0.80.0...0.81.0) (2022-04-29)
 
 
