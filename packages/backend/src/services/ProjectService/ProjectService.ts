@@ -120,7 +120,6 @@ export class ProjectService {
         const jobUuid = await this.startJob(undefined);
 
         this.createProject(user, data, jobUuid);
-        console.log('returning jobUuid', jobUuid);
 
         return jobUuid;
     }

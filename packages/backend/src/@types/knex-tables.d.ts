@@ -21,6 +21,12 @@ import {
     InviteLinkTableName,
 } from '../database/entities/inviteLinks';
 import {
+    JobsTable,
+    JobsTableName,
+    JobStepsTable,
+    JobStepsTableName,
+} from '../database/entities/jobs';
+import {
     OnboardingTable,
     OnboardingTableName,
 } from '../database/entities/onboarding';
@@ -102,5 +108,7 @@ declare module 'knex/types/tables' {
         [PasswordLoginTableName]: PasswordLoginTable;
         [CachedExploresTableName]: CachedExploresTable;
         [CachedWarehouseTableName]: CachedWarehouseTable;
+        [JobsTableName]: JobsTable;
+        [JobStepsTableName]: JobStepsTable;
     }
 }

@@ -50,6 +50,7 @@ export type Job = {
 export type JobStep = {
     jobUuid: string;
     createdAt: Date;
+    updatedAt: Date;
     stepStatus: JobStepStatusType;
     stepType: JobStepType;
     stepLabel: string;

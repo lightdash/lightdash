@@ -17,6 +17,7 @@ export type DbJobSteps = {
     step_id: number;
     job_uuid: string;
     created_at: Date;
+    updated_at: Date;
     step_status: string;
     step_type: string;
     step_label: string;
