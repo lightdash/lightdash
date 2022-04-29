@@ -24,7 +24,7 @@ import {
 } from './HelpMenu.styles';
 
 const HelpMenu: FC = () => {
-    const { show } = useIntercom();
+    const { show: showIntercom } = useIntercom();
     const { track } = useTracking();
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -76,7 +76,7 @@ const HelpMenu: FC = () => {
                 interactionKind={PopoverInteractionKind.CLICK}
                 content={
                     <MenuWrapper>
-                        <ButtonWrapper onClick={() => show()}>
+                        <ButtonWrapper onClick={() => showIntercom()}>
                             <HelpItem>
                                 <IconContainer>
                                     <Icon icon="chat" />
