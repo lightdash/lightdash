@@ -12,7 +12,11 @@ export const ShowErrorsButton: React.FC<
     if (unreadLogs.length === 0) {
         return (
             <Button
-                style={{ marginRight: 20 }}
+                style={{
+                    marginRight: 20,
+                    whiteSpace: 'nowrap',
+                    minWidth: 'auto',
+                }}
                 minimal
                 icon="application"
                 text="Show error logs"
@@ -22,7 +26,7 @@ export const ShowErrorsButton: React.FC<
     }
     return (
         <Button
-            style={{ marginRight: 20 }}
+            style={{ marginRight: 20, whiteSpace: 'nowrap', minWidth: 'auto' }}
             minimal
             icon="error"
             text={`${unreadLogs.length} ${
