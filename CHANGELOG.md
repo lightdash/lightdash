@@ -1,3 +1,10 @@
+## [0.82.1](https://github.com/lightdash/lightdash/compare/0.82.0...0.82.1) (2022-04-29)
+
+
+### Bug Fixes
+
+* sync status updates ([#1919](https://github.com/lightdash/lightdash/issues/1919)) ([dc4c75f](https://github.com/lightdash/lightdash/commit/dc4c75ffd6c60a631177b8f4810a1c2a24764836))
+
 # [0.82.0](https://github.com/lightdash/lightdash/compare/0.81.0...0.82.0) (2022-04-29)
 
 
