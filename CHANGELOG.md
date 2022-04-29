@@ -1,3 +1,10 @@
+## [0.82.4](https://github.com/lightdash/lightdash/compare/0.82.3...0.82.4) (2022-04-29)
+
+
+### Bug Fixes
+
+* update placeholder ([#1958](https://github.com/lightdash/lightdash/issues/1958)) ([718ff2d](https://github.com/lightdash/lightdash/commit/718ff2df0b432ecca688885f0cdd3b5a7a0e73ec))
+
 ## [0.82.3](https://github.com/lightdash/lightdash/compare/0.82.2...0.82.3) (2022-04-29)
 
 

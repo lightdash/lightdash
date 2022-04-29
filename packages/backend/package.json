@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.82.3",
+    "version": "0.82.4",
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
@@ -51,7 +51,7 @@
         "ajv-formats": "^2.1.0",
         "bcrypt": "^5.0.1",
         "body-parser": "^1.19.0",
-        "common": "^0.82.3",
+        "common": "^0.82.4",
         "connect-flash": "^0.1.1",
         "connect-session-knex": "^2.1.0",
         "cookie-parser": "^1.4.5",
