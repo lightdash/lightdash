@@ -75,6 +75,7 @@ Sentry.init({
             app,
         }),
     ],
+    ignoreErrors: ['WarehouseQueryError'],
     tracesSampler,
 });
 app.use(
