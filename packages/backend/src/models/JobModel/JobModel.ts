@@ -106,15 +106,16 @@ export class JobModel {
         stepTypes: JobStepType[],
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
-            await stepTypes.forEach(async (step) => {
+            await stepTypes.reduce(async (previousPromise, step) => {
+                await previousPromise;
                 const stepLabel = JobLabels[step];
-                await trx(JobStepsTableName).insert({
+                return trx(JobStepsTableName).insert({
                     job_uuid: jobUuid,
                     step_status: JobStepStatusType.PENDING,
                     step_type: step,
                     step_label: stepLabel,
                 });
-            });
+            }, Promise.resolve());
         });
     }
 
@@ -134,8 +135,41 @@ export class JobModel {
         await this.database(JobsTableName)
             .update({
                 updated_at: new Date(),
-                job_status: JobStatusType.RUNNING, // TODO handle step error
+                job_status:
+                    stepStatus === JobStepStatusType.ERROR
+                        ? JobStatusType.ERROR
+                        : JobStatusType.RUNNING,
             })
             .where('job_uuid', jobUuid);
+    }
+
+    async tryJobStep<T>(
+        jobUuid: string,
+        jobStepType: JobStepType,
+        callback: () => Promise<T>,
+    ): Promise<T> {
+        try {
+            await this.updateJobStep(
+                jobUuid,
+                JobStepStatusType.RUNNING,
+                jobStepType,
+            );
+
+            const result = await callback();
+
+            await this.updateJobStep(
+                jobUuid,
+                JobStepStatusType.DONE,
+                jobStepType,
+            );
+            return result;
+        } catch (e) {
+            await this.updateJobStep(
+                jobUuid,
+                JobStepStatusType.ERROR,
+                jobStepType,
+            );
+            throw e; // throw the error again
+        }
     }
 }

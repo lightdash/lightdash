@@ -17,7 +17,6 @@ import {
     isFilterableDimension,
     Job,
     JobStatusType,
-    JobStepStatusType,
     JobStepType,
     MetricQuery,
     Project,
@@ -136,68 +135,35 @@ export class ProjectService {
             JobStepType.CREATING_PROJECT,
             JobStepType.CACHING,
         ]);
-
-        await this.jobModel.updateJobStep(
+        const adapter = await this.jobModel.tryJobStep(
             jobUuid,
-            JobStepStatusType.RUNNING,
             JobStepType.TESTING_ADAPTOR,
+            async () => ProjectService.testProjectAdapter(data),
         );
-        const adapter = await ProjectService.testProjectAdapter(data);
-        await this.jobModel.updateJobStep(
+        const explores = await this.jobModel.tryJobStep(
             jobUuid,
-            JobStepStatusType.DONE,
-            JobStepType.TESTING_ADAPTOR,
-        );
-        await this.jobModel.updateJobStep(
-            jobUuid,
-            JobStepStatusType.RUNNING,
             JobStepType.COMPILING,
+            async () => adapter.compileAllExplores(),
         );
 
-        const explores = await adapter.compileAllExplores();
-        await this.jobModel.updateJobStep(
+        const projectUuid = await this.jobModel.tryJobStep(
             jobUuid,
-            JobStepStatusType.DONE,
-            JobStepType.COMPILING,
-        );
-        await this.jobModel.updateJobStep(
-            jobUuid,
-            JobStepStatusType.RUNNING,
             JobStepType.CREATING_PROJECT,
+            async () => this.projectModel.create(
+                    user.organizationUuid,
+                    data,
+                ),
         );
 
-        const projectUuid = await this.projectModel.create(
-            user.organizationUuid,
-            data,
-        );
-        await this.jobModel.upsertJobStatus(
+        await this.jobModel.tryJobStep(
             jobUuid,
-            projectUuid,
-            JobStatusType.RUNNING,
-        );
-
-        await this.jobModel.updateJobStep(
-            jobUuid,
-            JobStepStatusType.DONE,
-            JobStepType.CREATING_PROJECT,
-        );
-        await this.jobModel.updateJobStep(
-            jobUuid,
-            JobStepStatusType.RUNNING,
             JobStepType.CACHING,
-        );
-
-        await this.projectModel.saveExploresToCache(projectUuid, explores);
-        await this.jobModel.updateJobStep(
-            jobUuid,
-            JobStepStatusType.DONE,
-            JobStepType.CACHING,
-        );
-
-        await this.jobModel.upsertJobStatus(
-            jobUuid,
-            projectUuid,
-            JobStatusType.DONE,
+            async () => {
+                await this.projectModel.saveExploresToCache(
+                    projectUuid,
+                    explores,
+                );
+            },
         );
 
         analytics.track({
