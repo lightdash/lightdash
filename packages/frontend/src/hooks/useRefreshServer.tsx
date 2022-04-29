@@ -76,7 +76,7 @@ const getJob = async (jobUuid: string) =>
 export const useGetRefreshData = (jobId: string | undefined) => {
     let activeJobId = jobId;
     return useQuery<Job, ApiError>({
-        queryKey: ['refresh'],
+        queryKey: ['refresh', jobId],
         queryFn: () => getJob(activeJobId || ''),
         enabled: !!activeJobId,
         refetchInterval: (data) => data?.jobStatus === 'RUNNING' && 500,
