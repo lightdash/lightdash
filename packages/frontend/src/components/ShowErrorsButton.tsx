@@ -1,6 +1,13 @@
 import { Button } from '@blueprintjs/core';
 import React from 'react';
+import styled from 'styled-components';
 import { ErrorLogs } from '../hooks/useErrorLogs';
+
+const ErrorsButton = styled(Button)`
+    margin-right: 20px;
+    white-space: nowrap;
+    min-width: auto;
+`;
 
 export const ShowErrorsButton: React.FC<
     Pick<ErrorLogs, 'errorLogs' | 'setErrorLogsVisible'>
@@ -11,12 +18,7 @@ export const ShowErrorsButton: React.FC<
     const unreadLogs = errorLogs.filter((log) => log.isUnread);
     if (unreadLogs.length === 0) {
         return (
-            <Button
-                style={{
-                    marginRight: 20,
-                    whiteSpace: 'nowrap',
-                    minWidth: 'auto',
-                }}
+            <ErrorsButton
                 minimal
                 icon="application"
                 text="Show error logs"
@@ -25,8 +27,7 @@ export const ShowErrorsButton: React.FC<
         );
     }
     return (
-        <Button
-            style={{ marginRight: 20, whiteSpace: 'nowrap', minWidth: 'auto' }}
+        <ErrorsButton
             minimal
             icon="error"
             text={`${unreadLogs.length} ${
