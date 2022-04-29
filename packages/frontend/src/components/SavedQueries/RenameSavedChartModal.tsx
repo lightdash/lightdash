@@ -1,7 +1,10 @@
-import { Button, Classes, Dialog, InputGroup, Intent } from '@blueprintjs/core';
-import React, { FC, useEffect, useState } from 'react';
+import { Button, Classes, Dialog, Intent } from '@blueprintjs/core';
+import { UpdateSavedChart } from 'common';
+import React, { FC, useCallback, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
 import { useSavedQuery, useUpdateMutation } from '../../hooks/useSavedQuery';
-import { FormGroupWrapper } from './SavedQueries.style';
+import Form from '../ReactHookForm/Form';
+import Input from '../ReactHookForm/Input';
 
 interface Props {
     savedChartUuid: string;
@@ -15,68 +18,71 @@ const RenameSavedChartModal: FC<Props> = ({
     isOpen,
     onClose,
 }) => {
-    const { data, isLoading } = useSavedQuery({ id: savedChartUuid });
+    const { data: savedChart, isLoading } = useSavedQuery({
+        id: savedChartUuid,
+    });
     const { mutate, isLoading: isSaving } = useUpdateMutation(savedChartUuid);
-    const [name, setName] = useState<string>('');
-    const [description, setDescription] = useState<string>();
+    const methods = useForm<UpdateSavedChart>({
+        mode: 'onSubmit',
+    });
+    const { setValue } = methods;
 
     useEffect(() => {
-        if (data) {
-            setName(data.name);
-            setDescription(data.description);
+        if (savedChart) {
+            setValue('name', savedChart?.name);
+            setValue('description', savedChart?.description);
         }
-    }, [data]);
+    }, [savedChart, setValue]);
+
+    const handleSubmit = useCallback(
+        (data: UpdateSavedChart) => {
+            mutate(data);
+            if (onClose) onClose();
+        },
+        [mutate, onClose],
+    );
 
     return (
-        <Dialog isOpen={isOpen} onClose={onClose} lazy title="Save chart">
-            <form>
+        <Dialog
+            isOpen={isOpen}
+            onClose={onClose}
+            lazy
+            title="Rename your chart"
+        >
+            <Form
+                name="rename_saved_chart"
+                methods={methods}
+                onSubmit={handleSubmit}
+            >
                 <div className={Classes.DIALOG_BODY}>
-                    <FormGroupWrapper
+                    <Input
                         label="Enter a memorable name for your chart"
-                        labelFor="chart-name"
-                    >
-                        <InputGroup
-                            id="chart-name"
-                            type="text"
-                            value={name}
-                            disabled={isLoading}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="eg. How many weekly active users do we have?"
-                        />
-                    </FormGroupWrapper>
-                    <FormGroupWrapper
+                        name="name"
+                        placeholder="eg. How many weekly active users do we have?"
+                        disabled={isLoading}
+                        rules={{
+                            required: 'Required field',
+                        }}
+                    />
+                    <Input
                         label="Chart description"
-                        labelFor="chart-description"
-                    >
-                        <InputGroup
-                            id="chart-description"
-                            type="text"
-                            value={description}
-                            disabled={isLoading}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="A few words to give your team some context"
-                        />
-                    </FormGroupWrapper>
+                        name="description"
+                        placeholder="A few words to give your team some context"
+                        disabled={isLoading}
+                    />
                 </div>
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>
                         <Button onClick={onClose}>Cancel</Button>
                         <Button
-                            data-cy="submit-base-modal"
                             intent={Intent.SUCCESS}
                             text="Save"
                             type="submit"
-                            onClick={(e) => {
-                                mutate({ name, description });
-
-                                if (onClose) onClose();
-                                e.preventDefault();
-                            }}
-                            disabled={isLoading || isSaving || !name}
+                            disabled={isLoading || isSaving}
                         />
                     </div>
                 </div>
-            </form>
+            </Form>
         </Dialog>
     );
 };
