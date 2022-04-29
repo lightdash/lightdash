@@ -141,6 +141,9 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                             selectedNodes={selectedNodes}
                             onSelectedNodeChange={onSelectedFieldChange}
                             onOpenSourceDialog={setSource}
+                            hasMultipleTables={
+                                Object.keys(explore.tables).length > 1
+                            }
                         />
                     ))}
             </div>
