@@ -1,3 +1,10 @@
+## [0.82.3](https://github.com/lightdash/lightdash/compare/0.82.2...0.82.3) (2022-04-29)
+
+
+### Bug Fixes
+
+* update colour to us spelling color ([#1953](https://github.com/lightdash/lightdash/issues/1953)) ([358166c](https://github.com/lightdash/lightdash/commit/358166cb3414cf7a21dc90470a7c9a2887698e76))
+
 ## [0.82.2](https://github.com/lightdash/lightdash/compare/0.82.1...0.82.2) (2022-04-29)
 
 
