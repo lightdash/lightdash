@@ -39,7 +39,7 @@ export const JobLabels = {
 
 export type Job = {
     jobUuid: string;
-    projectUuid: string;
+    projectUuid: string | undefined;
     createdAt: Date;
     updatedAt: Date;
     jobStatus: JobStatusType;

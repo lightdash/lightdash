@@ -83,7 +83,7 @@ export class JobModel {
     }
 
     async upsertJobStatus(
-        jobUuid: string | undefined,
+        jobUuid: string,
         projectUuid: string | undefined,
         status: JobStatusType,
     ): Promise<void> {
