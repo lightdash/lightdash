@@ -2,6 +2,7 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     countTotalFilterRules,
+    CreateJob,
     CreateProject,
     defineAbilityForOrganizationMember,
     Explore,
@@ -18,6 +19,7 @@ import {
     Job,
     JobStatusType,
     JobStepType,
+    JobType,
     MetricQuery,
     Project,
     ProjectCatalog,
@@ -58,8 +60,6 @@ export class ProjectService {
 
     onboardingModel: OnboardingModel;
 
-    projectLoading: Record<string, boolean>;
-
     projectAdapters: Record<string, ProjectAdapter>;
 
     savedChartModel: SavedChartModel;
@@ -75,30 +75,8 @@ export class ProjectService {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
         this.projectAdapters = {};
-        this.projectLoading = {};
         this.savedChartModel = savedChartModel;
         this.jobModel = jobModel;
-    }
-
-    async getProjectStatus(
-        projectUuid: string,
-        user: SessionUser,
-    ): Promise<'loading' | 'error' | 'ready'> {
-        // check access
-        const { [projectUuid]: isLoading = false } = this.projectLoading;
-        if (isLoading) {
-            return 'loading';
-        }
-        const explore = this.projectModel.getExploresFromCache(projectUuid);
-        if (explore === undefined) {
-            return 'error';
-        }
-        try {
-            await explore;
-        } catch (e) {
-            return 'error';
-        }
-        return 'ready';
     }
 
     async hasProject(): Promise<boolean> {
@@ -111,79 +89,87 @@ export class ProjectService {
         return project;
     }
 
-    async create(user: SessionUser, data: CreateProject): Promise<Project> {
+    async create(
+        user: SessionUser,
+        data: CreateProject,
+    ): Promise<{ jobUuid: string }> {
         if (user.ability.cannot('create', 'Project')) {
             throw new ForbiddenError();
         }
 
-        const jobUuid = await this.startJob(undefined);
+        const job: CreateJob = {
+            jobUuid: uuidv4(),
+            jobType: JobType.CREATE_PROJECT,
+            jobStatus: JobStatusType.STARTED,
+            projectUuid: undefined,
+            steps: [
+                { stepType: JobStepType.TESTING_ADAPTOR },
+                { stepType: JobStepType.COMPILING },
+                { stepType: JobStepType.CREATING_PROJECT },
+            ],
+        };
 
-        const project = await this.createProject(user, data, jobUuid);
+        const doAsyncWork = async () => {
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.RUNNING,
+            });
+            const adapter = await this.jobModel.tryJobStep(
+                job.jobUuid,
+                JobStepType.TESTING_ADAPTOR,
+                async () => ProjectService.testProjectAdapter(data),
+            );
 
-        return project;
-    }
+            const explores = await this.jobModel.tryJobStep(
+                job.jobUuid,
+                JobStepType.COMPILING,
+                async () => adapter.compileAllExplores(),
+            );
 
-    async createProject(
-        user: SessionUser,
-        data: CreateProject,
-        jobUuid: string,
-    ): Promise<Project> {
-        // Initialize job steps
-        await this.jobModel.createJobSteps(jobUuid, [
-            JobStepType.TESTING_ADAPTOR,
-            JobStepType.COMPILING,
-            JobStepType.CREATING_PROJECT,
-            JobStepType.CACHING,
-        ]);
-        const adapter = await this.jobModel.tryJobStep(
-            jobUuid,
-            JobStepType.TESTING_ADAPTOR,
-            async () => ProjectService.testProjectAdapter(data),
-        );
-        const explores = await this.jobModel.tryJobStep(
-            jobUuid,
-            JobStepType.COMPILING,
-            async () => adapter.compileAllExplores(),
-        );
+            const projectUuid = await this.jobModel.tryJobStep(
+                job.jobUuid,
+                JobStepType.CREATING_PROJECT,
+                async () =>
+                    this.projectModel.create(user.organizationUuid, data),
+            );
+            await this.projectModel.saveExploresToCache(projectUuid, explores);
 
-        const projectUuid = await this.jobModel.tryJobStep(
-            jobUuid,
-            JobStepType.CREATING_PROJECT,
-            async () => this.projectModel.create(user.organizationUuid, data),
-        );
+            // do we still need project adapters?
+            this.projectAdapters[projectUuid] = adapter;
 
-        await this.jobModel.tryJobStep(
-            jobUuid,
-            JobStepType.CACHING,
-            async () => {
-                await this.projectModel.saveExploresToCache(
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.DONE,
+                jobResults: {
                     projectUuid,
-                    explores,
-                );
-            },
-        );
+                },
+            });
 
-        await this.jobModel.upsertJobStatus(
-            jobUuid,
-            projectUuid,
-            JobStatusType.DONE,
-        );
+            analytics.track({
+                event: 'project.created',
+                userId: user.userUuid,
+                properties: {
+                    projectName: data.name,
+                    projectId: projectUuid,
+                    projectType: data.dbtConnection.type,
+                    warehouseConnectionType: data.warehouseConnection.type,
+                    organizationId: user.organizationUuid,
+                    dbtConnectionType: data.dbtConnection.type,
+                },
+            });
+            this.projectAdapters[projectUuid] = adapter;
+        };
 
-        analytics.track({
-            event: 'project.created',
-            userId: user.userUuid,
-            properties: {
-                projectName: data.name,
-                projectId: projectUuid,
-                projectType: data.dbtConnection.type,
-                warehouseConnectionType: data.warehouseConnection.type,
-                organizationId: user.organizationUuid,
-                dbtConnectionType: data.dbtConnection.type,
-            },
-        });
-        this.projectLoading[projectUuid] = false;
-        this.projectAdapters[projectUuid] = adapter;
-        return this.getProject(projectUuid, user);
+        await this.jobModel.create(job);
+        doAsyncWork()
+            .catch(async (e) => {
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.ERROR,
+                });
+                throw e;
+            })
+            .catch((e) => Logger.error(`Error running background job: ${e}`));
+        return {
+            jobUuid: job.jobUuid,
+        };
     }
 
     async update(
@@ -203,8 +189,6 @@ export class ProjectService {
             savedProject,
         );
 
-        this.projectLoading[projectUuid] = true;
-
         const adapter = await ProjectService.testProjectAdapter(updatedProject);
         await this.projectModel.update(projectUuid, updatedProject);
         analytics.track({
@@ -220,7 +204,6 @@ export class ProjectService {
                 dbtConnectionType: data.dbtConnection.type,
             },
         });
-        this.projectLoading[projectUuid] = false;
         this.projectAdapters[projectUuid] = adapter;
     }
 
@@ -262,7 +245,6 @@ export class ProjectService {
         if (runningAdapter !== undefined) {
             await runningAdapter.destroy();
         }
-        this.projectLoading[projectUuid] = false;
         delete this.projectAdapters[projectUuid];
     }
 
@@ -404,7 +386,6 @@ export class ProjectService {
 
         // Force refresh adapter (refetch git repos, check for changed credentials, etc.)
         // Might want to cache parts of this in future if slow
-        this.projectLoading[projectUuid] = true;
         const adapter = await this.restartAdapter(projectUuid);
         const packages = await adapter.getDbtPackages();
         try {
@@ -495,8 +476,6 @@ export class ProjectService {
                 },
             });
             throw errorResponse;
-        } finally {
-            this.projectLoading[projectUuid] = false;
         }
     }
 
@@ -507,48 +486,53 @@ export class ProjectService {
     }
 
     async getJobStatus(jobUuid: string): Promise<Job> {
-        return this.jobModel.getJobstatus(jobUuid);
+        return this.jobModel.get(jobUuid);
     }
 
-    async startJob(projectUuid: string | undefined): Promise<string> {
-        const jobUuid = uuidv4();
-
-        await this.jobModel.upsertJobStatus(
-            jobUuid,
-            projectUuid,
-            JobStatusType.STARTED,
-        );
-
-        return jobUuid;
-    }
-
-    async getAllExplores(
+    async compileProject(
         user: SessionUser,
         projectUuid: string,
-        jobUuid?: string,
-        forceRefresh: boolean = false,
-    ): Promise<(Explore | ExploreError)[]> {
-        const cachedExplores = await this.projectModel.getExploresFromCache(
+    ): Promise<{ jobUuid: string }> {
+        const job: CreateJob = {
+            jobUuid: uuidv4(),
+            jobType: JobType.COMPILE_PROJECT,
+            jobStatus: JobStatusType.STARTED,
             projectUuid,
-        );
-        if (!cachedExplores || cachedExplores.length === 0 || forceRefresh) {
-            await this.projectModel.tryWithProjectLock(
-                projectUuid,
-                jobUuid || uuidv4(),
-                this.jobModel,
-                async () => {
-                    const explores = await this.refreshAllTables(
-                        user,
-                        projectUuid,
+            steps: [{ stepType: JobStepType.COMPILING }],
+        };
+        return new Promise<{ jobUuid: string }>((resolve, reject) => {
+            const onLockFailed = async () => {
+                reject(new Error('Project is already compiling'));
+            };
+            const onLockAcquired = async () => {
+                await this.jobModel.create(job);
+                resolve({ jobUuid: job.jobUuid });
+                try {
+                    await this.jobModel.update(job.jobUuid, {
+                        jobStatus: JobStatusType.RUNNING,
+                    });
+                    const explores = await this.jobModel.tryJobStep(
+                        job.jobUuid,
+                        JobStepType.COMPILING,
+                        async () => this.refreshAllTables(user, projectUuid),
                     );
                     await this.projectModel.saveExploresToCache(
                         projectUuid,
                         explores,
                     );
-                },
-            );
-        }
-        return cachedExplores || [];
+                    await this.jobModel.update(job.jobUuid, {
+                        jobStatus: JobStatusType.DONE,
+                    });
+                } catch (e) {
+                    await this.jobModel.update(job.jobUuid, {
+                        jobStatus: JobStatusType.ERROR,
+                    });
+                }
+            };
+            this.projectModel
+                .tryWithProjectLock(projectUuid, onLockAcquired, onLockFailed)
+                .catch((e) => Logger.error(`Background job failed: ${e}`));
+        });
     }
 
     async getAllExploresSummary(
@@ -556,7 +540,12 @@ export class ProjectService {
         projectUuid: string,
         filtered: boolean,
     ): Promise<SummaryExplore[]> {
-        const explores = await this.getAllExplores(user, projectUuid);
+        const explores = await this.projectModel.getExploresFromCache(
+            projectUuid,
+        );
+        if (!explores) {
+            return [];
+        }
         const allExploreSummaries = explores.map<SummaryExplore>((explore) => {
             if (isExploreError(explore)) {
                 return {
@@ -596,7 +585,8 @@ export class ProjectService {
         projectUuid: string,
         exploreName: string,
     ): Promise<Explore> {
-        const explores = await this.getAllExplores(user, projectUuid);
+        const explores =
+            (await this.projectModel.getExploresFromCache(projectUuid)) || [];
         const explore = explores.find((t) => t.name === exploreName);
         if (explore === undefined || isExploreError(explore)) {
             throw new NotExistsError(
@@ -610,9 +600,11 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ProjectCatalog> {
-        const explores = await this.getAllExplores(user, projectUuid);
+        const explores = await this.projectModel.getExploresFromCache(
+            projectUuid,
+        );
 
-        return explores.reduce<ProjectCatalog>((acc, explore) => {
+        return (explores || []).reduce<ProjectCatalog>((acc, explore) => {
             if (!isExploreError(explore)) {
                 Object.values(explore.tables).forEach(
                     ({ database, schema, name, description, sqlTable }) => {

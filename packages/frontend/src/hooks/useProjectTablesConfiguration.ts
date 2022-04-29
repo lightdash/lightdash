@@ -44,7 +44,7 @@ export const useUpdateProjectTablesConfiguration = (projectUuid: string) => {
                     data,
                 );
                 showToastSuccess({
-                    title: `Success! Tables configuration saved with success.`,
+                    title: `Saved project configuration`,
                 });
             },
             onError: (error) => {

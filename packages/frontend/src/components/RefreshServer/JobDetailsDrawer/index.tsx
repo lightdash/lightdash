@@ -1,7 +1,10 @@
 import { Classes, Drawer, Icon, Position } from '@blueprintjs/core';
+import { JobStep, JobStepStatusType } from 'common';
+import moment from 'moment';
 import React, { FC } from 'react';
 import {
-    refreshStatusInfo,
+    jobStatusLabel,
+    jobStepStatusLabel,
     runningStepsInfo,
 } from '../../../hooks/useRefreshServer';
 import { useApp } from '../../../providers/AppProvider';
@@ -18,6 +21,34 @@ import {
     StepStatusWrapper,
     StepsWrapper,
 } from './JobDetailsDrawer.styles';
+
+const durationSince = (
+    startTime: Date,
+    endTime: Date | undefined = undefined,
+) => {
+    return moment
+        .utc(
+            moment
+                .duration(moment(endTime).diff(moment(startTime)))
+                .asMilliseconds(),
+        )
+        .format('HH:mm:ss');
+};
+
+const jobStepDuration = (jobStep: JobStep): string | null => {
+    switch (jobStep.stepStatus) {
+        case JobStepStatusType.ERROR:
+        case JobStepStatusType.DONE:
+            return durationSince(
+                jobStep.startedAt || jobStep.updatedAt,
+                jobStep.updatedAt,
+            );
+        case JobStepStatusType.RUNNING:
+            return durationSince(jobStep.startedAt || jobStep.updatedAt);
+        default:
+            return null;
+    }
+};
 
 const JobDetailsDrawer: FC = () => {
     const { isJobsDrawerOpen, setIsJobsDrawerOpen, activeJob } = useApp();
@@ -42,18 +73,22 @@ const JobDetailsDrawer: FC = () => {
             title={
                 <RefreshStepsHeadingWrapper className={Classes.DIALOG_HEADER}>
                     <Icon
-                        icon={refreshStatusInfo(activeJob?.jobStatus).icon}
+                        icon={jobStatusLabel(activeJob?.jobStatus).icon}
                         size={18}
                     />
                     <div>
                         <RefreshStepsTitle>
-                            {refreshStatusInfo(activeJob?.jobStatus).title}
+                            {jobStatusLabel(activeJob?.jobStatus).label}
                         </RefreshStepsTitle>
                         {hasSteps && (
                             <StepsCompletionOverview>{`${
                                 runningStepsInfo(activeJob?.steps)
                                     .numberOfCompletedSteps
-                            } steps complete `}</StepsCompletionOverview>
+                            }/${
+                                runningStepsInfo(activeJob?.steps).totalSteps
+                            } steps complete - ${durationSince(
+                                activeJob?.createdAt,
+                            )}`}</StepsCompletionOverview>
                         )}
                     </div>
                 </RefreshStepsHeadingWrapper>
@@ -61,35 +96,27 @@ const JobDetailsDrawer: FC = () => {
             position={Position.RIGHT}
         >
             <StepsWrapper>
-                {activeJob?.steps?.map((step: any) => (
+                {activeJob?.steps?.map((step) => (
                     <Step status={step.stepStatus}>
                         <StepIcon
                             icon={
                                 step.stepStatus !== 'PENDING'
-                                    ? refreshStatusInfo(step.stepStatus).icon
+                                    ? jobStepStatusLabel(step.stepStatus).icon
                                     : null
                             }
                             status={step.stepStatus}
                         />
                         <StepInfo>
-                            <StepName>{step.name}</StepName>
+                            <StepName>{step.stepLabel}</StepName>
                             <StepStatusWrapper>
                                 <StepStatus status={step.stepStatus}>
-                                    {refreshStatusInfo(step.stepStatus).status}{' '}
+                                    {jobStepStatusLabel(step.stepStatus).label}{' '}
                                 </StepStatus>
-
-                                {step.stepStatus !== 'ERROR'
-                                    ? step.stepStatus !== 'PENDING'
-                                        ? step.createdAt
-                                        : null
-                                    : null}
+                                {jobStepDuration(step)}
                             </StepStatusWrapper>
-                            {step.error && (
+                            {step.stepError && (
                                 <ErrorMessageWrapper>
-                                    <p>
-                                        {step.error.name}
-                                        <br /> {step.error.message}
-                                    </p>
+                                    <p>{step.stepError}</p>
                                 </ErrorMessageWrapper>
                             )}
                         </StepInfo>

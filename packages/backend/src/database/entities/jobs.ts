@@ -1,4 +1,4 @@
-import { JobStatusType, JobStepStatusType, JobStepType } from 'common';
+import { Job, JobStatusType, JobStepStatusType, JobStepType } from 'common';
 import { Knex } from 'knex';
 
 export const JobsTableName = 'jobs';
@@ -10,14 +10,28 @@ export type DbJobs = {
     created_at: Date;
     updated_at: Date;
     job_status: JobStatusType;
+    job_type: Job['jobType'];
+    results?: Job['jobResults'];
 };
 
-type UpdateJob = Pick<
+type CreateJob = Pick<
     DbJobs,
-    'project_uuid' | 'job_uuid' | 'job_status' | 'updated_at'
+    'project_uuid' | 'job_uuid' | 'job_status' | 'job_type'
 >;
 
-export type JobsTable = Knex.CompositeTableType<DbJobs, UpdateJob>;
+type UpdateJob = Partial<
+    Pick<
+        DbJobs,
+        | 'project_uuid'
+        | 'job_uuid'
+        | 'job_status'
+        | 'updated_at'
+        | 'results'
+        | 'job_type'
+    >
+>;
+
+export type JobsTable = Knex.CompositeTableType<DbJobs, CreateJob, UpdateJob>;
 
 export type DbJobSteps = {
     step_id: number;
@@ -27,16 +41,13 @@ export type DbJobSteps = {
     step_status: JobStepStatusType;
     step_type: JobStepType;
     step_error: string | undefined;
+    started_at: Date | undefined;
 };
 
-type CreateJobStep = Pick<
-    DbJobSteps,
-    'job_uuid' | 'step_status' | 'step_type' | 'step_error'
->;
+type CreateJobStep = Pick<DbJobSteps, 'job_uuid' | 'step_status' | 'step_type'>;
 
-type UpdateJobStep = Pick<
-    DbJobSteps,
-    'step_status' | 'updated_at' | 'step_error'
+type UpdateJobStep = Partial<
+    Pick<DbJobSteps, 'step_status' | 'updated_at' | 'step_error' | 'started_at'>
 >;
 
 export type JobStepsTable = Knex.CompositeTableType<

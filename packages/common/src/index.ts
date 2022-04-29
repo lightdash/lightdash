@@ -498,6 +498,10 @@ export type ApiRefreshResults = {
     jobUuid: string;
 };
 
+export type ApiJobStartedResults = {
+    jobUuid: string;
+};
+
 export type CreateUserArgs = {
     firstName: string;
     lastName: string;
@@ -626,7 +630,8 @@ type ApiResults =
     | OpenIdIdentitySummary[]
     | FilterableField[]
     | ProjectSavedChartStatus
-    | undefined;
+    | undefined
+    | ApiJobStartedResults;
 
 export type ApiResponse = {
     status: 'ok';

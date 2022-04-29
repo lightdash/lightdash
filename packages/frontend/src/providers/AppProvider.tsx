@@ -10,6 +10,7 @@ import {
     defineAbilityForOrganizationMember,
     HealthState,
     Job,
+    JobType,
     LightdashUser,
     OrganizationMemberAbility,
 } from 'common';
@@ -23,14 +24,14 @@ import React, {
     useEffect,
     useState,
 } from 'react';
-import { useQuery } from 'react-query';
+import { useQuery, useQueryClient } from 'react-query';
 import { UseQueryResult } from 'react-query/types/react/types';
 import { IntercomProvider } from 'react-use-intercom';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';
 import { ErrorLogs, useErrorLogs } from '../hooks/useErrorLogs';
 import {
-    refreshStatusInfo,
+    jobStatusLabel,
     runningStepsInfo,
     TOAST_KEY_FOR_REFRESH_JOB,
     useJob,
@@ -81,6 +82,8 @@ export const AppProvider: FC = ({ children }) => {
     const [isCohereLoaded, setIsCohereLoaded] = useState(false);
     const [isJobsDrawerOpen, setIsJobsDrawerOpen] = useState(false);
     const [activeJobId, setActiveJobId] = useState();
+    const queryClient = useQueryClient();
+
     const health = useQuery<HealthState, ApiError>({
         queryKey: 'health',
         queryFn: getHealthState,
@@ -188,12 +191,17 @@ export const AppProvider: FC = ({ children }) => {
 
     const activeJobStatusToast = useCallback(() => {
         if (activeJob) {
-            const toastTitle = `${
-                refreshStatusInfo(activeJob?.jobStatus).title
-            }`;
+            const toastTitle = `${jobStatusLabel(activeJob?.jobStatus).label}`;
             const hasSteps = !!activeJob.steps.length;
             switch (activeJob.jobStatus) {
                 case 'DONE':
+                    if (activeJob.jobType === JobType.CREATE_PROJECT) {
+                        queryClient.invalidateQueries(['projects']);
+                        queryClient.invalidateQueries([
+                            'projects',
+                            'defaultProject',
+                        ]);
+                    }
                     showToastSuccess({
                         key: TOAST_KEY_FOR_REFRESH_JOB,
                         title: toastTitle,
@@ -203,22 +211,17 @@ export const AppProvider: FC = ({ children }) => {
                     showToastInfo({
                         key: TOAST_KEY_FOR_REFRESH_JOB,
                         title: toastTitle,
-                        subtitle: hasSteps
-                            ? `Steps ${
-                                  runningStepsInfo(activeJob?.steps)
-                                      .completedStepsMessage
-                              }: ${
-                                  runningStepsInfo(activeJob?.steps).runningStep
-                              }`
+                        subtitle: activeJob?.steps
+                            ? runningStepsInfo(activeJob?.steps)
+                                  .runningStepMessage
                             : '',
-                        icon: `${refreshStatusInfo(activeJob?.jobStatus).icon}`,
+                        icon: `${jobStatusLabel(activeJob?.jobStatus).icon}`,
                         timeout: 0,
-                        // TO BE UNCOMMENTED WHEN STEPS ARE IMPLEMENTED ON THE BE
-                        // action: {
-                        //     text: 'View log ',
-                        //     icon: 'arrow-right',
-                        //     onClick: () => setIsJobsDrawerOpen(true),
-                        // },
+                        action: {
+                            text: 'View log',
+                            icon: 'arrow-right',
+                            onClick: () => setIsJobsDrawerOpen(true),
+                        },
                     });
                     break;
                 case 'ERROR':
@@ -226,6 +229,7 @@ export const AppProvider: FC = ({ children }) => {
                         key: TOAST_KEY_FOR_REFRESH_JOB,
                         title: toastTitle,
                     });
+                    setIsJobsDrawerOpen(true);
             }
         }
         if (error) {
@@ -235,7 +239,14 @@ export const AppProvider: FC = ({ children }) => {
                 subtitle: error.error.message,
             });
         }
-    }, [activeJob, error, showToastError, showToastInfo, showToastSuccess]);
+    }, [
+        activeJob,
+        error,
+        showToastError,
+        showToastInfo,
+        showToastSuccess,
+        queryClient,
+    ]);
 
     useEffect(() => {
         if (activeJobId && activeJob) {
@@ -244,7 +255,7 @@ export const AppProvider: FC = ({ children }) => {
     }, [activeJob, activeJobId, activeJobStatusToast]);
 
     const activeJobIsRunning = activeJob && activeJob?.jobStatus === 'RUNNING';
-
+    console.log('activeJobIsRunning', activeJobIsRunning);
     const errorLogs = useErrorLogs();
 
     const value = {

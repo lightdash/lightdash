@@ -241,16 +241,10 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
 
 export const CreateProjectConnection: FC = () => {
     const history = useHistory();
-    const { user, health } = useApp();
+    const { user, health, activeJobIsRunning, activeJob } = useApp();
     const onError = useOnProjectError();
     const createMutation = useCreateMutation();
-    const {
-        isLoading: isSaving,
-        mutateAsync,
-        isIdle,
-        isSuccess,
-        data,
-    } = createMutation;
+    const { isLoading: isSaving, mutateAsync } = createMutation;
     const methods = useForm<ProjectConnectionForm>({
         shouldUnregister: true,
         defaultValues: {
@@ -285,23 +279,23 @@ export const CreateProjectConnection: FC = () => {
             <ProjectFormProvider>
                 <ProjectForm
                     showGeneralSettings={!health.data?.needsProject}
-                    disabled={isSaving || isSuccess}
+                    disabled={isSaving || !!activeJobIsRunning}
                     defaultType={health.data?.defaultProject?.type}
                 />
             </ProjectFormProvider>
-            {!isIdle && (
-                <ProjectStatusCallout
-                    style={{ marginBottom: '20px' }}
-                    mutation={createMutation}
-                />
-            )}
-            {isSuccess ? (
+            {/*{activeJobIsRunning && (*/}
+            {/*    <ProjectStatusCallout*/}
+            {/*        style={{ marginBottom: '20px' }}*/}
+            {/*        mutation={createMutation}*/}
+            {/*    />*/}
+            {/*)}*/}
+            {activeJob?.jobResults?.projectUuid ? (
                 <Button
                     intent={Intent.PRIMARY}
                     text="Next"
                     onClick={async () => {
                         history.push({
-                            pathname: `/createProjectSettings/${data?.projectUuid}`,
+                            pathname: `/createProjectSettings/${activeJob?.jobResults?.projectUuid}`,
                         });
                     }}
                     style={{ float: 'right' }}
@@ -310,8 +304,8 @@ export const CreateProjectConnection: FC = () => {
                 <Button
                     type="submit"
                     intent={Intent.PRIMARY}
-                    text="Test & save connection"
-                    loading={isSaving}
+                    text="Test and compile project"
+                    loading={isSaving || activeJobIsRunning}
                     style={{ float: 'right' }}
                 />
             )}
