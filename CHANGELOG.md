@@ -1,3 +1,10 @@
+## [0.82.2](https://github.com/lightdash/lightdash/compare/0.82.1...0.82.2) (2022-04-29)
+
+
+### Bug Fixes
+
+* remove options button from the explorer header ([#1951](https://github.com/lightdash/lightdash/issues/1951)) ([b9e449c](https://github.com/lightdash/lightdash/commit/b9e449c37b12fc032707773c02d8ba6a5842a28c))
+
 ## [0.82.1](https://github.com/lightdash/lightdash/compare/0.82.0...0.82.1) (2022-04-29)
 
 
