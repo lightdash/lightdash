@@ -1229,22 +1229,12 @@ export function getFieldMap(
     explore: Explore,
     additionalMetrics: AdditionalMetric[] = [],
 ): Record<string, Pick<CompiledField, 'format' | 'round'>> {
-    const additionalMetricFields = additionalMetrics.reduce(
-        (acc, additionalMetric) => ({
-            ...acc,
-            [fieldId(additionalMetric)]: {
-                format: additionalMetric.format,
-                round: additionalMetric.round,
-            },
-        }),
-        {},
-    );
-    return getFields(explore).reduce(
+    return [...getFields(explore), ...additionalMetrics].reduce(
         (sum, field) => ({
             ...sum,
             [fieldId(field)]: { format: field.format, round: field.round },
         }),
-        additionalMetricFields,
+        {},
     ); // e.g { 'my_table_my_dimension': {format: 'usd', round: 1} }}
 }
 
