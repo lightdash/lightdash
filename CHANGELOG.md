@@ -1,3 +1,10 @@
+# [0.83.0](https://github.com/lightdash/lightdash/compare/0.82.4...0.83.0) (2022-04-29)
+
+
+### Features
+
+* show action button on selected metric/dimensions! ([#1945](https://github.com/lightdash/lightdash/issues/1945)) ([bef4e5c](https://github.com/lightdash/lightdash/commit/bef4e5c5dab412a95dddc7d8f47abfe0ab2eec89))
+
 ## [0.82.4](https://github.com/lightdash/lightdash/compare/0.82.3...0.82.4) (2022-04-29)
 
 
