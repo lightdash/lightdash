@@ -17,9 +17,9 @@ import {
     StepStatus,
     StepStatusWrapper,
     StepsWrapper,
-} from './RefreshStepsModal.styles';
+} from './JobDetailsDrawer.styles';
 
-const RefreshStepsModal: FC = () => {
+const JobDetailsDrawer: FC = () => {
     const { isJobsDrawerOpen, setIsJobsDrawerOpen, activeJob } = useApp();
 
     if (!activeJob) {
@@ -100,4 +100,4 @@ const RefreshStepsModal: FC = () => {
     );
 };
 
-export default RefreshStepsModal;
+export default JobDetailsDrawer;

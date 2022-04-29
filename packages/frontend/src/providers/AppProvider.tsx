@@ -32,7 +32,7 @@ import {
     refreshStatusInfo,
     runningStepsInfo,
     TOAST_KEY_FOR_REFRESH_JOB,
-    useGetRefreshData,
+    useJob,
 } from '../hooks/useRefreshServer';
 
 const getHealthState = async () =>
@@ -66,6 +66,7 @@ interface AppContext {
     activeJobId: string | undefined;
     setActiveJobId: Dispatch<SetStateAction<any>>;
     activeJob: Job | undefined;
+    activeJobIsRunning: boolean | undefined;
     showToastSuccess: (props: Message) => void;
     showToastError: (props: Message) => void;
     showToastInfo: (props: Message) => void;
@@ -213,45 +214,66 @@ export const AppProvider: FC = ({ children }) => {
     );
 
     // DBT refresh
-    const { data: activeJob } = useGetRefreshData(activeJobId);
+    const { data: activeJob, error } = useJob(activeJobId);
 
-    if (activeJob) {
-        const toastTitle = `${refreshStatusInfo(activeJob?.jobStatus).title}`;
-        const hasSteps = !!activeJob.steps.length;
-        switch (activeJob.jobStatus) {
-            case 'DONE':
-                showToastSuccess({
-                    key: TOAST_KEY_FOR_REFRESH_JOB,
-                    title: toastTitle,
-                });
-                break;
-            case 'RUNNING':
-                showToastInfo({
-                    key: TOAST_KEY_FOR_REFRESH_JOB,
-                    title: toastTitle,
-                    subtitle: hasSteps
-                        ? `Steps ${
-                              runningStepsInfo(activeJob?.steps)
-                                  .completedStepsMessage
-                          }: ${runningStepsInfo(activeJob?.steps).runningStep}`
-                        : '',
-                    icon: `${refreshStatusInfo(activeJob?.jobStatus).icon}`,
-                    timeout: 0,
-                    // TO BE UNCOMMENTED WHEN STEPS ARE IMPLEMENTED ON THE BE
-                    // action: {
-                    //     text: 'View log ',
-                    //     icon: 'arrow-right',
-                    //     onClick: () => setIsJobsDrawerOpen(true),
-                    // },
-                });
-                break;
-            case 'ERROR':
-                showToastError({
-                    key: TOAST_KEY_FOR_REFRESH_JOB,
-                    title: toastTitle,
-                });
+    const activeJobStatusToast = useCallback(() => {
+        if (activeJob) {
+            const toastTitle = `${
+                refreshStatusInfo(activeJob?.jobStatus).title
+            }`;
+            const hasSteps = !!activeJob.steps.length;
+            switch (activeJob.jobStatus) {
+                case 'DONE':
+                    showToastSuccess({
+                        key: TOAST_KEY_FOR_REFRESH_JOB,
+                        title: toastTitle,
+                    });
+                    break;
+                case 'RUNNING':
+                    showToastInfo({
+                        key: TOAST_KEY_FOR_REFRESH_JOB,
+                        title: toastTitle,
+                        subtitle: hasSteps
+                            ? `Steps ${
+                                  runningStepsInfo(activeJob?.steps)
+                                      .completedStepsMessage
+                              }: ${
+                                  runningStepsInfo(activeJob?.steps).runningStep
+                              }`
+                            : '',
+                        icon: `${refreshStatusInfo(activeJob?.jobStatus).icon}`,
+                        timeout: 0,
+                        // TO BE UNCOMMENTED WHEN STEPS ARE IMPLEMENTED ON THE BE
+                        // action: {
+                        //     text: 'View log ',
+                        //     icon: 'arrow-right',
+                        //     onClick: () => setIsJobsDrawerOpen(true),
+                        // },
+                    });
+                    break;
+                case 'ERROR':
+                    showToastError({
+                        key: TOAST_KEY_FOR_REFRESH_JOB,
+                        title: toastTitle,
+                    });
+            }
         }
-    }
+        if (error) {
+            showToastError({
+                key: TOAST_KEY_FOR_REFRESH_JOB,
+                title: 'Failed to refresh server',
+                subtitle: error.error.message,
+            });
+        }
+    }, [activeJob, error, showToastError, showToastInfo, showToastSuccess]);
+
+    useEffect(() => {
+        if (activeJobId && activeJob) {
+            activeJobStatusToast();
+        }
+    }, [activeJob, activeJobId, activeJobStatusToast]);
+
+    const activeJobIsRunning = activeJob && activeJob?.jobStatus === 'RUNNING';
 
     const errorLogs = useErrorLogs();
 
@@ -266,6 +288,7 @@ export const AppProvider: FC = ({ children }) => {
         activeJobId,
         setActiveJobId,
         activeJob,
+        activeJobIsRunning,
         errorLogs,
     };
 
