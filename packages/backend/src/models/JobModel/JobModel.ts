@@ -174,7 +174,9 @@ export class JobModel {
         } catch (e) {
             const formatJobErrorMessage = (error: unknown) => {
                 if (error instanceof LightdashError) {
-                    return `${error.name}: ${error.message} \n ${error.data}`;
+                    return `${error.name}: ${error.message} \n ${
+                        error.data ? JSON.stringify(error.data) : ''
+                    }`;
                 }
                 return `${error}`;
             };
