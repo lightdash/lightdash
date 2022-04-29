@@ -1,3 +1,10 @@
+# [0.81.0](https://github.com/lightdash/lightdash/compare/0.80.0...0.81.0) (2022-04-29)
+
+
+### Features
+
+* job steps ([#1925](https://github.com/lightdash/lightdash/issues/1925)) ([e37585f](https://github.com/lightdash/lightdash/commit/e37585ff00715dea9327ec77ccb300c790cdbc8b))
+
 # [0.80.0](https://github.com/lightdash/lightdash/compare/0.79.0...0.80.0) (2022-04-29)
 
 
