@@ -1,4 +1,4 @@
-import { Classes } from '@blueprintjs/core';
+import { Button, Classes } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, useState } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -9,12 +9,7 @@ import { SectionName } from '../../../types/Events';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshServerButton from '../../RefreshServer';
 import RenameSavedChartModal from '../../SavedQueries/RenameSavedChartModal';
-import {
-    ChartButton,
-    ChartName,
-    TitleWrapper,
-    Wrapper,
-} from './ExploreHeader.styles';
+import { ChartName, TitleWrapper, Wrapper } from './ExploreHeader.styles';
 
 const ExploreHeader: FC = () => {
     const location = useLocation<
@@ -47,10 +42,10 @@ const ExploreHeader: FC = () => {
                                     content={savedChart.description}
                                     position="bottom"
                                 >
-                                    <ChartButton icon="info-sign" minimal />
+                                    <Button icon="info-sign" minimal />
                                 </Tooltip2>
                             )}
-                            <ChartButton
+                            <Button
                                 icon="edit"
                                 disabled={updateSavedChart.isLoading}
                                 onClick={() => setIsRenamingChart(true)}

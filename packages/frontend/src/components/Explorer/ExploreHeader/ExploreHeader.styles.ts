@@ -1,4 +1,4 @@
-import { Button, H3 } from '@blueprintjs/core';
+import { H3 } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const Wrapper = styled.div`
@@ -18,9 +18,5 @@ export const TitleWrapper = styled.div`
 `;
 
 export const ChartName = styled(H3)`
-    margin: 0;
-`;
-
-export const ChartButton = styled(Button)`
-    margin-left: 5px;
+    margin: 0 5px 0 0;
 `;
