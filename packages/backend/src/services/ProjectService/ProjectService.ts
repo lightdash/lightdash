@@ -17,6 +17,7 @@ import {
     isFilterableDimension,
     Job,
     JobStatusType,
+    JobStepType,
     MetricQuery,
     Project,
     ProjectCatalog,
@@ -36,6 +37,7 @@ import {
     NotExistsError,
 } from '../../errors';
 import Logger from '../../logger';
+import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -48,6 +50,7 @@ type ProjectServiceDependencies = {
     projectModel: ProjectModel;
     onboardingModel: OnboardingModel;
     savedChartModel: SavedChartModel;
+    jobModel: JobModel;
 };
 
 export class ProjectService {
@@ -61,16 +64,20 @@ export class ProjectService {
 
     savedChartModel: SavedChartModel;
 
+    jobModel: JobModel;
+
     constructor({
         projectModel,
         onboardingModel,
         savedChartModel,
+        jobModel,
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
         this.projectAdapters = {};
         this.projectLoading = {};
         this.savedChartModel = savedChartModel;
+        this.jobModel = jobModel;
     }
 
     async getProjectStatus(
@@ -108,13 +115,59 @@ export class ProjectService {
         if (user.ability.cannot('create', 'Project')) {
             throw new ForbiddenError();
         }
-        const adapter = await ProjectService.testProjectAdapter(data);
-        const explores = await adapter.compileAllExplores();
-        const projectUuid = await this.projectModel.create(
-            user.organizationUuid,
-            data,
+
+        const jobUuid = await this.startJob(undefined);
+
+        const project = await this.createProject(user, data, jobUuid);
+
+        return project;
+    }
+
+    async createProject(
+        user: SessionUser,
+        data: CreateProject,
+        jobUuid: string,
+    ): Promise<Project> {
+        // Initialize job steps
+        await this.jobModel.createJobSteps(jobUuid, [
+            JobStepType.TESTING_ADAPTOR,
+            JobStepType.COMPILING,
+            JobStepType.CREATING_PROJECT,
+            JobStepType.CACHING,
+        ]);
+        const adapter = await this.jobModel.tryJobStep(
+            jobUuid,
+            JobStepType.TESTING_ADAPTOR,
+            async () => ProjectService.testProjectAdapter(data),
         );
-        await this.projectModel.saveExploresToCache(projectUuid, explores);
+        const explores = await this.jobModel.tryJobStep(
+            jobUuid,
+            JobStepType.COMPILING,
+            async () => adapter.compileAllExplores(),
+        );
+
+        const projectUuid = await this.jobModel.tryJobStep(
+            jobUuid,
+            JobStepType.CREATING_PROJECT,
+            async () => this.projectModel.create(user.organizationUuid, data),
+        );
+
+        await this.jobModel.tryJobStep(
+            jobUuid,
+            JobStepType.CACHING,
+            async () => {
+                await this.projectModel.saveExploresToCache(
+                    projectUuid,
+                    explores,
+                );
+            },
+        );
+
+        await this.jobModel.upsertJobStatus(
+            jobUuid,
+            projectUuid,
+            JobStatusType.DONE,
+        );
 
         analytics.track({
             event: 'project.created',
@@ -443,18 +496,20 @@ export class ProjectService {
         }
     }
 
-    async getLastJob(projectUuid: string): Promise<Job | undefined> {
-        return this.projectModel.getLastJob(projectUuid);
+    async getMostRecentJobByProject(
+        projectUuid: string,
+    ): Promise<Job | undefined> {
+        return this.jobModel.getMostRecentJobByProject(projectUuid);
     }
 
     async getJobStatus(jobUuid: string): Promise<Job> {
-        return this.projectModel.getJobstatus(jobUuid);
+        return this.jobModel.getJobstatus(jobUuid);
     }
 
-    async startJob(projectUuid: string): Promise<string> {
+    async startJob(projectUuid: string | undefined): Promise<string> {
         const jobUuid = uuidv4();
 
-        await this.projectModel.upsertJobStatus(
+        await this.jobModel.upsertJobStatus(
             jobUuid,
             projectUuid,
             JobStatusType.STARTED,
@@ -476,6 +531,7 @@ export class ProjectService {
             await this.projectModel.tryWithProjectLock(
                 projectUuid,
                 jobUuid || uuidv4(),
+                this.jobModel,
                 async () => {
                     const explores = await this.refreshAllTables(
                         user,

@@ -1,6 +1,7 @@
 import { formatValue } from 'common';
 import { analytics } from '../../analytics/client';
 import {
+    jobModel,
     onboardingModel,
     projectModel,
     savedChartModel,
@@ -39,6 +40,7 @@ jest.mock('../../models/models', () => ({
     savedChartModel: {
         getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
     },
+    jobModel: {},
 }));
 
 describe('ProjectService', () => {
@@ -47,6 +49,7 @@ describe('ProjectService', () => {
         projectModel,
         onboardingModel,
         savedChartModel,
+        jobModel,
     });
     afterEach(() => {
         jest.clearAllMocks();

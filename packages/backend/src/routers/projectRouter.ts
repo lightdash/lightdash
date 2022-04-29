@@ -184,7 +184,9 @@ projectRouter.get('/status', isAuthenticated, async (req, res, next) => {
             req.params.projectUuid,
             req.user!,
         );
-        const lastJob = await projectService.getLastJob(req.params.projectUuid);
+        const lastJob = await projectService.getMostRecentJobByProject(
+            req.params.projectUuid,
+        );
         res.json({
             status: 'ok',
             results,

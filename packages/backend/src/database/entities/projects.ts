@@ -4,7 +4,6 @@ import { Knex } from 'knex';
 export const ProjectTableName = 'projects';
 export const CachedExploresTableName = 'cached_explores';
 export const CachedWarehouseTableName = 'cached_warehouse';
-export const JobsTableName = 'jobs';
 
 type DbProject = {
     project_id: number;
