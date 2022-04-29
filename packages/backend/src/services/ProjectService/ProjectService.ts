@@ -111,16 +111,16 @@ export class ProjectService {
         return project;
     }
 
-    async create(user: SessionUser, data: CreateProject): Promise<string> {
+    async create(user: SessionUser, data: CreateProject): Promise<Project> {
         if (user.ability.cannot('create', 'Project')) {
             throw new ForbiddenError();
         }
 
         const jobUuid = await this.startJob(undefined);
 
-        this.createProject(user, data, jobUuid);
+        const project = await this.createProject(user, data, jobUuid);
 
-        return jobUuid;
+        return project;
     }
 
     async createProject(
@@ -149,10 +149,7 @@ export class ProjectService {
         const projectUuid = await this.jobModel.tryJobStep(
             jobUuid,
             JobStepType.CREATING_PROJECT,
-            async () => this.projectModel.create(
-                    user.organizationUuid,
-                    data,
-                ),
+            async () => this.projectModel.create(user.organizationUuid, data),
         );
 
         await this.jobModel.tryJobStep(

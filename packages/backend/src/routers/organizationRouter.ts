@@ -55,12 +55,10 @@ organizationRouter.get('/projects', isAuthenticated, async (req, res, next) =>
 organizationRouter.post('/projects', isAuthenticated, async (req, res, next) =>
     projectService
         .create(req.user!, req.body)
-        .then((jobUuid) => {
+        .then((results) => {
             res.json({
                 status: 'ok',
-                results: {
-                    jobUuid,
-                },
+                results,
             });
         })
         .catch(next),
