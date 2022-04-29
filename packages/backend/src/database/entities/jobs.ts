@@ -26,15 +26,18 @@ export type DbJobSteps = {
     updated_at: Date;
     step_status: JobStepStatusType;
     step_type: JobStepType;
-    step_label: string;
+    step_error: string | undefined;
 };
 
 type CreateJobStep = Pick<
     DbJobSteps,
-    'job_uuid' | 'step_status' | 'step_type' | 'step_label'
+    'job_uuid' | 'step_status' | 'step_type' | 'step_error'
 >;
 
-type UpdateJobStep = Pick<DbJobSteps, 'step_status' | 'updated_at'>;
+type UpdateJobStep = Pick<
+    DbJobSteps,
+    'step_status' | 'updated_at' | 'step_error'
+>;
 
 export type JobStepsTable = Knex.CompositeTableType<
     DbJobSteps,

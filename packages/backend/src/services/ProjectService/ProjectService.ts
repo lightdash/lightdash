@@ -163,6 +163,12 @@ export class ProjectService {
             },
         );
 
+        await this.jobModel.upsertJobStatus(
+            jobUuid,
+            projectUuid,
+            JobStatusType.DONE,
+        );
+
         analytics.track({
             event: 'project.created',
             userId: user.userUuid,

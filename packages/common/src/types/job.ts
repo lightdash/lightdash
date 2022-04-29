@@ -53,5 +53,6 @@ export type JobStep = {
     updatedAt: Date;
     stepStatus: JobStepStatusType;
     stepType: JobStepType;
+    stepError: string | undefined;
     stepLabel: string;
 };

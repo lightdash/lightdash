@@ -72,14 +72,19 @@ export class JobModel {
             .where('job_uuid', jobUuid)
             .orderBy('step_id', 'desc');
 
-        return steps.map((step) => ({
-            jobUuid: step.job_uuid,
-            createdAt: step.created_at,
-            updatedAt: step.updated_at,
-            stepStatus: step.step_status,
-            stepType: step.step_type,
-            stepLabel: step.step_label,
-        }));
+        return steps.map((step) => {
+            const stepType: JobStepType = step.step_type;
+            const stepLabel: string = JobLabels[stepType];
+            return {
+                jobUuid: step.job_uuid,
+                createdAt: step.created_at,
+                updatedAt: step.updated_at,
+                stepStatus: step.step_status,
+                stepType,
+                stepError: step.step_error,
+                stepLabel,
+            };
+        });
     }
 
     async upsertJobStatus(
@@ -108,12 +113,11 @@ export class JobModel {
         await this.database.transaction(async (trx) => {
             await stepTypes.reduce(async (previousPromise, step) => {
                 await previousPromise;
-                const stepLabel = JobLabels[step];
                 return trx(JobStepsTableName).insert({
                     job_uuid: jobUuid,
                     step_status: JobStepStatusType.PENDING,
                     step_type: step,
-                    step_label: stepLabel,
+                    step_error: undefined,
                 });
             }, Promise.resolve());
         });
@@ -123,11 +127,13 @@ export class JobModel {
         jobUuid: string,
         stepStatus: JobStepStatusType,
         stepType: JobStepType,
+        stepError?: string,
     ): Promise<void> {
         await this.database(JobStepsTableName)
             .update({
                 step_status: stepStatus,
                 updated_at: new Date(),
+                step_error: stepError,
             })
             .where('job_uuid', jobUuid)
             .andWhere('step_type', stepType);
@@ -168,6 +174,7 @@ export class JobModel {
                 jobUuid,
                 JobStepStatusType.ERROR,
                 jobStepType,
+                `${e}`,
             );
             throw e; // throw the error again
         }

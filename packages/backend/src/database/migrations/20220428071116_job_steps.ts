@@ -32,7 +32,7 @@ export async function up(knex: Knex): Promise<void> {
                 .defaultTo(knex.fn.now());
             tableBuilder.text('step_status').notNullable();
             tableBuilder.text('step_type').notNullable();
-            tableBuilder.text('step_label').notNullable();
+            tableBuilder.text('step_error');
         },
     );
 }
