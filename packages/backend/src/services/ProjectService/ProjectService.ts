@@ -496,8 +496,10 @@ export class ProjectService {
         }
     }
 
-    async getLastJob(projectUuid: string): Promise<Job | undefined> {
-        return this.jobModel.getLastJob(projectUuid);
+    async getMostRecentJobByProject(
+        projectUuid: string,
+    ): Promise<Job | undefined> {
+        return this.jobModel.getMostRecentJobByProject(projectUuid);
     }
 
     async getJobStatus(jobUuid: string): Promise<Job> {

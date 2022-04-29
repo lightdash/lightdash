@@ -33,6 +33,7 @@ export async function up(knex: Knex): Promise<void> {
             tableBuilder.text('step_status').notNullable();
             tableBuilder.text('step_type').notNullable();
             tableBuilder.text('step_error');
+            tableBuilder.unique(['job_uuid', 'step_type']);
         },
     );
 }
