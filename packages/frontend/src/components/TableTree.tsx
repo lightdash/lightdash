@@ -155,7 +155,8 @@ const NodeItemButtons: FC<{
     node: Metric | Dimension;
     onOpenSourceDialog: (source: Source) => void;
     isHovered: boolean;
-}> = ({ node, onOpenSourceDialog, isHovered }) => {
+    isSelected: boolean;
+}> = ({ node, onOpenSourceDialog, isHovered, isSelected }) => {
     const { isFilteredField, addFilter } = useFilters();
     const isFiltered = isFilteredField(node);
     const { track } = useTracking();
@@ -256,7 +257,7 @@ const NodeItemButtons: FC<{
             ) : (
                 <div style={{ width: '16px' }} />
             )}
-            {menuItems.length > 0 && isHovered ? (
+            {menuItems.length > 0 && (isHovered || isSelected) ? (
                 <Popover2
                     content={<Menu>{menuItems}</Menu>}
                     autoFocus={false}
@@ -307,6 +308,7 @@ const renderDimensionTreeNode = (
                 node={dimension}
                 onOpenSourceDialog={onOpenSourceDialog}
                 isHovered={hoveredFieldId === fieldId(dimension)}
+                isSelected={selectedNodes.has(fieldId(dimension))}
             />
         ),
     };
@@ -463,6 +465,7 @@ const TableTree: FC<TableTreeProps> = ({
                               node={metric}
                               onOpenSourceDialog={onOpenSourceDialog}
                               isHovered={hoveredFieldId === fieldId(metric)}
+                              isSelected={selectedNodes.has(fieldId(metric))}
                           />
                       ),
                   })),
