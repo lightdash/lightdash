@@ -1,4 +1,4 @@
-import { Button, Classes, H3 } from '@blueprintjs/core';
+import { Classes } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, useState } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -8,8 +8,13 @@ import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshServerButton from '../../RefreshServer';
-import { TitleWrapper, Wrapper } from './ExploreHeader.styles';
 import RenameSavedChartModal from '../../SavedQueries/RenameSavedChartModal';
+import {
+    ChartButton,
+    ChartName,
+    TitleWrapper,
+    Wrapper,
+} from './ExploreHeader.styles';
 
 const ExploreHeader: FC = () => {
     const location = useLocation<
@@ -32,32 +37,20 @@ const ExploreHeader: FC = () => {
                 <TitleWrapper>
                     {overrideQueryUuid && savedChart && (
                         <>
-                            <H3
+                            <ChartName
                                 className={Classes.TEXT_OVERFLOW_ELLIPSIS}
-                                style={{
-                                    margin: '0',
-                                }}
                             >
                                 {savedChart.name}
-                            </H3>
+                            </ChartName>
                             {savedChart.description && (
                                 <Tooltip2
                                     content={savedChart.description}
                                     position="bottom"
                                 >
-                                    <Button
-                                        style={{
-                                            marginLeft: 5,
-                                        }}
-                                        icon="info-sign"
-                                        minimal
-                                    />
+                                    <ChartButton icon="info-sign" minimal />
                                 </Tooltip2>
                             )}
-                            <Button
-                                style={{
-                                    marginLeft: 5,
-                                }}
+                            <ChartButton
                                 icon="edit"
                                 disabled={updateSavedChart.isLoading}
                                 onClick={() => setIsRenamingChart(true)}

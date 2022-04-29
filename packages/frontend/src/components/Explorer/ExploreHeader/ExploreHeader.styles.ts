@@ -1,5 +1,5 @@
+import { Button, H3 } from '@blueprintjs/core';
 import styled from 'styled-components';
-import { BigButton } from '../../common/BigButton';
 
 export const Wrapper = styled.div`
     display: flex;
@@ -17,8 +17,10 @@ export const TitleWrapper = styled.div`
     margin-right: 10px;
 `;
 
-export const OptionsButton = styled(BigButton)`
-    height: 40px;
-    width: 40px;
-    margin-left: 10px;
+export const ChartName = styled(H3)`
+    margin: 0;
+`;
+
+export const ChartButton = styled(Button)`
+    margin-left: 5px;
 `;
