@@ -27,7 +27,7 @@ const AppearanceColor: FC<AppearanceColorProps> = ({
 
     return (
         <AppearanceColorWrapper>
-            <p>Colour {index + 1}</p>
+            <p>Color {index + 1}</p>
             <div style={{ display: 'flex' }}>
                 <SeriesColorPicker
                     color={color}
@@ -67,7 +67,7 @@ const AppearancePanel: FC = () => {
 
     return (
         <AppearancePanelWrapper>
-            <Title>Default chart colours</Title>
+            <Title>Default chart colors</Title>
             <ColorPalette>
                 {colors.map((color, index) => (
                     <AppearanceColor
