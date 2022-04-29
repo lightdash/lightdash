@@ -8,7 +8,7 @@ import {
 } from 'common';
 import { Knex } from 'knex';
 import { JobsTableName, JobStepsTableName } from '../../database/entities/jobs';
-import { NotFoundError } from '../../errors';
+import { LightdashError, NotFoundError } from '../../errors';
 import Logger from '../../logger';
 import Transaction = Knex.Transaction;
 
@@ -172,11 +172,17 @@ export class JobModel {
             );
             return result;
         } catch (e) {
+            const formatJobErrorMessage = (error: unknown) => {
+                if (error instanceof LightdashError) {
+                    return `${error.name}: ${error.message} \n ${error.data}`;
+                }
+                return `${error}`;
+            };
             await this.updateJobStep(
                 jobUuid,
                 JobStepStatusType.ERROR,
                 jobStepType,
-                `${e}`,
+                formatJobErrorMessage(e),
             );
             throw e; // throw the error again
         }
