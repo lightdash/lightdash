@@ -75,7 +75,7 @@ export const BaseResponse = {
     latest: { version: Image.name },
     hasEmailClient: false,
     siteUrl: undefined,
-    chatwoot: undefined,
+    intercom: undefined,
     cohere: undefined,
     rudder: undefined,
     sentry: undefined,

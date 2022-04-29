@@ -2,7 +2,6 @@ import { NonIdealState, Spinner } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
-import { OpenChatButton } from '../components/common/ChatBubble/OpenChatButton';
 import Page from '../components/common/Page/Page';
 import LandingPanel from '../components/Home/LandingPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
@@ -67,7 +66,6 @@ const Home: FC = () => {
                     projectUuid={project.data.projectUuid}
                 />
             )}
-            <OpenChatButton />
         </Page>
     );
 };

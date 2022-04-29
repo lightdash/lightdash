@@ -36,9 +36,9 @@ export const lightdashConfigMock: LightdashConfig = {
             callbackPath: '',
         },
     },
-    chatwoot: {
-        websiteToken: '',
-        baseUrl: '',
+    intercom: {
+        appId: '',
+        apiBase: '',
     },
     cohere: {
         token: '',

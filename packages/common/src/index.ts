@@ -683,9 +683,9 @@ export type HealthState = {
         environment: string;
         release: string;
     };
-    chatwoot: {
-        baseUrl: string;
-        websiteToken: string;
+    intercom: {
+        appId: string;
+        apiBase: string;
     };
     auth: {
         disablePasswordAuthentication: boolean;

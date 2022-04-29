@@ -1,6 +1,5 @@
 import { Colors, H1 } from '@blueprintjs/core';
 import React, { FC } from 'react';
-import { OpenChatButton } from '../components/common/ChatBubble/OpenChatButton';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { CreateProjectConnection } from '../components/ProjectConnection';
@@ -40,7 +39,6 @@ const CreateProject: FC = () => {
                 </p>
                 <CreateProjectConnection />
             </div>
-            <OpenChatButton />
         </Page>
     );
 };

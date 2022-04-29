@@ -80,7 +80,7 @@ export class HealthService {
             latest: { version: latestVersion },
             rudder: this.lightdashConfig.rudder,
             sentry: this.lightdashConfig.sentry,
-            chatwoot: this.lightdashConfig.chatwoot,
+            intercom: this.lightdashConfig.intercom,
             cohere: this.lightdashConfig.cohere,
             siteUrl: this.lightdashConfig.siteUrl,
             auth: {
