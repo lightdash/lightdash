@@ -1,6 +1,7 @@
-import { NonIdealState } from '@blueprintjs/core';
+import { Button, InputGroup, NonIdealState } from '@blueprintjs/core';
 import { ApiError, UpdatedByUser } from 'common';
-import React, { useState } from 'react';
+import Fuse from 'fuse.js';
+import React, { useMemo, useState } from 'react';
 import { UseMutationResult } from 'react-query';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import { DeleteDashboardModal } from '../../SavedDashboards/DeleteDashboardModal';
@@ -13,6 +14,7 @@ import {
     CardDivider,
     HeaderCardListWrapper,
     NoIdealStateWrapper,
+    SearchWrapper,
     TitleWrapper,
 } from './ActionCardList.style';
 
@@ -48,12 +50,34 @@ const ActionCardList = <
     isChart,
     isHomePage,
 }: ActionCardListProps<T>) => {
+    const [search, setSearch] = useState('');
     const [actionState, setActionState] = useState<{
         actionType: number;
         data?: T;
     }>({
         actionType: ActionTypeModal.CLOSE,
     });
+
+    const displaySearch = isChart && dataList.length >= 5;
+
+    const filteredQueries = useMemo(() => {
+        const validSearch = search ? search.toLowerCase() : '';
+        if (dataList) {
+            if (validSearch !== '') {
+                return new Fuse(Object.values(dataList), {
+                    keys: ['name'],
+                    ignoreLocation: true,
+                    threshold: 0.3,
+                })
+                    .search(validSearch)
+                    .map((res) => res.item);
+            }
+            return Object.values(dataList);
+        }
+        return [];
+    }, [dataList, search]);
+
+    const itemsToDisplay = isChart ? filteredQueries : dataList;
 
     return (
         <ActionCardListWrapper $isHomePage={isHomePage}>
@@ -64,8 +88,25 @@ const ActionCardList = <
                 </HeaderCardListWrapper>
             )}
             {!isHomePage && <CardDivider />}
+            {displaySearch && (
+                <SearchWrapper>
+                    <InputGroup
+                        leftIcon="search"
+                        rightElement={
+                            <Button
+                                minimal
+                                icon="cross"
+                                onClick={() => setSearch('')}
+                            />
+                        }
+                        placeholder="Search tables"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </SearchWrapper>
+            )}
             <div>
-                {dataList.map((data) => (
+                {itemsToDisplay.map((data) => (
                     <ActionCardWrapper key={data.uuid}>
                         <ActionCard
                             data={data}
