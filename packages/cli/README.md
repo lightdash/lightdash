@@ -1,6 +1,10 @@
 ## Lightdash-cli 
 
-Lightash-cli tool work in progress 
+Lightash-cli tool
+
+## How to install 
+
+`npm i -g ligthdash-cli`
 
 ## Usage 
 
