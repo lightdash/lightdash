@@ -4,9 +4,9 @@ import Fuse from 'fuse.js';
 import React, { useMemo, useState } from 'react';
 import { UseMutationResult } from 'react-query';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import { DeleteDashboardModal } from '../../SavedDashboards/DeleteDashboardModal';
 import ActionCard from '../ActionCard';
 import { ActionModalProps, ActionTypeModal } from '../modal/ActionModal';
+import DeleteActionModal from '../modal/DeleteActionModal';
 import UpdateActionModal from '../modal/UpdateActionModal';
 import {
     ActionCardListWrapper,
@@ -126,7 +126,7 @@ const ActionCardList = <
             )}
             {actionState.actionType === ActionTypeModal.DELETE &&
                 actionState.data && (
-                    <DeleteDashboardModal
+                    <DeleteActionModal
                         isOpen={
                             actionState.actionType === ActionTypeModal.DELETE
                         }
@@ -137,6 +137,7 @@ const ActionCardList = <
                         }}
                         uuid={actionState.data.uuid}
                         name={actionState.data.name}
+                        isChart={!!isChart}
                     />
                 )}
 

@@ -1,55 +1,64 @@
-import { Intent } from '@blueprintjs/core';
-import { ApiError } from 'common';
-import React, { Dispatch, SetStateAction, useEffect } from 'react';
-import { UseMutationResult } from 'react-query';
-import ActionModal, { ActionModalProps } from './ActionModal';
+import { Button, Classes, Dialog } from '@blueprintjs/core';
+import { FC } from 'react';
+import { useDeleteMutation as useDeleteDashboardMutation } from '../../../hooks/dashboard/useDashboard';
+import { useDeleteMutation } from '../../../hooks/useSavedQuery';
 
-type DeleteActionModalProps<T> = {
-    useActionModalState: [
-        { actionType: number; data?: T },
-        Dispatch<SetStateAction<{ actionType: number; data?: T }>>,
-    ];
-    useDelete: UseMutationResult<undefined, ApiError, string>;
-    ModalContent: (
-        props: Pick<ActionModalProps<T>, 'useActionModalState' | 'isDisabled'>,
-    ) => JSX.Element;
-};
+interface DeleteActionModalProps {
+    uuid: string;
+    name: string;
+    isOpen: boolean;
+    isChart: boolean;
+    onClose: () => void;
+}
 
-const DeleteActionModal = <T extends { uuid: string; name: string }>(
-    props: DeleteActionModalProps<T>,
-) => {
-    const { useDelete, useActionModalState, ModalContent } = props;
-    const [actionState] = useActionModalState;
-    const { data: { uuid: id } = {}, actionType } = actionState;
-    const {
-        status: statusDelete,
-        mutate: deleteData,
-        isLoading: isDeleting,
-        reset: resetDelete,
-    } = useDelete;
-
-    const onSubmitForm = () => {
-        if (id) {
-            deleteData(id);
-        }
-    };
-    useEffect(() => {
-        if (!isDeleting) {
-            resetDelete();
-        }
-    }, [isDeleting, actionType, resetDelete]);
+const DeleteActionModal: FC<DeleteActionModalProps> = ({
+    uuid,
+    name,
+    isOpen,
+    onClose,
+    isChart,
+}) => {
+    const { mutate: deleteDashboard, isLoading: isDeleting } =
+        useDeleteDashboardMutation();
+    const { mutate: deleteChart, isLoading } = useDeleteMutation();
 
     return (
-        <ActionModal
-            title="Delete"
-            confirmButtonLabel="Delete"
-            confirmButtonIntent={Intent.DANGER}
-            useActionModalState={useActionModalState}
-            isDisabled={isDeleting}
-            onSubmitForm={onSubmitForm}
-            completedMutation={statusDelete === 'success'}
-            ModalContent={ModalContent}
-        />
+        <Dialog
+            isOpen={isOpen}
+            icon="delete"
+            onClose={onClose}
+            title={`Delete ${isChart ? 'chart' : 'dashboard'}`}
+        >
+            <div className={Classes.DIALOG_BODY}>
+                <p>
+                    {`Are you sure you want to delete the ${
+                        isChart ? 'chart' : 'dashboard'
+                    } `}
+                    <b>"{name}"</b> ?
+                </p>
+            </div>
+            <div className={Classes.DIALOG_FOOTER}>
+                <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+                    <Button
+                        disabled={isDeleting || isLoading}
+                        onClick={onClose}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        disabled={isDeleting || isLoading}
+                        intent="danger"
+                        onClick={() => {
+                            if (isChart) deleteChart(uuid);
+                            if (!isChart) deleteDashboard(uuid);
+                            onClose();
+                        }}
+                    >
+                        Delete
+                    </Button>
+                </div>
+            </div>
+        </Dialog>
     );
 };
 
