@@ -1,3 +1,10 @@
+## [0.84.5](https://github.com/lightdash/lightdash/compare/0.84.4...0.84.5) (2022-05-03)
+
+
+### Bug Fixes
+
+* rollback dbt form reset ([#1973](https://github.com/lightdash/lightdash/issues/1973)) ([dc7e871](https://github.com/lightdash/lightdash/commit/dc7e871cf41dfc912b286c014a71b4249d90e65e))
+
 ## [0.84.4](https://github.com/lightdash/lightdash/compare/0.84.3...0.84.4) (2022-05-03)
 
 
