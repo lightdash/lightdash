@@ -1,0 +1,21 @@
+{
+  "name": "lightdash-cli",
+  "version": "0.1.2",
+  "license": "MIT",
+  "bin": {
+    "lightdash-cli": "src/index.ts"
+  },
+  "dependencies": {
+    "commander": "^9.2.0"
+  },
+  "description": "Lightdash CLI tool",
+  "devDependencies": {},
+  "keywords": [],
+  "author": "",
+  "scripts": {
+    "build": "tsc --build tsconfig.json",
+    "lint": "eslint ./src",
+    "format": "prettier --check --ignore-unknown ./src",
+    "test": "jest"
+}
+}
