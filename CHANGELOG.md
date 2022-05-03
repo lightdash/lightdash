@@ -1,3 +1,10 @@
+## [0.84.3](https://github.com/lightdash/lightdash/compare/0.84.2...0.84.3) (2022-05-03)
+
+
+### Bug Fixes
+
+* unstable table tree menus ([#1966](https://github.com/lightdash/lightdash/issues/1966)) ([8faac12](https://github.com/lightdash/lightdash/commit/8faac127f350af4a2933863a3073033231048cf7))
+
 ## [0.84.2](https://github.com/lightdash/lightdash/compare/0.84.1...0.84.2) (2022-05-03)
 
 
