@@ -189,9 +189,10 @@ If you want to use a dbt project from the same machine, you will need to set a v
 # Lightdash port: 8080
 
 docker run --name lightdash-app \
-    -e PGHOST=192.168.0.1 -e PGPORT=5432 \
+    -e PGHOST=host.docker.internal -e PGPORT=5432 \
     -e PGUSER=postgres -e PGPASSWORD=mysecretpassword \
     -e PGDATABASE=postgres -e LIGHTDASH_SECRET="not very secret" \
+    -e LIGHTDASH_LOG_LEVEL=debug \
     -p 8080:8080 \
     -d lightdash/lightdash:latest
 ```
