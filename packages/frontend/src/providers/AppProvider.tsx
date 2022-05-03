@@ -255,7 +255,6 @@ export const AppProvider: FC = ({ children }) => {
     }, [activeJob, activeJobId, activeJobStatusToast]);
 
     const activeJobIsRunning = activeJob && activeJob?.jobStatus === 'RUNNING';
-    console.log('activeJobIsRunning', activeJobIsRunning);
     const errorLogs = useErrorLogs();
 
     const value = {

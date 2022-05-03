@@ -11,7 +11,6 @@ import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
-import useQueryError from './useQueryError';
 
 export const jobStepStatusLabel = (
     status: JobStepStatusType,
@@ -109,7 +108,6 @@ export const useJob = (jobId: string | undefined) => {
 export const useRefreshServer = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
-    const setErrorResponse = useQueryError();
     const { setActiveJobId, showToastError } = useApp();
     return useMutation<ApiRefreshResults, ApiError>({
         mutationKey: ['refresh', projectUuid],

@@ -71,7 +71,6 @@ export const useCreateMutation = () => {
             mutationKey: ['project_create'],
             retry: 3,
             onSuccess: (data) => {
-                console.log(`SUCCESS ${data.jobUuid}`);
                 setActiveJobId(data.jobUuid);
             },
             onError: (error) => {
