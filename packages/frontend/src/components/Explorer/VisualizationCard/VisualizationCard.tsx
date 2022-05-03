@@ -320,7 +320,7 @@ const VisualizationCard: FC = () => {
 
                                 if (savedChart?.uuid) {
                                     deleteData(savedChart.uuid);
-                                    history.goBack();
+                                    history.push('/');
                                 }
 
                                 setIsDeleteDialogOpen(false);
