@@ -8,7 +8,17 @@ Lightash CLI tool
 
 ## Usage 
 
-lightdash-cli [command]
+```
+Usage: lightdash [options] [command]
+
+Options:
+  -h, --help      display help for command
+
+Commands:
+  version         output the version number
+  [dbt_command]   runs dbt
+  help [command]  display help for command
+```
 
 eg: `ligthdash test`  Runs `dbt test`
 
