@@ -1,3 +1,10 @@
+## [0.84.4](https://github.com/lightdash/lightdash/compare/0.84.3...0.84.4) (2022-05-03)
+
+
+### Bug Fixes
+
+* Redirect user to the home pack when a chart is deleted from the explorer ([#1971](https://github.com/lightdash/lightdash/issues/1971)) ([4c6d9df](https://github.com/lightdash/lightdash/commit/4c6d9df7b136767bd9799e88fddea9a09fcd5ba5))
+
 ## [0.84.3](https://github.com/lightdash/lightdash/compare/0.84.2...0.84.3) (2022-05-03)
 
 
