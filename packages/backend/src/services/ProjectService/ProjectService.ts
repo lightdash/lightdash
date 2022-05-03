@@ -364,7 +364,11 @@ export class ProjectService {
         const adapter = await this.getAdapter(projectUuid);
         const rows = await adapter.runQuery(query);
 
-        const formattedRows = formatRows(rows, explore);
+        const formattedRows = formatRows(
+            rows,
+            explore,
+            metricQuery.additionalMetrics,
+        );
 
         return {
             rows: formattedRows,

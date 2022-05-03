@@ -142,7 +142,9 @@ export const getEchartsSeries = (
     originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,
     pivotKey: string | undefined,
-    formats: Record<string, CompiledField> | undefined,
+    formats:
+        | Record<string, Pick<CompiledField, 'format' | 'round'>>
+        | undefined,
 ): EChartSeries[] => {
     if (pivotKey) {
         return (cartesianChart.eChartsConfig.series || [])
@@ -287,7 +289,9 @@ const getEchartAxis = ({
     validCartesianConfig: CartesianChart;
     items: Array<Field | TableCalculation>;
     series: EChartSeries[];
-    formats: Record<string, CompiledField> | undefined;
+    formats:
+        | Record<string, Pick<CompiledField, 'round' | 'format'>>
+        | undefined;
 }) => {
     const xAxisItem = items.find(
         (item) =>
@@ -465,7 +469,9 @@ const useEcharts = () => {
         resultsData,
     } = useVisualizationContext();
 
-    const formats = explore ? getFieldMap(explore) : undefined;
+    const formats = explore
+        ? getFieldMap(explore, resultsData?.metricQuery.additionalMetrics)
+        : undefined;
     const { data: organisationData } = useOrganisation();
 
     const items = useMemo(() => {
