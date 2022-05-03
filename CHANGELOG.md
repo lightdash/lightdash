@@ -1,3 +1,10 @@
+## [0.84.1](https://github.com/lightdash/lightdash/compare/0.84.0...0.84.1) (2022-05-03)
+
+
+### Bug Fixes
+
+* Update onboarding form and update documentation for bitbucket ([#1963](https://github.com/lightdash/lightdash/issues/1963)) ([4d4041b](https://github.com/lightdash/lightdash/commit/4d4041b8ba3734b50f5106ba0e5eb640a654501b))
+
 # [0.84.0](https://github.com/lightdash/lightdash/compare/0.83.0...0.84.0) (2022-05-03)
 
 
