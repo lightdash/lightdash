@@ -1,9 +1,9 @@
 {
-  "name": "lightdash-cli",
-  "version": "0.1.3",
+  "name": "@lightdash/cli",
+  "version": "0.1.5",
   "license": "MIT",
   "bin": {
-    "lightdash-cli": "dist/index.js"
+    "lightdash": "dist/index.js"
   },
   "dependencies": {
     "commander": "^9.2.0"
@@ -24,8 +24,6 @@
     "ts-node": "^9.1.1",
     "typescript": "^4.2.3"
   },
-  "keywords": [],
-  "author": "",
   "scripts": {
     "build": "tsc --build tsconfig.json",
     "lint": "eslint ./src",

@@ -1,14 +1,14 @@
-## Lightdash-cli 
+## Lightdash CLI 
 
-Lightash-cli tool
+Lightash CLI tool
 
 ## How to install 
 
-`npm i -g ligthdash-cli`
+`npm i -g @lightdash/cli`
 
 ## Usage 
 
 lightdash-cli [command]
 
-eg: `ligthdash-cli test`  Runs `dbt test`
+eg: `ligthdash test`  Runs `dbt test`
 
