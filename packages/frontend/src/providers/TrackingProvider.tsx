@@ -2,6 +2,7 @@ import { LightdashMode } from 'common';
 import React, {
     createContext,
     FC,
+    memo,
     useCallback,
     useContext,
     useEffect,
@@ -277,8 +278,11 @@ export const TrackPage: FC<PageData> = ({ children, ...rest }) => {
     );
 };
 
-export const TrackSection: FC<SectionData> = ({ children, ...rest }) => (
-    <NestedTrackingProvider section={rest}>
-        {children || null}
-    </NestedTrackingProvider>
-);
+export const TrackSection: FC<SectionData> = memo(({ children, name }) => {
+    const section = useMemo(() => ({ name }), [name]);
+    return (
+        <NestedTrackingProvider section={section}>
+            {children || null}
+        </NestedTrackingProvider>
+    );
+});
