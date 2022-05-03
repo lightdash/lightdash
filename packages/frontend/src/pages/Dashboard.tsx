@@ -302,9 +302,7 @@ const Dashboard = () => {
                         );
                     })}
                 </ResponsiveGridLayout>
-                {dashboardTiles.length <= 0 && (
-                    <EmptyStateNoTiles projectId={projectUuid} />
-                )}
+                {dashboardTiles.length <= 0 && <EmptyStateNoTiles />}
             </Page>
         </>
     );

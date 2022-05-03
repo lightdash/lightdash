@@ -3,6 +3,7 @@ import { ApiError, UpdatedByUser } from 'common';
 import Fuse from 'fuse.js';
 import React, { useMemo, useState } from 'react';
 import { UseMutationResult } from 'react-query';
+import EmptyStateNoTiles from '../../DashboardTiles/EmptyStateNoTiles';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import ActionCard from '../ActionCard';
 import { ActionModalProps, ActionTypeModal } from '../modal/ActionModal';
@@ -156,7 +157,14 @@ const ActionCardList = <
 
             {dataList.length <= 0 && (
                 <NoIdealStateWrapper>
-                    <NonIdealState title="No results available" icon="search" />
+                    {!isChart ? (
+                        <NonIdealState
+                            title="No results available"
+                            icon="search"
+                        />
+                    ) : (
+                        <EmptyStateNoTiles isChart />
+                    )}
                 </NoIdealStateWrapper>
             )}
         </ActionCardListWrapper>
