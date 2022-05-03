@@ -73,6 +73,34 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         }
     }, [disabled, type]);
 
+    const baseDocUrl =
+        'https://docs.lightdash.com/get-started/setup-lightdash/connect-project#';
+    const typeDocUrls = {
+        [ProjectType.GITHUB]: {
+            target: `target-name`,
+            env: `environment-variables`,
+        },
+        [ProjectType.GITLAB]: {
+            target: `target-name-1`,
+            env: `environment-variables-1`,
+        },
+        [ProjectType.AZURE_DEVOPS]: {
+            target: `target-name-2`,
+            env: `environment-variables-2`,
+        },
+        [ProjectType.DBT]: {
+            target: `target-name-3`,
+            env: `environment-variables-3`,
+        },
+        [ProjectType.BITBUCKET]: {
+            target: `target-name-3`,
+            env: `environment-variables-3`,
+        },
+        [ProjectType.DBT_CLOUD_IDE]: {
+            target: `target-name`,
+            env: `environment-variables`,
+        },
+    };
     return (
         <div
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
@@ -92,12 +120,14 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 <Input
                     name="dbt.target"
                     label="Target name"
+                    documentationUrl={`${baseDocUrl}${typeDocUrls[type].target}`}
                     disabled={disabled}
                     placeholder="prod"
                 />
                 <MultiKeyValuePairsInput
                     name="dbt.environment"
                     label="Environment variables"
+                    documentationUrl={`${baseDocUrl}${typeDocUrls[type].env}`}
                     disabled={disabled}
                 />
             </FormSection>
