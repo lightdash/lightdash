@@ -1,3 +1,10 @@
+## [0.84.2](https://github.com/lightdash/lightdash/compare/0.84.1...0.84.2) (2022-05-03)
+
+
+### Bug Fixes
+
+* round custom average metrics ([#1935](https://github.com/lightdash/lightdash/issues/1935)) ([a8343b2](https://github.com/lightdash/lightdash/commit/a8343b24a6c96f83237ab003d93d23b7d7cdfdff))
+
 ## [0.84.1](https://github.com/lightdash/lightdash/compare/0.84.0...0.84.1) (2022-05-03)
 
 
