@@ -1,3 +1,10 @@
+# [0.84.0](https://github.com/lightdash/lightdash/compare/0.83.0...0.84.0) (2022-05-03)
+
+
+### Features
+
+* update saved chart name and description in explore page ([#1954](https://github.com/lightdash/lightdash/issues/1954)) ([87d70e1](https://github.com/lightdash/lightdash/commit/87d70e1cfd32f0cc1a02d7f9696c5b9d6b61696b))
+
 # [0.83.0](https://github.com/lightdash/lightdash/compare/0.82.4...0.83.0) (2022-04-29)
 
 
