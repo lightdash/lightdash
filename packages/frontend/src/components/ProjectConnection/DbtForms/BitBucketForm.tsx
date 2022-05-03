@@ -30,7 +30,7 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             />
             <PasswordInput
                 name="dbt.personal_access_token"
-                label="Personal access token"
+                label="HTTP access token"
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#http-access-token"
                 rules={{
                     required: requireSecrets ? 'Required field' : undefined,
