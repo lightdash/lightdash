@@ -1,22 +1,24 @@
-import { FC } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { Button, Classes } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
+import React, { FC, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
 import { useExplorer } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
-import EditableHeader from '../../common/EditableHeader';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshServerButton from '../../RefreshServer';
-import { TitleWrapper, Wrapper } from './ExploreHeader.styles';
+import RenameSavedChartModal from '../../SavedQueries/RenameSavedChartModal';
+import { ChartName, TitleWrapper, Wrapper } from './ExploreHeader.styles';
 
 const ExploreHeader: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
     const location = useLocation<
         { fromExplorer?: boolean; explore?: boolean } | undefined
     >();
     const {
-        state: { chartName, unsavedChartVersion, savedChart },
+        state: { savedChart },
     } = useExplorer();
+    const [isRenamingChart, setIsRenamingChart] = useState(false);
     const updateSavedChart = useUpdateMutation(savedChart?.uuid);
 
     const searchParams = new URLSearchParams(location.search);
@@ -28,14 +30,33 @@ const ExploreHeader: FC = () => {
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
             <Wrapper>
                 <TitleWrapper>
-                    {overrideQueryUuid && chartName && (
-                        <EditableHeader
-                            value={chartName}
-                            isDisabled={updateSavedChart.isLoading}
-                            onChange={(newName) =>
-                                updateSavedChart.mutate({ name: newName })
-                            }
-                        />
+                    {overrideQueryUuid && savedChart && (
+                        <>
+                            <ChartName
+                                className={Classes.TEXT_OVERFLOW_ELLIPSIS}
+                            >
+                                {savedChart.name}
+                            </ChartName>
+                            {savedChart.description && (
+                                <Tooltip2
+                                    content={savedChart.description}
+                                    position="bottom"
+                                >
+                                    <Button icon="info-sign" minimal />
+                                </Tooltip2>
+                            )}
+                            <Button
+                                icon="edit"
+                                disabled={updateSavedChart.isLoading}
+                                onClick={() => setIsRenamingChart(true)}
+                                minimal
+                            />
+                            <RenameSavedChartModal
+                                savedChartUuid={overrideQueryUuid}
+                                isOpen={isRenamingChart}
+                                onClose={() => setIsRenamingChart(false)}
+                            />
+                        </>
                     )}
                 </TitleWrapper>
                 <RefreshButton />
