@@ -1,7 +1,7 @@
 import { Button } from '@blueprintjs/core';
 import { ProjectType, ProjectTypeLabels } from 'common';
-import React, { FC, useMemo, useState } from 'react';
-import { useWatch } from 'react-hook-form';
+import { FC, useMemo, useState } from 'react';
+import { useFormContext, useWatch } from 'react-hook-form';
 import { useApp } from '../../providers/AppProvider';
 import FormSection from '../ReactHookForm/FormSection';
 import Input from '../ReactHookForm/Input';
@@ -23,6 +23,8 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     disabled,
     defaultType,
 }) => {
+    const { reset } = useFormContext();
+
     const type: ProjectType = useWatch({
         name: 'dbt.type',
         defaultValue: defaultType || ProjectType.GITHUB,
@@ -53,6 +55,8 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     }, [health, type]);
 
     const form = useMemo(() => {
+        reset({ 'dbt.type': type }); // Reset all defaultValues in forms
+
         switch (type) {
             case ProjectType.DBT:
                 return <DbtLocalForm />;
@@ -71,7 +75,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 return null;
             }
         }
-    }, [disabled, type]);
+    }, [disabled, type, reset]);
 
     const baseDocUrl =
         'https://docs.lightdash.com/get-started/setup-lightdash/connect-project#';

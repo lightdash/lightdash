@@ -18,7 +18,7 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <Input
                 name="dbt.username"
                 label="Username"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#repository-1"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#username"
                 rules={{
                     required: 'Required field',
                     validate: {
@@ -30,8 +30,8 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             />
             <PasswordInput
                 name="dbt.personal_access_token"
-                label="Personal access token"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token-1"
+                label="HTTP access token"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#http-access-token"
                 rules={{
                     required: requireSecrets ? 'Required field' : undefined,
                 }}
@@ -43,7 +43,7 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <Input
                 name="dbt.repository"
                 label="Repository"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#repository-1"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#repository-3"
                 rules={{
                     required: 'Required field',
                     validate: {
@@ -57,7 +57,7 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <Input
                 name="dbt.branch"
                 label="Branch"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#branch-1"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#branch-3"
                 rules={{
                     required: 'Required field',
                     validate: {
@@ -70,7 +70,7 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <Input
                 name="dbt.project_sub_path"
                 label="Project directory path"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project-directory-path-1"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#project-directory-path-3"
                 rules={{
                     required: 'Required field',
                     validate: {
@@ -88,7 +88,7 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <Input
                 name="dbt.host_domain"
                 label="Host domain (for self-hosted instances)"
-                documentationUrl="https://docs.lightdash.com"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#host-domain-2"
                 disabled={disabled}
                 defaultValue="bitbucket.org"
                 rules={{
