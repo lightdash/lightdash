@@ -24,7 +24,7 @@ const TableCalculationHeaderButton: FC<{
     const { track } = useTracking();
 
     return (
-        <div style={{ float: 'right' }}>
+        <div style={{ float: 'right' }} onClick={(e) => e.stopPropagation()}>
             <Popover2
                 isOpen={isOpen === undefined ? false : isOpen}
                 onInteraction={setIsOpen}
