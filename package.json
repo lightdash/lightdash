@@ -58,6 +58,10 @@
     "packages/e2e/cypress/**/*.(ts|json)": [
       "yarn workspace e2e prettier --write --ignore-unknown",
       "yarn workspace e2e eslint --fix"
+    ],
+    "packages/cli/src/**/*.(ts|tsx|json)": [
+      "yarn workspace cli prettier --write --ignore-unknown",
+      "yarn workspace cli eslint --fix"
     ]
   }
 }
