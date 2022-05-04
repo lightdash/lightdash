@@ -1,3 +1,10 @@
+## [0.84.10](https://github.com/lightdash/lightdash/compare/0.84.9...0.84.10) (2022-05-04)
+
+
+### Bug Fixes
+
+* add hover state to level 1 & 2 items in the tree ([#1987](https://github.com/lightdash/lightdash/issues/1987)) ([a8615b8](https://github.com/lightdash/lightdash/commit/a8615b8471ff11db0dbd2ed4fb46f1cffe36b587))
+
 ## [0.84.9](https://github.com/lightdash/lightdash/compare/0.84.8...0.84.9) (2022-05-04)
 
 
