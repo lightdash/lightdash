@@ -1,3 +1,10 @@
+## [0.84.9](https://github.com/lightdash/lightdash/compare/0.84.8...0.84.9) (2022-05-04)
+
+
+### Bug Fixes
+
+* table calculation reload ([#1982](https://github.com/lightdash/lightdash/issues/1982)) ([0c019f0](https://github.com/lightdash/lightdash/commit/0c019f02ae0a8228b1b66bb69747c79f34064b07))
+
 ## [0.84.8](https://github.com/lightdash/lightdash/compare/0.84.7...0.84.8) (2022-05-04)
 
 
