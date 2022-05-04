@@ -61,9 +61,10 @@ export const runningStepsInfo = (steps: JobStep[]) => {
         return step.stepStatus === 'DONE';
     }).length;
     const completedStepsMessage = `${numberOfCompletedSteps}/${steps.length}`;
-    const runningStepMessage = `Step ${numberOfCompletedSteps + 1}/${
-        steps.length
-    }: ${runningStep?.stepLabel}`;
+    const runningStepMessage = `Step ${Math.min(
+        numberOfCompletedSteps + 1,
+        steps.length,
+    )}/${steps.length}: ${runningStep?.stepLabel}`;
 
     return {
         runningStep,
