@@ -35,7 +35,7 @@ module.exports = {
           },
           'cli': {
             'npmPublish': false,
-            'pkgRoot': 'packages/e2e'
+            'pkgRoot': 'packages/cli'
           }
         }
       }
@@ -87,7 +87,9 @@ module.exports = {
           'packages/common/package.json',
           'packages/backend/package.json',
           'packages/frontend/package.json',
-          'packages/e2e/package.json'
+          'packages/e2e/package.json',
+          'packages/cli/package.json',
+
         ],
         'message': 'chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}',
       }
