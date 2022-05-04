@@ -155,7 +155,9 @@ const TableCalculationModal: FC<Props> = ({
                             </p>
                         </Callout>
                     )}
-                    <TableCalculationSqlInputWrapper>
+                    <TableCalculationSqlInputWrapper
+                        $isFullScreen={isFullscreen}
+                    >
                         <SqlInput
                             name="sql"
                             label="SQL"
@@ -174,23 +176,25 @@ const TableCalculationModal: FC<Props> = ({
                             placeholder={SQL_PLACEHOLDER}
                         />
                     </TableCalculationSqlInputWrapper>
+                    <div className={Classes.DIALOG_FOOTER}>
+                        <DialogButtons
+                            className={Classes.DIALOG_FOOTER_ACTIONS}
+                        >
+                            <Switch
+                                checked={isFullscreen}
+                                label="Fullscreen"
+                                onChange={toggleFullscreen}
+                            />
+                            <Button onClick={onClose}>Cancel</Button>
+                            <Button
+                                type="submit"
+                                intent={Intent.PRIMARY}
+                                text="Save"
+                                loading={isDisabled}
+                            />
+                        </DialogButtons>
+                    </div>
                 </DialogBody>
-                <div className={Classes.DIALOG_FOOTER}>
-                    <DialogButtons className={Classes.DIALOG_FOOTER_ACTIONS}>
-                        <Switch
-                            checked={isFullscreen}
-                            label="Fullscreen"
-                            onChange={toggleFullscreen}
-                        />
-                        <Button onClick={onClose}>Cancel</Button>
-                        <Button
-                            type="submit"
-                            intent={Intent.PRIMARY}
-                            text="Save"
-                            loading={isDisabled}
-                        />
-                    </DialogButtons>
-                </div>
             </FlexForm>
         </TableCalculationDialog>
     );
