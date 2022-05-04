@@ -1,3 +1,10 @@
+# [0.85.0](https://github.com/lightdash/lightdash/compare/0.84.10...0.85.0) (2022-05-04)
+
+
+### Features
+
+* lightdash cli tool ([#1970](https://github.com/lightdash/lightdash/issues/1970)) ([014c476](https://github.com/lightdash/lightdash/commit/014c476b41316201a0d9be7d709c35950156de4a))
+
 ## [0.84.10](https://github.com/lightdash/lightdash/compare/0.84.9...0.84.10) (2022-05-04)
 
 
