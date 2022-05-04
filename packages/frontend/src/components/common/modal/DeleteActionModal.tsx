@@ -1,16 +1,16 @@
 import { Button, Classes, Dialog } from '@blueprintjs/core';
-import { DashboardBasicDetails } from 'common';
-import { FC, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { FC } from 'react';
+import { Link, useHistory, useParams } from 'react-router-dom';
 import { useDeleteMutation as useDeleteDashboardMutation } from '../../../hooks/dashboard/useDashboard';
-import { getDashboards } from '../../../hooks/dashboard/useDashboards';
+import { useDashboards } from '../../../hooks/dashboard/useDashboards';
 import { useDeleteMutation } from '../../../hooks/useSavedQuery';
 
 interface DeleteActionModalProps {
     name: string;
     uuid: string;
     isOpen: boolean;
-    isChart: boolean;
+    isChart?: boolean;
+    isExplorer?: boolean;
     onClose: () => void;
 }
 
@@ -20,23 +20,15 @@ const DeleteActionModal: FC<DeleteActionModalProps> = ({
     isOpen,
     onClose,
     isChart,
+    isExplorer,
 }) => {
+    const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { mutate: deleteDashboard, isLoading: isDeleting } =
         useDeleteDashboardMutation();
+    const { data: relatedDashboards } = useDashboards(projectUuid, uuid);
 
     const { mutate: deleteChart, isLoading } = useDeleteMutation();
-    const [relatedDashboards, setRelatedDashboards] = useState<
-        DashboardBasicDetails[]
-    >([]);
-
-    useEffect(() => {
-        if (isChart) {
-            getDashboards(projectUuid, uuid).then((dashboards) => {
-                setRelatedDashboards(dashboards);
-            });
-        }
-    }, [isChart, uuid, projectUuid]);
 
     return (
         <Dialog
@@ -90,6 +82,20 @@ const DeleteActionModal: FC<DeleteActionModalProps> = ({
                         onClick={() => {
                             if (isChart) deleteChart(uuid);
                             if (!isChart) deleteDashboard(uuid);
+                            if (isExplorer && isChart) {
+                                history.listen((loc, action) => {
+                                    if (action === 'POP') {
+                                        if (loc.pathname.includes('/tables/')) {
+                                            history.push(
+                                                `/projects/${projectUuid}/tables`,
+                                            );
+                                        }
+                                    }
+                                });
+                                if (uuid) {
+                                    history.push('/');
+                                }
+                            }
                             onClose();
                         }}
                     >
@@ -99,6 +105,11 @@ const DeleteActionModal: FC<DeleteActionModalProps> = ({
             </div>
         </Dialog>
     );
+};
+
+DeleteActionModal.defaultProps = {
+    isChart: false,
+    isExplorer: false,
 };
 
 export default DeleteActionModal;

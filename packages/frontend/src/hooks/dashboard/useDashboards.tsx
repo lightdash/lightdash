@@ -13,11 +13,11 @@ export const getDashboards = async (projectUuid: string, chartId?: string) => {
     });
 };
 
-export const useDashboards = (projectUuid: string) => {
+export const useDashboards = (projectUuid: string, chartId?: string) => {
     const setErrorResponse = useQueryError();
     return useQuery<DashboardBasicDetails[], ApiError>({
         queryKey: ['dashboards', projectUuid],
-        queryFn: () => getDashboards(projectUuid || ''),
+        queryFn: () => getDashboards(projectUuid, chartId || ''),
         enabled: projectUuid !== undefined,
         onError: (result) => setErrorResponse(result),
     });
