@@ -111,10 +111,10 @@ export class ProjectService {
         };
 
         const doAsyncWork = async () => {
-            await this.jobModel.update(job.jobUuid, {
-                jobStatus: JobStatusType.RUNNING,
-            });
             try {
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.RUNNING,
+                });
                 const adapter = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.TESTING_ADAPTOR,
