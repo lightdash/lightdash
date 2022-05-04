@@ -111,10 +111,10 @@ export class ProjectService {
         };
 
         const doAsyncWork = async () => {
-            await this.jobModel.update(job.jobUuid, {
-                jobStatus: JobStatusType.RUNNING,
-            });
             try {
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.RUNNING,
+                });
                 const adapter = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.TESTING_ADAPTOR,
@@ -162,19 +162,15 @@ export class ProjectService {
                 this.projectAdapters[projectUuid] = adapter;
             } catch (error) {
                 await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.ERROR,
+                });
                 throw error;
             }
         };
 
         await this.jobModel.create(job);
-        doAsyncWork()
-            .catch(async (e) => {
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.ERROR,
-                });
-                throw e;
-            })
-            .catch((e) => Logger.error(`Error running background job: ${e}`));
+        doAsyncWork().catch((e) => Logger.error(`Background job failed: ${e}`));
         return {
             jobUuid: job.jobUuid,
         };
@@ -508,45 +504,41 @@ export class ProjectService {
             projectUuid,
             steps: [{ stepType: JobStepType.COMPILING }],
         };
-        return new Promise<{ jobUuid: string }>((resolve, reject) => {
-            const onLockFailed = async () => {
-                reject(
-                    new AlreadyProcessingError('Project is already compiling'),
+
+        const doAsyncWork = async () => {
+            try {
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.RUNNING,
+                });
+                const explores = await this.jobModel.tryJobStep(
+                    job.jobUuid,
+                    JobStepType.COMPILING,
+                    async () => this.refreshAllTables(user, projectUuid),
                 );
-            };
-            const onLockAcquired = async () => {
-                await this.jobModel.create(job);
-                resolve({ jobUuid: job.jobUuid });
-                try {
-                    await this.jobModel.update(job.jobUuid, {
-                        jobStatus: JobStatusType.RUNNING,
-                    });
-                    const explores = await this.jobModel.tryJobStep(
-                        job.jobUuid,
-                        JobStepType.COMPILING,
-                        async () => this.refreshAllTables(user, projectUuid),
-                    );
-                    await this.projectModel.saveExploresToCache(
-                        projectUuid,
-                        explores,
-                    );
-                    await this.jobModel.update(job.jobUuid, {
-                        jobStatus: JobStatusType.DONE,
-                    });
-                } catch (e) {
-                    await this.jobModel.update(job.jobUuid, {
-                        jobStatus: JobStatusType.ERROR,
-                    });
-                }
-            };
-            this.projectModel
-                .tryAcquireProjectLock(
+                await this.projectModel.saveExploresToCache(
                     projectUuid,
-                    onLockAcquired,
-                    onLockFailed,
-                )
-                .catch((e) => Logger.error(`Background job failed: ${e}`));
-        });
+                    explores,
+                );
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.DONE,
+                });
+            } catch (e) {
+                await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.ERROR,
+                });
+            }
+        };
+
+        const canCompile = await this.projectModel.tryAcquireProjectLock(
+            projectUuid,
+        );
+        if (!canCompile) {
+            throw new AlreadyProcessingError('Project is already compiling');
+        }
+        await this.jobModel.create(job);
+        doAsyncWork().catch((e) => Logger.error(`Background job failed: ${e}`));
+        return { jobUuid: job.jobUuid };
     }
 
     async getAllExploresSummary(

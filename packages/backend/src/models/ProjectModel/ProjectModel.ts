@@ -421,12 +421,8 @@ export class ProjectModel {
         return cachedExplores;
     }
 
-    async tryAcquireProjectLock(
-        projectUuid: string,
-        onLockAcquired: () => Promise<void>,
-        onLockFailed?: () => Promise<void>,
-    ): Promise<void> {
-        await this.database.transaction(async (trx) => {
+    async tryAcquireProjectLock(projectUuid: string): Promise<boolean> {
+        return this.database.transaction(async (trx) => {
             // pg_advisory_xact_lock takes a 64bit integer as key
             // we can't use project_uuid (uuidv4) as key, not even a hash,
             // so we will be using autoinc project_id from DB.
@@ -439,13 +435,9 @@ export class ProjectModel {
                     project_uuid = '${projectUuid}'
                 LIMIT 1  `);
 
-            if (projectLock.rows.length === 0) return; // No project with uuid in DB
+            if (projectLock.rows.length === 0) return true; // No project with uuid in DB
             const acquiresLock = projectLock.rows[0].pg_try_advisory_xact_lock;
-            if (acquiresLock) {
-                await onLockAcquired();
-            } else if (onLockFailed) {
-                await onLockFailed();
-            }
+            return !!acquiresLock;
         });
     }
 
