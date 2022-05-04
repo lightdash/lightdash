@@ -1,3 +1,10 @@
+## [0.85.1](https://github.com/lightdash/lightdash/compare/0.85.0...0.85.1) (2022-05-04)
+
+
+### Bug Fixes
+
+* update delete modal action to be generic and delete dashboards a… ([#1967](https://github.com/lightdash/lightdash/issues/1967)) ([630431e](https://github.com/lightdash/lightdash/commit/630431e9f386425b11d5cb3d9494809469c1a9a7)), closes [#1988](https://github.com/lightdash/lightdash/issues/1988)
+
 # [0.85.0](https://github.com/lightdash/lightdash/compare/0.84.10...0.85.0) (2022-05-04)
 
 
