@@ -2,6 +2,7 @@
 
 const { program } = require('commander')
 const { exec } = require('child_process');
+const { version: VERSION } = require('../package.json');
 
 
 program
@@ -26,8 +27,6 @@ function dbt () {
 }
 
 function version () {
-    exec(`npm view lightdash-cli version`, (err: string, stdout: string, stderr: string) => {
-        console.log(`lightdash-cli version: ${stdout}`)
-    })
+    console.log(`new lightdash-cli version: ${VERSION}`)
 }
 program.parse()
