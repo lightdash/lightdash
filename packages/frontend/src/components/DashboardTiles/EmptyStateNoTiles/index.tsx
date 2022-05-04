@@ -33,23 +33,18 @@ const RunQueryButton: FC<{ projectId: string }> = ({ projectId }) => (
     </ButtonWrapper>
 );
 
-const NoSavedChartsAvailable = ({ isChart = false }) => (
+const NoSavedChartsAvailable = () => (
     <EmptyStateWrapper>
         <EmptyStateIcon icon="grouped-bar-chart" size={59} />
         <Title>You haven’t saved any charts yet.</Title>
         <p>
-            {`Create a saved chart from your queries so you can ${
-                isChart ? 'find it here!' : 'add it to this dashboard!'
-            }`}
+            Create a saved chart from your queries so you can add it to this
+            dashboard!
         </p>
     </EmptyStateWrapper>
 );
 
-interface Props {
-    isChart?: boolean;
-}
-
-const EmptyStateNoTiles: FC<Props> = ({ isChart }) => {
+const EmptyStateNoTiles: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const savedChartsRequest = useSavedCharts(projectUuid);
     const savedCharts = savedChartsRequest.data || [];
@@ -63,7 +58,7 @@ const EmptyStateNoTiles: FC<Props> = ({ isChart }) => {
                         hasSavedCharts ? (
                             <SavedChartsAvailable />
                         ) : (
-                            <NoSavedChartsAvailable isChart={isChart} />
+                            <NoSavedChartsAvailable />
                         )
                     }
                     action={
@@ -75,10 +70,6 @@ const EmptyStateNoTiles: FC<Props> = ({ isChart }) => {
             </div>
         </TrackSection>
     );
-};
-
-EmptyStateNoTiles.defaultProps = {
-    isChart: false,
 };
 
 export default EmptyStateNoTiles;
