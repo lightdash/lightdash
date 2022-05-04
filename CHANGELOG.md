@@ -1,3 +1,10 @@
+## [0.84.8](https://github.com/lightdash/lightdash/compare/0.84.7...0.84.8) (2022-05-04)
+
+
+### Bug Fixes
+
+* health dockerhub call ([#1979](https://github.com/lightdash/lightdash/issues/1979)) ([96cc4a6](https://github.com/lightdash/lightdash/commit/96cc4a6e493a6c9f0e613390e29664a688fc3082))
+
 ## [0.84.7](https://github.com/lightdash/lightdash/compare/0.84.6...0.84.7) (2022-05-04)
 
 
