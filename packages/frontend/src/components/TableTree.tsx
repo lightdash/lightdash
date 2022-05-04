@@ -34,6 +34,8 @@ import { useFilters } from '../hooks/useFilters';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { TrackSection, useTracking } from '../providers/TrackingProvider';
 import { EventName, SectionName } from '../types/Events';
+import DocumentationHelpButton from './DocumentationHelpButton';
+import { TableTreeGlobalStyle, TooltipContent } from './TableTree.styles';
 
 const TreeWrapper = styled.div<{ hasMultipleTables: boolean }>`
     margin-left: ${({ hasMultipleTables }) =>
@@ -501,7 +503,25 @@ const TableTree: FC<TableTreeProps> = ({
                 <strong>Metrics</strong>
             </span>
         ),
-        secondaryLabel: null,
+        secondaryLabel: (
+            <DocumentationHelpButton
+                url={
+                    'https://docs.lightdash.com/get-started/setup-lightdash/add-metrics/#2-add-a-metric-to-your-project'
+                }
+                tooltipProps={{
+                    content: (
+                        <TooltipContent>
+                            <b>View docs</b> - Add a metric to your project
+                        </TooltipContent>
+                    ),
+                }}
+                iconProps={{
+                    style: {
+                        color: Colors.GRAY3,
+                    },
+                }}
+            />
+        ),
         icon: (
             <Icon
                 icon="numerical"
@@ -516,7 +536,7 @@ const TableTree: FC<TableTreeProps> = ({
                   {
                       key: 'no_metrics',
                       id: 'no_metrics',
-                      label: 'No metrics defined',
+                      label: 'No metrics defined in you dbt project',
                       disabled: true,
                   },
               ]
@@ -550,6 +570,18 @@ const TableTree: FC<TableTreeProps> = ({
         (metric) => metric.table === table.name,
     );
 
+    const emptyCustomMetricsChildrenNodes = hasNoMetrics
+        ? [
+              {
+                  key: 'no_custom_metrics',
+                  id: 'no_custom_metrics',
+                  label: 'Add custom metrics by hovering over the dimension of your choice & selecting the three-dot Action Menu',
+                  disabled: true,
+                  className: 'no-custom-metrics',
+              },
+          ]
+        : [];
+
     const customMetricsNode = {
         id: 'customMetrics',
         label: (
@@ -566,16 +598,28 @@ const TableTree: FC<TableTreeProps> = ({
         ),
         hasCaret: false,
         isExpanded: true,
+        secondaryLabel: (
+            <DocumentationHelpButton
+                url={'https://docs.lightdash.com/guides/adding-custom-metrics/'}
+                tooltipProps={{
+                    content: (
+                        <TooltipContent>
+                            Add custom metrics by hovering over the dimension of
+                            your choice & selecting the three-dot Action Menu.{' '}
+                            <b>Click to view docs.</b>
+                        </TooltipContent>
+                    ),
+                }}
+                iconProps={{
+                    style: {
+                        color: Colors.GRAY3,
+                    },
+                }}
+            />
+        ),
         childNodes:
             !tableAdditionalMetrics || tableAdditionalMetrics.length <= 0
-                ? [
-                      {
-                          key: 'no_custom_metrics',
-                          id: 'no_custom_metrics',
-                          label: 'No custom metrics defined',
-                          disabled: true,
-                      },
-                  ]
+                ? emptyCustomMetricsChildrenNodes
                 : tableAdditionalMetrics
                       .sort((a, b) => a.name.localeCompare(b.name))
                       .map((metric) => ({
@@ -678,6 +722,7 @@ const TableTree: FC<TableTreeProps> = ({
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
+            <TableTreeGlobalStyle />
             <TreeWrapper hasMultipleTables={hasMultipleTables}>
                 <Tree
                     contents={contents}
