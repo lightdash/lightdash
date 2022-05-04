@@ -1,11 +1,31 @@
 import { LightdashMode } from 'common';
 import React, { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useIntercom } from 'react-use-intercom';
 import { useApp } from '../providers/AppProvider';
+
+const LOCATIONS_WITH_INTERCOM = ['/welcome', '/register', '/login', '/invite'];
 
 export const Intercom: React.FC = () => {
     const { user, health } = useApp();
     const { update } = useIntercom();
+    const { pathname } = useLocation();
+
+    useEffect(() => {
+        if (
+            LOCATIONS_WITH_INTERCOM.some((locationWithIntercom) =>
+                pathname.includes(locationWithIntercom),
+            )
+        ) {
+            update({
+                hideDefaultLauncher: false,
+            });
+        } else {
+            update({
+                hideDefaultLauncher: true,
+            });
+        }
+    }, [pathname, update]);
 
     useEffect(() => {
         if (health.data?.mode && health.data.mode !== LightdashMode.DEMO) {
