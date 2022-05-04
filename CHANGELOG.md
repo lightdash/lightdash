@@ -1,3 +1,10 @@
+## [0.84.7](https://github.com/lightdash/lightdash/compare/0.84.6...0.84.7) (2022-05-04)
+
+
+### Bug Fixes
+
+* hide intercom launcher in most pages ([#1981](https://github.com/lightdash/lightdash/issues/1981)) ([d300a1e](https://github.com/lightdash/lightdash/commit/d300a1e96ac245ca6856cca7127215799846185c))
+
 ## [0.84.6](https://github.com/lightdash/lightdash/compare/0.84.5...0.84.6) (2022-05-04)
 
 
