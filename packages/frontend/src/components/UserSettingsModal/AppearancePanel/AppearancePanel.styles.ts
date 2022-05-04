@@ -6,21 +6,26 @@ export const AppearancePanelWrapper = styled.div`
     flex-direction: column;
 `;
 
-export const Title = styled.div``;
+export const Title = styled.h3`
+    margin: 0;
+`;
 export const ColorPalette = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    margin-top: 2em;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 20px;
 `;
 
-export const AppearanceColorWrapper = styled.div`
-    margin: 0 0.8em 1.5em 0;
-    line-height: 0.5em;
+export const ColorSquare = styled.div`
+    height: 30px;
+    width: 30px;
+    padding: 0.286em;
 `;
-export const ColorLabel = styled.input`
-    background-color: white;
-    padding: 0.313em;
-    border: 1px solid lightgray;
-    border-radius: 0 5px 5px 0px;
-    width: 5em;
+
+export const ColorSquareInner = styled.div`
+    height: 100%;
+    width: 100%;
+    border-radius: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 `;
