@@ -32,6 +32,10 @@ module.exports = {
           'e2e': {
             'npmPublish': false,
             'pkgRoot': 'packages/e2e'
+          },
+          'cli': {
+            'npmPublish': false,
+            'pkgRoot': 'packages/e2e'
           }
         }
       }

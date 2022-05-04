@@ -8,6 +8,9 @@
     },
     {
       "path": "./packages/common"
+    },
+    {
+      "path": "./packages/cli"
     }
   ],
   "files": [],
