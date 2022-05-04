@@ -1,3 +1,10 @@
+## [0.84.6](https://github.com/lightdash/lightdash/compare/0.84.5...0.84.6) (2022-05-04)
+
+
+### Bug Fixes
+
+* default chart colors ([#1976](https://github.com/lightdash/lightdash/issues/1976)) ([afa5b43](https://github.com/lightdash/lightdash/commit/afa5b43f68155b995fa83627dd6e5dce8c10f144))
+
 ## [0.84.5](https://github.com/lightdash/lightdash/compare/0.84.4...0.84.5) (2022-05-03)
 
 

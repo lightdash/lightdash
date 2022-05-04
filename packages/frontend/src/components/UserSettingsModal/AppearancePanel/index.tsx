@@ -1,14 +1,21 @@
-import { Button, Intent } from '@blueprintjs/core';
+import {
+    Button,
+    Colors,
+    Icon,
+    InputGroup,
+    Intent,
+    Spinner,
+} from '@blueprintjs/core';
 import { ECHARTS_DEFAULT_COLORS } from 'common';
-import React, { FC, useState } from 'react';
+import React, { FC, useCallback, useEffect, useState } from 'react';
 import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';
-import SeriesColorPicker from '../../ChartConfigPanel/Series/SeriesColorPicker';
+import { InputWrapper } from '../../ChartConfigPanel/ChartConfigPanel.styles';
 import {
-    AppearanceColorWrapper,
     AppearancePanelWrapper,
-    ColorLabel,
     ColorPalette,
+    ColorSquare,
+    ColorSquareInner,
     Title,
 } from './AppearancePanel.styles';
 
@@ -22,48 +29,53 @@ const AppearanceColor: FC<AppearanceColorProps> = ({
     color,
     index,
     onChange,
-}) => {
-    let [newColor, setNewColor] = useState<string>(color);
+}) => (
+    <InputWrapper label={`Color ${index + 1}`}>
+        <InputGroup
+            placeholder="Enter hex color"
+            value={color}
+            onChange={(e) => {
+                onChange(e.target.value);
+            }}
+            leftElement={
+                <ColorSquare>
+                    <ColorSquareInner
+                        style={{
+                            backgroundColor: color,
+                        }}
+                    >
+                        {!color && <Icon icon="tint" color={Colors.GRAY3} />}
+                    </ColorSquareInner>
+                </ColorSquare>
+            }
+        />
+    </InputWrapper>
+);
 
-    return (
-        <AppearanceColorWrapper>
-            <p>Color {index + 1}</p>
-            <div style={{ display: 'flex' }}>
-                <SeriesColorPicker
-                    color={color}
-                    onChange={(c) => {
-                        onChange(c);
-                        setNewColor(c);
-                    }}
-                />
-                <ColorLabel
-                    value={newColor}
-                    onChange={(e) => {
-                        onChange(e.target.value);
-                        setNewColor(e.target.value);
-                    }}
-                />
-            </div>
-        </AppearanceColorWrapper>
-    );
-};
 const AppearancePanel: FC = () => {
     const { isLoading: isOrgLoading, data } = useOrganisation();
-
     const updateMutation = useOrganisationUpdateMutation();
-    const isLoading = updateMutation.isLoading || isOrgLoading;
-
     let [colors, setColors] = useState<string[]>(
         data?.chartColors || ECHARTS_DEFAULT_COLORS.slice(0, 8),
     );
 
-    const update = () => {
+    const update = useCallback(() => {
         if (data)
             updateMutation.mutate({
                 ...data,
                 chartColors: colors,
             });
-    };
+    }, [colors, data, updateMutation]);
+
+    useEffect(() => {
+        if (data?.chartColors) {
+            setColors(data.chartColors);
+        }
+    }, [data]);
+
+    if (isOrgLoading) {
+        return <Spinner />;
+    }
 
     return (
         <AppearancePanelWrapper>
@@ -71,11 +83,15 @@ const AppearancePanel: FC = () => {
             <ColorPalette>
                 {colors.map((color, index) => (
                     <AppearanceColor
+                        key={index}
                         color={color}
                         index={index}
                         onChange={(colorChange) => {
-                            colors[index] = colorChange;
-                            setColors([...colors]);
+                            setColors(
+                                colors.map((c, i) =>
+                                    index === i ? colorChange : c,
+                                ),
+                            );
                         }}
                     />
                 ))}
@@ -84,8 +100,8 @@ const AppearancePanel: FC = () => {
             <Button
                 style={{ alignSelf: 'flex-end', marginTop: 20 }}
                 intent={Intent.PRIMARY}
-                text="Update"
-                loading={isLoading}
+                text="Save changes"
+                loading={updateMutation.isLoading}
                 onClick={update}
             />
         </AppearancePanelWrapper>
