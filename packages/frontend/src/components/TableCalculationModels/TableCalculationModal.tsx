@@ -81,6 +81,9 @@ const TableCalculationModal: FC<Props> = ({
             <FlexForm
                 name="table_calculation"
                 methods={methods}
+                onClick={(e: any) => {
+                    e.stopPropagation();
+                }}
                 onSubmit={(data: TableCalculationFormInputs) => {
                     const { name, sql } = data;
                     try {
