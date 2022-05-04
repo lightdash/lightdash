@@ -1,3 +1,10 @@
+# [0.86.0](https://github.com/lightdash/lightdash/compare/0.85.1...0.86.0) (2022-05-04)
+
+
+### Features
+
+* show compile status in UI ([#1959](https://github.com/lightdash/lightdash/issues/1959)) ([4691378](https://github.com/lightdash/lightdash/commit/4691378fa4d8a454b2adfe58a02ed85be85b6686))
+
 ## [0.85.1](https://github.com/lightdash/lightdash/compare/0.85.0...0.85.1) (2022-05-04)
 
 
