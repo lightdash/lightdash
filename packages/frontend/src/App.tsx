@@ -67,12 +67,12 @@ const App = () => (
         <QueryClientProvider client={queryClient}>
             <HotkeysProvider>
                 <AppProvider>
-                    <Intercom />
                     <TrackingProvider>
                         {isMobile ? (
                             <MobileView />
                         ) : (
                             <Router>
+                                <Intercom />
                                 <Switch>
                                     <Route path="/welcome">
                                         <TrackPage name={PageName.WELCOME}>
