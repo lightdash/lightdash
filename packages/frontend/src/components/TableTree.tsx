@@ -56,6 +56,7 @@ type TableTreeProps = {
     selectedNodes: Set<string>;
     onOpenSourceDialog: (source: Source) => void;
     hasMultipleTables: boolean;
+    isFirstTable: boolean;
 };
 
 const TableButtons: FC<{
@@ -427,6 +428,7 @@ const TableTree: FC<TableTreeProps> = ({
     onSelectedNodeChange,
     onOpenSourceDialog,
     hasMultipleTables,
+    isFirstTable,
 }) => {
     const {
         state: {
@@ -503,7 +505,7 @@ const TableTree: FC<TableTreeProps> = ({
                 <strong>Metrics</strong>
             </span>
         ),
-        secondaryLabel: (
+        secondaryLabel: hasNoMetrics ? (
             <DocumentationHelpButton
                 url={
                     'https://docs.lightdash.com/get-started/setup-lightdash/add-metrics/#2-add-a-metric-to-your-project'
@@ -521,7 +523,7 @@ const TableTree: FC<TableTreeProps> = ({
                     },
                 }}
             />
-        ),
+        ) : undefined,
         icon: (
             <Icon
                 icon="numerical"
@@ -598,7 +600,7 @@ const TableTree: FC<TableTreeProps> = ({
         ),
         hasCaret: false,
         isExpanded: true,
-        secondaryLabel: (
+        secondaryLabel: isFirstTable ? (
             <DocumentationHelpButton
                 url={'https://docs.lightdash.com/guides/adding-custom-metrics/'}
                 tooltipProps={{
@@ -616,7 +618,7 @@ const TableTree: FC<TableTreeProps> = ({
                     },
                 }}
             />
-        ),
+        ) : undefined,
         childNodes:
             !tableAdditionalMetrics || tableAdditionalMetrics.length <= 0
                 ? emptyCustomMetricsChildrenNodes
