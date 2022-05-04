@@ -1,4 +1,5 @@
 import fetch from 'node-fetch';
+import Logger from '../../logger';
 
 let dockerHubVersion: string | undefined;
 
@@ -31,7 +32,9 @@ async function updateDockerHubVersion() {
     if (version) dockerHubVersion = version;
 }
 setInterval(updateDockerHubVersion, 10 * 60 * 1000); // 10 minutes
-updateDockerHubVersion();
+updateDockerHubVersion().catch((e) =>
+    Logger.error(`Unable to update DockerHub version: ${e}`),
+);
 
 export function getDockerHubVersion(): string | undefined {
     return dockerHubVersion;
