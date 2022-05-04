@@ -2,7 +2,7 @@ import { Button, Classes, Dialog } from '@blueprintjs/core';
 import { FC } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import { useDeleteMutation as useDeleteDashboardMutation } from '../../../hooks/dashboard/useDashboard';
-import { useDashboards } from '../../../hooks/dashboard/useDashboards';
+import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
 import { useDeleteMutation } from '../../../hooks/useSavedQuery';
 
 interface DeleteActionModalProps {
@@ -26,7 +26,10 @@ const DeleteActionModal: FC<DeleteActionModalProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { mutate: deleteDashboard, isLoading: isDeleting } =
         useDeleteDashboardMutation();
-    const { data: relatedDashboards } = useDashboards(projectUuid, uuid);
+    const { data: relatedDashboards } = useDashboardsContainingChart(
+        projectUuid,
+        uuid,
+    );
 
     const { mutate: deleteChart, isLoading } = useDeleteMutation();
 

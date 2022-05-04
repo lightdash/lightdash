@@ -233,15 +233,11 @@ const VisualizationCard: FC = () => {
                     onClose={() => setIsAddToDashboardModalOpen(false)}
                 />
             )}
-            {isDeleteDialogOpen && (
+            {isDeleteDialogOpen && savedChart?.uuid && (
                 <DeleteActionModal
                     isOpen={isDeleteDialogOpen}
-                    onClose={() => {
-                        return !isDeleting
-                            ? setIsDeleteDialogOpen(false)
-                            : undefined;
-                    }}
-                    uuid={savedChart?.uuid || ''}
+                    onClose={() => setIsDeleteDialogOpen(false)}
+                    uuid={savedChart.uuid}
                     name={chartName || ''}
                     isChart
                     isExplorer
