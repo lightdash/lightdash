@@ -382,7 +382,7 @@ export class ProjectService {
         };
     }
 
-    private async refreshAllTables(
+    async refreshAllTables(
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
     ): Promise<(Explore | ExploreError)[]> {
