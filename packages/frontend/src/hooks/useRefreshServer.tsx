@@ -64,7 +64,7 @@ export const runningStepsInfo = (steps: JobStep[]) => {
     const runningStepMessage = `Step ${Math.min(
         numberOfCompletedSteps + 1,
         steps.length,
-    )}/${steps.length}: ${runningStep?.stepLabel}`;
+    )}/${steps.length}: ${runningStep?.stepLabel || ''}`;
 
     return {
         runningStep,
