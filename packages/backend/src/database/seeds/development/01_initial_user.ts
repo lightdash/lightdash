@@ -16,7 +16,9 @@ import {
 import { Knex } from 'knex';
 import path from 'path';
 import { lightdashConfig } from '../../../config/lightdashConfig';
+import { projectModel } from '../../../models/models';
 import { EncryptionService } from '../../../services/EncryptionService/EncryptionService';
+import { projectService } from '../../../services/services';
 import { OnboardingTableName } from '../../entities/onboarding';
 
 export async function seed(knex: Knex): Promise<void> {
@@ -127,4 +129,10 @@ export async function seed(knex: Knex): Promise<void> {
     });
 
     await knex('spaces').insert({ ...SEED_SPACE, project_id: projectId });
+
+    const explores = await projectService.refreshAllTables(
+        { userUuid: SEED_USER.user_uuid },
+        SEED_PROJECT.project_uuid,
+    );
+    await projectModel.saveExploresToCache(SEED_PROJECT.project_uuid, explores);
 }

@@ -39,6 +39,7 @@ services:
       - EMAIL_SMTP_SENDER_EMAIL=${EMAIL_SMTP_SENDER_EMAIL}
     volumes:
       - "../:/usr/app"
+      - "../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt"
       - "node_modules:/usr/app/node_modules/" # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
     ports:
       - "${PORT}:8080"

@@ -1,11 +1,17 @@
-import { ApiError, CreateProject, Project, UpdateProject } from 'common';
+import {
+    ApiError,
+    ApiJobStartedResults,
+    CreateProject,
+    Project,
+    UpdateProject,
+} from 'common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 import useQueryError from './useQueryError';
 
 const createProject = async (data: CreateProject) =>
-    lightdashApi<Project>({
+    lightdashApi<ApiJobStartedResults>({
         url: `/org/projects`,
         method: 'POST',
         body: JSON.stringify(data),
@@ -58,20 +64,19 @@ export const useUpdateMutation = (id: string) => {
 };
 
 export const useCreateMutation = () => {
-    const queryClient = useQueryClient();
-    const { showToastSuccess } = useApp();
-    return useMutation<Project, ApiError, UpdateProject>(
+    const { setActiveJobId, showToastError } = useApp();
+    return useMutation<ApiJobStartedResults, ApiError, UpdateProject>(
         (data) => createProject(data),
         {
             mutationKey: ['project_create'],
-            onSuccess: async () => {
-                await queryClient.invalidateQueries(['projects']);
-                await queryClient.invalidateQueries([
-                    'projects',
-                    'defaultProject',
-                ]);
-                showToastSuccess({
-                    title: `Success! New project was created`,
+            retry: 3,
+            onSuccess: (data) => {
+                setActiveJobId(data.jobUuid);
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to create project`,
+                    subtitle: error.error.message,
                 });
             },
         },

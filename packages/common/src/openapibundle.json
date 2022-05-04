@@ -2113,8 +2113,13 @@
             "Step": {
                 "type": "object",
                 "properties": {
-                    "name": {
-                        "type": "string"
+                    "jobUuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
                     },
                     "updatedAt": {
                         "type": "string",
@@ -2122,7 +2127,8 @@
                     },
                     "startedAt": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date-time",
+                        "nullable": true
                     },
                     "stepStatus": {
                         "type": "string",
@@ -2134,7 +2140,14 @@
                             "SKIPPED"
                         ]
                     },
+                    "stepType": {
+                        "type": "string"
+                    },
+                    "stepLabel": {
+                        "type": "string"
+                    },
                     "error": {
+                        "nullable": true,
                         "type": "object",
                         "properties": {
                             "name": {
@@ -2146,14 +2159,31 @@
                         }
                     }
                 },
-                "required": ["name", "stepStatus", "updatedAt", "startedAt"]
+                "required": [
+                    "jobUuid",
+                    "createdAt",
+                    "stepStatus",
+                    "stepType",
+                    "stepLabel",
+                    "updatedAt",
+                    "startedAt"
+                ]
             },
             "Job": {
                 "type": "object",
                 "properties": {
+                    "jobUuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
                     "createdAt": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date-time",
+                        "nullable": true
                     },
                     "updatedAt": {
                         "type": "string",
@@ -2161,10 +2191,15 @@
                     },
                     "jobStatus": {
                         "type": "string",
-                        "enum": ["DONE", "RUNNING", "ERROR"]
+                        "enum": ["STARTED", "DONE", "RUNNING", "ERROR"]
+                    },
+                    "jobType": {
+                        "type": "string",
+                        "enum": ["COMPILE_PROJECT", "CREATE_PROJECT"]
                     },
                     "jobResults": {
-                        "type": "string"
+                        "type": "object",
+                        "nullable": true
                     },
                     "steps": {
                         "type": "array",
@@ -2173,7 +2208,14 @@
                         }
                     }
                 },
-                "required": ["createdAt", "updatedAt", "jobStatus", "steps"]
+                "required": [
+                    "jobUuid",
+                    "createdAt",
+                    "updatedAt",
+                    "jobStatus",
+                    "jobType",
+                    "steps"
+                ]
             }
         },
         "responses": {

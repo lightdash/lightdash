@@ -1,7 +1,10 @@
-import { Classes, Drawer, Icon, Position } from '@blueprintjs/core';
+import { Classes, Drawer, Icon, Position, Spinner } from '@blueprintjs/core';
+import { Job, JobStatusType, JobStep, JobStepStatusType } from 'common';
+import moment from 'moment';
 import React, { FC } from 'react';
 import {
-    refreshStatusInfo,
+    jobStatusLabel,
+    jobStepStatusLabel,
     runningStepsInfo,
 } from '../../../hooks/useRefreshServer';
 import { useApp } from '../../../providers/AppProvider';
@@ -10,7 +13,7 @@ import {
     RefreshStepsHeadingWrapper,
     RefreshStepsTitle,
     Step,
-    StepIcon,
+    StepIconWrapper,
     StepInfo,
     StepName,
     StepsCompletionOverview,
@@ -18,6 +21,72 @@ import {
     StepStatusWrapper,
     StepsWrapper,
 } from './JobDetailsDrawer.styles';
+
+const durationSince = (
+    startTime: Date,
+    endTime: Date | undefined = undefined,
+) => {
+    return moment
+        .utc(
+            moment
+                .duration(moment(endTime).diff(moment(startTime)))
+                .asMilliseconds(),
+        )
+        .format('HH:mm:ss');
+};
+
+const jobStepDuration = (jobStep: JobStep): string | null => {
+    switch (jobStep.stepStatus) {
+        case JobStepStatusType.ERROR:
+        case JobStepStatusType.DONE:
+            return durationSince(
+                jobStep.startedAt || jobStep.updatedAt,
+                jobStep.updatedAt,
+            );
+        case JobStepStatusType.RUNNING:
+            return durationSince(jobStep.startedAt || jobStep.updatedAt);
+        default:
+            return null;
+    }
+};
+
+type DrawerIconProps = { job: Job };
+const DrawerIcon: FC<DrawerIconProps> = ({ job }: DrawerIconProps) => {
+    const iconSize = 18;
+    switch (job.jobStatus) {
+        case JobStatusType.ERROR:
+            return <Icon icon="warning-sign" iconSize={iconSize} />;
+        case JobStatusType.DONE:
+            return <Icon icon="tick-circle" iconSize={iconSize} />;
+        case JobStatusType.RUNNING:
+            return <Spinner size={iconSize} />;
+        case JobStatusType.STARTED:
+            return null;
+        default:
+            throw new Error('Unknown job status');
+    }
+};
+
+type StepIconProps = { step: JobStep };
+const StepIcon: FC<StepIconProps> = ({ step }: StepIconProps) => {
+    switch (step.stepStatus) {
+        case JobStepStatusType.ERROR:
+            return (
+                <StepIconWrapper icon="warning-sign" status={step.stepStatus} />
+            );
+        case JobStepStatusType.DONE:
+            return (
+                <StepIconWrapper icon="tick-circle" status={step.stepStatus} />
+            );
+        case JobStepStatusType.RUNNING:
+            return <Spinner size={15} />;
+        case JobStepStatusType.SKIPPED:
+        case JobStepStatusType.PENDING:
+            return null;
+        default:
+            throw new Error('Unknown job step status');
+    }
+};
 
 const JobDetailsDrawer: FC = () => {
     const { isJobsDrawerOpen, setIsJobsDrawerOpen, activeJob } = useApp();
@@ -41,19 +110,18 @@ const JobDetailsDrawer: FC = () => {
             size={'400px'}
             title={
                 <RefreshStepsHeadingWrapper className={Classes.DIALOG_HEADER}>
-                    <Icon
-                        icon={refreshStatusInfo(activeJob?.jobStatus).icon}
-                        size={18}
-                    />
+                    <DrawerIcon job={activeJob} />
                     <div>
                         <RefreshStepsTitle>
-                            {refreshStatusInfo(activeJob?.jobStatus).title}
+                            {jobStatusLabel(activeJob.jobStatus).label}
                         </RefreshStepsTitle>
                         {hasSteps && (
                             <StepsCompletionOverview>{`${
-                                runningStepsInfo(activeJob?.steps)
-                                    .numberOfCompletedSteps
-                            } steps complete `}</StepsCompletionOverview>
+                                runningStepsInfo(activeJob.steps)
+                                    .completedStepsMessage
+                            } steps complete - ${durationSince(
+                                activeJob.createdAt,
+                            )}`}</StepsCompletionOverview>
                         )}
                     </div>
                 </RefreshStepsHeadingWrapper>
@@ -61,35 +129,20 @@ const JobDetailsDrawer: FC = () => {
             position={Position.RIGHT}
         >
             <StepsWrapper>
-                {activeJob?.steps?.map((step: any) => (
+                {activeJob.steps?.map((step) => (
                     <Step status={step.stepStatus}>
-                        <StepIcon
-                            icon={
-                                step.stepStatus !== 'PENDING'
-                                    ? refreshStatusInfo(step.stepStatus).icon
-                                    : null
-                            }
-                            status={step.stepStatus}
-                        />
+                        <StepIcon step={step} />
                         <StepInfo>
-                            <StepName>{step.name}</StepName>
+                            <StepName>{step.stepLabel}</StepName>
                             <StepStatusWrapper>
                                 <StepStatus status={step.stepStatus}>
-                                    {refreshStatusInfo(step.stepStatus).status}{' '}
+                                    {jobStepStatusLabel(step.stepStatus).label}{' '}
                                 </StepStatus>
-
-                                {step.stepStatus !== 'ERROR'
-                                    ? step.stepStatus !== 'PENDING'
-                                        ? step.createdAt
-                                        : null
-                                    : null}
+                                {jobStepDuration(step)}
                             </StepStatusWrapper>
-                            {step.error && (
+                            {step.stepError && (
                                 <ErrorMessageWrapper>
-                                    <p>
-                                        {step.error.name}
-                                        <br /> {step.error.message}
-                                    </p>
+                                    <p>{step.stepError}</p>
                                 </ErrorMessageWrapper>
                             )}
                         </StepInfo>
