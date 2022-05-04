@@ -19,7 +19,7 @@
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-import": "^2.25.4",
     "eslint-plugin-json": "^3.0.0",
-    "prettier": "2.3.2",
+    "prettier": "^2.3.2",
     "prettier-plugin-organize-imports": "^2.3.4",
     "ts-node": "^9.1.1",
     "typescript": "^4.2.3"

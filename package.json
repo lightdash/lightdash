@@ -60,8 +60,8 @@
       "yarn workspace e2e eslint --fix"
     ],
     "packages/cli/src/**/*.(ts|tsx|json)": [
-      "yarn workspace cli prettier --write --ignore-unknown",
-      "yarn workspace cli eslint --fix"
+      "yarn workspace @lightdash/cli prettier --write --ignore-unknown",
+      "yarn workspace @lightdash/cli eslint --fix"
     ]
   }
 }
