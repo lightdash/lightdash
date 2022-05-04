@@ -5,6 +5,48 @@ import { useDeleteMutation as useDeleteDashboardMutation } from '../../../hooks/
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
 import { useDeleteMutation } from '../../../hooks/useSavedQuery';
 
+interface RelatedDashboardsMessageProps {
+    uuid: string;
+}
+
+const RelatedDashboardsMessage: FC<RelatedDashboardsMessageProps> = ({
+    uuid,
+}) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { data: relatedDashboards } = useDashboardsContainingChart(
+        projectUuid,
+        uuid,
+    );
+
+    if (!relatedDashboards || relatedDashboards.length === 0) {
+        return null;
+    }
+
+    return (
+        <>
+            <b>
+                This action will remove a chart tile from{' '}
+                {relatedDashboards.length} dashboard
+                {relatedDashboards.length > 1 ? 's' : ''}:
+            </b>
+            <ul>
+                {relatedDashboards.map((dashboard) => {
+                    return (
+                        <li>
+                            <Link
+                                target="_blank"
+                                to={`/projects/${projectUuid}/dashboards/${dashboard.uuid}`}
+                            >
+                                {dashboard.name}
+                            </Link>
+                        </li>
+                    );
+                })}
+            </ul>
+        </>
+    );
+};
+
 interface DeleteActionModalProps {
     name: string;
     uuid: string;
@@ -26,11 +68,6 @@ const DeleteActionModal: FC<DeleteActionModalProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { mutate: deleteDashboard, isLoading: isDeleting } =
         useDeleteDashboardMutation();
-    const { data: relatedDashboards } = useDashboardsContainingChart(
-        projectUuid,
-        uuid,
-    );
-
     const { mutate: deleteChart, isLoading } = useDeleteMutation();
 
     return (
@@ -47,29 +84,7 @@ const DeleteActionModal: FC<DeleteActionModalProps> = ({
                     } `}
                     <b>"{name}"</b> ?
                 </p>
-                {relatedDashboards && relatedDashboards.length > 0 && (
-                    <>
-                        <b>
-                            This action will remove a chart tile from{' '}
-                            {relatedDashboards.length} dashboard
-                            {relatedDashboards.length > 1 ? 's' : ''}:
-                        </b>
-                        <ul>
-                            {relatedDashboards.map((dashboard) => {
-                                return (
-                                    <li>
-                                        <Link
-                                            target="_blank"
-                                            to={`/projects/${projectUuid}/dashboards/${dashboard.uuid}`}
-                                        >
-                                            {dashboard.name}
-                                        </Link>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </>
-                )}
+                {isChart && <RelatedDashboardsMessage uuid={uuid} />}
             </div>
             <div className={Classes.DIALOG_FOOTER}>
                 <div className={Classes.DIALOG_FOOTER_ACTIONS}>

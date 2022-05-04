@@ -1,5 +1,5 @@
 import { ApiError, DashboardBasicDetails } from 'common';
-import { useQuery, useQueryClient } from 'react-query';
+import { useQuery } from 'react-query';
 import { lightdashApi } from '../../api';
 import useQueryError from '../useQueryError';
 
@@ -34,15 +34,10 @@ export const useDashboardsContainingChart = (
     projectUuid: string,
     chartId: string,
 ) => {
-    const queryClient = useQueryClient();
     const setErrorResponse = useQueryError();
     return useQuery<DashboardBasicDetails[], ApiError>({
-        queryKey: ['dashboards', projectUuid],
+        queryKey: ['dashboards-containing-chart', projectUuid, chartId],
         queryFn: () => getDashboardsContainingChart(projectUuid, chartId),
-        enabled: projectUuid !== undefined,
-        onSuccess: async () => {
-            await queryClient.invalidateQueries('dashboards');
-        },
         onError: (result) => setErrorResponse(result),
     });
 };

@@ -14,7 +14,6 @@ import { FC, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
     useAddVersionMutation,
-    useDeleteMutation,
     useDuplicateMutation,
 } from '../../../hooks/useSavedQuery';
 import { useExplorer } from '../../../providers/ExplorerProvider';
@@ -38,16 +37,10 @@ const VisualizationCard: FC = () => {
         { fromExplorer?: boolean; explore?: boolean } | undefined
     >();
     const {
-        state: {
-            chartName,
-            unsavedChartVersion,
-            hasUnsavedChanges,
-            savedChart,
-        },
+        state: { unsavedChartVersion, hasUnsavedChanges, savedChart },
         queryResults,
         actions: { setPivotFields, setChartType, setChartConfig },
     } = useExplorer();
-    const { isLoading: isDeleting } = useDeleteMutation();
     const update = useAddVersionMutation();
     const [vizIsOpen, setVizisOpen] = useState<boolean>(!!savedChart?.uuid);
     const chartId = savedChart?.uuid || '';
@@ -238,7 +231,7 @@ const VisualizationCard: FC = () => {
                     isOpen={isDeleteDialogOpen}
                     onClose={() => setIsDeleteDialogOpen(false)}
                     uuid={savedChart.uuid}
-                    name={chartName || ''}
+                    name={savedChart.name}
                     isChart
                     isExplorer
                 />
