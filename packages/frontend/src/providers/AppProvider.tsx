@@ -223,21 +223,11 @@ export const AppProvider: FC = ({ children }) => {
                         });
                         break;
                     case 'ERROR':
-                        showToastError({
-                            key: TOAST_KEY_FOR_REFRESH_JOB,
-                            title: toastTitle,
-                        });
                         setIsJobsDrawerOpen(true);
                 }
             }
         },
-        [
-            showToastError,
-            showToastInfo,
-            showToastSuccess,
-            queryClient,
-            isJobsDrawerOpen,
-        ],
+        [showToastInfo, showToastSuccess, queryClient, isJobsDrawerOpen],
     );
     const toastJobError = (error: ApiError) => {
         showToastError({

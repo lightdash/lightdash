@@ -15,7 +15,8 @@
         },
         "startedAt": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "nullable": true
         },
         "stepStatus": {
             "type": "string",
@@ -28,6 +29,7 @@
             "type": "string"
         },
         "error": {
+            "nullable": true,
             "type": "object",
             "properties": {
                 "name": {

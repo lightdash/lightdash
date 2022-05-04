@@ -11,7 +11,8 @@
         },
         "createdAt": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "nullable": true
         },
         "updatedAt": {
             "type": "string",
@@ -26,7 +27,8 @@
             "enum": ["COMPILE_PROJECT", "CREATE_PROJECT"]
         },
         "jobResults": {
-            "type": "object"
+            "type": "object",
+            "nullable": true
         },
         "steps": {
             "type": "array",

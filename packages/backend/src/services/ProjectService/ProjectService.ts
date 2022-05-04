@@ -138,7 +138,6 @@ export class ProjectService {
                     explores,
                 );
 
-                // do we still need project adapters?
                 this.projectAdapters[projectUuid] = adapter;
 
                 await this.jobModel.update(job.jobUuid, {
@@ -162,19 +161,17 @@ export class ProjectService {
                 this.projectAdapters[projectUuid] = adapter;
             } catch (error) {
                 await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.ERROR,
+                });
                 throw error;
             }
         };
 
         await this.jobModel.create(job);
-        doAsyncWork()
-            .catch(async (e) => {
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.ERROR,
-                });
-                throw e;
-            })
-            .catch((e) => Logger.error(`Error running background job: ${e}`));
+        doAsyncWork().catch((e) =>
+            Logger.error(`Error running background job: ${e}`),
+        );
         return {
             jobUuid: job.jobUuid,
         };
@@ -386,7 +383,7 @@ export class ProjectService {
     }
 
     private async refreshAllTables(
-        user: SessionUser,
+        user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
     ): Promise<(Explore | ExploreError)[]> {
         // Checks that project exists
@@ -498,7 +495,7 @@ export class ProjectService {
     }
 
     async compileProject(
-        user: SessionUser,
+        user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
     ): Promise<{ jobUuid: string }> {
         const job: CreateJob = {

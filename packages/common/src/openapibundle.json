@@ -2127,7 +2127,8 @@
                     },
                     "startedAt": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date-time",
+                        "nullable": true
                     },
                     "stepStatus": {
                         "type": "string",
@@ -2146,6 +2147,7 @@
                         "type": "string"
                     },
                     "error": {
+                        "nullable": true,
                         "type": "object",
                         "properties": {
                             "name": {
@@ -2180,7 +2182,8 @@
                     },
                     "createdAt": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date-time",
+                        "nullable": true
                     },
                     "updatedAt": {
                         "type": "string",
@@ -2195,7 +2198,8 @@
                         "enum": ["COMPILE_PROJECT", "CREATE_PROJECT"]
                     },
                     "jobResults": {
-                        "type": "object"
+                        "type": "object",
+                        "nullable": true
                     },
                     "steps": {
                         "type": "array",
