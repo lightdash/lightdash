@@ -1,4 +1,4 @@
-import { Intent } from '@blueprintjs/core';
+import { Intent, SpinnerSize } from '@blueprintjs/core';
 import { IToastProps } from '@blueprintjs/core/src/components/toast/toast';
 import * as Sentry from '@sentry/react';
 import { Integrations } from '@sentry/tracing';
@@ -29,6 +29,7 @@ import { UseQueryResult } from 'react-query/types/react/types';
 import { IntercomProvider } from 'react-use-intercom';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';
+import { ToastSpinner } from '../components/ToastSpinner';
 import { ErrorLogs, useErrorLogs } from '../hooks/useErrorLogs';
 import {
     jobStatusLabel,
@@ -212,7 +213,7 @@ export const AppProvider: FC = ({ children }) => {
                                 ? runningStepsInfo(job?.steps)
                                       .runningStepMessage
                                 : '',
-                            icon: `${jobStatusLabel(job?.jobStatus).icon}`,
+                            icon: <ToastSpinner size={SpinnerSize.SMALL} />,
                             timeout: 0,
                             action: {
                                 text: 'View log',

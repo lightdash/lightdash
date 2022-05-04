@@ -81,7 +81,7 @@ export const StepStatus = styled.span<{ status: string }>`
     font-weight: bold;
 `;
 
-export const StepIcon = styled(Icon)<{ status: string }>`
+export const StepIconWrapper = styled(Icon)<{ status: string }>`
     width: 15px;
     height: 15px;
     padding-top: 2px;

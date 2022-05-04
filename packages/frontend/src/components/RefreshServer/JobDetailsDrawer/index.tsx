@@ -1,5 +1,5 @@
-import { Classes, Drawer, Icon, Position } from '@blueprintjs/core';
-import { JobStep, JobStepStatusType } from 'common';
+import { Classes, Drawer, Icon, Position, Spinner } from '@blueprintjs/core';
+import { Job, JobStatusType, JobStep, JobStepStatusType } from 'common';
 import moment from 'moment';
 import React, { FC } from 'react';
 import {
@@ -13,7 +13,7 @@ import {
     RefreshStepsHeadingWrapper,
     RefreshStepsTitle,
     Step,
-    StepIcon,
+    StepIconWrapper,
     StepInfo,
     StepName,
     StepsCompletionOverview,
@@ -50,6 +50,44 @@ const jobStepDuration = (jobStep: JobStep): string | null => {
     }
 };
 
+type DrawerIconProps = { job: Job };
+const DrawerIcon: FC<DrawerIconProps> = ({ job }: DrawerIconProps) => {
+    const iconSize = 18;
+    switch (job.jobStatus) {
+        case JobStatusType.ERROR:
+            return <Icon icon="warning-sign" iconSize={iconSize} />;
+        case JobStatusType.DONE:
+            return <Icon icon="tick-circle" iconSize={iconSize} />;
+        case JobStatusType.RUNNING:
+            return <Spinner size={iconSize} />;
+        case JobStatusType.STARTED:
+            return null;
+        default:
+            throw new Error('Unknown job status');
+    }
+};
+
+type StepIconProps = { step: JobStep };
+const StepIcon: FC<StepIconProps> = ({ step }: StepIconProps) => {
+    switch (step.stepStatus) {
+        case JobStepStatusType.ERROR:
+            return (
+                <StepIconWrapper icon="warning-sign" status={step.stepStatus} />
+            );
+        case JobStepStatusType.DONE:
+            return (
+                <StepIconWrapper icon="tick-circle" status={step.stepStatus} />
+            );
+        case JobStepStatusType.RUNNING:
+            return <Spinner size={15} />;
+        case JobStepStatusType.SKIPPED:
+        case JobStepStatusType.PENDING:
+            return null;
+        default:
+            throw new Error('Unknown job step status');
+    }
+};
+
 const JobDetailsDrawer: FC = () => {
     const { isJobsDrawerOpen, setIsJobsDrawerOpen, activeJob } = useApp();
 
@@ -72,20 +110,17 @@ const JobDetailsDrawer: FC = () => {
             size={'400px'}
             title={
                 <RefreshStepsHeadingWrapper className={Classes.DIALOG_HEADER}>
-                    <Icon
-                        icon={jobStatusLabel(activeJob?.jobStatus).icon}
-                        size={18}
-                    />
+                    <DrawerIcon job={activeJob} />
                     <div>
                         <RefreshStepsTitle>
-                            {jobStatusLabel(activeJob?.jobStatus).label}
+                            {jobStatusLabel(activeJob.jobStatus).label}
                         </RefreshStepsTitle>
                         {hasSteps && (
                             <StepsCompletionOverview>{`${
-                                runningStepsInfo(activeJob?.steps)
+                                runningStepsInfo(activeJob.steps)
                                     .completedStepsMessage
                             } steps complete - ${durationSince(
-                                activeJob?.createdAt,
+                                activeJob.createdAt,
                             )}`}</StepsCompletionOverview>
                         )}
                     </div>
@@ -94,16 +129,9 @@ const JobDetailsDrawer: FC = () => {
             position={Position.RIGHT}
         >
             <StepsWrapper>
-                {activeJob?.steps?.map((step) => (
+                {activeJob.steps?.map((step) => (
                     <Step status={step.stepStatus}>
-                        <StepIcon
-                            icon={
-                                step.stepStatus !== 'PENDING'
-                                    ? jobStepStatusLabel(step.stepStatus).icon
-                                    : null
-                            }
-                            status={step.stepStatus}
-                        />
+                        <StepIcon step={step} />
                         <StepInfo>
                             <StepName>{step.stepLabel}</StepName>
                             <StepStatusWrapper>
