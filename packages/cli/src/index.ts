@@ -27,6 +27,6 @@ function dbt () {
 }
 
 function version () {
-    console.log(`new lightdash-cli version: ${VERSION}`)
+     console.log(`new lightdash-cli version: ${VERSION}`)
 }
 program.parse()
