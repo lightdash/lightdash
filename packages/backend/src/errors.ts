@@ -258,6 +258,17 @@ export class SmptError extends LightdashError {
     }
 }
 
+export class AlreadyProcessingError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'AlreadyProcessingError',
+            statusCode: 409,
+            data: {},
+        });
+    }
+}
+
 export const errorHandler = (error: Error): LightdashError => {
     if (error instanceof LightdashError) {
         return error;

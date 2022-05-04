@@ -269,6 +269,14 @@ export const CreateProjectConnection: FC = () => {
         });
     };
 
+    useEffect(() => {
+        if (activeJob?.jobResults?.projectUuid) {
+            history.push({
+                pathname: `/createProjectSettings/${activeJob?.jobResults?.projectUuid}`,
+            });
+        }
+    }, [activeJob, history]);
+
     return (
         <Form
             name="create_project"
@@ -283,32 +291,13 @@ export const CreateProjectConnection: FC = () => {
                     defaultType={health.data?.defaultProject?.type}
                 />
             </ProjectFormProvider>
-            {/*{activeJobIsRunning && (*/}
-            {/*    <ProjectStatusCallout*/}
-            {/*        style={{ marginBottom: '20px' }}*/}
-            {/*        mutation={createMutation}*/}
-            {/*    />*/}
-            {/*)}*/}
-            {activeJob?.jobResults?.projectUuid ? (
-                <Button
-                    intent={Intent.PRIMARY}
-                    text="Next"
-                    onClick={async () => {
-                        history.push({
-                            pathname: `/createProjectSettings/${activeJob?.jobResults?.projectUuid}`,
-                        });
-                    }}
-                    style={{ float: 'right' }}
-                />
-            ) : (
-                <Button
-                    type="submit"
-                    intent={Intent.PRIMARY}
-                    text="Test and compile project"
-                    loading={isSaving || activeJobIsRunning}
-                    style={{ float: 'right' }}
-                />
-            )}
+            <Button
+                type="submit"
+                intent={Intent.PRIMARY}
+                text="Test and compile project"
+                loading={isSaving || activeJobIsRunning}
+                style={{ float: 'right' }}
+            />
         </Form>
     );
 };

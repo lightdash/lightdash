@@ -421,7 +421,7 @@ export class ProjectModel {
         return cachedExplores;
     }
 
-    async tryWithProjectLock(
+    async tryAcquireProjectLock(
         projectUuid: string,
         onLockAcquired: () => Promise<void>,
         onLockFailed?: () => Promise<void>,

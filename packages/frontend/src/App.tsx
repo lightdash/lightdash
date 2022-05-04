@@ -4,7 +4,6 @@ import '@blueprintjs/popover2/lib/css/blueprint-popover2.css';
 import '@blueprintjs/table/lib/css/table.css';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from 'react-query';
-import { ReactQueryDevtools } from 'react-query/devtools';
 import {
     BrowserRouter as Router,
     Redirect,
@@ -66,7 +65,6 @@ const App = () => (
     <>
         <AppStyle />
         <QueryClientProvider client={queryClient}>
-            <ReactQueryDevtools initialIsOpen={true} />
             <HotkeysProvider>
                 <AppProvider>
                     <Intercom />

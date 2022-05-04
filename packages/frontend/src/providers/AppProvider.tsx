@@ -186,73 +186,81 @@ export const AppProvider: FC = ({ children }) => {
         [showToastSuccess],
     );
 
-    // DBT refresh
-    const { data: activeJob, error } = useJob(activeJobId);
+    const toastJobStatus = useCallback(
+        (job: Job | undefined) => {
+            if (job && !isJobsDrawerOpen) {
+                const toastTitle = `${jobStatusLabel(job?.jobStatus).label}`;
+                switch (job.jobStatus) {
+                    case 'DONE':
+                        if (job.jobType === JobType.CREATE_PROJECT) {
+                            queryClient.invalidateQueries(['projects']);
+                            queryClient.invalidateQueries([
+                                'projects',
+                                'defaultProject',
+                            ]);
+                        }
+                        showToastSuccess({
+                            key: TOAST_KEY_FOR_REFRESH_JOB,
+                            title: toastTitle,
+                        });
+                        break;
+                    case 'RUNNING':
+                        showToastInfo({
+                            key: TOAST_KEY_FOR_REFRESH_JOB,
+                            title: toastTitle,
+                            subtitle: job?.steps
+                                ? runningStepsInfo(job?.steps)
+                                      .runningStepMessage
+                                : '',
+                            icon: `${jobStatusLabel(job?.jobStatus).icon}`,
+                            timeout: 0,
+                            action: {
+                                text: 'View log',
+                                icon: 'arrow-right',
+                                onClick: () => setIsJobsDrawerOpen(true),
+                            },
+                        });
+                        break;
+                    case 'ERROR':
+                        showToastError({
+                            key: TOAST_KEY_FOR_REFRESH_JOB,
+                            title: toastTitle,
+                        });
+                        setIsJobsDrawerOpen(true);
+                }
+            }
+        },
+        [
+            showToastError,
+            showToastInfo,
+            showToastSuccess,
+            queryClient,
+            isJobsDrawerOpen,
+        ],
+    );
+    const toastJobError = (error: ApiError) => {
+        showToastError({
+            key: TOAST_KEY_FOR_REFRESH_JOB,
+            title: 'Failed to refresh server',
+            subtitle: error.error.message,
+        });
+    };
+    const { data: activeJob } = useJob(
+        activeJobId,
+        toastJobStatus,
+        toastJobError,
+    );
 
-    const activeJobStatusToast = useCallback(() => {
-        if (activeJob) {
-            const toastTitle = `${jobStatusLabel(activeJob?.jobStatus).label}`;
-            const hasSteps = !!activeJob.steps.length;
-            switch (activeJob.jobStatus) {
-                case 'DONE':
-                    if (activeJob.jobType === JobType.CREATE_PROJECT) {
-                        queryClient.invalidateQueries(['projects']);
-                        queryClient.invalidateQueries([
-                            'projects',
-                            'defaultProject',
-                        ]);
-                    }
-                    showToastSuccess({
-                        key: TOAST_KEY_FOR_REFRESH_JOB,
-                        title: toastTitle,
-                    });
-                    break;
-                case 'RUNNING':
-                    showToastInfo({
-                        key: TOAST_KEY_FOR_REFRESH_JOB,
-                        title: toastTitle,
-                        subtitle: activeJob?.steps
-                            ? runningStepsInfo(activeJob?.steps)
-                                  .runningStepMessage
-                            : '',
-                        icon: `${jobStatusLabel(activeJob?.jobStatus).icon}`,
-                        timeout: 0,
-                        action: {
-                            text: 'View log',
-                            icon: 'arrow-right',
-                            onClick: () => setIsJobsDrawerOpen(true),
-                        },
-                    });
-                    break;
-                case 'ERROR':
-                    showToastError({
-                        key: TOAST_KEY_FOR_REFRESH_JOB,
-                        title: toastTitle,
-                    });
-                    setIsJobsDrawerOpen(true);
+    // Always display either a toast or job bar when job is running
+    useEffect(() => {
+        if (activeJobId && activeJob && activeJob.jobStatus === 'RUNNING') {
+            if (isJobsDrawerOpen) {
+                AppToaster.dismiss(TOAST_KEY_FOR_REFRESH_JOB);
+            } else {
+                toastJobStatus(activeJob);
             }
         }
-        if (error) {
-            showToastError({
-                key: TOAST_KEY_FOR_REFRESH_JOB,
-                title: 'Failed to refresh server',
-                subtitle: error.error.message,
-            });
-        }
-    }, [
-        activeJob,
-        error,
-        showToastError,
-        showToastInfo,
-        showToastSuccess,
-        queryClient,
-    ]);
-
-    useEffect(() => {
-        if (activeJobId && activeJob) {
-            activeJobStatusToast();
-        }
-    }, [activeJob, activeJobId, activeJobStatusToast]);
+    }, [activeJob, activeJobId, toastJobStatus, isJobsDrawerOpen]);
 
     const activeJobIsRunning = activeJob && activeJob?.jobStatus === 'RUNNING';
     const errorLogs = useErrorLogs();

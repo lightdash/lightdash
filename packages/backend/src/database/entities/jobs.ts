@@ -22,12 +22,7 @@ type CreateJob = Pick<
 type UpdateJob = Partial<
     Pick<
         DbJobs,
-        | 'project_uuid'
-        | 'job_uuid'
-        | 'job_status'
-        | 'updated_at'
-        | 'results'
-        | 'job_type'
+        'project_uuid' | 'job_status' | 'updated_at' | 'results' | 'job_type'
     >
 >;
 

@@ -32,6 +32,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { analytics } from '../../analytics/client';
 import {
+    AlreadyProcessingError,
     AuthorizationError,
     errorHandler,
     ForbiddenError,
@@ -113,49 +114,56 @@ export class ProjectService {
             await this.jobModel.update(job.jobUuid, {
                 jobStatus: JobStatusType.RUNNING,
             });
-            const adapter = await this.jobModel.tryJobStep(
-                job.jobUuid,
-                JobStepType.TESTING_ADAPTOR,
-                async () => ProjectService.testProjectAdapter(data),
-            );
+            try {
+                const adapter = await this.jobModel.tryJobStep(
+                    job.jobUuid,
+                    JobStepType.TESTING_ADAPTOR,
+                    async () => ProjectService.testProjectAdapter(data),
+                );
 
-            const explores = await this.jobModel.tryJobStep(
-                job.jobUuid,
-                JobStepType.COMPILING,
-                async () => adapter.compileAllExplores(),
-            );
+                const explores = await this.jobModel.tryJobStep(
+                    job.jobUuid,
+                    JobStepType.COMPILING,
+                    async () => adapter.compileAllExplores(),
+                );
 
-            const projectUuid = await this.jobModel.tryJobStep(
-                job.jobUuid,
-                JobStepType.CREATING_PROJECT,
-                async () =>
-                    this.projectModel.create(user.organizationUuid, data),
-            );
-            await this.projectModel.saveExploresToCache(projectUuid, explores);
-
-            // do we still need project adapters?
-            this.projectAdapters[projectUuid] = adapter;
-
-            await this.jobModel.update(job.jobUuid, {
-                jobStatus: JobStatusType.DONE,
-                jobResults: {
+                const projectUuid = await this.jobModel.tryJobStep(
+                    job.jobUuid,
+                    JobStepType.CREATING_PROJECT,
+                    async () =>
+                        this.projectModel.create(user.organizationUuid, data),
+                );
+                await this.projectModel.saveExploresToCache(
                     projectUuid,
-                },
-            });
+                    explores,
+                );
 
-            analytics.track({
-                event: 'project.created',
-                userId: user.userUuid,
-                properties: {
-                    projectName: data.name,
-                    projectId: projectUuid,
-                    projectType: data.dbtConnection.type,
-                    warehouseConnectionType: data.warehouseConnection.type,
-                    organizationId: user.organizationUuid,
-                    dbtConnectionType: data.dbtConnection.type,
-                },
-            });
-            this.projectAdapters[projectUuid] = adapter;
+                // do we still need project adapters?
+                this.projectAdapters[projectUuid] = adapter;
+
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.DONE,
+                    jobResults: {
+                        projectUuid,
+                    },
+                });
+                analytics.track({
+                    event: 'project.created',
+                    userId: user.userUuid,
+                    properties: {
+                        projectName: data.name,
+                        projectId: projectUuid,
+                        projectType: data.dbtConnection.type,
+                        warehouseConnectionType: data.warehouseConnection.type,
+                        organizationId: user.organizationUuid,
+                        dbtConnectionType: data.dbtConnection.type,
+                    },
+                });
+                this.projectAdapters[projectUuid] = adapter;
+            } catch (error) {
+                await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
+                throw error;
+            }
         };
 
         await this.jobModel.create(job);
@@ -502,7 +510,9 @@ export class ProjectService {
         };
         return new Promise<{ jobUuid: string }>((resolve, reject) => {
             const onLockFailed = async () => {
-                reject(new Error('Project is already compiling'));
+                reject(
+                    new AlreadyProcessingError('Project is already compiling'),
+                );
             };
             const onLockAcquired = async () => {
                 await this.jobModel.create(job);
@@ -530,7 +540,11 @@ export class ProjectService {
                 }
             };
             this.projectModel
-                .tryWithProjectLock(projectUuid, onLockAcquired, onLockFailed)
+                .tryAcquireProjectLock(
+                    projectUuid,
+                    onLockAcquired,
+                    onLockFailed,
+                )
                 .catch((e) => Logger.error(`Background job failed: ${e}`));
         });
     }

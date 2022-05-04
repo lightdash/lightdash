@@ -83,9 +83,7 @@ const JobDetailsDrawer: FC = () => {
                         {hasSteps && (
                             <StepsCompletionOverview>{`${
                                 runningStepsInfo(activeJob?.steps)
-                                    .numberOfCompletedSteps
-                            }/${
-                                runningStepsInfo(activeJob?.steps).totalSteps
+                                    .completedStepsMessage
                             } steps complete - ${durationSince(
                                 activeJob?.createdAt,
                             )}`}</StepsCompletionOverview>

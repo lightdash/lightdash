@@ -33,5 +33,8 @@ export async function down(knex: Knex): Promise<void> {
         tableBuilder.dropColumn('job_type');
         tableBuilder.dropColumn('results');
     });
+    await knex.schema.alterTable('job_steps', (tableBuilder) => {
+        tableBuilder.dropColumn('started_at');
+    });
     await knex.schema.dropTableIfExists(JOB_TYPES_TABLE_NAME);
 }

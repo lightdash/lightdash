@@ -90,18 +90,18 @@ const getJob = async (jobUuid: string) =>
         body: undefined,
     });
 
-export const useJob = (jobId: string | undefined) => {
+export const useJob = (
+    jobId: string | undefined,
+    onSuccess: (job: Job) => void,
+    onError: (error: ApiError) => void,
+) => {
     return useQuery<Job, ApiError>({
         queryKey: ['job', jobId],
         queryFn: () => getJob(jobId || ''),
         enabled: !!jobId,
         refetchInterval: (data) => data?.jobStatus === 'RUNNING' && 500,
-        onSuccess: (data) => {
-            if (data.jobStatus === 'DONE' || data.jobStatus === 'ERROR') {
-                jobId = undefined;
-            }
-        },
-        onError: (result) => result,
+        onSuccess,
+        onError,
     });
 };
 

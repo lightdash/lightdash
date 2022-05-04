@@ -108,7 +108,7 @@ export class JobModel {
 
     async create(job: CreateJob): Promise<Job> {
         await this.database.transaction(async (trx) => {
-            const [row] = await trx(JobsTableName)
+            await trx(JobsTableName)
                 .insert({
                     project_uuid: job.projectUuid,
                     job_uuid: job.jobUuid,
@@ -116,11 +116,10 @@ export class JobModel {
                     job_status: job.jobStatus,
                 })
                 .returning('*');
-            const { job_uuid: jobUuid } = row;
             await job.steps.reduce(async (previousPromise, step) => {
                 await previousPromise;
                 return trx(JobStepsTableName).insert({
-                    job_uuid: jobUuid,
+                    job_uuid: job.jobUuid,
                     step_status: JobStepStatusType.PENDING,
                     step_type: step.stepType,
                 });
@@ -208,7 +207,6 @@ export class JobModel {
                 jobStepType,
                 formatJobErrorMessage(e),
             );
-            await this.setPendingJobsToSkipped(jobUuid);
             await this.update(jobUuid, { jobStatus: JobStatusType.ERROR });
             throw e; // throw the error again
         }
