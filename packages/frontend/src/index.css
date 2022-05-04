@@ -17,12 +17,13 @@ code {
 }
 
 /*sidebar-menus*/
-.bp4-tree-node-content-0:hover,
-.bp4-tree-node-content-1:hover {
+.bp4-tree-node-content-0:hover {
     background: none;
 }
 
-.bp4-tree-node-content-2 {
+.bp4-tree-node-content-1:hover,
+.bp4-tree-node-content-2:hover {
+    background: rgba(143, 153, 168, 0.15);
     cursor: pointer;
 }
 
