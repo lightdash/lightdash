@@ -1,16 +1,13 @@
 import { ApiQueryResults, fieldId } from 'common';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 const usePivotDimensions = (
-    pivotDimensions: string[] | undefined,
+    initialPivotDimensions: string[] | undefined,
     resultsData: ApiQueryResults | undefined,
 ) => {
-    const [dirtyPivotDimensions, setPivotDimensions] =
-        useState(pivotDimensions);
-
-    useEffect(() => {
-        setPivotDimensions(pivotDimensions);
-    }, [pivotDimensions]);
+    const [dirtyPivotDimensions, setPivotDimensions] = useState(
+        initialPivotDimensions,
+    );
 
     const validPivotDimensions = useMemo(() => {
         if (resultsData) {

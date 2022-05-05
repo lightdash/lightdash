@@ -65,9 +65,11 @@ const VisualizationCard: FC = () => {
         <>
             <Card style={{ padding: 5, overflowY: 'scroll' }} elevation={1}>
                 <VisualizationProvider
-                    chartConfigs={savedChart?.chartConfig}
+                    initialChartConfig={unsavedChartVersion.chartConfig}
                     chartType={unsavedChartVersion.chartConfig.type}
-                    pivotDimensions={savedChart?.pivotConfig?.columns}
+                    initialPivotDimensions={
+                        unsavedChartVersion.pivotConfig?.columns
+                    }
                     tableName={unsavedChartVersion.tableName}
                     resultsData={queryResults.data}
                     isLoading={queryResults.isLoading}

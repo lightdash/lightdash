@@ -11,37 +11,28 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const useCartesianChartConfig = (
-    chartConfigs: CartesianChart | undefined,
+    initialChartConfig: CartesianChart | undefined,
     pivotKey: string | undefined,
     resultsData: ApiQueryResults | undefined,
     setPivotDimensions: React.Dispatch<
         React.SetStateAction<string[] | undefined>
     >,
 ) => {
-    const hasInitialValue = !!chartConfigs;
+    const hasInitialValue = !!initialChartConfig;
     const [dirtyChartType, setChartType] = useState<CartesianSeriesType>(
-        chartConfigs?.eChartsConfig?.series?.[0]?.type ||
+        initialChartConfig?.eChartsConfig?.series?.[0]?.type ||
             CartesianSeriesType.BAR,
     );
     const [dirtyLayout, setDirtyLayout] = useState<
         Partial<CartesianChart['layout']> | undefined
-    >(chartConfigs?.layout);
+    >(initialChartConfig?.layout);
     const [dirtyEchartsConfig, setDirtyEchartsConfig] = useState<
         Partial<CartesianChart['eChartsConfig']> | undefined
-    >(chartConfigs?.eChartsConfig);
+    >(initialChartConfig?.eChartsConfig);
 
     const isStacked = (dirtyEchartsConfig?.series || []).some(
         (series: Series) => series.stack !== undefined,
     );
-
-    useEffect(() => {
-        setChartType(
-            chartConfigs?.eChartsConfig?.series?.[0]?.type ||
-                CartesianSeriesType.BAR,
-        );
-        setDirtyLayout(chartConfigs?.layout);
-        setDirtyEchartsConfig(chartConfigs?.eChartsConfig);
-    }, [chartConfigs]);
 
     const setXAxisName = useCallback((name: string) => {
         setDirtyEchartsConfig((prevState) => {
