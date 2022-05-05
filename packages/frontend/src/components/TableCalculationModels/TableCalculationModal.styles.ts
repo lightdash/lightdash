@@ -1,5 +1,5 @@
 import { Dialog } from '@blueprintjs/core';
-import styled from 'styled-components';
+import styled, { css } from 'styled-components';
 import Form from '../ReactHookForm/Form';
 
 export const FlexForm = styled(Form)`
@@ -28,7 +28,9 @@ export const DialogBody = styled.div`
     flex-direction: column;
 `;
 
-export const TableCalculationSqlInputWrapper = styled.div`
+export const TableCalculationSqlInputWrapper = styled.div<{
+    $isFullScreen: boolean;
+}>`
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -40,9 +42,18 @@ export const TableCalculationSqlInputWrapper = styled.div`
             flex: 1;
             min-height: 100px;
 
-            .ace_editor {
-                min-height: 100px;
-            }
+            ${({ $isFullScreen }) =>
+                $isFullScreen
+                    ? css`
+                          .ace_editor {
+                              height: 100% !important;
+                          }
+                      `
+                    : css`
+                          .ace_editor {
+                              min-height: 100%;
+                          }
+                      `}
         }
     }
 `;
