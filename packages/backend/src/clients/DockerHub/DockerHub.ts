@@ -12,7 +12,7 @@ const sorterByDate = (
 ): number =>
     Number(new Date(b.last_updated)) - Number(new Date(a.last_updated));
 
-async function fetchDockerHubVersion(): Promise<string | undefined> {
+export async function fetchDockerHubVersion(): Promise<string | undefined> {
     try {
         const response = await fetch(
             'https://hub.docker.com/v2/repositories/lightdash/lightdash/tags',
