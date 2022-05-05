@@ -1195,40 +1195,39 @@ export function formatValue<T>(
     value: T,
     numberStyle?: NumberStyle, // for bigNumbers
 ): string | T {
+    function valueIsNaN(val: T) {
+        if (typeof val === 'boolean') return true;
+        return Number.isNaN(Number(val));
+    }
+
     function roundNumber(number: T): string | T {
         if (round === undefined || round < 0) return number;
-        if (Number.isNaN(parseFloat(number as any))) {
+        if (valueIsNaN(number)) {
             return number;
         }
-        return parseFloat(number as any).toFixed(round);
+        return Number(number).toFixed(round);
     }
 
     if (value === undefined) return value;
 
-    function styleNumber(number: T, style: string): string | T {
-        if (Number.isNaN(parseFloat(number as any))) {
+    function styleNumber(number: T): string | T {
+        if (valueIsNaN(number)) {
             return number;
         }
-        switch (style) {
+        switch (numberStyle) {
             case NumberStyle.THOUSANDS:
-                return `${roundNumber(
-                    (parseFloat(number as any) / 1000) as any,
-                )}K`;
+                return `${roundNumber((Number(number) / 1000) as any)}K`;
             case NumberStyle.MILLIONS:
-                return `${roundNumber(
-                    (parseFloat(number as any) / 1000000) as any,
-                )}M`;
+                return `${roundNumber((Number(number) / 1000000) as any)}M`;
             case NumberStyle.BILLIONS:
-                return `${roundNumber(
-                    (parseFloat(number as any) / 1000000000) as any,
-                )}B`;
+                return `${roundNumber((Number(number) / 1000000000) as any)}B`;
             default:
                 return number;
         }
     }
 
     const styledValue = numberStyle
-        ? (styleNumber(value, numberStyle) as any)
+        ? (styleNumber(value) as any)
         : roundNumber(value);
     switch (format) {
         case 'km':
@@ -1241,11 +1240,12 @@ export function formatValue<T>(
         case 'eur':
             return `€${styledValue}`;
         case 'percent':
-            if (Number.isNaN(parseFloat(value as any))) {
+            if (valueIsNaN(value)) {
                 return value;
             }
+
             // Fix rounding issue
-            return `${(parseFloat(value as any) * 100).toFixed(round)}%`;
+            return `${(Number(value) * 100).toFixed(round)}%`;
 
         case '': // no format
             return styledValue;

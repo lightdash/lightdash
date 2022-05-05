@@ -203,6 +203,7 @@ describe('ProjectService', () => {
                 '0.0005B',
             );
             expect(formatValue(undefined, undefined, 5, B)).toEqual('5e-9B');
+            expect(formatValue(undefined, 2, 5, M)).toEqual('0.00M');
 
             expect(formatValue('km', 2, 5000, T)).toEqual('5.00K km');
             expect(formatValue('mi', 4, 50000, T)).toEqual('50.0000K mi');
