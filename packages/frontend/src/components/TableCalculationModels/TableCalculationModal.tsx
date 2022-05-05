@@ -193,8 +193,7 @@ const TableCalculationModal: FC<Props> = ({
                 <div className={Classes.DIALOG_FOOTER}>
                     <DialogButtons className={Classes.DIALOG_FOOTER_ACTIONS}>
                         <FullScreenButton
-                            active={isFullscreen}
-                            icon={'fullscreen'}
+                            icon={isFullscreen ? 'minimize' : 'fullscreen'}
                             onClick={toggleFullscreen}
                         ></FullScreenButton>
                         <Button onClick={onClose}>Cancel</Button>
