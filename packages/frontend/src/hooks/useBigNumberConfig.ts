@@ -3,6 +3,7 @@ import {
     BigNumber,
     Explore,
     findFieldByIdInExplore,
+    formatValue,
     friendlyName,
     getFieldLabel,
     NumberStyle,
@@ -18,8 +19,6 @@ const useBigNumberConfig = (
         resultsData?.metricQuery.metrics[0] ||
         resultsData?.metricQuery.dimensions[0];
 
-    const bigNumber =
-        featuredData && resultsData?.rows?.[0]?.[featuredData]?.value.raw;
     const fieldId =
         resultsData?.metricQuery.metrics[0] ||
         resultsData?.metricQuery.dimensions[0];
@@ -56,6 +55,22 @@ const useBigNumberConfig = (
         setStateBigNumberStyle(style);
     }, []);
 
+    const bigNumberRaw =
+        featuredData && resultsData?.rows?.[0]?.[featuredData]?.value.raw;
+
+    const bigNumber = formatValue(
+        field?.format,
+        field?.round,
+        bigNumberRaw,
+        bigNumberStyle,
+    );
+
+    const isNaN =
+        (bigNumberRaw?.includes && bigNumberRaw.includes('-')) ||
+        Number.isNaN(Number(bigNumberRaw));
+
+    const showStyle = !isNaN && field?.format !== 'percent';
+
     const validBigNumberConfig: BigNumber | undefined = useMemo(
         () =>
             bigNumberLabel
@@ -73,7 +88,7 @@ const useBigNumberConfig = (
         validBigNumberConfig,
         bigNumberStyle,
         setBigNumberStyle,
-        field,
+        showStyle,
     };
 };
 
