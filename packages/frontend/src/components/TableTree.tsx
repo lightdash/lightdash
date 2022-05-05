@@ -34,6 +34,8 @@ import { useFilters } from '../hooks/useFilters';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { TrackSection, useTracking } from '../providers/TrackingProvider';
 import { EventName, SectionName } from '../types/Events';
+import DocumentationHelpButton from './DocumentationHelpButton';
+import { TableTreeGlobalStyle, TooltipContent } from './TableTree.styles';
 
 const TreeWrapper = styled.div<{ hasMultipleTables: boolean }>`
     margin-left: ${({ hasMultipleTables }) =>
@@ -54,6 +56,7 @@ type TableTreeProps = {
     selectedNodes: Set<string>;
     onOpenSourceDialog: (source: Source) => void;
     hasMultipleTables: boolean;
+    isFirstTable: boolean;
 };
 
 const TableButtons: FC<{
@@ -425,6 +428,7 @@ const TableTree: FC<TableTreeProps> = ({
     onSelectedNodeChange,
     onOpenSourceDialog,
     hasMultipleTables,
+    isFirstTable,
 }) => {
     const {
         state: {
@@ -501,7 +505,25 @@ const TableTree: FC<TableTreeProps> = ({
                 <strong>Metrics</strong>
             </span>
         ),
-        secondaryLabel: null,
+        secondaryLabel: hasNoMetrics ? (
+            <DocumentationHelpButton
+                url={
+                    'https://docs.lightdash.com/get-started/setup-lightdash/add-metrics/#2-add-a-metric-to-your-project'
+                }
+                tooltipProps={{
+                    content: (
+                        <TooltipContent>
+                            <b>View docs</b> - Add a metric to your project
+                        </TooltipContent>
+                    ),
+                }}
+                iconProps={{
+                    style: {
+                        color: Colors.GRAY3,
+                    },
+                }}
+            />
+        ) : undefined,
         icon: (
             <Icon
                 icon="numerical"
@@ -516,7 +538,7 @@ const TableTree: FC<TableTreeProps> = ({
                   {
                       key: 'no_metrics',
                       id: 'no_metrics',
-                      label: 'No metrics defined',
+                      label: 'No metrics defined in you dbt project',
                       disabled: true,
                   },
               ]
@@ -550,6 +572,18 @@ const TableTree: FC<TableTreeProps> = ({
         (metric) => metric.table === table.name,
     );
 
+    const emptyCustomMetricsChildrenNodes = hasNoMetrics
+        ? [
+              {
+                  key: 'no_custom_metrics',
+                  id: 'no_custom_metrics',
+                  label: 'Add custom metrics by hovering over the dimension of your choice & selecting the three-dot Action Menu',
+                  disabled: true,
+                  className: 'no-custom-metrics',
+              },
+          ]
+        : [];
+
     const customMetricsNode = {
         id: 'customMetrics',
         label: (
@@ -566,16 +600,28 @@ const TableTree: FC<TableTreeProps> = ({
         ),
         hasCaret: false,
         isExpanded: true,
+        secondaryLabel: isFirstTable ? (
+            <DocumentationHelpButton
+                url={'https://docs.lightdash.com/guides/adding-custom-metrics/'}
+                tooltipProps={{
+                    content: (
+                        <TooltipContent>
+                            Add custom metrics by hovering over the dimension of
+                            your choice & selecting the three-dot Action Menu.{' '}
+                            <b>Click to view docs.</b>
+                        </TooltipContent>
+                    ),
+                }}
+                iconProps={{
+                    style: {
+                        color: Colors.GRAY3,
+                    },
+                }}
+            />
+        ) : undefined,
         childNodes:
             !tableAdditionalMetrics || tableAdditionalMetrics.length <= 0
-                ? [
-                      {
-                          key: 'no_custom_metrics',
-                          id: 'no_custom_metrics',
-                          label: 'No custom metrics defined',
-                          disabled: true,
-                      },
-                  ]
+                ? emptyCustomMetricsChildrenNodes
                 : tableAdditionalMetrics
                       .sort((a, b) => a.name.localeCompare(b.name))
                       .map((metric) => ({
@@ -678,6 +724,7 @@ const TableTree: FC<TableTreeProps> = ({
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
+            <TableTreeGlobalStyle />
             <TreeWrapper hasMultipleTables={hasMultipleTables}>
                 <Tree
                     contents={contents}

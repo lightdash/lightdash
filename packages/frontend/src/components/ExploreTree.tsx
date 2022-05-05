@@ -127,7 +127,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                     .sort((tableA) =>
                         tableA.name === explore.baseTable ? -1 : 1,
                     )
-                    .map((table) => (
+                    .map((table, index) => (
                         <TableTree
                             key={table.name}
                             search={search}
@@ -144,6 +144,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                             hasMultipleTables={
                                 Object.keys(explore.tables).length > 1
                             }
+                            isFirstTable={index === 0}
                         />
                     ))}
             </div>
