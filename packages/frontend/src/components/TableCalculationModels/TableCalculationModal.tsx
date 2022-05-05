@@ -66,7 +66,11 @@ const TableCalculationModal: FC<Props> = ({
         <TableCalculationDialog
             isOpen={isOpen}
             onClose={() => (!isDisabled ? onClose() : undefined)}
-            title="Add table calculation"
+            title={
+                tableCalculation
+                    ? 'Edit table calculation'
+                    : 'Add table calculation'
+            }
             lazy
             canOutsideClickClose
             style={
