@@ -18,7 +18,11 @@ const useCartesianChartConfig = (
         React.SetStateAction<string[] | undefined>
     >,
 ) => {
-    const hasInitialValue = !!initialChartConfig;
+    const hasInitialValue =
+        !!initialChartConfig &&
+        isCompleteLayout(initialChartConfig.layout) &&
+        isCompleteEchartsConfig(initialChartConfig.eChartsConfig);
+
     const [dirtyChartType, setChartType] = useState<CartesianSeriesType>(
         initialChartConfig?.eChartsConfig?.series?.[0]?.type ||
             CartesianSeriesType.BAR,
