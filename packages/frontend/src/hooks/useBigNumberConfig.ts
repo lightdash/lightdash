@@ -5,6 +5,7 @@ import {
     findFieldByIdInExplore,
     friendlyName,
     getFieldLabel,
+    NumberStyle,
 } from 'common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -36,10 +37,10 @@ const useBigNumberConfig = (
 
     const [bigNumberStyle, setStateBigNumberStyle] = useState<
         BigNumber['style'] | undefined
-    >(bigNumberConfigData?.style || 'none');
+    >(bigNumberConfigData?.style || undefined);
     useEffect(() => {
         setBigNumberName(bigNumberConfigData?.label || label);
-        setStateBigNumberStyle(bigNumberConfigData?.style || 'none');
+        setStateBigNumberStyle(bigNumberConfigData?.style || undefined);
     }, [
         resultsData,
         bigNumberConfigData?.label,
@@ -51,7 +52,7 @@ const useBigNumberConfig = (
         setBigNumberName((prev) => name || prev);
     }, []);
 
-    const setBigNumberStyle = useCallback((style: string) => {
+    const setBigNumberStyle = useCallback((style: NumberStyle | undefined) => {
         setStateBigNumberStyle(style);
     }, []);
 
@@ -65,7 +66,7 @@ const useBigNumberConfig = (
                 : undefined,
         [bigNumberLabel, bigNumberStyle],
     );
-
+    console.log('validBigNumberConfig', validBigNumberConfig);
     return {
         bigNumber,
         bigNumberLabel,

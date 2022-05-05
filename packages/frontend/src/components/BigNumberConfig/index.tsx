@@ -1,5 +1,6 @@
 import { Button, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
+import { NumberStyle } from 'common';
 import React, { useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { InputWrapper } from './BigNumberConfig.styles';
@@ -21,10 +22,10 @@ export const BigNumberConfigPanel: React.FC = () => {
         Number.isNaN(parseFloat(bigNumber));
 
     const styleOptions = [
-        { value: 'none', label: 'none' },
-        { value: 'k', label: 'thousands (K)' },
-        { value: 'm', label: 'millions (M)' },
-        { value: 'b', label: 'billions (B)' },
+        { value: '', label: 'none' },
+        { value: NumberStyle.THOUSANDS, label: 'thousands (K)' },
+        { value: NumberStyle.MILLIONS, label: 'millions (M)' },
+        { value: NumberStyle.BILLIONS, label: 'billions (B)' },
     ];
     return (
         <Popover2
@@ -47,7 +48,12 @@ export const BigNumberConfigPanel: React.FC = () => {
                                     options={styleOptions}
                                     value={bigNumberStyle}
                                     onChange={(e) => {
-                                        setBigNumberStyle(e.target.value);
+                                        if (e.target.value === '')
+                                            setBigNumberStyle(undefined);
+                                        else
+                                            setBigNumberStyle(
+                                                e.target.value as NumberStyle,
+                                            );
                                     }}
                                 />
                             </InputWrapper>

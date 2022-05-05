@@ -42,7 +42,7 @@ import {
     TableCalculation,
 } from './types/metricQuery';
 import { OrganizationMemberProfile } from './types/organizationMemberProfile';
-import { SavedChart, Series } from './types/savedCharts';
+import { NumberStyle, SavedChart, Series } from './types/savedCharts';
 import { LightdashUser } from './types/user';
 
 export * from './authorization/organizationMemberAbility';
@@ -1193,7 +1193,7 @@ export function formatValue<T>(
     format: string | undefined,
     round: number | undefined,
     value: T,
-    numberStyle?: string, // for bigNumbers
+    numberStyle?: NumberStyle, // for bigNumbers
 ): string | T {
     function roundNumber(number: T): string | T {
         if (round === undefined || round < 0) return number;
@@ -1210,17 +1210,15 @@ export function formatValue<T>(
             return number;
         }
         switch (style) {
-            case 'none':
-                return number;
-            case 'k':
+            case NumberStyle.THOUSANDS:
                 return `${roundNumber(
                     (parseFloat(number as any) / 1000) as any,
                 )}K`;
-            case 'm':
+            case NumberStyle.MILLIONS:
                 return `${roundNumber(
                     (parseFloat(number as any) / 1000000) as any,
                 )}M`;
-            case 'b':
+            case NumberStyle.BILLIONS:
                 return `${roundNumber(
                     (parseFloat(number as any) / 1000000000) as any,
                 )}B`;
