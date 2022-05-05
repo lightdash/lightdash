@@ -13,6 +13,7 @@ export const BigNumberConfigPanel: React.FC = () => {
             bigNumberStyle,
             setBigNumberStyle,
             bigNumber,
+            field,
         },
     } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
@@ -20,6 +21,8 @@ export const BigNumberConfigPanel: React.FC = () => {
     const isNaN =
         (bigNumber?.includes && bigNumber.includes('-')) ||
         Number.isNaN(parseFloat(bigNumber));
+
+    const showStyle = !isNaN && field?.format !== 'percent';
 
     const styleOptions = [
         { value: '', label: 'none' },
@@ -40,7 +43,7 @@ export const BigNumberConfigPanel: React.FC = () => {
                             }
                         />
                     </InputWrapper>
-                    {!isNaN && (
+                    {showStyle && (
                         <>
                             <InputWrapper label="Style">
                                 <HTMLSelect
