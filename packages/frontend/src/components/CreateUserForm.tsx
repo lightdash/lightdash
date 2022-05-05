@@ -23,7 +23,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
             <Input
                 label="First name"
                 name="firstName"
-                placeholder="Jane"
+                placeholder="David"
                 disabled={isLoading}
                 rules={{
                     required: 'Required field',
@@ -32,7 +32,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
             <Input
                 label="Last name"
                 name="lastName"
-                placeholder="Doe"
+                placeholder="Attenborough"
                 disabled={isLoading}
                 rules={{
                     required: 'Required field',
@@ -41,7 +41,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
             <Input
                 label="Email"
                 name="email"
-                placeholder="Email"
+                placeholder="d.attenborough@greenplanet.com"
                 disabled={isLoading}
                 rules={{
                     required: 'Required field',
