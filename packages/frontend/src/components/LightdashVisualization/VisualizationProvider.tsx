@@ -25,11 +25,8 @@ type VisualizationContext = {
     explore: Explore | undefined;
     originalData: ApiQueryResults['rows'];
     plotData: ApiQueryResults['rows'];
-    bigNumber: number | string;
-    bigNumberLabel: string | undefined;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
-    setBigNumberLabel: (name: string | undefined) => void;
     onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
     setChartType: (value: ChartType) => void;
     setPivotDimensions: (value: string[] | undefined) => void;
@@ -152,9 +149,6 @@ export const VisualizationProvider: FC<Props> = ({
                 originalData: resultsData?.rows || [],
                 plotData,
                 resultsData,
-                bigNumber,
-                bigNumberLabel,
-                setBigNumberLabel,
                 isLoading,
                 onSeriesContextMenu,
                 setChartType,
