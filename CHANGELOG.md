@@ -1,3 +1,10 @@
+## [0.86.1](https://github.com/lightdash/lightdash/compare/0.86.0...0.86.1) (2022-05-05)
+
+
+### Bug Fixes
+
+* only show leave warning on edit mode ([#1997](https://github.com/lightdash/lightdash/issues/1997)) ([6200d8a](https://github.com/lightdash/lightdash/commit/6200d8a7eb518709184740b08682febb969fa637))
+
 # [0.86.0](https://github.com/lightdash/lightdash/compare/0.85.1...0.86.0) (2022-05-04)
 
 
