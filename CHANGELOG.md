@@ -1,3 +1,10 @@
+## [0.87.1](https://github.com/lightdash/lightdash/compare/0.87.0...0.87.1) (2022-05-05)
+
+
+### Bug Fixes
+
+* remove hello placeholders ([#2001](https://github.com/lightdash/lightdash/issues/2001)) ([a5fad02](https://github.com/lightdash/lightdash/commit/a5fad02117f4cf8772d674fa56bbd9c2ef6e8e29))
+
 # [0.87.0](https://github.com/lightdash/lightdash/compare/0.86.1...0.87.0) (2022-05-05)
 
 
