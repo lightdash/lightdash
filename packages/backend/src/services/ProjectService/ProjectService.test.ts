@@ -201,9 +201,6 @@ describe('ProjectService', () => {
             expect(
                 formatValue(undefined, undefined, 500000, NumberStyle.BILLIONS),
             ).toEqual('0.0005B');
-            expect(
-                formatValue(undefined, undefined, 5, NumberStyle.BILLIONS),
-            ).toEqual('5e-9B');
 
             expect(formatValue('km', 2, 5000, NumberStyle.THOUSANDS)).toEqual(
                 '5.00K km',
