@@ -242,6 +242,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="http://coconauts.net/"><img src="https://avatars.githubusercontent.com/u/1983672?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Javier Rengel Jiménez</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=rephus" title="Code">💻</a> <a href="https://github.com/lightdash/lightdash/issues?q=author%3Arephus" title="Bug reports">🐛</a></td>
     <td align="center"><a href="http://@VFisa"><img src="https://avatars.githubusercontent.com/u/2714554?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Fisa</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3AVfisa" title="Bug reports">🐛</a></td>
     <td align="center"><a href="https://github.com/JoelAlander"><img src="https://avatars.githubusercontent.com/u/33990367?v=4?s=100" width="100px;" alt=""/><br /><sub><b>JoelAlander</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3AJoelAlander" title="Bug reports">🐛</a></td>
+    <td align="center"><a href="https://github.com/chadfl"><img src="https://avatars.githubusercontent.com/u/44757973?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Chad Floyd</b></sub></a><br /><a href="#ideas-chadfl" title="Ideas, Planning, & Feedback">🤔</a></td>
   </tr>
 </table>
 
