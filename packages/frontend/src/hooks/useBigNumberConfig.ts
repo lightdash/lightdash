@@ -66,7 +66,6 @@ const useBigNumberConfig = (
                 : undefined,
         [bigNumberLabel, bigNumberStyle],
     );
-    console.log('validBigNumberConfig', validBigNumberConfig);
     return {
         bigNumber,
         bigNumberLabel,
