@@ -21,17 +21,12 @@ const SimpleStatistic: FC = () => {
 
     if (isLoading) return <LoadingChart />;
 
-    console.log('field', field);
-    console.log('bigNumberStyle', bigNumberStyle);
-    console.log('formattedBigNumber', bigNumber);
-
     const formattedBigNumber = formatValue(
         field?.format,
         field?.round,
         bigNumber,
         bigNumberStyle,
     );
-    console.log('formattedBigNumber', formattedBigNumber);
 
     return (
         <>

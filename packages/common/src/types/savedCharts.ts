@@ -9,6 +9,7 @@ export enum ChartType {
 
 export type BigNumber = {
     label?: string;
+    style?: string;
 };
 
 export type BigNumberConfig = {

@@ -16,7 +16,9 @@ export const BigNumberConfigPanel: React.FC = () => {
     } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
 
-    const isANumber = !Number.isNaN(parseFloat(bigNumber));
+    const isNaN =
+        (bigNumber?.includes && bigNumber.includes('-')) ||
+        Number.isNaN(parseFloat(bigNumber));
 
     const styleOptions = [
         { value: 'none', label: 'none' },
@@ -37,7 +39,7 @@ export const BigNumberConfigPanel: React.FC = () => {
                             }
                         />
                     </InputWrapper>
-                    {isANumber && (
+                    {!isNaN && (
                         <>
                             <InputWrapper label="Style">
                                 <HTMLSelect

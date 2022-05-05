@@ -34,28 +34,36 @@ const useBigNumberConfig = (
         BigNumber['label'] | undefined
     >(bigNumberConfigData?.label || label);
 
-    const [bigNumberStyle, setBigNumberStyle] = useState<string>('none');
-
+    const [bigNumberStyle, setStateBigNumberStyle] = useState<
+        BigNumber['style'] | undefined
+    >(bigNumberConfigData?.style || 'none');
     useEffect(() => {
         setBigNumberName(bigNumberConfigData?.label || label);
-    }, [resultsData, bigNumberConfigData?.label, label]);
+        setStateBigNumberStyle(bigNumberConfigData?.style || 'none');
+    }, [
+        resultsData,
+        bigNumberConfigData?.label,
+        label,
+        bigNumberConfigData?.style,
+    ]);
 
     const setBigNumberLabel = useCallback((name: string | undefined) => {
         setBigNumberName((prev) => name || prev);
     }, []);
-    /*
-    const setBigNumberStyle = useCallback((name: string | undefined) => {
-        setBigNumberName((prev) => name || prev);
-    }, []);;*/
+
+    const setBigNumberStyle = useCallback((style: string) => {
+        setStateBigNumberStyle(style);
+    }, []);
 
     const validBigNumberConfig: BigNumber | undefined = useMemo(
         () =>
             bigNumberLabel
                 ? {
                       label: bigNumberLabel,
+                      style: bigNumberStyle,
                   }
                 : undefined,
-        [bigNumberLabel],
+        [bigNumberLabel, bigNumberStyle],
     );
 
     return {
