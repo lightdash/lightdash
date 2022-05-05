@@ -110,7 +110,6 @@ type Action =
 
 export interface ExplorerReduceState {
     shouldFetchResults: boolean;
-    chartName: string | undefined;
     unsavedChartVersion: CreateSavedChartVersion;
 }
 
@@ -157,7 +156,6 @@ const Context = createContext<ExplorerContext | undefined>(undefined);
 
 const defaultState: ExplorerReduceState = {
     shouldFetchResults: false,
-    chartName: '',
     unsavedChartVersion: {
         tableName: '',
         metricQuery: {

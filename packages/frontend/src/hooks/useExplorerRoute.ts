@@ -151,7 +151,6 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                     : JSON.parse(additionalMetricsParam);
                 return {
                     shouldFetchResults: true,
-                    chartName: undefined,
                     unsavedChartVersion: {
                         tableName: pathParams.tableId,
                         metricQuery: {
