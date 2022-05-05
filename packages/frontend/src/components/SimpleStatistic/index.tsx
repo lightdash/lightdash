@@ -1,4 +1,5 @@
 import { NonIdealState } from '@blueprintjs/core';
+import { formatValue } from 'common';
 import React, { FC } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
@@ -10,19 +11,34 @@ import {
 } from './SimpleStatistics.styles';
 
 const SimpleStatistic: FC = () => {
-    const { resultsData, bigNumber, bigNumberLabel, isLoading } =
-        useVisualizationContext();
+    const {
+        resultsData,
+        isLoading,
+        bigNumberConfig: { bigNumber, bigNumberLabel, bigNumberStyle, field },
+    } = useVisualizationContext();
 
     const validData = bigNumber && resultsData?.rows.length && bigNumberLabel;
 
     if (isLoading) return <LoadingChart />;
+
+    console.log('field', field);
+    console.log('bigNumberStyle', bigNumberStyle);
+    console.log('formattedBigNumber', bigNumber);
+
+    const formattedBigNumber = formatValue(
+        field?.format,
+        field?.round,
+        bigNumber,
+        bigNumberStyle,
+    );
+    console.log('formattedBigNumber', formattedBigNumber);
 
     return (
         <>
             {validData ? (
                 <SimpleStatisticsWrapper>
                     <BigNumberContainer>
-                        <BigNumber>{bigNumber}</BigNumber>
+                        <BigNumber>{formattedBigNumber}</BigNumber>
                         <BigNumberLabel>{bigNumberLabel}</BigNumberLabel>
                     </BigNumberContainer>
                 </SimpleStatisticsWrapper>

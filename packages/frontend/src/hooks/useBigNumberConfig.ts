@@ -18,7 +18,7 @@ const useBigNumberConfig = (
         resultsData?.metricQuery.dimensions[0];
 
     const bigNumber =
-        featuredData && resultsData?.rows?.[0]?.[featuredData]?.value.formatted;
+        featuredData && resultsData?.rows?.[0]?.[featuredData]?.value.raw;
     const fieldId =
         resultsData?.metricQuery.metrics[0] ||
         resultsData?.metricQuery.dimensions[0];
@@ -34,6 +34,8 @@ const useBigNumberConfig = (
         BigNumber['label'] | undefined
     >(bigNumberConfigData?.label || label);
 
+    const [bigNumberStyle, setBigNumberStyle] = useState<string>('none');
+
     useEffect(() => {
         setBigNumberName(bigNumberConfigData?.label || label);
     }, [resultsData, bigNumberConfigData?.label, label]);
@@ -41,6 +43,10 @@ const useBigNumberConfig = (
     const setBigNumberLabel = useCallback((name: string | undefined) => {
         setBigNumberName((prev) => name || prev);
     }, []);
+    /*
+    const setBigNumberStyle = useCallback((name: string | undefined) => {
+        setBigNumberName((prev) => name || prev);
+    }, []);;*/
 
     const validBigNumberConfig: BigNumber | undefined = useMemo(
         () =>
@@ -57,6 +63,9 @@ const useBigNumberConfig = (
         bigNumberLabel,
         setBigNumberLabel,
         validBigNumberConfig,
+        bigNumberStyle,
+        setBigNumberStyle,
+        field,
     };
 };
 

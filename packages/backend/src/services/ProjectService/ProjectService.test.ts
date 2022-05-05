@@ -190,5 +190,27 @@ describe('ProjectService', () => {
             expect(formatValue('percent', 2, false)).toEqual(false);
             expect(formatValue('', 2, 5)).toEqual('5.00');
         });
+
+        test('formatValue should return the right style', async () => {
+            expect(formatValue('km', 2, 5000, 'k')).toEqual('5.00K km');
+            expect(formatValue('mi', 4, 50000, 'k')).toEqual('50.0000K mi');
+            expect(formatValue('usd', 2, 5000, 'k')).toEqual('$5.00K');
+            expect(formatValue('usd', 2, 5000000, 'k')).toEqual('$5000.00K');
+            expect(formatValue('usd', 2, 5000000, 'm')).toEqual('$5.00M');
+
+            expect(formatValue('usd', 2, 4, 'k')).toEqual('$0.00K');
+            expect(formatValue('usd', 3, 4, 'k')).toEqual('$0.004K');
+
+            expect(formatValue('usd', 2, 5000000, 'm')).toEqual('$5.00M');
+            expect(formatValue('usd', 2, 5000000000, 'm')).toEqual('$5000.00M');
+            expect(formatValue('usd', 2, 5000000000, 'b')).toEqual('$5.00B');
+
+            expect(formatValue('usd', 0, 5000.0, 'k')).toEqual('$5K');
+            expect(formatValue('usd', 2, '5000', 'k')).toEqual('$5.00K');
+            expect(formatValue('gbp', 2, 5000, 'k')).toEqual('£5.00K');
+            expect(formatValue('eur', 2, 5000, 'k')).toEqual('€5.00K');
+            expect(formatValue('percent', 2, 0.05, 'k')).toEqual('5.00%'); // No affects percent
+            expect(formatValue('', 2, 5000, 'k')).toEqual('5.00K');
+        });
     });
 });

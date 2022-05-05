@@ -1193,9 +1193,10 @@ export function formatValue<T>(
     format: string | undefined,
     round: number | undefined,
     value: T,
+    numberStyle?: string, // for bigNumbers
 ): string | T {
     function roundNumber(number: T): string | T {
-        if (round === undefined || round < 0) return value;
+        if (round === undefined || round < 0) return number;
         if (Number.isNaN(parseFloat(number as any))) {
             return number;
         }
@@ -1203,16 +1204,44 @@ export function formatValue<T>(
     }
 
     if (value === undefined) return value;
+
+    function styleNumber(number: T, style: string): string | T {
+        if (Number.isNaN(parseFloat(number as any))) {
+            return number;
+        }
+        switch (style) {
+            case 'none':
+                return number;
+            case 'k':
+                return `${roundNumber(
+                    (parseFloat(number as any) / 1000) as any,
+                )}K`;
+            case 'm':
+                return `${roundNumber(
+                    (parseFloat(number as any) / 1000000) as any,
+                )}M`;
+            case 'b':
+                return `${roundNumber(
+                    (parseFloat(number as any) / 1000000000) as any,
+                )}B`;
+            default:
+                return number;
+        }
+    }
+
+    const styledValue = numberStyle
+        ? (styleNumber(value, numberStyle) as any)
+        : roundNumber(value);
     switch (format) {
         case 'km':
         case 'mi':
-            return `${roundNumber(value)} ${format}`;
+            return `${styledValue} ${format}`;
         case 'usd':
-            return `$${roundNumber(value)}`;
+            return `$${styledValue}`;
         case 'gbp':
-            return `£${roundNumber(value)}`;
+            return `£${styledValue}`;
         case 'eur':
-            return `€${roundNumber(value)}`;
+            return `€${styledValue}`;
         case 'percent':
             if (Number.isNaN(parseFloat(value as any))) {
                 return value;
@@ -1221,10 +1250,10 @@ export function formatValue<T>(
             return `${(parseFloat(value as any) * 100).toFixed(round)}%`;
 
         case '': // no format
-            return roundNumber(value);
+            return styledValue;
         default:
             // unrecognized format
-            return roundNumber(value);
+            return styledValue;
     }
 }
 

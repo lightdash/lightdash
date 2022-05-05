@@ -20,6 +20,7 @@ type VisualizationContext = {
     chartRef: RefObject<EChartsReact>;
     chartType: ChartType;
     cartesianConfig: ReturnType<typeof useCartesianChartConfig>;
+    bigNumberConfig: ReturnType<typeof useBigNumberConfig>;
     pivotDimensions: string[] | undefined;
     explore: Explore | undefined;
     originalData: ApiQueryResults['rows'];
@@ -75,18 +76,20 @@ export const VisualizationProvider: FC<Props> = ({
         [onChartTypeChange],
     );
 
-    const {
-        bigNumber,
-        bigNumberLabel,
-        setBigNumberLabel,
-        validBigNumberConfig,
-    } = useBigNumberConfig(
+    const bigNumberConfig = useBigNumberConfig(
         chartConfigs?.type === ChartType.BIG_NUMBER
             ? chartConfigs.config
             : undefined,
         resultsData,
         explore,
     );
+
+    const {
+        bigNumber,
+        bigNumberLabel,
+        setBigNumberLabel,
+        validBigNumberConfig,
+    } = bigNumberConfig;
 
     const cartesianConfig = useCartesianChartConfig(
         chartConfigs?.type === ChartType.CARTESIAN
@@ -142,6 +145,7 @@ export const VisualizationProvider: FC<Props> = ({
             value={{
                 pivotDimensions: validPivotDimensions,
                 cartesianConfig,
+                bigNumberConfig,
                 chartRef,
                 chartType,
                 explore,
