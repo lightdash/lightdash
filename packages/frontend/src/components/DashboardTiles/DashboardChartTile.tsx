@@ -61,8 +61,8 @@ const ValidDashboardChartTile: FC<{
     return (
         <VisualizationProvider
             chartType={data.chartConfig.type}
-            chartConfigs={data?.chartConfig}
-            pivotDimensions={data.pivotConfig?.columns}
+            initialChartConfig={data.chartConfig}
+            initialPivotDimensions={data.pivotConfig?.columns}
             resultsData={resultData}
             tableName={data.tableName}
             isLoading={isLoading}
@@ -102,8 +102,10 @@ const DashboardChartTile: FC<Props> = (props) => {
     const { dashboardFilters, addDimensionDashboardFilter } =
         useDashboardContext();
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
-    const [contextMenuTargetOffset, setContextMenuTargetOffset] =
-        useState<{ left: number; top: number }>();
+    const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
+        left: number;
+        top: number;
+    }>();
     const contextMenuRenderTarget = useCallback(
         ({ ref }: Popover2TargetProps) => (
             <Portal>

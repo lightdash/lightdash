@@ -38,8 +38,8 @@ const Context = createContext<VisualizationContext | undefined>(undefined);
 
 type Props = {
     chartType: ChartType;
-    chartConfigs: ChartConfig | undefined;
-    pivotDimensions: string[] | undefined;
+    initialChartConfig: ChartConfig | undefined;
+    initialPivotDimensions: string[] | undefined;
     tableName: string | undefined;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
@@ -50,9 +50,9 @@ type Props = {
 };
 
 export const VisualizationProvider: FC<Props> = ({
-    chartConfigs,
+    initialChartConfig,
     chartType,
-    pivotDimensions,
+    initialPivotDimensions,
     tableName,
     resultsData,
     isLoading,
@@ -65,7 +65,7 @@ export const VisualizationProvider: FC<Props> = ({
     const chartRef = useRef<EChartsReact>(null);
     const { data: explore } = useExplore(tableName);
     const { validPivotDimensions, setPivotDimensions } = usePivotDimensions(
-        pivotDimensions,
+        initialPivotDimensions,
         resultsData,
     );
     const setChartType = useCallback(
@@ -81,16 +81,16 @@ export const VisualizationProvider: FC<Props> = ({
         setBigNumberLabel,
         validBigNumberConfig,
     } = useBigNumberConfig(
-        chartConfigs?.type === ChartType.BIG_NUMBER
-            ? chartConfigs.config
+        initialChartConfig?.type === ChartType.BIG_NUMBER
+            ? initialChartConfig.config
             : undefined,
         resultsData,
         explore,
     );
 
     const cartesianConfig = useCartesianChartConfig(
-        chartConfigs?.type === ChartType.CARTESIAN
-            ? chartConfigs.config
+        initialChartConfig?.type === ChartType.CARTESIAN
+            ? initialChartConfig.config
             : undefined,
         validPivotDimensions?.[0],
         resultsData,
