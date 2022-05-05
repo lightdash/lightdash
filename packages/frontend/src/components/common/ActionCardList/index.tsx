@@ -4,6 +4,7 @@ import Fuse from 'fuse.js';
 import React, { useMemo, useState } from 'react';
 import { UseMutationResult } from 'react-query';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
+import EmptySavedChartsState from '../../SavedQueries/EmptySavedChartsState';
 import ActionCard from '../ActionCard';
 import { ActionModalProps, ActionTypeModal } from '../modal/ActionModal';
 import DeleteActionModal from '../modal/DeleteActionModal';
@@ -156,7 +157,14 @@ const ActionCardList = <
 
             {dataList.length <= 0 && (
                 <NoIdealStateWrapper>
-                    <NonIdealState title="No results available" icon="search" />
+                    {isChart ? (
+                        <EmptySavedChartsState />
+                    ) : (
+                        <NonIdealState
+                            title="No results available"
+                            icon="search"
+                        />
+                    )}
                 </NoIdealStateWrapper>
             )}
         </ActionCardListWrapper>

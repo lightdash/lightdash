@@ -9,7 +9,7 @@ import { useSavedCharts } from '../../../hooks/useSpaces';
 import ActionCardList from '../../common/ActionCardList';
 import SavedQueryForm from '../../SavedQueries/SavedQueryForm';
 import LatestCard from '../LatestCard';
-import { CreateChartButton, ViewAllButton } from './LatestSavedCharts.style';
+import { ViewAllButton } from './LatestSavedCharts.style';
 
 const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const savedChartsRequest = useSavedCharts(projectUuid);
@@ -58,16 +58,6 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 isHomePage
                 isChart
             />
-
-            {savedCharts.length === 0 && (
-                <CreateChartButton
-                    minimal
-                    href={`/projects/${projectUuid}/tables`}
-                    intent="primary"
-                >
-                    + Create a saved chart
-                </CreateChartButton>
-            )}
         </LatestCard>
     );
 };

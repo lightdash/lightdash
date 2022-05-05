@@ -1,5 +1,6 @@
 import { Intent, NonIdealState } from '@blueprintjs/core';
 import React, { FC } from 'react';
+import { useParams } from 'react-router-dom';
 import { useSavedCharts } from '../../../hooks/useSpaces';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
@@ -43,12 +44,9 @@ const NoSavedChartsAvailable = () => (
     </EmptyStateWrapper>
 );
 
-interface Props {
-    projectId: string;
-}
-
-const EmptyStateNoTiles: FC<Props> = ({ projectId }) => {
-    const savedChartsRequest = useSavedCharts(projectId);
+const EmptyStateNoTiles: FC = () => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const savedChartsRequest = useSavedCharts(projectUuid);
     const savedCharts = savedChartsRequest.data || [];
     const hasSavedCharts = savedCharts.length > 0;
 
@@ -65,7 +63,7 @@ const EmptyStateNoTiles: FC<Props> = ({ projectId }) => {
                     }
                     action={
                         !hasSavedCharts ? (
-                            <RunQueryButton projectId={projectId} />
+                            <RunQueryButton projectId={projectUuid} />
                         ) : undefined
                     }
                 />
