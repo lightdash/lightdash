@@ -1,3 +1,10 @@
+# [0.87.0](https://github.com/lightdash/lightdash/compare/0.86.1...0.87.0) (2022-05-05)
+
+
+### Features
+
+* add message and button to create new charts when none are saved ([#1975](https://github.com/lightdash/lightdash/issues/1975)) ([02e0403](https://github.com/lightdash/lightdash/commit/02e0403a07b65f90e3534dc2af3a1b474a429904))
+
 ## [0.86.1](https://github.com/lightdash/lightdash/compare/0.86.0...0.86.1) (2022-05-05)
 
 
