@@ -1,3 +1,10 @@
+# [0.88.0](https://github.com/lightdash/lightdash/compare/0.87.1...0.88.0) (2022-05-05)
+
+
+### Features
+
+* update Lightdash's seed user ([#2005](https://github.com/lightdash/lightdash/issues/2005)) ([83e39fd](https://github.com/lightdash/lightdash/commit/83e39fda62afaf128e2c397ab15599f5fe0c7a9e))
+
 ## [0.87.1](https://github.com/lightdash/lightdash/compare/0.87.0...0.87.1) (2022-05-05)
 
 
