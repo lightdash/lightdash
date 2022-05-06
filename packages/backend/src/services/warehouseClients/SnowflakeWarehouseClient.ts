@@ -106,10 +106,7 @@ export default class SnowflakeWarehouseClient implements WarehouseClient {
             connection = createConnection(this.connectionOptions);
             await Util.promisify(connection.connect)();
         } catch (e) {
-            console.log(
-                JSON.stringify(e, ['message', 'arguments', 'type', 'name']),
-            );
-            throw new WarehouseConnectionError(e.message);
+            throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
         }
 
         try {
