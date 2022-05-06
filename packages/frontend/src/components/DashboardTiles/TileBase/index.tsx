@@ -17,11 +17,13 @@ import {
     HeaderWrapper,
     TileBaseWrapper,
     Title,
+    TitleWrapper,
 } from './TileBase.styles';
 
 type Props<T> = {
     isEditMode: boolean;
     title: string;
+    description?: string;
     tile: T;
     isLoading?: boolean;
     extraMenuItems?: React.ReactNode;
@@ -35,6 +37,7 @@ type Props<T> = {
 const TileBase = <T extends Dashboard['tiles'][number]>({
     isEditMode,
     title,
+    description,
     tile,
     isLoading,
     extraMenuItems,
@@ -50,7 +53,14 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         <TileBaseWrapper className={isLoading ? Classes.SKELETON : undefined}>
             <HeaderContainer>
                 <HeaderWrapper>
-                    <Title className="non-draggable">{title}</Title>
+                    <TitleWrapper>
+                        <Title className="non-draggable">{title}</Title>
+                        {description && (
+                            <Tooltip2 content={description} position="bottom">
+                                <Button icon="info-sign" minimal />
+                            </Tooltip2>
+                        )}
+                    </TitleWrapper>
                     {extraHeaderElement}
                 </HeaderWrapper>
                 {(isEditMode || (!isEditMode && extraMenuItems)) && (
@@ -107,6 +117,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 TileBase.defaultProps = {
     isLoading: false,
     extraMenuItems: null,
+    description: null,
     isChart: false,
     hasFilters: false,
 };

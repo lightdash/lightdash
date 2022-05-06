@@ -15,6 +15,12 @@ export const HeaderContainer = styled.div`
     gap: 20px;
 `;
 
+export const TitleWrapper = styled.div`
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+`;
+
 export const Title = styled(H5)`
     margin: 0;
 `;

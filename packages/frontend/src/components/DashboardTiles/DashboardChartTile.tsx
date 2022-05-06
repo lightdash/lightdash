@@ -249,6 +249,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                 )
             }
             title={savedQueryWithDashboardFilters?.name || ''}
+            description={savedQuery?.description}
             isLoading={isLoading}
             extraMenuItems={
                 savedChartUuid !== null && (
