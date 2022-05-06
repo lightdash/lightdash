@@ -1,8 +1,13 @@
 {
     "type": "object",
     "properties": {
-        "name": {
-            "type": "string"
+        "jobUuid": {
+            "type": "string",
+            "format": "uuid"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time"
         },
         "updatedAt": {
             "type": "string",
@@ -10,13 +15,21 @@
         },
         "startedAt": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "nullable": true
         },
         "stepStatus": {
             "type": "string",
             "enum": ["DONE", "RUNNING", "ERROR", "PENDING", "SKIPPED"]
         },
+        "stepType": {
+            "type": "string"
+        },
+        "stepLabel": {
+            "type": "string"
+        },
         "error": {
+            "nullable": true,
             "type": "object",
             "properties": {
                 "name": {
@@ -28,5 +41,13 @@
             }
         }
     },
-    "required": ["name", "stepStatus", "updatedAt", "startedAt"]
+    "required": [
+        "jobUuid",
+        "createdAt",
+        "stepStatus",
+        "stepType",
+        "stepLabel",
+        "updatedAt",
+        "startedAt"
+    ]
 }

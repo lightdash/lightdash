@@ -4,7 +4,6 @@ import {
     ApiExploresResults,
     ApiQueryResults,
     ApiSqlQueryResults,
-    ApiStatusResults,
     MetricQuery,
     ProjectCatalog,
     TablesConfiguration,
@@ -14,7 +13,6 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
-import Logger from '../logger';
 import { savedChartModel } from '../models/models';
 import {
     dashboardService,
@@ -155,47 +153,19 @@ projectRouter.post(
     unauthorisedInDemo,
     async (req, res, next) => {
         try {
-            const jobUuid = await projectService.startJob(
+            const results = await projectService.compileProject(
+                req.user!,
                 req.params.projectUuid,
-            ); // So we don't get a 404 when requesting this jobUuid
-            projectService
-                .getAllExplores(
-                    req.user!,
-                    req.params.projectUuid,
-                    jobUuid,
-                    true,
-                )
-                .catch((e) => Logger.error(`Error running refresh: ${e}`));
+            );
             res.json({
                 status: 'ok',
-                results: {
-                    jobUuid,
-                },
+                results,
             });
         } catch (e) {
             next(e);
         }
     },
 );
-
-projectRouter.get('/status', isAuthenticated, async (req, res, next) => {
-    try {
-        const results: ApiStatusResults = await projectService.getProjectStatus(
-            req.params.projectUuid,
-            req.user!,
-        );
-        const lastJob = await projectService.getMostRecentJobByProject(
-            req.params.projectUuid,
-        );
-        res.json({
-            status: 'ok',
-            results,
-            lastJob,
-        });
-    } catch (e) {
-        next(e);
-    }
-});
 
 projectRouter.post(
     '/saved',

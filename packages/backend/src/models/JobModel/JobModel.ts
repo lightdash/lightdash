@@ -1,4 +1,6 @@
 import {
+    BaseJob,
+    CreateJob,
     Job,
     JobLabels,
     JobStatusType,
@@ -7,10 +9,12 @@ import {
     JobStepType,
 } from 'common';
 import { Knex } from 'knex';
-import { JobsTableName, JobStepsTableName } from '../../database/entities/jobs';
+import {
+    DbJobs,
+    JobsTableName,
+    JobStepsTableName,
+} from '../../database/entities/jobs';
 import { LightdashError, NotFoundError } from '../../errors';
-import Logger from '../../logger';
-import Transaction = Knex.Transaction;
 
 type JobModelDependencies = {
     database: Knex;
@@ -26,53 +30,48 @@ export class JobModel {
     async getMostRecentJobByProject(
         projectUuid: string,
     ): Promise<Job | undefined> {
-        const jobs = await this.database(JobsTableName)
+        const [row] = await this.database(JobsTableName)
             .where('project_uuid', projectUuid)
             .orderBy('updated_at', 'desc')
             .limit(1);
-
-        if (jobs.length === 0) return undefined;
-
-        const job = jobs[0];
-        const steps = await this.getSteps(job.job_uuid);
-
-        return {
-            createdAt: job.created_at,
-            updatedAt: job.updated_at,
-            projectUuid: job.project_uuid,
-            jobUuid: job.job_uuid,
-            jobStatus: job.job_status,
-            steps,
-        };
+        if (row === undefined) return undefined;
+        return this.convertRowToJob(row);
     }
 
-    async getJobstatus(jobUuid: string): Promise<Job> {
-        const jobs = await this.database(JobsTableName).where(
+    async get(jobUuid: string): Promise<Job> {
+        const [row] = await this.database(JobsTableName).where(
             'job_uuid',
             jobUuid,
         );
-
-        if (jobs.length === 0)
+        if (row === undefined)
             throw new NotFoundError(
                 `job with jobUuid ${jobUuid} does not exist`,
             );
+        return this.convertRowToJob(row);
+    }
 
-        const job = jobs[0];
-        const steps = await this.getSteps(jobUuid);
-        return {
-            createdAt: job.created_at,
-            updatedAt: job.updated_at,
-            projectUuid: job.project_uuid,
-            jobUuid: job.job_uuid,
-            jobStatus: job.job_status,
+    async convertRowToJob(row: DbJobs): Promise<Job> {
+        const steps = await this.getSteps(row.job_uuid);
+        const baseJob: BaseJob = {
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            projectUuid: row.project_uuid,
+            jobUuid: row.job_uuid,
+            jobStatus: row.job_status,
             steps,
         };
+        const job: Job = {
+            ...baseJob,
+            jobType: row.job_type,
+            jobResults: row.results,
+        } as Job; // be lazy instead of enumerating all job type-results pairs (see common/types/job.ts)
+        return job;
     }
 
     async getSteps(jobUuid: string): Promise<JobStep[]> {
         const steps = await this.database(JobStepsTableName)
             .where('job_uuid', jobUuid)
-            .orderBy('step_id', 'desc');
+            .orderBy('step_id', 'asc');
 
         return steps.map((step) => {
             const stepType: JobStepType = step.step_type;
@@ -85,44 +84,58 @@ export class JobModel {
                 stepType,
                 stepError: step.step_error,
                 stepLabel,
+                startedAt: step.started_at,
             };
         });
     }
 
-    async upsertJobStatus(
+    async update(
         jobUuid: string,
-        projectUuid: string | undefined,
-        status: JobStatusType,
+        job: Partial<Pick<Job, 'jobStatus' | 'jobType' | 'jobResults'>>,
     ): Promise<void> {
-        Logger.debug(
-            `Updating job status ${jobUuid} for project ${projectUuid} with status ${status}`,
-        );
         await this.database(JobsTableName)
-            .insert({
-                project_uuid: projectUuid,
-                job_uuid: jobUuid,
-                job_status: status,
-                updated_at: new Date(),
+            .update({
+                ...(job.jobStatus !== undefined
+                    ? { job_status: job.jobStatus }
+                    : {}),
+                ...(job.jobType !== undefined ? { job_type: job.jobType } : {}),
+                ...(job.jobResults !== undefined
+                    ? { results: job.jobResults }
+                    : {}),
             })
-            .onConflict('job_uuid')
-            .merge();
+            .where('job_uuid', jobUuid);
     }
 
-    async createJobSteps(
-        jobUuid: string,
-        stepTypes: JobStepType[],
-    ): Promise<void> {
+    async create(job: CreateJob): Promise<Job> {
         await this.database.transaction(async (trx) => {
-            await stepTypes.reduce(async (previousPromise, step) => {
+            await trx(JobsTableName)
+                .insert({
+                    project_uuid: job.projectUuid,
+                    job_uuid: job.jobUuid,
+                    job_type: job.jobType,
+                    job_status: job.jobStatus,
+                })
+                .returning('*');
+            await job.steps.reduce(async (previousPromise, step) => {
                 await previousPromise;
                 return trx(JobStepsTableName).insert({
-                    job_uuid: jobUuid,
+                    job_uuid: job.jobUuid,
                     step_status: JobStepStatusType.PENDING,
-                    step_type: step,
-                    step_error: undefined,
+                    step_type: step.stepType,
                 });
             }, Promise.resolve());
         });
+        return this.get(job.jobUuid);
+    }
+
+    async startJobStep(jobUuid: string, stepType: JobStepType): Promise<void> {
+        await this.database(JobStepsTableName)
+            .update({
+                step_status: JobStepStatusType.RUNNING,
+                started_at: new Date(),
+            })
+            .where('job_uuid', jobUuid)
+            .andWhere('step_type', stepType);
     }
 
     async updateJobStep(
@@ -151,17 +164,23 @@ export class JobModel {
             .where('job_uuid', jobUuid);
     }
 
+    async setPendingJobsToSkipped(jobUuid: string): Promise<void> {
+        await this.database(JobStepsTableName)
+            .update({
+                step_status: JobStepStatusType.SKIPPED,
+                updated_at: new Date(),
+            })
+            .where('job_uuid', jobUuid)
+            .andWhere('step_status', JobStepStatusType.PENDING);
+    }
+
     async tryJobStep<T>(
         jobUuid: string,
         jobStepType: JobStepType,
         callback: () => Promise<T>,
     ): Promise<T> {
         try {
-            await this.updateJobStep(
-                jobUuid,
-                JobStepStatusType.RUNNING,
-                jobStepType,
-            );
+            await this.startJobStep(jobUuid, jobStepType);
 
             const result = await callback();
 
@@ -174,8 +193,10 @@ export class JobModel {
         } catch (e) {
             const formatJobErrorMessage = (error: unknown) => {
                 if (error instanceof LightdashError) {
-                    return `${error.name}: ${error.message} \n ${
-                        error.data ? JSON.stringify(error.data) : ''
+                    return `${error.name}: ${error.message}${
+                        Object.keys(error.data).length > 0
+                            ? ` \n${JSON.stringify(error.data)}`
+                            : ''
                     }`;
                 }
                 return `${error}`;
@@ -186,6 +207,7 @@ export class JobModel {
                 jobStepType,
                 formatJobErrorMessage(e),
             );
+            await this.update(jobUuid, { jobStatus: JobStatusType.ERROR });
             throw e; // throw the error again
         }
     }

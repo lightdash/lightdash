@@ -128,8 +128,8 @@ export const SEED_ORGANIZATION = {
 };
 export const SEED_USER = {
     user_uuid: 'b264d83a-9000-426a-85ec-3f9c20f368ce',
-    first_name: 'Jane',
-    last_name: 'Doe',
+    first_name: 'David',
+    last_name: 'Attenborough',
     is_marketing_opted_in: true,
     is_tracking_anonymized: false,
     is_setup_complete: true,
@@ -498,6 +498,10 @@ export type ApiRefreshResults = {
     jobUuid: string;
 };
 
+export type ApiJobStartedResults = {
+    jobUuid: string;
+};
+
 export type CreateUserArgs = {
     firstName: string;
     lastName: string;
@@ -626,7 +630,8 @@ type ApiResults =
     | OpenIdIdentitySummary[]
     | FilterableField[]
     | ProjectSavedChartStatus
-    | undefined;
+    | undefined
+    | ApiJobStartedResults;
 
 export type ApiResponse = {
     status: 'ok';

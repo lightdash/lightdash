@@ -155,7 +155,9 @@ const TableCalculationModal: FC<Props> = ({
                             </p>
                         </Callout>
                     )}
-                    <TableCalculationSqlInputWrapper>
+                    <TableCalculationSqlInputWrapper
+                        $isFullScreen={isFullscreen}
+                    >
                         <SqlInput
                             name="sql"
                             label="SQL"

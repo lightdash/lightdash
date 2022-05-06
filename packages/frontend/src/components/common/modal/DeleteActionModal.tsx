@@ -1,56 +1,133 @@
-import { Intent } from '@blueprintjs/core';
-import { ApiError } from 'common';
-import React, { Dispatch, SetStateAction, useEffect } from 'react';
-import { UseMutationResult } from 'react-query';
-import ActionModal, { ActionModalProps } from './ActionModal';
+import { Button, Classes, Dialog } from '@blueprintjs/core';
+import { FC } from 'react';
+import { Link, useHistory, useParams } from 'react-router-dom';
+import { useDeleteMutation as useDeleteDashboardMutation } from '../../../hooks/dashboard/useDashboard';
+import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
+import { useDeleteMutation } from '../../../hooks/useSavedQuery';
 
-type DeleteActionModalProps<T> = {
-    useActionModalState: [
-        { actionType: number; data?: T },
-        Dispatch<SetStateAction<{ actionType: number; data?: T }>>,
-    ];
-    useDelete: UseMutationResult<undefined, ApiError, string>;
-    ModalContent: (
-        props: Pick<ActionModalProps<T>, 'useActionModalState' | 'isDisabled'>,
-    ) => JSX.Element;
-};
+interface RelatedDashboardsMessageProps {
+    uuid: string;
+}
 
-const DeleteActionModal = <T extends { uuid: string; name: string }>(
-    props: DeleteActionModalProps<T>,
-) => {
-    const { useDelete, useActionModalState, ModalContent } = props;
-    const [actionState] = useActionModalState;
-    const { data: { uuid: id } = {}, actionType } = actionState;
-    const {
-        status: statusDelete,
-        mutate: deleteData,
-        isLoading: isDeleting,
-        reset: resetDelete,
-    } = useDelete;
+const RelatedDashboardsMessage: FC<RelatedDashboardsMessageProps> = ({
+    uuid,
+}) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { data: relatedDashboards } = useDashboardsContainingChart(
+        projectUuid,
+        uuid,
+    );
 
-    const onSubmitForm = () => {
-        if (id) {
-            deleteData(id);
-        }
-    };
-    useEffect(() => {
-        if (!isDeleting) {
-            resetDelete();
-        }
-    }, [isDeleting, actionType, resetDelete]);
+    if (!relatedDashboards || relatedDashboards.length === 0) {
+        return null;
+    }
 
     return (
-        <ActionModal
-            title="Delete"
-            confirmButtonLabel="Delete"
-            confirmButtonIntent={Intent.DANGER}
-            useActionModalState={useActionModalState}
-            isDisabled={isDeleting}
-            onSubmitForm={onSubmitForm}
-            completedMutation={statusDelete === 'success'}
-            ModalContent={ModalContent}
-        />
+        <>
+            <b>
+                This action will remove a chart tile from{' '}
+                {relatedDashboards.length} dashboard
+                {relatedDashboards.length > 1 ? 's' : ''}:
+            </b>
+            <ul>
+                {relatedDashboards.map((dashboard) => {
+                    return (
+                        <li>
+                            <Link
+                                target="_blank"
+                                to={`/projects/${projectUuid}/dashboards/${dashboard.uuid}`}
+                            >
+                                {dashboard.name}
+                            </Link>
+                        </li>
+                    );
+                })}
+            </ul>
+        </>
     );
+};
+
+interface DeleteActionModalProps {
+    name: string;
+    uuid: string;
+    isOpen: boolean;
+    isChart?: boolean;
+    isExplorer?: boolean;
+    onClose: () => void;
+}
+
+const DeleteActionModal: FC<DeleteActionModalProps> = ({
+    name,
+    uuid,
+    isOpen,
+    onClose,
+    isChart,
+    isExplorer,
+}) => {
+    const history = useHistory();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { mutate: deleteDashboard, isLoading: isDeleting } =
+        useDeleteDashboardMutation();
+    const { mutate: deleteChart, isLoading } = useDeleteMutation();
+
+    return (
+        <Dialog
+            isOpen={isOpen}
+            icon="delete"
+            onClose={onClose}
+            title={`Delete ${isChart ? 'chart' : 'dashboard'}`}
+        >
+            <div className={Classes.DIALOG_BODY}>
+                <p>
+                    {`Are you sure you want to delete the ${
+                        isChart ? 'chart' : 'dashboard'
+                    } `}
+                    <b>"{name}"</b> ?
+                </p>
+                {isChart && <RelatedDashboardsMessage uuid={uuid} />}
+            </div>
+            <div className={Classes.DIALOG_FOOTER}>
+                <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+                    <Button
+                        disabled={isDeleting || isLoading}
+                        onClick={onClose}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        disabled={isDeleting || isLoading}
+                        intent="danger"
+                        onClick={() => {
+                            if (isChart) deleteChart(uuid);
+                            if (!isChart) deleteDashboard(uuid);
+                            if (isExplorer && isChart) {
+                                history.listen((loc, action) => {
+                                    if (action === 'POP') {
+                                        if (loc.pathname.includes('/tables/')) {
+                                            history.push(
+                                                `/projects/${projectUuid}/tables`,
+                                            );
+                                        }
+                                    }
+                                });
+                                if (uuid) {
+                                    history.push('/');
+                                }
+                            }
+                            onClose();
+                        }}
+                    >
+                        Delete
+                    </Button>
+                </div>
+            </div>
+        </Dialog>
+    );
+};
+
+DeleteActionModal.defaultProps = {
+    isChart: false,
+    isExplorer: false,
 };
 
 export default DeleteActionModal;

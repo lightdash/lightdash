@@ -211,6 +211,7 @@ const Dashboard = () => {
     useEffect(() => {
         history.block((prompt) => {
             if (
+                isEditMode &&
                 (hasTilesChanged || haveFiltersChanged) &&
                 !prompt.pathname.includes(
                     `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
@@ -227,6 +228,7 @@ const Dashboard = () => {
             history.block(() => {});
         };
     }, [
+        isEditMode,
         history,
         hasTilesChanged,
         haveFiltersChanged,
@@ -302,9 +304,7 @@ const Dashboard = () => {
                         );
                     })}
                 </ResponsiveGridLayout>
-                {dashboardTiles.length <= 0 && (
-                    <EmptyStateNoTiles projectId={projectUuid} />
-                )}
+                {dashboardTiles.length <= 0 && <EmptyStateNoTiles />}
             </Page>
         </>
     );

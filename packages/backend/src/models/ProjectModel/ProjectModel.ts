@@ -4,7 +4,6 @@ import {
     DbtProjectConfig,
     Explore,
     ExploreError,
-    JobStatusType,
     OrganizationProject,
     Project,
     sensitiveCredentialsFieldNames,
@@ -26,8 +25,6 @@ import { WarehouseCredentialTableName } from '../../database/entities/warehouseC
 import { NotExistsError, UnexpectedServerError } from '../../errors';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import { WarehouseCatalog } from '../../types';
-import { JobModel } from '../JobModel/JobModel';
-
 import Transaction = Knex.Transaction;
 
 type ProjectModelDependencies = {
@@ -424,11 +421,10 @@ export class ProjectModel {
         return cachedExplores;
     }
 
-    async tryWithProjectLock(
+    async tryAcquireProjectLock(
         projectUuid: string,
-        jobUuid: string,
-        jobModel: JobModel,
-        func: () => Promise<void>,
+        onLockAcquired: () => Promise<void>,
+        onLockFailed?: () => Promise<void>,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
             // pg_advisory_xact_lock takes a 64bit integer as key
@@ -443,29 +439,12 @@ export class ProjectModel {
                     project_uuid = '${projectUuid}'
                 LIMIT 1  `);
 
-            await jobModel.upsertJobStatus(
-                jobUuid,
-                projectUuid,
-                JobStatusType.RUNNING,
-            );
-
             if (projectLock.rows.length === 0) return; // No project with uuid in DB
-            const adquiresLock = projectLock.rows[0].pg_try_advisory_xact_lock;
-            if (!adquiresLock) return; // Lock is taken by another process, exiting
-
-            try {
-                await func();
-                await jobModel.upsertJobStatus(
-                    jobUuid,
-                    projectUuid,
-                    JobStatusType.DONE,
-                );
-            } catch (e) {
-                await jobModel.upsertJobStatus(
-                    jobUuid,
-                    projectUuid,
-                    JobStatusType.ERROR,
-                );
+            const acquiresLock = projectLock.rows[0].pg_try_advisory_xact_lock;
+            if (acquiresLock) {
+                await onLockAcquired();
+            } else if (onLockFailed) {
+                await onLockFailed();
             }
         });
     }

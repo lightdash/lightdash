@@ -39,6 +39,7 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
+    await knex(COMPILE_JOB_TABLE_NAME).delete().whereNull('project_uuid');
     await knex.schema.alterTable(COMPILE_JOB_TABLE_NAME, (tableBuilder) => {
         tableBuilder.uuid('project_uuid').notNullable().alter();
     });

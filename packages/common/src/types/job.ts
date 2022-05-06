@@ -1,19 +1,23 @@
-export const enum JobStatusType {
+export enum JobType {
+    COMPILE_PROJECT = 'COMPILE_PROJECT',
+    CREATE_PROJECT = 'CREATE_PROJECT',
+}
+
+export enum JobStatusType {
     STARTED = 'STARTED',
     DONE = 'DONE',
     RUNNING = 'RUNNING',
     ERROR = 'ERROR',
 }
 
-export const enum JobStepStatusType {
-    STARTED = 'STARTED',
+export enum JobStepStatusType {
     DONE = 'DONE',
     RUNNING = 'RUNNING',
     ERROR = 'ERROR',
     PENDING = 'PENDING',
     SKIPPED = 'SKIPPED',
 }
-export const enum JobStepType {
+export enum JobStepType {
     /* CLONING = 'CLONING',
     INSTALLING_DEPENDENCIES = 'INSTALLING_DEPENDENCIES',
     COMPILING_DBT = 'COMPILING_DBT',
@@ -37,14 +41,34 @@ export const JobLabels = {
     CACHING: 'Saving cache',
 };
 
-export type Job = {
+export type BaseJob = {
     jobUuid: string;
     projectUuid: string | undefined;
     createdAt: Date;
     updatedAt: Date;
     jobStatus: JobStatusType;
-    jobResults?: string;
     steps: JobStep[];
+};
+
+type CompileJob = BaseJob & {
+    jobType: JobType.COMPILE_PROJECT;
+    jobResults?: undefined;
+};
+
+type CreateProjectJob = BaseJob & {
+    jobType: JobType.CREATE_PROJECT;
+    jobResults?: {
+        projectUuid: string;
+    };
+};
+
+export type Job = CompileJob | CreateProjectJob;
+
+export type CreateJob = Pick<
+    Job,
+    'jobUuid' | 'projectUuid' | 'jobType' | 'jobStatus'
+> & {
+    steps: CreateJobStep[];
 };
 
 export type JobStep = {
@@ -55,4 +79,7 @@ export type JobStep = {
     stepType: JobStepType;
     stepError: string | undefined;
     stepLabel: string;
+    startedAt: Date | undefined;
 };
+
+type CreateJobStep = Pick<JobStep, 'stepType'>;

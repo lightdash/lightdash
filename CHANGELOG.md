@@ -1,3 +1,52 @@
+# [0.88.0](https://github.com/lightdash/lightdash/compare/0.87.1...0.88.0) (2022-05-05)
+
+
+### Features
+
+* update Lightdash's seed user ([#2005](https://github.com/lightdash/lightdash/issues/2005)) ([83e39fd](https://github.com/lightdash/lightdash/commit/83e39fda62afaf128e2c397ab15599f5fe0c7a9e))
+
+## [0.87.1](https://github.com/lightdash/lightdash/compare/0.87.0...0.87.1) (2022-05-05)
+
+
+### Bug Fixes
+
+* remove hello placeholders ([#2001](https://github.com/lightdash/lightdash/issues/2001)) ([a5fad02](https://github.com/lightdash/lightdash/commit/a5fad02117f4cf8772d674fa56bbd9c2ef6e8e29))
+
+# [0.87.0](https://github.com/lightdash/lightdash/compare/0.86.1...0.87.0) (2022-05-05)
+
+
+### Features
+
+* add message and button to create new charts when none are saved ([#1975](https://github.com/lightdash/lightdash/issues/1975)) ([02e0403](https://github.com/lightdash/lightdash/commit/02e0403a07b65f90e3534dc2af3a1b474a429904))
+
+## [0.86.1](https://github.com/lightdash/lightdash/compare/0.86.0...0.86.1) (2022-05-05)
+
+
+### Bug Fixes
+
+* only show leave warning on edit mode ([#1997](https://github.com/lightdash/lightdash/issues/1997)) ([6200d8a](https://github.com/lightdash/lightdash/commit/6200d8a7eb518709184740b08682febb969fa637))
+
+# [0.86.0](https://github.com/lightdash/lightdash/compare/0.85.1...0.86.0) (2022-05-04)
+
+
+### Features
+
+* show compile status in UI ([#1959](https://github.com/lightdash/lightdash/issues/1959)) ([4691378](https://github.com/lightdash/lightdash/commit/4691378fa4d8a454b2adfe58a02ed85be85b6686))
+
+## [0.85.1](https://github.com/lightdash/lightdash/compare/0.85.0...0.85.1) (2022-05-04)
+
+
+### Bug Fixes
+
+* update delete modal action to be generic and delete dashboards a… ([#1967](https://github.com/lightdash/lightdash/issues/1967)) ([630431e](https://github.com/lightdash/lightdash/commit/630431e9f386425b11d5cb3d9494809469c1a9a7)), closes [#1988](https://github.com/lightdash/lightdash/issues/1988)
+
+# [0.85.0](https://github.com/lightdash/lightdash/compare/0.84.10...0.85.0) (2022-05-04)
+
+
+### Features
+
+* lightdash cli tool ([#1970](https://github.com/lightdash/lightdash/issues/1970)) ([014c476](https://github.com/lightdash/lightdash/commit/014c476b41316201a0d9be7d709c35950156de4a))
+
 ## [0.84.10](https://github.com/lightdash/lightdash/compare/0.84.9...0.84.10) (2022-05-04)
 
 

@@ -418,7 +418,7 @@ Once you have a service account all ready to go, you'll need to add its JSON key
 
 #### Threads
 
-This is the number of multiple concurrent queries Lightdash will run against your Snowflake warehouse. Use a higher 
+This is the number of multiple concurrent queries Lightdash will run against your BigQuery warehouse. Use a higher 
 number if you have a larger warehouse. A larger number of threads will increase performance for many users Lightdash 
 at the same time.
 
@@ -509,7 +509,7 @@ This is the port where the database is running.
 
 #### Threads
 
-This is the number of multiple concurrent queries Lightdash will run against your Snowflake warehouse. Use a higher 
+This is the number of multiple concurrent queries Lightdash will run against your Postgres warehouse. Use a higher 
 number if you have a larger warehouse. A larger number of threads will increase performance for many users Lightdash 
 at the same time.
 
@@ -580,7 +580,7 @@ This is the port where the database is running.
 
 #### Threads
 
-This is the number of multiple concurrent queries Lightdash will run against your Snowflake warehouse. Use a higher 
+This is the number of multiple concurrent queries Lightdash will run against your Redshift warehouse. Use a higher 
 number if you have a larger warehouse. A larger number of threads will increase performance for many users Lightdash 
 at the same time.
 
@@ -613,10 +613,10 @@ This is your Snowflake [account identifer](https://docs.snowflake.com/en/user-gu
 The easiest way to find this is to login to snowflake in your browser and your account identifier is whatever comes 
 before `snowflakecomputing.com`.
 
-![snowflake-account-url](./assets/snowflake-account-url.png)
-
-For example in the image above, the user logs in via `https://aaa99827.snowflakecomputing.com/console/login#/` so 
+For example in the image below, the user logs in via `https://aaa99827.snowflakecomputing.com/console/login#/` so 
 the account identifier is `aaa99827`.
+
+![snowflake-account-url](./assets/snowflake-account-url.png)
 
 If you don't have access via the browser, you can use the following format `<organization_name>-<account_name>` where
 `organization_name` and `account_name` can be found by following any of the methods listed in 
