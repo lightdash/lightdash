@@ -72,6 +72,11 @@ dbt project on github/gitlab to use this method.
 # follow cli instructions
 ```
 
+:::info
+If you have a Windows machine and get the error **Error response from daemon: i/o timeout**.
+Go to **Docker > Settings > General** and enable the option **Expose daemon on tcp://localhost:2375 without TLS**
+:::
+
 ----
 
 ## Deploy to Heroku
@@ -135,6 +140,11 @@ cd lightdash
 ```bash
 LIGHTDASH_SECRET="not very secret" PGPASSWORD="password" docker-compose -f docker-compose.yml up --detach --remove-orphans
 ```
+
+:::info
+If you have a Windows machine and get the error **Error response from daemon: i/o timeout**.
+Go to **Docker > Settings > General** and enable the option **Expose daemon on tcp://localhost:2375 without TLS**
+:::
 
 ### Using docker images
 
