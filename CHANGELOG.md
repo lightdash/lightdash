@@ -1,3 +1,10 @@
+## [0.91.2](https://github.com/lightdash/lightdash/compare/0.91.1...0.91.2) (2022-05-06)
+
+
+### Bug Fixes
+
+* install script windows ([#2020](https://github.com/lightdash/lightdash/issues/2020)) ([812bdbb](https://github.com/lightdash/lightdash/commit/812bdbba29602238103dab403442b7176596a539))
+
 ## [0.91.1](https://github.com/lightdash/lightdash/compare/0.91.0...0.91.1) (2022-05-06)
 
 
