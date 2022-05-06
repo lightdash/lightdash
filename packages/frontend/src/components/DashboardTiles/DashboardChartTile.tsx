@@ -67,6 +67,7 @@ const ValidDashboardChartTile: FC<{
             tableName={data.tableName}
             isLoading={isLoading}
             onSeriesContextMenu={onSeriesContextMenu}
+            columnOrder={data.tableConfig.columnOrder}
         >
             <LightdashVisualization />
         </VisualizationProvider>

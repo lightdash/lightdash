@@ -27,6 +27,7 @@ type VisualizationContext = {
     plotData: ApiQueryResults['rows'];
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
+    columnOrder: string[];
     onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
     setChartType: (value: ChartType) => void;
     setPivotDimensions: (value: string[] | undefined) => void;
@@ -41,6 +42,7 @@ type Props = {
     tableName: string | undefined;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
+    columnOrder: string[];
     onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
     onChartConfigChange?: (value: ChartConfig['config']) => void;
     onChartTypeChange?: (value: ChartType) => void;
@@ -54,6 +56,7 @@ export const VisualizationProvider: FC<Props> = ({
     tableName,
     resultsData,
     isLoading,
+    columnOrder,
     onSeriesContextMenu,
     onChartConfigChange,
     onChartTypeChange,
@@ -145,6 +148,7 @@ export const VisualizationProvider: FC<Props> = ({
                 plotData,
                 resultsData,
                 isLoading,
+                columnOrder,
                 onSeriesContextMenu,
                 setChartType,
                 setPivotDimensions,
