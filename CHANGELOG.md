@@ -1,3 +1,10 @@
+## [0.91.4](https://github.com/lightdash/lightdash/compare/0.91.3...0.91.4) (2022-05-06)
+
+
+### Bug Fixes
+
+* update success messages to the correct ones ([#2018](https://github.com/lightdash/lightdash/issues/2018)) ([5898d9a](https://github.com/lightdash/lightdash/commit/5898d9a2bac00751cf03d3e304a8efb2e098f0c2))
+
 ## [0.91.3](https://github.com/lightdash/lightdash/compare/0.91.2...0.91.3) (2022-05-06)
 
 
