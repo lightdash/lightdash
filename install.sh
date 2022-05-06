@@ -59,11 +59,21 @@ is_mac() {
     [[ $OSTYPE == darwin* ]]
 }
 
+is_windows() {
+    [[ $OSTYPE == msys* ]]
+}
+
 check_os() {
     if is_mac; then
         package_manager="brew"
         desired_os=1
         os="Mac"
+        return
+    fi
+
+    if is_windows; then
+        desired_os=1
+        os="Windows"
         return
     fi
 
@@ -126,11 +136,6 @@ track() {
   HEADER='Content-Type: application/json'
   HEADER_AUTH='Authorization: Basic MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg=='
 
-  if has_curl; then
-      curl -sfL -d "$DATA" --header "$HEADER" --header "$HEADER_AUTH" "$URL" > /dev/null 2>&1
-  elif has_wget; then
-      wget -q --post-data="$DATA" --header="$HEADER" --header "$HEADER_AUTH" "$URL" > /dev/null 2>&1
-  fi
 }
 
 track_error() {
@@ -263,6 +268,10 @@ start_docker() {
     echo "Starting Docker ..."
     if [ $os = "Mac" ]; then
         open --background -a Docker && while ! docker system info > /dev/null 2>&1; do sleep 1; done
+    elif [ $os = "Windows" ]; then
+      echo "+++++++++++ IMPORTANT READ ++++++++++++++++++++++"
+      echo "Make sure Docker Desktop is running."
+      echo "+++++++++++++++++++++++++++++++++++++++++++++++++"
     else
         if ! sudo systemctl is-active docker.service > /dev/null; then
             echo "Starting docker service"
@@ -309,7 +318,7 @@ bye() {  # Prints a friendly good bye message and exits the script.
 
         echo "🔴 The containers didn't seem to start correctly. Please run the following command to check containers that may have errored out:"
         echo ""
-        echo -e "sudo docker-compose -f docker-compose.yml ps -a"
+        echo -e "docker-compose -f docker-compose.yml ps -a"
         echo "Please reach us on Lightdash for support https://getdbt.slack.com/archives/C026WJE4A69"
         echo "++++++++++++++++++++++++++++++++++++++++"
         track_error $Interrupted
@@ -370,7 +379,7 @@ if ! is_command_present docker; then
     else
         echo ""
         echo "+++++++++++ IMPORTANT READ ++++++++++++++++++++++"
-        echo "Docker Desktop must be installed manually on Mac OS to proceed. Docker can only be installed automatically on Ubuntu / openSUSE / SLES / Redhat / Cent OS"
+        echo "Docker Desktop must be installed manually on Mac OS or Windows to proceed. Docker can only be installed automatically on Ubuntu / openSUSE / SLES / Redhat / Cent OS"
         echo "https://docs.docker.com/docker-for-mac/install/"
         echo "++++++++++++++++++++++++++++++++++++++++++++++++"
         track_error "$DockerNotInstalled"
@@ -386,8 +395,8 @@ fi
 start_docker
 
 echo ""
-echo -e "\n🟡 Pulling the latest container images for Lightdash. To run as sudo it may ask for system password\n"
-sudo LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" docker-compose --env-file ./.env.fast-install -f docker-compose.yml pull
+echo -e "\n🟡 Pulling the latest container images for Lightdash.\n"
+LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" docker-compose --env-file ./.env.fast-install -f docker-compose.yml pull
 
 echo ""
 echo "🟡 Starting the Lightdash containers. It may take a few minutes ..."
@@ -395,9 +404,9 @@ echo
 # The docker-compose command does some nasty stuff for the `--detach` functionality. So we add a `|| true` so that the
 # script doesn't exit because this command looks like it failed to do it's thing.
 if [[ $setup_type == 'local_dbt' ]]; then
-    sudo LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" PORT="$port" DBT_PROJECT_DIR="$dbt_project_dir" docker-compose --env-file ./.env.fast-install -f docker-compose.yml up --detach --remove-orphans || true
+    LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" PORT="$port" DBT_PROJECT_DIR="$dbt_project_dir" docker-compose --env-file ./.env.fast-install -f docker-compose.yml up --detach --remove-orphans || true
 else
-    sudo LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" docker-compose --env-file ./.env.fast-install -f docker-compose.yml up --detach --remove-orphans || true
+    LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" docker-compose --env-file ./.env.fast-install -f docker-compose.yml up --detach --remove-orphans || true
 fi
 
 wait_for_containers_start 60
@@ -424,9 +433,9 @@ else
     echo -e "🟢 Your frontend is running on http://localhost:$port"
     echo ""
 
-    echo "ℹ️  To restart Lightdash: sudo docker-compose -f docker-compose.yml start"
-    echo "ℹ️  To stop Lightdash: sudo docker-compose -f docker-compose.yml stop -v"
-    echo "ℹ️  To bring down Lightdash and clean volumes : sudo docker-compose -f docker-compose.yml down -v"
+    echo "ℹ️  To restart Lightdash: docker-compose -f docker-compose.yml start"
+    echo "ℹ️  To stop Lightdash: docker-compose -f docker-compose.yml stop -v"
+    echo "ℹ️  To bring down Lightdash and clean volumes: docker-compose -f docker-compose.yml down -v"
 
     echo ""
     echo "+++++++++++++++++++++++++++++++++++++++++++++++++"
