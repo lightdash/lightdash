@@ -1,3 +1,10 @@
+# [0.91.0](https://github.com/lightdash/lightdash/compare/0.90.1...0.91.0) (2022-05-06)
+
+
+### Features
+
+* order saved charts in saved queries page ([#2017](https://github.com/lightdash/lightdash/issues/2017)) ([9e7af67](https://github.com/lightdash/lightdash/commit/9e7af67287b53aea9535076a059d2cb77f9acf44))
+
 ## [0.90.1](https://github.com/lightdash/lightdash/compare/0.90.0...0.90.1) (2022-05-06)
 
 
