@@ -20,15 +20,13 @@ type VisualizationContext = {
     chartRef: RefObject<EChartsReact>;
     chartType: ChartType;
     cartesianConfig: ReturnType<typeof useCartesianChartConfig>;
+    bigNumberConfig: ReturnType<typeof useBigNumberConfig>;
     pivotDimensions: string[] | undefined;
     explore: Explore | undefined;
     originalData: ApiQueryResults['rows'];
     plotData: ApiQueryResults['rows'];
-    bigNumber: number | string;
-    bigNumberLabel: string | undefined;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
-    setBigNumberLabel: (name: string | undefined) => void;
     onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
     setChartType: (value: ChartType) => void;
     setPivotDimensions: (value: string[] | undefined) => void;
@@ -75,18 +73,15 @@ export const VisualizationProvider: FC<Props> = ({
         [onChartTypeChange],
     );
 
-    const {
-        bigNumber,
-        bigNumberLabel,
-        setBigNumberLabel,
-        validBigNumberConfig,
-    } = useBigNumberConfig(
+    const bigNumberConfig = useBigNumberConfig(
         initialChartConfig?.type === ChartType.BIG_NUMBER
             ? initialChartConfig.config
             : undefined,
         resultsData,
         explore,
     );
+
+    const { validBigNumberConfig } = bigNumberConfig;
 
     const cartesianConfig = useCartesianChartConfig(
         initialChartConfig?.type === ChartType.CARTESIAN
@@ -142,15 +137,13 @@ export const VisualizationProvider: FC<Props> = ({
             value={{
                 pivotDimensions: validPivotDimensions,
                 cartesianConfig,
+                bigNumberConfig,
                 chartRef,
                 chartType,
                 explore,
                 originalData: resultsData?.rows || [],
                 plotData,
                 resultsData,
-                bigNumber,
-                bigNumberLabel,
-                setBigNumberLabel,
                 isLoading,
                 onSeriesContextMenu,
                 setChartType,

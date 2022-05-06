@@ -1,4 +1,4 @@
-import { formatValue } from 'common';
+import { formatValue, NumberStyle } from 'common';
 import { analytics } from '../../analytics/client';
 import {
     jobModel,
@@ -189,6 +189,41 @@ describe('ProjectService', () => {
             expect(formatValue('percent', 2, 'foo')).toEqual('foo');
             expect(formatValue('percent', 2, false)).toEqual(false);
             expect(formatValue('', 2, 5)).toEqual('5.00');
+        });
+
+        test('formatValue should return the right style', async () => {
+            const T = NumberStyle.THOUSANDS;
+            const M = NumberStyle.MILLIONS;
+            const B = NumberStyle.BILLIONS;
+            expect(formatValue(undefined, undefined, 5, T)).toEqual('0.005K');
+            expect(formatValue(undefined, undefined, 5, M)).toEqual(
+                '0.000005M',
+            );
+            expect(formatValue(undefined, undefined, 500000, B)).toEqual(
+                '0.0005B',
+            );
+            expect(formatValue(undefined, undefined, 5, B)).toEqual('5e-9B');
+            expect(formatValue(undefined, 2, 5, M)).toEqual('0.00M');
+
+            expect(formatValue('km', 2, 5000, T)).toEqual('5.00K km');
+            expect(formatValue('mi', 4, 50000, T)).toEqual('50.0000K mi');
+            expect(formatValue('usd', 2, 5000, T)).toEqual('$5.00K');
+            expect(formatValue('usd', 2, 5000000, T)).toEqual('$5000.00K');
+            expect(formatValue('usd', 2, 5000000, M)).toEqual('$5.00M');
+
+            expect(formatValue('usd', 2, 4, T)).toEqual('$0.00K');
+            expect(formatValue('usd', 3, 4, T)).toEqual('$0.004K');
+
+            expect(formatValue('usd', 2, 5000000, M)).toEqual('$5.00M');
+            expect(formatValue('usd', 2, 5000000000, M)).toEqual('$5000.00M');
+            expect(formatValue('usd', 2, 5000000000, B)).toEqual('$5.00B');
+
+            expect(formatValue('usd', 0, 5000.0, T)).toEqual('$5K');
+            expect(formatValue('usd', 2, '5000', T)).toEqual('$5.00K');
+            expect(formatValue('gbp', 2, 5000, T)).toEqual('£5.00K');
+            expect(formatValue('eur', 2, 5000, T)).toEqual('€5.00K');
+            expect(formatValue('percent', 2, 0.05, T)).toEqual('5.00%'); // No affects percent
+            expect(formatValue('', 2, 5000, T)).toEqual('5.00K');
         });
     });
 });

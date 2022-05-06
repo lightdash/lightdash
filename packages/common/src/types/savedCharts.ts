@@ -7,8 +7,14 @@ export enum ChartType {
     BIG_NUMBER = 'big_number',
 }
 
+export enum NumberStyle {
+    THOUSANDS = 'thousands',
+    MILLIONS = 'millions',
+    BILLIONS = 'billions',
+}
 export type BigNumber = {
     label?: string;
+    style?: NumberStyle;
 };
 
 export type BigNumberConfig = {

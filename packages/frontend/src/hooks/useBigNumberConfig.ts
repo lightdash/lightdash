@@ -3,8 +3,10 @@ import {
     BigNumber,
     Explore,
     findFieldByIdInExplore,
+    formatValue,
     friendlyName,
     getFieldLabel,
+    NumberStyle,
 } from 'common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -17,8 +19,6 @@ const useBigNumberConfig = (
         resultsData?.metricQuery.metrics[0] ||
         resultsData?.metricQuery.dimensions[0];
 
-    const bigNumber =
-        featuredData && resultsData?.rows?.[0]?.[featuredData]?.value.formatted;
     const fieldId =
         resultsData?.metricQuery.metrics[0] ||
         resultsData?.metricQuery.dimensions[0];
@@ -34,29 +34,61 @@ const useBigNumberConfig = (
         BigNumber['label'] | undefined
     >(bigNumberConfigData?.label || label);
 
+    const [bigNumberStyle, setStateBigNumberStyle] = useState<
+        BigNumber['style'] | undefined
+    >(bigNumberConfigData?.style || undefined);
     useEffect(() => {
         setBigNumberName(bigNumberConfigData?.label || label);
-    }, [resultsData, bigNumberConfigData?.label, label]);
+        setStateBigNumberStyle(bigNumberConfigData?.style || undefined);
+    }, [
+        resultsData,
+        bigNumberConfigData?.label,
+        label,
+        bigNumberConfigData?.style,
+    ]);
 
     const setBigNumberLabel = useCallback((name: string | undefined) => {
         setBigNumberName((prev) => name || prev);
     }, []);
+
+    const setBigNumberStyle = useCallback((style: NumberStyle | undefined) => {
+        setStateBigNumberStyle(style);
+    }, []);
+
+    const bigNumberRaw =
+        featuredData && resultsData?.rows?.[0]?.[featuredData]?.value.raw;
+
+    const bigNumber = formatValue(
+        field?.format,
+        field?.round,
+        bigNumberRaw,
+        bigNumberStyle,
+    );
+
+    const isNaN =
+        (bigNumberRaw?.includes && bigNumberRaw.includes('Z')) ||
+        Number.isNaN(Number(bigNumberRaw));
+
+    const showStyle = !isNaN && field?.format !== 'percent';
 
     const validBigNumberConfig: BigNumber | undefined = useMemo(
         () =>
             bigNumberLabel
                 ? {
                       label: bigNumberLabel,
+                      style: bigNumberStyle,
                   }
                 : undefined,
-        [bigNumberLabel],
+        [bigNumberLabel, bigNumberStyle],
     );
-
     return {
         bigNumber,
         bigNumberLabel,
         setBigNumberLabel,
         validBigNumberConfig,
+        bigNumberStyle,
+        setBigNumberStyle,
+        showStyle,
     };
 };
 
