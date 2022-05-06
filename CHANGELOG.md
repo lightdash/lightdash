@@ -1,3 +1,10 @@
+## [0.91.1](https://github.com/lightdash/lightdash/compare/0.91.0...0.91.1) (2022-05-06)
+
+
+### Bug Fixes
+
+* share explore state ([#2007](https://github.com/lightdash/lightdash/issues/2007)) ([446da4e](https://github.com/lightdash/lightdash/commit/446da4e388d46cddfd95f26e7852642fdef4fbec))
+
 # [0.91.0](https://github.com/lightdash/lightdash/compare/0.90.1...0.91.0) (2022-05-06)
 
 
