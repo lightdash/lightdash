@@ -17,7 +17,7 @@ export const BaseResponse = {
         },
     },
     defaultProject: undefined,
-    latest: { version: Image.name },
+    latest: { version: '0.2.7' },
     hasEmailClient: false,
     siteUrl: undefined,
     intercom: undefined,
