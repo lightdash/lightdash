@@ -1,3 +1,11 @@
+# [0.89.0](https://github.com/lightdash/lightdash/compare/0.88.0...0.89.0) (2022-05-06)
+
+
+### Features
+
+* link to doc in table calculation ([#2004](https://github.com/lightdash/lightdash/issues/2004)) [skip ci] ([97e81ce](https://github.com/lightdash/lightdash/commit/97e81ce146cd840a3dbcacb008e72fdd895e7bbd))
+* style bignumber config ([#1999](https://github.com/lightdash/lightdash/issues/1999)) ([5dcbf4c](https://github.com/lightdash/lightdash/commit/5dcbf4c8accd918e98aac9b86cdc90693b7e94f5))
+
 # [0.88.0](https://github.com/lightdash/lightdash/compare/0.87.1...0.88.0) (2022-05-05)
 
 
