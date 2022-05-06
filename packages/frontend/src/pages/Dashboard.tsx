@@ -240,6 +240,10 @@ const Dashboard = () => {
         return <Spinner />;
     }
 
+    const dashboardChartTiles = dashboardTiles.filter(
+        (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
+    );
+
     return (
         <>
             <Alert
@@ -277,7 +281,7 @@ const Dashboard = () => {
                 onCancel={onCancel}
             />
             <Page isContentFullWidth>
-                {dashboardTiles.length > 0 && (
+                {dashboardChartTiles.length > 0 && (
                     <DashboardFilter isEditMode={isEditMode} />
                 )}
                 <ResponsiveGridLayout
