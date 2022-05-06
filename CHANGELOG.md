@@ -1,3 +1,10 @@
+## [0.91.6](https://github.com/lightdash/lightdash/compare/0.91.5...0.91.6) (2022-05-06)
+
+
+### Bug Fixes
+
+* remove unsupported dbt nodes from from lineage graphs ([#2024](https://github.com/lightdash/lightdash/issues/2024)) ([14ef9fb](https://github.com/lightdash/lightdash/commit/14ef9fbd6a418f20c90efbbd0b63fc5f249cc071))
+
 ## [0.91.5](https://github.com/lightdash/lightdash/compare/0.91.4...0.91.5) (2022-05-06)
 
 
