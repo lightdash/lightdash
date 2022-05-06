@@ -306,14 +306,10 @@ const modelGraph = (
         if (type === 'model') {
             depGraph.addNode(name, { type, name });
         }
-        // Only use models, seeds, and sources for graph.
+        // Only use models for graph.
         model.depends_on.nodes.forEach((nodeId) => {
             const [nodeType, nodeProject, nodeName] = nodeId.split('.');
-            if (
-                nodeType === 'model' ||
-                nodeType === 'seed' ||
-                nodeType === 'source'
-            ) {
+            if (nodeType === 'model') {
                 depGraph.addNode(nodeName, { type: nodeType, name: nodeName });
                 depGraph.addDependency(model.name, nodeName);
             }
