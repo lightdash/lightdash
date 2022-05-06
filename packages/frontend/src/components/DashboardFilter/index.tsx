@@ -27,7 +27,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     } = useDashboardContext();
     const { isLoading, data: filterableFields } =
         useAvailableDashboardFilterTargets(dashboard, dashboardTiles);
-    const hasTiles =
+    const hasChartTiles =
         dashboardTiles.filter(
             (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
         ).length >= 1;
@@ -48,7 +48,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                     onInteraction={setIsOpen}
                     position="bottom-right"
                     lazy={false}
-                    disabled={!hasTiles || isLoading}
+                    disabled={!hasChartTiles || isLoading}
                 >
                     <Tooltip2
                         content={
@@ -65,7 +65,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                             minimal
                             icon="filter-list"
                             loading={isLoading}
-                            disabled={!hasTiles || isLoading}
+                            disabled={!hasChartTiles || isLoading}
                         >
                             Add filter
                         </FilterTrigger>
