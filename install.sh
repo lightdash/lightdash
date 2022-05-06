@@ -138,17 +138,16 @@ track_error() {
 }
 
 track_support() {
-  echo -e "\n📨 Please share your email to receive support with the installation"
+  echo -e "\n📨 🙏 Sorry that you had an issue with the installation. Please type in your email and a human will be in touch to help! 🙋"
   read -rp 'Email: ' email
 
-  while [[ $email == "" ]]
-  do
-      read -rp 'Email: ' email
-  done
-  track $Support ', "email": "'"$email"'"'
-
-  echo ""
-  echo -e "\nWe will reach out to you at the email provided shortly, Exiting for now. Bye! 👋 \n"
+  if [[ $email != "" ]]; then
+    track $Support ', "email": "'"$email"'"'
+    echo ""
+    echo -e "\nA member of the Lightdash team will personally reach out to you via email (usually the same day!), Exiting for now. Bye! 👋 \n"
+  else
+    echo -e "\nExiting for now. Bye! 👋 \n"
+  fi
 }
 
 # This function checks if the relevant ports required by Lightdash are available or not
