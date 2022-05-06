@@ -1,3 +1,10 @@
+## [0.91.7](https://github.com/lightdash/lightdash/compare/0.91.6...0.91.7) (2022-05-06)
+
+
+### Bug Fixes
+
+* back button to always point to the tables page ([#2015](https://github.com/lightdash/lightdash/issues/2015)) ([3790ee1](https://github.com/lightdash/lightdash/commit/3790ee16cc72e9ca889f5af674defcfe99db7692))
+
 ## [0.91.6](https://github.com/lightdash/lightdash/compare/0.91.5...0.91.6) (2022-05-06)
 
 
