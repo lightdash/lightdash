@@ -11,12 +11,14 @@ import {
 import { Popover2 } from '@blueprintjs/popover2';
 import { ChartType } from 'common';
 import { FC, useState } from 'react';
-import { useLocation } from 'react-router-dom';
 import {
     useAddVersionMutation,
     useDuplicateMutation,
 } from '../../../hooks/useSavedQuery';
-import { useExplorer } from '../../../providers/ExplorerProvider';
+import {
+    ExplorerSection,
+    useExplorer,
+} from '../../../providers/ExplorerProvider';
 import BigNumberConfigPanel from '../../BigNumberConfig';
 import ChartConfigPanel from '../../ChartConfigPanel';
 import { ChartDownloadMenu } from '../../ChartDownload';
@@ -33,24 +35,25 @@ const VisualizationCard: FC = () => {
         useState<boolean>(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
         useState<boolean>(false);
-    const location = useLocation<
-        { fromExplorer?: boolean; explore?: boolean } | undefined
-    >();
     const {
-        state: { unsavedChartVersion, hasUnsavedChanges, savedChart },
+        state: {
+            unsavedChartVersion,
+            hasUnsavedChanges,
+            savedChart,
+            expandedSections,
+        },
         queryResults,
-        actions: { setPivotFields, setChartType, setChartConfig },
+        actions: {
+            setPivotFields,
+            setChartType,
+            setChartConfig,
+            toggleExpandedSection,
+        },
     } = useExplorer();
     const update = useAddVersionMutation();
-    const [vizIsOpen, setVizisOpen] = useState<boolean>(!!savedChart?.uuid);
+    const vizIsOpen = expandedSections.includes(ExplorerSection.VISUALIZATION);
     const chartId = savedChart?.uuid || '';
     const { mutate: duplicateChart } = useDuplicateMutation(chartId);
-
-    const searchParams = new URLSearchParams(location.search);
-
-    const overrideQueryUuid: string | undefined = searchParams.get('explore')
-        ? undefined
-        : savedChart?.uuid;
 
     const handleSavedQueryUpdate = () => {
         if (savedChart?.uuid && unsavedChartVersion) {
@@ -96,7 +99,11 @@ const VisualizationCard: FC = () => {
                                     vizIsOpen ? 'chevron-down' : 'chevron-right'
                                 }
                                 minimal
-                                onClick={() => setVizisOpen((f) => !f)}
+                                onClick={() =>
+                                    toggleExpandedSection(
+                                        ExplorerSection.VISUALIZATION,
+                                    )
+                                }
                             />
                             <H5 style={{ margin: 0, padding: 0 }}>Charts</H5>
                         </div>
@@ -120,7 +127,7 @@ const VisualizationCard: FC = () => {
                                 <ButtonGroup>
                                     <Button
                                         text={
-                                            overrideQueryUuid
+                                            savedChart
                                                 ? 'Save changes'
                                                 : 'Save chart'
                                         }
@@ -129,13 +136,13 @@ const VisualizationCard: FC = () => {
                                             !hasUnsavedChanges
                                         }
                                         onClick={
-                                            overrideQueryUuid
+                                            savedChart
                                                 ? handleSavedQueryUpdate
                                                 : () =>
                                                       setIsQueryModalOpen(true)
                                         }
                                     />
-                                    {overrideQueryUuid && (
+                                    {savedChart && (
                                         <Popover2
                                             placement="bottom"
                                             disabled={

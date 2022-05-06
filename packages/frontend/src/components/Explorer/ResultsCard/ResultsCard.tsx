@@ -1,7 +1,10 @@
 import { Button, Card, Collapse, H5 } from '@blueprintjs/core';
 import { getResultValues } from 'common';
-import { FC, useState } from 'react';
-import { useExplorer } from '../../../providers/ExplorerProvider';
+import { FC } from 'react';
+import {
+    ExplorerSection,
+    useExplorer,
+} from '../../../providers/ExplorerProvider';
 import AddColumnButton from '../../AddColumnButton';
 import DownloadCsvButton from '../../DownloadCsvButton';
 import LimitButton from '../../LimitButton';
@@ -14,11 +17,11 @@ import {
 
 const ResultsCard: FC = () => {
     const {
-        state: { unsavedChartVersion },
+        state: { unsavedChartVersion, expandedSections },
         queryResults,
-        actions: { setRowLimit },
+        actions: { setRowLimit, toggleExpandedSection },
     } = useExplorer();
-    const [resultsIsOpen, setResultsIsOpen] = useState<boolean>(true);
+    const resultsIsOpen = expandedSections.includes(ExplorerSection.RESULTS);
 
     return (
         <Card style={{ padding: 5 }} elevation={1}>
@@ -27,7 +30,9 @@ const ResultsCard: FC = () => {
                     <Button
                         icon={resultsIsOpen ? 'chevron-down' : 'chevron-right'}
                         minimal
-                        onClick={() => setResultsIsOpen((f) => !f)}
+                        onClick={() =>
+                            toggleExpandedSection(ExplorerSection.RESULTS)
+                        }
                     />
                     <H5>Results</H5>
                     {resultsIsOpen && (

@@ -80,10 +80,10 @@ export const hasIntersection = (tags: string[], tags2: string[]): boolean => {
     return intersection.length > 0;
 };
 
-export const toggleArrayValue = (
-    initialArray: string[],
-    value: string,
-): string[] => {
+export const toggleArrayValue = <T = string>(
+    initialArray: T[],
+    value: T,
+): T[] => {
     const array = [...initialArray];
     const index = array.indexOf(value);
     if (index === -1) {

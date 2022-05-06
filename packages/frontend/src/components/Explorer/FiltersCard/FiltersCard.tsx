@@ -11,7 +11,10 @@ import {
 } from 'common';
 import { FC, useEffect, useState } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
-import { useExplorer } from '../../../providers/ExplorerProvider';
+import {
+    ExplorerSection,
+    useExplorer,
+} from '../../../providers/ExplorerProvider';
 import FiltersForm from '../../common/Filters';
 import {
     FieldsWithSuggestions,
@@ -22,16 +25,17 @@ import { CardHeader } from './FiltersCard.styles';
 const FiltersCard: FC = () => {
     const {
         state: {
+            expandedSections,
             unsavedChartVersion: {
                 tableName,
                 metricQuery: { filters, additionalMetrics },
             },
         },
         queryResults,
-        actions: { setFilters },
+        actions: { setFilters, toggleExpandedSection },
     } = useExplorer();
     const explore = useExplore(tableName);
-    const [filterIsOpen, setFilterIsOpen] = useState<boolean>(false);
+    const filterIsOpen = expandedSections.includes(ExplorerSection.FILTERS);
     const totalActiveFilters: number = countTotalFilterRules(filters);
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
@@ -100,7 +104,9 @@ const FiltersCard: FC = () => {
                 <Button
                     icon={filterIsOpen ? 'chevron-down' : 'chevron-right'}
                     minimal
-                    onClick={() => setFilterIsOpen((f) => !f)}
+                    onClick={() =>
+                        toggleExpandedSection(ExplorerSection.FILTERS)
+                    }
                 />
                 <H5>Filters</H5>
                 {totalActiveFilters > 0 && !filterIsOpen ? (

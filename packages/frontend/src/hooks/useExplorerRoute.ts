@@ -4,10 +4,11 @@ import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useApp } from '../providers/AppProvider';
 import {
     ExplorerReduceState,
+    ExplorerSection,
     useExplorer,
 } from '../providers/ExplorerProvider';
 
-const getExplorerUrlFromCreateSavedChartVersion = (
+export const getExplorerUrlFromCreateSavedChartVersion = (
     projectUuid: string,
     createSavedChart: CreateSavedChartVersion,
 ): { pathname: string; search: string } => {
@@ -102,10 +103,17 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
 
     return useMemo(() => {
         if (pathParams.tableId) {
+            const unsavedChartVersion = parseExplorerSearchParams(search);
             try {
                 return {
                     shouldFetchResults: true,
-                    unsavedChartVersion: parseExplorerSearchParams(search),
+                    expandedSections: unsavedChartVersion
+                        ? [
+                              ExplorerSection.VISUALIZATION,
+                              ExplorerSection.RESULTS,
+                          ]
+                        : [ExplorerSection.RESULTS],
+                    unsavedChartVersion,
                 };
             } catch (e: any) {
                 showToastError({ title: 'Error parsing url', subtitle: e });
