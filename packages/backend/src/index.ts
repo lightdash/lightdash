@@ -77,6 +77,16 @@ Sentry.init({
     ],
     ignoreErrors: ['WarehouseQueryError'],
     tracesSampler,
+    beforeBreadcrumb(breadcrumb) {
+        if (
+            breadcrumb.category === 'http' &&
+            breadcrumb?.data?.url &&
+            breadcrumb.data.url.startsWith('https://hub.docker.com')
+        ) {
+            return null;
+        }
+        return breadcrumb;
+    },
 });
 app.use(
     Sentry.Handlers.requestHandler({
