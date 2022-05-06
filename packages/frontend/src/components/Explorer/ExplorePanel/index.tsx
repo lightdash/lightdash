@@ -1,5 +1,6 @@
 import { Button, Divider, H3, MenuDivider, MenuItem } from '@blueprintjs/core';
-import React from 'react';
+import { AdditionalMetric, getTableMagicMetrics } from 'common';
+import React, { useEffect } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorer } from '../../../providers/ExplorerProvider';
 import ExploreTree from '../../ExploreTree';
@@ -31,14 +32,36 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
             activeFields,
             unsavedChartVersion: { tableName: activeTableName },
         },
-        actions: { toggleActiveField },
+        actions: { toggleActiveField, setMagicMetrics },
     } = useExplorer();
-    const exploresResult = useExplore(activeTableName);
-    if (exploresResult.status === 'loading') {
+    const { data, status } = useExplore(activeTableName);
+
+    useEffect(() => {
+        if (data) {
+            setMagicMetrics(
+                Object.values(data.tables).reduce<AdditionalMetric[]>(
+                    (sum, table) => {
+                        const hasMetrics =
+                            Object.values(table.metrics).length > 0;
+                        return hasMetrics
+                            ? [...sum]
+                            : [
+                                  ...sum,
+                                  ...Object.values(getTableMagicMetrics(table)),
+                              ];
+                    },
+                    [],
+                ),
+            );
+        }
+    }, [data, setMagicMetrics]);
+
+    if (status === 'loading') {
         return <SideBarLoadingState />;
     }
-    if (exploresResult.data) {
-        const activeExplore = exploresResult.data;
+
+    if (data) {
+        const activeExplore = data;
         const [databaseName, schemaName, tableName] = activeExplore.tables[
             activeExplore.baseTable
         ].sqlTable
@@ -49,7 +72,7 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
                 <PanelTitleWrapper>
                     <Button onClick={onBack} icon="chevron-left" />
                     <H3 style={{ marginBottom: 0, marginLeft: '10px' }}>
-                        {exploresResult.data.label}
+                        {data.label}
                     </H3>
                 </PanelTitleWrapper>
                 <Divider />
@@ -80,7 +103,7 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
             </>
         );
     }
-    if (exploresResult.status === 'error') {
+    if (status === 'error') {
         onBack();
         return null;
     }
