@@ -15,7 +15,7 @@ const SavedExplorer = () => {
     });
     const onBack = () => {
         history.push({
-            pathname: `/projects/${pathParams.projectUuid}/home`,
+            pathname: `/projects/${pathParams.projectUuid}/tables`,
         });
     };
 
