@@ -289,6 +289,12 @@ wait_for_containers_start() {
             break
         else
             echo -ne "Waiting for all containers to start. This check will timeout in $timeout seconds ...\r\c"
+            if [ $os = "Windows" ]; then
+                  echo "+++++++++++ IMPORTANT READ ++++++++++++++++++++++"
+                  echo "If you are getting the error 'Error response from daemon: i/o timeout'."
+                  echo "Go to Docker > Settings > General and enable the option 'Expose daemon on tcp://localhost:2375 without TLS'"
+                  echo "+++++++++++++++++++++++++++++++++++++++++++++++++"
+            fi
         fi
         ((timeout--))
         sleep 1
@@ -416,7 +422,7 @@ if [[ $status_code -ne 200 ]]; then
     echo "+++++++++++ ERROR ++++++++++++++++++++++"
     echo "🔴 The containers didn't seem to start correctly. Please run the following command to check containers that may have errored out:"
     echo ""
-    echo -e "sudo docker-compose -f docker-compose.yml ps -a"
+    echo -e "docker-compose -f docker-compose.yml ps -a"
     echo "Please reach us on Lightdash for support https://getdbt.slack.com/archives/C026WJE4A69"
     echo "++++++++++++++++++++++++++++++++++++++++"
 
