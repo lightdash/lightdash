@@ -1,4 +1,5 @@
 import { Classes, Tooltip2 } from '@blueprintjs/popover2';
+import { DashboardTileTypes } from 'common';
 import React, { FC, useState } from 'react';
 import { useAvailableDashboardFilterTargets } from '../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../providers/DashboardProvider';
@@ -26,8 +27,10 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     } = useDashboardContext();
     const { isLoading, data: filterableFields } =
         useAvailableDashboardFilterTargets(dashboard, dashboardTiles);
-    const hasTiles = dashboard && dashboard.tiles.length >= 1;
-
+    const hasTiles =
+        dashboardTiles.filter(
+            (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
+        ).length >= 1;
     return (
         <FiltersProvider fieldsMap={fieldsWithSuggestions}>
             <DashboardFilterWrapper>
