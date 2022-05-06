@@ -13,7 +13,7 @@ import {
 jest.mock('snowflake-sdk', () => ({
     ...jest.requireActual('snowflake-sdk'),
     createConnection: jest.fn(() => ({
-        connect: jest.fn(),
+        connect: jest.fn((callback) => callback(null, {})),
         execute: jest.fn(({ sqlText, complete }) => {
             complete(undefined, undefined, [expectedRow]);
         }),
@@ -28,7 +28,7 @@ describe('SnowflakeWarehouseClient', () => {
     });
     it('expect schema with snowflake types mapped to dimension types', async () => {
         (createConnection as jest.Mock).mockImplementationOnce(() => ({
-            connect: jest.fn(),
+            connect: jest.fn((callback) => callback(null, {})),
             execute: jest.fn(({ sqlText, complete }) => {
                 complete(undefined, undefined, columns);
             }),
