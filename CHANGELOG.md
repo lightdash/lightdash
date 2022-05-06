@@ -1,3 +1,10 @@
+## [0.90.1](https://github.com/lightdash/lightdash/compare/0.90.0...0.90.1) (2022-05-06)
+
+
+### Bug Fixes
+
+* disabled add filter button on dashboard with tiles ([#2011](https://github.com/lightdash/lightdash/issues/2011)) ([6606575](https://github.com/lightdash/lightdash/commit/6606575c274adfab27de6a62166f53368ea9b5ef))
+
 # [0.90.0](https://github.com/lightdash/lightdash/compare/0.89.0...0.90.0) (2022-05-06)
 
 
