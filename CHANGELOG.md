@@ -1,3 +1,10 @@
+## [0.91.3](https://github.com/lightdash/lightdash/compare/0.91.2...0.91.3) (2022-05-06)
+
+
+### Bug Fixes
+
+* catch snowflake connect errors ([#2014](https://github.com/lightdash/lightdash/issues/2014)) ([405b9b8](https://github.com/lightdash/lightdash/commit/405b9b814a38817c8e563a143a3a6cf071495bab))
+
 ## [0.91.2](https://github.com/lightdash/lightdash/compare/0.91.1...0.91.2) (2022-05-06)
 
 
