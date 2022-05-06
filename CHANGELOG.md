@@ -1,3 +1,10 @@
+# [0.90.0](https://github.com/lightdash/lightdash/compare/0.89.0...0.90.0) (2022-05-06)
+
+
+### Features
+
+* add description tooltip to charts in a dashboard ([#2008](https://github.com/lightdash/lightdash/issues/2008)) ([8786e54](https://github.com/lightdash/lightdash/commit/8786e54465b1db6d1077a6bd7bdfbb3fe9dbf172))
+
 # [0.89.0](https://github.com/lightdash/lightdash/compare/0.88.0...0.89.0) (2022-05-06)
 
 
