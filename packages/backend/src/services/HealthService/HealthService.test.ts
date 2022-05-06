@@ -1,8 +1,8 @@
 import { LightdashInstallType, LightdashMode } from 'common';
-import fetchMock from 'jest-fetch-mock';
+import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { projectModel, userModel } from '../../models/models';
 import { HealthService } from './HealthService';
-import { BaseResponse, Config, ImagesResponse } from './HealthService.mock';
+import { BaseResponse, Config } from './HealthService.mock';
 
 jest.mock('../../models/models', () => ({
     projectModel: {
@@ -15,6 +15,10 @@ jest.mock('../../models/models', () => ({
 
 jest.mock('../../version', () => ({
     VERSION: '0.1.0',
+}));
+
+jest.mock('../../clients/DockerHub/DockerHub', () => ({
+    getDockerHubVersion: jest.fn(() => '0.2.7'),
 }));
 
 jest.mock('../../database/database', () => ({
@@ -39,16 +43,15 @@ describe('health', () => {
         process.env = {
             LIGHTDASH_INSTALL_TYPE: LightdashInstallType.UNKNOWN,
         };
-        fetchMock.mockResponse(async () => ({
-            body: JSON.stringify(ImagesResponse),
-        }));
     });
 
     it('Should get current and latest version', async () => {
         expect(await healthService.getHealthState(false)).toEqual(BaseResponse);
     });
     it('Should return last version as undefined when fails fetch', async () => {
-        fetchMock.mockReject();
+        (getDockerHubVersion as jest.Mock).mockImplementationOnce(
+            () => undefined,
+        );
 
         expect(await healthService.getHealthState(false)).toEqual({
             ...BaseResponse,

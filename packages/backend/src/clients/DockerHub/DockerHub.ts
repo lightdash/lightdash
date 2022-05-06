@@ -12,7 +12,7 @@ const sorterByDate = (
 ): number =>
     Number(new Date(b.last_updated)) - Number(new Date(a.last_updated));
 
-async function fetchDockerHubVersion(): Promise<string | undefined> {
+export async function fetchDockerHubVersion(): Promise<string | undefined> {
     try {
         const response = await fetch(
             'https://hub.docker.com/v2/repositories/lightdash/lightdash/tags',
@@ -31,7 +31,9 @@ async function updateDockerHubVersion() {
     const version = await fetchDockerHubVersion();
     if (version) dockerHubVersion = version;
 }
-setInterval(updateDockerHubVersion, 10 * 60 * 1000); // 10 minutes
+if (process.env.NODE_ENV !== 'test') {
+    setInterval(updateDockerHubVersion, 10 * 60 * 1000); // 10 minutes
+}
 updateDockerHubVersion().catch((e) =>
     Logger.error(`Unable to update DockerHub version: ${e}`),
 );
