@@ -1,4 +1,4 @@
-import { Dialog } from '@blueprintjs/core';
+import { Button, Dialog } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 import Form from '../ReactHookForm/Form';
 
@@ -56,4 +56,9 @@ export const TableCalculationSqlInputWrapper = styled.div<{
                       `}
         }
     }
+`;
+
+export const FullScreenButton = styled(Button)`
+    outline: 0;
+    margin: 0 auto 0 0 !important;
 `;

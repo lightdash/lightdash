@@ -1,4 +1,4 @@
-import { Button, Callout, Classes, Intent, Switch } from '@blueprintjs/core';
+import { Button, Callout, Classes, Intent } from '@blueprintjs/core';
 import { hasSpecialCharacters, snakeCaseName, TableCalculation } from 'common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
@@ -13,6 +13,7 @@ import {
     DialogBody,
     DialogButtons,
     FlexForm,
+    FullScreenButton,
     TableCalculationDialog,
     TableCalculationSqlInputWrapper,
 } from './TableCalculationModal.styles';
@@ -65,7 +66,11 @@ const TableCalculationModal: FC<Props> = ({
         <TableCalculationDialog
             isOpen={isOpen}
             onClose={() => (!isDisabled ? onClose() : undefined)}
-            title="Save"
+            title={
+                tableCalculation
+                    ? 'Edit table calculation'
+                    : 'Add table calculation'
+            }
             lazy
             canOutsideClickClose
             style={
@@ -176,14 +181,25 @@ const TableCalculationModal: FC<Props> = ({
                             placeholder={SQL_PLACEHOLDER}
                         />
                     </TableCalculationSqlInputWrapper>
+                    <Callout intent="none" icon="clean">
+                        <p>
+                            Need inspiration?{' '}
+                            <a
+                                target="_blank"
+                                href="https://docs.lightdash.com/guides/table-calculations/sql-templates"
+                                rel="noreferrer"
+                            >
+                                Check out our templates!
+                            </a>
+                        </p>
+                    </Callout>
                 </DialogBody>
                 <div className={Classes.DIALOG_FOOTER}>
                     <DialogButtons className={Classes.DIALOG_FOOTER_ACTIONS}>
-                        <Switch
-                            checked={isFullscreen}
-                            label="Fullscreen"
-                            onChange={toggleFullscreen}
-                        />
+                        <FullScreenButton
+                            icon={isFullscreen ? 'minimize' : 'fullscreen'}
+                            onClick={toggleFullscreen}
+                        ></FullScreenButton>
                         <Button onClick={onClose}>Cancel</Button>
                         <Button
                             type="submit"
