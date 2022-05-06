@@ -1,3 +1,10 @@
+## [0.91.5](https://github.com/lightdash/lightdash/compare/0.91.4...0.91.5) (2022-05-06)
+
+
+### Bug Fixes
+
+* explore from here ([#2021](https://github.com/lightdash/lightdash/issues/2021)) ([cdbfd3d](https://github.com/lightdash/lightdash/commit/cdbfd3d43820663208ae0f339de919b362b72591))
+
 ## [0.91.4](https://github.com/lightdash/lightdash/compare/0.91.3...0.91.4) (2022-05-06)
 
 
