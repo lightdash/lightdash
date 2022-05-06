@@ -145,7 +145,7 @@ export const useCreateMutation = () => {
             onSuccess: (data) => {
                 queryClient.setQueryData(['saved_query', data.uuid], data);
                 showToastSuccess({
-                    title: `Success! Chart was updated.`,
+                    title: `Success! Chart was saved.`,
                 });
                 history.push({
                     pathname: `/projects/${projectUuid}/saved/${data.uuid}`,
@@ -227,12 +227,12 @@ export const useAddVersionMutation = () => {
 
             queryClient.setQueryData(['saved_query', data.uuid], data);
             showToastSuccess({
-                title: `Success! Chart was saved.`,
+                title: `Success! Chart was updated.`,
             });
         },
         onError: (error) => {
             showToastError({
-                title: `Failed to save chart`,
+                title: `Failed to update chart`,
                 subtitle: error.error.message,
             });
         },

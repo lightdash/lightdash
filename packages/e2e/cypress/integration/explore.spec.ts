@@ -36,7 +36,7 @@ describe('Explore', () => {
         cy.findByText('Save chart').click();
         cy.get('input#chart-name').type('My chart');
         cy.findByText('Save').click();
-        cy.findByText('Success! Chart was updated.');
+        cy.findByText('Success! Chart was saved.');
 
         // FIXME disabling save changes button is currently broken...
         // cy.findByText('Save changes').parent().should('be.disabled');
