@@ -66,7 +66,7 @@ const useBigNumberConfig = (
     );
 
     const isNaN =
-        (bigNumberRaw?.includes && bigNumberRaw.includes('-')) ||
+        (bigNumberRaw?.includes && bigNumberRaw.includes('Z')) ||
         Number.isNaN(Number(bigNumberRaw));
 
     const showStyle = !isNaN && field?.format !== 'percent';
