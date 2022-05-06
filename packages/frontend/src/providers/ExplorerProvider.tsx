@@ -27,6 +27,13 @@ import React, {
 import useDefaultSortField from '../hooks/useDefaultSortField';
 import { useQueryResults } from '../hooks/useQueryResults';
 
+export enum ExplorerSection {
+    FILTERS = 'FILTERS',
+    VISUALIZATION = 'VISUALIZATION',
+    RESULTS = 'RESULTS',
+    SQL = 'SQL',
+}
+
 export enum ActionType {
     RESET,
     SET_TABLE_NAME,
@@ -46,12 +53,14 @@ export enum ActionType {
     SET_PIVOT_FIELDS,
     SET_CHART_TYPE,
     SET_CHART_CONFIG,
+    TOGGLE_EXPANDED_SECTION,
 }
 
 type Action =
     | { type: ActionType.RESET }
     | { type: ActionType.SET_FETCH_RESULTS_FALSE }
     | { type: ActionType.SET_TABLE_NAME; payload: string }
+    | { type: ActionType.TOGGLE_EXPANDED_SECTION; payload: ExplorerSection }
     | {
           type:
               | ActionType.TOGGLE_DIMENSION
@@ -110,6 +119,7 @@ type Action =
 
 export interface ExplorerReduceState {
     shouldFetchResults: boolean;
+    expandedSections: ExplorerSection[];
     unsavedChartVersion: CreateSavedChartVersion;
 }
 
@@ -149,6 +159,7 @@ interface ExplorerContext {
             chartConfig: ChartConfig['config'] | undefined,
         ) => void;
         fetchResults: () => void;
+        toggleExpandedSection: (section: ExplorerSection) => void;
     };
 }
 
@@ -156,6 +167,7 @@ const Context = createContext<ExplorerContext | undefined>(undefined);
 
 const defaultState: ExplorerReduceState = {
     shouldFetchResults: false,
+    expandedSections: [ExplorerSection.RESULTS],
     unsavedChartVersion: {
         tableName: '',
         metricQuery: {
@@ -243,6 +255,15 @@ function reducer(
         }
         case ActionType.SET_FETCH_RESULTS_FALSE: {
             return { ...state, shouldFetchResults: false };
+        }
+        case ActionType.TOGGLE_EXPANDED_SECTION: {
+            return {
+                ...state,
+                expandedSections: toggleArrayValue(
+                    state.expandedSections,
+                    action.payload,
+                ),
+            };
         }
         case ActionType.TOGGLE_DIMENSION: {
             const dimensions = toggleArrayValue(
@@ -633,6 +654,14 @@ export const ExplorerProvider: FC<{
             payload: tableName,
         });
     }, []);
+
+    const toggleExpandedSection = useCallback((payload: ExplorerSection) => {
+        dispatch({
+            type: ActionType.TOGGLE_EXPANDED_SECTION,
+            payload,
+        });
+    }, []);
+
     const toggleActiveField = useCallback(
         (fieldId: FieldId, isDimension: boolean) => {
             dispatch({
@@ -868,6 +897,7 @@ export const ExplorerProvider: FC<{
                 setChartType,
                 setChartConfig,
                 fetchResults,
+                toggleExpandedSection,
             }),
             [
                 reset,
@@ -887,6 +917,7 @@ export const ExplorerProvider: FC<{
                 setChartType,
                 setChartConfig,
                 fetchResults,
+                toggleExpandedSection,
             ],
         ),
     };

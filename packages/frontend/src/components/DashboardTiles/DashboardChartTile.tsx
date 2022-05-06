@@ -18,6 +18,7 @@ import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useExplore } from '../../hooks/useExplore';
+import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import { useDashboardContext } from '../../providers/DashboardProvider';
@@ -226,6 +227,17 @@ const DashboardChartTile: FC<Props> = (props) => {
         [explore],
     );
 
+    const exploreFromHereUrl = useMemo(() => {
+        if (savedQuery) {
+            const { pathname, search } =
+                getExplorerUrlFromCreateSavedChartVersion(
+                    savedQuery.projectUuid,
+                    savedQuery,
+                );
+            return `${pathname}?${search}`;
+        }
+    }, [savedQuery]);
+
     return (
         <TileBase
             isChart
@@ -262,7 +274,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                         <MenuItem
                             icon="series-search"
                             text="Explore from here"
-                            href={`/projects/${projectUuid}/saved/${savedChartUuid}?explore=true`}
+                            href={exploreFromHereUrl}
                         />
                     </>
                 )

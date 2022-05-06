@@ -4,12 +4,17 @@ import { useHistory, useParams } from 'react-router-dom';
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel/index';
 import { useSavedQuery } from '../hooks/useSavedQuery';
-import { ExplorerProvider } from '../providers/ExplorerProvider';
+import {
+    ExplorerProvider,
+    ExplorerSection,
+} from '../providers/ExplorerProvider';
 
 const SavedExplorer = () => {
     const history = useHistory();
-    const pathParams =
-        useParams<{ savedQueryUuid: string; projectUuid: string }>();
+    const pathParams = useParams<{
+        savedQueryUuid: string;
+        projectUuid: string;
+    }>();
     const { data, isLoading, error } = useSavedQuery({
         id: pathParams.savedQueryUuid,
     });
@@ -43,6 +48,10 @@ const SavedExplorer = () => {
                 data
                     ? {
                           shouldFetchResults: true,
+                          expandedSections: [
+                              ExplorerSection.VISUALIZATION,
+                              ExplorerSection.RESULTS,
+                          ],
                           unsavedChartVersion: {
                               tableName: data.tableName,
                               chartConfig: data.chartConfig,

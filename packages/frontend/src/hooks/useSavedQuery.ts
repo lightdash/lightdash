@@ -149,9 +149,6 @@ export const useCreateMutation = () => {
                 });
                 history.push({
                     pathname: `/projects/${projectUuid}/saved/${data.uuid}`,
-                    state: {
-                        fromExplorer: true,
-                    },
                 });
             },
             onError: (error) => {
@@ -182,10 +179,6 @@ export const useDuplicateMutation = (
                 if (!showRedirectButton) {
                     history.push({
                         pathname: `/projects/${projectUuid}/saved/${data.uuid}`,
-
-                        state: {
-                            fromExplorer: true,
-                        },
                     });
                 }
 
