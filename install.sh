@@ -136,6 +136,11 @@ track() {
   HEADER='Content-Type: application/json'
   HEADER_AUTH='Authorization: Basic MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg=='
 
+  if has_curl; then
+      curl -sfL -d "$DATA" --header "$HEADER" --header "$HEADER_AUTH" "$URL" > /dev/null 2>&1
+  elif has_wget; then
+      wget -q --post-data="$DATA" --header="$HEADER" --header "$HEADER_AUTH" "$URL" > /dev/null 2>&1
+  fi
 }
 
 track_error() {
