@@ -17,19 +17,25 @@ const SavedQueriesContent = ({
     savedQueries,
     projectUuid,
     isChart,
-}: SavedQueriesContentProps) => (
-    <ActionCardList
-        title="Saved charts"
-        useUpdate={useUpdateMutation}
-        useDelete={useDeleteMutation()}
-        dataList={savedQueries}
-        getURL={(savedQuery: SpaceQuery) => {
-            const { uuid } = savedQuery;
-            return `/projects/${projectUuid}/saved/${uuid}`;
-        }}
-        ModalContent={SavedQueryForm}
-        isChart={isChart}
-    />
-);
+}: SavedQueriesContentProps) => {
+    const orderedCharts = savedQueries.sort(
+        (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+    return (
+        <ActionCardList
+            title="Saved charts"
+            useUpdate={useUpdateMutation}
+            useDelete={useDeleteMutation()}
+            dataList={orderedCharts}
+            getURL={(savedQuery: SpaceQuery) => {
+                const { uuid } = savedQuery;
+                return `/projects/${projectUuid}/saved/${uuid}`;
+            }}
+            ModalContent={SavedQueryForm}
+            isChart={isChart}
+        />
+    );
+};
 
 export default SavedQueriesContent;
