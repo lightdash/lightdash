@@ -14,9 +14,7 @@ const SavedExplorer = () => {
         id: pathParams.savedQueryUuid,
     });
     const onBack = () => {
-        history.push({
-            pathname: `/projects/${pathParams.projectUuid}/tables`,
-        });
+        history.goBack();
     };
 
     if (isLoading) {
