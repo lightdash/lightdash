@@ -150,13 +150,11 @@ const ExploreSideBar = () => {
         },
         actions: { reset },
     } = useExplorer();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
     const history = useHistory();
+
     const onBack = () => {
         reset();
-        history.push({
-            pathname: `/projects/${projectUuid}/tables`,
-        });
+        history.goBack();
     };
 
     return (
