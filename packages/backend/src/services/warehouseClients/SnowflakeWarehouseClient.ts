@@ -1,5 +1,6 @@
 import { CreateSnowflakeCredentials, DimensionType } from 'common';
 import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
+import * as Util from 'util';
 import {
     ParseError,
     WarehouseConnectionError,
@@ -103,12 +104,11 @@ export default class SnowflakeWarehouseClient implements WarehouseClient {
         let connection: Connection;
         try {
             connection = createConnection(this.connectionOptions);
-            connection.connect((err) => {
-                if (err) {
-                    throw err;
-                }
-            });
+            await Util.promisify(connection.connect)();
         } catch (e) {
+            console.log(
+                JSON.stringify(e, ['message', 'arguments', 'type', 'name']),
+            );
             throw new WarehouseConnectionError(e.message);
         }
 
