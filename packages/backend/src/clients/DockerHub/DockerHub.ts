@@ -31,7 +31,9 @@ async function updateDockerHubVersion() {
     const version = await fetchDockerHubVersion();
     if (version) dockerHubVersion = version;
 }
-setInterval(updateDockerHubVersion, 10 * 60 * 1000); // 10 minutes
+if (process.env.NODE_ENV !== 'test') {
+    setInterval(updateDockerHubVersion, 10 * 60 * 1000); // 10 minutes
+}
 updateDockerHubVersion().catch((e) =>
     Logger.error(`Unable to update DockerHub version: ${e}`),
 );
