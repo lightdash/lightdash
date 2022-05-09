@@ -100,7 +100,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 )}
             </HeaderContainer>
             {!isChart && <Divider />}
-            <ChartContainer className="non-draggable">
+            <ChartContainer className="non-draggable cohere-block">
                 {children}
             </ChartContainer>
             {isEditing && (
