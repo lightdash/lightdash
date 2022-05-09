@@ -119,21 +119,38 @@ const getFormatterValue = (
 
 const valueFormatter =
     (xField: string, yField: string, explore: Explore) => (rawValue: any) => {
+        const field = getFields(explore).find(
+            (item) => fieldId(item) === yField,
+        );
+
         if (Array.isArray(rawValue)) {
             const xValue = getFormatterValue(
                 rawValue[0],
                 xField,
                 getDimensions(explore),
             );
+            const formattedValue =
+                field?.format || field?.round
+                    ? formatValue(field?.format, field?.round, rawValue[1])
+                    : rawValue[1];
+
             const yValue = getFormatterValue(
-                rawValue[1],
+                formattedValue,
                 yField,
                 getDimensions(explore),
             );
             return `${xValue} ${yValue}`;
         }
 
-        return getFormatterValue(rawValue, yField, getDimensions(explore));
+        const formattedValue =
+            field?.format || field?.round
+                ? formatValue(field?.format, field?.round, rawValue)
+                : rawValue;
+        return getFormatterValue(
+            formattedValue,
+            yField,
+            getDimensions(explore),
+        );
     };
 
 export const getEchartsSeries = (
