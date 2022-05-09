@@ -65,6 +65,7 @@ const Dashboard = () => {
         setHaveFiltersChanged,
         dashboardTiles,
         setDashboardTiles,
+        setDashboardFilters,
     } = useDashboardContext();
 
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
@@ -176,14 +177,23 @@ const Dashboard = () => {
         },
         [setDashboardTiles],
     );
-
     const onCancel = useCallback(() => {
         setDashboardTiles(dashboard?.tiles || []);
         setHasTilesChanged(false);
+        if (dashboard) setDashboardFilters(dashboard.filters);
+        setHaveFiltersChanged(false);
         history.push(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
         );
-    }, [dashboard, dashboardUuid, history, projectUuid, setDashboardTiles]);
+    }, [
+        dashboard,
+        dashboardUuid,
+        history,
+        projectUuid,
+        setDashboardTiles,
+        setHaveFiltersChanged,
+        setDashboardFilters,
+    ]);
 
     const updateTitle = (name: string) => {
         setHasTilesChanged(true);
