@@ -54,47 +54,53 @@ function formatTimestamp<T = string | Date>(
     return moment(value).format(`YYYY-MM-DD, ${timeFormat} (Z)`);
 }
 
-export function formatValue<T>(
+function valueIsNaN(value: any) {
+    if (typeof value === 'boolean') return true;
+    return Number.isNaN(Number(value));
+}
+
+function roundNumber(value: any, round: number | undefined): string {
+    if (round === undefined || round < 0) {
+        return `${value}`;
+    }
+    if (valueIsNaN(value)) {
+        return `${value}`;
+    }
+    return Number(value).toFixed(round);
+}
+
+function styleNumber(
+    value: any,
+    numberStyle: NumberStyle | undefined,
+    round: number | undefined,
+): string {
+    if (valueIsNaN(value)) {
+        return `${value}`;
+    }
+    switch (numberStyle) {
+        case NumberStyle.THOUSANDS:
+            return `${roundNumber(Number(value) / 1000, round)}K`;
+        case NumberStyle.MILLIONS:
+            return `${roundNumber(Number(value) / 1000000, round)}M`;
+        case NumberStyle.BILLIONS:
+            return `${roundNumber(Number(value) / 1000000000, round)}B`;
+        default:
+            return `${value}`;
+    }
+}
+
+export function formatValue(
     format: string | undefined,
     round: number | undefined,
-    value: T,
+    value: any,
     numberStyle?: NumberStyle, // for bigNumbers
 ): string {
-    function valueIsNaN(val: T) {
-        if (typeof val === 'boolean') return true;
-        return Number.isNaN(Number(val));
-    }
-
-    function roundNumber(number: T): string | T {
-        if (round === undefined || round < 0) return number;
-        if (valueIsNaN(number)) {
-            return number;
-        }
-        return Number(number).toFixed(round);
-    }
-
     if (value === null) return '∅';
     if (value === undefined) return '-';
 
-    function styleNumber(number: T): string | T {
-        if (valueIsNaN(number)) {
-            return number;
-        }
-        switch (numberStyle) {
-            case NumberStyle.THOUSANDS:
-                return `${roundNumber((Number(number) / 1000) as any)}K`;
-            case NumberStyle.MILLIONS:
-                return `${roundNumber((Number(number) / 1000000) as any)}M`;
-            case NumberStyle.BILLIONS:
-                return `${roundNumber((Number(number) / 1000000000) as any)}B`;
-            default:
-                return number;
-        }
-    }
-
     const styledValue = numberStyle
-        ? (styleNumber(value) as any)
-        : roundNumber(value);
+        ? styleNumber(value, numberStyle, round)
+        : roundNumber(value, round);
     switch (format) {
         case 'km':
         case 'mi':
@@ -131,7 +137,6 @@ export function formatFieldValue<T>(
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
-            return `${value}`;
         case DimensionType.NUMBER:
         case MetricType.NUMBER:
         case MetricType.AVERAGE:
