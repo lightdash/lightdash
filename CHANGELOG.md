@@ -1,3 +1,10 @@
+## [0.93.1](https://github.com/lightdash/lightdash/compare/0.93.0...0.93.1) (2022-05-09)
+
+
+### Bug Fixes
+
+* selete y axis with same name ([#2037](https://github.com/lightdash/lightdash/issues/2037)) ([5f85aac](https://github.com/lightdash/lightdash/commit/5f85aac73dfb5c15f874595ba07c1cea663f23ea))
+
 # [0.93.0](https://github.com/lightdash/lightdash/compare/0.92.1...0.93.0) (2022-05-09)
 
 
