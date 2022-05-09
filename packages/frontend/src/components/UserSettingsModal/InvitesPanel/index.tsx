@@ -28,6 +28,7 @@ const InvitePanel: FC = () => {
                     <>
                         <InputGroup
                             id="invite-link-input"
+                            className="cohere-block"
                             type="text"
                             readOnly
                             value={inviteLink.data.inviteUrl}
