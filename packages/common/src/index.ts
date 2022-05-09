@@ -1211,7 +1211,7 @@ export function formatValue<T>(
         if (valueIsNaN(number)) {
             return number;
         }
-        return Number(Number(number).toFixed(round)).toLocaleString();
+        return Number(Number(number).toLocaleString()).toFixed(round);
     }
 
     if (value === undefined) return value;
