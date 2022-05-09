@@ -118,39 +118,49 @@ const getFormatterValue = (
 };
 
 const valueFormatter =
-    (xField: string, yField: string, explore: Explore) => (rawValue: any) => {
-        const field = getFields(explore).find(
-            (item) => fieldId(item) === yField,
+    (xFieldId: string, yFieldId: string, explore: Explore) =>
+    (rawValue: any) => {
+        const yField = getFields(explore).find(
+            (item) => fieldId(item) === yFieldId,
         );
 
         if (Array.isArray(rawValue)) {
+            const xField = getFields(explore).find(
+                (item) => fieldId(item) === xFieldId,
+            );
+            const formattedXValue =
+                xField?.format || xField?.round
+                    ? formatValue(xField?.format, xField?.round, rawValue[0])
+                    : rawValue[0];
+
             const xValue = getFormatterValue(
-                rawValue[0],
-                xField,
+                formattedXValue,
+                xFieldId,
                 getDimensions(explore),
             );
-            const formattedValue =
-                field?.format || field?.round
-                    ? formatValue(field?.format, field?.round, rawValue[1])
+            const formattedYValue =
+                yField?.format || yField?.round
+                    ? formatValue(yField?.format, yField?.round, rawValue[1])
                     : rawValue[1];
 
             const yValue = getFormatterValue(
-                formattedValue,
-                yField,
+                formattedYValue,
+                yFieldId,
                 getDimensions(explore),
             );
             return `${xValue} ${yValue}`;
         }
 
         const formattedValue =
-            field?.format || field?.round
-                ? formatValue(field?.format, field?.round, rawValue)
+            yField?.format || yField?.round
+                ? formatValue(yField?.format, yField?.round, rawValue)
                 : rawValue;
-        return getFormatterValue(
+        const f = getFormatterValue(
             formattedValue,
-            yField,
+            yFieldId,
             getDimensions(explore),
         );
+        return f;
     };
 
 export const getEchartsSeries = (
