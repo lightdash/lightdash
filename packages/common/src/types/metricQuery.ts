@@ -36,3 +36,20 @@ export type SortField = {
     fieldId: string; // Field must exist in the explore
     descending: boolean; // Direction of the sort
 };
+
+export const idPattern = /((.+)(?<!val)id$)/i;
+export const extractEntityNameFromIdColumn = (
+    columnName: string,
+): string | null => {
+    const match = idPattern.exec(columnName);
+    if (match === null) {
+        return match;
+    }
+    return (
+        match[2]
+            .toLowerCase()
+            .split(/[^a-z]/)
+            .filter((x) => x)
+            .join('_') || null
+    );
+};

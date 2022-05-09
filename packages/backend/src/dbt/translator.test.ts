@@ -1,9 +1,5 @@
-import { SupportedDbtAdapter } from 'common';
-import {
-    attachTypesToModels,
-    convertTable,
-    extractEntityNameFromIdColumn,
-} from './translator';
+import { extractEntityNameFromIdColumn, SupportedDbtAdapter } from 'common';
+import { attachTypesToModels, convertTable } from './translator';
 import {
     expectedModelWithType,
     INVALID_ID_COLUMN_NAMES,
