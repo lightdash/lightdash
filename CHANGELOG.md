@@ -1,3 +1,10 @@
+## [0.92.1](https://github.com/lightdash/lightdash/compare/0.92.0...0.92.1) (2022-05-09)
+
+
+### Bug Fixes
+
+* sort table chart ([#2023](https://github.com/lightdash/lightdash/issues/2023)) ([c1f4a33](https://github.com/lightdash/lightdash/commit/c1f4a333cc2eda80f47d3296b23472af8d90bd25))
+
 # [0.92.0](https://github.com/lightdash/lightdash/compare/0.91.7...0.92.0) (2022-05-09)
 
 
