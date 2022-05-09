@@ -138,6 +138,9 @@ export const useUpdateDashboard = (
             mutationKey: ['dashboard_update'],
             onSuccess: async (_, variables) => {
                 await queryClient.invalidateQueries('dashboards');
+                await queryClient.invalidateQueries(
+                    'dashboards-containing-chart',
+                );
                 await queryClient.invalidateQueries([
                     'saved_dashboard_query',
                     id,
@@ -196,6 +199,9 @@ export const useCreateMutation = (
             mutationKey: ['dashboard_create', projectUuid],
             onSuccess: async (result) => {
                 await queryClient.invalidateQueries('dashboards');
+                await queryClient.invalidateQueries(
+                    'dashboards-containing-chart',
+                );
                 showToastSuccess({
                     title: `Success! Dashboard was created.`,
                     action: showRedirectButton
@@ -234,6 +240,9 @@ export const useDuplicateDashboardMutation = (
             mutationKey: ['dashboard_create', projectUuid],
             onSuccess: async (data) => {
                 await queryClient.invalidateQueries('dashboards');
+                await queryClient.invalidateQueries(
+                    'dashboards-containing-chart',
+                );
                 showToastSuccess({
                     title: `Dashboard successfully duplicated!`,
                     action: showRedirectButton
@@ -264,6 +273,7 @@ export const useDeleteMutation = () => {
     return useMutation<undefined, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
             await queryClient.invalidateQueries('dashboards');
+            await queryClient.invalidateQueries('dashboards-containing-chart');
             showToastSuccess({
                 title: `Deleted! Dashboard was deleted.`,
             });

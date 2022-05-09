@@ -29,7 +29,7 @@ import {
     SavedChartTable,
 } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
-import { UserTable } from '../../database/entities/users';
+import { UserTable, UserTableName } from '../../database/entities/users';
 import { NotFoundError, UnexpectedServerError } from '../../errors';
 import Transaction = Knex.Transaction;
 
@@ -166,68 +166,80 @@ export class DashboardModel {
         projectUuid: string,
         chartUuid?: string,
     ): Promise<DashboardBasicDetails[]> {
-        const dashboards = await this.database(DashboardsTableName)
-            .leftJoin(
-                DashboardVersionsTableName,
-                `${DashboardsTableName}.dashboard_id`,
-                `${DashboardVersionsTableName}.dashboard_id`,
-            )
-            .leftJoin(
-                SpaceTableName,
-                `${DashboardsTableName}.space_id`,
-                `${SpaceTableName}.space_id`,
-            )
-            .leftJoin(
-                DashboardTilesTableName,
-                `${DashboardTilesTableName}.dashboard_version_id`,
-                `${DashboardVersionsTableName}.dashboard_version_id`,
-            )
+        const cteTableName = 'cte';
+        const dashboardsQuery = this.database
+            .with(cteTableName, (queryBuilder) => {
+                queryBuilder
+                    .table(DashboardsTableName)
+                    .leftJoin(
+                        DashboardVersionsTableName,
+                        `${DashboardsTableName}.dashboard_id`,
+                        `${DashboardVersionsTableName}.dashboard_id`,
+                    )
+                    .leftJoin(
+                        SpaceTableName,
+                        `${DashboardsTableName}.space_id`,
+                        `${SpaceTableName}.space_id`,
+                    )
+                    .leftJoin(
+                        UserTableName,
+                        `${UserTableName}.user_uuid`,
+                        `${DashboardVersionsTableName}.updated_by_user_uuid`,
+                    )
+                    .innerJoin(
+                        ProjectTableName,
+                        `${SpaceTableName}.project_id`,
+                        `${ProjectTableName}.project_id`,
+                    )
+                    .select<GetDashboardDetailsQuery[]>([
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        `${DashboardsTableName}.name`,
+                        `${DashboardsTableName}.description`,
+                        `${DashboardVersionsTableName}.created_at`,
+                        `${DashboardVersionsTableName}.dashboard_version_id`,
+                        `${ProjectTableName}.project_uuid`,
+                        `${UserTableName}.user_uuid`,
+                        `${UserTableName}.first_name`,
+                        `${UserTableName}.last_name`,
+                    ])
+                    .orderBy([
+                        {
+                            column: `${DashboardVersionsTableName}.dashboard_id`,
+                        },
+                        {
+                            column: `${DashboardVersionsTableName}.created_at`,
+                            order: 'desc',
+                        },
+                    ])
+                    .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
+                    .where('project_uuid', projectUuid);
+            })
+            .select(`${cteTableName}.*`);
 
-            .leftJoin(
-                DashboardTileChartTableName,
-                `${DashboardTileChartTableName}.dashboard_tile_uuid`,
-                `${DashboardTilesTableName}.dashboard_tile_uuid`,
-            )
-            .leftJoin(
-                `saved_queries`,
-                `saved_queries.saved_query_id`,
-                `${DashboardTileChartTableName}.saved_chart_id`,
-            )
-            .leftJoin(
-                `users`,
-                `users.user_uuid`,
-                `${DashboardVersionsTableName}.updated_by_user_uuid`,
-            )
-            .innerJoin(
-                ProjectTableName,
-                `${SpaceTableName}.project_id`,
-                `${ProjectTableName}.project_id`,
-            )
-            .select<GetDashboardDetailsQuery[]>([
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${DashboardsTableName}.name`,
-                `${DashboardsTableName}.description`,
-                `${DashboardVersionsTableName}.created_at`,
-                `${ProjectTableName}.project_uuid`,
-                `users.user_uuid`,
-                `users.first_name`,
-                `users.last_name`,
-            ])
-            .orderBy([
-                {
-                    column: `${DashboardVersionsTableName}.dashboard_id`,
-                },
-                {
-                    column: `${DashboardVersionsTableName}.created_at`,
-                    order: 'desc',
-                },
-            ])
-            .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
-            .where('project_uuid', projectUuid)
-            .andWhere((qb) => {
-                if (chartUuid)
-                    qb.andWhere(`saved_queries.saved_query_uuid`, chartUuid);
-            });
+        if (chartUuid) {
+            dashboardsQuery
+                .leftJoin(
+                    DashboardTilesTableName,
+                    `${DashboardTilesTableName}.dashboard_version_id`,
+                    `${cteTableName}.dashboard_version_id`,
+                )
+                .leftJoin(
+                    DashboardTileChartTableName,
+                    `${DashboardTileChartTableName}.dashboard_tile_uuid`,
+                    `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                )
+                .leftJoin(
+                    SavedChartsTableName,
+                    `${SavedChartsTableName}.saved_query_id`,
+                    `${DashboardTileChartTableName}.saved_chart_id`,
+                )
+                .distinctOn(`${cteTableName}.dashboard_uuid`)
+                .andWhere(
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    chartUuid,
+                );
+        }
+        const dashboards = await dashboardsQuery.from(cteTableName);
 
         return dashboards.map(
             ({
