@@ -1205,12 +1205,13 @@ export function formatValue<T>(
         return Number.isNaN(Number(val));
     }
 
-    function roundNumber(number: T): string | T {
-        if (round === undefined || round < 0) return number;
+    function roundNumber(number: any): string | T {
+        if (round === undefined || round < 0)
+            return Number(number).toLocaleString();
         if (valueIsNaN(number)) {
             return number;
         }
-        return Number(number).toFixed(round);
+        return Number(Number(number).toFixed(round)).toLocaleString();
     }
 
     if (value === undefined) return value;
@@ -1227,7 +1228,7 @@ export function formatValue<T>(
             case NumberStyle.BILLIONS:
                 return `${roundNumber((Number(number) / 1000000000) as any)}B`;
             default:
-                return number;
+                return Number(number as any).toLocaleString();
         }
     }
 
@@ -1253,10 +1254,10 @@ export function formatValue<T>(
             return `${(Number(value) * 100).toFixed(round)}%`;
 
         case '': // no format
-            return styledValue;
+            return styledValue.toLocaleString();
         default:
             // unrecognized format
-            return styledValue;
+            return styledValue.toLocaleString();
     }
 }
 
