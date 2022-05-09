@@ -1,3 +1,10 @@
+# [0.92.0](https://github.com/lightdash/lightdash/compare/0.91.7...0.92.0) (2022-05-09)
+
+
+### Features
+
+* magic metrics ([#2026](https://github.com/lightdash/lightdash/issues/2026)) ([17a0a1e](https://github.com/lightdash/lightdash/commit/17a0a1ecd1f5bce0a10d56ec85fdee41a007a734))
+
 ## [0.91.7](https://github.com/lightdash/lightdash/compare/0.91.6...0.91.7) (2022-05-06)
 
 
