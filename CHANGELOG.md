@@ -1,3 +1,11 @@
+## [0.93.2](https://github.com/lightdash/lightdash/compare/0.93.1...0.93.2) (2022-05-09)
+
+
+### Bug Fixes
+
+* cancel unsaved filter on dashboard ([#2034](https://github.com/lightdash/lightdash/issues/2034)) ([f3e4300](https://github.com/lightdash/lightdash/commit/f3e43007fd83df499829ea8da1d547c4580726eb))
+* related dashboards ([#2035](https://github.com/lightdash/lightdash/issues/2035)) ([ebf2a65](https://github.com/lightdash/lightdash/commit/ebf2a652f6fcef54425e7602b16822696b48f80b))
+
 ## [0.93.1](https://github.com/lightdash/lightdash/compare/0.93.0...0.93.1) (2022-05-09)
 
 
