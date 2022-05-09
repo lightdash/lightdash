@@ -1,3 +1,10 @@
+# [0.93.0](https://github.com/lightdash/lightdash/compare/0.92.1...0.93.0) (2022-05-09)
+
+
+### Features
+
+* format and round echart tooltip ([#2027](https://github.com/lightdash/lightdash/issues/2027)) ([a761d68](https://github.com/lightdash/lightdash/commit/a761d681a34c041292e5653c2c74e423aa748122))
+
 ## [0.92.1](https://github.com/lightdash/lightdash/compare/0.92.0...0.92.1) (2022-05-09)
 
 
