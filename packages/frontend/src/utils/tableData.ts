@@ -5,8 +5,19 @@ export const modifiedItem = (item: string | boolean) => {
     return item;
 };
 
-export const mapDataToTable = (plotData: Record<string, any>[]) => {
-    const headers: string[] = plotData.map((item) => Object.keys(item))[0];
-    const rows: any[] = plotData.map((row) => Object.values(row));
-    return { headers, rows };
+export const mapDataToTable = (
+    plotData: Record<string, any>[],
+    sortedColumns: string[],
+) => {
+    const rows: any[] = plotData.map((row) => {
+        const filteredRow = Object.entries(row).filter(
+            ([k, v]) => sortedColumns.indexOf(k) !== -1,
+        );
+        const sortedRow = filteredRow.sort(
+            ([k, v], [kb, vb]) =>
+                sortedColumns.indexOf(k) - sortedColumns.indexOf(kb),
+        );
+        return sortedRow.map(([k, v]) => v);
+    });
+    return rows;
 };

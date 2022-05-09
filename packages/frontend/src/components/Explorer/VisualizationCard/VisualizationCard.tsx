@@ -79,6 +79,7 @@ const VisualizationCard: FC = () => {
                     onChartConfigChange={setChartConfig}
                     onChartTypeChange={setChartType}
                     onPivotDimensionsChange={setPivotFields}
+                    columnOrder={unsavedChartVersion.tableConfig.columnOrder}
                 >
                     <div
                         style={{

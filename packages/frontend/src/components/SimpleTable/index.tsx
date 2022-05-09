@@ -11,14 +11,17 @@ import {
 } from './SimpleTable.styles';
 
 const SimpleTable: FC = () => {
-    const { resultsData, isLoading } = useVisualizationContext();
+    const {
+        resultsData,
+        isLoading,
+        columnOrder: headers,
+    } = useVisualizationContext();
     const tableItems = resultsData?.rows
         ? getResultValues(resultsData?.rows).slice(0, 25)
         : [];
 
-    const { headers, rows } = mapDataToTable(tableItems);
+    const rows = mapDataToTable(tableItems, headers);
     const validData = rows && headers;
-
     if (isLoading) return <LoadingChart />;
 
     return (
