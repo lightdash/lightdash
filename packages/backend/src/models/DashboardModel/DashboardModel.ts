@@ -5,7 +5,9 @@ import {
     DashboardTileTypes,
     DashboardUnversionedFields,
     DashboardVersionedFields,
+    NotFoundError,
     SessionUser,
+    UnexpectedServerError,
 } from 'common';
 import { Knex } from 'knex';
 import {
@@ -30,7 +32,6 @@ import {
 } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
-import { NotFoundError, UnexpectedServerError } from '../../errors';
 import Transaction = Knex.Transaction;
 
 export type GetDashboardQuery = Pick<

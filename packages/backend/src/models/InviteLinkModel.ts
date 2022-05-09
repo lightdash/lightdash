@@ -1,4 +1,4 @@
-import { InviteLink } from 'common';
+import { InviteLink, NotExistsError } from 'common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import { URL } from 'url';
@@ -11,7 +11,6 @@ import {
     DbOrganization,
     OrganizationTableName,
 } from '../database/entities/organizations';
-import { NotExistsError } from '../errors';
 
 export class InviteLinkModel {
     private database: Knex;

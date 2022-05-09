@@ -1,16 +1,14 @@
 import {
+    AuthorizationError,
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
+    UnexpectedGitError,
+    UnexpectedServerError,
 } from 'common';
 import * as fspromises from 'fs-extra';
 import * as path from 'path';
 import simpleGit, { SimpleGit, SimpleGitProgressEvent } from 'simple-git';
 import tempy from 'tempy';
-import {
-    AuthorizationError,
-    UnexpectedGitError,
-    UnexpectedServerError,
-} from '../errors';
 import Logger from '../logger';
 import { CachedWarehouse, WarehouseClient } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';

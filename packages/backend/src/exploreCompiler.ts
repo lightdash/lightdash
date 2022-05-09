@@ -3,6 +3,7 @@ import {
     CompiledExploreJoin,
     CompiledMetric,
     CompiledTable,
+    CompileError,
     Dimension,
     Explore,
     ExploreJoin,
@@ -12,7 +13,6 @@ import {
     SupportedDbtAdapter,
     Table,
 } from 'common';
-import { CompileError } from './errors';
 
 export const lightdashVariablePattern = /\$\{([a-zA-Z0-9_.]+)\}/g;
 

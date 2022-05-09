@@ -1,6 +1,5 @@
-import { Space } from 'common';
+import { NotFoundError, Space } from 'common';
 import { Knex } from 'knex';
-import { NotFoundError } from '../../errors';
 import database from '../database';
 
 type DbSpace = {

@@ -1,5 +1,4 @@
-import { validateEmail } from 'common';
-import { ParameterError } from './errors';
+import { ParameterError, validateEmail } from 'common';
 
 export const sanitizeStringParam = (value: any) => {
     if (!value || typeof value !== 'string') {

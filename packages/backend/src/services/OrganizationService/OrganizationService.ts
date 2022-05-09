@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import {
+    ForbiddenError,
     LightdashMode,
+    NotExistsError,
     OnbordingRecord,
     Organisation,
     OrganizationMemberProfile,
@@ -10,7 +12,6 @@ import {
 } from 'common';
 import { analytics } from '../../analytics/client';
 import { lightdashConfig } from '../../config/lightdashConfig';
-import { ForbiddenError, NotExistsError } from '../../errors';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';

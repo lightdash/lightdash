@@ -1,4 +1,4 @@
-import { ParseError } from '../errors';
+import { ParseError } from 'common';
 import { VERSION } from '../version';
 import { getIntegerFromEnvironmentVariable, parseConfig } from './parseConfig';
 import {

@@ -1,10 +1,14 @@
-import { Organisation, UpdateOrganisation } from 'common';
+import {
+    NotExistsError,
+    NotFoundError,
+    Organisation,
+    UpdateOrganisation,
+} from 'common';
 import { Knex } from 'knex';
 import {
     DbOrganization,
     OrganizationTableName,
 } from '../database/entities/organizations';
-import { NotExistsError, NotFoundError } from '../errors';
 
 export class OrganizationModel {
     private database: Knex;

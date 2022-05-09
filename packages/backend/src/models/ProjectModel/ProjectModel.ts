@@ -4,11 +4,13 @@ import {
     DbtProjectConfig,
     Explore,
     ExploreError,
+    NotExistsError,
     OrganizationProject,
     Project,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
     TablesConfiguration,
+    UnexpectedServerError,
     UpdateProject,
     WarehouseCredentials,
 } from 'common';
@@ -22,7 +24,6 @@ import {
     ProjectTableName,
 } from '../../database/entities/projects';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
-import { NotExistsError, UnexpectedServerError } from '../../errors';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import { WarehouseCatalog } from '../../types';
 import Transaction = Knex.Transaction;

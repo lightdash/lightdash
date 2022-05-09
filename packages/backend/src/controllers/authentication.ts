@@ -1,6 +1,7 @@
 /// <reference path="../@types/passport-google-oidc.d.ts" />
 /// <reference path="../@types/express-session.d.ts" />
 import {
+    AuthorizationError,
     isOpenIdUser,
     isSessionUser,
     LightdashMode,
@@ -12,7 +13,6 @@ import { Strategy as GoogleStrategy } from 'passport-google-oidc';
 import { Strategy as LocalStrategy } from 'passport-local';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
-import { AuthorizationError } from '../errors';
 import Logger from '../logger';
 import { userService } from '../services/services';
 

@@ -3,13 +3,13 @@ import {
     countTotalFilterRules,
     CreateSavedChart,
     CreateSavedChartVersion,
+    ForbiddenError,
     SavedChart,
     SessionUser,
     UpdateSavedChart,
 } from 'common';
 import { analytics } from '../../analytics/client';
 import { CreateSavedChartOrVersionEvent } from '../../analytics/LightdashAnalytics';
-import { ForbiddenError } from '../../errors';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 

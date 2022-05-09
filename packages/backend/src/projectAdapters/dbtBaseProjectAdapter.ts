@@ -12,6 +12,8 @@ import {
     InlineError,
     InlineErrorType,
     isSupportedDbtAdapter,
+    MissingCatalogEntryError,
+    ParseError,
     SupportedDbtAdapter,
 } from 'common';
 import {
@@ -20,7 +22,6 @@ import {
     getSchemaStructureFromDbtModels,
     normaliseModelDatabase,
 } from '../dbt/translator';
-import { MissingCatalogEntryError, ParseError } from '../errors';
 import Logger from '../logger';
 import dbtManifestSchema from '../manifestv4.json';
 import lightdashDbtSchema from '../schema.json';

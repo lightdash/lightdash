@@ -5,8 +5,11 @@ import {
     isOpenIdUser,
     LightdashMode,
     LightdashUser,
+    NotExistsError,
+    NotFoundError,
     OpenIdUser,
     OrganizationMemberRole,
+    ParameterError,
     SessionUser,
     UpdateUserArgs,
 } from 'common';
@@ -35,7 +38,6 @@ import {
     DbUserUpdate,
     UserTableName,
 } from '../database/entities/users';
-import { NotExistsError, NotFoundError, ParameterError } from '../errors';
 import { InviteLinkModel } from './InviteLinkModel';
 import Transaction = Knex.Transaction;
 

@@ -3,6 +3,7 @@ import {
     CreateDashboardMarkdownTile,
     DashboardChartTile,
     LightdashMode,
+    NotFoundError,
 } from 'common';
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
@@ -18,7 +19,6 @@ import {
 } from '../../database/entities/dashboards';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
-import { NotFoundError } from '../../errors';
 import { DashboardModel } from './DashboardModel';
 import {
     addDashboardVersion,

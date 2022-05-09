@@ -1,8 +1,12 @@
-import { HealthState, LightdashInstallType, LightdashMode } from 'common';
+import {
+    HealthState,
+    LightdashInstallType,
+    LightdashMode,
+    UnexpectedDatabaseError,
+} from 'common';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getMigrationStatus } from '../../database/database';
-import { UnexpectedDatabaseError } from '../../errors';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../models/UserModel';
 import { VERSION } from '../../version';

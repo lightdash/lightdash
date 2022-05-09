@@ -1,5 +1,4 @@
-import { CompiledMetricQuery } from 'common';
-import { CompileError } from './errors';
+import { CompiledMetricQuery, CompileError } from 'common';
 import { compileMetricQuery } from './queryCompiler';
 import {
     EXPLORE,

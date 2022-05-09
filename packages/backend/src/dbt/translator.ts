@@ -1,6 +1,7 @@
 import { getLocationForJsonPath, parseWithPointers } from '@stoplight/yaml';
 import {
     convertMetric,
+    DbtError,
     DbtMetric,
     DbtModelColumn,
     DbtModelNode,
@@ -16,6 +17,8 @@ import {
     LineageNodeDependency,
     Metric,
     MetricType,
+    MissingCatalogEntryError,
+    ParseError,
     parseMetricType,
     Source,
     SupportedDbtAdapter,
@@ -23,7 +26,6 @@ import {
 } from 'common';
 import { DepGraph } from 'dependency-graph';
 import * as fs from 'fs';
-import { DbtError, MissingCatalogEntryError, ParseError } from '../errors';
 import { compileExplore } from '../exploreCompiler';
 import { WarehouseCatalog } from '../types';
 

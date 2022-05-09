@@ -7,6 +7,8 @@ import {
     JobStep,
     JobStepStatusType,
     JobStepType,
+    LightdashError,
+    NotFoundError,
 } from 'common';
 import { Knex } from 'knex';
 import {
@@ -14,7 +16,6 @@ import {
     JobsTableName,
     JobStepsTableName,
 } from '../../database/entities/jobs';
-import { LightdashError, NotFoundError } from '../../errors';
 
 type JobModelDependencies = {
     database: Knex;

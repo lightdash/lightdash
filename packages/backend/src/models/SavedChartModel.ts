@@ -3,6 +3,7 @@ import {
     CreateSavedChart,
     CreateSavedChartVersion,
     DBFieldTypes,
+    NotFoundError,
     SavedChart,
     SessionUser,
     SortField,
@@ -18,7 +19,6 @@ import {
     SavedChartAdditionalMetricTableName,
 } from '../database/entities/savedCharts';
 import { getSpace, getSpaceWithQueries } from '../database/entities/spaces';
-import { NotFoundError } from '../errors';
 
 type DbSavedChartDetails = {
     project_uuid: string;
