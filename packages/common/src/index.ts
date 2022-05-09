@@ -42,8 +42,9 @@ import {
     TableCalculation,
 } from './types/metricQuery';
 import { OrganizationMemberProfile } from './types/organizationMemberProfile';
-import { NumberStyle, SavedChart, Series } from './types/savedCharts';
+import { SavedChart, Series } from './types/savedCharts';
 import { LightdashUser } from './types/user';
+import { formatFieldValue } from './utils/formatting';
 
 export * from './authorization/organizationMemberAbility';
 export * from './types/dashboard';
@@ -56,6 +57,7 @@ export * from './types/organization';
 export * from './types/organizationMemberProfile';
 export * from './types/savedCharts';
 export * from './types/user';
+export * from './utils/formatting';
 
 const DATE_FORMAT = 'YYYY-MM-DD';
 export const formatDate = (date: Date): string =>
@@ -1194,83 +1196,17 @@ export const getAxisName = ({
         : undefined;
 };
 
-export function formatValue<T>(
-    format: string | undefined,
-    round: number | undefined,
-    value: T,
-    numberStyle?: NumberStyle, // for bigNumbers
-): string | T {
-    function valueIsNaN(val: T) {
-        if (typeof val === 'boolean') return true;
-        return Number.isNaN(Number(val));
-    }
-
-    function roundNumber(number: T): string | T {
-        if (round === undefined || round < 0) return number;
-        if (valueIsNaN(number)) {
-            return number;
-        }
-        return Number(number).toFixed(round);
-    }
-
-    if (value === undefined) return value;
-
-    function styleNumber(number: T): string | T {
-        if (valueIsNaN(number)) {
-            return number;
-        }
-        switch (numberStyle) {
-            case NumberStyle.THOUSANDS:
-                return `${roundNumber((Number(number) / 1000) as any)}K`;
-            case NumberStyle.MILLIONS:
-                return `${roundNumber((Number(number) / 1000000) as any)}M`;
-            case NumberStyle.BILLIONS:
-                return `${roundNumber((Number(number) / 1000000000) as any)}B`;
-            default:
-                return number;
-        }
-    }
-
-    const styledValue = numberStyle
-        ? (styleNumber(value) as any)
-        : roundNumber(value);
-    switch (format) {
-        case 'km':
-        case 'mi':
-            return `${styledValue} ${format}`;
-        case 'usd':
-            return `$${styledValue}`;
-        case 'gbp':
-            return `£${styledValue}`;
-        case 'eur':
-            return `€${styledValue}`;
-        case 'percent':
-            if (valueIsNaN(value)) {
-                return value;
-            }
-
-            // Fix rounding issue
-            return `${(Number(value) * 100).toFixed(round)}%`;
-
-        case '': // no format
-            return styledValue;
-        default:
-            // unrecognized format
-            return styledValue;
-    }
-}
-
 export function getFieldMap(
     explore: Explore,
     additionalMetrics: AdditionalMetric[] = [],
-): Record<string, Pick<CompiledField, 'format' | 'round'>> {
+): Record<string, CompiledField | AdditionalMetric> {
     return [...getFields(explore), ...additionalMetrics].reduce(
         (sum, field) => ({
             ...sum,
-            [fieldId(field)]: { format: field.format, round: field.round },
+            [fieldId(field)]: field,
         }),
         {},
-    ); // e.g { 'my_table_my_dimension': {format: 'usd', round: 1} }}
+    );
 }
 
 export function formatRows(
@@ -1286,10 +1222,7 @@ export function formatRows(
 
             const field = fieldMap[columnName];
             const formattedColumn =
-                field === undefined
-                    ? col
-                    : formatValue(field.format, field.round, col);
-
+                field === undefined ? col : formatFieldValue(field, col);
             return {
                 ...acc,
                 [columnName]: {

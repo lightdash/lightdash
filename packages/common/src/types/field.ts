@@ -68,9 +68,8 @@ export interface CompiledDimension extends Dimension {
 }
 
 export type CompiledField = CompiledDimension | CompiledMetric;
-export const isDimension = (
-    field: Pick<Field, 'fieldType'>,
-): field is Dimension => field.fieldType === FieldType.DIMENSION;
+export const isDimension = (field: any): field is Dimension =>
+    isField(field) && field.fieldType === FieldType.DIMENSION;
 
 export interface CompiledMetric extends Metric {
     compiledSql: string;
