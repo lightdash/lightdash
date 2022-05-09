@@ -1,5 +1,10 @@
 import { Button, Divider, H3, MenuDivider, MenuItem } from '@blueprintjs/core';
-import { AdditionalMetric, getTableMagicMetrics } from 'common';
+import {
+    AdditionalMetric,
+    CompiledTable,
+    extractEntityNameFromIdColumn,
+    MetricType,
+} from 'common';
 import React, { useEffect } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorer } from '../../../providers/ExplorerProvider';
@@ -11,6 +16,25 @@ import {
     PanelTitleWrapper,
     TableTitle,
 } from './ExplorePanel.styles';
+
+const getTableMagicMetrics = (
+    table: CompiledTable,
+): Record<string, AdditionalMetric> =>
+    Object.values(table.dimensions).reduce((previous, dimension) => {
+        const entityName = extractEntityNameFromIdColumn(dimension.name);
+        if (entityName === null) {
+            return previous;
+        }
+        const magicMetric: AdditionalMetric = {
+            name: `${dimension.name}_count_distinct`,
+            label: `Count distinct of ${dimension.label}`,
+            description: `Count distinct of ${dimension.label} on the table ${dimension.tableLabel}. Lightdash has created this metric automatically.`,
+            table: dimension.table,
+            sql: dimension.sql,
+            type: MetricType.COUNT_DISTINCT,
+        };
+        return { ...previous, [magicMetric.name]: magicMetric };
+    }, {});
 
 const SideBarLoadingState = () => (
     <LoadingStateWrapper large>

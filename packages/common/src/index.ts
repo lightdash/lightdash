@@ -38,7 +38,6 @@ import {
 } from './types/filter';
 import {
     AdditionalMetric,
-    extractEntityNameFromIdColumn,
     MetricQuery,
     TableCalculation,
 } from './types/metricQuery';
@@ -1390,24 +1389,3 @@ export const convertAdditionalMetric = ({
         metric: additionalMetric,
         tableLabel: table.label,
     });
-
-export const getTableMagicMetrics = (
-    table: CompiledTable,
-): Record<string, AdditionalMetric> =>
-    Object.values(table.dimensions).reduce((previous, dimension) => {
-        const entityName = extractEntityNameFromIdColumn(dimension.name);
-        if (entityName === null) {
-            return previous;
-        }
-        const magicMetric: AdditionalMetric = {
-            name: `${dimension.name}_count_distinct`,
-            label: `Count distinct ${dimension.label}`,
-            description: `Count of unique ${friendlyName(
-                entityName,
-            )}s. Lightdash has created this metric automatically.`,
-            table: dimension.table,
-            sql: dimension.sql,
-            type: MetricType.COUNT_DISTINCT,
-        };
-        return { ...previous, [magicMetric.name]: magicMetric };
-    }, {});
