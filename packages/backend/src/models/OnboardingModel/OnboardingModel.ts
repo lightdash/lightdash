@@ -1,8 +1,7 @@
-import { OnbordingRecord } from 'common';
+import { NotExistsError, OnbordingRecord } from 'common';
 import { Knex } from 'knex';
 import { OnboardingTableName } from '../../database/entities/onboarding';
 import { OrganizationTableName } from '../../database/entities/organizations';
-import { NotExistsError } from '../../errors';
 
 type ModelDependencies = {
     database: Knex;

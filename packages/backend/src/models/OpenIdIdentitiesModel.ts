@@ -1,7 +1,10 @@
 import {
     CreateOpenIdIdentity,
+    NotExistsError,
+    NotFoundError,
     OpenIdIdentity,
     OpenIdIdentitySummary,
+    ParameterError,
     UpdateOpenIdentity,
 } from 'common';
 import { Knex } from 'knex';
@@ -11,7 +14,6 @@ import {
     OpenIdIdentitiesTableName,
 } from '../database/entities/openIdIdentities';
 import { PasswordLoginTableName } from '../database/entities/passwordLogins';
-import { NotExistsError, NotFoundError, ParameterError } from '../errors';
 
 type OpenIdIdentityModelDependencies = {
     database: Knex;

@@ -3,6 +3,7 @@ import {
     Dashboard,
     DashboardBasicDetails,
     DashboardTileTypes,
+    ForbiddenError,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     SessionUser,
@@ -12,7 +13,6 @@ import { analytics } from '../../analytics/client';
 import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytics';
 import database from '../../database/database';
 import { getSpace } from '../../database/entities/spaces';
-import { ForbiddenError } from '../../errors';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 
 type Dependencies = {

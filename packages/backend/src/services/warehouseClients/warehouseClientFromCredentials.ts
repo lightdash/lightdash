@@ -1,5 +1,8 @@
-import { CreateWarehouseCredentials, WarehouseTypes } from 'common';
-import { UnexpectedServerError } from '../../errors';
+import {
+    CreateWarehouseCredentials,
+    UnexpectedServerError,
+    WarehouseTypes,
+} from 'common';
 import Logger from '../../logger';
 import { WarehouseClient } from '../../types';
 import BigqueryWarehouseClient from './BigqueryWarehouseClient';

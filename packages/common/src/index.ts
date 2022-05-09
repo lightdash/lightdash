@@ -48,6 +48,7 @@ import { LightdashUser } from './types/user';
 export * from './authorization/organizationMemberAbility';
 export * from './types/dashboard';
 export * from './types/dbt';
+export * from './types/errors';
 export * from './types/field';
 export * from './types/filter';
 export * from './types/job';

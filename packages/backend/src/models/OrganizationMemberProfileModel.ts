@@ -1,4 +1,5 @@
 import {
+    NotFoundError,
     OrganizationMemberProfile,
     OrganizationMemberProfileUpdate,
 } from 'common';
@@ -14,7 +15,6 @@ import {
     OrganizationTableName,
 } from '../database/entities/organizations';
 import { DbUser, UserTableName } from '../database/entities/users';
-import { NotFoundError } from '../errors';
 
 type DbOrganizationMemberProfile = DbUser &
     DbOrganizationMembership &

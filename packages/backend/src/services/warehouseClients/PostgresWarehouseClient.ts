@@ -1,7 +1,11 @@
-import { CreatePostgresCredentials, DimensionType } from 'common';
+import {
+    CreatePostgresCredentials,
+    DimensionType,
+    WarehouseConnectionError,
+    WarehouseQueryError,
+} from 'common';
 import * as pg from 'pg';
 import { PoolConfig } from 'pg';
-import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
 import { WarehouseClient } from '../../types';
 
 export enum PostgresTypes {

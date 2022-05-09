@@ -1,9 +1,8 @@
-import { formatTimestamp, PasswordResetLink } from 'common';
+import { formatTimestamp, PasswordResetLink, SmptError } from 'common';
 import * as nodemailer from 'nodemailer';
 import Mail from 'nodemailer/lib/mailer';
 import { AuthenticationType } from 'nodemailer/lib/smtp-connection';
 import { LightdashConfig } from '../../config/parseConfig';
-import { SmptError } from '../../errors';
 import Logger from '../../logger';
 
 type Dependencies = {

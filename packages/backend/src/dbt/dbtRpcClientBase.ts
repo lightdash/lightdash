@@ -1,18 +1,16 @@
 import {
+    DbtError,
     DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
     isDbtRpcDocsGenerateResults,
     isDbtRpcManifestResults,
     isDbtRpcRunSqlResults,
-} from 'common';
-import fetch from 'node-fetch';
-import { v4 as uuidv4 } from 'uuid';
-import {
-    DbtError,
     NetworkError,
     NoServerRunningError,
     RetryableNetworkError,
-} from '../errors';
+} from 'common';
+import fetch from 'node-fetch';
+import { v4 as uuidv4 } from 'uuid';
 import { DbtClient } from '../types';
 
 export const DEFAULT_HEADERS: Record<string, string> = {

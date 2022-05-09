@@ -1,13 +1,17 @@
 import {
+    AuthorizationError,
     CompleteUserArgs,
     CreateInviteLink,
     CreatePasswordResetLink,
     CreateUserArgs,
     DeleteOpenIdentity,
+    ForbiddenError,
     InviteLink,
     isOpenIdUser,
     LightdashMode,
     LightdashUser,
+    NotExistsError,
+    NotFoundError,
     OpenIdIdentitySummary,
     OpenIdUser,
     PasswordReset,
@@ -19,12 +23,6 @@ import { analytics, identifyUser } from '../analytics/client';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { updatePassword } from '../database/entities/passwordLogins';
-import {
-    AuthorizationError,
-    ForbiddenError,
-    NotExistsError,
-    NotFoundError,
-} from '../errors';
 import { EmailModel } from '../models/EmailModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';

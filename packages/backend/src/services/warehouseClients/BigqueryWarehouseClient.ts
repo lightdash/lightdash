@@ -7,8 +7,12 @@ import {
     Dataset,
 } from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
-import { CreateBigqueryCredentials, DimensionType } from 'common';
-import { WarehouseConnectionError, WarehouseQueryError } from '../../errors';
+import {
+    CreateBigqueryCredentials,
+    DimensionType,
+    WarehouseConnectionError,
+    WarehouseQueryError,
+} from 'common';
 import Logger from '../../logger';
 import {
     WarehouseCatalog,

@@ -1,17 +1,18 @@
 import * as Sentry from '@sentry/node';
 import {
+    DbtError,
     DbtPackages,
     DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
     isDbtPackages,
     isDbtRpcDocsGenerateResults,
     isDbtRpcManifestResults,
+    ParseError,
 } from 'common';
 import execa from 'execa';
 import * as fs from 'fs/promises';
 import yaml, { load as loadYaml } from 'js-yaml';
 import path from 'path';
-import { DbtError, ParseError } from '../errors';
 import Logger from '../logger';
 import { DbtClient } from '../types';
 

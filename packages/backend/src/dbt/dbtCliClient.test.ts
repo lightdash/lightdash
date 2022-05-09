@@ -1,6 +1,6 @@
+import { DbtError } from 'common';
 import execa from 'execa';
 import * as fs from 'fs/promises';
-import { DbtError } from '../errors';
 import { DbtCliClient } from './dbtCliClient';
 import {
     catalogMock,

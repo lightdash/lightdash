@@ -1,7 +1,6 @@
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
-import { isLightdashMode, LightdashMode } from 'common';
-import { ParseError } from '../errors';
+import { isLightdashMode, LightdashMode, ParseError } from 'common';
 import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
 import Logger from '../logger';
 import { VERSION } from '../version';

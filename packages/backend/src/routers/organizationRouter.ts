@@ -1,10 +1,9 @@
-import { OnboardingStatus } from 'common';
+import { ForbiddenError, OnboardingStatus } from 'common';
 import express from 'express';
 import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
-import { ForbiddenError } from '../errors';
 import {
     organizationService,
     projectService,

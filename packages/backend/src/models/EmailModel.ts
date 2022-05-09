@@ -1,6 +1,6 @@
+import { NotFoundError } from 'common';
 import { Knex } from 'knex';
 import { DbEmailIn, DbEmailRemove } from '../database/entities/emails';
-import { NotFoundError } from '../errors';
 
 export class EmailModel {
     readonly database: Knex;

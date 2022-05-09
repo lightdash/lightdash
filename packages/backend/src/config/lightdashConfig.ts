@@ -1,6 +1,6 @@
+import { ParseError } from 'common';
 import * as fs from 'fs';
 import yaml from 'js-yaml';
-import { ParseError } from '../errors';
 import { parseConfig } from './parseConfig';
 
 const loadRawConfig = (): any => {

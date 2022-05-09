@@ -1,11 +1,10 @@
-import { PasswordResetLink } from 'common';
+import { NotExistsError, PasswordResetLink } from 'common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import { URL } from 'url';
 import { LightdashConfig } from '../config/parseConfig';
 import { EmailTableName } from '../database/entities/emails';
 import { PasswordResetTableName } from '../database/entities/passwordResetLinks';
-import { NotExistsError } from '../errors';
 
 type Dependencies = {
     database: Knex;

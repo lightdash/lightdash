@@ -1,11 +1,12 @@
-import { CreateSnowflakeCredentials, DimensionType } from 'common';
-import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
-import * as Util from 'util';
 import {
+    CreateSnowflakeCredentials,
+    DimensionType,
     ParseError,
     WarehouseConnectionError,
     WarehouseQueryError,
-} from '../../errors';
+} from 'common';
+import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
+import * as Util from 'util';
 import { WarehouseCatalog, WarehouseClient } from '../../types';
 
 export enum SnowflakeTypes {

@@ -1,5 +1,4 @@
-import { friendlyName } from 'common';
-import { CompileError } from './errors';
+import { CompileError, friendlyName } from 'common';
 import { compileExplore } from './exploreCompiler';
 import {
     exploreCircularReference,

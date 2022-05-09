@@ -3,13 +3,13 @@ import {
     CompiledMetric,
     CompiledMetricQuery,
     CompiledTableCalculation,
+    CompileError,
     convertAdditionalMetric,
     Explore,
     FieldId,
     MetricQuery,
     TableCalculation,
 } from 'common';
-import { CompileError } from './errors';
 import { compileMetricSql, lightdashVariablePattern } from './exploreCompiler';
 import { getQuoteChar } from './queryBuilder';
 
