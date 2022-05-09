@@ -1,5 +1,5 @@
 import { DimensionType } from 'common';
-import { WarehouseCatalog } from '../../types';
+import { WarehouseCatalog } from '../types';
 
 export const config: {
     database: string;

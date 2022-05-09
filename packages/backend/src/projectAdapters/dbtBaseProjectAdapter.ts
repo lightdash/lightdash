@@ -155,8 +155,13 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 Logger.debug(
                     'Get warehouse catalog after missing catalog error',
                 );
+                const modelCatalog =
+                    getSchemaStructureFromDbtModels(validModels);
+                Logger.debug(
+                    `Fetching table metadata for ${modelCatalog.length} tables`,
+                );
                 const warehouseCatalog = await this.warehouseClient.getCatalog(
-                    getSchemaStructureFromDbtModels(validModels),
+                    modelCatalog,
                 );
                 await this.cachedWarehouse?.onWarehouseCatalogChange(
                     warehouseCatalog,

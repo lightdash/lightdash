@@ -6,7 +6,7 @@ import {
     WarehouseQueryError,
 } from 'common';
 import odbc, { Result } from 'odbc';
-import { WarehouseCatalog, WarehouseClient } from '../../types';
+import { WarehouseCatalog, WarehouseClient } from '../types';
 
 export const DRIVER_PATH = '/opt/simba/spark/lib/64/libsparkodbc_sb64.so';
 
@@ -95,7 +95,7 @@ const mapFieldType = (type: string): DimensionType => {
     }
 };
 
-export default class DatabricksWarehouseClient implements WarehouseClient {
+export class DatabricksWarehouseClient implements WarehouseClient {
     connectionString: string;
 
     constructor({

@@ -1,6 +1,7 @@
 import { DimensionType } from 'common';
 import { createConnection } from 'snowflake-sdk';
-import SnowflakeWarehouseClient, {
+import {
+    SnowflakeWarehouseClient,
     mapFieldType,
 } from './SnowflakeWarehouseClient';
 import { columns, credentials } from './SnowflakeWarehouseClient.mock';

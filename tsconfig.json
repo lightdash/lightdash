@@ -11,6 +11,9 @@
     },
     {
       "path": "./packages/cli"
+    },
+    {
+      "path": "./packages/warehouses"
     }
   ],
   "files": [],

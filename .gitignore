@@ -15,6 +15,7 @@
 /packages/backend/logs
 /packages/backend/src/database/logs
 /packages/cli/logs
+/packages/warehouses/logs
 
 # development
 lightdash_dev.yml
@@ -24,6 +25,7 @@ lightdash_dev.yml
 /packages/common/dist
 /packages/backend/dist
 /packages/cli/dist
+/packages/warehouses/dist
 
 # misc
 .DS_Store

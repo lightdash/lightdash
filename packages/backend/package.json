@@ -39,7 +39,6 @@
     },
     "dependencies": {
         "@casl/ability": "^5.4.3",
-        "@google-cloud/bigquery": "^5.9.1",
         "@rudderstack/rudder-sdk-node": "^1.0.7",
         "@sentry/node": "^6.12.0",
         "@sentry/tracing": "^6.12.0",
@@ -52,6 +51,7 @@
         "bcrypt": "^5.0.1",
         "body-parser": "^1.19.0",
         "common": "^0.101.0",
+        "@lightdash/warehouses": "^0.101.0",
         "connect-flash": "^0.1.1",
         "connect-session-knex": "^2.1.0",
         "cookie-parser": "^1.4.5",
@@ -70,7 +70,6 @@
         "node-cache": "^5.1.2",
         "node-fetch": "^2.6.1",
         "nodemailer": "^6.7.2",
-        "odbc": "^2.4.1",
         "passport": "^0.4.1",
         "passport-google-oidc": "^0.1.0",
         "passport-local": "^1.0.0",
@@ -79,7 +78,6 @@
         "pg-connection-string": "^2.5.0",
         "redoc-express": "^1.0.0",
         "simple-git": "^2.48.0",
-        "snowflake-sdk": "^1.6.4",
         "tempy": "^1.0.1",
         "uuid": "^8.3.2",
         "winston": "^3.3.3"
@@ -87,8 +85,7 @@
     "scripts": {
         "dev": "nodemon src/index.ts",
         "debug": "nodemon --exec \"node --inspect-brk=0.0.0.0:9229 --require ts-node/register src/index.ts\"",
-        "build": "tsc --build tsconfig.json && yarn copy-files",
-        "copy-files": "copyfiles -u 1 src/services/warehouseClients/amazon-trust-ca-bundle.crt dist/",
+        "build": "tsc --build tsconfig.json",
         "start": "node dist/index.js",
         "test": "jest",
         "lint": "eslint ./src",
