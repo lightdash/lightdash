@@ -118,22 +118,49 @@ const getFormatterValue = (
 };
 
 const valueFormatter =
-    (xField: string, yField: string, explore: Explore) => (rawValue: any) => {
+    (xFieldId: string, yFieldId: string, explore: Explore) =>
+    (rawValue: any) => {
+        const yField = getFields(explore).find(
+            (item) => fieldId(item) === yFieldId,
+        );
+
         if (Array.isArray(rawValue)) {
+            const xField = getFields(explore).find(
+                (item) => fieldId(item) === xFieldId,
+            );
+            const formattedXValue =
+                xField?.format || xField?.round
+                    ? formatValue(xField?.format, xField?.round, rawValue[0])
+                    : rawValue[0];
+
             const xValue = getFormatterValue(
-                rawValue[0],
-                xField,
+                formattedXValue,
+                xFieldId,
                 getDimensions(explore),
             );
+            const formattedYValue =
+                yField?.format || yField?.round
+                    ? formatValue(yField?.format, yField?.round, rawValue[1])
+                    : rawValue[1];
+
             const yValue = getFormatterValue(
-                rawValue[1],
-                yField,
+                formattedYValue,
+                yFieldId,
                 getDimensions(explore),
             );
             return `${xValue} ${yValue}`;
         }
 
-        return getFormatterValue(rawValue, yField, getDimensions(explore));
+        const formattedValue =
+            yField?.format || yField?.round
+                ? formatValue(yField?.format, yField?.round, rawValue)
+                : rawValue;
+        const f = getFormatterValue(
+            formattedValue,
+            yFieldId,
+            getDimensions(explore),
+        );
+        return f;
     };
 
 export const getEchartsSeries = (
