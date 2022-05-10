@@ -1,6 +1,6 @@
 {
     "name": "e2e",
-    "version": "0.93.3",
+    "version": "0.93.4",
     "main": "index.js",
     "license": "MIT",
     "scripts": {
@@ -23,6 +23,6 @@
         "@testing-library/cypress": "^7.0.6",
         "@types/node": "^16.0.1",
         "cypress": "^9.5.4",
-        "common": "^0.93.3"
+        "common": "^0.93.4"
     }
 }

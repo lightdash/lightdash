@@ -1,3 +1,10 @@
+## [0.93.4](https://github.com/lightdash/lightdash/compare/0.93.3...0.93.4) (2022-05-10)
+
+
+### Bug Fixes
+
+* use custom sql for date truncate fields ([#2046](https://github.com/lightdash/lightdash/issues/2046)) ([dcd7d71](https://github.com/lightdash/lightdash/commit/dcd7d71ab2ffa35ea0596d81caf1ee8b2599d160))
+
 ## [0.93.3](https://github.com/lightdash/lightdash/compare/0.93.2...0.93.3) (2022-05-10)
 
 
