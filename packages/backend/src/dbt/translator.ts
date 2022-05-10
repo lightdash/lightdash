@@ -102,7 +102,7 @@ const convertDimension = (
             sql = getDataTruncSql(
                 targetWarehouse,
                 timeInterval,
-                defaultSql(column.name),
+                sql,
                 type,
             );
         }
