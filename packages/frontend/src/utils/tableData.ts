@@ -23,6 +23,7 @@ export const mapDataToTable = (
 };
 
 export const valueIsNaN = (value: any): boolean => {
+    if (value && value.endsWith && value.endsWith('%')) return false; // Number as percent
     return (
         value === undefined ||
         typeof value === 'boolean' ||
