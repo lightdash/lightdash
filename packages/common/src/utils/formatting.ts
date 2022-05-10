@@ -145,9 +145,7 @@ export function formatValue(
         case 'mi':
             return `${styledValue} ${format}`;
         case 'usd':
-            return `${styledValue}`;
         case 'gbp':
-            return `${styledValue}`;
         case 'eur':
             return `${styledValue}`;
         case 'percent':
