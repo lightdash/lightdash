@@ -208,14 +208,14 @@ describe('ProjectService', () => {
             expect(formatValue('km', 2, 5000, T)).toEqual('5.00K km');
             expect(formatValue('mi', 4, 50000, T)).toEqual('50.0000K mi');
             expect(formatValue('usd', 2, 5000, T)).toEqual('$5.00K');
-            expect(formatValue('usd', 2, 5000000, T)).toEqual('$5000.00K');
+           expect(formatValue('usd', 2, 5000000, T)).toEqual('$5,000.00K');
             expect(formatValue('usd', 2, 5000000, M)).toEqual('$5.00M');
 
             expect(formatValue('usd', 2, 4, T)).toEqual('$0.00K');
             expect(formatValue('usd', 3, 4, T)).toEqual('$0.004K');
 
             expect(formatValue('usd', 2, 5000000, M)).toEqual('$5.00M');
-            expect(formatValue('usd', 2, 5000000000, M)).toEqual('$5000.00M');
+            expect(formatValue('usd', 2, 5000000000, M)).toEqual('$5,000.00M');
             expect(formatValue('usd', 2, 5000000000, B)).toEqual('$5.00B');
 
             expect(formatValue('usd', 0, 5000.0, T)).toEqual('$5K');
