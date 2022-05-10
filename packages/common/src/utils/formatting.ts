@@ -70,7 +70,6 @@ function roundNumber(
 
     const invalidRound = round === undefined || round < 0;
     if (invalidRound && !format) {
-        console.log('banana1');
         return Number.isInteger(value)
             ? Number(value).toLocaleString()
             : `${value}`;

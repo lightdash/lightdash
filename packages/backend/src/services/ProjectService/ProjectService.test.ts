@@ -145,6 +145,7 @@ describe('ProjectService', () => {
             expect(formatValue('percent', undefined, '5')).toEqual('500%');
             expect(formatValue('percent', undefined, 'foo')).toEqual('foo');
             expect(formatValue('percent', undefined, false)).toEqual('false');
+            expect(formatValue(undefined, undefined, 1103)).toEqual('1,103');
 
             expect(formatValue('', undefined, 5)).toEqual('5');
             expect(formatValue(undefined, undefined, 5)).toEqual('5');
@@ -208,7 +209,7 @@ describe('ProjectService', () => {
             expect(formatValue('km', 2, 5000, T)).toEqual('5.00K km');
             expect(formatValue('mi', 4, 50000, T)).toEqual('50.0000K mi');
             expect(formatValue('usd', 2, 5000, T)).toEqual('$5.00K');
-           expect(formatValue('usd', 2, 5000000, T)).toEqual('$5,000.00K');
+            expect(formatValue('usd', 2, 5000000, T)).toEqual('$5,000.00K');
             expect(formatValue('usd', 2, 5000000, M)).toEqual('$5.00M');
 
             expect(formatValue('usd', 2, 4, T)).toEqual('$0.00K');
