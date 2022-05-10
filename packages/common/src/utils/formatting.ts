@@ -1,5 +1,4 @@
 import moment from 'moment';
-import { format } from 'path';
 import {
     Dimension,
     DimensionType,
@@ -70,13 +69,13 @@ function roundNumber(
     }
 
     const invalidRound = round === undefined || round < 0;
-    if (invalidRound || !format) {
-        return `${value}`;
+    if (invalidRound && !format) {
+        return Number.isInteger(value)
+            ? `${Number(value).toLocaleString()}`
+            : `${value}`;
     }
     const isValidFormat =
-        format && format !== 'km' && format !== 'mi' && format != 'percent';
-
-    console.log(value, round, format);
+        !!format && format !== 'km' && format !== 'mi' && format !== 'percent';
 
     if (isValidFormat) {
         return new Intl.NumberFormat('en-US', {
