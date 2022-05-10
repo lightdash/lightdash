@@ -8,9 +8,8 @@ import {
     friendlyName,
     getFieldLabel,
     MetricType,
-    NumberStyle,
 } from 'common';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const useBigNumberConfig = (
     bigNumberConfigData: BigNumber | undefined,
@@ -28,26 +27,17 @@ const useBigNumberConfig = (
         ? getFieldLabel(field)
         : fieldId && friendlyName(fieldId);
 
-    const [bigNumberLabel, setBigNumberName] = useState<
+    const [bigNumberLabel, setBigNumberLabel] = useState<
         BigNumber['label'] | undefined
     >(bigNumberConfigData?.label);
 
-    const [bigNumberStyle, setStateBigNumberStyle] = useState<
+    const [bigNumberStyle, setBigNumberStyle] = useState<
         BigNumber['style'] | undefined
     >(bigNumberConfigData?.style);
 
     useEffect(() => {
-        setBigNumberName(bigNumberConfigData?.label);
-        setStateBigNumberStyle(bigNumberConfigData?.style);
-    }, [resultsData, bigNumberConfigData?.label, bigNumberConfigData?.style]);
-
-    const setBigNumberLabel = useCallback((name: string | undefined) => {
-        setBigNumberName(name);
-    }, []);
-
-    const setBigNumberStyle = useCallback((style: NumberStyle | undefined) => {
-        setStateBigNumberStyle(style);
-    }, []);
+        setBigNumberLabel(bigNumberConfigData?.label);
+    }, [resultsData, bigNumberConfigData?.label]);
 
     const bigNumberRaw =
         fieldId && resultsData?.rows?.[0]?.[fieldId]?.value.raw;
