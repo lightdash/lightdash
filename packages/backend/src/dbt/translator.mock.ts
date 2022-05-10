@@ -18,6 +18,7 @@ export const VALID_ID_COLUMN_NAMES = [
     { input: 'USERID', output: 'user' },
     { input: '$$__nth.rc*#)id', output: 'nth_rc' },
     { input: '0932_user_id', output: 'user' },
+    { input: 'valid_id', output: 'valid' },
 ];
 
 export const INVALID_ID_COLUMN_NAMES = [

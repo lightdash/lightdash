@@ -37,16 +37,16 @@ export type SortField = {
     descending: boolean; // Direction of the sort
 };
 
-export const idPattern = /((.+)(?<!val)id$)/i;
+const idPattern = /(.+)id$/i;
 export const extractEntityNameFromIdColumn = (
     columnName: string,
 ): string | null => {
-    const match = idPattern.exec(columnName);
-    if (match === null) {
-        return match;
+    const match = columnName.match(idPattern);
+    if (!match || columnName.toLowerCase().endsWith('valid')) {
+        return null;
     }
     return (
-        match[2]
+        match[1]
             .toLowerCase()
             .split(/[^a-z]/)
             .filter((x) => x)
