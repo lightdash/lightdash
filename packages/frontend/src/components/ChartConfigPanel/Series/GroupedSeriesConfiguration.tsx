@@ -3,17 +3,15 @@ import {
     CartesianChartLayout,
     CartesianSeriesType,
     Field,
+    formatItemValue,
     getItemId,
     getItemLabel,
     getSeriesId,
-    isDimension,
-    isField,
     isSeriesWithMixedChartTypes,
     Series,
     TableCalculation,
 } from 'common';
 import React, { FC, useMemo } from 'react';
-import { getDimensionFormatter } from '../../../utils/resultFormatter';
 import {
     GroupedSeriesConfigWrapper,
     GroupSeriesBlock,
@@ -57,11 +55,7 @@ const getFormatterValue = (
     items: Array<Field | TableCalculation>,
 ) => {
     const item = items.find((i) => getItemId(i) === key);
-    const fieldFormatter =
-        item && isField(item) && isDimension(item)
-            ? getDimensionFormatter(item)
-            : null;
-    return fieldFormatter?.({ value: value }) ?? `${value}`;
+    return formatItemValue(item, value);
 };
 
 type GroupedSeriesConfigurationProps = {

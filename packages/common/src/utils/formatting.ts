@@ -1,12 +1,12 @@
 import moment from 'moment';
 import {
-    Dimension,
     DimensionType,
+    Field,
     isDimension,
-    Metric,
+    isField,
     MetricType,
 } from '../types/field';
-import { AdditionalMetric } from '../types/metricQuery';
+import { AdditionalMetric, TableCalculation } from '../types/metricQuery';
 import { NumberStyle } from '../types/savedCharts';
 
 const formatBoolean = <T>(v: T) =>
@@ -127,13 +127,16 @@ export function formatValue(
     }
 }
 
-export function formatFieldValue<T>(
-    field: Dimension | Metric | AdditionalMetric,
-    value: T,
+export function formatFieldValue(
+    field: Field | AdditionalMetric | undefined,
+    value: any,
 ): string {
-    const { type, round, format } = field;
     if (value === null) return '∅';
     if (value === undefined) return '-';
+    if (!field) {
+        return `${value}`;
+    }
+    const { type, round, format } = field;
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
@@ -161,9 +164,16 @@ export function formatFieldValue<T>(
                 isDimension(field) ? field.timeInterval : undefined,
             );
         default: {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const nope: never = type;
-            throw new Error(`Unexpected type while formatting value: ${type}`);
+            return `${value}`;
         }
     }
+}
+
+export function formatItemValue(
+    item: Field | TableCalculation | undefined,
+    value: any,
+): string {
+    if (value === null) return '∅';
+    if (value === undefined) return '-';
+    return isField(item) ? formatFieldValue(item, value) : `${value}`;
 }
