@@ -10,7 +10,6 @@ import {
     FilterOperator,
     FilterRule,
     formatDate,
-    formatTimestamp,
     getDimensions,
     getFields,
     getFilterRulesFromGroup,
@@ -24,6 +23,9 @@ import {
 } from 'common';
 import moment from 'moment';
 import { parseAllReferences } from './exploreCompiler';
+
+const formatTimestamp = (date: Date): string =>
+    moment(date).format('YYYY-MM-DD HH:mm:ss');
 
 const renderStringFilterSql = (
     dimensionSql: string,
@@ -92,7 +94,7 @@ const renderNumberFilterSql = (
 export const renderDateFilterSql = (
     dimensionSql: string,
     filter: DateFilterRule,
-    dateFormatter = formatDate,
+    dateFormatter: (date: Date) => string = formatDate,
 ): string => {
     const filterType = filter.operator;
     switch (filter.operator) {

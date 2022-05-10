@@ -4,15 +4,13 @@ import {
     FilterOperator,
     FilterRule,
     FilterType,
+    formatBoolean,
+    formatDate,
+    formatTimestamp,
     getFilterTypeFromField,
     isDimension,
 } from 'common';
 import { FC } from 'react';
-import {
-    formatBoolean,
-    formatDate,
-    formatTimestamp,
-} from '../../../utils/resultFormatter';
 import BooleanFilterInputs from './FilterInputs/BooleanFilterInputs';
 import DateFilterInputs from './FilterInputs/DateFilterInputs';
 import DefaultFilterInputs, {
@@ -142,12 +140,12 @@ export const getFilterRuleLabel = (
                             isDimension(field) &&
                             field.type === DimensionType.TIMESTAMP
                         ) {
-                            return formatTimestamp(field.timeInterval)(value);
+                            return formatTimestamp(value, field.timeInterval);
                         } else if (
                             isDimension(field) &&
                             field.type === DimensionType.DATE
                         ) {
-                            return formatDate(field.timeInterval)(value);
+                            return formatDate(value, field.timeInterval);
                         } else {
                             return value;
                         }
