@@ -27,7 +27,7 @@ export const valueIsNaN = (value: any): boolean => {
     return (
         value === undefined ||
         typeof value === 'boolean' ||
-        (value.includes && value.includes('Z')) || //  stringified date
+        (value && value.includes && value.includes('Z')) || //  stringified date
         Number.isNaN(Number(value))
     );
 };
