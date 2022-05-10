@@ -1,3 +1,10 @@
+## [0.94.2](https://github.com/lightdash/lightdash/compare/0.94.1...0.94.2) (2022-05-10)
+
+
+### Bug Fixes
+
+* regex lookahead ([#2057](https://github.com/lightdash/lightdash/issues/2057)) ([efd47b7](https://github.com/lightdash/lightdash/commit/efd47b7d83c3a50dabd3a9650f014c884d855582))
+
 ## [0.94.1](https://github.com/lightdash/lightdash/compare/0.94.0...0.94.1) (2022-05-10)
 
 
