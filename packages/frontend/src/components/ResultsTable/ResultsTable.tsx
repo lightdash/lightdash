@@ -34,6 +34,7 @@ import {
     RowNumber,
     RowNumberColumn,
     RowNumberHeader,
+    TableCell,
     TableContainer,
     TableFooter,
     TableInnerContainer,
@@ -226,6 +227,14 @@ export const ResultsTable: FC<Props> = ({
         setColumnOrder(dataColumnOrder);
     }, [setColumnOrder, dataColumnOrder]);
 
+    const isNaN = (number: any) => {
+        return (
+            typeof number === 'boolean' ||
+            (number?.includes && number.includes('Z')) ||
+            Number.isNaN(Number(number))
+        );
+    };
+
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
             <Container className="cohere-block">
@@ -401,12 +410,15 @@ export const ResultsTable: FC<Props> = ({
                                                     {row.index + 1}
                                                 </RowNumber>
                                                 {row.cells.map((cell) => (
-                                                    <td
+                                                    <TableCell
                                                         {...cell.getCellProps([
                                                             getRowStyle(
                                                                 row.index,
                                                             ),
                                                         ])}
+                                                        isNaN={isNaN(
+                                                            cell.value,
+                                                        )}
                                                     >
                                                         <CellContextMenu
                                                             cell={cell}
@@ -415,7 +427,7 @@ export const ResultsTable: FC<Props> = ({
                                                                 'Cell',
                                                             )}
                                                         </CellContextMenu>
-                                                    </td>
+                                                    </TableCell>
                                                 ))}
                                             </tr>
                                         );
