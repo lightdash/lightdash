@@ -17,11 +17,14 @@ const useBigNumberConfig = (
 ) => {
     const featuredData =
         resultsData?.metricQuery.metrics[0] ||
-        resultsData?.metricQuery.dimensions[0];
+        resultsData?.metricQuery.dimensions[0] ||
+        resultsData?.metricQuery.tableCalculations[0]?.name;
 
     const fieldId =
         resultsData?.metricQuery.metrics[0] ||
-        resultsData?.metricQuery.dimensions[0];
+        resultsData?.metricQuery.dimensions[0] ||
+        resultsData?.metricQuery.tableCalculations[0]?.name;
+
     const field =
         explore && fieldId
             ? findFieldByIdInExplore(explore, fieldId)
