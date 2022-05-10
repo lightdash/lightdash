@@ -1,12 +1,18 @@
-import { Colors, HTMLTable, NonIdealState } from '@blueprintjs/core';
+import { HTMLTable, NonIdealState } from '@blueprintjs/core';
 import { friendlyName, getResultValues } from 'common';
 import React, { FC } from 'react';
-import { mapDataToTable, modifiedItem } from '../../utils/tableData';
+import {
+    mapDataToTable,
+    modifiedItem,
+    valueIsNaN,
+} from '../../utils/tableData';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
 import {
+    TableCell,
     TableHeader,
     TableInnerWrapper,
+    TableRow,
     TableWrapper,
 } from './SimpleTable.styles';
 
@@ -22,6 +28,7 @@ const SimpleTable: FC = () => {
 
     const rows = mapDataToTable(tableItems, headers);
     const validData = rows && headers;
+
     if (isLoading) return <LoadingChart />;
 
     return (
@@ -40,23 +47,17 @@ const SimpleTable: FC = () => {
                             <tbody>
                                 {rows.map(
                                     (row: string[] | boolean[], i: number) => (
-                                        <tr
-                                            style={{
-                                                backgroundColor: `${
-                                                    i % 2
-                                                        ? Colors.LIGHT_GRAY5
-                                                        : Colors.LIGHT_GRAY4
-                                                }`,
-                                            }}
-                                        >
+                                        <TableRow i={i}>
                                             {row.map(
                                                 (item: string | boolean) => (
-                                                    <td>
+                                                    <TableCell
+                                                        isNaN={valueIsNaN(item)}
+                                                    >
                                                         {modifiedItem(item)}
-                                                    </td>
+                                                    </TableCell>
                                                 ),
                                             )}
-                                        </tr>
+                                        </TableRow>
                                     ),
                                 )}
                             </tbody>

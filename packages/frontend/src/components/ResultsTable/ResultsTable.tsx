@@ -26,6 +26,7 @@ import {
 } from 'react-table';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
+import { valueIsNaN } from '../../utils/tableData';
 import TableCalculationHeaderButton from '../TableCalculationHeaderButton';
 import {
     Container,
@@ -34,6 +35,7 @@ import {
     RowNumber,
     RowNumberColumn,
     RowNumberHeader,
+    TableCell,
     TableContainer,
     TableFooter,
     TableInnerContainer,
@@ -401,12 +403,15 @@ export const ResultsTable: FC<Props> = ({
                                                     {row.index + 1}
                                                 </RowNumber>
                                                 {row.cells.map((cell) => (
-                                                    <td
+                                                    <TableCell
                                                         {...cell.getCellProps([
                                                             getRowStyle(
                                                                 row.index,
                                                             ),
                                                         ])}
+                                                        isNaN={valueIsNaN(
+                                                            cell.value,
+                                                        )}
                                                     >
                                                         <CellContextMenu
                                                             cell={cell}
@@ -415,7 +420,7 @@ export const ResultsTable: FC<Props> = ({
                                                                 'Cell',
                                                             )}
                                                         </CellContextMenu>
-                                                    </td>
+                                                    </TableCell>
                                                 ))}
                                             </tr>
                                         );

@@ -62,3 +62,7 @@ export const PaginationWrapper = styled.div`
 export const PageCount = styled.span`
     color: ${Colors.GRAY1};
 `;
+
+export const TableCell = styled.td<{ isNaN: boolean }>`
+    text-align: ${({ isNaN }) => (isNaN ? 'left' : 'right')} !important;
+`;
