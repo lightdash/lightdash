@@ -1,3 +1,10 @@
+# [0.94.0](https://github.com/lightdash/lightdash/compare/0.93.5...0.94.0) (2022-05-10)
+
+
+### Features
+
+* align numbers on table ([#2043](https://github.com/lightdash/lightdash/issues/2043)) ([1d08e33](https://github.com/lightdash/lightdash/commit/1d08e336e0daa84cc0393b771a39544e285c2acc))
+
 ## [0.93.5](https://github.com/lightdash/lightdash/compare/0.93.4...0.93.5) (2022-05-10)
 
 
