@@ -1,3 +1,10 @@
+## [0.93.3](https://github.com/lightdash/lightdash/compare/0.93.2...0.93.3) (2022-05-10)
+
+
+### Bug Fixes
+
+* show formatted values in big number and table ([#2041](https://github.com/lightdash/lightdash/issues/2041)) ([1bb47f2](https://github.com/lightdash/lightdash/commit/1bb47f2d5b68f11baabf602a8de64dabb90ce23f))
+
 ## [0.93.2](https://github.com/lightdash/lightdash/compare/0.93.1...0.93.2) (2022-05-09)
 
 
