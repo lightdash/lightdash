@@ -102,29 +102,3 @@ export function getDimensionFormatter(
         }
     }
 }
-
-export function getDimensionElementFormatter(
-    d: Dimension,
-): ({ value }: any) => React.ReactNode {
-    const dimensionType = d.type;
-    switch (dimensionType) {
-        case DimensionType.STRING:
-            return formatWrapper(formatString);
-        case DimensionType.NUMBER:
-            return formatWrapper(formatNumber);
-        case DimensionType.BOOLEAN:
-            return formatWrapper(formatBoolean);
-        case DimensionType.DATE:
-            return formatWrapper(formatDate(d.timeInterval));
-        case DimensionType.TIMESTAMP:
-            return formatWrapper(formatTimestamp(d.timeInterval, true));
-        default: {
-            const nope: never = dimensionType;
-            throw Error(
-                `Dimension formatter is not implemented for dimension type ${dimensionType}`,
-            );
-        }
-    }
-}
-
-export const getMetricFormatter = () => formatWrapper(formatNumber);
