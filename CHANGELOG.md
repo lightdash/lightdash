@@ -1,3 +1,10 @@
+## [0.93.5](https://github.com/lightdash/lightdash/compare/0.93.4...0.93.5) (2022-05-10)
+
+
+### Bug Fixes
+
+* prettier ([#2048](https://github.com/lightdash/lightdash/issues/2048)) ([cce43e0](https://github.com/lightdash/lightdash/commit/cce43e0bee7ca6f51cc845312b407a03781c2570))
+
 ## [0.93.4](https://github.com/lightdash/lightdash/compare/0.93.3...0.93.4) (2022-05-10)
 
 
