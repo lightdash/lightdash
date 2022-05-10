@@ -10,10 +10,6 @@ import {
 import React, { useMemo } from 'react';
 import { Column } from 'react-table';
 import { useExplorer } from '../providers/ExplorerProvider';
-import {
-    getDimensionElementFormatter,
-    getMetricFormatter,
-} from '../utils/resultFormatter';
 import { useExplore } from './useExplore';
 
 const getSortByProps = (
@@ -89,9 +85,6 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                                 field.description ||
                                 `${field.tableLabel} ${field.label}`,
                             accessor: fieldId,
-                            Cell: isDimension(field)
-                                ? getDimensionElementFormatter(field)
-                                : getMetricFormatter(),
                             type: isDimension(field) ? 'dimension' : 'metric',
                             dimensionType: isDimension(field)
                                 ? field.type
@@ -120,7 +113,6 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                             ),
                             description: friendlyName(tableCalculation.name),
                             accessor: fieldId,
-                            Cell: getMetricFormatter(),
                             type: 'table_calculation',
                             tableCalculation,
                             ...getSortByProps(
