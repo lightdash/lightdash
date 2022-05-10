@@ -21,3 +21,11 @@ export const mapDataToTable = (
     });
     return rows;
 };
+
+export const valueIsNaN = (value: any): boolean => {
+    return (
+        typeof value === 'boolean' ||
+        (value?.includes && value.includes('Z')) || //  stringified date
+        Number.isNaN(Number(value))
+    );
+};

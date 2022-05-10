@@ -1,7 +1,11 @@
 import { HTMLTable, NonIdealState } from '@blueprintjs/core';
 import { friendlyName, getResultValues } from 'common';
 import React, { FC } from 'react';
-import { mapDataToTable, modifiedItem } from '../../utils/tableData';
+import {
+    mapDataToTable,
+    modifiedItem,
+    valueIsNaN,
+} from '../../utils/tableData';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
 import {
@@ -25,14 +29,6 @@ const SimpleTable: FC = () => {
     const rows = mapDataToTable(tableItems, headers);
     const validData = rows && headers;
 
-    const isNaN = (number: string | boolean) => {
-        return (
-            typeof number === 'boolean' ||
-            (number?.includes && number.includes('Z')) ||
-            Number.isNaN(Number(number))
-        );
-    };
-
     if (isLoading) return <LoadingChart />;
 
     return (
@@ -55,7 +51,7 @@ const SimpleTable: FC = () => {
                                             {row.map(
                                                 (item: string | boolean) => (
                                                     <TableCell
-                                                        isNaN={isNaN(item)}
+                                                        isNaN={valueIsNaN(item)}
                                                     >
                                                         {modifiedItem(item)}
                                                     </TableCell>

@@ -26,6 +26,7 @@ import {
 } from 'react-table';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
+import { valueIsNaN } from '../../utils/tableData';
 import TableCalculationHeaderButton from '../TableCalculationHeaderButton';
 import {
     Container,
@@ -227,14 +228,6 @@ export const ResultsTable: FC<Props> = ({
         setColumnOrder(dataColumnOrder);
     }, [setColumnOrder, dataColumnOrder]);
 
-    const isNaN = (number: any) => {
-        return (
-            typeof number === 'boolean' ||
-            (number?.includes && number.includes('Z')) ||
-            Number.isNaN(Number(number))
-        );
-    };
-
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
             <Container className="cohere-block">
@@ -416,7 +409,7 @@ export const ResultsTable: FC<Props> = ({
                                                                 row.index,
                                                             ),
                                                         ])}
-                                                        isNaN={isNaN(
+                                                        isNaN={valueIsNaN(
                                                             cell.value,
                                                         )}
                                                     >
