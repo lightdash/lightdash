@@ -99,12 +99,7 @@ const convertDimension = (
     let label = column.meta.dimension?.label || friendlyName(name);
     if (timeInterval) {
         if (timeInterval !== 'RAW') {
-            sql = getDataTruncSql(
-                targetWarehouse,
-                timeInterval,
-                sql,
-                type,
-            );
+            sql = getDataTruncSql(targetWarehouse, timeInterval, sql, type);
         }
         name = `${column.name}_${timeInterval.toLowerCase()}`;
         label = `${label} ${timeInterval.toLowerCase()}`;
