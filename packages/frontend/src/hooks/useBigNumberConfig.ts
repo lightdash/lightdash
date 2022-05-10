@@ -1,11 +1,13 @@
 import {
     ApiQueryResults,
     BigNumber,
+    DimensionType,
     Explore,
     findFieldByIdInExplore,
     formatValue,
     friendlyName,
     getFieldLabel,
+    MetricType,
     NumberStyle,
 } from 'common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -15,10 +17,6 @@ const useBigNumberConfig = (
     resultsData: ApiQueryResults | undefined,
     explore: Explore | undefined,
 ) => {
-    const featuredData =
-        resultsData?.metricQuery.metrics[0] ||
-        resultsData?.metricQuery.dimensions[0];
-
     const fieldId =
         resultsData?.metricQuery.metrics[0] ||
         resultsData?.metricQuery.dimensions[0];
@@ -56,20 +54,33 @@ const useBigNumberConfig = (
     }, []);
 
     const bigNumberRaw =
-        featuredData && resultsData?.rows?.[0]?.[featuredData]?.value.raw;
+        fieldId && resultsData?.rows?.[0]?.[fieldId]?.value.raw;
 
-    const bigNumber = formatValue(
-        field?.format,
-        field?.round,
-        bigNumberRaw,
-        bigNumberStyle,
-    );
+    const isNumber =
+        field &&
+        (
+            [
+                DimensionType.NUMBER,
+                MetricType.NUMBER,
+                MetricType.AVERAGE,
+                MetricType.COUNT,
+                MetricType.COUNT_DISTINCT,
+                MetricType.SUM,
+                MetricType.MIN,
+                MetricType.MAX,
+            ] as string[]
+        ).includes(field.type);
 
-    const isNaN =
-        (bigNumberRaw?.includes && bigNumberRaw.includes('Z')) ||
-        Number.isNaN(Number(bigNumberRaw));
+    const bigNumber = !isNumber
+        ? fieldId && resultsData?.rows?.[0]?.[fieldId]?.value.formatted
+        : formatValue(
+              field?.format,
+              field?.round,
+              bigNumberRaw,
+              bigNumberStyle,
+          );
 
-    const showStyle = !isNaN && field?.format !== 'percent';
+    const showStyle = isNumber && field?.format !== 'percent';
 
     const validBigNumberConfig: BigNumber | undefined = useMemo(
         () =>

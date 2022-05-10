@@ -144,10 +144,10 @@ describe('ProjectService', () => {
             expect(formatValue('percent', undefined, 0.05)).toEqual('5%');
             expect(formatValue('percent', undefined, '5')).toEqual('500%');
             expect(formatValue('percent', undefined, 'foo')).toEqual('foo');
-            expect(formatValue('percent', undefined, false)).toEqual(false);
+            expect(formatValue('percent', undefined, false)).toEqual('false');
 
-            expect(formatValue('', undefined, 5)).toEqual(5);
-            expect(formatValue(undefined, undefined, 5)).toEqual(5);
+            expect(formatValue('', undefined, 5)).toEqual('5');
+            expect(formatValue(undefined, undefined, 5)).toEqual('5');
         });
         test('formatValue should return the right round', async () => {
             expect(formatValue(undefined, 2, 5)).toEqual('5.00');
@@ -161,10 +161,10 @@ describe('ProjectService', () => {
             expect(formatValue(undefined, 0, 5.9999999)).toEqual('6');
 
             // negative rounding not supported
-            expect(formatValue(undefined, -1, 5)).toEqual(5);
+            expect(formatValue(undefined, -1, 5)).toEqual('5');
 
             expect(formatValue(undefined, 2, 'foo')).toEqual('foo');
-            expect(formatValue(undefined, 2, false)).toEqual(false);
+            expect(formatValue(undefined, 2, false)).toEqual('false');
 
             expect(formatValue(undefined, 10, 5)).toEqual('5.0000000000');
             expect(formatValue(undefined, 10, 5.001)).toEqual('5.0010000000');
@@ -187,7 +187,7 @@ describe('ProjectService', () => {
             expect(formatValue('percent', 2, 0.0511)).toEqual('5.11%');
             expect(formatValue('percent', 4, 0.0511)).toEqual('5.1100%');
             expect(formatValue('percent', 2, 'foo')).toEqual('foo');
-            expect(formatValue('percent', 2, false)).toEqual(false);
+            expect(formatValue('percent', 2, false)).toEqual('false');
             expect(formatValue('', 2, 5)).toEqual('5.00');
         });
 
