@@ -1,3 +1,10 @@
+## [0.94.1](https://github.com/lightdash/lightdash/compare/0.94.0...0.94.1) (2022-05-10)
+
+
+### Bug Fixes
+
+* show table calculation on bignumber ([#2044](https://github.com/lightdash/lightdash/issues/2044)) ([1a17e09](https://github.com/lightdash/lightdash/commit/1a17e09bc916977514dbc1a5dc3eac6e4c8ad2db))
+
 # [0.94.0](https://github.com/lightdash/lightdash/compare/0.93.5...0.94.0) (2022-05-10)
 
 
