@@ -30,23 +30,19 @@ const useBigNumberConfig = (
 
     const [bigNumberLabel, setBigNumberName] = useState<
         BigNumber['label'] | undefined
-    >(bigNumberConfigData?.label || label);
+    >(bigNumberConfigData?.label);
 
     const [bigNumberStyle, setStateBigNumberStyle] = useState<
         BigNumber['style'] | undefined
-    >(bigNumberConfigData?.style || undefined);
+    >(bigNumberConfigData?.style);
+
     useEffect(() => {
-        setBigNumberName(bigNumberConfigData?.label || label);
-        setStateBigNumberStyle(bigNumberConfigData?.style || undefined);
-    }, [
-        resultsData,
-        bigNumberConfigData?.label,
-        label,
-        bigNumberConfigData?.style,
-    ]);
+        setBigNumberName(bigNumberConfigData?.label);
+        setStateBigNumberStyle(bigNumberConfigData?.style);
+    }, [resultsData, bigNumberConfigData?.label, bigNumberConfigData?.style]);
 
     const setBigNumberLabel = useCallback((name: string | undefined) => {
-        setBigNumberName((prev) => name || prev);
+        setBigNumberName(name);
     }, []);
 
     const setBigNumberStyle = useCallback((style: NumberStyle | undefined) => {
@@ -95,6 +91,7 @@ const useBigNumberConfig = (
     return {
         bigNumber,
         bigNumberLabel,
+        defaultLabel: label,
         setBigNumberLabel,
         validBigNumberConfig,
         bigNumberStyle,

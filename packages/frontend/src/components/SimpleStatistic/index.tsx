@@ -13,10 +13,10 @@ const SimpleStatistic: FC = () => {
     const {
         resultsData,
         isLoading,
-        bigNumberConfig: { bigNumber, bigNumberLabel },
+        bigNumberConfig: { bigNumber, bigNumberLabel, defaultLabel },
     } = useVisualizationContext();
 
-    const validData = bigNumber && resultsData?.rows.length && bigNumberLabel;
+    const validData = bigNumber && resultsData?.rows.length;
 
     if (isLoading) return <LoadingChart />;
 
@@ -26,7 +26,9 @@ const SimpleStatistic: FC = () => {
                 <SimpleStatisticsWrapper>
                     <BigNumberContainer>
                         <BigNumber>{bigNumber}</BigNumber>
-                        <BigNumberLabel>{bigNumberLabel}</BigNumberLabel>
+                        <BigNumberLabel>
+                            {bigNumberLabel || defaultLabel}
+                        </BigNumberLabel>
                     </BigNumberContainer>
                 </SimpleStatisticsWrapper>
             ) : (
