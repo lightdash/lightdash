@@ -63,6 +63,7 @@ function roundNumber(
     value: any,
     round: number | undefined,
     format: string | undefined,
+    numberStyle?: string | undefined,
 ): string {
     if (valueIsNaN(value)) {
         return `${value}`;
@@ -70,9 +71,9 @@ function roundNumber(
 
     const invalidRound = round === undefined || round < 0;
     if (invalidRound && !format) {
-        return Number.isInteger(value)
-            ? Number(value).toLocaleString()
-            : `${value}`;
+        return numberStyle && !Number.isInteger(value)
+            ? `${value}`
+            : Number(value).toLocaleString();
     }
     const isValidFormat =
         !!format && format !== 'km' && format !== 'mi' && format !== 'percent';
@@ -102,11 +103,26 @@ function styleNumber(
     }
     switch (numberStyle) {
         case NumberStyle.THOUSANDS:
-            return `${roundNumber(Number(value) / 1000, round, format)}K`;
+            return `${roundNumber(
+                Number(value) / 1000,
+                round,
+                format,
+                numberStyle,
+            )}K`;
         case NumberStyle.MILLIONS:
-            return `${roundNumber(Number(value) / 1000000, round, format)}M`;
+            return `${roundNumber(
+                Number(value) / 1000000,
+                round,
+                format,
+                numberStyle,
+            )}M`;
         case NumberStyle.BILLIONS:
-            return `${roundNumber(Number(value) / 1000000000, round, format)}B`;
+            return `${roundNumber(
+                Number(value) / 1000000000,
+                round,
+                format,
+                numberStyle,
+            )}B`;
         default:
             return `${Number(value).toLocaleString()}`;
     }
