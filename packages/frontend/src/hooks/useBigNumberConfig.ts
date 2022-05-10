@@ -15,11 +15,6 @@ const useBigNumberConfig = (
     resultsData: ApiQueryResults | undefined,
     explore: Explore | undefined,
 ) => {
-    const featuredData =
-        resultsData?.metricQuery.metrics[0] ||
-        resultsData?.metricQuery.dimensions[0] ||
-        resultsData?.metricQuery.tableCalculations[0]?.name;
-
     const fieldId =
         resultsData?.metricQuery.metrics[0] ||
         resultsData?.metricQuery.dimensions[0] ||
@@ -59,7 +54,7 @@ const useBigNumberConfig = (
     }, []);
 
     const bigNumberRaw =
-        featuredData && resultsData?.rows?.[0]?.[featuredData]?.value.raw;
+        fieldId && resultsData?.rows?.[0]?.[fieldId]?.value.raw;
 
     const bigNumber = formatValue(
         field?.format,
