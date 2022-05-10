@@ -1,6 +1,6 @@
 {
     "name": "common",
-    "version": "0.94.2",
+    "version": "0.94.3",
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {

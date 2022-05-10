@@ -1,3 +1,10 @@
+## [0.94.3](https://github.com/lightdash/lightdash/compare/0.94.2...0.94.3) (2022-05-10)
+
+
+### Bug Fixes
+
+* check null ([#2061](https://github.com/lightdash/lightdash/issues/2061)) ([a3600c8](https://github.com/lightdash/lightdash/commit/a3600c8ce42f3cecda47e5f7f14511f85ffaeb44))
+
 ## [0.94.2](https://github.com/lightdash/lightdash/compare/0.94.1...0.94.2) (2022-05-10)
 
 
