@@ -1,7 +1,6 @@
 import {
     ApiQueryResults,
     CartesianChart,
-    CartesianSeriesType,
     CompiledField,
     convertAdditionalMetric,
     Dimension,
@@ -70,23 +69,6 @@ const getAxisTypeFromField = (item?: Field): string => {
     }
 };
 
-const getEchartsTooltipConfig = (type: Series['type']) =>
-    type === CartesianSeriesType.BAR
-        ? {
-              show: true,
-              confine: true,
-              trigger: 'axis',
-              axisPointer: {
-                  type: 'shadow',
-                  label: { show: true },
-              },
-          }
-        : {
-              show: true,
-              confine: true,
-              trigger: 'item',
-          };
-
 export type EChartSeries = {
     type: Series['type'];
     connectNulls: boolean;
@@ -117,38 +99,10 @@ const getFormatterValue = (
 };
 
 const valueFormatter =
-    (xFieldId: string, yFieldId: string, explore: Explore) =>
-    (rawValue: any) => {
+    (yFieldId: string, explore: Explore) => (rawValue: any) => {
         const yField = getFields(explore).find(
             (item) => fieldId(item) === yFieldId,
         );
-
-        if (Array.isArray(rawValue)) {
-            const xField = getFields(explore).find(
-                (item) => fieldId(item) === xFieldId,
-            );
-            const formattedXValue =
-                xField?.format || xField?.round
-                    ? formatValue(xField?.format, xField?.round, rawValue[0])
-                    : rawValue[0];
-
-            const xValue = getFormatterValue(
-                formattedXValue,
-                xFieldId,
-                getDimensions(explore),
-            );
-            const formattedYValue =
-                yField?.format || yField?.round
-                    ? formatValue(yField?.format, yField?.round, rawValue[1])
-                    : rawValue[1];
-
-            const yValue = getFormatterValue(
-                formattedYValue,
-                yFieldId,
-                getDimensions(explore),
-            );
-            return `${xValue} ${yValue}`;
-        }
 
         const formattedValue =
             yField?.format || yField?.round
@@ -200,10 +154,7 @@ export const getEchartsSeries = (
                     encode: {
                         x: flipAxes ? yFieldHash : xFieldHash,
                         y: flipAxes ? xFieldHash : yFieldHash,
-                        tooltip:
-                            series.type === CartesianSeriesType.BAR
-                                ? [yFieldHash]
-                                : [xFieldHash, yFieldHash],
+                        tooltip: [yFieldHash],
                         seriesName: yFieldHash,
                     },
                     dimensions: [
@@ -225,7 +176,6 @@ export const getEchartsSeries = (
                     ],
                     tooltip: {
                         valueFormatter: valueFormatter(
-                            xFieldHash,
                             series.encode.yRef.field,
                             explore,
                         ),
@@ -267,10 +217,7 @@ export const getEchartsSeries = (
                         ...series.encode,
                         x: flipAxes ? yField : xField,
                         y: flipAxes ? xField : yField,
-                        tooltip:
-                            series.type === CartesianSeriesType.BAR
-                                ? [yField]
-                                : [xField, yField],
+                        tooltip: [yField],
                         seriesName: yField,
                     },
                     dimensions: [
@@ -284,7 +231,7 @@ export const getEchartsSeries = (
                         },
                     ],
                     tooltip: {
-                        valueFormatter: valueFormatter(xField, yField, explore),
+                        valueFormatter: valueFormatter(yField, explore),
                     },
 
                     ...(series.label?.show &&
@@ -574,7 +521,15 @@ const useEcharts = () => {
             id: 'lightdashResults',
             source: plotData,
         },
-        tooltip: getEchartsTooltipConfig(series[0].type),
+        tooltip: {
+            show: true,
+            confine: true,
+            trigger: 'axis',
+            axisPointer: {
+                type: 'shadow',
+                label: { show: true },
+            },
+        },
         grid: {
             containLabel: true,
             left: '5%', // small padding
