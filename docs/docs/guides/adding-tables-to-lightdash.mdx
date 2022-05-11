@@ -8,9 +8,15 @@ So, it's important that we let you know how to actually add these Tables to your
 
 ## How do I add tables to my Lightdash project? 
 
-The beauty of Lightdash is that we're pretty well synced with your dbt project. So, in Lightdash, Tables actually come from dbt models that have been defined in your dbt project's schema.yml files.
+The beauty of Lightdash is that we're pretty well synced with your dbt project. So, in Lightdash, Tables actually come from dbt models that have been defined in your dbt project's .yml files.
 
-If your dbt model has been defined in a .yml file, it will appear in Lightdash as a table.
+If your dbt model has been defined in a .yml file, it will appear in Lightdash as a Table. 
+
+:::info
+
+Not sure what a .yml file is? Make sure to [check out dbt's docs](https://docs.getdbt.com/reference/configs-and-properties) to learn more about building .yml files for your dbt project.
+
+:::
 
 For example, if we had this in our schema.yml files in dbt, we'd see a Table called `users` in Lightdash.
 
@@ -21,12 +27,36 @@ models:
   - name: users
 ```
 
-So, in our personal repo at Lightdash (lightdash-analytics), our project looks something like this:
+Our personal repo at Lightdash (lightdash-analytics), our project looks something like this:
 
-- We have one `.sql` file per model (these are the files where all of your model's business logic sits)
-- We have one `.yml` file per model (these are the files where all of your Table's configuration sits)
+- We have one `.sql` file per model (these are the files where all of our models' business logic sits)
+- We have one `.yml` file per model (these are the files where all of your Tables' configuration sits)
 
 <img src={dbtRepoExample} width="316" height="431" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
+### But, in my dbt project, I have a single schema.yml file. Not one for each model. Will that still work?
 
-## 
+Yep! We realize that schema files come in all shapes and sizes. 
+
+Some people prefer to write the .yml files for all of their models in a single .yml file at the directory level, and that's totally fine - it will still work with Lightdash. 
+
+But, if you're trying to decide how to setup your dbt project, **we'd recommend having one `.yml` file per model.**
+
+We've found that this makes it easier to navigate through your `.yml` files, especially as your project becomes bigger. 
+
+## How to create .yml files
+
+There are a few ways to do this - some more painful than others. We'll go through the main ones.
+
+### 1. The good old fashioned way: totally manually
+
+You can create .yml files for your models by just creating a file in your model's directory, then typing out all of the columns for the model in there.
+
+You'll need to make sure that your .yml file follows [the formatting rules for a dbt `model`](https://docs.getdbt.com/reference/configs-and-properties#example) and that you declare **_all of the columns_** in your .yml file.
+
+### 2. Using a schema generator
+
+If you've ever written a full .yml file manually, you won't be surprised that someone has gone ahead and automated the process. 
+
+There are a couple of schema generators out there, but the one we ended up using the most was the `dbt-invoke` package. You can read more about [how to install + use it here](https://pypi.org/project/dbt-invoke/).
+
