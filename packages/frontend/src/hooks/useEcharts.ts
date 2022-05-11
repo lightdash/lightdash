@@ -10,6 +10,7 @@ import {
     Field,
     fieldId,
     findItem,
+    formatFieldValue,
     formatValue,
     friendlyName,
     getAxisName,
@@ -28,7 +29,6 @@ import {
 } from 'common';
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../components/LightdashVisualization/VisualizationProvider';
-import { getDimensionFormatter } from '../utils/resultFormatter';
 import { useOrganisation } from './organisation/useOrganisation';
 
 const getLabelFromField = (
@@ -113,8 +113,7 @@ const getFormatterValue = (
     fields: Dimension[],
 ): string => {
     const field = fields.find((item) => fieldId(item) === key);
-    const fieldFormatter = field ? getDimensionFormatter(field) : null;
-    return fieldFormatter?.({ value: value }) ?? `${value || '∅'}`;
+    return formatFieldValue(field, value);
 };
 
 const valueFormatter =

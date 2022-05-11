@@ -1,5 +1,4 @@
 import { Colors } from '@blueprintjs/core';
-import { Dimension, DimensionType } from 'common';
 import moment from 'moment';
 import React from 'react';
 
@@ -66,39 +65,5 @@ export function formatTimestamp(
     };
 }
 
-const formatNumber = (v: number) => `${v}`;
-const formatString = (v: string) => `${v}`;
 export const formatBoolean = (v: boolean | string) =>
     ['True', 'true', 'yes', 'Yes', '1', 'T'].includes(`${v}`) ? 'Yes' : 'No';
-
-function formatWrapper<T>(formatter: (value: any) => T) {
-    return ({ value }: any) => {
-        if (value === null) return '∅';
-        if (value === undefined) return '-';
-        return formatter(value);
-    };
-}
-
-export function getDimensionFormatter(
-    d: Dimension,
-): ({ value }: any) => string {
-    const dimensionType = d.type;
-    switch (dimensionType) {
-        case DimensionType.STRING:
-            return formatWrapper(formatString);
-        case DimensionType.NUMBER:
-            return formatWrapper(formatNumber);
-        case DimensionType.BOOLEAN:
-            return formatWrapper(formatBoolean);
-        case DimensionType.DATE:
-            return formatWrapper(formatDate(d.timeInterval));
-        case DimensionType.TIMESTAMP:
-            return formatWrapper(formatTimestamp(d.timeInterval, false));
-        default: {
-            const nope: never = dimensionType;
-            throw Error(
-                `Dimension formatter is not implemented for dimension type ${dimensionType}`,
-            );
-        }
-    }
-}

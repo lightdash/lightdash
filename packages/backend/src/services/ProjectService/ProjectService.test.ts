@@ -1,4 +1,11 @@
-import { formatValue, NumberStyle } from 'common';
+import {
+    DimensionType,
+    formatFieldValue,
+    formatItemValue,
+    formatValue,
+    MetricType,
+    NumberStyle,
+} from 'common';
 import { analytics } from '../../analytics/client';
 import {
     jobModel,
@@ -10,13 +17,16 @@ import { ProjectService } from './ProjectService';
 import {
     allExplores,
     defaultProject,
+    dimension,
     expectedAllExploreSummary,
     expectedCatalog,
     expectedExploreSummaryFilteredByName,
     expectedExploreSummaryFilteredByTags,
     expectedSqlResults,
+    metric,
     projectAdapterMock,
     spacesWithSavedCharts,
+    tableCalculation,
     tablesConfiguration,
     tablesConfigurationWithNames,
     tablesConfigurationWithTags,
@@ -225,6 +235,90 @@ describe('ProjectService', () => {
             expect(formatValue('eur', 2, 5000, T)).toEqual('€5.00K');
             expect(formatValue('percent', 2, 0.05, T)).toEqual('5.00%'); // No affects percent
             expect(formatValue('', 2, 5000, T)).toEqual('5.00K');
+        });
+    });
+    describe('format field value', () => {
+        test('formatFieldValue should return the right format when field is undefined', async () => {
+            expect(formatFieldValue(undefined, undefined)).toEqual('-');
+            expect(formatFieldValue(undefined, null)).toEqual('∅');
+            expect(formatFieldValue(undefined, '5')).toEqual('5');
+            expect(formatFieldValue(undefined, 5)).toEqual('5');
+        });
+
+        test('formatFieldValue should return the right format when field is Dimension', async () => {
+            expect(formatFieldValue(dimension, undefined)).toEqual('-');
+            expect(formatFieldValue(dimension, null)).toEqual('∅');
+            expect(
+                formatFieldValue(
+                    { ...dimension, type: DimensionType.STRING },
+                    '5',
+                ),
+            ).toEqual('5');
+            expect(
+                formatFieldValue(
+                    { ...dimension, type: DimensionType.NUMBER },
+                    5,
+                ),
+            ).toEqual('5');
+            expect(
+                formatFieldValue(
+                    { ...dimension, type: DimensionType.BOOLEAN },
+                    true,
+                ),
+            ).toEqual('Yes');
+            expect(
+                formatFieldValue(
+                    {
+                        ...dimension,
+                        type: DimensionType.DATE,
+                    },
+                    new Date('2021-03-10T00:00:00.000Z'),
+                ),
+            ).toEqual('2021-03-10');
+            expect(
+                formatFieldValue(
+                    {
+                        ...dimension,
+                        type: DimensionType.TIMESTAMP,
+                    },
+                    new Date('2021-03-10T00:00:00.000Z'),
+                ),
+            ).toEqual('2021-03-10, 00:00:00:000 (+00:00)');
+        });
+
+        test('formatFieldValue should return the right format when field is Metric', async () => {
+            expect(formatFieldValue(metric, undefined)).toEqual('-');
+            expect(formatFieldValue(metric, null)).toEqual('∅');
+            expect(
+                formatFieldValue({ ...metric, type: MetricType.AVERAGE }, 5),
+            ).toEqual('5');
+            expect(
+                formatFieldValue({ ...metric, type: MetricType.COUNT }, 5),
+            ).toEqual('5');
+            expect(
+                formatFieldValue(
+                    { ...metric, type: MetricType.COUNT_DISTINCT },
+                    5,
+                ),
+            ).toEqual('5');
+            expect(
+                formatFieldValue({ ...metric, type: MetricType.SUM }, 5),
+            ).toEqual('5');
+        });
+    });
+    describe('format item value', () => {
+        test('formatItemValue should return the right format when field is undefined', async () => {
+            expect(formatItemValue(undefined, undefined)).toEqual('-');
+            expect(formatItemValue(undefined, null)).toEqual('∅');
+            expect(formatItemValue(undefined, '5')).toEqual('5');
+            expect(formatItemValue(undefined, 5)).toEqual('5');
+        });
+
+        test('formatItemValue should return the right format when field is table calculation', async () => {
+            expect(formatItemValue(tableCalculation, undefined)).toEqual('-');
+            expect(formatItemValue(tableCalculation, null)).toEqual('∅');
+            expect(formatItemValue(tableCalculation, '5')).toEqual('5');
+            expect(formatItemValue(tableCalculation, 5)).toEqual('5');
         });
     });
 });
