@@ -9,7 +9,7 @@ import {
     Field,
     fieldId,
     findItem,
-    formatFieldValue,
+    formatItemValue,
     formatValue,
     friendlyName,
     getAxisName,
@@ -95,7 +95,7 @@ const getFormatterValue = (
     fields: Dimension[],
 ): string => {
     const field = fields.find((item) => fieldId(item) === key);
-    return formatFieldValue(field, value);
+    return formatItemValue(field, value);
 };
 
 const valueFormatter =

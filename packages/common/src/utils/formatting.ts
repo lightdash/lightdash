@@ -6,7 +6,11 @@ import {
     isField,
     MetricType,
 } from '../types/field';
-import { AdditionalMetric, TableCalculation } from '../types/metricQuery';
+import {
+    AdditionalMetric,
+    isAdditionalMetric,
+    TableCalculation,
+} from '../types/metricQuery';
 import { NumberStyle } from '../types/savedCharts';
 
 export const formatBoolean = <T>(v: T) =>
@@ -223,10 +227,12 @@ export function formatFieldValue(
 }
 
 export function formatItemValue(
-    item: Field | TableCalculation | undefined,
+    item: Field | AdditionalMetric | TableCalculation | undefined,
     value: any,
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
-    return isField(item) ? formatFieldValue(item, value) : `${value}`;
+    return isField(item) || isAdditionalMetric(item)
+        ? formatFieldValue(item, value)
+        : formatValue(undefined, undefined, value);
 }

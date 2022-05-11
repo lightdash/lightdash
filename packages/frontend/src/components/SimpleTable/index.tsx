@@ -1,12 +1,10 @@
 import { HTMLTable, NonIdealState } from '@blueprintjs/core';
 import {
+    AdditionalMetric,
     Field,
-    fieldId,
     friendlyName,
-    getFields,
-    getItemId,
+    getItemMap,
     getResultValues,
-    isAdditionalMetric,
     isNumericItem,
     TableCalculation,
 } from 'common';
@@ -33,20 +31,14 @@ const SimpleTable: FC = () => {
         ? getResultValues(resultsData?.rows).slice(0, 25)
         : [];
 
-    const itemMap = useMemo<Record<string, Field | TableCalculation>>(() => {
+    const itemMap = useMemo<
+        Record<string, Field | AdditionalMetric | TableCalculation>
+    >(() => {
         if (explore && resultsData) {
-            return [
-                ...getFields(explore),
-                ...(resultsData.metricQuery.additionalMetrics || []),
-                ...resultsData.metricQuery.tableCalculations,
-            ].reduce(
-                (acc, item) => ({
-                    ...acc,
-                    [isAdditionalMetric(item)
-                        ? fieldId(item)
-                        : getItemId(item)]: item,
-                }),
-                {},
+            return getItemMap(
+                explore,
+                resultsData.metricQuery.additionalMetrics,
+                resultsData.metricQuery.tableCalculations,
             );
         }
         return {};
