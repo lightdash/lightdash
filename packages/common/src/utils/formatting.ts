@@ -9,13 +9,10 @@ import {
 import { AdditionalMetric, TableCalculation } from '../types/metricQuery';
 import { NumberStyle } from '../types/savedCharts';
 
-const formatBoolean = <T>(v: T) =>
+export const formatBoolean = <T>(v: T) =>
     ['True', 'true', 'yes', 'Yes', '1', 'T'].includes(`${v}`) ? 'Yes' : 'No';
 
-function formatDate<T = string | Date>(
-    date: T,
-    timeInterval: string | undefined = 'DAY',
-): string {
+const getDateFormat = (timeInterval: string | undefined = 'DAY'): string => {
     let dateForm: string;
     switch (timeInterval.toUpperCase()) {
         case 'YEAR':
@@ -28,13 +25,21 @@ function formatDate<T = string | Date>(
             dateForm = 'YYYY-MM-DD';
             break;
     }
-    return moment(date).format(dateForm);
+    return dateForm;
+};
+export function formatDate<T = string | Date>(
+    date: T,
+    timeInterval: string | undefined = 'DAY',
+): string {
+    return moment(date).format(getDateFormat(timeInterval));
 }
 
-function formatTimestamp<T = string | Date>(
-    value: T,
-    timeInterval: string | undefined = 'MILLISECOND',
-): string {
+export const parseDate = (
+    str: string,
+    timeInterval: string | undefined = 'DAY',
+): Date => moment(str, getDateFormat(timeInterval)).toDate();
+
+const getTimeFormat = (timeInterval: string | undefined = 'DAY'): string => {
     let timeFormat: string;
     switch (timeInterval.toUpperCase()) {
         case 'HOUR':
@@ -50,9 +55,20 @@ function formatTimestamp<T = string | Date>(
             timeFormat = 'HH:mm:ss:SSS';
             break;
     }
+    return `YYYY-MM-DD, ${timeFormat} (Z)`;
+};
 
-    return moment(value).format(`YYYY-MM-DD, ${timeFormat} (Z)`);
+export function formatTimestamp<T = string | Date>(
+    value: T,
+    timeInterval: string | undefined = 'MILLISECOND',
+): string {
+    return moment(value).format(getTimeFormat(timeInterval));
 }
+
+export const parseTimestamp = (
+    str: string,
+    timeInterval: string | undefined = 'MILLISECOND',
+): Date => moment(str, getTimeFormat(timeInterval)).toDate();
 
 function valueIsNaN(value: any) {
     if (typeof value === 'boolean') return true;

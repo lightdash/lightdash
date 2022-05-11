@@ -1,4 +1,3 @@
-import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import { Dashboard, DashboardBasicDetails } from './types/dashboard';
 import {
@@ -59,18 +58,6 @@ export * from './types/organizationMemberProfile';
 export * from './types/savedCharts';
 export * from './types/user';
 export * from './utils/formatting';
-
-const DATE_FORMAT = 'YYYY-MM-DD';
-export const formatDate = (date: Date): string =>
-    moment(date).format(DATE_FORMAT);
-export const parseDate = (str: string): Date =>
-    moment(str, DATE_FORMAT).toDate();
-
-const TIMESTAMP_FORMAT = 'YYYY-MM-DD HH:mm:ss';
-export const formatTimestamp = (date: Date): string =>
-    moment(date).format(TIMESTAMP_FORMAT);
-export const parseTimestamp = (str: string): Date =>
-    moment(str, TIMESTAMP_FORMAT).toDate();
 
 export const validateEmail = (email: string): boolean => {
     const re =
