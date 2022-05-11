@@ -1,7 +1,6 @@
 import {
     ApiQueryResults,
     CartesianChart,
-    CartesianSeriesType,
     CompiledField,
     convertAdditionalMetric,
     Dimension,
@@ -69,23 +68,6 @@ const getAxisTypeFromField = (item?: Field): string => {
         return 'value';
     }
 };
-
-const getEchartsTooltipConfig = (type: Series['type']) =>
-    type === CartesianSeriesType.BAR
-        ? {
-              show: true,
-              confine: true,
-              trigger: 'axis',
-              axisPointer: {
-                  type: 'shadow',
-                  label: { show: true },
-              },
-          }
-        : {
-              show: true,
-              confine: true,
-              trigger: 'item',
-          };
 
 export type EChartSeries = {
     type: Series['type'];
@@ -200,10 +182,7 @@ export const getEchartsSeries = (
                     encode: {
                         x: flipAxes ? yFieldHash : xFieldHash,
                         y: flipAxes ? xFieldHash : yFieldHash,
-                        tooltip:
-                            series.type === CartesianSeriesType.BAR
-                                ? [yFieldHash]
-                                : [xFieldHash, yFieldHash],
+                        tooltip: [yFieldHash],
                         seriesName: yFieldHash,
                     },
                     dimensions: [
@@ -267,10 +246,7 @@ export const getEchartsSeries = (
                         ...series.encode,
                         x: flipAxes ? yField : xField,
                         y: flipAxes ? xField : yField,
-                        tooltip:
-                            series.type === CartesianSeriesType.BAR
-                                ? [yField]
-                                : [xField, yField],
+                        tooltip: [yField],
                         seriesName: yField,
                     },
                     dimensions: [
@@ -574,7 +550,15 @@ const useEcharts = () => {
             id: 'lightdashResults',
             source: plotData,
         },
-        tooltip: getEchartsTooltipConfig(series[0].type),
+        tooltip: {
+            show: true,
+            confine: true,
+            trigger: 'axis',
+            axisPointer: {
+                type: 'shadow',
+                label: { show: true },
+            },
+        },
         grid: {
             containLabel: true,
             left: '5%', // small padding
