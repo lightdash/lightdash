@@ -85,7 +85,7 @@ export type EChartSeries = {
     };
 };
 
-const getFormatterValue = (
+const getFormattedValue = (
     value: any,
     key: string,
     items: Array<Field | TableCalculation>,
@@ -99,7 +99,7 @@ const getFormatterValue = (
 const valueFormatter =
     (yFieldId: string, items: Array<Field | TableCalculation>) =>
     (rawValue: any) => {
-        return getFormatterValue(rawValue, yFieldId, items);
+        return getFormattedValue(rawValue, yFieldId, items);
     };
 
 export const getEchartsSeries = (
@@ -122,7 +122,7 @@ export const getEchartsSeries = (
                     ({ field }) => field === pivotKey,
                 );
 
-                const value = getFormatterValue(
+                const value = getFormattedValue(
                     pivotField?.value,
                     pivotKey,
                     items,
