@@ -1,3 +1,10 @@
+## [0.95.3](https://github.com/lightdash/lightdash/compare/0.95.2...0.95.3) (2022-05-11)
+
+
+### Bug Fixes
+
+* tooltips on scattered charts, unify tooltip config ([#2070](https://github.com/lightdash/lightdash/issues/2070)) ([3dec6fb](https://github.com/lightdash/lightdash/commit/3dec6fb21f6e018412fbc56ee0705d50e97ba735))
+
 ## [0.95.2](https://github.com/lightdash/lightdash/compare/0.95.1...0.95.2) (2022-05-11)
 
 
