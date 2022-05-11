@@ -52,7 +52,7 @@ const SideBarLoadingState = () => (
 );
 
 type ExplorePanelProps = {
-    onBack: () => void;
+    onBack?: () => void;
 };
 export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
     const [headerIsOpen, setHeaderIsOpen] = useState<boolean>(false);
@@ -98,11 +98,13 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
             .split('.');
         return (
             <>
-                <BackButton
-                    text="All tables"
-                    onClick={onBack}
-                    icon="chevron-left"
-                />
+                {onBack && (
+                    <BackButton
+                        text="All tables"
+                        onClick={onBack}
+                        icon="chevron-left"
+                    />
+                )}
                 <ExpandableWrapper>
                     <ExpandableHeader>
                         <H4>{data.label}</H4>
@@ -146,7 +148,7 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
         );
     }
     if (status === 'error') {
-        onBack();
+        if (onBack) onBack();
         return null;
     }
     return <span>Cannot load explore</span>;

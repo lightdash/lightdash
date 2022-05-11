@@ -2,6 +2,7 @@ import { Card, NonIdealState, Spinner } from '@blueprintjs/core';
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import Explorer from '../components/Explorer';
+import ExplorePanel from '../components/Explorer/ExplorePanel';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import {
     ExplorerProvider,
@@ -85,7 +86,9 @@ const SavedExplorer = () => {
                             display: 'flex',
                             flexDirection: 'column',
                         }}
-                    ></div>
+                    >
+                        <ExplorePanel />
+                    </div>
                 </Card>
                 <div
                     style={{
