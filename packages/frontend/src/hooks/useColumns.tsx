@@ -7,7 +7,7 @@ import {
     Metric,
     SortField,
 } from 'common';
-import React, { useMemo } from 'react';
+import React, { FC, useMemo } from 'react';
 import { Column } from 'react-table';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useExplore } from './useExplore';
@@ -35,6 +35,8 @@ const getSortByProps = (
         isMultiSort: sortFields.length > 1,
     };
 };
+
+const FormatCell: FC<{ value: any }> = ({ value }) => value || '-';
 
 export const useColumns = (): Column<{ [col: string]: any }>[] => {
     const {
@@ -95,6 +97,7 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                                 toggleSortField,
                             ),
                             field,
+                            Cell: FormatCell,
                         },
                     ];
                 }
@@ -120,6 +123,7 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                                 sortFields,
                                 toggleSortField,
                             ),
+                            Cell: FormatCell,
                         },
                     ];
                 }
