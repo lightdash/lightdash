@@ -223,6 +223,7 @@ export const AppProvider: FC = ({ children }) => {
                         });
                         break;
                     case 'ERROR':
+                        AppToaster.dismiss(TOAST_KEY_FOR_REFRESH_JOB);
                         setIsJobsDrawerOpen(true);
                 }
             }
