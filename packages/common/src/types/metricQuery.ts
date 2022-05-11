@@ -17,6 +17,9 @@ export interface AdditionalMetric extends DbtColumnLightdashMetric {
     name: string;
 }
 
+export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
+    value?.table && value?.name && !value?.fieldType;
+
 // Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {
     dimensions: FieldId[]; // Dimensions to group by in the explore

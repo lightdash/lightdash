@@ -1140,6 +1140,28 @@ export const getItemColor = (item: Field | TableCalculation) => {
     return '#0A6640';
 };
 
+export const isNumericItem = (
+    item: Field | TableCalculation | undefined,
+): boolean => {
+    if (!item) {
+        return false;
+    }
+    if (isField(item)) {
+        const numericTypes: string[] = [
+            DimensionType.NUMBER,
+            MetricType.NUMBER,
+            MetricType.AVERAGE,
+            MetricType.COUNT,
+            MetricType.COUNT_DISTINCT,
+            MetricType.SUM,
+            MetricType.MIN,
+            MetricType.MAX,
+        ];
+        return numericTypes.includes(item.type);
+    }
+    return true;
+};
+
 export const getResultValues = (
     rows: ResultRow[],
     onlyRaw: boolean = false,

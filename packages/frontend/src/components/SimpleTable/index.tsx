@@ -1,11 +1,17 @@
 import { HTMLTable, NonIdealState } from '@blueprintjs/core';
-import { friendlyName, getResultValues } from 'common';
-import React, { FC } from 'react';
 import {
-    mapDataToTable,
-    modifiedItem,
-    valueIsNaN,
-} from '../../utils/tableData';
+    Field,
+    fieldId,
+    friendlyName,
+    getFields,
+    getItemId,
+    getResultValues,
+    isAdditionalMetric,
+    isNumericItem,
+    TableCalculation,
+} from 'common';
+import React, { FC, useMemo } from 'react';
+import { mapDataToTable } from '../../utils/tableData';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
 import {
@@ -21,10 +27,30 @@ const SimpleTable: FC = () => {
         resultsData,
         isLoading,
         columnOrder: headers,
+        explore,
     } = useVisualizationContext();
     const tableItems = resultsData?.rows
         ? getResultValues(resultsData?.rows).slice(0, 25)
         : [];
+
+    const itemMap = useMemo<Record<string, Field | TableCalculation>>(() => {
+        if (explore && resultsData) {
+            return [
+                ...getFields(explore),
+                ...(resultsData.metricQuery.additionalMetrics || []),
+                ...resultsData.metricQuery.tableCalculations,
+            ].reduce(
+                (acc, item) => ({
+                    ...acc,
+                    [isAdditionalMetric(item)
+                        ? fieldId(item)
+                        : getItemId(item)]: item,
+                }),
+                {},
+            );
+        }
+        return {};
+    }, [explore, resultsData]);
 
     const rows = mapDataToTable(tableItems, headers);
     const validData = rows && headers;
@@ -49,11 +75,22 @@ const SimpleTable: FC = () => {
                                     (row: string[] | boolean[], i: number) => (
                                         <TableRow i={i}>
                                             {row.map(
-                                                (item: string | boolean) => (
+                                                (
+                                                    item: string | boolean,
+                                                    index,
+                                                ) => (
                                                     <TableCell
-                                                        isNaN={valueIsNaN(item)}
+                                                        isNaN={
+                                                            !isNumericItem(
+                                                                itemMap[
+                                                                    headers[
+                                                                        index
+                                                                    ]
+                                                                ],
+                                                            )
+                                                        }
                                                     >
-                                                        {modifiedItem(item)}
+                                                        {item || '-'}
                                                     </TableCell>
                                                 ),
                                             )}

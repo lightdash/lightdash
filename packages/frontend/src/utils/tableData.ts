@@ -1,10 +1,3 @@
-export const modifiedItem = (item: string | boolean) => {
-    if (typeof item === 'boolean') {
-        return item ? 'Yes' : 'No';
-    }
-    return item;
-};
-
 export const mapDataToTable = (
     plotData: Record<string, any>[],
     sortedColumns: string[],
@@ -20,14 +13,4 @@ export const mapDataToTable = (
         return sortedRow.map(([k, v]) => v);
     });
     return rows;
-};
-
-export const valueIsNaN = (value: any): boolean => {
-    if (value && value.endsWith && value.endsWith('%')) return false; // Number as percent
-    return (
-        value === undefined ||
-        typeof value === 'boolean' ||
-        (value && value.includes && value.includes('Z')) || //  stringified date
-        Number.isNaN(Number(value))
-    );
 };
