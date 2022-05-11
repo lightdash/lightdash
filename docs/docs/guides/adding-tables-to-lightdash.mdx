@@ -1,0 +1,18 @@
+import CrossFilteringImage from './assets/cross-filtering.png';
+import CrossFilteringAppliedImage from './assets/cross-filtering-applied.png';
+
+# Adding Tables to your Lightdash project
+
+Tables come from dbt models that have been defined in your dbt project's schema.yml files.
+
+If your dbt model has been defined in a .yml file, it will appear in Lightdash as a table.
+
+For example, if we had this in our schema.yml files in dbt, we'd see a Table called `users` in Lightdash.
+
+```yaml
+version: 2
+
+models:
+  - name: users
+```
+
