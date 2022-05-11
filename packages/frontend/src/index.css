@@ -17,8 +17,18 @@ code {
 }
 
 /*sidebar-menus*/
+.bp4-tree-root {
+    /* Visual alignment */
+    margin-left: -6px;
+}
+
 .bp4-tree-node-content-0:hover {
     background: none;
+}
+
+.bp4-tree-node-content-0 .bp4-tree-node-label {
+    font-weight: 600;
+    white-space: normal;
 }
 
 .bp4-tree-node-content-1:hover,

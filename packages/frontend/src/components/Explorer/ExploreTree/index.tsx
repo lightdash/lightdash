@@ -12,7 +12,8 @@ import React, { FC, useState } from 'react';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { a11yDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import TableTree from './TableTree';
+import TableTree from '../../TableTree';
+import { TableSearch } from './ExploreTree.styles';
 
 type ExploreTreeProps = {
     explore: Explore;
@@ -107,7 +108,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                 overflow: 'hidden',
             }}
         >
-            <div style={{ padding: '10px 15px 15px 10px' }}>
+            <TableSearch>
                 <InputGroup
                     leftIcon="search"
                     rightElement={
@@ -121,7 +122,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />
-            </div>
+            </TableSearch>
             <div style={{ overflowY: 'auto' }}>
                 {Object.values(explore.tables)
                     .sort((tableA) =>
