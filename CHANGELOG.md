@@ -1,3 +1,10 @@
+## [0.95.4](https://github.com/lightdash/lightdash/compare/0.95.3...0.95.4) (2022-05-11)
+
+
+### Bug Fixes
+
+* align by item type ([#2077](https://github.com/lightdash/lightdash/issues/2077)) ([b55107e](https://github.com/lightdash/lightdash/commit/b55107e7726b2a05852c0bd668604f3870a6db3a))
+
 ## [0.95.3](https://github.com/lightdash/lightdash/compare/0.95.2...0.95.3) (2022-05-11)
 
 
