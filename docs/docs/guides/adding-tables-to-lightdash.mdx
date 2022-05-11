@@ -1,9 +1,14 @@
-import CrossFilteringImage from './assets/cross-filtering.png';
-import CrossFilteringAppliedImage from './assets/cross-filtering-applied.png';
+import dbtRepoExample from './assets/dbt-repo-example.png';
 
 # Adding Tables to your Lightdash project
 
-Tables come from dbt models that have been defined in your dbt project's schema.yml files.
+Tables are the things that you see in the `Tables` list when you open Lightdash. They're the foundation of your data exploration, the backbone to figuring out your unknowns, the art behind your charts...basically, they're pretty important.
+
+So, it's important that we let you know how to actually add these Tables to your Lightdash project, and once they're in there, how you can actually configure them to make the most of them. 
+
+## How do I add tables to my Lightdash project? 
+
+The beauty of Lightdash is that we're pretty well synced with your dbt project. So, in Lightdash, Tables actually come from dbt models that have been defined in your dbt project's schema.yml files.
 
 If your dbt model has been defined in a .yml file, it will appear in Lightdash as a table.
 
@@ -16,3 +21,12 @@ models:
   - name: users
 ```
 
+So, in our personal repo at Lightdash (lightdash-analytics), our project looks something like this:
+
+- We have one `.sql` file per model (these are the files where all of your model's business logic sits)
+- We have one `.yml` file per model (these are the files where all of your Table's configuration sits)
+
+<img src={dbtRepoExample} width="316" height="431" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+
+## 
