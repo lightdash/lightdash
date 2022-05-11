@@ -7,7 +7,7 @@ import {
     Tag,
 } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { DimensionType, hexToRGB } from 'common';
+import { DimensionType, hexToRGB, isNumericItem } from 'common';
 import React, { FC, ReactNode, useEffect } from 'react';
 import {
     DragDropContext,
@@ -26,7 +26,6 @@ import {
 } from 'react-table';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
-import { valueIsNaN } from '../../utils/tableData';
 import TableCalculationHeaderButton from '../TableCalculationHeaderButton';
 import {
     Container,
@@ -402,26 +401,36 @@ export const ResultsTable: FC<Props> = ({
                                                 <RowNumber>
                                                     {row.index + 1}
                                                 </RowNumber>
-                                                {row.cells.map((cell) => (
-                                                    <TableCell
-                                                        {...cell.getCellProps([
-                                                            getRowStyle(
-                                                                row.index,
-                                                            ),
-                                                        ])}
-                                                        isNaN={valueIsNaN(
-                                                            cell.value,
-                                                        )}
-                                                    >
-                                                        <CellContextMenu
-                                                            cell={cell}
-                                                        >
-                                                            {cell.render(
-                                                                'Cell',
+                                                {row.cells.map((cell) => {
+                                                    return (
+                                                        <TableCell
+                                                            {...cell.getCellProps(
+                                                                [
+                                                                    getRowStyle(
+                                                                        row.index,
+                                                                    ),
+                                                                ],
                                                             )}
-                                                        </CellContextMenu>
-                                                    </TableCell>
-                                                ))}
+                                                            isNaN={
+                                                                !isNumericItem(
+                                                                    cell.column
+                                                                        ?.field ||
+                                                                        cell
+                                                                            .column
+                                                                            ?.tableCalculation,
+                                                                )
+                                                            }
+                                                        >
+                                                            <CellContextMenu
+                                                                cell={cell}
+                                                            >
+                                                                {cell.render(
+                                                                    'Cell',
+                                                                )}
+                                                            </CellContextMenu>
+                                                        </TableCell>
+                                                    );
+                                                })}
                                             </tr>
                                         );
                                     })}

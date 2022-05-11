@@ -1,13 +1,12 @@
 import {
     ApiQueryResults,
     BigNumber,
-    DimensionType,
     Explore,
     findFieldByIdInExplore,
     formatValue,
     friendlyName,
     getFieldLabel,
-    MetricType,
+    isNumericItem,
 } from 'common';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -45,20 +44,7 @@ const useBigNumberConfig = (
     const bigNumberRaw =
         fieldId && resultsData?.rows?.[0]?.[fieldId]?.value.raw;
 
-    const isNumber =
-        field &&
-        (
-            [
-                DimensionType.NUMBER,
-                MetricType.NUMBER,
-                MetricType.AVERAGE,
-                MetricType.COUNT,
-                MetricType.COUNT_DISTINCT,
-                MetricType.SUM,
-                MetricType.MIN,
-                MetricType.MAX,
-            ] as string[]
-        ).includes(field.type);
+    const isNumber = isNumericItem(field);
 
     const bigNumber = !isNumber
         ? fieldId && resultsData?.rows?.[0]?.[fieldId]?.value.formatted
