@@ -9,6 +9,7 @@ export const BigNumberConfigPanel: React.FC = () => {
     const {
         bigNumberConfig: {
             bigNumberLabel,
+            defaultLabel,
             setBigNumberLabel,
             bigNumberStyle,
             setBigNumberStyle,
@@ -29,7 +30,7 @@ export const BigNumberConfigPanel: React.FC = () => {
                 <>
                     <InputWrapper label="Label">
                         <InputGroup
-                            placeholder="Enter label"
+                            placeholder={defaultLabel}
                             defaultValue={bigNumberLabel}
                             onBlur={(e) =>
                                 setBigNumberLabel(e.currentTarget.value)

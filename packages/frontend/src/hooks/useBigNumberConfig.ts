@@ -8,9 +8,8 @@ import {
     friendlyName,
     getFieldLabel,
     MetricType,
-    NumberStyle,
 } from 'common';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const useBigNumberConfig = (
     bigNumberConfigData: BigNumber | undefined,
@@ -30,30 +29,18 @@ const useBigNumberConfig = (
         ? getFieldLabel(field)
         : fieldId && friendlyName(fieldId);
 
-    const [bigNumberLabel, setBigNumberName] = useState<
+    const [bigNumberLabel, setBigNumberLabel] = useState<
         BigNumber['label'] | undefined
-    >(bigNumberConfigData?.label || label);
+    >(bigNumberConfigData?.label);
 
-    const [bigNumberStyle, setStateBigNumberStyle] = useState<
+    const [bigNumberStyle, setBigNumberStyle] = useState<
         BigNumber['style'] | undefined
-    >(bigNumberConfigData?.style || undefined);
+    >(bigNumberConfigData?.style);
+
     useEffect(() => {
-        setBigNumberName(bigNumberConfigData?.label || label);
-        setStateBigNumberStyle(bigNumberConfigData?.style || undefined);
-    }, [
-        resultsData,
-        bigNumberConfigData?.label,
-        label,
-        bigNumberConfigData?.style,
-    ]);
-
-    const setBigNumberLabel = useCallback((name: string | undefined) => {
-        setBigNumberName((prev) => name || prev);
-    }, []);
-
-    const setBigNumberStyle = useCallback((style: NumberStyle | undefined) => {
-        setStateBigNumberStyle(style);
-    }, []);
+        setBigNumberLabel(bigNumberConfigData?.label);
+        setBigNumberStyle(bigNumberConfigData?.style);
+    }, [bigNumberConfigData]);
 
     const bigNumberRaw =
         fieldId && resultsData?.rows?.[0]?.[fieldId]?.value.raw;
@@ -84,19 +71,17 @@ const useBigNumberConfig = (
 
     const showStyle = isNumber && field?.format !== 'percent';
 
-    const validBigNumberConfig: BigNumber | undefined = useMemo(
-        () =>
-            bigNumberLabel
-                ? {
-                      label: bigNumberLabel,
-                      style: bigNumberStyle,
-                  }
-                : undefined,
+    const validBigNumberConfig: BigNumber = useMemo(
+        () => ({
+            label: bigNumberLabel,
+            style: bigNumberStyle,
+        }),
         [bigNumberLabel, bigNumberStyle],
     );
     return {
         bigNumber,
         bigNumberLabel,
+        defaultLabel: label,
         setBigNumberLabel,
         validBigNumberConfig,
         bigNumberStyle,
