@@ -1,3 +1,10 @@
+## [0.95.5](https://github.com/lightdash/lightdash/compare/0.95.4...0.95.5) (2022-05-11)
+
+
+### Bug Fixes
+
+* close apptoaster on error ([#2078](https://github.com/lightdash/lightdash/issues/2078)) ([941e2b1](https://github.com/lightdash/lightdash/commit/941e2b141f928ae771f2fdc383177cba3abfec98))
+
 ## [0.95.4](https://github.com/lightdash/lightdash/compare/0.95.3...0.95.4) (2022-05-11)
 
 
