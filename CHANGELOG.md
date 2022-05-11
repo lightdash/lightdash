@@ -1,3 +1,10 @@
+## [0.95.1](https://github.com/lightdash/lightdash/compare/0.95.0...0.95.1) (2022-05-11)
+
+
+### Bug Fixes
+
+* format table calculation values ([#2067](https://github.com/lightdash/lightdash/issues/2067)) ([42b3eee](https://github.com/lightdash/lightdash/commit/42b3eee18401795e15d81bc567836e6a2a643243))
+
 # [0.95.0](https://github.com/lightdash/lightdash/compare/0.94.3...0.95.0) (2022-05-11)
 
 
