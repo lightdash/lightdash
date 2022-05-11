@@ -39,7 +39,7 @@ const useBigNumberConfig = (
     useEffect(() => {
         setBigNumberLabel(bigNumberConfigData?.label);
         setStyle(bigNumberConfigData?.style);
-    }, [resultsData, bigNumberConfigData?.label, bigNumberConfigData?.style]);
+    }, [bigNumberConfigData]);
 
     const setBigNumberStyle = useCallback((style: NumberStyle | undefined) => {
         setStyle(style);
