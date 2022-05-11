@@ -1,3 +1,10 @@
+## [0.95.2](https://github.com/lightdash/lightdash/compare/0.95.1...0.95.2) (2022-05-11)
+
+
+### Bug Fixes
+
+* fix bignumber label change ([#2053](https://github.com/lightdash/lightdash/issues/2053)) ([fcd9211](https://github.com/lightdash/lightdash/commit/fcd92114cca5cd7f792bf83d9b9354928b7a381d))
+
 ## [0.95.1](https://github.com/lightdash/lightdash/compare/0.95.0...0.95.1) (2022-05-11)
 
 
