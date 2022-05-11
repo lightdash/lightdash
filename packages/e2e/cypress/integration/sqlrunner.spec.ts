@@ -16,7 +16,7 @@ describe('Dashboard', () => {
     it('Should see results from customers by typing', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/sqlRunner`);
 
-        const customersTable = `"postgres"."jaffle"."customers"`;
+        const customersTable = `"jaffle"."customers"`;
 
         cy.get('.ace_content')
             .type(`SELECT * FROM ${customersTable} LIMIT 1`)
