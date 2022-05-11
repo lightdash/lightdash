@@ -1209,14 +1209,12 @@ export function formatRows(
             const col = row[columnName];
 
             const field = fieldMap[columnName];
-            const formattedColumn =
-                field === undefined ? col : formatFieldValue(field, col);
             return {
                 ...acc,
                 [columnName]: {
                     value: {
                         raw: col,
-                        formatted: formattedColumn,
+                        formatted: formatFieldValue(field, col),
                     },
                 },
             };
