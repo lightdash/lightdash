@@ -1,3 +1,10 @@
+# [0.95.0](https://github.com/lightdash/lightdash/compare/0.94.3...0.95.0) (2022-05-11)
+
+
+### Features
+
+* add currency function ([#2060](https://github.com/lightdash/lightdash/issues/2060)) ([0b68f54](https://github.com/lightdash/lightdash/commit/0b68f54cd7fd82a65e1e044ba6350986ce5e589f))
+
 ## [0.94.3](https://github.com/lightdash/lightdash/compare/0.94.2...0.94.3) (2022-05-10)
 
 
