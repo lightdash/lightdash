@@ -69,14 +69,11 @@ const useBigNumberConfig = (
 
     const showStyle = isNumber && field?.format !== 'percent';
 
-    const validBigNumberConfig: BigNumber | undefined = useMemo(
-        () =>
-            bigNumberLabel
-                ? {
-                      label: bigNumberLabel,
-                      style: bigNumberStyle,
-                  }
-                : undefined,
+    const validBigNumberConfig: BigNumber = useMemo(
+        () => ({
+            label: bigNumberLabel,
+            style: bigNumberStyle,
+        }),
         [bigNumberLabel, bigNumberStyle],
     );
     return {
