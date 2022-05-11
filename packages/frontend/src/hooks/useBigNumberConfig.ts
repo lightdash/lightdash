@@ -44,7 +44,7 @@ const useBigNumberConfig = (
     const bigNumberRaw =
         fieldId && resultsData?.rows?.[0]?.[fieldId]?.value.raw;
 
-    const isNumber = isNumericItem(field);
+    const isNumber = isNumericItem(field) && !(bigNumberRaw instanceof Date);
 
     const bigNumber = !isNumber
         ? fieldId && resultsData?.rows?.[0]?.[fieldId]?.value.formatted
