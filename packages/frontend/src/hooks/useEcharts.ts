@@ -3,17 +3,13 @@ import {
     CartesianChart,
     CompiledField,
     convertAdditionalMetric,
-    Dimension,
     DimensionType,
-    Explore,
     Field,
-    fieldId,
     findItem,
-    formatFieldValue,
+    formatItemValue,
     formatValue,
     friendlyName,
     getAxisName,
-    getDimensions,
     getFieldLabel,
     getFieldMap,
     getFields,
@@ -89,35 +85,24 @@ export type EChartSeries = {
     };
 };
 
-const getFormatterValue = (
+const getFormattedValue = (
     value: any,
     key: string,
-    fields: Dimension[],
+    items: Array<Field | TableCalculation>,
 ): string => {
-    const field = fields.find((item) => fieldId(item) === key);
-    return formatFieldValue(field, value);
+    return formatItemValue(
+        items.find((item) => getItemId(item) === key),
+        value,
+    );
 };
 
 const valueFormatter =
-    (yFieldId: string, explore: Explore) => (rawValue: any) => {
-        const yField = getFields(explore).find(
-            (item) => fieldId(item) === yFieldId,
-        );
-
-        const formattedValue =
-            yField?.format || yField?.round
-                ? formatValue(yField?.format, yField?.round, rawValue)
-                : rawValue;
-        const f = getFormatterValue(
-            formattedValue,
-            yFieldId,
-            getDimensions(explore),
-        );
-        return f;
+    (yFieldId: string, items: Array<Field | TableCalculation>) =>
+    (rawValue: any) => {
+        return getFormattedValue(rawValue, yFieldId, items);
     };
 
 export const getEchartsSeries = (
-    explore: Explore,
     items: Array<Field | TableCalculation>,
     originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,
@@ -137,10 +122,10 @@ export const getEchartsSeries = (
                     ({ field }) => field === pivotKey,
                 );
 
-                const value = getFormatterValue(
+                const value = getFormattedValue(
                     pivotField?.value,
                     pivotKey,
-                    getDimensions(explore),
+                    items,
                 );
 
                 return {
@@ -177,7 +162,7 @@ export const getEchartsSeries = (
                     tooltip: {
                         valueFormatter: valueFormatter(
                             series.encode.yRef.field,
-                            explore,
+                            items,
                         ),
                     },
                     ...(series.label?.show &&
@@ -231,7 +216,7 @@ export const getEchartsSeries = (
                         },
                     ],
                     tooltip: {
-                        valueFormatter: valueFormatter(yField, explore),
+                        valueFormatter: valueFormatter(yField, items),
                     },
 
                     ...(series.label?.show &&
@@ -476,7 +461,6 @@ const useEcharts = () => {
         }
 
         return getEchartsSeries(
-            explore,
             items,
             originalData,
             validCartesianConfig,

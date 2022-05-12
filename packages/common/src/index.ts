@@ -37,13 +37,14 @@ import {
 } from './types/filter';
 import {
     AdditionalMetric,
+    isAdditionalMetric,
     MetricQuery,
     TableCalculation,
 } from './types/metricQuery';
 import { OrganizationMemberProfile } from './types/organizationMemberProfile';
 import { SavedChart, Series } from './types/savedCharts';
 import { LightdashUser } from './types/user';
-import { formatFieldValue } from './utils/formatting';
+import { formatItemValue } from './utils/formatting';
 
 export * from './authorization/organizationMemberAbility';
 export * from './types/dashboard';
@@ -1141,12 +1142,12 @@ export const getItemColor = (item: Field | TableCalculation) => {
 };
 
 export const isNumericItem = (
-    item: Field | TableCalculation | undefined,
+    item: Field | AdditionalMetric | TableCalculation | undefined,
 ): boolean => {
     if (!item) {
         return false;
     }
-    if (isField(item)) {
+    if (isField(item) || isAdditionalMetric(item)) {
         const numericTypes: string[] = [
             DimensionType.NUMBER,
             MetricType.NUMBER,
@@ -1219,24 +1220,43 @@ export function getFieldMap(
     );
 }
 
+export function getItemMap(
+    explore: Explore,
+    additionalMetrics: AdditionalMetric[] = [],
+    tableCalculations: TableCalculation[] = [],
+): Record<string, Field | TableCalculation | AdditionalMetric> {
+    return [
+        ...getFields(explore),
+        ...additionalMetrics,
+        ...tableCalculations,
+    ].reduce(
+        (acc, item) => ({
+            ...acc,
+            [isAdditionalMetric(item) ? fieldId(item) : getItemId(item)]: item,
+        }),
+        {},
+    );
+}
+
 export function formatRows(
     rows: { [col: string]: any }[],
     explore: Explore,
     additionalMetrics: AdditionalMetric[] = [],
+    tableCalculations: TableCalculation[] = [],
 ): ResultRow[] {
-    const fieldMap = getFieldMap(explore, additionalMetrics);
+    const itemMap = getItemMap(explore, additionalMetrics, tableCalculations);
 
     return rows.map((row) =>
         Object.keys(row).reduce((acc, columnName) => {
             const col = row[columnName];
 
-            const field = fieldMap[columnName];
+            const item = itemMap[columnName];
             return {
                 ...acc,
                 [columnName]: {
                     value: {
                         raw: col,
-                        formatted: formatFieldValue(field, col),
+                        formatted: formatItemValue(item, col),
                     },
                 },
             };

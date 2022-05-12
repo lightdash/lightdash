@@ -353,6 +353,7 @@ export class ProjectService {
             rows,
             explore,
             metricQuery.additionalMetrics,
+            metricQuery.tableCalculations,
         );
 
         return {
