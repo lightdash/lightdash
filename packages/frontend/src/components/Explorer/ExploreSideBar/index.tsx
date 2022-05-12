@@ -144,6 +144,7 @@ const BasePanel = () => {
 };
 
 const ExploreSideBar = () => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const {
         state: {
             unsavedChartVersion: { tableName },
@@ -154,7 +155,7 @@ const ExploreSideBar = () => {
 
     const onBack = () => {
         reset();
-        history.goBack();
+        history.push(`/projects/${projectUuid}/tables`);
     };
 
     return (

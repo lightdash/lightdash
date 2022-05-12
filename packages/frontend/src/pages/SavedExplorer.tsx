@@ -1,8 +1,8 @@
 import { Card, NonIdealState, Spinner } from '@blueprintjs/core';
 import React from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import Explorer from '../components/Explorer';
-import ExplorePanel from '../components/Explorer/ExplorePanel/index';
+import ExplorePanel from '../components/Explorer/ExplorePanel';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import {
     ExplorerProvider,
@@ -10,17 +10,12 @@ import {
 } from '../providers/ExplorerProvider';
 
 const SavedExplorer = () => {
-    const history = useHistory();
-    const pathParams = useParams<{
+    const { savedQueryUuid } = useParams<{
         savedQueryUuid: string;
-        projectUuid: string;
     }>();
     const { data, isLoading, error } = useSavedQuery({
-        id: pathParams.savedQueryUuid,
+        id: savedQueryUuid,
     });
-    const onBack = () => {
-        history.goBack();
-    };
 
     if (isLoading) {
         return (
@@ -92,7 +87,7 @@ const SavedExplorer = () => {
                             flexDirection: 'column',
                         }}
                     >
-                        <ExplorePanel onBack={onBack} />
+                        <ExplorePanel />
                     </div>
                 </Card>
                 <div

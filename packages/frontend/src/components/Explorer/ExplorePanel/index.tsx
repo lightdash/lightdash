@@ -1,19 +1,24 @@
-import { Button, Divider, H3, MenuDivider, MenuItem } from '@blueprintjs/core';
+import { Button, Collapse, H4, MenuDivider, MenuItem } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     AdditionalMetric,
     CompiledTable,
     extractEntityNameFromIdColumn,
     MetricType,
 } from 'common';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorer } from '../../../providers/ExplorerProvider';
-import ExploreTree from '../../ExploreTree';
 import { LineageButton } from '../../LineageButton';
+import ExploreTree from '../ExploreTree';
 import {
+    BackButton,
     ContentWrapper,
+    ExpandableHeader,
+    ExpandableWrapper,
     LoadingStateWrapper,
-    PanelTitleWrapper,
+    TableDescription,
+    TableDivider,
     TableTitle,
 } from './ExplorePanel.styles';
 
@@ -48,9 +53,10 @@ const SideBarLoadingState = () => (
 );
 
 type ExplorePanelProps = {
-    onBack: () => void;
+    onBack?: () => void;
 };
 export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
+    const [headerIsOpen, setHeaderIsOpen] = useState<boolean>(false);
     const {
         state: {
             activeFields,
@@ -93,32 +99,54 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
             .split('.');
         return (
             <>
-                <PanelTitleWrapper>
-                    <Button onClick={onBack} icon="chevron-left" />
-                    <H3 style={{ marginBottom: 0, marginLeft: '10px' }}>
-                        {data.label}
-                    </H3>
-                </PanelTitleWrapper>
-                <Divider />
-                <ContentWrapper>
-                    <TableTitle>
-                        <b>Table</b>: {tableName}
-                    </TableTitle>
-                    <LineageButton />
-                </ContentWrapper>
-                <p>
-                    <b>Schema</b>: {schemaName}
-                </p>
-                <p>
-                    <b>Database</b>: {databaseName}
-                </p>
-                <p>
-                    <b>Description</b>:{' '}
-                    {activeExplore.tables[activeExplore.baseTable].description}
-                </p>
-                <div style={{ paddingBottom: '5px' }} />
-                <Divider />
-                <div style={{ paddingBottom: '10px' }} />
+                {onBack && (
+                    <BackButton
+                        text="All tables"
+                        onClick={onBack}
+                        icon="chevron-left"
+                    />
+                )}
+                <ExpandableWrapper>
+                    <ExpandableHeader>
+                        <H4>{data.label}</H4>
+                        <Tooltip2
+                            content={`${
+                                headerIsOpen ? 'Hide' : 'View'
+                            } table information`}
+                            position="bottom"
+                        >
+                            <Button
+                                icon={
+                                    headerIsOpen ? 'chevron-up' : 'chevron-down'
+                                }
+                                minimal
+                                onClick={() => setHeaderIsOpen((prev) => !prev)}
+                            />
+                        </Tooltip2>
+                    </ExpandableHeader>
+                    <Collapse isOpen={headerIsOpen}>
+                        <ContentWrapper>
+                            <TableTitle>
+                                <b>Table</b>: {tableName}
+                            </TableTitle>
+                            <LineageButton />
+                        </ContentWrapper>
+                        <p>
+                            <b>Schema</b>: {schemaName}
+                        </p>
+                        <p>
+                            <b>Database</b>: {databaseName}
+                        </p>
+                        <TableDescription>
+                            <b>Description</b>:{' '}
+                            {
+                                activeExplore.tables[activeExplore.baseTable]
+                                    .description
+                            }
+                        </TableDescription>
+                    </Collapse>
+                </ExpandableWrapper>
+                <TableDivider />
                 <ExploreTree
                     explore={activeExplore}
                     selectedNodes={activeFields}
@@ -128,7 +156,7 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
         );
     }
     if (status === 'error') {
-        onBack();
+        if (onBack) onBack();
         return null;
     }
     return <span>Cannot load explore</span>;
