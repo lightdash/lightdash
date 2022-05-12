@@ -1,6 +1,6 @@
 import styled from 'styled-components';
 
-export const Wrapper = styled.div<{ $isViewMode: boolean }>`
+export const Wrapper = styled.div`
     height: 60px;
     display: flex;
     justify-content: space-between;
@@ -8,10 +8,4 @@ export const Wrapper = styled.div<{ $isViewMode: boolean }>`
     button {
         margin: 0;
     }
-
-    ${({ $isViewMode }) =>
-        $isViewMode &&
-        `
-        justify-content: flex-end;
-  `}
 `;

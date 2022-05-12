@@ -8,7 +8,7 @@ const RunButtonsSection: FC = () => {
     const isViewMode = false;
 
     return (
-        <Wrapper $isViewMode={isViewMode}>
+        <Wrapper>
             {!isViewMode && <RefreshDbtButton />}
             {!isViewMode && <RefreshButton />}
             {isViewMode && <ExploreFromHereButton />}
