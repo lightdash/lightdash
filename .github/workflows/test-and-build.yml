@@ -26,4 +26,4 @@ jobs:
       run: yarn common-build
 
     - name: Test backend
-      run: yarn workspace backend test
+      run: yarn test
