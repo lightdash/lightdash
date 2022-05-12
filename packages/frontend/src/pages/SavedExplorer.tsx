@@ -2,7 +2,8 @@ import { Card, NonIdealState, Spinner } from '@blueprintjs/core';
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import Explorer from '../components/Explorer';
-import ExplorePanel from '../components/Explorer/ExplorePanel';
+import ExplorePanel from '../components/Explorer/ExplorePanel/index';
+import ExplorerHeader from '../components/Explorer/ExplorerHeader';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import {
     ExplorerProvider,
@@ -57,6 +58,7 @@ const SavedExplorer = () => {
             }
             savedChart={data}
         >
+            <ExplorerHeader />
             <div
                 style={{
                     display: 'flex',

@@ -1,5 +1,4 @@
 import { FC } from 'react';
-import ExploreHeader from './ExploreHeader/ExploreHeader';
 import { Divider } from './Explorer.styles';
 import FiltersCard from './FiltersCard/FiltersCard';
 import ResultsCard from './ResultsCard/ResultsCard';
@@ -9,7 +8,7 @@ import VisualizationCard from './VisualizationCard/VisualizationCard';
 const Explorer: FC = () => {
     return (
         <>
-            <ExploreHeader />
+            {/* <ExplorerHeader /> */}
             <Divider />
             <FiltersCard />
             <Divider />
