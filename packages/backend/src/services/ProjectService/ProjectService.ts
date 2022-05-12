@@ -193,6 +193,10 @@ export class ProjectService {
         );
 
         const adapter = await ProjectService.testProjectAdapter(updatedProject);
+        const explores = await adapter.compileAllExplores();
+
+        await this.projectModel.saveExploresToCache(projectUuid, explores);
+
         await this.projectModel.update(projectUuid, updatedProject);
         analytics.track({
             event: 'project.updated',
