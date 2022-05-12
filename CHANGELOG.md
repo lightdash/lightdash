@@ -1,3 +1,10 @@
+## [0.96.1](https://github.com/lightdash/lightdash/compare/0.96.0...0.96.1) (2022-05-12)
+
+
+### Bug Fixes
+
+* updates ui of explorer side bar ([#2083](https://github.com/lightdash/lightdash/issues/2083)) ([29d3f33](https://github.com/lightdash/lightdash/commit/29d3f33c653a8ef8520aadcc6be34d4002b1f11b))
+
 # [0.96.0](https://github.com/lightdash/lightdash/compare/0.95.6...0.96.0) (2022-05-12)
 
 
