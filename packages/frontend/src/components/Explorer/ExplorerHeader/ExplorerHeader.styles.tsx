@@ -12,6 +12,8 @@ export const Wrapper = styled.div`
     top: 50px;
     left: 0;
     background: ${Colors.WHITE};
+    border-bottom: 0.5px solid #c5cbd3;
+    padding: 16px 21px;
 `;
 
 export const TitleWrapper = styled.div`
