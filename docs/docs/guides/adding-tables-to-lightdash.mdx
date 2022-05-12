@@ -46,13 +46,13 @@ We've found that this makes it easier to navigate through your `.yml` files, esp
 
 ## How to create .yml files
 
-There are a few ways to do this - some more painful than others. We'll go through the main ones.
+There are a few ways to do this - some easier than others. We'll go through the main ones.
 
 ### 1. The good old fashioned way: totally manually
 
-You can create .yml files for your models by just creating a file in your model's directory, then typing out all of the columns for the model in there.
+You can create `.yml` files for your models by just creating a file in your dbt model's directory, then typing out all of the columns into it.
 
-You'll need to make sure that your .yml file follows [the formatting rules for a dbt `model`](https://docs.getdbt.com/reference/configs-and-properties#example) and that you declare **_all of the columns_** in your .yml file.
+You'll need to make sure that your .yml file follows [the formatting rules for a dbt `model`](https://docs.getdbt.com/reference/configs-and-properties#example) and that you declare **_all of the columns in your model_** in your .yml file (otherwise, it won't load in Lightdash).
 
 ### 2. Using a schema generator
 
