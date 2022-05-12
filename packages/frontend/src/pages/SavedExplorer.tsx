@@ -9,6 +9,10 @@ import {
     ExplorerProvider,
     ExplorerSection,
 } from '../providers/ExplorerProvider';
+import {
+    ExplorerPanelWrapper,
+    ExploreSideBarWrapper,
+} from './SavedExplorer.styles';
 
 const SavedExplorer = () => {
     const { savedQueryUuid } = useParams<{
@@ -82,30 +86,13 @@ const SavedExplorer = () => {
                     }}
                     elevation={1}
                 >
-                    <div
-                        style={{
-                            height: '100%',
-                            overflow: 'hidden',
-                            display: 'flex',
-                            flexDirection: 'column',
-                        }}
-                    >
+                    <ExploreSideBarWrapper>
                         <ExplorePanel />
-                    </div>
+                    </ExploreSideBarWrapper>
                 </Card>
-                <div
-                    style={{
-                        padding: '10px 10px',
-                        flexGrow: 1,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'flex-start',
-                        alignItems: 'stretch',
-                        minWidth: 0,
-                    }}
-                >
+                <ExplorerPanelWrapper>
                     <Explorer />
-                </div>
+                </ExplorerPanelWrapper>
             </div>
         </ExplorerProvider>
     );

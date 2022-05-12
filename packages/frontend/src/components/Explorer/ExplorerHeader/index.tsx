@@ -18,7 +18,7 @@ const ExplorerHeader: FC = () => {
     } = useExplorer();
     const [isRenamingChart, setIsRenamingChart] = useState(false);
     const updateSavedChart = useUpdateMutation(savedChart?.uuid);
-    console.log(savedChart);
+    const isViewMode = false;
 
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
@@ -43,12 +43,14 @@ const ExplorerHeader: FC = () => {
                                     <Button icon="info-sign" minimal />
                                 </Tooltip2>
                             )}
-                            <Button
-                                icon="edit"
-                                disabled={updateSavedChart.isLoading}
-                                onClick={() => setIsRenamingChart(true)}
-                                minimal
-                            />
+                            {!isViewMode && (
+                                <Button
+                                    icon="edit"
+                                    disabled={updateSavedChart.isLoading}
+                                    onClick={() => setIsRenamingChart(true)}
+                                    minimal
+                                />
+                            )}
                             <RenameSavedChartModal
                                 savedChartUuid={savedChart.uuid}
                                 isOpen={isRenamingChart}
