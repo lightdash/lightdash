@@ -36,6 +36,7 @@ export const CardContent = styled.div`
 const DrawerWidth = 400;
 
 export const Drawer = styled(Card)<{ $state: string }>`
+    height: 100%;
     flex-basis: ${DrawerWidth}px;
     flex-grow: 0;
     flex-shrink: 0;

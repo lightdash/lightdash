@@ -54,6 +54,9 @@ const ExploreHeader: FC = () => {
                     )}
                 </TitleWrapper>
                 <Button
+                    text={
+                        isEditMode ? 'view (placeholder)' : 'edit (placeholder)'
+                    }
                     onClick={() =>
                         history.push({
                             pathname: `/projects/${projectUuid}/saved/${
