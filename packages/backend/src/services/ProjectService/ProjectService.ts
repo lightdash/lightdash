@@ -179,10 +179,22 @@ export class ProjectService {
         projectUuid: string,
         user: SessionUser,
         data: UpdateProject,
-    ): Promise<void> {
+    ): Promise<{ jobUuid: string }> {
         if (user.ability.cannot('update', 'Project')) {
             throw new ForbiddenError();
         }
+
+        const job: CreateJob = {
+            jobUuid: uuidv4(),
+            jobType: JobType.COMPILE_PROJECT,
+            jobStatus: JobStatusType.STARTED,
+            projectUuid: undefined,
+            steps: [
+                { stepType: JobStepType.TESTING_ADAPTOR },
+                { stepType: JobStepType.COMPILING },
+            ],
+        };
+
         const savedProject = await this.projectModel.getWithSensitiveFields(
             projectUuid,
         );
@@ -192,26 +204,65 @@ export class ProjectService {
             savedProject,
         );
 
-        const adapter = await ProjectService.testProjectAdapter(updatedProject);
-        const explores = await adapter.compileAllExplores();
-
-        await this.projectModel.saveExploresToCache(projectUuid, explores);
-
         await this.projectModel.update(projectUuid, updatedProject);
-        analytics.track({
-            event: 'project.updated',
-            userId: user.userUuid,
-            properties: {
-                projectName: updatedProject.name,
-                projectId: projectUuid,
-                projectType: updatedProject.dbtConnection.type,
-                warehouseConnectionType:
-                    updatedProject.warehouseConnection.type,
-                organizationId: user.organizationUuid,
-                dbtConnectionType: data.dbtConnection.type,
-            },
-        });
-        this.projectAdapters[projectUuid] = adapter;
+
+        const doAsyncWork = async () => {
+            try {
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.RUNNING,
+                });
+                const adapter = await this.jobModel.tryJobStep(
+                    job.jobUuid,
+                    JobStepType.TESTING_ADAPTOR,
+                    async () =>
+                        ProjectService.testProjectAdapter(updatedProject),
+                );
+                const explores = await this.jobModel.tryJobStep(
+                    job.jobUuid,
+                    JobStepType.COMPILING,
+                    async () => adapter.compileAllExplores(),
+                );
+                await this.projectModel.saveExploresToCache(
+                    projectUuid,
+                    explores,
+                );
+
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.DONE,
+                    jobResults: {
+                        projectUuid,
+                    },
+                });
+                analytics.track({
+                    event: 'project.updated',
+                    userId: user.userUuid,
+                    properties: {
+                        projectName: updatedProject.name,
+                        projectId: projectUuid,
+                        projectType: updatedProject.dbtConnection.type,
+                        warehouseConnectionType:
+                            updatedProject.warehouseConnection.type,
+                        organizationId: user.organizationUuid,
+                        dbtConnectionType: data.dbtConnection.type,
+                    },
+                });
+                this.projectAdapters[projectUuid] = adapter;
+            } catch (error) {
+                await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.ERROR,
+                });
+                throw error;
+            }
+        };
+        await this.jobModel.create(job);
+
+        doAsyncWork().catch((e) =>
+            Logger.error(`Error running background job: ${e}`),
+        );
+        return {
+            jobUuid: job.jobUuid,
+        };
     }
 
     private static async testProjectAdapter(

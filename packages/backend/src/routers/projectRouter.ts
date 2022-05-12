@@ -39,10 +39,10 @@ projectRouter.patch(
     async (req, res, next) => {
         projectService
             .update(req.params.projectUuid, req.user!, req.body)
-            .then((data) => {
+            .then((results) => {
                 res.json({
                     status: 'ok',
-                    results: data,
+                    results,
                 });
             })
             .catch(next);
