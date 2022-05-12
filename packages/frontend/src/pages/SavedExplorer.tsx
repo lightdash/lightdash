@@ -1,18 +1,23 @@
-import { Card, NonIdealState, Spinner } from '@blueprintjs/core';
+import { NonIdealState, Spinner } from '@blueprintjs/core';
 import React, { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { Transition } from 'react-transition-group';
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel/index';
-import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import {
     ExplorerProvider,
     ExplorerSection,
 } from '../providers/ExplorerProvider';
 import {
-    ExplorerPanelWrapper,
-    ExploreSideBarWrapper,
+    CardContent,
+    Drawer,
+    MainContent,
+    PageWrapper,
+    StickySidebar,
+    WidthHack,
 } from './SavedExplorer.styles';
+import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 
 const SavedExplorer = () => {
     const { savedQueryUuid, mode } = useParams<{
@@ -66,38 +71,26 @@ const SavedExplorer = () => {
             }
             savedChart={data}
         >
-            <SavedChartsHeader />
-            <div
-                style={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    flexWrap: 'nowrap',
-                    justifyContent: 'stretch',
-                    alignItems: 'flex-start',
-                }}
-            >
-                <Card
-                    style={{
-                        height: 'calc(100vh - 120px)',
-                        flexBasis: '400px',
-                        flexGrow: 0,
-                        flexShrink: 0,
-                        marginRight: '10px',
-                        overflow: 'hidden',
-                        position: 'sticky',
-                        borderRadius: 0,
-                        top: '120px',
-                    }}
-                    elevation={1}
-                >
-                    <ExploreSideBarWrapper>
-                        <ExplorePanel />
-                    </ExploreSideBarWrapper>
-                </Card>
-                <ExplorerPanelWrapper>
+            <PageWrapper>
+                <SavedChartsHeader />
+                <StickySidebar>
+                    <Transition in={isEditMode} timeout={500}>
+                        {(state) => (
+                            <>
+                                <Drawer elevation={1} $state={state}>
+                                    <CardContent>
+                                        <ExplorePanel />
+                                    </CardContent>
+                                </Drawer>
+                                <WidthHack $state={state}></WidthHack>
+                            </>
+                        )}
+                    </Transition>
+                </StickySidebar>
+                <MainContent>
                     <Explorer />
-                </ExplorerPanelWrapper>
-            </div>
+                </MainContent>
+            </PageWrapper>
         </ExplorerProvider>
     );
 };
