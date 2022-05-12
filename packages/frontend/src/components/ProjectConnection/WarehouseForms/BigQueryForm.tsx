@@ -10,6 +10,24 @@ import NumericInput from '../../ReactHookForm/NumericInput';
 import SelectField from '../../ReactHookForm/Select';
 import { useProjectFormContext } from '../ProjectFormProvider';
 
+export const BigQuerySchemaInput: FC<{
+    disabled: boolean;
+}> = ({ disabled }) => {
+    return (
+        <Input
+            name="warehouse.dataset"
+            label="Data set"
+            documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#data-set"
+            rules={{
+                required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Data set'),
+                },
+            }}
+            disabled={disabled}
+        />
+    );
+};
 const BigQueryForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
@@ -31,18 +49,7 @@ const BigQueryForm: FC<{
                 }}
                 disabled={disabled}
             />
-            <Input
-                name="warehouse.dataset"
-                label="Data set"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#data-set"
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Data set'),
-                    },
-                }}
-                disabled={disabled}
-            />
+
             <Input
                 name="warehouse.location"
                 label="Location"
