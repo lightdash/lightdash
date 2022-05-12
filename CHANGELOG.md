@@ -1,3 +1,11 @@
+## [0.95.6](https://github.com/lightdash/lightdash/compare/0.95.5...0.95.6) (2022-05-12)
+
+
+### Bug Fixes
+
+* format min and max dates ([#2082](https://github.com/lightdash/lightdash/issues/2082)) ([eab8221](https://github.com/lightdash/lightdash/commit/eab822126304bf7e073fdb877645408144cf7333))
+* format table calculation numbers with commas ([#2079](https://github.com/lightdash/lightdash/issues/2079)) ([e0f2514](https://github.com/lightdash/lightdash/commit/e0f251419f300b986af05e76d8e1513fe0052d09))
+
 ## [0.95.5](https://github.com/lightdash/lightdash/compare/0.95.4...0.95.5) (2022-05-11)
 
 
