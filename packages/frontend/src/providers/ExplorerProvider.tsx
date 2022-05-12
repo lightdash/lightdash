@@ -221,6 +221,12 @@ const getValidChartConfig = (
                 config: undefined,
             };
         }
+        case ChartType.DONUT: {
+            return {
+                type,
+                config: undefined,
+            };
+        }
     }
 };
 

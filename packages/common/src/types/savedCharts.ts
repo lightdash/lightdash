@@ -5,6 +5,7 @@ export enum ChartType {
     CARTESIAN = 'cartesian',
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
+    DONUT = 'donut',
 }
 
 export enum NumberStyle {
@@ -87,10 +88,16 @@ export type CartesianChartConfig = {
     config: CartesianChart;
 };
 
+export type DonutChartConfig = {
+    type: ChartType.DONUT;
+    config: undefined;
+};
+
 export type ChartConfig =
     | BigNumberConfig
     | TableChartConfig
-    | CartesianChartConfig;
+    | CartesianChartConfig
+    | DonutChartConfig;
 
 export type SavedChartType = ChartType;
 

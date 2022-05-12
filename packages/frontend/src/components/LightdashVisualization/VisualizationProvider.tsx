@@ -115,6 +115,8 @@ export const VisualizationProvider: FC<Props> = ({
                 break;
             case ChartType.TABLE:
                 break;
+            case ChartType.DONUT:
+                break;
             default:
                 const never: never = chartType;
                 throw new Error(`Unexpected chart type: ${chartType}`);

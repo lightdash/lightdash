@@ -16,6 +16,8 @@ const LightdashVisualization: FC = () => {
                 return <SimpleTable />;
             case ChartType.CARTESIAN:
                 return <SimpleChart />;
+            case ChartType.DONUT:
+                return <SimpleChart />;
             default:
                 return null;
         }

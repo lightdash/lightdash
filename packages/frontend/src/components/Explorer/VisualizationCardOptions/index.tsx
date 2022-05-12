@@ -72,6 +72,11 @@ const VisualizationCardOptions: FC = () => {
                     text: 'Big number',
                     icon: 'numerical',
                 };
+            case ChartType.DONUT:
+                return {
+                    text: 'Donut',
+                    icon: 'doughnut-chart',
+                };
             default: {
                 const never: never = chartType;
                 throw new Error('Chart type not supported');
@@ -173,7 +178,19 @@ const VisualizationCardOptions: FC = () => {
                         name="Scatter"
                         text="Scatter chart"
                     />
-
+                    <ChartOption
+                        minimal
+                        active={chartType === ChartType.DONUT}
+                        icon="doughnut-chart"
+                        onClick={() => {
+                            setChartType(ChartType.DONUT);
+                            setPivotDimensions(undefined);
+                            setIsOpen(false);
+                        }}
+                        disabled={disabled}
+                        name="Donut"
+                        text="Donut"
+                    />
                     <ChartOption
                         minimal
                         active={chartType === ChartType.TABLE}
