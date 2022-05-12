@@ -1,4 +1,5 @@
 import { Button, Collapse, H4, MenuDivider, MenuItem } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     AdditionalMetric,
     CompiledTable,
@@ -108,13 +109,23 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
                 <ExpandableWrapper>
                     <ExpandableHeader>
                         <H4>{data.label}</H4>
-                        <Button
-                            icon={
-                                headerIsOpen ? 'chevron-down' : 'chevron-right'
-                            }
-                            minimal
-                            onClick={() => setHeaderIsOpen((prev) => !prev)}
-                        />
+                        <Tooltip2
+                            content={`${
+                                headerIsOpen ? 'Hide' : 'View'
+                            } table information`}
+                            className="documentation-help-button"
+                            position="bottom"
+                        >
+                            <Button
+                                icon={
+                                    headerIsOpen
+                                        ? 'chevron-down'
+                                        : 'chevron-right'
+                                }
+                                minimal
+                                onClick={() => setHeaderIsOpen((prev) => !prev)}
+                            />
+                        </Tooltip2>
                     </ExpandableHeader>
                     <Collapse isOpen={headerIsOpen}>
                         <ContentWrapper>
