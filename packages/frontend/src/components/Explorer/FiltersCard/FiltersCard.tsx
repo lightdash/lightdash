@@ -1,26 +1,31 @@
 import { Button, Card, Collapse, H5, Tag } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     convertAdditionalMetric,
     countTotalFilterRules,
     DimensionType,
+    Field,
     fieldId,
+    FilterRule,
     getResultValues,
+    getTotalFilterRules,
     getVisibleFields,
     isFilterableField,
     Metric,
 } from 'common';
-import { FC, useEffect, useState } from 'react';
+import React, { FC, useCallback, useEffect, useState } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import {
     ExplorerSection,
     useExplorer,
 } from '../../../providers/ExplorerProvider';
 import FiltersForm from '../../common/Filters';
+import { getFilterRuleLabel } from '../../common/Filters/configs';
 import {
     FieldsWithSuggestions,
     FiltersProvider,
 } from '../../common/Filters/FiltersProvider';
-import { CardHeader } from './FiltersCard.styles';
+import { CardHeader, FilterValues, Tooltip } from './FiltersCard.styles';
 
 const FiltersCard: FC = () => {
     const {
@@ -98,6 +103,28 @@ const FiltersCard: FC = () => {
             });
         }
     }, [explore.data, queryResults.data, additionalMetrics]);
+    const allFilterRules = getTotalFilterRules(filters);
+    const renderFilterRule = useCallback(
+        (filterRule: FilterRule) => {
+            const fields: Field[] = explore.data
+                ? getVisibleFields(explore.data)
+                : [];
+            const field = fields.find(
+                (f) => fieldId(f) === filterRule.target.fieldId,
+            );
+            if (field && isFilterableField(field)) {
+                const filterRuleLabels = getFilterRuleLabel(filterRule, field);
+                return (
+                    <Tooltip key={field.name}>
+                        {filterRuleLabels.field}: {filterRuleLabels.operator}{' '}
+                        <FilterValues>{filterRuleLabels.value}</FilterValues>
+                    </Tooltip>
+                );
+            }
+            return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
+        },
+        [explore],
+    );
     return (
         <Card style={{ padding: 5 }} elevation={1}>
             <CardHeader>
@@ -110,9 +137,13 @@ const FiltersCard: FC = () => {
                 />
                 <H5>Filters</H5>
                 {totalActiveFilters > 0 && !filterIsOpen ? (
-                    <Tag style={{ marginLeft: '10px' }}>
-                        {totalActiveFilters} active filters
-                    </Tag>
+                    <Tooltip2
+                        content={<>{allFilterRules.map(renderFilterRule)}</>}
+                        interactionKind="hover"
+                        placement={'bottom-start'}
+                    >
+                        <Tag>{totalActiveFilters} active filters</Tag>
+                    </Tooltip2>
                 ) : null}
             </CardHeader>
             <Collapse isOpen={filterIsOpen}>
