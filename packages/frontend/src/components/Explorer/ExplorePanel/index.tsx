@@ -113,14 +113,11 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
                             content={`${
                                 headerIsOpen ? 'Hide' : 'View'
                             } table information`}
-                            className="documentation-help-button"
                             position="bottom"
                         >
                             <Button
                                 icon={
-                                    headerIsOpen
-                                        ? 'chevron-down'
-                                        : 'chevron-right'
+                                    headerIsOpen ? 'chevron-up' : 'chevron-down'
                                 }
                                 minimal
                                 onClick={() => setHeaderIsOpen((prev) => !prev)}
