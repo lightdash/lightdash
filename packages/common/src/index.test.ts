@@ -1,10 +1,10 @@
 import {
-    formatFieldValue,
-    formatValue,
-    NumberStyle,
     DimensionType,
-    MetricType,
+    formatFieldValue,
     formatItemValue,
+    formatValue,
+    MetricType,
+    NumberStyle,
 } from '.';
 import { dimension, metric, tableCalculation } from './index.mock';
 
