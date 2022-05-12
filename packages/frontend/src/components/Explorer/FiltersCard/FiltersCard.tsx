@@ -30,6 +30,7 @@ import { CardHeader, FilterValues, Tooltip } from './FiltersCard.styles';
 const FiltersCard: FC = () => {
     const {
         state: {
+            isEditMode,
             expandedSections,
             unsavedChartVersion: {
                 tableName,
@@ -131,6 +132,7 @@ const FiltersCard: FC = () => {
                 <Button
                     icon={filterIsOpen ? 'chevron-down' : 'chevron-right'}
                     minimal
+                    disabled={!isEditMode}
                     onClick={() =>
                         toggleExpandedSection(ExplorerSection.FILTERS)
                     }
@@ -146,7 +148,7 @@ const FiltersCard: FC = () => {
                     </Tooltip2>
                 ) : null}
             </CardHeader>
-            <Collapse isOpen={filterIsOpen}>
+            <Collapse isOpen={isEditMode && filterIsOpen}>
                 <FiltersProvider fieldsMap={fieldsWithSuggestions}>
                     <FiltersForm filters={filters} setFilters={setFilters} />
                 </FiltersProvider>

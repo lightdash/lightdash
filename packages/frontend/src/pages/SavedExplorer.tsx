@@ -1,5 +1,5 @@
 import { Card, NonIdealState, Spinner } from '@blueprintjs/core';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel/index';
@@ -15,9 +15,12 @@ import {
 } from './SavedExplorer.styles';
 
 const SavedExplorer = () => {
-    const { savedQueryUuid } = useParams<{
+    const { savedQueryUuid, mode } = useParams<{
         savedQueryUuid: string;
+        projectUuid: string;
+        mode?: string;
     }>();
+    const isEditMode = useMemo(() => mode === 'edit', [mode]);
     const { data, isLoading, error } = useSavedQuery({
         id: savedQueryUuid,
     });
@@ -42,6 +45,7 @@ const SavedExplorer = () => {
 
     return (
         <ExplorerProvider
+            isEditMode={isEditMode}
             initialState={
                 data
                     ? {

@@ -16,7 +16,7 @@ const ExplorerWithUrlParams = () => {
 const ExplorerPage = () => {
     const explorerUrlState = useExplorerUrlState();
     return (
-        <ExplorerProvider initialState={explorerUrlState}>
+        <ExplorerProvider isEditMode={true} initialState={explorerUrlState}>
             <PageContainer>
                 <SideBar elevation={1}>
                     <ExploreSideBar />

@@ -132,6 +132,7 @@ export interface ExplorerState extends ExplorerReduceState {
     activeFields: Set<FieldId>;
     isValidQuery: boolean;
     hasUnsavedChanges: boolean;
+    isEditMode: boolean;
     savedChart: SavedChart | undefined;
 }
 
@@ -646,9 +647,10 @@ function reducer(
 }
 
 export const ExplorerProvider: FC<{
+    isEditMode: boolean;
     initialState?: ExplorerReduceState;
     savedChart?: SavedChart;
-}> = ({ initialState, savedChart, children }) => {
+}> = ({ isEditMode, initialState, savedChart, children }) => {
     const [reducerState, dispatch] = useReducer(
         reducer,
         initialState || defaultState,
@@ -863,12 +865,14 @@ export const ExplorerProvider: FC<{
     const state = useMemo(
         () => ({
             ...reducerState,
+            isEditMode,
             activeFields,
             isValidQuery,
             hasUnsavedChanges,
             savedChart,
         }),
         [
+            isEditMode,
             reducerState,
             activeFields,
             isValidQuery,
