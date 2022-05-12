@@ -1,5 +1,6 @@
 import { Dialog, Tab, Tabs } from '@blueprintjs/core';
 import React, { FC } from 'react';
+import { useOrganisation } from '../../hooks/organisation/useOrganisation';
 import useLocationChange from '../../hooks/useLocationChange';
 import { useApp } from '../../providers/AppProvider';
 import { TrackPage } from '../../providers/TrackingProvider';
@@ -31,6 +32,8 @@ const UserSettingsModal: FC<Props> = ({
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
     useLocationChange(onClose);
+
+    const { data: orgData } = useOrganisation();
 
     return (
         <Dialog
@@ -128,8 +131,8 @@ const UserSettingsModal: FC<Props> = ({
                             }
                         />
                     )}
-                    {health.data &&
-                        !health.data.needsProject &&
+                    {orgData &&
+                        !orgData.needsProject &&
                         user.data?.ability?.can('manage', 'Project') && (
                             <Tab
                                 id="projectManagement"
@@ -162,8 +165,8 @@ const UserSettingsModal: FC<Props> = ({
                             }
                         />
                     )}
-                    {health.data &&
-                        !health.data.needsProject &&
+                    {orgData &&
+                        !orgData.needsProject &&
                         user.data?.ability?.can('manage', 'Project') && (
                             <Tab
                                 id="appearance"

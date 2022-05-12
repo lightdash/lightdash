@@ -68,16 +68,7 @@ describe('health', () => {
             needsSetup: true,
         });
     });
-    it('Should return needsProject true if there are no projects in DB', async () => {
-        (projectModel.hasProjects as jest.Mock).mockImplementationOnce(
-            async () => false,
-        );
 
-        expect(await healthService.getHealthState(false)).toEqual({
-            ...BaseResponse,
-            needsProject: true,
-        });
-    });
     it('Should return isAuthenticated true', async () => {
         expect(await healthService.getHealthState(true)).toEqual({
             ...BaseResponse,

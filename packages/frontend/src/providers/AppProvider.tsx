@@ -95,6 +95,7 @@ export const AppProvider: FC = ({ children }) => {
         enabled: !!health.data?.isAuthenticated,
         retry: false,
     });
+
     const [isHeadwayLoaded, setIsHeadwayLoaded] = useState(false);
 
     useEffect(() => {

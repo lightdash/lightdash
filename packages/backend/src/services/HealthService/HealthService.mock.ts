@@ -8,7 +8,6 @@ export const BaseResponse = {
     isAuthenticated: false,
     localDbtEnabled: true,
     needsSetup: false,
-    needsProject: false,
     auth: {
         disablePasswordAuthentication: false,
         google: {
