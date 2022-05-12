@@ -304,6 +304,24 @@ describe('ProjectService', () => {
             expect(
                 formatFieldValue({ ...metric, type: MetricType.SUM }, 5),
             ).toEqual('5');
+            expect(
+                formatFieldValue({ ...metric, type: MetricType.MIN }, 5000),
+            ).toEqual('5,000');
+            expect(
+                formatFieldValue({ ...metric, type: MetricType.MAX }, 5000),
+            ).toEqual('5,000');
+            expect(
+                formatFieldValue(
+                    { ...metric, type: MetricType.MIN },
+                    new Date('2021-03-10T00:00:00.000Z'),
+                ),
+            ).toEqual('2021-03-10, 00:00:00:000 (+00:00)');
+            expect(
+                formatFieldValue(
+                    { ...metric, type: MetricType.MAX },
+                    new Date('2021-03-10T00:00:00.000Z'),
+                ),
+            ).toEqual('2021-03-10, 00:00:00:000 (+00:00)');
         });
     });
     describe('format item value', () => {

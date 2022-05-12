@@ -203,8 +203,6 @@ export function formatFieldValue(
         case MetricType.COUNT:
         case MetricType.COUNT_DISTINCT:
         case MetricType.SUM:
-        case MetricType.MIN:
-        case MetricType.MAX:
             return formatValue(format, round, value);
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN:
@@ -220,6 +218,13 @@ export function formatFieldValue(
                 value,
                 isDimension(field) ? field.timeInterval : undefined,
             );
+        case MetricType.MAX:
+        case MetricType.MIN: {
+            if (value instanceof Date) {
+                return formatTimestamp(value);
+            }
+            return formatValue(format, round, value);
+        }
         default: {
             return `${value}`;
         }
