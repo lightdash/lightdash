@@ -1,3 +1,10 @@
+# [0.96.0](https://github.com/lightdash/lightdash/compare/0.95.6...0.96.0) (2022-05-12)
+
+
+### Features
+
+* active filters tooltip ([#2091](https://github.com/lightdash/lightdash/issues/2091)) ([bda9a57](https://github.com/lightdash/lightdash/commit/bda9a57e20c2a5fa017351d46ba8e77afb630f64))
+
 ## [0.95.6](https://github.com/lightdash/lightdash/compare/0.95.5...0.95.6) (2022-05-12)
 
 
