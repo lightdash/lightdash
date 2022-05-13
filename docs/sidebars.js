@@ -43,6 +43,8 @@ module.exports = {
       type: "category",
       label: "How to guides",
       items: [
+        "guides/adding-tables-to-lightdash",
+        "references/syncing_your_dbt_changes",
         "guides/how-to-deploy-to-kubernetes",
         "guides/how-to-join-tables",
         "guides/how-to-reset-your-password",

@@ -1,20 +1,20 @@
 ---
 sidebar_position: 1
-sidebar_label: Using Explores
+sidebar_label: Using Tables and the Explore view in Lightdash
 ---
 
-# Using Explores in Lightdash
+# Using Tables and the Explore view in Lightdash
 
-An **Explore** is the main starting point for exploring data in Lightdash. An Explore contains a group of related
-dbt models, dimensions, and metrics.
+An **Table** is the main starting point for exploring data in Lightdash. It contains a group of related
+dbt models, dimensions, and metrics. You explore Tables in the Explore view.
 
-Watch this quick 2 minute tutorial where we talk through the key components of the Explore view:
+Watch this quick 2 minute tutorial where we talk through the key components of Tables and how to explore them in the Explore view:
 
 [![tutorial exploring the explore view](./assets/tutorial_exploring_the_explore_view.png)](https://youtu.be/q6CAP4nhn4E)
 
 There are 5 areas to the Explore view:
 
-1. The list of metrics and dimensions available on the Explore
+1. The list of metrics and dimensions available on the Table
 2. The filters panel, which lets you restrict the data pulled into Lightdash
 3. The chart panel to visualise the results of queries
 4. The results panel to explore the results of queries as a table
@@ -22,7 +22,8 @@ There are 5 areas to the Explore view:
 
 ![explore screenshot](./assets/explore_screenshot.png)
 
-### Learn how to create your first saved chart from the Explore view
+## Learn how to create your first saved chart from the Explore view
+
 Not a fan of videos? You can [follow along with the steps below.](#running-your-first-query)
 
 [![tutorial creating saved chart explore](./assets/tutorial_creating_saved_chart_explore.png)](https://youtu.be/NGlsiCOV7gA)
@@ -54,7 +55,8 @@ When you open a saved charts, it will always update to display the latest data i
 ![save chart button](./assets/save_chart_action.png)
 
 To save a chart:
-1. In chart panel of the Explore you will find the button to save your chart.
+
+1. In chart panel of the Explore view you will find the button to save your chart.
 2. Enter a memorable name for the chart, a good idea is to use a question as the name "How many orders are there at each stage?"
 3. Click on `Saved charts` to see your finished work of art 😚👌
 

@@ -35,7 +35,7 @@ Here are the three ways to do this:
 
 As you explore your data in Lightdash, the URL contains a unique link to your work in progress.
 
-Copy and paste the url while you're exploring data and anybody with access to your Lightdash project can jump into an explore at exactly the same point you're at.
+Copy and paste the url while you're exploring data and anybody with access to your Lightdash project can jump into the Explore view at exactly the same point you're at.
 
 ![share chart link action](./assets/share_chart_link_action.png)
 
