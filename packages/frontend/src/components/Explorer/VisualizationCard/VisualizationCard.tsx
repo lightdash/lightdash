@@ -1,20 +1,6 @@
-import {
-    Button,
-    ButtonGroup,
-    Card,
-    Collapse,
-    Divider,
-    H5,
-    Menu,
-    MenuItem,
-} from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
+import { Button, Card, Collapse, H5 } from '@blueprintjs/core';
 import { ChartType } from 'common';
-import { FC, useState } from 'react';
-import {
-    useAddVersionMutation,
-    useDuplicateMutation,
-} from '../../../hooks/useSavedQuery';
+import { FC } from 'react';
 import {
     ExplorerSection,
     useExplorer,
@@ -22,26 +8,13 @@ import {
 import BigNumberConfigPanel from '../../BigNumberConfig';
 import ChartConfigPanel from '../../ChartConfigPanel';
 import { ChartDownloadMenu } from '../../ChartDownload';
-import DeleteActionModal from '../../common/modal/DeleteActionModal';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
-import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
 import VisualizationCardOptions from '../VisualizationCardOptions';
 
 const VisualizationCard: FC = () => {
-    const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
-    const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
-        useState<boolean>(false);
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
-        useState<boolean>(false);
     const {
-        state: {
-            unsavedChartVersion,
-            hasUnsavedChanges,
-            savedChart,
-            expandedSections,
-        },
+        state: { unsavedChartVersion, expandedSections },
         queryResults,
         actions: {
             setPivotFields,
@@ -50,19 +23,7 @@ const VisualizationCard: FC = () => {
             toggleExpandedSection,
         },
     } = useExplorer();
-    const update = useAddVersionMutation();
     const vizIsOpen = expandedSections.includes(ExplorerSection.VISUALIZATION);
-    const chartId = savedChart?.uuid || '';
-    const { mutate: duplicateChart } = useDuplicateMutation(chartId);
-
-    const handleSavedQueryUpdate = () => {
-        if (savedChart?.uuid && unsavedChartVersion) {
-            update.mutate({
-                uuid: savedChart.uuid,
-                payload: unsavedChartVersion,
-            });
-        }
-    };
 
     return (
         <>
@@ -125,90 +86,6 @@ const VisualizationCard: FC = () => {
                                     <ChartConfigPanel />
                                 )}
                                 <ChartDownloadMenu />
-                                <ButtonGroup>
-                                    <Button
-                                        text={
-                                            savedChart
-                                                ? 'Save changes'
-                                                : 'Save chart'
-                                        }
-                                        disabled={
-                                            !unsavedChartVersion.tableName ||
-                                            !hasUnsavedChanges
-                                        }
-                                        onClick={
-                                            savedChart
-                                                ? handleSavedQueryUpdate
-                                                : () =>
-                                                      setIsQueryModalOpen(true)
-                                        }
-                                    />
-                                    {savedChart && (
-                                        <Popover2
-                                            placement="bottom"
-                                            disabled={
-                                                !unsavedChartVersion.tableName
-                                            }
-                                            content={
-                                                <Menu>
-                                                    <MenuItem
-                                                        icon={
-                                                            hasUnsavedChanges
-                                                                ? 'add'
-                                                                : 'duplicate'
-                                                        }
-                                                        text={
-                                                            hasUnsavedChanges
-                                                                ? 'Save chart as'
-                                                                : 'Duplicate'
-                                                        }
-                                                        onClick={() => {
-                                                            if (
-                                                                savedChart?.uuid &&
-                                                                hasUnsavedChanges
-                                                            ) {
-                                                                setIsQueryModalOpen(
-                                                                    true,
-                                                                );
-                                                            } else {
-                                                                duplicateChart(
-                                                                    chartId,
-                                                                );
-                                                            }
-                                                        }}
-                                                    />
-                                                    <MenuItem
-                                                        icon="control"
-                                                        text="Add to dashboard"
-                                                        onClick={() =>
-                                                            setIsAddToDashboardModalOpen(
-                                                                true,
-                                                            )
-                                                        }
-                                                    />
-                                                    <Divider />
-                                                    <MenuItem
-                                                        icon="trash"
-                                                        text="Delete"
-                                                        intent="danger"
-                                                        onClick={() =>
-                                                            setIsDeleteDialogOpen(
-                                                                true,
-                                                            )
-                                                        }
-                                                    />
-                                                </Menu>
-                                            }
-                                        >
-                                            <Button
-                                                icon="more"
-                                                disabled={
-                                                    !unsavedChartVersion.tableName
-                                                }
-                                            />
-                                        </Popover2>
-                                    )}
-                                </ButtonGroup>
                             </div>
                         )}
                     </div>
@@ -222,30 +99,6 @@ const VisualizationCard: FC = () => {
                     </Collapse>
                 </VisualizationProvider>
             </Card>
-            {unsavedChartVersion && (
-                <CreateSavedQueryModal
-                    isOpen={isQueryModalOpen}
-                    savedData={unsavedChartVersion}
-                    onClose={() => setIsQueryModalOpen(false)}
-                />
-            )}
-            {savedChart && (
-                <AddTilesToDashboardModal
-                    isOpen={isAddToDashboardModalOpen}
-                    savedChart={savedChart}
-                    onClose={() => setIsAddToDashboardModalOpen(false)}
-                />
-            )}
-            {isDeleteDialogOpen && savedChart?.uuid && (
-                <DeleteActionModal
-                    isOpen={isDeleteDialogOpen}
-                    onClose={() => setIsDeleteDialogOpen(false)}
-                    uuid={savedChart.uuid}
-                    name={savedChart.name}
-                    isChart
-                    isExplorer
-                />
-            )}
         </>
     );
 };

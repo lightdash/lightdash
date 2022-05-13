@@ -1,4 +1,4 @@
-import { Colors, H3 } from '@blueprintjs/core';
+import { Button, Colors, H3 } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const Wrapper = styled.div`
@@ -6,7 +6,7 @@ export const Wrapper = styled.div`
     flex-direction: row;
     justify-content: flex-end;
     align-items: center;
-    height: 80px;
+    height: 70px;
     width: 100%;
     position: sticky;
     top: 50px;
@@ -28,4 +28,12 @@ export const TitleWrapper = styled.div`
 
 export const ChartName = styled(H3)`
     margin: 0 5px 0 0;
+`;
+
+export const SaveButton = styled(Button)`
+    width: 131px;
+    height: 30px;
+`;
+export const OptionsMenu = styled(Button)`
+    margin-left: 10px;
 `;

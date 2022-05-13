@@ -74,7 +74,7 @@ const SavedExplorer = () => {
             >
                 <Card
                     style={{
-                        height: 'calc(100vh - 130px)',
+                        height: 'calc(100vh - 120px)',
                         flexBasis: '400px',
                         flexGrow: 0,
                         flexShrink: 0,
@@ -82,7 +82,7 @@ const SavedExplorer = () => {
                         overflow: 'hidden',
                         position: 'sticky',
                         borderRadius: 0,
-                        top: '130px',
+                        top: '120px',
                     }}
                     elevation={1}
                 >

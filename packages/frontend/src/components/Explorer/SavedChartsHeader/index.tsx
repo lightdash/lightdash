@@ -1,22 +1,53 @@
-import { Button, Classes } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Button, Classes, Divider, Menu, MenuItem } from '@blueprintjs/core';
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, useState } from 'react';
-import { useUpdateMutation } from '../../../hooks/useSavedQuery';
+import {
+    useAddVersionMutation,
+    useDuplicateMutation,
+    useUpdateMutation,
+} from '../../../hooks/useSavedQuery';
 import { useExplorer } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import { UpdatedInfo } from '../../common/ActionCard';
-import { RefreshButton } from '../../RefreshButton';
-import RefreshServerButton from '../../RefreshServer';
+import DeleteActionModal from '../../common/modal/DeleteActionModal';
+import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
+import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
 import RenameSavedChartModal from '../../SavedQueries/RenameSavedChartModal';
-import { ChartName, TitleWrapper, Wrapper } from './SavedChartsHeader.styles';
+import {
+    ChartName,
+    OptionsMenu,
+    SaveButton,
+    TitleWrapper,
+    Wrapper,
+} from './SavedChartsHeader.styles';
 
 const SavedChartsHeader: FC = () => {
     const {
-        state: { savedChart },
+        state: { unsavedChartVersion, hasUnsavedChanges, savedChart },
     } = useExplorer();
     const [isRenamingChart, setIsRenamingChart] = useState(false);
+    const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
+    const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
+        useState<boolean>(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
+        useState<boolean>(false);
+
     const updateSavedChart = useUpdateMutation(savedChart?.uuid);
+
+    const { mutate: duplicateChart } = useDuplicateMutation(
+        savedChart?.uuid || '',
+    );
+    const chartId = savedChart?.uuid || '';
+    const update = useAddVersionMutation();
+    const handleSavedQueryUpdate = () => {
+        if (savedChart?.uuid && unsavedChartVersion) {
+            update.mutate({
+                uuid: savedChart.uuid,
+                payload: unsavedChartVersion,
+            });
+        }
+    };
 
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
@@ -55,9 +86,85 @@ const SavedChartsHeader: FC = () => {
                         </>
                     )}
                 </TitleWrapper>
-                <RefreshButton />
-                <RefreshServerButton />
+                <SaveButton
+                    intent="success"
+                    text={savedChart ? 'Save changes' : 'Save chart'}
+                    disabled={
+                        !unsavedChartVersion.tableName || !hasUnsavedChanges
+                    }
+                    onClick={
+                        savedChart
+                            ? handleSavedQueryUpdate
+                            : () => setIsQueryModalOpen(true)
+                    }
+                />
+                <Popover2
+                    placement="bottom"
+                    disabled={!unsavedChartVersion.tableName}
+                    content={
+                        <Menu>
+                            <MenuItem
+                                icon={hasUnsavedChanges ? 'add' : 'duplicate'}
+                                text={
+                                    hasUnsavedChanges
+                                        ? 'Save chart as'
+                                        : 'Duplicate'
+                                }
+                                onClick={() => {
+                                    if (savedChart?.uuid && hasUnsavedChanges) {
+                                        setIsQueryModalOpen(true);
+                                    } else {
+                                        duplicateChart(chartId);
+                                    }
+                                }}
+                            />
+                            <MenuItem
+                                icon="control"
+                                text="Add to dashboard"
+                                onClick={() =>
+                                    setIsAddToDashboardModalOpen(true)
+                                }
+                            />
+                            <Divider />
+                            <MenuItem
+                                icon="trash"
+                                text="Delete"
+                                intent="danger"
+                                onClick={() => setIsDeleteDialogOpen(true)}
+                            />
+                        </Menu>
+                    }
+                >
+                    <OptionsMenu
+                        icon="more"
+                        disabled={!unsavedChartVersion.tableName}
+                    />
+                </Popover2>
             </Wrapper>
+            {unsavedChartVersion && (
+                <CreateSavedQueryModal
+                    isOpen={isQueryModalOpen}
+                    savedData={unsavedChartVersion}
+                    onClose={() => setIsQueryModalOpen(false)}
+                />
+            )}
+            {savedChart && (
+                <AddTilesToDashboardModal
+                    isOpen={isAddToDashboardModalOpen}
+                    savedChart={savedChart}
+                    onClose={() => setIsAddToDashboardModalOpen(false)}
+                />
+            )}
+            {isDeleteDialogOpen && savedChart?.uuid && (
+                <DeleteActionModal
+                    isOpen={isDeleteDialogOpen}
+                    onClose={() => setIsDeleteDialogOpen(false)}
+                    uuid={savedChart.uuid}
+                    name={savedChart.name}
+                    isChart
+                    isExplorer
+                />
+            )}
         </TrackSection>
     );
 };
