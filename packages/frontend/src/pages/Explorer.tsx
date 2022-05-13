@@ -10,7 +10,7 @@ import { Main, PageContainer, SideBar } from './Explorer.styles';
 
 const ExplorerWithUrlParams = () => {
     useExplorerRoute();
-    return <Explorer />;
+    return <Explorer isExplorer />;
 };
 
 const ExplorerPage = () => {

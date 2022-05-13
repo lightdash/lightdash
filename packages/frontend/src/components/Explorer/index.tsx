@@ -6,10 +6,10 @@ import ResultsCard from './ResultsCard/ResultsCard';
 import SqlCard from './SqlCard/SqlCard';
 import VisualizationCard from './VisualizationCard/VisualizationCard';
 
-const Explorer: FC = () => {
+const Explorer: FC<{ isExplorer?: boolean }> = ({ isExplorer = false }) => {
     return (
         <ExplorerWrapper>
-            <ExplorerHeader />
+            <ExplorerHeader isExplorer={isExplorer} />
             <FiltersCard />
             <VisualizationCard />
             <ResultsCard />

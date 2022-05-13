@@ -30,10 +30,6 @@ export const ChartName = styled(H3)`
     margin: 0 5px 0 0;
 `;
 
-export const SaveButton = styled(Button)`
-    width: 131px;
-    height: 30px;
-`;
 export const OptionsMenu = styled(Button)`
     margin-left: 10px;
 `;

@@ -2,7 +2,6 @@ import { Button, Classes, Divider, Menu, MenuItem } from '@blueprintjs/core';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, useState } from 'react';
 import {
-    useAddVersionMutation,
     useDuplicateMutation,
     useUpdateMutation,
 } from '../../../hooks/useSavedQuery';
@@ -14,10 +13,10 @@ import DeleteActionModal from '../../common/modal/DeleteActionModal';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
 import RenameSavedChartModal from '../../SavedQueries/RenameSavedChartModal';
+import SaveChartButton from '../SaveChartButton';
 import {
     ChartName,
     OptionsMenu,
-    SaveButton,
     TitleWrapper,
     Wrapper,
 } from './SavedChartsHeader.styles';
@@ -39,15 +38,6 @@ const SavedChartsHeader: FC = () => {
         savedChart?.uuid || '',
     );
     const chartId = savedChart?.uuid || '';
-    const update = useAddVersionMutation();
-    const handleSavedQueryUpdate = () => {
-        if (savedChart?.uuid && unsavedChartVersion) {
-            update.mutate({
-                uuid: savedChart.uuid,
-                payload: unsavedChartVersion,
-            });
-        }
-    };
 
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
@@ -86,18 +76,7 @@ const SavedChartsHeader: FC = () => {
                         </>
                     )}
                 </TitleWrapper>
-                <SaveButton
-                    intent="success"
-                    text={savedChart ? 'Save changes' : 'Save chart'}
-                    disabled={
-                        !unsavedChartVersion.tableName || !hasUnsavedChanges
-                    }
-                    onClick={
-                        savedChart
-                            ? handleSavedQueryUpdate
-                            : () => setIsQueryModalOpen(true)
-                    }
-                />
+                <SaveChartButton />
                 <Popover2
                     placement="bottom"
                     disabled={!unsavedChartVersion.tableName}
