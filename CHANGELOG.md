@@ -1,3 +1,10 @@
+## [0.96.2](https://github.com/lightdash/lightdash/compare/0.96.1...0.96.2) (2022-05-13)
+
+
+### Bug Fixes
+
+* updates default colours to be colourblind friendly ([#2097](https://github.com/lightdash/lightdash/issues/2097)) ([968853f](https://github.com/lightdash/lightdash/commit/968853fe598613e3e5c8d594bcec28aa71d4a03d))
+
 ## [0.96.1](https://github.com/lightdash/lightdash/compare/0.96.0...0.96.1) (2022-05-12)
 
 
