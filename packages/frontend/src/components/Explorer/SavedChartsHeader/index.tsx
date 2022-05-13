@@ -14,6 +14,7 @@ import DeleteActionModal from '../../common/modal/DeleteActionModal';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
 import RenameSavedChartModal from '../../SavedQueries/RenameSavedChartModal';
+import ShareLinktButton from '../../ShareLinkButton';
 import SaveChartButton from '../SaveChartButton';
 import {
     ButtonWithMarginLeft,
@@ -97,6 +98,7 @@ const SavedChartsHeader: FC = () => {
                             >
                                 Edit chart
                             </Button>
+                            {!isEditMode && <ShareLinktButton />}
                             <Popover2
                                 placement="bottom"
                                 disabled={!unsavedChartVersion.tableName}
