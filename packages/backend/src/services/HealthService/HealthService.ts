@@ -44,8 +44,6 @@ export class HealthService {
             );
         }
 
-        const needsProject = !(await this.projectModel.hasProjects());
-
         const localDbtEnabled =
             process.env.LIGHTDASH_INSTALL_TYPE !==
                 LightdashInstallType.HEROKU &&
@@ -55,7 +53,6 @@ export class HealthService {
             mode: this.lightdashConfig.mode,
             version: VERSION,
             needsSetup: !(await this.userModel.hasUsers()),
-            needsProject,
             localDbtEnabled,
             defaultProject: undefined,
             isAuthenticated,

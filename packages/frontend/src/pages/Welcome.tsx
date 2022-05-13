@@ -13,6 +13,7 @@ import React, { FC } from 'react';
 import { Redirect, useHistory } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
+import { useOrganisation } from '../hooks/organisation/useOrganisation';
 import { useApp } from '../providers/AppProvider';
 import {
     SetupStepClickedEvent,
@@ -88,6 +89,7 @@ const Step: FC<{
 
 const Welcome: FC = () => {
     const { health } = useApp();
+    const { data: orgData } = useOrganisation();
 
     if (health.isLoading) {
         return <PageSpinner />;
@@ -96,7 +98,7 @@ const Welcome: FC = () => {
     if (
         health.status === 'success' &&
         !health.data?.needsSetup &&
-        !health.data?.needsProject
+        !orgData?.needsProject
     ) {
         return (
             <Redirect
@@ -149,7 +151,7 @@ const Welcome: FC = () => {
                         title="2. Create project"
                         focused={!health.data?.needsSetup}
                         disabled={!!health.data?.needsSetup}
-                        checked={!health.data?.needsProject}
+                        checked={!orgData?.needsProject}
                         pathname="/createProject"
                         action="create_project"
                     />
