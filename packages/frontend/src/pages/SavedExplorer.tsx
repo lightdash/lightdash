@@ -3,7 +3,7 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel/index';
-import ExplorerHeader from '../components/Explorer/ExplorerHeader';
+import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import {
     ExplorerProvider,
@@ -62,7 +62,7 @@ const SavedExplorer = () => {
             }
             savedChart={data}
         >
-            <ExplorerHeader />
+            <SavedChartsHeader />
             <div
                 style={{
                     display: 'flex',

@@ -10,8 +10,7 @@ import { Main, PageContainer, SideBar } from './Explorer.styles';
 
 const ExplorerWithUrlParams = () => {
     useExplorerRoute();
-    // Prop to be removed once the header buttons are updated
-    return <Explorer isExplore />;
+    return <Explorer />;
 };
 
 const ExplorerPage = () => {
