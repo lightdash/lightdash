@@ -20,9 +20,9 @@ export const MainContent = styled.div`
 `;
 
 export const StickySidebar = styled.div`
-    height: calc(100vh - 140px);
+    height: calc(100vh - 130px);
     position: sticky;
-    top: 140px;
+    top: 130px;
 `;
 
 export const CardContent = styled.div`
