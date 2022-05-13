@@ -538,7 +538,7 @@ const TableTree: FC<TableTreeProps> = ({
                   {
                       key: 'no_metrics',
                       id: 'no_metrics',
-                      label: 'No metrics defined in you dbt project',
+                      label: 'No metrics defined in your dbt project',
                       disabled: true,
                   },
               ]
