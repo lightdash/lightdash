@@ -20,10 +20,9 @@ export const MainContent = styled.div`
 `;
 
 export const StickySidebar = styled.div`
-    height: calc(100vh - 120px);
-    overflow: hidden;
+    height: calc(100vh - 140px);
     position: sticky;
-    top: 120px;
+    top: 140px;
 `;
 
 export const CardContent = styled.div`
@@ -40,6 +39,8 @@ export const Drawer = styled(Card)<{ $state: string }>`
     flex-basis: ${DrawerWidth}px;
     flex-grow: 0;
     flex-shrink: 0;
+    border-radius: 0;
+    overflow: hidden;
     transition: opacity 500ms ease-in-out, left 500ms ease-in-out;
     position: absolute;
     top: 0;

@@ -47,6 +47,7 @@ export const RefreshButton = () => {
             disabled={isDisabled || isLoadingResults}
         >
             <BigButton
+                icon="play"
                 intent="primary"
                 style={{ width: 150 }}
                 onClick={onClick}

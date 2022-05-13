@@ -23,6 +23,7 @@ const ExploreFromHereButton = () => {
     return (
         <ExploreFromHerePrimary
             intent="primary"
+            icon="series-search"
             onClick={() =>
                 exploreFromHereUrl ? history.push(exploreFromHereUrl) : null
             }

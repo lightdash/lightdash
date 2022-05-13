@@ -6,7 +6,7 @@ export const Wrapper = styled.div`
     flex-direction: row;
     justify-content: flex-end;
     align-items: center;
-    height: 70px;
+    height: 90px;
     width: 100%;
     position: sticky;
     top: 50px;
