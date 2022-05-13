@@ -14,14 +14,13 @@ export const SideBar = styled(Card)`
     flex-basis: 400px;
     flex-grow: 0;
     flex-shrink: 0;
-    margin-right: 10px;
     overflow: hidden;
     position: sticky;
     top: 50px;
 `;
 
 export const Main = styled.div`
-    padding: 10px 10px;
+    padding: 10px 20px;
     flex-grow: 1;
     display: flex;
     flex-direction: column;

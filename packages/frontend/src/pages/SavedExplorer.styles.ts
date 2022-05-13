@@ -10,7 +10,7 @@ export const PageWrapper = styled.div`
 `;
 
 export const MainContent = styled.div`
-    padding: 10px 10px;
+    padding: 10px 20px;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
@@ -20,10 +20,10 @@ export const MainContent = styled.div`
 `;
 
 export const StickySidebar = styled.div`
-    height: calc(100vh - 50px);
+    height: calc(100vh - 120px);
     overflow: hidden;
     position: sticky;
-    top: 50px;
+    top: 120px;
 `;
 
 export const CardContent = styled.div`
@@ -44,7 +44,6 @@ export const Drawer = styled(Card)<{ $state: string }>`
     position: absolute;
     top: 0;
     width: ${DrawerWidth}px;
-    margin-right: 10px;
     opacity: ${({ $state }) =>
         ['exiting', 'exited', 'unmounted'].includes($state) ? 0 : 1};
     left: ${({ $state }) =>

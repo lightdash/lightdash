@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { Transition } from 'react-transition-group';
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel/index';
+import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import {
     ExplorerProvider,
@@ -17,7 +18,6 @@ import {
     StickySidebar,
     WidthHack,
 } from './SavedExplorer.styles';
-import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 
 const SavedExplorer = () => {
     const { savedQueryUuid, mode } = useParams<{
@@ -71,8 +71,8 @@ const SavedExplorer = () => {
             }
             savedChart={data}
         >
+            <SavedChartsHeader />
             <PageWrapper>
-                <SavedChartsHeader />
                 <StickySidebar>
                     <Transition in={isEditMode} timeout={500}>
                         {(state) => (

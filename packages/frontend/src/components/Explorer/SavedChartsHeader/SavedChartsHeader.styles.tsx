@@ -14,7 +14,7 @@ export const Wrapper = styled.div`
     z-index: 1;
     background: ${Colors.WHITE};
     border-bottom: 0.5px solid #c5cbd3;
-    padding: 16px 10px 16px 21px;
+    padding: 15px 20px 15px 20px;
 `;
 
 export const TitleWrapper = styled.div`
@@ -31,6 +31,6 @@ export const ChartName = styled(H3)`
     margin: 0 5px 0 0;
 `;
 
-export const OptionsMenu = styled(Button)`
+export const ButtonWithMarginLeft = styled(Button)`
     margin-left: 10px;
 `;

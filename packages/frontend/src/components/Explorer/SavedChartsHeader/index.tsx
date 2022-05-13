@@ -1,6 +1,7 @@
 import { Button, Classes, Divider, Menu, MenuItem } from '@blueprintjs/core';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, useState } from 'react';
+import { useHistory } from 'react-router-dom';
 import {
     useDuplicateMutation,
     useUpdateMutation,
@@ -15,15 +16,21 @@ import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
 import RenameSavedChartModal from '../../SavedQueries/RenameSavedChartModal';
 import SaveChartButton from '../SaveChartButton';
 import {
+    ButtonWithMarginLeft,
     ChartName,
-    OptionsMenu,
     TitleWrapper,
     Wrapper,
 } from './SavedChartsHeader.styles';
 
 const SavedChartsHeader: FC = () => {
+    const history = useHistory();
     const {
-        state: { unsavedChartVersion, hasUnsavedChanges, savedChart },
+        state: {
+            isEditMode,
+            unsavedChartVersion,
+            hasUnsavedChanges,
+            savedChart,
+        },
     } = useExplorer();
     const [isRenamingChart, setIsRenamingChart] = useState(false);
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
@@ -77,49 +84,88 @@ const SavedChartsHeader: FC = () => {
                         </>
                     )}
                 </TitleWrapper>
-                <SaveChartButton />
-                <Popover2
-                    placement="bottom"
-                    disabled={!unsavedChartVersion.tableName}
-                    content={
-                        <Menu>
-                            <MenuItem
-                                icon={hasUnsavedChanges ? 'add' : 'duplicate'}
-                                text={
-                                    hasUnsavedChanges
-                                        ? 'Save chart as'
-                                        : 'Duplicate'
-                                }
-                                onClick={() => {
-                                    if (savedChart?.uuid && hasUnsavedChanges) {
-                                        setIsQueryModalOpen(true);
-                                    } else {
-                                        duplicateChart(chartId);
-                                    }
-                                }}
-                            />
-                            <MenuItem
-                                icon="control"
-                                text="Add to dashboard"
+                <div>
+                    {!isEditMode ? (
+                        <>
+                            <Button
+                                icon="edit"
                                 onClick={() =>
-                                    setIsAddToDashboardModalOpen(true)
+                                    history.push({
+                                        pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/edit`,
+                                    })
                                 }
-                            />
-                            <Divider />
-                            <MenuItem
-                                icon="trash"
-                                text="Delete"
-                                intent="danger"
-                                onClick={() => setIsDeleteDialogOpen(true)}
-                            />
-                        </Menu>
-                    }
-                >
-                    <OptionsMenu
-                        icon="more"
-                        disabled={!unsavedChartVersion.tableName}
-                    />
-                </Popover2>
+                            >
+                                Edit chart
+                            </Button>
+                            <Popover2
+                                placement="bottom"
+                                disabled={!unsavedChartVersion.tableName}
+                                content={
+                                    <Menu>
+                                        <MenuItem
+                                            icon={
+                                                hasUnsavedChanges
+                                                    ? 'add'
+                                                    : 'duplicate'
+                                            }
+                                            text={
+                                                hasUnsavedChanges
+                                                    ? 'Save chart as'
+                                                    : 'Duplicate'
+                                            }
+                                            onClick={() => {
+                                                if (
+                                                    savedChart?.uuid &&
+                                                    hasUnsavedChanges
+                                                ) {
+                                                    setIsQueryModalOpen(true);
+                                                } else {
+                                                    duplicateChart(chartId);
+                                                }
+                                            }}
+                                        />
+                                        <MenuItem
+                                            icon="control"
+                                            text="Add to dashboard"
+                                            onClick={() =>
+                                                setIsAddToDashboardModalOpen(
+                                                    true,
+                                                )
+                                            }
+                                        />
+                                        <Divider />
+                                        <MenuItem
+                                            icon="trash"
+                                            text="Delete"
+                                            intent="danger"
+                                            onClick={() =>
+                                                setIsDeleteDialogOpen(true)
+                                            }
+                                        />
+                                    </Menu>
+                                }
+                            >
+                                <ButtonWithMarginLeft
+                                    icon="more"
+                                    disabled={!unsavedChartVersion.tableName}
+                                />
+                            </Popover2>
+                        </>
+                    ) : (
+                        <>
+                            <SaveChartButton />
+                            <ButtonWithMarginLeft
+                                onClick={() =>
+                                    history.push({
+                                        pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
+                                    })
+                                }
+                            >
+                                Cancel
+                            </ButtonWithMarginLeft>
+                        </>
+                    )}
+                </div>
             </Wrapper>
             {unsavedChartVersion && (
                 <CreateSavedQueryModal
