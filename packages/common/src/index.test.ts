@@ -29,9 +29,16 @@ describe('Common index', () => {
             expect(formatValue(undefined, undefined, 5)).toEqual('5');
         });
         test('formatValue should return the right round', async () => {
+            expect(formatValue(undefined, 0, 1)).toEqual('1');
+            expect(formatValue(undefined, 0, 10)).toEqual('10');
+            expect(formatValue(undefined, 0, 100)).toEqual('100');
+            expect(formatValue(undefined, 0, 1000)).toEqual('1,000');
+            expect(formatValue(undefined, 0, 10000)).toEqual('10,000');
+            expect(formatValue(undefined, 0, 100000)).toEqual('100,000');
+            expect(formatValue(undefined, 0, 1000000)).toEqual('1,000,000');
             expect(formatValue(undefined, 2, 5)).toEqual('5.00');
             expect(formatValue(undefined, 2, 5.001)).toEqual('5.00');
-            expect(formatValue(undefined, 2, 5.555)).toEqual('5.55');
+            expect(formatValue(undefined, 2, 5.555)).toEqual('5.56');
             expect(formatValue(undefined, 2, 5.5555)).toEqual('5.56');
             expect(formatValue(undefined, 2, 5.9999999)).toEqual('6.00');
 

@@ -93,7 +93,7 @@ function roundNumber(
     if (invalidRound && !format) {
         return numberStyle && !Number.isInteger(value)
             ? `${value}`
-            : Number(value).toLocaleString();
+            : new Intl.NumberFormat('en-US').format(Number(value));
     }
     const isValidFormat =
         !!format && format !== 'km' && format !== 'mi' && format !== 'percent';
@@ -107,9 +107,10 @@ function roundNumber(
         }).format(Number(value));
     }
 
-    return !Number.isInteger(value)
-        ? Number(value).toFixed(round)
-        : Number(Number(value).toLocaleString()).toFixed(round);
+    return new Intl.NumberFormat('en-US', {
+        maximumFractionDigits: round || 0,
+        minimumFractionDigits: round || 0,
+    }).format(Number(value));
 }
 
 function styleNumber(
@@ -144,7 +145,7 @@ function styleNumber(
                 numberStyle,
             )}B`;
         default:
-            return `${Number(value).toLocaleString()}`;
+            return `${new Intl.NumberFormat('en-US').format(Number(value))}`;
     }
 }
 
