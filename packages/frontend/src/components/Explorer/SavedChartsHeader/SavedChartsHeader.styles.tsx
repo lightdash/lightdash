@@ -24,6 +24,7 @@ export const TitleWrapper = styled.div`
     align-items: flex-start;
     overflow: hidden;
     margin-right: 10px;
+    flex-direction: column;
 `;
 
 export const ChartName = styled(H3)`

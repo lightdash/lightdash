@@ -49,29 +49,30 @@ const SavedChartsHeader: FC = () => {
                                 className={Classes.TEXT_OVERFLOW_ELLIPSIS}
                             >
                                 {savedChart.name}
-                                <UpdatedInfo
-                                    updatedAt={savedChart.updatedAt}
-                                    user={savedChart.updatedByUser}
+                                {savedChart.description && (
+                                    <Tooltip2
+                                        content={savedChart.description}
+                                        position="bottom"
+                                    >
+                                        <Button icon="info-sign" minimal />
+                                    </Tooltip2>
+                                )}
+                                <Button
+                                    icon="edit"
+                                    disabled={updateSavedChart.isLoading}
+                                    onClick={() => setIsRenamingChart(true)}
+                                    minimal
+                                />
+                                <RenameSavedChartModal
+                                    savedChartUuid={savedChart.uuid}
+                                    isOpen={isRenamingChart}
+                                    onClose={() => setIsRenamingChart(false)}
                                 />
                             </ChartName>
-                            {savedChart.description && (
-                                <Tooltip2
-                                    content={savedChart.description}
-                                    position="bottom"
-                                >
-                                    <Button icon="info-sign" minimal />
-                                </Tooltip2>
-                            )}
-                            <Button
-                                icon="edit"
-                                disabled={updateSavedChart.isLoading}
-                                onClick={() => setIsRenamingChart(true)}
-                                minimal
-                            />
-                            <RenameSavedChartModal
-                                savedChartUuid={savedChart.uuid}
-                                isOpen={isRenamingChart}
-                                onClose={() => setIsRenamingChart(false)}
+
+                            <UpdatedInfo
+                                updatedAt={savedChart.updatedAt}
+                                user={savedChart.updatedByUser}
                             />
                         </>
                     )}
