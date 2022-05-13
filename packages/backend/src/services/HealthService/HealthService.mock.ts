@@ -1,21 +1,5 @@
-import { Ability } from '@casl/ability';
-import { LightdashMode, OrganizationMemberRole, SessionUser } from 'common';
+import { LightdashMode } from 'common';
 import { LightdashConfig } from '../../config/parseConfig';
-
-export const user: SessionUser = {
-    userUuid: 'userUuid',
-    email: 'email',
-    firstName: 'firstName',
-    lastName: 'lastName',
-    organizationUuid: 'organizationUuid',
-    organizationName: 'organizationName',
-    isTrackingAnonymized: false,
-    isMarketingOptedIn: false,
-    isSetupComplete: true,
-    userId: 0,
-    role: OrganizationMemberRole.ADMIN,
-    ability: new Ability([{ subject: 'Project', action: 'update' }]),
-};
 
 export const BaseResponse = {
     healthy: true,
@@ -23,7 +7,6 @@ export const BaseResponse = {
     mode: LightdashMode.DEFAULT,
     isAuthenticated: false,
     localDbtEnabled: true,
-    needsProject: true,
     auth: {
         disablePasswordAuthentication: false,
         google: {

@@ -2,42 +2,25 @@ import {
     HealthState,
     LightdashInstallType,
     LightdashMode,
-    SessionUser,
     UnexpectedDatabaseError,
 } from 'common';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getMigrationStatus } from '../../database/database';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { UserModel } from '../../models/UserModel';
 import { VERSION } from '../../version';
 
 type HealthServiceDependencies = {
-    userModel: UserModel;
-    projectModel: ProjectModel;
     lightdashConfig: LightdashConfig;
 };
 
 export class HealthService {
-    private readonly userModel: UserModel;
-
-    private readonly projectModel: ProjectModel;
-
     private readonly lightdashConfig: LightdashConfig;
 
-    constructor({
-        userModel,
-        projectModel,
-        lightdashConfig,
-    }: HealthServiceDependencies) {
-        this.userModel = userModel;
-        this.projectModel = projectModel;
+    constructor({ lightdashConfig }: HealthServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
     }
 
-    async getHealthState(
-        sessionUser: SessionUser | undefined,
-    ): Promise<HealthState> {
+    async getHealthState(isAuthenticated: boolean): Promise<HealthState> {
         const { isComplete, currentVersion } = await getMigrationStatus();
 
         if (!isComplete) {
@@ -47,12 +30,6 @@ export class HealthService {
             );
         }
 
-        const needsProject = sessionUser
-            ? !(await this.projectModel.hasProjects(
-                  sessionUser.organizationUuid,
-              ))
-            : true;
-
         const localDbtEnabled =
             process.env.LIGHTDASH_INSTALL_TYPE !==
                 LightdashInstallType.HEROKU &&
@@ -61,10 +38,9 @@ export class HealthService {
             healthy: true,
             mode: this.lightdashConfig.mode,
             version: VERSION,
-            needsProject,
             localDbtEnabled,
             defaultProject: undefined,
-            isAuthenticated: !!sessionUser,
+            isAuthenticated,
             latest: { version: getDockerHubVersion() },
             rudder: this.lightdashConfig.rudder,
             sentry: this.lightdashConfig.sentry,

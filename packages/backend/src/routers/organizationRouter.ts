@@ -12,7 +12,7 @@ import {
 
 export const organizationRouter = express.Router();
 
-organizationRouter.get('/', isAuthenticated, async (req, res, next) =>
+organizationRouter.get('/', isAuthenticated, async (req, res, next) => {
     organizationService
         .get(req.user!)
         .then((results) => {
@@ -21,8 +21,8 @@ organizationRouter.get('/', isAuthenticated, async (req, res, next) =>
                 results,
             });
         })
-        .catch(next),
-);
+        .catch(next);
+});
 
 organizationRouter.patch(
     '/',

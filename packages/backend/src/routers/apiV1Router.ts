@@ -30,7 +30,7 @@ apiV1Router.get('/livez', async (req, res, next) => {
 
 apiV1Router.get('/health', async (req, res, next) => {
     healthService
-        .getHealthState(req.user)
+        .getHealthState(!!req.user?.userUuid)
         .then((state) =>
             res.json({
                 status: 'ok',

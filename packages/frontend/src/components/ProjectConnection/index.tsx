@@ -9,6 +9,7 @@ import React, { FC, useEffect } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
 import { useHistory } from 'react-router-dom';
+import { useOrganisation } from '../../hooks/organisation/useOrganisation';
 import {
     useCreateMutation,
     useProject,
@@ -276,6 +277,7 @@ export const CreateProjectConnection: FC = () => {
             });
         }
     }, [activeJob, history]);
+    const { data: orgData } = useOrganisation();
 
     return (
         <Form
@@ -286,7 +288,7 @@ export const CreateProjectConnection: FC = () => {
         >
             <ProjectFormProvider>
                 <ProjectForm
-                    showGeneralSettings={!health.data?.needsProject}
+                    showGeneralSettings={!orgData?.needsProject}
                     disabled={isSaving || !!activeJobIsRunning}
                     defaultType={health.data?.defaultProject?.type}
                 />

@@ -588,6 +588,7 @@ export type Organisation = {
     name: string;
     allowedEmailDomains: string[];
     chartColors?: string[];
+    needsProject?: boolean;
 };
 
 export type UpdateOrganisation = Partial<Organisation>;
@@ -661,7 +662,6 @@ export type HealthState = {
     healthy: boolean;
     mode: LightdashMode;
     version: string;
-    needsProject: boolean;
     localDbtEnabled: boolean;
     defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;

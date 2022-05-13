@@ -52,7 +52,17 @@ export class OrganizationService {
     }
 
     async get(user: SessionUser): Promise<Organisation> {
-        return this.organizationModel.get(user.organizationUuid);
+        const needsProject = !(await this.projectModel.hasProjects(
+            user.organizationUuid,
+        ));
+
+        const organisation = await this.organizationModel.get(
+            user.organizationUuid,
+        );
+        return {
+            ...organisation,
+            needsProject,
+        };
     }
 
     async updateOrg(
