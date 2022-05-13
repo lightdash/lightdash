@@ -8,7 +8,7 @@ import {
     MenuItem,
 } from '@blueprintjs/core';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
-import React, { FC, useState, useEffect } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import {
     useDuplicateMutation,
@@ -61,7 +61,7 @@ const SavedChartsHeader: FC = () => {
 
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {
-            if (hasUnsavedChanges) {
+            if (hasUnsavedChanges && isEditMode) {
                 const message =
                     'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
                 event.returnValue = message;
@@ -70,11 +70,12 @@ const SavedChartsHeader: FC = () => {
         };
         window.addEventListener('beforeunload', checkReload);
         return () => window.removeEventListener('beforeunload', checkReload);
-    }, [hasUnsavedChanges]);
+    }, [hasUnsavedChanges, isEditMode]);
     useEffect(() => {
         history.block((prompt) => {
             if (
                 hasUnsavedChanges &&
+                isEditMode &&
                 !prompt.pathname.includes(
                     `/projects/${projectUuid}/saved/${savedChart?.uuid}`,
                 )
@@ -95,6 +96,7 @@ const SavedChartsHeader: FC = () => {
         savedChart,
         hasUnsavedChanges,
         setIsSaveWarningModalOpen,
+        isEditMode,
     ]);
 
     return (
