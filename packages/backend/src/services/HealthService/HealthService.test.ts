@@ -46,30 +46,42 @@ describe('health', () => {
     });
 
     it('Should get current and latest version', async () => {
-        expect(await healthService.getHealthState(user)).toEqual(BaseResponse);
+        expect(await healthService.getHealthState(undefined)).toEqual(
+            BaseResponse,
+        );
+    });
+    it('Should get current and latest version', async () => {
+        expect(await healthService.getHealthState(undefined)).toEqual(
+            BaseResponse,
+        );
     });
     it('Should return last version as undefined when fails fetch', async () => {
         (getDockerHubVersion as jest.Mock).mockImplementationOnce(
             () => undefined,
         );
 
-        expect(await healthService.getHealthState(user)).toEqual({
+        expect(await healthService.getHealthState(undefined)).toEqual({
             ...BaseResponse,
             latest: { version: undefined },
         });
     });
 
-    it('Should return needsProject true if there are no projects in DB', async () => {
+    it('Should return needsProject false if there are projects in DB', async () => {
         (projectModel.hasProjects as jest.Mock).mockImplementationOnce(
-            async () => false,
+            async () => true,
         );
 
         expect(await healthService.getHealthState(user)).toEqual({
             ...BaseResponse,
-            needsProject: true,
+            needsProject: false,
+            isAuthenticated: true,
         });
     });
     it('Should return isAuthenticated true', async () => {
+        (projectModel.hasProjects as jest.Mock).mockImplementationOnce(
+            async () => false,
+        );
+
         expect(await healthService.getHealthState(user)).toEqual({
             ...BaseResponse,
             isAuthenticated: true,
@@ -84,7 +96,7 @@ describe('health', () => {
                 mode: LightdashMode.CLOUD_BETA,
             },
         });
-        expect(await service.getHealthState(user)).toEqual({
+        expect(await service.getHealthState(undefined)).toEqual({
             ...BaseResponse,
             mode: LightdashMode.CLOUD_BETA,
             localDbtEnabled: false,
@@ -92,7 +104,7 @@ describe('health', () => {
     });
     it('Should return localDbtEnabled false when install type is heroku', async () => {
         process.env.LIGHTDASH_INSTALL_TYPE = LightdashInstallType.HEROKU;
-        expect(await healthService.getHealthState(user)).toEqual({
+        expect(await healthService.getHealthState(undefined)).toEqual({
             ...BaseResponse,
             localDbtEnabled: false,
         });

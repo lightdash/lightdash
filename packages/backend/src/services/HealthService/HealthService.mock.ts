@@ -23,7 +23,7 @@ export const BaseResponse = {
     mode: LightdashMode.DEFAULT,
     isAuthenticated: false,
     localDbtEnabled: true,
-    needsProject: false,
+    needsProject: true,
     auth: {
         disablePasswordAuthentication: false,
         google: {
