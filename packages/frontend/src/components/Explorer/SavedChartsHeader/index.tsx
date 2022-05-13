@@ -1,7 +1,15 @@
-import { Button, Classes, Divider, Menu, MenuItem } from '@blueprintjs/core';
+import {
+    Alert,
+    Button,
+    Classes,
+    Divider,
+    Intent,
+    Menu,
+    MenuItem,
+} from '@blueprintjs/core';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
-import React, { FC, useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import React, { FC, useState, useEffect } from 'react';
+import { useHistory, useParams } from 'react-router-dom';
 import {
     useDuplicateMutation,
     useUpdateMutation,
@@ -23,6 +31,7 @@ import {
 } from './SavedChartsHeader.styles';
 
 const SavedChartsHeader: FC = () => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const history = useHistory();
     const {
         state: {
@@ -32,6 +41,10 @@ const SavedChartsHeader: FC = () => {
             savedChart,
         },
     } = useExplorer();
+    const [blockedNavigationLocation, setBlockedNavigationLocation] =
+        useState<string>();
+    const [isSaveWarningModalOpen, setIsSaveWarningModalOpen] =
+        useState<boolean>(false);
     const [isRenamingChart, setIsRenamingChart] = useState(false);
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
@@ -46,8 +59,64 @@ const SavedChartsHeader: FC = () => {
     );
     const chartId = savedChart?.uuid || '';
 
+    useEffect(() => {
+        const checkReload = (event: BeforeUnloadEvent) => {
+            if (hasUnsavedChanges) {
+                const message =
+                    'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
+                event.returnValue = message;
+                return message;
+            }
+        };
+        window.addEventListener('beforeunload', checkReload);
+        return () => window.removeEventListener('beforeunload', checkReload);
+    }, [hasUnsavedChanges]);
+    useEffect(() => {
+        history.block((prompt) => {
+            if (
+                hasUnsavedChanges &&
+                !prompt.pathname.includes(
+                    `/projects/${projectUuid}/saved/${savedChart?.uuid}`,
+                )
+            ) {
+                setBlockedNavigationLocation(prompt.pathname);
+                setIsSaveWarningModalOpen(true);
+                return false; //blocks history
+            }
+            return undefined; // allow history
+        });
+
+        return () => {
+            history.block(() => {});
+        };
+    }, [
+        history,
+        projectUuid,
+        savedChart,
+        hasUnsavedChanges,
+        setIsSaveWarningModalOpen,
+    ]);
+
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
+            <Alert
+                isOpen={isSaveWarningModalOpen}
+                cancelButtonText="Stay"
+                confirmButtonText="Leave page"
+                intent={Intent.DANGER}
+                icon="warning-sign"
+                onCancel={() => setIsSaveWarningModalOpen(false)}
+                onConfirm={() => {
+                    history.block(() => {});
+                    if (blockedNavigationLocation)
+                        history.push(blockedNavigationLocation);
+                }}
+            >
+                <p>
+                    You have unsaved changes to your chart! Are you sure you
+                    want to leave without saving?{' '}
+                </p>
+            </Alert>
             <Wrapper>
                 <TitleWrapper>
                     {savedChart && (
