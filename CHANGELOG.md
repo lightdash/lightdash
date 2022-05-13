@@ -1,3 +1,10 @@
+## [0.96.3](https://github.com/lightdash/lightdash/compare/0.96.2...0.96.3) (2022-05-13)
+
+
+### Bug Fixes
+
+* fixes typo in sidebar ([#2105](https://github.com/lightdash/lightdash/issues/2105)) ([ce0e7e4](https://github.com/lightdash/lightdash/commit/ce0e7e435d8fdd4fa364ee02d20b0f538ff13648))
+
 ## [0.96.2](https://github.com/lightdash/lightdash/compare/0.96.1...0.96.2) (2022-05-13)
 
 
