@@ -1,3 +1,10 @@
+# [0.100.0](https://github.com/lightdash/lightdash/compare/0.99.0...0.100.0) (2022-05-13)
+
+
+### Features
+
+* Chart unsaved changes alert ([#2110](https://github.com/lightdash/lightdash/issues/2110)) ([44e79b7](https://github.com/lightdash/lightdash/commit/44e79b766044d28ac6397244fa9cc4adbba9eb0e))
+
 # [0.99.0](https://github.com/lightdash/lightdash/compare/0.98.0...0.99.0) (2022-05-13)
 
 
