@@ -17,18 +17,18 @@ const ProjectStatusCallout: FC<
     if (isLoading) {
         stateProps = {
             intent: 'primary',
-            title: 'Testing connection',
+            title: 'Updating project settings...',
             icon: <Spinner size={20} className={Classes.ICON} />,
         };
     } else if (isSuccess) {
         stateProps = {
             intent: 'success',
-            title: 'Successfully connected! Updated project settings.',
+            title: 'Project settings updated!',
         };
     } else if (isError) {
         stateProps = {
             intent: 'danger',
-            title: 'There was an error getting connected',
+            title: 'There was an error updating the project...',
             children: error ? (
                 <MDEditor.Markdown
                     source={error.error.message.replaceAll('\n', '\n\n')}
@@ -39,7 +39,7 @@ const ProjectStatusCallout: FC<
     } else {
         stateProps = {
             intent: 'primary',
-            title: 'Testing connection',
+            title: 'Updating project settings...',
             icon: <Spinner size={20} className={Classes.ICON} />,
         };
     }
