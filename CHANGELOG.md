@@ -1,3 +1,10 @@
+# [0.98.0](https://github.com/lightdash/lightdash/compare/0.97.1...0.98.0) (2022-05-13)
+
+
+### Features
+
+* view saved chart page ([#2108](https://github.com/lightdash/lightdash/issues/2108)) ([a2266c7](https://github.com/lightdash/lightdash/commit/a2266c75a79b2a117aebe86f9ffbd1e7a7381b59))
+
 ## [0.97.1](https://github.com/lightdash/lightdash/compare/0.97.0...0.97.1) (2022-05-13)
 
 
