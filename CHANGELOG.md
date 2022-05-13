@@ -1,3 +1,10 @@
+# [0.97.0](https://github.com/lightdash/lightdash/compare/0.96.3...0.97.0) (2022-05-13)
+
+
+### Features
+
+* add header and update main buttons ([#2100](https://github.com/lightdash/lightdash/issues/2100)) ([64d23c6](https://github.com/lightdash/lightdash/commit/64d23c684e82bc6e05df8b24ba78ba7e711f0ebd))
+
 ## [0.96.3](https://github.com/lightdash/lightdash/compare/0.96.2...0.96.3) (2022-05-13)
 
 
