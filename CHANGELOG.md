@@ -1,3 +1,10 @@
+# [0.99.0](https://github.com/lightdash/lightdash/compare/0.98.0...0.99.0) (2022-05-13)
+
+
+### Features
+
+* add share link button ([#2101](https://github.com/lightdash/lightdash/issues/2101)) ([a07c4a0](https://github.com/lightdash/lightdash/commit/a07c4a07d9b78d8a6ca947e71bb1fcda50675b75))
+
 # [0.98.0](https://github.com/lightdash/lightdash/compare/0.97.1...0.98.0) (2022-05-13)
 
 
