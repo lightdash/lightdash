@@ -79,17 +79,6 @@ const Login: FC = () => {
         return <PageSpinner />;
     }
 
-    if (health.status === 'success' && health.data?.needsSetup) {
-        return (
-            <Redirect
-                to={{
-                    pathname: '/register',
-                    state: { from: location.state?.from },
-                }}
-            />
-        );
-    }
-
     if (health.status === 'success' && health.data?.isAuthenticated) {
         return <Redirect to={{ pathname: '/' }} />;
     }

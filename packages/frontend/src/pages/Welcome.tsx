@@ -103,6 +103,8 @@ const Welcome: FC = () => {
         );
     }
 
+    const needsSetup = false; //health.data?.needsSetup
+
     return (
         <Page isFullHeight>
             <div
@@ -135,16 +137,16 @@ const Welcome: FC = () => {
                 >
                     <Step
                         title="1. Create user"
-                        focused={!!health.data?.needsSetup}
-                        disabled={!health.data?.needsSetup}
-                        checked={!health.data?.needsSetup}
+                        focused={!!needsSetup}
+                        disabled={!needsSetup}
+                        checked={!needsSetup}
                         pathname="/register"
                         action="create_user"
                     />
                     <Step
                         title="2. Create project"
-                        focused={!health.data?.needsSetup}
-                        disabled={!!health.data?.needsSetup}
+                        focused={!needsSetup}
+                        disabled={!!needsSetup}
                         checked={!health.data?.needsProject}
                         pathname="/createProject"
                         action="create_project"

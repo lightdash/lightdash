@@ -661,7 +661,6 @@ export type HealthState = {
     healthy: boolean;
     mode: LightdashMode;
     version: string;
-    needsSetup: boolean;
     needsProject: boolean;
     localDbtEnabled: boolean;
     defaultProject?: DbtProjectConfig;

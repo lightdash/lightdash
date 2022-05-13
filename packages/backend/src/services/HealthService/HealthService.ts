@@ -61,7 +61,6 @@ export class HealthService {
             healthy: true,
             mode: this.lightdashConfig.mode,
             version: VERSION,
-            needsSetup: !(await this.userModel.hasUsers()),
             needsProject,
             localDbtEnabled,
             defaultProject: undefined,
