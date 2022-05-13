@@ -1,6 +1,6 @@
 # Limit the data in your query using Filters
 
-Filters appear at the top of an explore or dashboard and allow users to change the data being pulled into your charts. 
+Filters appear at the top of the Explore view or dashboard and allow users to change the data being pulled into your charts.
 
 For example, if I built a chart showing the revenue over time, but I wanted it to only have the revenue I made in France, I could add a filter for `country is equal to France`.
 
@@ -8,11 +8,11 @@ You can [add filters to your charts individually in the Explore view](#adding-fi
 
 ## General filters tips
 
-Here are some general tips about filters that apply to using them in both Explores and in dashboards.
+Here are some general tips about filters that apply to using them in both the Explore view and in dashboards.
 
 ### If you want to have multiple filters, just click `+ Add filter`
 
-In an Explore:
+In the Explore view:
 
 ![add-filter](assets/add-filter.png)
 
@@ -21,7 +21,7 @@ Or in a dashboard:
 
 ### If you add multiple filters, they are joined together using AND
 
-So, the example from the Explore above would give us compiled SQL that looks like:
+So, the example in the Explore view above would give us compiled SQL that looks like:
 
 ```sql
 WHERE (

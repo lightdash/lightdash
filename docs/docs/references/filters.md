@@ -4,7 +4,7 @@ sidebar_position: 2
 
 # Filters
 
-Filters appear at the top of an explore and allow users to change the data being pulled into the explore.
+Filters appear at the top of the Explore view and allow users to change the data being pulled in.
 
 ---
 
