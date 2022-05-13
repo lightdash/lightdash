@@ -145,7 +145,7 @@ function styleNumber(
                 numberStyle,
             )}B`;
         default:
-            return `${Number(value).toLocaleString()}`;
+            return `${new Intl.NumberFormat('en-US').format(Number(value))}`;
     }
 }
 
