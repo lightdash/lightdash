@@ -48,7 +48,7 @@ export const RefreshButton = () => {
         >
             <BigButton
                 intent="primary"
-                style={{ width: 150, marginRight: '10px' }}
+                style={{ width: 150 }}
                 onClick={onClick}
                 disabled={isDisabled}
                 loading={isLoadingResults}

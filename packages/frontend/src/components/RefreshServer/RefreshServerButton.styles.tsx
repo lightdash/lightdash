@@ -14,5 +14,6 @@ export const LoadingSpinner = styled(Spinner)`
 
 export const RefreshButton = styled(BigButton)`
     width: 150px;
+    margin-left: 10px;
     white-space: nowrap;
 `;

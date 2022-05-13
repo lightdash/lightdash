@@ -25,7 +25,7 @@ export const UpdatedLabel = styled.p`
     font-size: 12px;
     font-weight: 400;
     margin-top: 0.38em;
-    line-height: 12px;
+    line-height: 14px;
     margin-bottom: 0;
 `;
 

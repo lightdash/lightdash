@@ -1,24 +1,20 @@
 import { FC } from 'react';
-import ExploreHeader from './ExploreHeader/ExploreHeader';
-import { Divider } from './Explorer.styles';
+import { ExplorerWrapper } from './Explorer.styles';
+import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
 import ResultsCard from './ResultsCard/ResultsCard';
 import SqlCard from './SqlCard/SqlCard';
 import VisualizationCard from './VisualizationCard/VisualizationCard';
 
-const Explorer: FC = () => {
+const Explorer: FC<{ isExplorer?: boolean }> = ({ isExplorer = false }) => {
     return (
-        <>
-            <ExploreHeader />
-            <Divider />
+        <ExplorerWrapper>
+            <ExplorerHeader isExplorer={isExplorer} />
             <FiltersCard />
-            <Divider />
             <VisualizationCard />
-            <Divider />
             <ResultsCard />
-            <Divider />
             <SqlCard />
-        </>
+        </ExplorerWrapper>
     );
 };
 

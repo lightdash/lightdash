@@ -2,12 +2,17 @@ import { Card, NonIdealState, Spinner } from '@blueprintjs/core';
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import Explorer from '../components/Explorer';
-import ExplorePanel from '../components/Explorer/ExplorePanel';
+import ExplorePanel from '../components/Explorer/ExplorePanel/index';
+import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import {
     ExplorerProvider,
     ExplorerSection,
 } from '../providers/ExplorerProvider';
+import {
+    ExplorerPanelWrapper,
+    ExploreSideBarWrapper,
+} from './SavedExplorer.styles';
 
 const SavedExplorer = () => {
     const { savedQueryUuid } = useParams<{
@@ -57,6 +62,7 @@ const SavedExplorer = () => {
             }
             savedChart={data}
         >
+            <SavedChartsHeader />
             <div
                 style={{
                     display: 'flex',
@@ -68,41 +74,25 @@ const SavedExplorer = () => {
             >
                 <Card
                     style={{
-                        height: 'calc(100vh - 50px)',
+                        height: 'calc(100vh - 120px)',
                         flexBasis: '400px',
                         flexGrow: 0,
                         flexShrink: 0,
                         marginRight: '10px',
                         overflow: 'hidden',
                         position: 'sticky',
-                        top: '50px',
+                        borderRadius: 0,
+                        top: '120px',
                     }}
                     elevation={1}
                 >
-                    <div
-                        style={{
-                            height: '100%',
-                            overflow: 'hidden',
-                            display: 'flex',
-                            flexDirection: 'column',
-                        }}
-                    >
+                    <ExploreSideBarWrapper>
                         <ExplorePanel />
-                    </div>
+                    </ExploreSideBarWrapper>
                 </Card>
-                <div
-                    style={{
-                        padding: '10px 10px',
-                        flexGrow: 1,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'flex-start',
-                        alignItems: 'stretch',
-                        minWidth: 0,
-                    }}
-                >
+                <ExplorerPanelWrapper>
                     <Explorer />
-                </div>
+                </ExplorerPanelWrapper>
             </div>
         </ExplorerProvider>
     );
