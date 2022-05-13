@@ -18,11 +18,11 @@ So, we wanted to go through how to actually add these Tables to your Lightdash p
 
 The beauty of Lightdash is that we're pretty well synced with your dbt project. So, in Lightdash, Tables actually come from dbt models that have been defined in your dbt project's `.yml` files.
 
-If your dbt model has been defined in a `.yml` file, it will appear in Lightdash as a Table. 
+If your dbt model has been defined in a .yml file, it will appear in Lightdash as a Table. 
 
 :::info
 
-Not sure what a `.yml` file is? Make sure to [check out dbt's docs](https://docs.getdbt.com/reference/configs-and-properties) to learn more about building `.yml` files for your dbt project.
+Not sure what a .yml file is? Make sure to [check out dbt's docs](https://docs.getdbt.com/reference/configs-and-properties) to learn more about building .yml files for your dbt project.
 
 :::
 
@@ -39,9 +39,9 @@ models:
       - name: first_purchase_date
 ```
 
-We recommend structuring your dbt project with one `.yml` file per model (or `.sql` file).
+We recommend structuring your dbt project with one .yml file per model (or .sql file).
 
-We've found that this makes it easier to navigate through your `.yml` files and generally manage your dbt models, especially as your project becomes bigger. 
+We've found that this makes it easier to navigate through your .yml files and generally manage your dbt models, especially as your project becomes bigger. 
 
 Here's an example of our dbt project at Lightdash too see what that looks like in practice:
 
@@ -54,9 +54,9 @@ Here's an example of our dbt project at Lightdash too see what that looks like i
 
 Yep! We realize that schema files come in all shapes and sizes. 
 
-Some people prefer to write the `.yml` files for all of their models in a single `.yml` file at the directory level, and that's totally fine - it will still work with Lightdash. 
+Some people prefer to write the .yml files for all of their models in a single .yml file at the directory level, and that's totally fine - it will still work with Lightdash. 
 
-But, like we said just above, if you're trying to decide how to setup your dbt project, **we'd recommend having one `.yml` file per model.**
+But, like we said just above, if you're trying to decide how to setup your dbt project, **we'd recommend having one .yml file per model.**
 
 ## How to create `.yml` files
 
@@ -64,19 +64,19 @@ There are a few ways to do this - some easier than others.
 
 ### 1. The good old fashioned way: totally manually
 
-You can create `.yml` files for your models by just creating a file in your dbt model's directory, then typing out all of the columns into it.
+You can create .yml files for your models by just creating a file in your dbt model's directory, then typing out all of the columns into it.
 
-You'll need to make sure that your `.yml` file follows [the formatting rules for a dbt `model`](https://docs.getdbt.com/reference/configs-and-properties#example).
+You'll need to make sure that your .yml file follows [the formatting rules for a dbt `model`](https://docs.getdbt.com/reference/configs-and-properties#example).
 
 ### 2. The much easier way: using a schema generator
 
-If you've ever written a full `.yml` file manually, you won't be surprised that someone has gone ahead and automated the process. 
+If you've ever written a full .yml file manually, you won't be surprised that someone has gone ahead and automated the process. 
 
 There are a couple of schema generators out there, but the one we've ended up using the most was the `dbt-invoke` package. You can read more about [how to install + use it here](https://pypi.org/project/dbt-invoke/).
 
 ## How to add Tables to Lightdash
 
-Once you have your `.yml` files all ready to go and synced to the branch that your Lightdash project is connected to, you can just hit `refresh dbt` and your Tables should pop up in your project. (Not sure about how to sync dbt + Lightdash? [Check out our docs on it here](/references/syncing_your_dbt_changes).)
+Once you have your .yml files all ready to go and synced to the branch that your Lightdash project is connected to, you can just hit `refresh dbt` and your Tables should pop up in your project. (Not sure about how to sync dbt + Lightdash? [Check out our docs on it here](/references/syncing_your_dbt_changes).)
 
 They'll be tucked away under `Explore` --> `Tables` in the navigation bar.
 
@@ -84,7 +84,7 @@ They'll be tucked away under `Explore` --> `Tables` in the navigation bar.
 
 ## Configuring which Tables appear in Lightdash
 
-Sometimes, there are models in our dbt project with `.yml` files that we might not want to appear in Lightdash (`base` tables, I'm looking at you 👀). So, we've made it possible for you to configure which Tables you want to appear in Lightdash. 
+Sometimes, there are models in our dbt project with .yml files that we might not want to appear in Lightdash (`base` tables, I'm looking at you 👀). So, we've made it possible for you to configure which Tables you want to appear in Lightdash. 
 
 To get to your Table Configuration settings, just:
 
@@ -98,7 +98,7 @@ To get to your Table Configuration settings, just:
 
 Now that you're in the right place, let's get to the juicy stuff. You have three options for configuring the Tables that pop up in Lightdash:
 
-1. **Show entire project**: I hope this one isn't too much of a surprise. If you select this option, it shows _all_ of the models with `.yml` files in your dbt project in Lightdash.
+1. **Show entire project**: I hope this one isn't too much of a surprise. If you select this option, it shows _all_ of the models with .yml files in your dbt project in Lightdash.
 2. **Show models with any of these tags**: This option depends on dbt tags. If you're not familiar with dbt tags, [we'd recommend checking them out](https://docs.getdbt.com/reference/resource-configs/tags) (they're really handy for managing models!). If you already have a specific model tag (or tags) you want to limit Lightdash to using, this is where you can add them in. For example, all of our production models have the tag `prod`, so we've configured our Tables using that tag.
 3. **Show models in this list**: If you're not keen on using tags then you can manually select the models you want to include as Tables in your Lightdash project using this option. 
 
@@ -108,7 +108,7 @@ Now that you're in the right place, let's get to the juicy stuff. You have three
 
 🔥 **Hot tip**: if you want to manage the models you're using in Lightdash **_in your dbt project_**, then you can use [dbt's tags](https://docs.getdbt.com/reference/resource-configs/tags) to tag all of your models with `lightdash` then setup your Tables Configuration to limit tables with the tag `lightdash` (see option 2 above).
 
-So, for the models you want to include in Lightdash, you'd just add the tag to your model's `.yml` file:
+So, for the models you want to include in Lightdash, you'd just add the tag to your model's .yml file:
 
 ```yaml
 version: 2
@@ -134,7 +134,7 @@ select ...
 
 ### Showing hidden tables in Lightdash
 
-You can still access + explore all of the Tables from your dbt project (with `.yml` files), even if you've filtered them from appearing in the sidebar. You can access these hidden table by just clicking on the `Show hidden tables` toggle in the Tables sidebar. 
+You can still access + explore all of the Tables from your dbt project (with .yml files), even if you've filtered them from appearing in the sidebar. You can access these hidden table by just clicking on the `Show hidden tables` toggle in the Tables sidebar. 
 
 <img src={ShowHiddenTables} width="460" height="227" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
