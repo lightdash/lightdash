@@ -18,6 +18,7 @@ export const ExplorerResults = () => {
     const dataColumns = useColumns();
     const {
         state: {
+            isEditMode,
             unsavedChartVersion: {
                 tableName: activeTableName,
                 metricQuery: { dimensions, metrics },
@@ -71,6 +72,7 @@ export const ExplorerResults = () => {
 
     return (
         <Table
+            isEditMode={isEditMode}
             data={formattedData}
             dataColumns={dataColumns}
             loading={queryResults.isLoading}
@@ -78,8 +80,8 @@ export const ExplorerResults = () => {
             dataColumnOrder={explorerColumnOrder}
             onColumnOrderChange={setExplorerColumnOrder}
             idleState={IdleState}
-            cellContextMenu={CellContextMenu}
-            headerContextMenu={ColumnHeaderContextMenu}
+            cellContextMenu={isEditMode ? CellContextMenu : undefined}
+            headerContextMenu={isEditMode ? ColumnHeaderContextMenu : undefined}
         />
     );
 };

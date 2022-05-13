@@ -56,6 +56,7 @@ const SqlRunnerResultsTable: FC<{
 
     return (
         <Table
+            isEditMode={false}
             data={data?.rows || []}
             dataColumns={dataColumns}
             loading={isLoading}

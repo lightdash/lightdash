@@ -10,13 +10,13 @@ import { Main, PageContainer, SideBar } from './Explorer.styles';
 
 const ExplorerWithUrlParams = () => {
     useExplorerRoute();
-    return <Explorer isExplorer />;
+    return <Explorer />;
 };
 
 const ExplorerPage = () => {
     const explorerUrlState = useExplorerUrlState();
     return (
-        <ExplorerProvider initialState={explorerUrlState}>
+        <ExplorerProvider isEditMode={true} initialState={explorerUrlState}>
             <PageContainer>
                 <SideBar elevation={1}>
                     <ExploreSideBar />

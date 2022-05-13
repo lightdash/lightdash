@@ -14,7 +14,7 @@ import VisualizationCardOptions from '../VisualizationCardOptions';
 
 const VisualizationCard: FC = () => {
     const {
-        state: { unsavedChartVersion, expandedSections },
+        state: { isEditMode, unsavedChartVersion, expandedSections },
         queryResults,
         actions: {
             setPivotFields,
@@ -78,12 +78,16 @@ const VisualizationCard: FC = () => {
                                     marginRight: '10px',
                                 }}
                             >
-                                <VisualizationCardOptions />
-                                {unsavedChartVersion.chartConfig.type ===
-                                ChartType.BIG_NUMBER ? (
-                                    <BigNumberConfigPanel />
-                                ) : (
-                                    <ChartConfigPanel />
+                                {isEditMode && (
+                                    <>
+                                        <VisualizationCardOptions />
+                                        {unsavedChartVersion.chartConfig
+                                            .type === ChartType.BIG_NUMBER ? (
+                                            <BigNumberConfigPanel />
+                                        ) : (
+                                            <ChartConfigPanel />
+                                        )}
+                                    </>
                                 )}
                                 <ChartDownloadMenu />
                             </div>

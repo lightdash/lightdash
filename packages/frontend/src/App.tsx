@@ -149,7 +149,7 @@ const App = () => (
                                                                 <ProjectSettings />
                                                             </TrackPage>
                                                         </Route>
-                                                        <Route path="/projects/:projectUuid/saved/:savedQueryUuid">
+                                                        <Route path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?">
                                                             <NavBar />
                                                             <TrackPage
                                                                 name={

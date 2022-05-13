@@ -148,7 +148,7 @@ export const useCreateMutation = () => {
                     title: `Success! Chart was saved.`,
                 });
                 history.push({
-                    pathname: `/projects/${projectUuid}/saved/${data.uuid}`,
+                    pathname: `/projects/${projectUuid}/saved/${data.uuid}/edit`,
                 });
             },
             onError: (error) => {

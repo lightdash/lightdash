@@ -163,6 +163,7 @@ const Item: FC<ItemProps> = ({
 const DEFAULT_PAGE_SIZE = 25;
 
 type Props = {
+    isEditMode: boolean;
     loading: boolean;
     idle: boolean;
     data: any;
@@ -178,6 +179,7 @@ type Props = {
 };
 
 export const ResultsTable: FC<Props> = ({
+    isEditMode,
     loading,
     idle,
     dataColumns,
@@ -332,7 +334,8 @@ export const ResultsTable: FC<Props> = ({
                                                             (column, index) => (
                                                                 <th
                                                                     {...column.getHeaderProps(
-                                                                        column.getSortByToggleProps
+                                                                        isEditMode &&
+                                                                            column.getSortByToggleProps
                                                                             ? [
                                                                                   column.getSortByToggleProps(),
                                                                               ]
@@ -354,6 +357,9 @@ export const ResultsTable: FC<Props> = ({
                                                                             }
                                                                             index={
                                                                                 index
+                                                                            }
+                                                                            isDragDisabled={
+                                                                                !isEditMode
                                                                             }
                                                                         >
                                                                             {(

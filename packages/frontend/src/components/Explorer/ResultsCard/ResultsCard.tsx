@@ -17,7 +17,7 @@ import {
 
 const ResultsCard: FC = () => {
     const {
-        state: { unsavedChartVersion, expandedSections },
+        state: { isEditMode, unsavedChartVersion, expandedSections },
         queryResults,
         actions: { setRowLimit, toggleExpandedSection },
     } = useExplorer();
@@ -35,7 +35,7 @@ const ResultsCard: FC = () => {
                         }
                     />
                     <H5>Results</H5>
-                    {resultsIsOpen && (
+                    {isEditMode && resultsIsOpen && (
                         <LimitButton
                             limit={unsavedChartVersion.metricQuery.limit}
                             onLimitChange={setRowLimit}
@@ -44,7 +44,7 @@ const ResultsCard: FC = () => {
                 </CardHeaderLeftContent>
                 {resultsIsOpen && (
                     <CardHeaderRightContent>
-                        <AddColumnButton />
+                        {isEditMode && <AddColumnButton />}
                         <DownloadCsvButton
                             fileName={unsavedChartVersion.tableName}
                             rows={

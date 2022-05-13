@@ -1,6 +1,7 @@
-import { Card, NonIdealState, Spinner } from '@blueprintjs/core';
-import React from 'react';
+import { NonIdealState, Spinner } from '@blueprintjs/core';
+import React, { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { Transition } from 'react-transition-group';
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel/index';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
@@ -10,14 +11,21 @@ import {
     ExplorerSection,
 } from '../providers/ExplorerProvider';
 import {
-    ExplorerPanelWrapper,
-    ExploreSideBarWrapper,
+    CardContent,
+    Drawer,
+    MainContent,
+    PageWrapper,
+    StickySidebar,
+    WidthHack,
 } from './SavedExplorer.styles';
 
 const SavedExplorer = () => {
-    const { savedQueryUuid } = useParams<{
+    const { savedQueryUuid, mode } = useParams<{
         savedQueryUuid: string;
+        projectUuid: string;
+        mode?: string;
     }>();
+    const isEditMode = useMemo(() => mode === 'edit', [mode]);
     const { data, isLoading, error } = useSavedQuery({
         id: savedQueryUuid,
     });
@@ -42,14 +50,12 @@ const SavedExplorer = () => {
 
     return (
         <ExplorerProvider
+            isEditMode={isEditMode}
             initialState={
                 data
                     ? {
                           shouldFetchResults: true,
-                          expandedSections: [
-                              ExplorerSection.VISUALIZATION,
-                              ExplorerSection.RESULTS,
-                          ],
+                          expandedSections: [ExplorerSection.VISUALIZATION],
                           unsavedChartVersion: {
                               tableName: data.tableName,
                               chartConfig: data.chartConfig,
@@ -63,37 +69,25 @@ const SavedExplorer = () => {
             savedChart={data}
         >
             <SavedChartsHeader />
-            <div
-                style={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    flexWrap: 'nowrap',
-                    justifyContent: 'stretch',
-                    alignItems: 'flex-start',
-                }}
-            >
-                <Card
-                    style={{
-                        height: 'calc(100vh - 120px)',
-                        flexBasis: '400px',
-                        flexGrow: 0,
-                        flexShrink: 0,
-                        marginRight: '10px',
-                        overflow: 'hidden',
-                        position: 'sticky',
-                        borderRadius: 0,
-                        top: '120px',
-                    }}
-                    elevation={1}
-                >
-                    <ExploreSideBarWrapper>
-                        <ExplorePanel />
-                    </ExploreSideBarWrapper>
-                </Card>
-                <ExplorerPanelWrapper>
+            <PageWrapper>
+                <StickySidebar>
+                    <Transition in={isEditMode} timeout={500}>
+                        {(state) => (
+                            <>
+                                <Drawer elevation={1} $state={state}>
+                                    <CardContent>
+                                        <ExplorePanel />
+                                    </CardContent>
+                                </Drawer>
+                                <WidthHack $state={state}></WidthHack>
+                            </>
+                        )}
+                    </Transition>
+                </StickySidebar>
+                <MainContent>
                     <Explorer />
-                </ExplorerPanelWrapper>
-            </div>
+                </MainContent>
+            </PageWrapper>
         </ExplorerProvider>
     );
 };
