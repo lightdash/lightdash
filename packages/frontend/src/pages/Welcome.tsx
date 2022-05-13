@@ -93,11 +93,7 @@ const Welcome: FC = () => {
         return <PageSpinner />;
     }
 
-    if (
-        health.status === 'success' &&
-        !health.data?.needsSetup &&
-        !health.data?.needsProject
-    ) {
+    if (health.status === 'success' && !health.data?.needsProject) {
         return (
             <Redirect
                 to={{

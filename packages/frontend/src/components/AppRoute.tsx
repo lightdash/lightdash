@@ -14,7 +14,7 @@ const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
                     return <PageSpinner />;
                 }
 
-                if (health.data?.needsSetup || health.data?.needsProject) {
+                if (health.data?.needsProject) {
                     return (
                         <Redirect
                             to={{

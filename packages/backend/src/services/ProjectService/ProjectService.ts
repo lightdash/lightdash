@@ -78,10 +78,6 @@ export class ProjectService {
         this.jobModel = jobModel;
     }
 
-    async hasProject(): Promise<boolean> {
-        return this.projectModel.hasProjects();
-    }
-
     async getProject(projectUuid: string, user: SessionUser): Promise<Project> {
         // Todo: Check user has access
         const project = await this.projectModel.get(projectUuid);

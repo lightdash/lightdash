@@ -376,10 +376,20 @@ export class UserModel {
             ]);
     }
 
-    async createInitialAdminUser(
+    async createNewUserWithOrg(
         createUser: CreateUserArgs | OpenIdUser,
     ): Promise<LightdashUser> {
         const user = await this.database.transaction(async (trx) => {
+            const duplicatedEmails = await trx(EmailTableName).where(
+                'email',
+                isOpenIdUser(createUser)
+                    ? createUser.openId.email
+                    : createUser.email,
+            );
+            if (duplicatedEmails.length > 0) {
+                throw new ParameterError('Email already in use');
+            }
+
             const newOrg = await createOrganization(trx, {
                 organization_name: '',
             });

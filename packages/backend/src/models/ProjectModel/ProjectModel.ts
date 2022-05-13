@@ -160,8 +160,17 @@ export class ProjectModel {
             .merge();
     }
 
-    async hasProjects(): Promise<boolean> {
-        const projects = await this.database('projects').select('project_uuid');
+    async hasProjects(organizationUuid: string): Promise<boolean> {
+        const orgs = await this.database('organizations')
+            .where('organization_uuid', organizationUuid)
+            .select('*');
+        if (orgs.length === 0) {
+            throw new NotExistsError('Cannot find organization');
+        }
+
+        const projects = await this.database('projects')
+            .where('organization_id', orgs[0].organization_id)
+            .select('project_uuid');
         return projects.length > 0;
     }
 

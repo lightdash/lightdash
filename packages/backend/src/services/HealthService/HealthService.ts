@@ -2,6 +2,7 @@ import {
     HealthState,
     LightdashInstallType,
     LightdashMode,
+    SessionUser,
     UnexpectedDatabaseError,
 } from 'common';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
@@ -34,7 +35,9 @@ export class HealthService {
         this.lightdashConfig = lightdashConfig;
     }
 
-    async getHealthState(isAuthenticated: boolean): Promise<HealthState> {
+    async getHealthState(
+        sessionUser: SessionUser | undefined,
+    ): Promise<HealthState> {
         const { isComplete, currentVersion } = await getMigrationStatus();
 
         if (!isComplete) {
@@ -44,7 +47,11 @@ export class HealthService {
             );
         }
 
-        const needsProject = !(await this.projectModel.hasProjects());
+        const needsProject = sessionUser
+            ? !(await this.projectModel.hasProjects(
+                  sessionUser.organizationUuid,
+              ))
+            : true;
 
         const localDbtEnabled =
             process.env.LIGHTDASH_INSTALL_TYPE !==
@@ -58,7 +65,7 @@ export class HealthService {
             needsProject,
             localDbtEnabled,
             defaultProject: undefined,
-            isAuthenticated,
+            isAuthenticated: !!sessionUser,
             latest: { version: getDockerHubVersion() },
             rudder: this.lightdashConfig.rudder,
             sentry: this.lightdashConfig.sentry,

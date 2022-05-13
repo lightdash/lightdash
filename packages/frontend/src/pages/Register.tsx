@@ -2,7 +2,7 @@ import { Card, H2 } from '@blueprintjs/core';
 import { ApiError, CreateUserArgs, LightdashUser } from 'common';
 import React, { FC } from 'react';
 import { useMutation } from 'react-query';
-import { Redirect, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
@@ -46,16 +46,6 @@ const Register: FC = () => {
 
     if (health.isLoading) {
         return <PageSpinner />;
-    }
-
-    if (health.status === 'success' && !health.data?.needsSetup) {
-        return (
-            <Redirect
-                to={{
-                    pathname: '/',
-                }}
-            />
-        );
     }
 
     return (

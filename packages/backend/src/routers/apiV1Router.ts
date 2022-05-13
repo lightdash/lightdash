@@ -30,7 +30,7 @@ apiV1Router.get('/livez', async (req, res, next) => {
 
 apiV1Router.get('/health', async (req, res, next) => {
     healthService
-        .getHealthState(!!req.user?.userUuid)
+        .getHealthState(req.user)
         .then((state) =>
             res.json({
                 status: 'ok',
@@ -49,7 +49,7 @@ apiV1Router.get('/flash', (req, res) => {
 
 apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
     try {
-        const lightdashUser = await userService.registerInitialUser({
+        const lightdashUser = await userService.registerNewUserWithOrg({
             firstName: sanitizeStringParam(req.body.firstName),
             lastName: sanitizeStringParam(req.body.lastName),
             email: sanitizeEmailParam(req.body.email),
