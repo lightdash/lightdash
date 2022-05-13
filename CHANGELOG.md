@@ -1,3 +1,10 @@
+## [0.97.1](https://github.com/lightdash/lightdash/compare/0.97.0...0.97.1) (2022-05-13)
+
+
+### Bug Fixes
+
+* rounding numbers with 4 or more digits ([#2109](https://github.com/lightdash/lightdash/issues/2109)) ([d004513](https://github.com/lightdash/lightdash/commit/d0045135d87aa3266148cf916402a17639e251ee))
+
 # [0.97.0](https://github.com/lightdash/lightdash/compare/0.96.3...0.97.0) (2022-05-13)
 
 
