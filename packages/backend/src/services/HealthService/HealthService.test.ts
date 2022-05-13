@@ -36,9 +36,6 @@ describe('health', () => {
     it('Should get current and latest version', async () => {
         expect(await healthService.getHealthState(false)).toEqual(BaseResponse);
     });
-    it('Should get current and latest version', async () => {
-        expect(await healthService.getHealthState(false)).toEqual(BaseResponse);
-    });
     it('Should return last version as undefined when fails fetch', async () => {
         (getDockerHubVersion as jest.Mock).mockImplementationOnce(
             () => undefined,
