@@ -25,5 +25,8 @@ jobs:
     - name: Build common
       run: yarn common-build
 
+    - name: Build warehouses
+      run: yarn warehouses-build
+
     - name: Test backend
       run: yarn test
