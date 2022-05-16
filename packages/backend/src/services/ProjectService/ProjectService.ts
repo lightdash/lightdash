@@ -101,6 +101,7 @@ export class ProjectService {
             jobType: JobType.CREATE_PROJECT,
             jobStatus: JobStatusType.STARTED,
             projectUuid: undefined,
+            userUuid: user.userUuid,
             steps: [
                 { stepType: JobStepType.TESTING_ADAPTOR },
                 { stepType: JobStepType.COMPILING },
@@ -189,6 +190,7 @@ export class ProjectService {
             jobType: JobType.COMPILE_PROJECT,
             jobStatus: JobStatusType.STARTED,
             projectUuid: undefined,
+            userUuid: user.userUuid,
             steps: [
                 { stepType: JobStepType.TESTING_ADAPTOR },
                 { stepType: JobStepType.COMPILING },
@@ -544,8 +546,17 @@ export class ProjectService {
         return this.jobModel.getMostRecentJobByProject(projectUuid);
     }
 
-    async getJobStatus(jobUuid: string): Promise<Job> {
-        return this.jobModel.get(jobUuid);
+    async getJobStatus(jobUuid: string, user: SessionUser): Promise<Job> {
+        const job = await this.jobModel.get(jobUuid);
+        const ability = defineAbilityForOrganizationMember(user);
+        if (
+            job.userUuid !== user.userUuid &&
+            ability.cannot('view', 'Project')
+        ) {
+            throw new AuthorizationError();
+        }
+
+        return job;
     }
 
     async compileProject(
@@ -556,6 +567,7 @@ export class ProjectService {
             jobUuid: uuidv4(),
             jobType: JobType.COMPILE_PROJECT,
             jobStatus: JobStatusType.STARTED,
+            userUuid: user.userUuid,
             projectUuid,
             steps: [{ stepType: JobStepType.COMPILING }],
         };
