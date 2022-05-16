@@ -41,6 +41,7 @@ const SavedChartsHeader: FC = () => {
             hasUnsavedChanges,
             savedChart,
         },
+        actions: { reset },
     } = useExplorer();
     const [blockedNavigationLocation, setBlockedNavigationLocation] =
         useState<string>();
@@ -228,11 +229,12 @@ const SavedChartsHeader: FC = () => {
                         <>
                             <SaveChartButton />
                             <ButtonWithMarginLeft
-                                onClick={() =>
+                                onClick={() => {
+                                    reset();
                                     history.push({
                                         pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
-                                    })
-                                }
+                                    });
+                                }}
                             >
                                 Cancel
                             </ButtonWithMarginLeft>

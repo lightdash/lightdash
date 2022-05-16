@@ -149,12 +149,12 @@ const ExploreSideBar = () => {
         state: {
             unsavedChartVersion: { tableName },
         },
-        actions: { reset },
+        actions: { clear },
     } = useExplorer();
     const history = useHistory();
 
     const onBack = () => {
-        reset();
+        clear();
         history.push(`/projects/${projectUuid}/tables`);
     };
 
