@@ -7,22 +7,25 @@ import {
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getMigrationStatus } from '../../database/database';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { VERSION } from '../../version';
 
 type HealthServiceDependencies = {
     lightdashConfig: LightdashConfig;
-    projectModel: ProjectModel;
+    organizationModel: OrganizationModel;
 };
 
 export class HealthService {
     private readonly lightdashConfig: LightdashConfig;
 
-    private readonly projectModel: ProjectModel;
+    private readonly organizationModel: OrganizationModel;
 
-    constructor({ projectModel, lightdashConfig }: HealthServiceDependencies) {
+    constructor({
+        organizationModel,
+        lightdashConfig,
+    }: HealthServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
-        this.projectModel = projectModel;
+        this.organizationModel = organizationModel;
     }
 
     async getHealthState(isAuthenticated: boolean): Promise<HealthState> {
@@ -35,7 +38,8 @@ export class HealthService {
             );
         }
 
-        const requiresOrgRegistration = !this.projectModel.hasProjects();
+        const requiresOrgRegistration =
+            !(await this.organizationModel.hasOrgs());
 
         const localDbtEnabled =
             process.env.LIGHTDASH_INSTALL_TYPE !==

@@ -51,7 +51,7 @@ export const projectService = new ProjectService({
 });
 
 export const healthService = new HealthService({
-    projectModel,
+    organizationModel,
     lightdashConfig,
 });
 
