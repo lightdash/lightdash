@@ -47,6 +47,7 @@ module.exports = {
         "references/syncing_your_dbt_changes",
         "guides/how-to-deploy-to-kubernetes",
         "guides/how-to-create-dimensions",
+        "guides/how-to-create-metrics",
         "guides/how-to-join-tables",
         "guides/how-to-reset-your-password",
         "guides/customizing-the-appearance-of-your-project",
@@ -55,7 +56,6 @@ module.exports = {
         "guides/limiting-data-using-filters",
         "guides/visualizing-your-results",
         "guides/interactive-dashboards",
-        "guides/adding-custom-metrics",
         {
           type: "category",
           label: "Using table calculations",
