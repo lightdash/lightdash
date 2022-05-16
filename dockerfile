@@ -60,6 +60,7 @@ FROM base AS prod-builder
 COPY package.json .
 COPY yarn.lock .
 COPY packages/common/package.json ./packages/common/
+COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
 COPY packages/frontend/package.json ./packages/frontend/
 RUN yarn install --pure-lockfile --non-interactive
@@ -68,6 +69,11 @@ RUN yarn install --pure-lockfile --non-interactive
 COPY packages/common/tsconfig.json ./packages/common/
 COPY packages/common/src/ ./packages/common/src/
 RUN yarn --cwd ./packages/common/ build
+
+# Build warehouses
+COPY packages/warehouses/tsconfig.json ./packages/warehouses/
+COPY packages/warehouses/src/ ./packages/warehouses/src/
+RUN yarn --cwd ./packages/warehouses/ build
 
 # Build backend
 COPY packages/backend/tsconfig.json ./packages/backend/
