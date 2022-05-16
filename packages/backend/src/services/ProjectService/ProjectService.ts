@@ -556,6 +556,14 @@ export class ProjectService {
             throw new AuthorizationError();
         }
 
+        if (ability.cannot('update', 'Project')) {
+            // If they can view, but can't update, we only show generic error message
+            job.steps = job.steps.map((step) => ({
+                ...step,
+                stepError: `Error on ${step.stepType}`,
+            }));
+        }
+
         return job;
     }
 
