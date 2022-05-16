@@ -26,6 +26,6 @@ The name of the dimension is `status` and the type will be inferred from the col
 
 :::info
 
-There are some pretty great tools for automatically generating and updating your model .yml files in dbt. To read more about how to do this, check out or docs on [adding Tables to Lightdash](/guides/adding-tables-to-lightdash.mdx#how-to-create-update-yml-files)
+There are some pretty great tools for automatically generating and updating your model .yml files in dbt. To read more about how to do this, check out or docs on [adding Tables to Lightdash](/guides/adding-tables-to-lightdash.mdx#how-to-create--update-yml-files)
 
 :::
