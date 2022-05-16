@@ -873,7 +873,7 @@ export const isDbtRpcRunSqlResults = (
 
 export type SpaceQuery = Pick<
     SavedChart,
-    'uuid' | 'name' | 'updatedAt' | 'updatedByUser'
+    'uuid' | 'name' | 'updatedAt' | 'updatedByUser' | 'description'
 >;
 
 export type Space = {
