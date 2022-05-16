@@ -257,7 +257,7 @@ export class UserService {
         inviteCode: string | undefined,
     ): Promise<SessionUser> {
         if (!(await this.organizationModel.hasOrgs())) {
-            const user = await this.registerInitialUser(openIdUser);
+            const user = await this.registerNewUserWithOrg(openIdUser);
             return this.userModel.findSessionUserByUUID(user.userUuid);
         }
         if (inviteCode) {
@@ -447,8 +447,11 @@ export class UserService {
         return updatedUser;
     }
 
-    async registerInitialUser(createUser: CreateUserArgs | OpenIdUser) {
-        if (await this.userModel.hasUsers()) {
+    async registerNewUserWithOrg(createUser: CreateUserArgs | OpenIdUser) {
+        if (
+            !process.env.ALLOW_MULTIPLE_ORGS &&
+            (await this.userModel.hasUsers())
+        ) {
             throw new ForbiddenError('User already registered');
         }
         if (
@@ -457,7 +460,8 @@ export class UserService {
         ) {
             throw new ForbiddenError('Password credentials are not allowed');
         }
-        const user = await this.userModel.createInitialAdminUser(createUser);
+
+        const user = await this.userModel.createNewUserWithOrg(createUser);
         identifyUser({
             ...user,
             isMarketingOptedIn: user.isMarketingOptedIn,

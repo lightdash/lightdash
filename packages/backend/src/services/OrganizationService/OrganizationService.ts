@@ -52,7 +52,9 @@ export class OrganizationService {
     }
 
     async get(user: SessionUser): Promise<Organisation> {
-        const needsProject = !(await this.projectModel.hasProjects());
+        const needsProject = !(await this.projectModel.hasProjects(
+            user.organizationUuid,
+        ));
 
         const organisation = await this.organizationModel.get(
             user.organizationUuid,

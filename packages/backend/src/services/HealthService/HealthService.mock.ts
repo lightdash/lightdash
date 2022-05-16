@@ -6,8 +6,8 @@ export const BaseResponse = {
     version: '0.1.0',
     mode: LightdashMode.DEFAULT,
     isAuthenticated: false,
+    requiresOrgRegistration: false,
     localDbtEnabled: true,
-    needsSetup: false,
     auth: {
         disablePasswordAuthentication: false,
         google: {

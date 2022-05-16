@@ -7,31 +7,25 @@ import {
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getMigrationStatus } from '../../database/database';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { UserModel } from '../../models/UserModel';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { VERSION } from '../../version';
 
 type HealthServiceDependencies = {
-    userModel: UserModel;
-    projectModel: ProjectModel;
     lightdashConfig: LightdashConfig;
+    organizationModel: OrganizationModel;
 };
 
 export class HealthService {
-    private readonly userModel: UserModel;
-
-    private readonly projectModel: ProjectModel;
-
     private readonly lightdashConfig: LightdashConfig;
 
+    private readonly organizationModel: OrganizationModel;
+
     constructor({
-        userModel,
-        projectModel,
+        organizationModel,
         lightdashConfig,
     }: HealthServiceDependencies) {
-        this.userModel = userModel;
-        this.projectModel = projectModel;
         this.lightdashConfig = lightdashConfig;
+        this.organizationModel = organizationModel;
     }
 
     async getHealthState(isAuthenticated: boolean): Promise<HealthState> {
@@ -44,6 +38,9 @@ export class HealthService {
             );
         }
 
+        const requiresOrgRegistration =
+            !(await this.organizationModel.hasOrgs());
+
         const localDbtEnabled =
             process.env.LIGHTDASH_INSTALL_TYPE !==
                 LightdashInstallType.HEROKU &&
@@ -52,10 +49,10 @@ export class HealthService {
             healthy: true,
             mode: this.lightdashConfig.mode,
             version: VERSION,
-            needsSetup: !(await this.userModel.hasUsers()),
             localDbtEnabled,
             defaultProject: undefined,
             isAuthenticated,
+            requiresOrgRegistration,
             latest: { version: getDockerHubVersion() },
             rudder: this.lightdashConfig.rudder,
             sentry: this.lightdashConfig.sentry,

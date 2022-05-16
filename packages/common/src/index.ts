@@ -662,10 +662,10 @@ export type HealthState = {
     healthy: boolean;
     mode: LightdashMode;
     version: string;
-    needsSetup: boolean;
     localDbtEnabled: boolean;
     defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;
+    requiresOrgRegistration: boolean;
     hasEmailClient: boolean;
     latest: {
         version?: string;

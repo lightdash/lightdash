@@ -78,8 +78,7 @@ const Login: FC = () => {
     if (health.isLoading || isDemo) {
         return <PageSpinner />;
     }
-
-    if (health.status === 'success' && health.data?.needsSetup) {
+    if (health.status === 'success' && health.data?.requiresOrgRegistration) {
         return (
             <Redirect
                 to={{

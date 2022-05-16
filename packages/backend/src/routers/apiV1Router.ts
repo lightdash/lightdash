@@ -49,7 +49,7 @@ apiV1Router.get('/flash', (req, res) => {
 
 apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
     try {
-        const lightdashUser = await userService.registerInitialUser({
+        const lightdashUser = await userService.registerNewUserWithOrg({
             firstName: sanitizeStringParam(req.body.firstName),
             lastName: sanitizeStringParam(req.body.lastName),
             email: sanitizeEmailParam(req.body.email),
