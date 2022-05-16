@@ -130,7 +130,7 @@ const FiltersCard: FC = () => {
         <Card style={{ padding: 5 }} elevation={1}>
             <CardHeader>
                 <Tooltip2
-                    content={`You must be in 'edit chart' mode or 'Explore from here' to view this panel`}
+                    content={`You must be in 'edit' or 'explore' mode to view this panel`}
                     interactionKind="hover"
                     placement={'bottom-start'}
                     disabled={isEditMode}
