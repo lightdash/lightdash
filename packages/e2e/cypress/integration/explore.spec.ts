@@ -42,6 +42,7 @@ describe('Explore', () => {
         // cy.findByText('Save changes').parent().should('be.disabled');
 
         cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading Wait until finish loading
+        cy.findByText('Edit chart').parent().click();
         cy.findByText('Column chart').click(); // Change chart type
         cy.findByText('Bar chart').click();
 
