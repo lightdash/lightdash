@@ -1,3 +1,10 @@
+# [0.102.0](https://github.com/lightdash/lightdash/compare/0.101.1...0.102.0) (2022-05-16)
+
+
+### Features
+
+* register multiple users and orgs ([#2103](https://github.com/lightdash/lightdash/issues/2103)) ([a23ca19](https://github.com/lightdash/lightdash/commit/a23ca19b29f6c3721687c125bb91ccfa50dd7bc8))
+
 ## [0.101.1](https://github.com/lightdash/lightdash/compare/0.101.0...0.101.1) (2022-05-16)
 
 
