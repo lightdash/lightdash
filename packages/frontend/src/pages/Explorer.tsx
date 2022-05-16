@@ -34,9 +34,6 @@ const ExplorerPage = () => {
                 <SideBar ref={sidebarRef}>
                     <SideBarCard
                         elevation={1}
-                        onMouseDown={(e: { preventDefault: () => void }) =>
-                            e.preventDefault()
-                        }
                         style={{
                             width: sidebarWidth,
                         }}

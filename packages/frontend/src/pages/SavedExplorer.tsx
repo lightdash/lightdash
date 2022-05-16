@@ -85,7 +85,6 @@ const SavedExplorer = () => {
                                 <Drawer
                                     elevation={1}
                                     $state={state}
-                                    onMouseDown={(e) => e.preventDefault()}
                                     style={{
                                         width: sidebarWidth,
                                         left: [
