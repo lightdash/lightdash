@@ -1,3 +1,10 @@
+# [0.103.0](https://github.com/lightdash/lightdash/compare/0.102.0...0.103.0) (2022-05-16)
+
+
+### Features
+
+* resize sidebar ([#2119](https://github.com/lightdash/lightdash/issues/2119)) ([c563900](https://github.com/lightdash/lightdash/commit/c56390078c85b99f74e7bb269ba499af0a2a4811))
+
 # [0.102.0](https://github.com/lightdash/lightdash/compare/0.101.1...0.102.0) (2022-05-16)
 
 
