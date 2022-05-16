@@ -18,7 +18,7 @@ jobs:
       - name: Install packages/common modules
         run: yarn workspace common install
       - name: Build packages/common module
-        run: yarn common-build
+        run: yarn common-build && yarn warehouses-build
       # Install NPM dependencies, cache them correctly
       # and run all Cypress tests
       - name: Cypress run
