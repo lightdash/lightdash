@@ -83,6 +83,12 @@ module.exports = {
                 numMatches: 1,
                 numReplacements: 1,
               },
+              {
+                file: "packages/warehouses/package.json",
+                hasChanged: true,
+                numMatches: 1,
+                numReplacements: 1,
+              },
             ],
             countMatches: true,
           },
