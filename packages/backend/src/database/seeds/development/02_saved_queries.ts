@@ -1,10 +1,21 @@
-import { CartesianSeriesType, ChartType, SEED_PROJECT } from 'common';
+import {
+    CartesianSeriesType,
+    ChartType,
+    SEED_PROJECT,
+    SEED_USER,
+} from 'common';
 import { Knex } from 'knex';
 import { savedChartModel } from '../../../models/models';
 
 export async function seed(knex: Knex): Promise<void> {
     // Deletes ALL existing entries
     await knex('saved_queries').del();
+
+    const updatedByUser = {
+        userUuid: SEED_USER.user_uuid,
+        firstName: SEED_USER.first_name,
+        lastName: SEED_USER.last_name,
+    };
 
     // Inserts seed entries
     await savedChartModel.create(SEED_PROJECT.project_uuid, {
@@ -68,6 +79,7 @@ export async function seed(knex: Knex): Promise<void> {
                 'payments_unique_payment_count',
             ],
         },
+        updatedByUser,
     });
 
     await savedChartModel.create(SEED_PROJECT.project_uuid, {
@@ -106,6 +118,7 @@ export async function seed(knex: Knex): Promise<void> {
                 'total_revenue',
             ],
         },
+        updatedByUser,
     });
 
     await savedChartModel.create(SEED_PROJECT.project_uuid, {
@@ -169,6 +182,7 @@ export async function seed(knex: Knex): Promise<void> {
                 'cumulative_order_count',
             ],
         },
+        updatedByUser,
     });
 
     await savedChartModel.create(SEED_PROJECT.project_uuid, {
@@ -207,6 +221,7 @@ export async function seed(knex: Knex): Promise<void> {
         tableConfig: {
             columnOrder: ['customers_customer_id', 'orders_average_order_size'],
         },
+        updatedByUser,
     });
 
     await savedChartModel.create(SEED_PROJECT.project_uuid, {
@@ -247,5 +262,6 @@ export async function seed(knex: Knex): Promise<void> {
                 'payments_unique_payment_count',
             ],
         },
+        updatedByUser,
     });
 }

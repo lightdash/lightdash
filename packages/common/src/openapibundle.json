@@ -1881,6 +1881,22 @@
                     }
                 }
             },
+            "UpdatedByUser": {
+                "type": "object",
+                "properties": {
+                    "userUuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["userUuid", "firstName", "lastName"]
+            },
             "SavedChart": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1895,7 +1911,8 @@
                         "type": "string"
                     },
                     "description": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "tableName": {
                         "type": "string"
@@ -1922,6 +1939,9 @@
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/UpdatedByUser"
                     },
                     "pivotConfig": {
                         "type": "object",

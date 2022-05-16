@@ -12,7 +12,8 @@
             "type": "string"
         },
         "description": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
         },
         "tableName": {
             "type": "string"
@@ -39,6 +40,9 @@
         "updatedAt": {
             "type": "string",
             "format": "date-time"
+        },
+        "updatedByUser": {
+            "$ref": "../UpdatedByUser.json"
         },
         "pivotConfig": {
             "type": "object",
