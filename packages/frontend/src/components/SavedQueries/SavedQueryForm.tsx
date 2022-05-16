@@ -1,6 +1,7 @@
 import { Classes } from '@blueprintjs/core';
 import { SpaceQuery } from 'common';
 import React from 'react';
+import { useSavedQuery } from '../../hooks/useSavedQuery';
 import { ActionModalProps, ActionTypeModal } from '../common/modal/ActionModal';
 import Input from '../ReactHookForm/Input';
 
@@ -12,6 +13,10 @@ const SavedQueryForm = ({
     'useActionModalState' | 'isDisabled'
 >) => {
     const [{ actionType, data }] = useActionModalState;
+    const { data: savedChart } = useSavedQuery({
+        id: data?.uuid,
+    });
+
     return (
         <>
             {actionType === ActionTypeModal.UPDATE && (
@@ -31,7 +36,9 @@ const SavedQueryForm = ({
                         name="description"
                         placeholder="A few words to give your team some context"
                         disabled={isDisabled}
-                        defaultValue={data?.description && data?.description}
+                        defaultValue={
+                            savedChart?.description && savedChart?.description
+                        }
                     />
                 </div>
             )}
