@@ -5,8 +5,15 @@ import {
     useExplorerRoute,
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
+import useSidebarResize from '../hooks/useSidebarResize';
 import { ExplorerProvider } from '../providers/ExplorerProvider';
-import { Main, PageContainer, SideBar } from './Explorer.styles';
+import {
+    Main,
+    PageContainer,
+    Resizer,
+    SideBar,
+    SideBarCard,
+} from './Explorer.styles';
 
 const ExplorerWithUrlParams = () => {
     useExplorerRoute();
@@ -15,11 +22,31 @@ const ExplorerWithUrlParams = () => {
 
 const ExplorerPage = () => {
     const explorerUrlState = useExplorerUrlState();
+    const { sidebarRef, sidebarWidth, isResizing, startResizing } =
+        useSidebarResize({
+            defaultWidth: 400,
+            minWidth: 300,
+            maxWidth: 600,
+        });
     return (
         <ExplorerProvider isEditMode={true} initialState={explorerUrlState}>
             <PageContainer>
-                <SideBar elevation={1}>
-                    <ExploreSideBar />
+                <SideBar ref={sidebarRef}>
+                    <SideBarCard
+                        elevation={1}
+                        onMouseDown={(e: { preventDefault: () => void }) =>
+                            e.preventDefault()
+                        }
+                        style={{
+                            width: sidebarWidth,
+                        }}
+                    >
+                        <ExploreSideBar />
+                    </SideBarCard>
+                    <Resizer
+                        onMouseDown={startResizing}
+                        $isResizing={isResizing}
+                    />
                 </SideBar>
                 <Main>
                     <ExplorerWithUrlParams />

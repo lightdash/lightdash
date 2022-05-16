@@ -6,6 +6,7 @@ import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel/index';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import { useSavedQuery } from '../hooks/useSavedQuery';
+import useSidebarResize from '../hooks/useSidebarResize';
 import {
     ExplorerProvider,
     ExplorerSection,
@@ -15,6 +16,7 @@ import {
     Drawer,
     MainContent,
     PageWrapper,
+    Resizer,
     StickySidebar,
     WidthHack,
 } from './SavedExplorer.styles';
@@ -29,6 +31,12 @@ const SavedExplorer = () => {
     const { data, isLoading, error } = useSavedQuery({
         id: savedQueryUuid,
     });
+    const { sidebarRef, sidebarWidth, isResizing, startResizing } =
+        useSidebarResize({
+            defaultWidth: 400,
+            minWidth: 300,
+            maxWidth: 600,
+        });
 
     if (isLoading) {
         return (
@@ -74,12 +82,45 @@ const SavedExplorer = () => {
                     <Transition in={isEditMode} timeout={500}>
                         {(state) => (
                             <>
-                                <Drawer elevation={1} $state={state}>
+                                <Drawer
+                                    elevation={1}
+                                    $state={state}
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    style={{
+                                        width: sidebarWidth,
+                                        left: [
+                                            'exiting',
+                                            'exited',
+                                            'unmounted',
+                                        ].includes(state)
+                                            ? -sidebarWidth
+                                            : 0,
+                                    }}
+                                >
                                     <CardContent>
                                         <ExplorePanel />
                                     </CardContent>
                                 </Drawer>
-                                <WidthHack $state={state}></WidthHack>
+                                <WidthHack
+                                    ref={sidebarRef}
+                                    $state={state}
+                                    style={{
+                                        width: [
+                                            'exiting',
+                                            'exited',
+                                            'unmounted',
+                                        ].includes(state)
+                                            ? 0
+                                            : sidebarWidth + 5,
+                                    }}
+                                >
+                                    {isEditMode && (
+                                        <Resizer
+                                            onMouseDown={startResizing}
+                                            $isResizing={isResizing}
+                                        />
+                                    )}
+                                </WidthHack>
                             </>
                         )}
                     </Transition>

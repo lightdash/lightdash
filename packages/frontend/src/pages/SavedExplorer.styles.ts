@@ -1,4 +1,4 @@
-import { Card } from '@blueprintjs/core';
+import { Card, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const PageWrapper = styled.div`
@@ -32,31 +32,40 @@ export const CardContent = styled.div`
     flex-direction: column;
 `;
 
-const DrawerWidth = 400;
-
 export const Drawer = styled(Card)<{ $state: string }>`
     height: 100%;
-    flex-basis: ${DrawerWidth}px;
-    flex-grow: 0;
-    flex-shrink: 0;
     border-radius: 0;
     overflow: hidden;
-    transition: opacity 500ms ease-in-out, left 500ms ease-in-out;
+    transition: ${({ $state }) =>
+        ['entering', 'exiting'].includes($state)
+            ? 'opacity 500ms ease-in-out, left 500ms ease-in-out'
+            : 'none'};
     position: absolute;
     top: 0;
-    width: ${DrawerWidth}px;
     opacity: ${({ $state }) =>
         ['exiting', 'exited', 'unmounted'].includes($state) ? 0 : 1};
-    left: ${({ $state }) =>
-        ['exiting', 'exited', 'unmounted'].includes($state)
-            ? -DrawerWidth
-            : 0}px;
 `;
 
 export const WidthHack = styled.div<{ $state: string }>`
-    transition: width 500ms ease-in-out;
-    width: ${({ $state }) =>
-        ['exiting', 'exited', 'unmounted'].includes($state)
-            ? 0
-            : DrawerWidth}px;
+    transition: ${({ $state }) =>
+        ['entering', 'exiting'].includes($state)
+            ? 'width 500ms ease-in-out'
+            : 'none'};
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    justify-content: flex-end;
+`;
+
+export const Resizer = styled.div<{ $isResizing: boolean }>`
+    flex-grow: 0;
+    flex-shrink: 0;
+    flex-basis: 5px;
+    cursor: col-resize;
+    resize: horizontal;
+    height: 100%;
+    background: ${({ $isResizing }) =>
+        $isResizing
+            ? `linear-gradient(90deg, ${Colors.BLUE5} 0%, rgba(0,0,0,0) 100%);`
+            : 'none'};
 `;
