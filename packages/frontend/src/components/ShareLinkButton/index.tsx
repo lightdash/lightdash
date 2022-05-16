@@ -3,11 +3,11 @@ import CopyToClipboard from 'react-copy-to-clipboard';
 import { useApp } from '../../providers/AppProvider';
 import { ShareLink } from './ShareLinkButton.styles';
 
-const ShareLinktButton: FC = () => {
+const ShareLinkButton: FC<{ url: string }> = ({ url }) => {
     const { showToastSuccess } = useApp();
     return (
         <CopyToClipboard
-            text={window.location.href}
+            text={url}
             options={{ message: 'Copied' }}
             onCopy={() =>
                 showToastSuccess({
@@ -20,4 +20,4 @@ const ShareLinktButton: FC = () => {
     );
 };
 
-export default ShareLinktButton;
+export default ShareLinkButton;
