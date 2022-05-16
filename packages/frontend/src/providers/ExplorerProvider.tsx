@@ -58,7 +58,7 @@ export enum ActionType {
 }
 
 type Action =
-    | { type: ActionType.RESET }
+    | { type: ActionType.RESET; payload: ExplorerReduceState }
     | { type: ActionType.SET_FETCH_RESULTS_FALSE }
     | { type: ActionType.SET_TABLE_NAME; payload: string }
     | { type: ActionType.TOGGLE_EXPANDED_SECTION; payload: ExplorerSection }
@@ -140,6 +140,7 @@ interface ExplorerContext {
     state: ExplorerState;
     queryResults: ReturnType<typeof useQueryResults>;
     actions: {
+        clear: () => void;
         reset: () => void;
         setTableName: (tableName: string) => void;
         toggleActiveField: (fieldId: FieldId, isDimension: boolean) => void;
@@ -249,7 +250,7 @@ function reducer(
     };
     switch (action.type) {
         case ActionType.RESET: {
-            return defaultState;
+            return action.payload;
         }
         case ActionType.SET_TABLE_NAME: {
             return {
@@ -669,11 +670,19 @@ export const ExplorerProvider: FC<{
         return [fields, fields.size > 0];
     }, [reducerState]);
 
+    const clear = useCallback(() => {
+        dispatch({
+            type: ActionType.RESET,
+            payload: defaultState,
+        });
+    }, []);
+
     const reset = useCallback(() => {
         dispatch({
             type: ActionType.RESET,
+            payload: initialState || defaultState,
         });
-    }, []);
+    }, [initialState]);
 
     const setTableName = useCallback((tableName: string) => {
         dispatch({
@@ -916,6 +925,7 @@ export const ExplorerProvider: FC<{
         queryResults,
         actions: useMemo(
             () => ({
+                clear,
                 reset,
                 setTableName,
                 toggleActiveField,
@@ -937,6 +947,7 @@ export const ExplorerProvider: FC<{
                 toggleExpandedSection,
             }),
             [
+                clear,
                 reset,
                 setTableName,
                 toggleActiveField,

@@ -61,7 +61,7 @@ export const useExplorerRoute = () => {
     const {
         state: { unsavedChartVersion },
         queryResults: { data: queryResultsData },
-        actions: { reset, setTableName },
+        actions: { clear, setTableName },
     } = useExplorer();
 
     // Update url params based on pristine state
@@ -86,11 +86,11 @@ export const useExplorerRoute = () => {
 
     useEffect(() => {
         if (!pathParams.tableId) {
-            reset();
+            clear();
         } else {
             setTableName(pathParams.tableId);
         }
-    }, [pathParams.tableId, reset, setTableName]);
+    }, [pathParams.tableId, clear, setTableName]);
 };
 
 export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
