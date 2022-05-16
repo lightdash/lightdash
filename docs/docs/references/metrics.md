@@ -13,7 +13,8 @@ In Lightdash, metrics are used to summarize dimensions or, sometimes, other metr
 
 ## Adding metrics to your project
 
-There are two ways to add metrics to your project in Lightdash.
+There are two ways to add metrics to your project in Lightdash:
+
 1. (**Suggested**) [Using the `meta` tag](#using-the-meta-tag)
 2. [Using dbt's `metrics` tag](#using-dbts-metrics-tag) (this is still an Alpha feature)
 
@@ -43,10 +44,9 @@ You can also add some metric to Lightdash using dbt's `metrics` tag in your mode
 
 [![demo create dbt metrics](./assets/loom-adding-dbt-metrics.png)](https://www.loom.com/share/811d8f71a3864a74a4849bdb164e7a4b)
 
-
 So, metrics defined using dbt's `metrics` tag look something like this:
 
-```
+```yaml
 # schema.yml
 version: 2
 metrics:
@@ -59,7 +59,6 @@ metrics:
     meta:
       hidden: false
 ```
-
 
 :::info
 
@@ -80,14 +79,16 @@ Using the `metrics` tag has a couple of limitations (a.k.a. "features" 😉) in 
 - **Metrics under the `meta:` tag on specific models take precedent over project metrics under the `metrics:` tag**
 
   For example, if we have two metrics for `customer_count`: one using the dbt `metrics` tag and the other using the `meta` tag,
-  ```
+
+  ``` yaml
   metrics:
     - name: customer_count
       type: count_distinct
       sql: customer_id
       model: customers
   ```
-  ```
+
+  ```yaml
   models:
     - name: customers
       columns:
@@ -97,6 +98,7 @@ Using the `metrics` tag has a couple of limitations (a.k.a. "features" 😉) in 
             customer_count:
               type: count
   ```
+
   The second metric has the same name `customer_count` on the same model `customers` but the first uses type: count_distinct and the second uses type: count. Because the second metric is defined on the column `meta:` tag, it'll take priority over the first.
 
 - The `type` must be [one of the Lightdash types](#metric-types).
@@ -105,16 +107,18 @@ Using the `metrics` tag has a couple of limitations (a.k.a. "features" 😉) in 
 - `label` is ignored - but should be implemented soon!
 - `filters` are not supported - again this should be implemented soon for all metrics!
 
-
 ## Metric Categories
+
 Each metric type falls into one of these categories. The metric categories tell you whether the metric type is an aggregation and what type of fields the metric can reference:
 
-### Aggregate metrics:
+### Aggregate metrics
+
 Aggregate metric types perform (surprise, surprise) aggregations. Sums and averages are examples of aggregate metrics: they are measurements summarizing a collection of data points.
 
 Aggregate metrics can *only* reference dimensions, not other metrics.
 
-### Non-aggregate metrics:
+### Non-aggregate metrics
+
 Non-aggregate metrics are metric types that, you guessed it, do *not* perform aggregations.
 
 Numbers and booleans are examples of non-aggregate metrics. These metric types perform a calculation on a single data point, so they can only reference aggregate metrics. They *cannot* reference dimensions.
@@ -123,7 +127,7 @@ Numbers and booleans are examples of non-aggregate metrics. These metric types p
 
 You can customize your metrics in your dbt model's YAML file. Here's an example of the properties used in defining a metric:
 
-```
+```yaml
 version: 2
 
 models:
@@ -155,7 +159,7 @@ Here are all of the properties you can customize:
 | round          | No       | number               | Rounds a number to a specified number of digits  |
 | format          | No       | string               | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']`  |
 
-## Metric types:
+## Metric types
 
 |       Type                        | Category  | Description                                                 |
 |:---------------------------------:| --------- | ----------------------------------------------------------- |
@@ -170,15 +174,15 @@ Here are all of the properties you can customize:
 | [string](#string)                 | Non-aggregate | For measures that contain letters or special characters |
 | [sum](#sum)                       | Aggregate | Generates a sum of values within a column                   |
 
-
 ### average
+
 Takes the average (mean) of the values in the given field. Like SQL's `AVG` function.
 
 The `average` metric can be used on any numeric dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a numeric table column.
 
 For example, this creates a metric `avg_price` by taking the average of the `item_price` dimension:
 
-```
+```yaml
 columns:
   - name: item_price
     meta:
@@ -188,6 +192,7 @@ columns:
 ```
 
 ### boolean
+
 Tells you whether something is True or False.
 
 The `boolean` metric can be used on any valid SQL expression that gives you a `TRUE` or `FALSE` value. It can only be used on aggregations, which means either aggregate metrics *or* [custom SQL that references other metrics](#using-custom-sql-in-non-aggregate-metrics). You cannot build a `boolean` metric by referencing other unaggregated dimensions from your model.
@@ -196,7 +201,7 @@ The `boolean` metric can be used on any valid SQL expression that gives you a `T
 
 For example, the `avg_price` metric below is an average of all of the `item_price` values in our product table. A second metric called `is_avg_price_above_20` is a `boolean` type metric. The `is_avg_price_above_20` metric has a custom SQL expression that tells us whether the `avg_price` value is greater than 20.
 
-```
+```yaml
 columns:
   - name: item_price
     meta:
@@ -209,13 +214,14 @@ columns:
 ```
 
 ### count
+
 Does a table count, like SQL’s `COUNT` function.
 
 The `count` metric can be used on any dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a set of values.
 
 For example, this creates a metric `number_of_users` by counting the number of `user_id` values in the table:
 
-```
+```yaml
 columns:
   - name: user_id
     meta:
@@ -225,13 +231,14 @@ columns:
 ```
 
 ### count_distinct
+
 Counts the number of distinct values in a given field. It's like SQL’s `COUNT DISTINCT` function.
 
 The `count_distinct` metric can be used on any dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a set of values.
 
 For example, this creates a metric `number_of_unique_users` by counting the number of unique `user_id` values in the table:
 
-```
+```yaml
 columns:
   - name: user_id
     meta:
@@ -241,13 +248,14 @@ columns:
 ```
 
 ### date
+
 Gives you a date value from an expression.
 
 The `date` metric can be used on any valid SQL expression that gives you a date value. It can only be used on aggregations, which means either aggregate metrics *or* [custom SQL that references other metrics](#using-custom-sql-in-non-aggregate-metrics). You cannot build a `date` metric by referencing other unaggregated dimensions from your model.
 
 To be honest, `date` metrics are pretty rarely used because most SQL aggregate functions don't return dates. The only common use of this metric is if you use a `MIN` or `MAX` on a date dimension.
 
-```
+```yaml
 columns:
   - name: date_updated
     meta:
@@ -258,13 +266,14 @@ columns:
 ```
 
 ### max
+
 Max gives you the largest value in a given field. It's like SQL’s `MAX` function.
 
 The `max` metric can be used on any dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a set of values.
 
 For example, this creates a metric `max_delivery_cost` by looking at the `delivery_cost` dimension and taking the largest value it finds:
 
-```
+```yaml
 columns:
   - name: delivery_cost
     meta:
@@ -274,13 +283,14 @@ columns:
 ```
 
 ### min
+
 Min gives you the smallest value in a given field. It's like SQL’s `MIN` function.
 
 The `min` metric can be used on any dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a set of values.
 
 For example, this creates a metric `min_delivery_cost` by looking at the `delivery_cost` dimension and taking the smallest value it finds:
 
-```
+```yaml
 columns:
   - name: delivery_cost
     meta:
@@ -290,13 +300,14 @@ columns:
 ```
 
 ### number
+
 Used with numbers or integers. A `number` metric doesn't perform any aggregation but can be used to perform simple transformations on other metrics.
 
 The `number` metric can be used on any valid SQL expression that gives you a numeric or integer value. It can only be used on aggregations, which means either aggregate metrics *or* [custom SQL that references other metrics](#using-custom-sql-in-non-aggregate-metrics). You cannot build a `number` metric by referencing other unaggregated dimensions from your model.
 
 For example, this creates a metric called `total_gross_profit_margin_percentage` based on the `total_sale_price` and `total_gross_profit_margin` aggregate metrics:
 
-```
+```yaml
 columns:
   - name: sale_price
     meta:
@@ -316,13 +327,14 @@ columns:
 The example above also uses the NULLIF() SQL function to avoid division-by-zero errors.
 
 ### sum
+
 Adds up the values in a given field. Like SQL’s `SUM` function.
 
 The `sum` metric can be used on any numeric dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a numeric table column.
 
 For example, this creates a metric `total_revenue` by adding up the values in the `revenue` dimension:
 
-```
+```yaml
 columns:
   - name: revenue
     meta:
@@ -332,16 +344,16 @@ columns:
 ```
 
 ### string
+
 Used with fields that include letters or special characters.
 
 The `string` metric can be used on any valid SQL expression that gives you a string value. It can only be used on aggregations, which means either aggregate metrics *or* [custom SQL that references other metrics](#using-custom-sql-in-non-aggregate-metrics). You cannot build a `string` metric by referencing other unaggregated dimensions from your model.
-
 
 `string` metrics are rarely used because most SQL aggregate functions don't return strings. One common exception is MySQL’s `GROUP_CONCAT` function.
 
 For example, this creates a metric `product_name_group` by combining the unique values of a dimension called `product_name`:
 
-```
+```yaml
 columns:
   - name: product_name
     meta:
@@ -355,13 +367,12 @@ columns:
 
 We add default descriptions to all of the metrics you include in your model. But, you can override these using the description parameter when you define your metric.
 
-```
+```yaml
 metrics:
   num_user_ids:
     type: count
     description: "Total number of user IDs. NOTE: this is NOT counting unique user IDs"
 ```
-
 
 ## Using custom SQL in aggregate metrics
 
@@ -371,7 +382,7 @@ Inside the sql parameter, you can reference any other dimension from the given m
 You can reference dimensions from the same model like this: `sql: "${dimension_in_this_model}"`
 Or from joined models like this: `sql: "${other_model.dimension_in_other_model}"`
 
-```
+```yaml
 metrics:
   num_unique_7d_web_active_user_ids:
     type: count_distinct # metric type
@@ -388,7 +399,7 @@ In non-aggregate metrics, you can reference any other metric from the given mode
 You can reference metrics from the same model like this: `sql: "${metric_in_this_model}"`
 Or from joined models like this: `sql: "${other_model.metric_in_other_model}"`
 
-```
+```yaml
 metrics:
   num_unique_users:
       type: count_distinct

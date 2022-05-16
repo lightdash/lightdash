@@ -22,15 +22,20 @@ models:
     columns:
       - name: status
         description: "Status of an order: ordered/processed/complete"
+        ...
 ```
 
-The name of the dimension is `status` and the type will be inferred from the column in your database.
+The name of the dimension is `status` and the type will be inferred from the column in your database. You can see the [full list of dimension types supported in Lightdash here](/references/dimensions.md#dimension-types).
 
 :::info
 
 There are some pretty great tools for automatically generating and updating your model .yml files in dbt. To read more about how to do this, check out or docs on [adding Tables to Lightdash](/guides/adding-tables-to-lightdash.mdx#how-to-create--update-yml-files)
 
 :::
+
+Once you've added your dimensions, you can use them in Lightdash to build charts and filter results. Dimensions appear in the Explore view, below metrics and, if selected, pop us as blue fields in your results table.
+
+![dimensions in the Explore view](./assets/dimensions-in-explore-view.png)
 
 ## Configuring your dimensions
 
