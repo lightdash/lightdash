@@ -1,3 +1,10 @@
+## [0.100.1](https://github.com/lightdash/lightdash/compare/0.100.0...0.100.1) (2022-05-16)
+
+
+### Bug Fixes
+
+* refresh explores after project update ([#2086](https://github.com/lightdash/lightdash/issues/2086)) ([c137145](https://github.com/lightdash/lightdash/commit/c137145e827eaa01b5ff98a117c8eacf86ef633b))
+
 # [0.100.0](https://github.com/lightdash/lightdash/compare/0.99.0...0.100.0) (2022-05-13)
 
 
