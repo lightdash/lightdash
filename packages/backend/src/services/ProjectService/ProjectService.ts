@@ -1,4 +1,4 @@
-import { Ability, AbilityBuilder } from '@casl/ability';
+import { subject } from '@casl/ability';
 import {
     AlreadyProcessingError,
     ApiQueryResults,
@@ -27,7 +27,6 @@ import {
     MetricQuery,
     MissingWarehouseCredentialsError,
     NotExistsError,
-    OrganizationMemberAbility,
     Project,
     ProjectCatalog,
     SessionUser,
@@ -551,24 +550,10 @@ export class ProjectService {
     async getJobStatus(jobUuid: string, user: SessionUser): Promise<Job> {
         const job = await this.jobModel.get(jobUuid);
 
-        if (job.projectUuid === undefined) {
-            if (job.userUuid !== user.userUuid) {
-                throw new AuthorizationError("User can't see this job");
-            }
-        } else {
-            const { cannot } = new AbilityBuilder<OrganizationMemberAbility>(
-                Ability,
-            );
-            if (
-                cannot('view', 'Project', {
-                    organisationUuid: user.organizationUuid,
-                })
-            ) {
-                // throw new AuthorizationError("User has no access to this project");
-            }
-        }
-
         const ability = defineAbilityForOrganizationMember(user);
+        if (ability.cannot('view', subject('Job', job))) {
+            throw new AuthorizationError('User has no access to this project');
+        }
 
         if (ability.cannot('update', 'Project')) {
             // If they can view, but can't update, we only show generic error message

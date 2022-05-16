@@ -169,16 +169,6 @@ describe('ProjectService', () => {
             ).rejects.toThrowError(AuthorizationError);
         });
 
-        test('should not get job with projectUuid if belongs to another org', async () => {
-            const anotherUser: SessionUser = {
-                ...user,
-                organizationUuid: 'another-org-uuid',
-            };
-            await expect(
-                projectService.getJobStatus('jobUuid', anotherUser),
-            ).rejects.toThrowError(AuthorizationError);
-        });
-
         test('should not see error message if only has view permissions', async () => {
             (jobModel.get as jest.Mock).mockImplementationOnce(
                 async () => jobError,
