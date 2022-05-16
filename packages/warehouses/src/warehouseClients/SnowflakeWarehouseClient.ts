@@ -1,3 +1,5 @@
+import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
+import * as Util from 'util';
 import {
     CreateSnowflakeCredentials,
     DimensionType,
@@ -5,9 +7,7 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
 } from 'common';
-import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
-import * as Util from 'util';
-import { WarehouseCatalog, WarehouseClient } from '../../types';
+import { WarehouseCatalog, WarehouseClient } from '../types';
 
 export enum SnowflakeTypes {
     NUMBER = 'NUMBER',
@@ -85,7 +85,7 @@ export const mapFieldType = (type: string): DimensionType => {
     }
 };
 
-export default class SnowflakeWarehouseClient implements WarehouseClient {
+export class SnowflakeWarehouseClient implements WarehouseClient {
     connectionOptions: ConnectionOptions;
 
     constructor(credentials: CreateSnowflakeCredentials) {

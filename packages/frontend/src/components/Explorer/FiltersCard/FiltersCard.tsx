@@ -129,14 +129,21 @@ const FiltersCard: FC = () => {
     return (
         <Card style={{ padding: 5 }} elevation={1}>
             <CardHeader>
-                <Button
-                    icon={filterIsOpen ? 'chevron-down' : 'chevron-right'}
-                    minimal
-                    disabled={!isEditMode}
-                    onClick={() =>
-                        toggleExpandedSection(ExplorerSection.FILTERS)
-                    }
-                />
+                <Tooltip2
+                    content={`You must be in 'edit' or 'explore' mode to view this panel`}
+                    interactionKind="hover"
+                    placement={'bottom-start'}
+                    disabled={isEditMode}
+                >
+                    <Button
+                        icon={filterIsOpen ? 'chevron-down' : 'chevron-right'}
+                        minimal
+                        disabled={!isEditMode}
+                        onClick={() =>
+                            toggleExpandedSection(ExplorerSection.FILTERS)
+                        }
+                    />
+                </Tooltip2>
                 <H5>Filters</H5>
                 {totalActiveFilters > 0 && !filterIsOpen ? (
                     <Tooltip2

@@ -1,10 +1,10 @@
+import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
     ProjectType,
 } from 'common';
 import Logger from '../logger';
-import { warehouseClientFromCredentials } from '../services/warehouseClients/warehouseClientFromCredentials';
 import { CachedWarehouse, ProjectAdapter } from '../types';
 import { DbtAzureDevOpsProjectAdapter } from './dbtAzureDevOpsProjectAdapter';
 import { DbtBitBucketProjectAdapter } from './dbtBitBucketProjectAdapter';
@@ -18,6 +18,9 @@ export const projectAdapterFromConfig = async (
     warehouseCredentials: CreateWarehouseCredentials,
     cachedWarehouse: CachedWarehouse,
 ): Promise<ProjectAdapter> => {
+    Logger.debug(
+        `Initialize warehouse client of type ${warehouseCredentials.type}`,
+    );
     const warehouseClient =
         warehouseClientFromCredentials(warehouseCredentials);
     const configType = config.type;

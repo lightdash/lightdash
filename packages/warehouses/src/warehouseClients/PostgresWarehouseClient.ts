@@ -6,7 +6,7 @@ import {
 } from 'common';
 import * as pg from 'pg';
 import { PoolConfig } from 'pg';
-import { WarehouseClient } from '../../types';
+import { WarehouseClient } from '../types';
 
 export enum PostgresTypes {
     INTEGER = 'integer',
@@ -191,7 +191,7 @@ export class PostgresClient implements WarehouseClient {
     }
 }
 
-export default class PostgresWarehouseClient
+export class PostgresWarehouseClient
     extends PostgresClient
     implements WarehouseClient
 {

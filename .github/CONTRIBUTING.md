@@ -282,6 +282,7 @@ Password: demo_password!
 
 Notes: 
 - If you change files inside `/packages/common` you should run `yarn common-build` before `yarn dev`
+- If you change files inside `/packages/warehouses` you should run `yarn warehouses-build` before `yarn dev`
 - If you rename files the container might not recognise the changes. To fix this, stop the containers and start again.
 
 When you want to stop: 
@@ -302,6 +303,7 @@ docker compose -p lightdash-app -f docker-compose.dev.yml --env-file .env start
 # Prepare dependencies
 yarn install
 yarn common-build
+yarn warehouses-build
 
 # Run unit tests
 yarn test
@@ -314,6 +316,7 @@ Before running e2e tests make sure you're running the app locally.
 # Prepare dependencies
 yarn install
 yarn common-build
+yarn warehouses-build
 
 # run cypress in interactive mode
 yarn e2e-open

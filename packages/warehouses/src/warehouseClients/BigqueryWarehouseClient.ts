@@ -13,12 +13,11 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
 } from 'common';
-import Logger from '../../logger';
 import {
     WarehouseCatalog,
     WarehouseClient,
     WarehouseTableSchema,
-} from '../../types';
+} from '../types';
 
 export enum BigqueryFieldType {
     STRING = 'STRING',
@@ -111,7 +110,7 @@ const parseRows = (rows: Record<string, any>[]) =>
         ),
     );
 
-export default class BigqueryWarehouseClient implements WarehouseClient {
+export class BigqueryWarehouseClient implements WarehouseClient {
     client: BigQuery;
 
     credentials: CreateBigqueryCredentials;
@@ -178,9 +177,6 @@ export default class BigqueryWarehouseClient implements WarehouseClient {
         const tablesMetadataPromises: Promise<
             [string, string, string, TableSchema] | undefined
         >[] = requests.map(({ database, schema, table }) => {
-            Logger.debug(
-                `Fetch, in parallel, table metadata for '${database}.${schema}.${table}'`,
-            );
             databaseClients[database] =
                 databaseClients[database] ||
                 new BigQuery({

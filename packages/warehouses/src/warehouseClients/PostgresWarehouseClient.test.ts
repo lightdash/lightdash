@@ -1,10 +1,10 @@
-import PostgresWarehouseClient from './PostgresWarehouseClient';
 import { columns, credentials } from './PostgresWarehouseClient.mock';
 import {
     config,
     expectedRow,
     expectedWarehouseSchema,
 } from './WarehouseClient.mock';
+import { PostgresWarehouseClient } from './PostgresWarehouseClient';
 
 jest.mock('pg', () => ({
     ...jest.requireActual('pg'),

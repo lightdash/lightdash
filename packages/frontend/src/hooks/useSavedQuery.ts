@@ -148,7 +148,7 @@ export const useCreateMutation = () => {
                     title: `Success! Chart was saved.`,
                 });
                 history.push({
-                    pathname: `/projects/${projectUuid}/saved/${data.uuid}/edit`,
+                    pathname: `/projects/${projectUuid}/saved/${data.uuid}/view`,
                 });
             },
             onError: (error) => {
@@ -207,6 +207,7 @@ export const useDuplicateMutation = (
 };
 
 export const useAddVersionMutation = () => {
+    const history = useHistory();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
     return useMutation<
@@ -221,6 +222,9 @@ export const useAddVersionMutation = () => {
             queryClient.setQueryData(['saved_query', data.uuid], data);
             showToastSuccess({
                 title: `Success! Chart was updated.`,
+            });
+            history.push({
+                pathname: `/projects/${data.projectUuid}/saved/${data.uuid}/view`,
             });
         },
         onError: (error) => {

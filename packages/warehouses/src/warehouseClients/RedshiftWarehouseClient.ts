@@ -2,7 +2,7 @@ import { CreateRedshiftCredentials } from 'common';
 import * as fs from 'fs';
 import path from 'path';
 import { PoolConfig } from 'pg';
-import { WarehouseClient } from '../../types';
+import { WarehouseClient } from '../types';
 import { PostgresClient } from './PostgresWarehouseClient';
 
 const AMAZON_CA_BUNDLE = [
@@ -34,7 +34,7 @@ const getSSLConfigFromMode = (mode: string): PoolConfig['ssl'] => {
     }
 };
 
-export default class RedshiftWarehouseClient
+export class RedshiftWarehouseClient
     extends PostgresClient
     implements WarehouseClient
 {
