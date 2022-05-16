@@ -12,8 +12,8 @@ import DataQuestion from './assets/data-question.svg';
 You must define **metrics** and **dimensions** before you can start exploring and visualizing data with Lightdash.
 Metrics are defined in your dbt project alongside your dbt model properties.
 
-* **Dimensions** are used to **segment data** in your models
-* **Metrics** are used to **perform calculations** on your data models
+* **Dimensions** are used to **segment data** in your Tables.
+* **Metrics** are used to **perform calculations** on your Tables.
 
 ## Example
 
@@ -37,7 +37,7 @@ To learn more about why we use dimensions and metrics in Lightdash, [read the Li
 Dimensions are created automatically when you define columns in your dbt model properties. To define columns add a
 new `.yml` file to your `models/` directory in your dbt project.
 
-For example, the following dbt project file contains properties that create a single dimension for the `orders` model in Lightdash:
+For example, the following dbt project file contains properties that create a single dimension, `status`, for the `orders` model in Lightdash:
 ```
 version: 2
 models:

@@ -59,7 +59,7 @@ Some people prefer to write the .yml files for all of their models in a single .
 
 But, like we said just above, if you're trying to decide how to setup your dbt project, **we'd recommend having one .yml file per model.**
 
-## How to create `.yml` files
+## How to create + update `.yml` files
 
 There are a few ways to do this - some easier than others. 
 
@@ -74,6 +74,8 @@ You'll need to make sure that your .yml file follows [the formatting rules for a
 If you've ever written a full .yml file manually, you won't be surprised that someone has gone ahead and automated the process. 
 
 There are a couple of schema generators out there, but the one we've ended up using the most was the `dbt-invoke` package. You can read more about [how to install + use it here](https://pypi.org/project/dbt-invoke/).
+
+These schema generators can be used to not only create, but also to update changes you've made in your .yml files.
 
 ## How to add Tables to Lightdash
 

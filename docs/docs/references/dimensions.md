@@ -10,9 +10,11 @@ Dimensions are the columns in your table. They are the "attributes" of your data
 
 ## Adding dimensions to your project
 
+Read more about [adding dimensions to your project in our docs here](/guides/how-to-create-dimensions.md).
+
 For a dimension to appear in Lightdash, you just need to declare it in your dbt model's YAML file.
 
-```
+```yaml
 version: 2
 
 models:
@@ -26,11 +28,23 @@ Column descriptions in your YAML file are automatically pulled into Lightdash an
 
 ![screenshot-column-descriptions](assets/screenshot-column-descriptions.png)
 
+## Dimension types
+
+Dimension types are automatically pulled from your tables schemas in Lightdash. We currently support these dimension types:
+
+| Dimension Types |
+| --------------- |
+| string          |
+| number          |
+| timestamp       |
+| date            |
+| boolean         |
+
 ## Dimension configuration
 
 To customize the dimension, you can do it in your dbt model's YAML file.
 
-```
+```yaml
 version: 2
 
 models:
@@ -61,23 +75,13 @@ All the properties you can customize:
 | round          | No       | number               | Rounds a number to a specified number of digits  |
 | format          | No       | string               | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']`  |
 
-## Dimension types
-
-Dimension types are automatically pulled from your tables schemas in Lightdash. We currently support these dimension types:
-
-| Dimension Types |
-| --------------- |
-| string          |
-| number          |
-| timestamp       |
-| date            |
-| boolean         |
-
 ## Time intervals
+
 Lightdash automatically adds intervals for dimensions that are timestamps or dates, so you don't have to!
 
 For example, here we have the timestamp dimension `created` defined in our dbt project:
-```
+
+```yaml
       - name: created
         description: 'Timestamp when the user was created.'
 ```
@@ -87,15 +91,17 @@ Lightdash breaks this out into the default intervals automatically. So, this is 
 ![screenshot-default-intervals](assets/screenshot-default-intervals.png)
 
 ### By default, the time intervals we use are:
+
 **Date**: ['DAY', 'WEEK', 'MONTH', 'YEAR']
 **Timestamp**: ['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']
 
 ### To change the time intervals used for a dimension, specify your custom intervals using `time_intervals`
+
 If you want to change the time intervals shown for a dimension, you can specify the custom time intervals you'd like you include using the `time_intervals` property for a dimension. You can use any values supported by your warehouse.
 
 In this example, I've only included the day, month, and quarter time intervals for the `created` dimension in Lightdash.
 
-```
+```yaml
       - name: created
         description: 'Timestamp when the user was created.'
         meta:
@@ -109,11 +115,12 @@ In this example, I've only included the day, month, and quarter time intervals f
 ![screenshot-custom-intervals](assets/screenshot-custom-intervals.png)
 
 ### To turn off time intervals for a dimension, set `time_intervals: OFF`
+
 If you want to turn off time intervals for a dimension, you can simply set the `time_intervals` property to `OFF`.
 
 In this example, `created` would now appear as a single, timestamp dimension without a drop-down list of time intervals in Lightdash:
 
-```
+```yaml
       - name: created
         description: 'Timestamp when the user was created.'
         meta:

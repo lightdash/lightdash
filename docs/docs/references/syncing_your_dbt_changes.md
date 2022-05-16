@@ -8,9 +8,11 @@ You can easily make changes in dbt and see them updated in your Lightdash projec
 
 ---
 
-Whenever you make changes to your YAML files, you can sync Lightdash and see these changes by clicking the `refresh dbt` button in the web app.
+Whenever you make changes to your YAML files, you can sync Lightdash and see these changes by clicking the `refresh dbt` button in the Explore view of the app.
 
 ![screenshot-refresh-dbt](assets/screenshot-refresh-dbt.png)
+
+If you're using a git connection (like GitHub, Gitlab or Bitbucket), you'll need to push + merge your changes to the branch that your Lightdash project is connected to before you run `refresh dbt`.
 
 ## If you've made any changes to the underlying data, you need to run dbt first
 

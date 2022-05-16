@@ -5,8 +5,8 @@ sidebar_label: Using Tables and the Explore view in Lightdash
 
 # Using Tables and the Explore view in Lightdash
 
-An **Table** is the main starting point for exploring data in Lightdash. It contains a group of related
-dbt models, dimensions, and metrics. You explore Tables in the Explore view.
+A **Table** is the main starting point for exploring data in Lightdash. It contains a group of related
+dbt models, dimensions, and metrics. You **explore Tables in the Explore view**.
 
 Watch this quick 2 minute tutorial where we talk through the key components of Tables and how to explore them in the Explore view:
 

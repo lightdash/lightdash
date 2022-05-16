@@ -1,8 +1,68 @@
 
-# How to create dimensions
+# Adding dimensions to Lightdash
 
-:::note Article deprecated
+**Dimensions** are fields that are used to **segment data** from your Tables.
 
-This article has been moved here: [Create your first metrics](../get-started/setup-lightdash/add-metrics.mdx)
+If you're completely new to Lightdash, we'd recommend checking out our Tutorial on [creating your first dimensions and metrics in Lightdash](/get-started/setup-lightdash/add-metrics) to learn a bit more about dimensions, metrics, and how to use them in Lightdash.
+
+## Adding dimensions to your project
+
+### Lightdash dimensions are added in your dbt project's .yml files
+
+Dimensions are created automatically when you define columns in your dbt model properties. To define columns add a
+new `.yml` file to your `models/` directory in your dbt project.
+
+For example, the following dbt project file contains properties that create a single dimension, `status`, for the `orders` model in Lightdash:
+
+```yaml
+version: 2
+models:
+  - name: orders
+    description: "A table of all orders."
+    columns:
+      - name: status
+        description: "Status of an order: ordered/processed/complete"
+        ...
+```
+
+The name of the dimension is `status` and the type will be inferred from the column in your database. You can see the [full list of dimension types supported in Lightdash here](/references/dimensions.md#dimension-types).
+
+:::info
+
+There are some pretty great tools for automatically generating and updating your model .yml files in dbt. To read more about how to do this, check out or docs on [adding Tables to Lightdash](/guides/adding-tables-to-lightdash.mdx#how-to-create--update-yml-files)
 
 :::
+
+Once you've added your dimensions, you can use them in Lightdash to build charts and filter results. Dimensions appear in the Explore view, below metrics and, if selected, pop us as blue fields in your results table.
+
+![dimensions in the Explore view](./assets/dimensions-in-explore-view.png)
+
+## Configuring your dimensions
+
+You can jazz up your dimensions by configuring them in your .yml files. These dimension configurations live under the `meta` tag of your columns:
+
+```yaml
+version: 2
+models:
+  - name: orders
+    description: "A table of all orders."
+    columns:
+      - name: status
+        description: "Status from org256 settings codes. Referenced at 
+        delivery from stat5 zone."
+        meta:
+          dimension:
+            label: "Status latest"
+            description: "Status of an order: ordered/processed/complete"
+            ...etc
+```
+
+Things like the format, the label that people see in Lightdash, rounding, etc. - these are all configurations that you can apply to your dimensions.
+
+You can [see all of the dimension configurations in our dimensions docs here](/references/dimensions.md#dimension-configuration).
+
+## Syncing dimensions in Lightdash
+
+Once you've added your dimensions, you'll want to re-sync your Lightdash project by clicking on `refresh dbt`.
+
+Not sure what `refresh dbt` is? Check out our guide on [syncing your dbt changes here](/references/syncing_your_dbt_changes.md).
