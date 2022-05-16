@@ -1,3 +1,10 @@
+## [0.101.1-alpha.1](https://github.com/lightdash/lightdash/compare/0.101.0...0.101.1-alpha.1) (2022-05-16)
+
+
+### Bug Fixes
+
+* semantic release warehouses ([#2132](https://github.com/lightdash/lightdash/issues/2132)) ([ad8fd2d](https://github.com/lightdash/lightdash/commit/ad8fd2d52d0154a4fd71dcc94b71a47c0050e851))
+
 # [0.101.0](https://github.com/lightdash/lightdash/compare/0.100.2...0.101.0) (2022-05-16)
 
 
