@@ -7,7 +7,11 @@ import {
 } from 'common';
 import * as fspromises from 'fs-extra';
 import * as path from 'path';
-import simpleGit, { SimpleGit, SimpleGitProgressEvent } from 'simple-git';
+import simpleGit, {
+    GitError,
+    SimpleGit,
+    SimpleGitProgressEvent,
+} from 'simple-git';
 import tempy from 'tempy';
 import Logger from '../logger';
 import { CachedWarehouse, WarehouseClient } from '../types';
@@ -22,6 +26,26 @@ export type DbtGitProjectAdapterArgs = {
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
     cachedWarehouse: CachedWarehouse;
+};
+
+const stripTokensFromUrls = (raw: string) => {
+    const pattern = /\/\/(.*)@/g;
+    return raw.replace(pattern, '//*****@');
+};
+
+const gitErrorHandler = (e: Error) => {
+    if (e.message.includes('Authentication failed')) {
+        throw new AuthorizationError(
+            'Git credentials not recognized for this repository',
+            { message: e.message },
+        );
+    }
+    if (e instanceof GitError) {
+        throw new GitError(e.task, stripTokensFromUrls(e.message));
+    }
+    throw new UnexpectedGitError(
+        `Unexpected error while cloning git repository: ${e}`,
+    );
 };
 
 export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
@@ -123,15 +147,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
                     defaultCloneOptions,
                 );
         } catch (e) {
-            if (e.message.includes('Authentication failed')) {
-                throw new AuthorizationError(
-                    'Git credentials not recognized for this repository',
-                    { message: e.message },
-                );
-            }
-            throw new UnexpectedGitError(
-                `Unexpected error while cloning git repository: ${e}`,
-            );
+            gitErrorHandler(e);
         }
     }
 
@@ -149,9 +165,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
                     '--progress': null,
                 });
         } catch (e) {
-            throw new UnexpectedGitError(
-                `Unexpected error while pulling git repository: ${e}`,
-            );
+            gitErrorHandler(e);
         }
     }
 
