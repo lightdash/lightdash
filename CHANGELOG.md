@@ -1,3 +1,10 @@
+## [0.100.2](https://github.com/lightdash/lightdash/compare/0.100.1...0.100.2) (2022-05-16)
+
+
+### Bug Fixes
+
+* edit chart url ([#2112](https://github.com/lightdash/lightdash/issues/2112)) ([30da468](https://github.com/lightdash/lightdash/commit/30da4684040bb9623a94d33aa969d9224dbdf219))
+
 ## [0.100.1](https://github.com/lightdash/lightdash/compare/0.100.0...0.100.1) (2022-05-16)
 
 
