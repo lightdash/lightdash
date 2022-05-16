@@ -27,6 +27,7 @@ import {
     MetricQuery,
     MissingWarehouseCredentialsError,
     NotExistsError,
+    NotFoundError,
     Project,
     ProjectCatalog,
     SessionUser,
@@ -552,7 +553,7 @@ export class ProjectService {
 
         const ability = defineAbilityForOrganizationMember(user);
         if (ability.cannot('view', subject('Job', job))) {
-            throw new AuthorizationError('User has no access to this project');
+            throw new NotFoundError(`Cannot find job`);
         }
 
         if (ability.cannot('update', 'Project')) {
