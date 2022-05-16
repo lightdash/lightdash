@@ -1,3 +1,13 @@
+## [0.101.1](https://github.com/lightdash/lightdash/compare/0.101.0...0.101.1) (2022-05-16)
+
+
+### Bug Fixes
+
+* cancel unsaved chart ([#2125](https://github.com/lightdash/lightdash/issues/2125)) ([8009240](https://github.com/lightdash/lightdash/commit/8009240d184fa16a15afe81b819033919949d95b))
+* semantic release for warehouse version bump ([#2133](https://github.com/lightdash/lightdash/issues/2133)) ([90053d6](https://github.com/lightdash/lightdash/commit/90053d6b57488424be3e3b9fd4eb14dfec1dff2d))
+* show chart options in edit mode ([#2124](https://github.com/lightdash/lightdash/issues/2124)) ([fb32f42](https://github.com/lightdash/lightdash/commit/fb32f42063838af477a3696672790a6eabd53f26))
+* show view mode after saving chart ([#2122](https://github.com/lightdash/lightdash/issues/2122)) ([9ae849c](https://github.com/lightdash/lightdash/commit/9ae849c1f6b997040059db7785355ee3cd095836))
+
 # [0.101.0](https://github.com/lightdash/lightdash/compare/0.100.2...0.101.0) (2022-05-16)
 
 
