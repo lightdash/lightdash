@@ -7,7 +7,6 @@ export async function up(knex: Knex): Promise<void> {
         .table('users')
         .select('user_uuid')
         .limit(1);
-    console.log('exising user', existingUserUuid?.user_uuid);
     await knex.schema.alterTable(COMPILE_JOB_TABLE_NAME, (tableBuilder) => {
         tableBuilder
             .uuid('user_uuid')
