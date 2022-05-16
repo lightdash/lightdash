@@ -10,6 +10,25 @@ import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import { useProjectFormContext } from '../ProjectFormProvider';
 
+export const SnowflakeSchemaInput: FC<{
+    disabled: boolean;
+}> = ({ disabled }) => {
+    return (
+        <Input
+            name="warehouse.schema"
+            label="Schema"
+            documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#schema-2"
+            rules={{
+                required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Schema'),
+                },
+            }}
+            disabled={disabled}
+        />
+    );
+};
+
 const SnowflakeForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
@@ -93,18 +112,7 @@ const SnowflakeForm: FC<{
                 }}
                 disabled={disabled}
             />
-            <Input
-                name="warehouse.schema"
-                label="Schema"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#schema-2"
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Schema'),
-                    },
-                }}
-                disabled={disabled}
-            />
+
             <FormSection isOpen={isOpen} name="advanced">
                 <NumericInput
                     name="warehouse.threads"

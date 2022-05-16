@@ -10,6 +10,25 @@ import PasswordInput from '../../ReactHookForm/PasswordInput';
 import Select from '../../ReactHookForm/Select';
 import { useProjectFormContext } from '../ProjectFormProvider';
 
+export const PostgresSchemaInput: FC<{
+    disabled: boolean;
+}> = ({ disabled }) => {
+    return (
+        <Input
+            name="warehouse.schema"
+            label="Schema"
+            documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#schema"
+            rules={{
+                required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Schema'),
+                },
+            }}
+            disabled={disabled}
+        />
+    );
+};
+
 const PostgresForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
@@ -70,18 +89,7 @@ const PostgresForm: FC<{
                 }}
                 disabled={disabled}
             />
-            <Input
-                name="warehouse.schema"
-                label="Schema"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#schema"
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Schema'),
-                    },
-                }}
-                disabled={disabled}
-            />
+
             <FormSection isOpen={isOpen} name="advanced">
                 <NumericInput
                     name="warehouse.port"

@@ -82,6 +82,24 @@ const ProjectForm: FC<Props> = ({
                 marginBottom: '20px',
                 display: 'flex',
                 flexDirection: 'row',
+            }}
+            elevation={1}
+        >
+            <div style={{ flex: 1 }}>
+                <H5 style={{ display: 'inline', marginRight: 5 }}>
+                    Warehouse connection
+                </H5>
+                <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
+            </div>
+            <div style={{ flex: 1 }}>
+                <WarehouseSettingsForm disabled={disabled} />
+            </div>
+        </Card>
+        <Card
+            style={{
+                marginBottom: '20px',
+                display: 'flex',
+                flexDirection: 'row',
                 gap: 20,
             }}
             elevation={1}
@@ -119,24 +137,6 @@ const ProjectForm: FC<Props> = ({
                     disabled={disabled}
                     defaultType={defaultType}
                 />
-            </div>
-        </Card>
-        <Card
-            style={{
-                marginBottom: '20px',
-                display: 'flex',
-                flexDirection: 'row',
-            }}
-            elevation={1}
-        >
-            <div style={{ flex: 1 }}>
-                <H5 style={{ display: 'inline', marginRight: 5 }}>
-                    Warehouse connection
-                </H5>
-                <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
-            </div>
-            <div style={{ flex: 1 }}>
-                <WarehouseSettingsForm disabled={disabled} />
             </div>
         </Card>
     </>

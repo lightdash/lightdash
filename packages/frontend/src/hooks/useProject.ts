@@ -18,7 +18,7 @@ const createProject = async (data: CreateProject) =>
     });
 
 const updateProject = async (id: string, data: UpdateProject) =>
-    lightdashApi<undefined>({
+    lightdashApi<ApiJobStartedResults>({
         url: `/projects/${id}`,
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -44,19 +44,24 @@ export const useProject = (id: string | undefined) => {
 
 export const useUpdateMutation = (id: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess } = useApp();
-    return useMutation<undefined, ApiError, UpdateProject>(
+    const { setActiveJobId, showToastError } = useApp();
+    return useMutation<ApiJobStartedResults, ApiError, UpdateProject>(
         (data) => updateProject(id, data),
         {
             mutationKey: ['project_update', id],
-            onSuccess: async () => {
+            onSuccess: async (data) => {
+                setActiveJobId(data.jobUuid);
+
                 await queryClient.invalidateQueries(['projects']);
                 await queryClient.invalidateQueries(['project', id]);
                 await queryClient.invalidateQueries('tables');
                 await queryClient.invalidateQueries('queryResults');
                 await queryClient.invalidateQueries('status');
-                showToastSuccess({
-                    title: `Success! Project was updated.`,
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to create project`,
+                    subtitle: error.error.message,
                 });
             },
         },

@@ -1,5 +1,5 @@
 import { Button } from '@blueprintjs/core';
-import { ProjectType, ProjectTypeLabels } from 'common';
+import { ProjectType, ProjectTypeLabels, WarehouseTypes } from 'common';
 import { FC, useMemo, useState } from 'react';
 import { useWatch } from 'react-hook-form';
 import { useApp } from '../../providers/AppProvider';
@@ -13,6 +13,10 @@ import DbtCloudForm from './DbtForms/DbtCloudForm';
 import DbtLocalForm from './DbtForms/DbtLocalForm';
 import GithubForm from './DbtForms/GithubForm';
 import GitlabForm from './DbtForms/GitlabForm';
+import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
+import { PostgresSchemaInput } from './WarehouseForms/PostgresForm';
+import { RedshiftSchemaInput } from './WarehouseForms/RedshiftForm';
+import { SnowflakeSchemaInput } from './WarehouseForms/SnowflakeForm';
 
 interface DbtSettingsFormProps {
     disabled: boolean;
@@ -26,6 +30,10 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     const type: ProjectType = useWatch({
         name: 'dbt.type',
         defaultValue: defaultType || ProjectType.GITHUB,
+    });
+    const warehouseType: WarehouseTypes = useWatch({
+        name: 'warehouse.type',
+        defaultValue: WarehouseTypes.BIGQUERY,
     });
     const [isAdvancedSettingsOpen, setIsAdvancedSettingsOpen] =
         useState<boolean>(false);
@@ -101,6 +109,25 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             env: `environment-variables`,
         },
     };
+
+    const warehouseSchemaInput = useMemo(() => {
+        switch (warehouseType) {
+            case WarehouseTypes.BIGQUERY:
+                return <BigQuerySchemaInput disabled={disabled} />;
+            case WarehouseTypes.POSTGRES:
+                return <PostgresSchemaInput disabled={disabled} />;
+            case WarehouseTypes.REDSHIFT:
+                return <RedshiftSchemaInput disabled={disabled} />;
+            case WarehouseTypes.SNOWFLAKE:
+                return <SnowflakeSchemaInput disabled={disabled} />;
+            case WarehouseTypes.DATABRICKS:
+                return <></>;
+            default: {
+                const never: never = warehouseType;
+                return <></>;
+            }
+        }
+    }, [disabled, warehouseType]);
     return (
         <div
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
@@ -116,7 +143,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 defaultValue={ProjectType.GITHUB}
             />
             {form}
-            <FormSection name={'Advanced'} isOpen={isAdvancedSettingsOpen}>
+            <FormSection name="target">
                 <Input
                     name="dbt.target"
                     label="Target name"
@@ -124,12 +151,16 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                     disabled={disabled}
                     placeholder="prod"
                 />
+                {warehouseSchemaInput}
+            </FormSection>
+            <FormSection name={'Advanced'} isOpen={isAdvancedSettingsOpen}>
                 <MultiKeyValuePairsInput
                     name="dbt.environment"
                     label="Environment variables"
                     documentationUrl={`${baseDocUrl}${typeDocUrls[type].env}`}
                     disabled={disabled}
                 />
+                <></>
             </FormSection>
             <div
                 style={{
