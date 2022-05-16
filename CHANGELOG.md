@@ -1,3 +1,10 @@
+# [0.101.0](https://github.com/lightdash/lightdash/compare/0.100.2...0.101.0) (2022-05-16)
+
+
+### Features
+
+* round styled big numbers ([#2115](https://github.com/lightdash/lightdash/issues/2115)) ([2404c60](https://github.com/lightdash/lightdash/commit/2404c60fd33410127a240955778bb6e6c449bf77))
+
 ## [0.100.2](https://github.com/lightdash/lightdash/compare/0.100.1...0.100.2) (2022-05-16)
 
 
