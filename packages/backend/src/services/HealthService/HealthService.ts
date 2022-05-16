@@ -7,17 +7,22 @@ import {
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getMigrationStatus } from '../../database/database';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { VERSION } from '../../version';
 
 type HealthServiceDependencies = {
     lightdashConfig: LightdashConfig;
+    projectModel: ProjectModel;
 };
 
 export class HealthService {
     private readonly lightdashConfig: LightdashConfig;
 
-    constructor({ lightdashConfig }: HealthServiceDependencies) {
+    private readonly projectModel: ProjectModel;
+
+    constructor({ projectModel, lightdashConfig }: HealthServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
+        this.projectModel = projectModel;
     }
 
     async getHealthState(isAuthenticated: boolean): Promise<HealthState> {
@@ -30,6 +35,8 @@ export class HealthService {
             );
         }
 
+        const requiresOrgRegistration = !this.projectModel.hasProjects();
+
         const localDbtEnabled =
             process.env.LIGHTDASH_INSTALL_TYPE !==
                 LightdashInstallType.HEROKU &&
@@ -41,6 +48,7 @@ export class HealthService {
             localDbtEnabled,
             defaultProject: undefined,
             isAuthenticated,
+            requiresOrgRegistration,
             latest: { version: getDockerHubVersion() },
             rudder: this.lightdashConfig.rudder,
             sentry: this.lightdashConfig.sentry,

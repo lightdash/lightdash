@@ -160,7 +160,12 @@ export class ProjectModel {
             .merge();
     }
 
-    async hasProjects(organizationUuid: string): Promise<boolean> {
+    async hasProjects(): Promise<boolean> {
+        const projects = await this.database('projects').select('project_uuid');
+        return projects.length > 0;
+    }
+
+    async organizationHasProjects(organizationUuid: string): Promise<boolean> {
         const orgs = await this.database('organizations')
             .where('organization_uuid', organizationUuid)
             .select('*');

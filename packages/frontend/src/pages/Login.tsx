@@ -78,6 +78,16 @@ const Login: FC = () => {
     if (health.isLoading || isDemo) {
         return <PageSpinner />;
     }
+    if (health.status === 'success' && health.data?.requiresOrgRegistration) {
+        return (
+            <Redirect
+                to={{
+                    pathname: '/register',
+                    state: { from: location.state?.from },
+                }}
+            />
+        );
+    }
 
     if (health.status === 'success' && health.data?.isAuthenticated) {
         return <Redirect to={{ pathname: '/' }} />;

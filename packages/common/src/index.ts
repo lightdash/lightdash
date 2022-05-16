@@ -665,6 +665,7 @@ export type HealthState = {
     localDbtEnabled: boolean;
     defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;
+    requiresOrgRegistration: boolean;
     hasEmailClient: boolean;
     latest: {
         version?: string;
