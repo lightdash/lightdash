@@ -1,3 +1,9 @@
+import { Ability } from '@casl/ability';
+import {
+    AuthorizationError,
+    OrganizationMemberRole,
+    SessionUser,
+} from 'common';
 import { analytics } from '../../analytics/client';
 import {
     jobModel,
@@ -5,6 +11,7 @@ import {
     projectModel,
     savedChartModel,
 } from '../../models/models';
+import { projectService } from '../services';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -14,6 +21,8 @@ import {
     expectedExploreSummaryFilteredByName,
     expectedExploreSummaryFilteredByTags,
     expectedSqlResults,
+    job,
+    jobError,
     projectAdapterMock,
     spacesWithSavedCharts,
     tablesConfiguration,
@@ -39,7 +48,9 @@ jest.mock('../../models/models', () => ({
     savedChartModel: {
         getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
     },
-    jobModel: {},
+    jobModel: {
+        get: jest.fn(async () => job),
+    },
 }));
 
 describe('ProjectService', () => {
@@ -127,6 +138,71 @@ describe('ProjectService', () => {
                 true,
             );
             expect(result).toEqual(expectedExploreSummaryFilteredByName);
+        });
+    });
+    describe('getJobStatus', () => {
+        test('should get job with projectUuid if user belongs to org ', async () => {
+            const result = await projectService.getJobStatus('jobUuid', user);
+            expect(result).toEqual(job);
+        });
+        test('should get job without projectUuid if user created the job ', async () => {
+            const jobWithoutProjectUuid = { ...job, projectUuid: undefined };
+            (jobModel.get as jest.Mock).mockImplementationOnce(
+                async () => jobWithoutProjectUuid,
+            );
+
+            const result = await projectService.getJobStatus('jobUuid', user);
+            expect(result).toEqual(jobWithoutProjectUuid);
+        });
+
+        test('should not get job without projectUuid if user is different', async () => {
+            const jobWithoutProjectUuid = { ...job, projectUuid: undefined };
+            (jobModel.get as jest.Mock).mockImplementationOnce(
+                async () => jobWithoutProjectUuid,
+            );
+            const anotherUser: SessionUser = {
+                ...user,
+                userUuid: 'another-user-uuid',
+            };
+            await expect(
+                projectService.getJobStatus('jobUuid', anotherUser),
+            ).rejects.toThrowError(AuthorizationError);
+        });
+
+        test('should not get job with projectUuid if belongs to another org', async () => {
+            const anotherUser: SessionUser = {
+                ...user,
+                organizationUuid: 'another-org-uuid',
+            };
+            await expect(
+                projectService.getJobStatus('jobUuid', anotherUser),
+            ).rejects.toThrowError(AuthorizationError);
+        });
+
+        test('should not see error message if only has view permissions', async () => {
+            (jobModel.get as jest.Mock).mockImplementationOnce(
+                async () => jobError,
+            );
+
+            const anotherUser: SessionUser = {
+                ...user,
+                role: OrganizationMemberRole.VIEWER,
+                ability: new Ability([]),
+            };
+            const result = await projectService.getJobStatus(
+                'jobUuid',
+                anotherUser,
+            );
+            const expectedJobError = {
+                ...jobError,
+                steps: [
+                    {
+                        ...jobError.steps[0],
+                        stepError: 'Error on Compiling',
+                    },
+                ],
+            };
+            expect(result).toEqual(expectedJobError);
         });
     });
 });
