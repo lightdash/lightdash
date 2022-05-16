@@ -46,6 +46,7 @@ module.exports = {
         "guides/adding-tables-to-lightdash",
         "references/syncing_your_dbt_changes",
         "guides/how-to-deploy-to-kubernetes",
+        "guides/how-to-create-dimensions",
         "guides/how-to-join-tables",
         "guides/how-to-reset-your-password",
         "guides/customizing-the-appearance-of-your-project",
