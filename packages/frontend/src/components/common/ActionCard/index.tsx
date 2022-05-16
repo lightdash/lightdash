@@ -1,10 +1,13 @@
-import { Colors } from '@blueprintjs/core';
+import { Button, Colors } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import { SessionUser, UpdatedByUser } from 'common';
 import React, { Dispatch, FC, SetStateAction } from 'react';
 import styled from 'styled-components';
-import { useTimeAgo } from '../../hooks/useTimeAgo';
-import LinkButton from './LinkButton';
-import ModalActionButtons from './modal/ModalActionButtons';
+import { useSavedQuery } from '../../../hooks/useSavedQuery';
+import { useTimeAgo } from '../../../hooks/useTimeAgo';
+import LinkButton from '../LinkButton';
+import ModalActionButtons from '../modal/ModalActionButtons';
+import { RightButtons } from './ActionCard.styles';
 
 type ActionCardProps<T> = {
     data: T;
@@ -69,17 +72,31 @@ const ActionCard = <
         setActionState,
         isChart,
     } = props;
+    const { data: savedChart } = useSavedQuery({
+        id: data.uuid,
+    });
+
     return (
         <LinkButtonWrapper
             href={url}
             minimal
             rightIcon={
-                <ModalActionButtons
-                    data={data}
-                    url={url}
-                    setActionState={setActionState}
-                    isChart={isChart}
-                />
+                <RightButtons>
+                    {savedChart?.description && (
+                        <Tooltip2
+                            content={savedChart.description}
+                            position="bottom"
+                        >
+                            <Button icon="info-sign" minimal />
+                        </Tooltip2>
+                    )}
+                    <ModalActionButtons
+                        data={data}
+                        url={url}
+                        setActionState={setActionState}
+                        isChart={isChart}
+                    />
+                </RightButtons>
             }
         >
             <strong>{name}</strong>
