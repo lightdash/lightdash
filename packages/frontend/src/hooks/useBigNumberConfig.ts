@@ -50,7 +50,7 @@ const useBigNumberConfig = (
         ? fieldId && resultsData?.rows?.[0]?.[fieldId]?.value.formatted
         : formatValue(
               field?.format,
-              field?.round,
+              bigNumberStyle ? 2 : field?.round,
               bigNumberRaw,
               bigNumberStyle,
           );
