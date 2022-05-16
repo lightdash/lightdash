@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # How to join tables
 
-**Add joins to your YAML files to connect different models to each other**
+Learn how to add joins to your YAML files to connect different models to each other.
 
 ## Declare joins in dbt model properties
 
