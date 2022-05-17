@@ -1,9 +1,4 @@
-import { Ability } from '@casl/ability';
-import {
-    AuthorizationError,
-    OrganizationMemberRole,
-    SessionUser,
-} from 'common';
+import { AuthorizationError, SessionUser } from 'common';
 import { analytics } from '../../analytics/client';
 import {
     jobModel,
@@ -22,7 +17,6 @@ import {
     expectedExploreSummaryFilteredByTags,
     expectedSqlResults,
     job,
-    jobError,
     projectAdapterMock,
     spacesWithSavedCharts,
     tablesConfiguration,
@@ -167,32 +161,6 @@ describe('ProjectService', () => {
             await expect(
                 projectService.getJobStatus('jobUuid', anotherUser),
             ).rejects.toThrowError(AuthorizationError);
-        });
-
-        test('should not see error message if only has view permissions', async () => {
-            (jobModel.get as jest.Mock).mockImplementationOnce(
-                async () => jobError,
-            );
-
-            const anotherUser: SessionUser = {
-                ...user,
-                role: OrganizationMemberRole.VIEWER,
-                ability: new Ability([]),
-            };
-            const result = await projectService.getJobStatus(
-                'jobUuid',
-                anotherUser,
-            );
-            const expectedJobError = {
-                ...jobError,
-                steps: [
-                    {
-                        ...jobError.steps[0],
-                        stepError: 'Error on Compiling',
-                    },
-                ],
-            };
-            expect(result).toEqual(expectedJobError);
         });
     });
 });

@@ -556,14 +556,6 @@ export class ProjectService {
             throw new NotFoundError(`Cannot find job`);
         }
 
-        if (ability.cannot('update', 'Project')) {
-            // If they can view, but can't update, we only show generic error message
-            job.steps = job.steps.map((step) => ({
-                ...step,
-                stepError: `Error on ${step.stepLabel}`,
-            }));
-        }
-
         return job;
     }
 
