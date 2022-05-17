@@ -60,7 +60,7 @@ Connect Lightdash to your dbt project, add some metrics, then create and share y
 ## Dashboards
 
 - [Creating dashboards](/get-started/exploring-data/dashboards.md)
-- [Limiting the data in your dashboard with filters](/guides/limiting-data-using-flters.md#adding-filters-to-your-dashboard)
+- [Limiting the data in your dashboard with filters](/guides/limiting-data-using-filters.md#adding-filters-to-your-dashboard)
 - [Interactive dashboards](/guides/interactive-dashboards.mdx)
 
 ## Users
