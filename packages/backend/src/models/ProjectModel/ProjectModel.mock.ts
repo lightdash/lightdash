@@ -50,6 +50,7 @@ export const lightdashConfigMock: LightdashConfig = {
         maxConnections: undefined,
         minConnections: undefined,
     },
+    allowMultiOrgs: false,
 };
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {
