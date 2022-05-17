@@ -397,6 +397,7 @@ export class ProjectService {
             },
         });
         const explore = await this.getExplore(user, projectUuid, exploreName);
+
         const adapter = await this.getAdapter(projectUuid);
         const rows = await adapter.runQuery(query);
 

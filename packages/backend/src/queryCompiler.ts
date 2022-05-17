@@ -10,8 +10,11 @@ import {
     MetricQuery,
     TableCalculation,
 } from 'common';
-import { compileMetricSql, lightdashVariablePattern } from './exploreCompiler';
-import { getQuoteChar } from './queryBuilder';
+import {
+    compileMetricSql,
+    getQuoteChar,
+    lightdashVariablePattern,
+} from './exploreCompiler';
 
 const resolveQueryFieldReference = (ref: string): FieldId => {
     const parts = ref.split('.');
@@ -59,7 +62,7 @@ const compileTableCalculation = (
 
 type CompileAdditionalMetricArgs = {
     additionalMetric: AdditionalMetric;
-    explore: Pick<Explore, 'tables'>;
+    explore: Pick<Explore, 'tables' | 'targetDatabase'>;
 };
 const compileAdditionalMetric = ({
     additionalMetric,
@@ -72,8 +75,13 @@ const compileAdditionalMetric = ({
             {},
         );
     }
+    const quoteChar = getQuoteChar(explore.targetDatabase); // quote char
+
     const metric = convertAdditionalMetric({ additionalMetric, table });
-    return { ...metric, compiledSql: compileMetricSql(metric, explore.tables) };
+    return {
+        ...metric,
+        compiledSql: compileMetricSql(metric, explore.tables, quoteChar),
+    };
 };
 
 type CompileMetricQueryArgs = {
