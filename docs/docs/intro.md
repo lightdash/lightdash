@@ -74,3 +74,8 @@ Connect Lightdash to your dbt project, add some metrics, then create and share y
 ## Configuring Lightdash
 
 - [Customizing the appearance of your project](/guides/customizing-the-appearance-of-your-project.md)
+
+## Lightdash University: Best Practice
+
+- [The Lightdash Way for data access](/best-practice/lightdash-way.md)
+- [Planning your dashboard - the Who, What and How of dashboard building](/best-practice/planning-your-dashboard.md)
