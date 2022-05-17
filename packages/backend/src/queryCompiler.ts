@@ -59,7 +59,7 @@ const compileTableCalculation = (
 
 type CompileAdditionalMetricArgs = {
     additionalMetric: AdditionalMetric;
-    explore: Pick<Explore, 'tables'>;
+    explore: Pick<Explore, 'tables' | 'targetDatabase'>;
 };
 const compileAdditionalMetric = ({
     additionalMetric,
@@ -72,8 +72,13 @@ const compileAdditionalMetric = ({
             {},
         );
     }
+    const quoteChar = getQuoteChar(explore.targetDatabase); // quote char
+
     const metric = convertAdditionalMetric({ additionalMetric, table });
-    return { ...metric, compiledSql: compileMetricSql(metric, explore.tables) };
+    return {
+        ...metric,
+        compiledSql: compileMetricSql(metric, explore.tables, quoteChar),
+    };
 };
 
 type CompileMetricQueryArgs = {

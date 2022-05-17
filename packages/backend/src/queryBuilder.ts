@@ -17,12 +17,11 @@ import {
     isAndFilterGroup,
     isMetric,
     MetricType,
-    SupportedDbtAdapter,
     UnitOfTime,
     unitOfTimeFormat,
 } from 'common';
 import moment from 'moment';
-import { parseAllReferences } from './exploreCompiler';
+import { getQuoteChar, parseAllReferences } from './exploreCompiler';
 
 const formatTimestamp = (date: Date): string =>
     moment(date).format('YYYY-MM-DD HH:mm:ss');
@@ -245,20 +244,6 @@ const getMetricFromId = (
     return metric;
 };
 
-export const getQuoteChar = (targetDatabase: SupportedDbtAdapter): string => {
-    switch (targetDatabase) {
-        case SupportedDbtAdapter.POSTGRES:
-        case SupportedDbtAdapter.SNOWFLAKE:
-        case SupportedDbtAdapter.REDSHIFT:
-            return '"';
-        case SupportedDbtAdapter.BIGQUERY:
-        case SupportedDbtAdapter.DATABRICKS:
-            return '`';
-        default:
-            return '"';
-    }
-};
-
 const getOperatorSql = (filterGroup: FilterGroup | undefined) => {
     if (filterGroup) {
         return isAndFilterGroup(filterGroup) ? ' AND ' : ' OR ';
@@ -277,8 +262,8 @@ export const buildQuery = ({
     let hasExampleMetric: boolean = false;
     const { dimensions, metrics, filters, sorts, limit } = compiledMetricQuery;
     const baseTable = explore.tables[explore.baseTable].sqlTable;
-    const sqlFrom = `FROM ${baseTable} AS ${explore.baseTable}`;
     const q = getQuoteChar(explore.targetDatabase); // quote char
+    const sqlFrom = `FROM ${baseTable} AS ${q}${explore.baseTable}${q}`;
 
     const dimensionSelects = dimensions.map((field) => {
         const alias = field;

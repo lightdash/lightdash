@@ -401,9 +401,9 @@ export const METRIC_QUERY_WITH_ADDITIONAL_METRIC: CompiledMetricQuery = {
 
 export const METRIC_QUERY_SQL = `WITH metrics AS (
 SELECT
-  table1.dim1 AS "table1_dim1",
-  MAX(table1.number_column) AS "table1_metric1"
-FROM "db"."schema"."table1" AS table1
+  "table1".dim1 AS "table1_dim1",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
 
 
 GROUP BY 1
@@ -414,6 +414,23 @@ SELECT
 FROM metrics
 
 ORDER BY "table1_metric1" DESC
+LIMIT 10`;
+
+export const METRIC_QUERY_SQL_BIGQUERY = `WITH metrics AS (
+SELECT
+  table1.dim1 AS \`table1_dim1\`,
+  MAX(table1.number_column) AS \`table1_metric1\`
+FROM \`db\`.\`schema\`.\`table1\` AS \`table1\`
+
+
+GROUP BY 1
+)
+SELECT
+  *,
+  table1_dim1 + table1_metric1 AS \`calc3\`
+FROM metrics
+
+ORDER BY \`table1_metric1\` DESC
 LIMIT 10`;
 
 export const METRIC_QUERY_TWO_TABLES_SQL = `WITH metrics AS (
