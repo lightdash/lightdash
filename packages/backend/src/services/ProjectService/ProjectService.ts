@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     AlreadyProcessingError,
     ApiQueryResults,
@@ -79,8 +80,18 @@ export class ProjectService {
     }
 
     async getProject(projectUuid: string, user: SessionUser): Promise<Project> {
-        // Todo: Check user has access
         const project = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         return project;
     }
 
@@ -176,10 +187,6 @@ export class ProjectService {
         user: SessionUser,
         data: UpdateProject,
     ): Promise<{ jobUuid: string }> {
-        if (user.ability.cannot('update', 'Project')) {
-            throw new ForbiddenError();
-        }
-
         const job: CreateJob = {
             jobUuid: uuidv4(),
             jobType: JobType.COMPILE_PROJECT,
@@ -194,6 +201,16 @@ export class ProjectService {
         const savedProject = await this.projectModel.getWithSensitiveFields(
             projectUuid,
         );
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: savedProject.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
             data,
@@ -282,7 +299,15 @@ export class ProjectService {
     }
 
     async delete(projectUuid: string, user: SessionUser): Promise<void> {
-        if (user.ability.cannot('delete', 'Project')) {
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'delete',
+                subject('Project', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 

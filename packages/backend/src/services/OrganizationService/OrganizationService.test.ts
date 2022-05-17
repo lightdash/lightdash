@@ -51,4 +51,14 @@ describe('organization service', () => {
             needsProject: true,
         });
     });
+    it('Should not return organization if user belongs to a different org', async () => {
+        const anotherUser = {
+            ...user,
+            organizationUUid: 'another-org-uuid',
+        };
+        expect(await organizationService.get(anotherUser)).toEqual({
+            ...organisation,
+            needsProject: false,
+        });
+    });
 });

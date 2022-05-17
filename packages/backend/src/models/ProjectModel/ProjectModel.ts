@@ -16,6 +16,7 @@ import {
 } from 'common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
+import { OrganizationTableName } from '../../database/entities/organizations';
 import {
     CachedExploresTableName,
     CachedWarehouseTableName,
@@ -279,12 +280,14 @@ export class ProjectModel {
                   dbt_connection: Buffer | null;
                   encrypted_credentials: null;
                   warehouse_type: null;
+                  organization_uuid: string;
               }
             | {
                   name: string;
                   dbt_connection: Buffer | null;
                   encrypted_credentials: Buffer;
                   warehouse_type: string;
+                  organization_uuid: string;
               }
         )[];
         const projects = await this.database('projects')
@@ -292,6 +295,11 @@ export class ProjectModel {
                 WarehouseCredentialTableName,
                 'warehouse_credentials.project_id',
                 'projects.project_id',
+            )
+            .leftJoin(
+                OrganizationTableName,
+                'organizations.organization_id',
+                'projects.organization_id',
             )
             .column([
                 this.database.ref('name').withSchema(ProjectTableName),
@@ -304,6 +312,9 @@ export class ProjectModel {
                 this.database
                     .ref('warehouse_type')
                     .withSchema(WarehouseCredentialTableName),
+                this.database
+                    .ref('organization_uuid')
+                    .withSchema(OrganizationTableName),
             ])
             .select<QueryResult>()
             .where('project_uuid', projectUuid);
@@ -325,6 +336,7 @@ export class ProjectModel {
             throw new UnexpectedServerError('Failed to load dbt credentials');
         }
         const result = {
+            organizationUuid: project.organization_uuid,
             projectUuid,
             name: project.name,
             dbtConnection: dbtSensitiveCredentials,
@@ -367,6 +379,7 @@ export class ProjectModel {
               ) as WarehouseCredentials)
             : undefined;
         return {
+            organizationUuid: project.organizationUuid,
             projectUuid,
             name: project.name,
             dbtConnection: nonSensitiveDbtCredentials,

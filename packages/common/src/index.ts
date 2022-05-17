@@ -585,6 +585,7 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 export type Organisation = {
+    organizationUuid: string;
     name: string;
     allowedEmailDomains: string[];
     chartColors?: string[];
@@ -1104,6 +1105,7 @@ export type OrganizationProject = {
 };
 
 export type Project = {
+    organizationUuid: string;
     projectUuid: string;
     name: string;
     dbtConnection: DbtProjectConfig;

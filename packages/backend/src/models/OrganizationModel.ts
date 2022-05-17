@@ -19,6 +19,7 @@ export class OrganizationModel {
 
     static mapDBObjectToOrganisation(data: DbOrganization): Organisation {
         return {
+            organizationUuid: data.organization_uuid,
             name: data.organization_name,
             allowedEmailDomains: data.allowed_email_domains,
             chartColors: data.chart_colors,
