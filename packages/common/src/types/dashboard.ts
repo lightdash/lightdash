@@ -69,6 +69,7 @@ export type CreateDashboard = {
 };
 
 export type Dashboard = {
+    organizationUuid: string;
     projectUuid: string;
     uuid: string;
     name: string;

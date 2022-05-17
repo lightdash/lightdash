@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     CreateDashboard,
     Dashboard,
@@ -61,7 +62,18 @@ export class DashboardService {
         user: SessionUser,
         dashboardUuid: string,
     ): Promise<Dashboard> {
-        return this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Dashboard', {
+                    organizationUuid: dashboard.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return dashboard;
     }
 
     async create(
