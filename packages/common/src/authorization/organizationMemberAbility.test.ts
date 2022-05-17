@@ -98,7 +98,7 @@ describe('Organization member permissions', () => {
             expect(ability.can('delete', 'Organization')).toEqual(false);
             expect(ability.can('delete', 'InviteLink')).toEqual(false);
         });
-        it('can view his own jobs', () => {
+        it('can view their own jobs', () => {
             expect(
                 ability.can(
                     'view',
