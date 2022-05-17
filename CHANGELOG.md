@@ -1,3 +1,10 @@
+## [0.104.3](https://github.com/lightdash/lightdash/compare/0.104.2...0.104.3) (2022-05-17)
+
+
+### Bug Fixes
+
+* allow multiple orgs value check ([#2141](https://github.com/lightdash/lightdash/issues/2141)) ([897fbfd](https://github.com/lightdash/lightdash/commit/897fbfd23214303bf766eec786427ba33638c87e))
+
 ## [0.104.2](https://github.com/lightdash/lightdash/compare/0.104.1...0.104.2) (2022-05-17)
 
 
