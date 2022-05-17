@@ -1,3 +1,10 @@
+# [0.104.0](https://github.com/lightdash/lightdash/compare/0.103.1...0.104.0) (2022-05-17)
+
+
+### Features
+
+* show descriptions on saved charts page ([#2130](https://github.com/lightdash/lightdash/issues/2130)) ([e2415fa](https://github.com/lightdash/lightdash/commit/e2415fa2ac555296b476f52da6c420fe7e29a70c))
+
 ## [0.103.1](https://github.com/lightdash/lightdash/compare/0.103.0...0.103.1) (2022-05-17)
 
 

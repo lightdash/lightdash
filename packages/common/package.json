@@ -1,6 +1,6 @@
 {
     "name": "common",
-    "version": "0.103.1",
+    "version": "0.104.0",
     "main": "dist/index",
     "license": "MIT",
     "private": true,
