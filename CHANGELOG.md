@@ -1,3 +1,10 @@
+## [0.103.1](https://github.com/lightdash/lightdash/compare/0.103.0...0.103.1) (2022-05-17)
+
+
+### Bug Fixes
+
+* strip secret from git errors ([#2131](https://github.com/lightdash/lightdash/issues/2131)) ([49ab93d](https://github.com/lightdash/lightdash/commit/49ab93d27fa881ad8fc9878c0cd7e3ba57509022)), closes [#1233](https://github.com/lightdash/lightdash/issues/1233)
+
 # [0.103.0](https://github.com/lightdash/lightdash/compare/0.102.0...0.103.0) (2022-05-16)
 
 
