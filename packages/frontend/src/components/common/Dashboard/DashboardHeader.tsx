@@ -19,7 +19,7 @@ import {
 
 type DashboardHeaderProps = {
     isEditMode: boolean;
-    onAddTile: (tile: Dashboard['tiles'][number]) => void;
+    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     onSaveDashboard: () => void;
     hasDashboardChanged: boolean;
     isSaving: boolean;
@@ -30,7 +30,7 @@ type DashboardHeaderProps = {
 
 const DashboardHeader = ({
     isEditMode,
-    onAddTile,
+    onAddTiles,
     onSaveDashboard,
     hasDashboardChanged,
     isSaving,
@@ -40,8 +40,10 @@ const DashboardHeader = ({
 }: DashboardHeaderProps) => {
     const [pageLoadedAt] = useState(new Date());
     const timeAgo = useTimeAgo(pageLoadedAt);
-    const { projectUuid, dashboardUuid } =
-        useParams<{ projectUuid: string; dashboardUuid: string }>();
+    const { projectUuid, dashboardUuid } = useParams<{
+        projectUuid: string;
+        dashboardUuid: string;
+    }>();
     const history = useHistory();
     const { track } = useTracking();
     const [isEditing, setIsEditing] = useState(false);
@@ -71,7 +73,7 @@ const DashboardHeader = ({
             <EditContainer>
                 {isEditMode ? (
                     <>
-                        <AddTileButton onAddTile={onAddTile} />
+                        <AddTileButton onAddTiles={onAddTiles} />
                         <Tooltip2
                             position="top"
                             content={

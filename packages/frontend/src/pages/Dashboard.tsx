@@ -145,12 +145,12 @@ const Dashboard = () => {
         },
         [setDashboardTiles],
     );
-    const onAddTile = useCallback(
-        (tile: IDashboard['tiles'][number]) => {
+    const onAddTiles = useCallback(
+        (tiles: IDashboard['tiles'][number][]) => {
             setHasTilesChanged(true);
             setDashboardTiles((currentDashboardTiles) => [
                 ...currentDashboardTiles,
-                tile,
+                ...tiles,
             ]);
         },
         [setDashboardTiles],
@@ -279,7 +279,7 @@ const Dashboard = () => {
                 isEditMode={isEditMode}
                 isSaving={isSaving}
                 hasDashboardChanged={hasTilesChanged || haveFiltersChanged}
-                onAddTile={onAddTile}
+                onAddTiles={onAddTiles}
                 onSaveDashboard={() =>
                     mutate({
                         tiles: dashboardTiles,
