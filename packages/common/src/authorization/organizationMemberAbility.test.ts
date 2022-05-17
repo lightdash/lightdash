@@ -106,7 +106,7 @@ describe('Organization member permissions', () => {
                 ),
             ).toEqual(true);
         });
-        it('cannot view jobs from another users', () => {
+        it('cannot view jobs from another user', () => {
             expect(
                 ability.can(
                     'view',
