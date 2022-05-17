@@ -36,9 +36,7 @@ const SavedQueryForm = ({
                         name="description"
                         placeholder="A few words to give your team some context"
                         disabled={isDisabled}
-                        defaultValue={
-                            savedChart?.description && savedChart?.description
-                        }
+                        defaultValue={savedChart?.description}
                     />
                 </div>
             )}

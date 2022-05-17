@@ -73,7 +73,7 @@ const ActionCard = <
         isChart,
     } = props;
     const { data: savedChart } = useSavedQuery({
-        id: data.uuid,
+        id: isChart ? data.uuid : '',
     });
 
     return (
