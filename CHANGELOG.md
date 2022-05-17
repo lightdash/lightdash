@@ -1,3 +1,10 @@
+# [0.105.0](https://github.com/lightdash/lightdash/compare/0.104.3...0.105.0) (2022-05-17)
+
+
+### Features
+
+* add multiple chart tiles ([#2137](https://github.com/lightdash/lightdash/issues/2137)) ([ae9333f](https://github.com/lightdash/lightdash/commit/ae9333ff60e0aef5cdaa8f4258c08bfbea0049ab))
+
 ## [0.104.3](https://github.com/lightdash/lightdash/compare/0.104.2...0.104.3) (2022-05-17)
 
 
