@@ -34,6 +34,7 @@ type DbSavedChartDetails = {
     chart_config: ChartConfig['config'] | undefined;
     pivot_dimensions: string[] | undefined;
     created_at: Date;
+    organization_uuid: string;
 };
 
 const createSavedChartVersionField = async (
@@ -293,6 +294,11 @@ export class SavedChartModel {
             .innerJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
             .innerJoin('projects', 'spaces.project_id', 'projects.project_id')
             .innerJoin(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .innerJoin(
                 'saved_queries_versions',
                 'saved_queries.saved_query_id',
                 'saved_queries_versions.saved_query_id',
@@ -311,6 +317,7 @@ export class SavedChartModel {
                 'saved_queries_versions.created_at',
                 'saved_queries_versions.chart_config',
                 'saved_queries_versions.pivot_dimensions',
+                'organizations.organization_uiid',
             ])
             .where('saved_query_uuid', savedChartUuid)
             .orderBy('saved_queries_versions.created_at', 'desc')
@@ -420,6 +427,7 @@ export class SavedChartModel {
             tableConfig: {
                 columnOrder,
             },
+            organizationUuid: savedQuery.organization_uuid,
             ...(savedQuery.pivot_dimensions
                 ? { pivotConfig: { columns: savedQuery.pivot_dimensions } }
                 : {}),

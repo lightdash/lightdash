@@ -21,7 +21,6 @@ export const user: SessionUser = {
     role: OrganizationMemberRole.ADMIN,
     ability: new Ability([
         { subject: 'Dashboard', action: ['update', 'delete', 'create'] },
-        { subject: 'Organization', action: ['update', 'delete', 'create'] },
     ]),
 };
 

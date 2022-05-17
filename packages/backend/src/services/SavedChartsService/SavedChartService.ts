@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ChartType,
     countTotalFilterRules,
@@ -125,8 +126,19 @@ export class SavedChartService {
         });
     }
 
-    async get(savedChartUuid: string): Promise<SavedChart> {
-        return this.savedChartModel.get(savedChartUuid);
+    async get(savedChartUuid: string, user: SessionUser): Promise<SavedChart> {
+        const savedChart = await this.savedChartModel.get(savedChartUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: savedChart.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return savedChart;
     }
 
     async create(
