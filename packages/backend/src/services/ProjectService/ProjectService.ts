@@ -397,8 +397,6 @@ export class ProjectService {
             },
         });
         const explore = await this.getExplore(user, projectUuid, exploreName);
-        console.log('explore', explore);
-        console.log('dimensions', explore.tables.order.dimensions);
 
         const adapter = await this.getAdapter(projectUuid);
         const rows = await adapter.runQuery(query);
