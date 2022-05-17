@@ -1,4 +1,4 @@
-import { AuthorizationError, SessionUser } from 'common';
+import { NotFoundError, SessionUser } from 'common';
 import { analytics } from '../../analytics/client';
 import {
     jobModel,
@@ -160,7 +160,7 @@ describe('ProjectService', () => {
             };
             await expect(
                 projectService.getJobStatus('jobUuid', anotherUser),
-            ).rejects.toThrowError(AuthorizationError);
+            ).rejects.toThrowError(NotFoundError);
         });
     });
 });
