@@ -11,21 +11,21 @@ Connect Lightdash to your dbt project, add some metrics, then create and share y
 
 ## 🌟 Getting started
 
-#### Setting up Lightdash
+- **Setting up Lightdash**
 
-- [New to dbt?](/get-started/setup-lightdash/new-to-dbt.mdx)
-- [Install Lightdash](/get-started/setup-lightdash/install-lightdash.mdx)
-- [Connect a project](/get-started/setup-lightdash/connect-project.mdx)
+  - [New to dbt?](/get-started/setup-lightdash/new-to-dbt.mdx)
+  - [Install Lightdash](/get-started/setup-lightdash/install-lightdash.mdx)
+  - [Connect a project](/get-started/setup-lightdash/connect-project.mdx)  
 
-#### Developing in Lightdash
+- **Developing in Lightdash**
 
-- [Create your first dimensions and metrics](/get-started/setup-lightdash/add-metrics.mdx)
+  - [Create your first dimensions and metrics](/get-started/setup-lightdash/add-metrics.mdx)  
 
-#### Exploring your data in Lightdash
+- **Exploring your data in Lightdash**
 
-- [Using Tables and the Explore view](/get-started/exploring-data/using-explores.md)
-- [Inviting your team + sharing insights](/get-started/exploring-data/sharing-insights.md)
-- [Creating dashboards](/get-started/exploring-data/dashboards.md)
+  - [Using Tables and the Explore view](/get-started/exploring-data/using-explores.md)
+  - [Inviting your team + sharing insights](/get-started/exploring-data/sharing-insights.md)
+  - [Creating dashboards](/get-started/exploring-data/dashboards.md)
 
 ## 🙋‍♀️ Troubleshooting and getting help
 
