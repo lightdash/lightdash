@@ -72,7 +72,16 @@ export class SavedChartService {
         savedChartUuid: string,
         data: CreateSavedChartVersion,
     ): Promise<SavedChart> {
-        if (user.ability.cannot('update', 'SavedChart')) {
+        const { organizationUuid } = await this.savedChartModel.get(
+            savedChartUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('SavedChart', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         const savedChart = await this.savedChartModel.createVersion(
@@ -93,7 +102,16 @@ export class SavedChartService {
         savedChartUuid: string,
         data: UpdateSavedChart,
     ): Promise<SavedChart> {
-        if (user.ability.cannot('update', 'SavedChart')) {
+        const { organizationUuid } = await this.savedChartModel.get(
+            savedChartUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('SavedChart', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         const savedChart = await this.savedChartModel.update(
@@ -112,7 +130,16 @@ export class SavedChartService {
     }
 
     async delete(user: SessionUser, savedChartUuid: string): Promise<void> {
-        if (user.ability.cannot('delete', 'SavedChart')) {
+        const { organizationUuid } = await this.savedChartModel.get(
+            savedChartUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'delete',
+                subject('SavedChart', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         const deletedChart = await this.savedChartModel.delete(savedChartUuid);
@@ -167,7 +194,14 @@ export class SavedChartService {
         projectUuid: string,
         chartUuid: string,
     ): Promise<SavedChart> {
-        if (user.ability.cannot('create', 'SavedChart')) {
+        const { organizationUuid } = await this.savedChartModel.get(chartUuid);
+
+        if (
+            user.ability.cannot(
+                'create',
+                subject('SavedChart', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         const chart = await this.savedChartModel.get(chartUuid);

@@ -317,7 +317,7 @@ export class SavedChartModel {
                 'saved_queries_versions.created_at',
                 'saved_queries_versions.chart_config',
                 'saved_queries_versions.pivot_dimensions',
-                'organizations.organization_uiid',
+                'organizations.organization_uuid',
             ])
             .where('saved_query_uuid', savedChartUuid)
             .orderBy('saved_queries_versions.created_at', 'desc')
