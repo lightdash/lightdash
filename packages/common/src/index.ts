@@ -1112,11 +1112,17 @@ export type Project = {
     warehouseConnection?: WarehouseCredentials;
 };
 
-export type CreateProject = Omit<Project, 'projectUuid'> & {
+export type CreateProject = Omit<
+    Project,
+    'projectUuid' | 'organizationUuid'
+> & {
     warehouseConnection: CreateWarehouseCredentials;
 };
 
-export type UpdateProject = Omit<Project, 'projectUuid'> & {
+export type UpdateProject = Omit<
+    Project,
+    'projectUuid' | 'organizationUuid'
+> & {
     warehouseConnection: CreateWarehouseCredentials;
 };
 export const findItem = (
