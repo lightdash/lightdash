@@ -1,3 +1,10 @@
+## [0.104.1](https://github.com/lightdash/lightdash/compare/0.104.0...0.104.1) (2022-05-17)
+
+
+### Bug Fixes
+
+* sidebar not being sticky on explorer ([#2140](https://github.com/lightdash/lightdash/issues/2140)) ([7247433](https://github.com/lightdash/lightdash/commit/72474339ad777e8162b0aaaf05b3c6bfa0c4e0b5))
+
 # [0.104.0](https://github.com/lightdash/lightdash/compare/0.103.1...0.104.0) (2022-05-17)
 
 
