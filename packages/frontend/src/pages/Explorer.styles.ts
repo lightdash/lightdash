@@ -12,13 +12,13 @@ export const PageContainer = styled.div`
 export const SideBar = styled.div`
     display: flex;
     flex-direction: row;
+    position: sticky;
+    top: 50px;
 `;
 
 export const SideBarCard = styled(Card)`
     height: calc(100vh - 50px);
     overflow: hidden;
-    position: sticky;
-    top: 50px;
 `;
 
 export const Main = styled.div`
