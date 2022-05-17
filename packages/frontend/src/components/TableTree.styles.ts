@@ -15,3 +15,14 @@ export const TooltipContent = styled.p`
     margin: 0;
     max-width: 360px;
 `;
+
+export const ItemOptions = styled.div`
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    height: 30px;
+`;
+
+export const Placeholder = styled.div`
+    width: 30px;
+`;
