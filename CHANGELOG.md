@@ -1,3 +1,10 @@
+## [0.104.2](https://github.com/lightdash/lightdash/compare/0.104.1...0.104.2) (2022-05-17)
+
+
+### Bug Fixes
+
+* reserved keywords sql ([#2136](https://github.com/lightdash/lightdash/issues/2136)) ([438f795](https://github.com/lightdash/lightdash/commit/438f795ad92c6c29ceb65c94e3dad52d7f4d6980))
+
 ## [0.104.1](https://github.com/lightdash/lightdash/compare/0.104.0...0.104.1) (2022-05-17)
 
 
