@@ -9,8 +9,9 @@ const RunSqlQueryButton: FC<{
 }> = ({ onSubmit, isLoading }) => (
     <Tooltip2 content={<KeyCombo combo="cmd+enter" />}>
         <BigButton
+            icon="play"
             intent="primary"
-            style={{ width: 150, marginRight: '10px' }}
+            style={{ width: 150 }}
             onClick={onSubmit}
             loading={isLoading}
         >
