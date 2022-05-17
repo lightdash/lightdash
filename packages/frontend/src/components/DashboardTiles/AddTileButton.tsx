@@ -7,15 +7,24 @@ import {
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from 'common';
-import React, { FC, useState } from 'react';
+import React, { FC, useCallback, useState } from 'react';
+import AddChartTilesModal from './TileForms/AddChartTilesModal';
 import { AddTileModal } from './TileForms/TileModal';
 
 type Props = {
-    onAddTile: (tile: Dashboard['tiles'][number]) => void;
+    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
 };
 
-const AddTileButton: FC<Props> = ({ onAddTile }) => {
+const AddTileButton: FC<Props> = ({ onAddTiles }) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
+    const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
+        useState<boolean>(false);
+    const onAddTile = useCallback(
+        (tile: Dashboard['tiles'][number]) => {
+            onAddTiles([tile]);
+        },
+        [onAddTiles],
+    );
     return (
         <>
             <Popover2
@@ -25,9 +34,7 @@ const AddTileButton: FC<Props> = ({ onAddTile }) => {
                         <MenuItem
                             icon="chart"
                             text="Saved chart"
-                            onClick={() =>
-                                setAddTileType(DashboardTileTypes.SAVED_CHART)
-                            }
+                            onClick={() => setIsAddChartTilesModalOpen(true)}
                         />
                         <MenuDivider />
                         <MenuItem
@@ -56,6 +63,12 @@ const AddTileButton: FC<Props> = ({ onAddTile }) => {
                     text="Add tile"
                 />
             </Popover2>
+            {isAddChartTilesModalOpen && (
+                <AddChartTilesModal
+                    onClose={() => setIsAddChartTilesModalOpen(false)}
+                    onAddTiles={onAddTiles}
+                />
+            )}
             {addTileType && (
                 <AddTileModal
                     onClose={() => setAddTileType(undefined)}
