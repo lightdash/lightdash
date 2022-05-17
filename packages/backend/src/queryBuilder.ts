@@ -336,7 +336,7 @@ export const buildQuery = ({
         .map((join) => {
             const joinTable = explore.tables[join.table].sqlTable;
             const alias = join.table;
-            return `LEFT JOIN ${joinTable} AS ${alias}\n  ON ${join.compiledSqlOn}`;
+            return `LEFT JOIN ${joinTable} AS ${q}${alias}${q}\n  ON ${join.compiledSqlOn}`;
         })
         .join('\n');
 

@@ -10,8 +10,11 @@ import {
     MetricQuery,
     TableCalculation,
 } from 'common';
-import { compileMetricSql, lightdashVariablePattern } from './exploreCompiler';
-import { getQuoteChar } from './queryBuilder';
+import {
+    compileMetricSql,
+    getQuoteChar,
+    lightdashVariablePattern,
+} from './exploreCompiler';
 
 const resolveQueryFieldReference = (ref: string): FieldId => {
     const parts = ref.split('.');

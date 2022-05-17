@@ -1,10 +1,34 @@
-import { SupportedDbtAdapter } from 'common';
-import { buildQuery } from './queryBuilder';
+import { buildQuery, renderDateFilterSql } from './queryBuilder';
 import {
+    DimensionSqlMock,
     EXPLORE,
+    EXPLORE_BIGQUERY,
+    EXPLORE_JOIN_CHAIN,
+    InTheLast1CompletedYearFilter,
+    InTheLast1CompletedYearFilterSQL,
+    InTheLast1DayFilter,
+    InTheLast1DayFilterSQL,
+    InTheLast1MonthFilter,
+    InTheLast1MonthFilterSQL,
+    InTheLast1WeekFilter,
+    InTheLast1WeekFilterSQL,
+    InTheLast1YearFilter,
+    InTheLast1YearFilterSQL,
     METRIC_QUERY,
+    METRIC_QUERY_JOIN_CHAIN,
+    METRIC_QUERY_JOIN_CHAIN_SQL,
     METRIC_QUERY_SQL,
     METRIC_QUERY_SQL_BIGQUERY,
+    METRIC_QUERY_TWO_TABLES,
+    METRIC_QUERY_TWO_TABLES_SQL,
+    METRIC_QUERY_WITH_ADDITIONAL_METRIC,
+    METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL,
+    METRIC_QUERY_WITH_FILTER,
+    METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
+    METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL,
+    METRIC_QUERY_WITH_FILTER_SQL,
+    METRIC_QUERY_WITH_METRIC_FILTER,
+    METRIC_QUERY_WITH_METRIC_FILTER_SQL,
 } from './queryBuilder.mock';
 
 describe('Query builder', () => {
@@ -16,19 +40,16 @@ describe('Query builder', () => {
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL);
     });
+
     test('Should build simple metric query in BigQuery', () => {
-        const bigQueryExplore = {
-            ...EXPLORE,
-            targetDatabase: SupportedDbtAdapter.BIGQUERY,
-        };
         expect(
             buildQuery({
-                explore: bigQueryExplore,
+                explore: EXPLORE_BIGQUERY,
                 compiledMetricQuery: METRIC_QUERY,
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL_BIGQUERY);
     });
-    /*
+
     test('Should build metric query across two tables', () => {
         expect(
             buildQuery({
@@ -81,9 +102,9 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_ADDITIONAL_METRIC,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL);
-    }); */
+    });
 });
-/*
+
 describe('Filter SQL', () => {
     beforeAll(() => {
         jest.useFakeTimers('modern');
@@ -113,4 +134,3 @@ describe('Filter SQL', () => {
         ).toStrictEqual(InTheLast1CompletedYearFilterSQL);
     });
 });
-*/
