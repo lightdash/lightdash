@@ -878,6 +878,7 @@ export type SpaceQuery = Pick<
 >;
 
 export type Space = {
+    organizationUuid: string;
     uuid: string;
     name: string;
     queries: SpaceQuery[];

@@ -7,6 +7,7 @@ import {
     ForbiddenError,
     SavedChart,
     SessionUser,
+    Space,
     UpdateSavedChart,
 } from 'common';
 import { analytics } from '../../analytics/client';
@@ -161,6 +162,17 @@ export class SavedChartService {
         return savedChart;
     }
 
+    async getAllSpaces(
+        projectUuid: string,
+        user: SessionUser,
+    ): Promise<Space[]> {
+        const [space] = await this.savedChartModel.getAllSpaces(projectUuid);
+        if (user.ability.cannot('view', subject('SavedChart', space))) {
+            throw new ForbiddenError();
+        }
+        return [space];
+    }
+
     async create(
         user: SessionUser,
         projectUuid: string,
@@ -187,17 +199,10 @@ export class SavedChartService {
         projectUuid: string,
         chartUuid: string,
     ): Promise<SavedChart> {
-        const { organizationUuid } = await this.savedChartModel.get(chartUuid);
-
-        if (
-            user.ability.cannot(
-                'create',
-                subject('SavedChart', { organizationUuid }),
-            )
-        ) {
+        const chart = await this.savedChartModel.get(chartUuid);
+        if (user.ability.cannot('create', subject('SavedChart', chart))) {
             throw new ForbiddenError();
         }
-        const chart = await this.savedChartModel.get(chartUuid);
         const duplicatedChart = {
             ...chart,
             name: `Copy of ${chart.name}`,

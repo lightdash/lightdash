@@ -144,6 +144,17 @@ export class DashboardService {
         dashboardUuid: string,
         dashboard: UpdateDashboard,
     ): Promise<Dashboard> {
+        const { organizationUuid } = await this.dashboardModel.getById(
+            dashboardUuid,
+        );
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Dashboard', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         if (isDashboardUnversionedFields(dashboard)) {
             const updatedDashboard = await this.dashboardModel.update(
                 dashboardUuid,
@@ -152,14 +163,7 @@ export class DashboardService {
                     description: dashboard.description,
                 },
             );
-            if (
-                user.ability.cannot(
-                    'update',
-                    subject('Dashboard', updatedDashboard),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
+
             analytics.track({
                 event: 'dashboard.updated',
                 userId: user.userUuid,
@@ -178,14 +182,6 @@ export class DashboardService {
                 },
                 user,
             );
-            if (
-                user.ability.cannot(
-                    'update',
-                    subject('Dashboard', updatedDashboard),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
             analytics.track({
                 event: 'dashboard_version.created',
                 userId: user.userUuid,

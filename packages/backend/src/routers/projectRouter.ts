@@ -13,7 +13,6 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
-import { savedChartModel } from '../models/models';
 import {
     dashboardService,
     projectService,
@@ -201,8 +200,8 @@ projectRouter.post(
 );
 
 projectRouter.get('/spaces', isAuthenticated, async (req, res, next) => {
-    savedChartModel
-        .getAllSpaces(req.params.projectUuid)
+    savedChartsService
+        .getAllSpaces(req.params.projectUuid, req.user!)
         .then((results) => {
             res.json({
                 status: 'ok',
