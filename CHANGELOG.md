@@ -1,3 +1,10 @@
+# [0.106.0](https://github.com/lightdash/lightdash/compare/0.105.2...0.106.0) (2022-05-18)
+
+
+### Features
+
+* Add permissions for Jobs resource ([#2114](https://github.com/lightdash/lightdash/issues/2114)) ([481fc42](https://github.com/lightdash/lightdash/commit/481fc42c53cb4c8811511ff43bca2049c3ac374f))
+
 ## [0.105.2](https://github.com/lightdash/lightdash/compare/0.105.1...0.105.2) (2022-05-18)
 
 
