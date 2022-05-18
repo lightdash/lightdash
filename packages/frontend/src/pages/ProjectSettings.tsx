@@ -68,7 +68,7 @@ const ProjectSettings: FC = () => {
                         path="/projects/:projectUuid/settings/tablesConfiguration"
                     >
                         <H3 style={{ marginTop: 10, marginBottom: 0 }}>
-                            Configure you tables
+                            Configure your tables
                         </H3>
                         <Divider style={{ margin: '20px 0' }} />
                         <p style={{ marginBottom: 20, color: Colors.GRAY1 }}>
