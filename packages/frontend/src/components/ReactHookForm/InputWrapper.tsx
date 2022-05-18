@@ -1,6 +1,6 @@
 import { FormGroup } from '@blueprintjs/core';
 import { ErrorMessage } from '@hookform/error-message';
-import { ArgumentsOf } from 'common';
+import { ArgumentsOf } from '@lightdash/common';
 import React, { FC, ReactElement } from 'react';
 import { Controller, get, useFormContext } from 'react-hook-form';
 import DocumentationHelpButton from '../DocumentationHelpButton';

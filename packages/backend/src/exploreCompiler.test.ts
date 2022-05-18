@@ -1,4 +1,4 @@
-import { CompileError, friendlyName } from 'common';
+import { CompileError, friendlyName } from '@lightdash/common';
 import { compileExplore } from './exploreCompiler';
 import {
     exploreCircularReference,

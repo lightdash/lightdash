@@ -1,5 +1,5 @@
 import { Button, Classes, Dialog, InputGroup, Intent } from '@blueprintjs/core';
-import { CreateSavedChartVersion } from 'common';
+import { CreateSavedChartVersion } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { useCreateMutation } from '../../hooks/useSavedQuery';
 import { FormGroupWrapper } from './SavedQueries.style';

@@ -1,5 +1,5 @@
 import { Alert, Intent, Spinner } from '@blueprintjs/core';
-import { Dashboard as IDashboard, DashboardTileTypes } from 'common';
+import { Dashboard as IDashboard, DashboardTileTypes } from '@lightdash/common';
 import React, {
     FC,
     memo,

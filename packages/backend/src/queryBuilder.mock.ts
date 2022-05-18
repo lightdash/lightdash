@@ -8,7 +8,7 @@ import {
     MetricType,
     SupportedDbtAdapter,
     UnitOfTime,
-} from 'common';
+} from '@lightdash/common';
 
 export const emptyTable = (name: string): CompiledTable => ({
     name,

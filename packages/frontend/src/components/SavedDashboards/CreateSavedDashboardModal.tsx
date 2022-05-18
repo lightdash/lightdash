@@ -6,7 +6,7 @@ import {
     InputGroup,
     Intent,
 } from '@blueprintjs/core';
-import { Dashboard } from 'common';
+import { Dashboard } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../hooks/dashboard/useDashboard';

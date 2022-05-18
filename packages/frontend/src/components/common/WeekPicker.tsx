@@ -1,6 +1,6 @@
 import { Colors } from '@blueprintjs/core';
 import { DateInput } from '@blueprintjs/datetime';
-import { formatDate, hexToRGB, parseDate } from 'common';
+import { formatDate, hexToRGB, parseDate } from '@lightdash/common';
 import moment from 'moment';
 import React, { FC, useState } from 'react';
 import { createGlobalStyle } from 'styled-components';

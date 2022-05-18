@@ -7,7 +7,7 @@ import {
     isCompleteEchartsConfig,
     isCompleteLayout,
     Series,
-} from 'common';
+} from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const useCartesianChartConfig = (

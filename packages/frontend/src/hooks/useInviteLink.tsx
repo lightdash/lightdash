@@ -3,7 +3,7 @@ import {
     CreateInviteLink,
     formatTimestamp,
     InviteLink,
-} from 'common';
+} from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';

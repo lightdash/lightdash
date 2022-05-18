@@ -4,7 +4,7 @@ import {
     ParseError,
     WarehouseConnectionError,
     WarehouseQueryError,
-} from 'common';
+} from '@lightdash/common';
 import odbc, { Result } from 'odbc';
 import { WarehouseCatalog, WarehouseClient } from '../types';
 

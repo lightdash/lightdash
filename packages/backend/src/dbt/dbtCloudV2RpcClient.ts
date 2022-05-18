@@ -1,4 +1,4 @@
-import { DbtError, LightdashError, NetworkError } from 'common';
+import { DbtError, LightdashError, NetworkError } from '@lightdash/common';
 import { DbtRpcClientBase, DEFAULT_HEADERS } from './dbtRpcClientBase';
 
 export class DbtCloudV2RpcClient extends DbtRpcClientBase {

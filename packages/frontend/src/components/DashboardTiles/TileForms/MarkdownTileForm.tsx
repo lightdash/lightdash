@@ -1,4 +1,4 @@
-import { DashboardChartTile } from 'common';
+import { DashboardChartTile } from '@lightdash/common';
 import React from 'react';
 import { ActionModalProps } from '../../common/modal/ActionModal';
 import Input from '../../ReactHookForm/Input';

@@ -1,4 +1,4 @@
-import { LightdashInstallType } from 'common';
+import { LightdashInstallType } from '@lightdash/common';
 import {
     inviteLinkModel,
     onboardingModel,

@@ -1,4 +1,4 @@
-import { NotExistsError, PasswordResetLink } from 'common';
+import { NotExistsError, PasswordResetLink } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import { URL } from 'url';

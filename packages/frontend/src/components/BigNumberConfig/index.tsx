@@ -1,6 +1,6 @@
 import { Button, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import { NumberStyle } from 'common';
+import { NumberStyle } from '@lightdash/common';
 import React, { useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { InputWrapper } from './BigNumberConfig.styles';

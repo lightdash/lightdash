@@ -1,4 +1,4 @@
-import { ParseError } from 'common';
+import { ParseError } from '@lightdash/common';
 import { VERSION } from '../version';
 import { getIntegerFromEnvironmentVariable, parseConfig } from './parseConfig';
 import {

@@ -6,7 +6,7 @@ import {
     Intent,
     Spinner,
 } from '@blueprintjs/core';
-import { ECHARTS_DEFAULT_COLORS } from 'common';
+import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useState } from 'react';
 import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';

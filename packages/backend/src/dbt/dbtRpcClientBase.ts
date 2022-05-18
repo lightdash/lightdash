@@ -8,7 +8,7 @@ import {
     NetworkError,
     NoServerRunningError,
     RetryableNetworkError,
-} from 'common';
+} from '@lightdash/common';
 import fetch from 'node-fetch';
 import { v4 as uuidv4 } from 'uuid';
 import { DbtClient } from '../types';

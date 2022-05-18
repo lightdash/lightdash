@@ -7,7 +7,7 @@ import {
     LightdashMode,
     OpenIdUser,
     SessionUser,
-} from 'common';
+} from '@lightdash/common';
 import { Request, RequestHandler } from 'express';
 import { Strategy as GoogleStrategy } from 'passport-google-oidc';
 import { Strategy as LocalStrategy } from 'passport-local';

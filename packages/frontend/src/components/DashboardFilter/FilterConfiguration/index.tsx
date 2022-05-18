@@ -9,7 +9,7 @@ import {
     FilterType,
     getFilterRuleWithDefaultValue,
     getFilterTypeFromField,
-} from 'common';
+} from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
 import {

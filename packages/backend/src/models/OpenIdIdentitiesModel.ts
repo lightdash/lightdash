@@ -6,7 +6,7 @@ import {
     OpenIdIdentitySummary,
     ParameterError,
     UpdateOpenIdentity,
-} from 'common';
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { URL } from 'url';
 import {

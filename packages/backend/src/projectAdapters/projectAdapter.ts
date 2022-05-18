@@ -1,9 +1,9 @@
-import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
     ProjectType,
-} from 'common';
+} from '@lightdash/common';
+import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import Logger from '../logger';
 import { CachedWarehouse, ProjectAdapter } from '../types';
 import { DbtAzureDevOpsProjectAdapter } from './dbtAzureDevOpsProjectAdapter';

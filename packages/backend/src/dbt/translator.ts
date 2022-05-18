@@ -1,4 +1,3 @@
-import { getLocationForJsonPath, parseWithPointers } from '@stoplight/yaml';
 import {
     convertMetric,
     DbtError,
@@ -23,7 +22,8 @@ import {
     Source,
     SupportedDbtAdapter,
     Table,
-} from 'common';
+} from '@lightdash/common';
+import { getLocationForJsonPath, parseWithPointers } from '@stoplight/yaml';
 import { DepGraph } from 'dependency-graph';
 import * as fs from 'fs';
 import { compileExplore } from '../exploreCompiler';

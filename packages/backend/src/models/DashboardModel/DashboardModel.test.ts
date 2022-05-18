@@ -4,7 +4,7 @@ import {
     DashboardChartTile,
     LightdashMode,
     NotFoundError,
-} from 'common';
+} from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';

@@ -1,5 +1,9 @@
 import { Button } from '@blueprintjs/core';
-import { ProjectType, ProjectTypeLabels, WarehouseTypes } from 'common';
+import {
+    ProjectType,
+    ProjectTypeLabels,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { FC, useMemo, useState } from 'react';
 import { useWatch } from 'react-hook-form';
 import { useApp } from '../../providers/AppProvider';

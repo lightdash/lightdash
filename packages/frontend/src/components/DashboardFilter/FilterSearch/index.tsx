@@ -1,4 +1,4 @@
-import { FilterableField, isField, isFilterableField } from 'common';
+import { FilterableField, isField, isFilterableField } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { useTracking } from '../../../providers/TrackingProvider';

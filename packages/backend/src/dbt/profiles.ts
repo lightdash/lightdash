@@ -1,4 +1,4 @@
-import { CreateWarehouseCredentials, WarehouseTypes } from 'common';
+import { CreateWarehouseCredentials, WarehouseTypes } from '@lightdash/common';
 import * as yaml from 'js-yaml';
 import path from 'path';
 

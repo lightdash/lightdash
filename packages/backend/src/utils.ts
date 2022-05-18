@@ -1,4 +1,4 @@
-import { ParameterError, validateEmail } from 'common';
+import { ParameterError, validateEmail } from '@lightdash/common';
 
 export const sanitizeStringParam = (value: any) => {
     if (!value || typeof value !== 'string') {

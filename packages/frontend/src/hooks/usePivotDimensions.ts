@@ -1,4 +1,4 @@
-import { ApiQueryResults, fieldId } from 'common';
+import { ApiQueryResults, fieldId } from '@lightdash/common';
 import { useMemo, useState } from 'react';
 
 const usePivotDimensions = (

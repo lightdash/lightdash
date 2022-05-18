@@ -1,4 +1,4 @@
-import { Field, getFields } from 'common';
+import { Field, getFields } from '@lightdash/common';
 import { useMemo } from 'react';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useExplore } from './useExplore';

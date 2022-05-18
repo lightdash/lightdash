@@ -1,5 +1,5 @@
 import { Classes, Tooltip2 } from '@blueprintjs/popover2';
-import { DashboardTileTypes } from 'common';
+import { DashboardTileTypes } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { useAvailableDashboardFilterTargets } from '../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../providers/DashboardProvider';

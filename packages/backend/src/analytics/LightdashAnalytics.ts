@@ -1,7 +1,4 @@
 /// <reference path="../@types/rudder-sdk-node.d.ts" />
-import Analytics, {
-    Track as AnalyticsTrack,
-} from '@rudderstack/rudder-sdk-node';
 import {
     CartesianSeriesType,
     ChartType,
@@ -10,7 +7,10 @@ import {
     ProjectType,
     TableSelectionType,
     WarehouseTypes,
-} from 'common';
+} from '@lightdash/common';
+import Analytics, {
+    Track as AnalyticsTrack,
+} from '@rudderstack/rudder-sdk-node';
 import { v4 as uuidv4 } from 'uuid';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { VERSION } from '../version';

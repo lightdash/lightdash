@@ -1,4 +1,9 @@
-import { Job, JobStatusType, JobStepStatusType, JobStepType } from 'common';
+import {
+    Job,
+    JobStatusType,
+    JobStepStatusType,
+    JobStepType,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const JobsTableName = 'jobs';

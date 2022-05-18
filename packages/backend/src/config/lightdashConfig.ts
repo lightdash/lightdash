@@ -1,4 +1,4 @@
-import { ParseError } from 'common';
+import { ParseError } from '@lightdash/common';
 import * as fs from 'fs';
 import yaml from 'js-yaml';
 import { parseConfig } from './parseConfig';

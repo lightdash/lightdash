@@ -1,4 +1,4 @@
-import { ChartType } from 'common';
+import { ChartType } from '@lightdash/common';
 import React, { FC } from 'react';
 import SimpleChart from '../SimpleChart';
 import SimpleStatistic from '../SimpleStatistic';

@@ -1,4 +1,4 @@
-import { ApiError } from 'common';
+import { ApiError } from '@lightdash/common';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { useQueryClient } from 'react-query';
 import { useApp } from '../providers/AppProvider';

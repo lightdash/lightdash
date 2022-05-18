@@ -19,7 +19,7 @@ import {
     SupportedDbtAdapter,
     TablesConfiguration,
     TableSelectionType,
-} from 'common';
+} from '@lightdash/common';
 import { ProjectAdapter } from '../../types';
 
 export const user: SessionUser = {

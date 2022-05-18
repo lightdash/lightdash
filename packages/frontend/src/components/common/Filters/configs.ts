@@ -9,7 +9,7 @@ import {
     formatTimestamp,
     getFilterTypeFromField,
     isDimension,
-} from 'common';
+} from '@lightdash/common';
 import { FC } from 'react';
 import BooleanFilterInputs from './FilterInputs/BooleanFilterInputs';
 import DateFilterInputs from './FilterInputs/DateFilterInputs';

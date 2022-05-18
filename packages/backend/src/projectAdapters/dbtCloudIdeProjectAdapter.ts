@@ -1,4 +1,4 @@
-import { Explore, ExploreError } from 'common';
+import { Explore, ExploreError } from '@lightdash/common';
 import { DbtCloudV2RpcClient } from '../dbt/dbtCloudV2RpcClient';
 import { CachedWarehouse, WarehouseClient } from '../types';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';

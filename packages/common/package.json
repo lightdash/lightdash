@@ -1,5 +1,5 @@
 {
-    "name": "common",
+    "name": "@lightdash/common",
     "version": "0.108.0",
     "main": "dist/index",
     "license": "MIT",

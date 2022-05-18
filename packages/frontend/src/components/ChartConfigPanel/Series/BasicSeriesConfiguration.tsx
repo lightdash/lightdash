@@ -7,7 +7,7 @@ import {
     getSeriesId,
     Series,
     TableCalculation,
-} from 'common';
+} from '@lightdash/common';
 import React, { FC } from 'react';
 import { SeriesBlock, SeriesDivider, SeriesTitle } from './Series.styles';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';

@@ -4,7 +4,7 @@ import {
     CartesianSeriesType,
     ChartType,
     isSeriesWithMixedChartTypes,
-} from 'common';
+} from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import {

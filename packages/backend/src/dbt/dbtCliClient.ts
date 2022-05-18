@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/node';
 import {
     DbtError,
     DbtPackages,
@@ -8,7 +7,8 @@ import {
     isDbtRpcDocsGenerateResults,
     isDbtRpcManifestResults,
     ParseError,
-} from 'common';
+} from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import execa from 'execa';
 import * as fs from 'fs/promises';
 import yaml, { load as loadYaml } from 'js-yaml';

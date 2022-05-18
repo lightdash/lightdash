@@ -4,7 +4,7 @@ import {
     FilterOperator,
     FilterRule,
     FilterType,
-} from 'common';
+} from '@lightdash/common';
 import React, { FC } from 'react';
 import { useFiltersContext } from '../FiltersProvider';
 import StringMultiSelect from './StringAutoComplete';

@@ -3,7 +3,7 @@ import {
     CompleteUserArgs,
     defineAbilityForOrganizationMember,
     LightdashUser,
-} from 'common';
+} from '@lightdash/common';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
 

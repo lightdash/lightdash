@@ -12,7 +12,7 @@ import {
     getVisibleFields,
     isFilterableField,
     Metric,
-} from 'common';
+} from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useState } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import {

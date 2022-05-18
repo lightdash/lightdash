@@ -1,4 +1,4 @@
-import { ApiError, DashboardBasicDetails } from 'common';
+import { ApiError, DashboardBasicDetails } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../../api';
 import useQueryError from '../useQueryError';

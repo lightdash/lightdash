@@ -1,5 +1,5 @@
 import { Classes } from '@blueprintjs/core';
-import { SpaceQuery } from 'common';
+import { SpaceQuery } from '@lightdash/common';
 import React from 'react';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import { ActionModalProps, ActionTypeModal } from '../common/modal/ActionModal';

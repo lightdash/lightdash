@@ -1,4 +1,4 @@
-import { DimensionType } from 'common';
+import { DimensionType } from '@lightdash/common';
 import { WarehouseCatalog } from '../types';
 
 export const config: {

@@ -1,5 +1,5 @@
 import { Button } from '@blueprintjs/core';
-import { WarehouseTypes } from 'common';
+import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces, isUppercase } from '../../../utils/fieldValidators';

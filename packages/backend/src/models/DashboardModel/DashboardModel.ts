@@ -8,7 +8,7 @@ import {
     NotFoundError,
     SessionUser,
     UnexpectedServerError,
-} from 'common';
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     DashboardsTableName,

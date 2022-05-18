@@ -3,7 +3,7 @@ import {
     DimensionType,
     WarehouseConnectionError,
     WarehouseQueryError,
-} from 'common';
+} from '@lightdash/common';
 import * as pg from 'pg';
 import { PoolConfig } from 'pg';
 import { WarehouseClient } from '../types';

@@ -5,7 +5,7 @@ import {
     CompiledTable,
     extractEntityNameFromIdColumn,
     MetricType,
-} from 'common';
+} from '@lightdash/common';
 import React, { useEffect, useState } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorer } from '../../../providers/ExplorerProvider';

@@ -21,7 +21,7 @@ import {
     MetricType,
     Series,
     TableCalculation,
-} from 'common';
+} from '@lightdash/common';
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../components/LightdashVisualization/VisualizationProvider';
 import { useOrganisation } from './organisation/useOrganisation';

@@ -1,4 +1,4 @@
-import { SEED_EMAIL, SEED_USER } from 'common';
+import { SEED_EMAIL, SEED_USER } from '@lightdash/common';
 
 describe('Settings - Profile', () => {
     before(() => {

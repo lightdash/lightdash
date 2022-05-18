@@ -1,9 +1,5 @@
 import { Intent, SpinnerSize } from '@blueprintjs/core';
 import { IToastProps } from '@blueprintjs/core/src/components/toast/toast';
-import * as Sentry from '@sentry/react';
-import { Integrations } from '@sentry/tracing';
-import MDEditor from '@uiw/react-md-editor';
-import Cohere from 'cohere-js';
 import {
     ApiError,
     ApiHealthResults,
@@ -13,7 +9,11 @@ import {
     JobType,
     LightdashUser,
     OrganizationMemberAbility,
-} from 'common';
+} from '@lightdash/common';
+import * as Sentry from '@sentry/react';
+import { Integrations } from '@sentry/tracing';
+import MDEditor from '@uiw/react-md-editor';
+import Cohere from 'cohere-js';
 import React, {
     createContext,
     Dispatch,

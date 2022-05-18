@@ -14,7 +14,7 @@ import {
     SortField,
     TableCalculation,
     toggleArrayValue,
-} from 'common';
+} from '@lightdash/common';
 import React, {
     createContext,
     FC,

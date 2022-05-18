@@ -12,7 +12,7 @@ import {
     MetricType,
     SupportedDbtAdapter,
     Table,
-} from 'common';
+} from '@lightdash/common';
 
 export const getQuoteChar = (targetDatabase: SupportedDbtAdapter): string => {
     switch (targetDatabase) {

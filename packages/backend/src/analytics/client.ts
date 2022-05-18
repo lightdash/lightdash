@@ -1,4 +1,4 @@
-import { LightdashMode, LightdashUser } from 'common';
+import { LightdashMode, LightdashUser } from '@lightdash/common';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { LightdashAnalytics } from './LightdashAnalytics';
 

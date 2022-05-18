@@ -8,7 +8,7 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import { ChartType } from 'common';
+import { ChartType } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { RefObject, useCallback, useState } from 'react';

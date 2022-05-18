@@ -8,7 +8,7 @@ import {
     getItemLabel,
     isField,
     TableCalculation,
-} from 'common';
+} from '@lightdash/common';
 import React, { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
 

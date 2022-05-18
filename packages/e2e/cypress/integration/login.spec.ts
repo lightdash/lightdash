@@ -1,4 +1,4 @@
-import { SEED_EMAIL, SEED_PASSWORD } from 'common';
+import { SEED_EMAIL, SEED_PASSWORD } from '@lightdash/common';
 
 describe('Login', () => {
     beforeEach(() => {

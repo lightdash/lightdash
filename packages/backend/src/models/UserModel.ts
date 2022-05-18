@@ -1,4 +1,3 @@
-import bcrypt from 'bcrypt';
 import {
     CreateUserArgs,
     defineAbilityForOrganizationMember,
@@ -12,7 +11,8 @@ import {
     ParameterError,
     SessionUser,
     UpdateUserArgs,
-} from 'common';
+} from '@lightdash/common';
+import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';

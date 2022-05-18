@@ -8,7 +8,7 @@ import {
     OrganizationMemberRole,
     SessionUser,
     UpdateDashboard,
-} from 'common';
+} from '@lightdash/common';
 import { SpaceTable } from '../../database/entities/spaces';
 
 export const user: SessionUser = {

@@ -1,4 +1,4 @@
-import { CreateRedshiftCredentials } from 'common';
+import { CreateRedshiftCredentials } from '@lightdash/common';
 import * as fs from 'fs';
 import path from 'path';
 import { PoolConfig } from 'pg';

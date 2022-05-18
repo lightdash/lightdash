@@ -12,7 +12,7 @@ import {
     DimensionType,
     WarehouseConnectionError,
     WarehouseQueryError,
-} from 'common';
+} from '@lightdash/common';
 import {
     WarehouseCatalog,
     WarehouseClient,
