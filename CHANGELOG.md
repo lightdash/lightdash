@@ -1,3 +1,10 @@
+## [0.106.2](https://github.com/lightdash/lightdash/compare/0.106.1...0.106.2) (2022-05-18)
+
+
+### Bug Fixes
+
+* remove hover state from metrics/dimensions label ([#2154](https://github.com/lightdash/lightdash/issues/2154)) ([08d2356](https://github.com/lightdash/lightdash/commit/08d235625244d8622b9b58e0e67e830e60ac0a25))
+
 ## [0.106.1](https://github.com/lightdash/lightdash/compare/0.106.0...0.106.1) (2022-05-18)
 
 
