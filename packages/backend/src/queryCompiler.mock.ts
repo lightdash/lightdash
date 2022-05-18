@@ -138,7 +138,7 @@ export const METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED: CompiledMetricQuery 
                 label: 'Additional metric 1',
                 tableLabel: 'table1',
                 hidden: false,
-                compiledSql: 'COUNT(table1.dim_1)',
+                compiledSql: 'COUNT("table1".dim_1)',
                 fieldType: FieldType.METRIC,
                 round: undefined,
                 source: undefined,

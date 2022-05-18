@@ -8,6 +8,7 @@ import {
     SessionUser,
     SortField,
     Space,
+    UpdatedByUser,
     UpdateSavedChart,
 } from 'common';
 import { Knex } from 'knex';
@@ -35,6 +36,9 @@ type DbSavedChartDetails = {
     pivot_dimensions: string[] | undefined;
     created_at: Date;
     organization_uuid: string;
+    user_uuid: string;
+    first_name: string;
+    last_name: string;
 };
 
 const createSavedChartVersionField = async (
@@ -216,7 +220,8 @@ export class SavedChartModel {
             chartConfig,
             tableConfig,
             pivotConfig,
-        }: CreateSavedChart,
+            updatedByUser,
+        }: CreateSavedChart & { updatedByUser: UpdatedByUser },
     ): Promise<SavedChart> {
         const newSavedChartUuid = await this.database.transaction(
             async (trx) => {
@@ -234,6 +239,7 @@ export class SavedChartModel {
                             chartConfig,
                             tableConfig,
                             pivotConfig,
+                            updatedByUser,
                         },
                     );
                     return newSavedChart.saved_query_uuid;
@@ -303,6 +309,11 @@ export class SavedChartModel {
                 'saved_queries.saved_query_id',
                 'saved_queries_versions.saved_query_id',
             )
+            .leftJoin(
+                'users',
+                'saved_queries_versions.updated_by_user_uuid',
+                'users.user_uuid',
+            )
             .select<DbSavedChartDetails[]>([
                 'projects.project_uuid',
                 'saved_queries.saved_query_id',
@@ -318,6 +329,9 @@ export class SavedChartModel {
                 'saved_queries_versions.chart_config',
                 'saved_queries_versions.pivot_dimensions',
                 'organizations.organization_uuid',
+                'users.user_uuid',
+                'users.first_name',
+                'users.last_name',
             ])
             .where('saved_query_uuid', savedChartUuid)
             .orderBy('saved_queries_versions.created_at', 'desc')
@@ -405,6 +419,11 @@ export class SavedChartModel {
             description: savedQuery.description,
             tableName: savedQuery.explore_name,
             updatedAt: savedQuery.created_at,
+            updatedByUser: {
+                userUuid: savedQuery.user_uuid,
+                firstName: savedQuery.first_name,
+                lastName: savedQuery.last_name,
+            },
             metricQuery: {
                 dimensions,
                 metrics,

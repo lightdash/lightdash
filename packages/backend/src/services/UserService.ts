@@ -449,7 +449,7 @@ export class UserService {
 
     async registerNewUserWithOrg(createUser: CreateUserArgs | OpenIdUser) {
         if (
-            !process.env.ALLOW_MULTIPLE_ORGS &&
+            !lightdashConfig.allowMultiOrgs &&
             (await this.userModel.hasUsers())
         ) {
             throw new ForbiddenError('User already registered');

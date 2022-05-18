@@ -11,7 +11,7 @@ jobsRouter.get('/', isAuthenticated, async (req, res, next) => {
 jobsRouter.get('/:jobUuid', isAuthenticated, async (req, res, next) => {
     try {
         const { jobUuid } = req.params;
-        const job = await projectService.getJobStatus(jobUuid);
+        const job = await projectService.getJobStatus(jobUuid, req.user!);
         res.json({
             status: 'ok',
             results: job,

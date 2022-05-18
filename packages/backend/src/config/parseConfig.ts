@@ -45,6 +45,7 @@ export type LightdashConfig = {
         maxConnections: number | undefined;
         minConnections: number | undefined;
     };
+    allowMultiOrgs: boolean;
 };
 
 export type IntercomConfig = {
@@ -189,6 +190,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             token: process.env.COHERE_TOKEN || '',
         },
         siteUrl,
+        allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
     };
 };
 

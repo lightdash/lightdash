@@ -7,6 +7,7 @@ export const JobStepsTableName = 'job_steps';
 export type DbJobs = {
     job_uuid: string;
     project_uuid: string | undefined;
+    user_uuid: string | undefined;
     created_at: Date;
     updated_at: Date;
     job_status: JobStatusType;
@@ -16,7 +17,7 @@ export type DbJobs = {
 
 type CreateJob = Pick<
     DbJobs,
-    'project_uuid' | 'job_uuid' | 'job_status' | 'job_type'
+    'project_uuid' | 'job_uuid' | 'job_status' | 'job_type' | 'user_uuid'
 >;
 
 type UpdateJob = Partial<

@@ -4,6 +4,12 @@ import {
     Explore,
     ExploreError,
     FieldType,
+    Job,
+    JobLabels,
+    JobStatusType,
+    JobStepStatusType,
+    JobStepType,
+    JobType,
     MetricType,
     OrganizationMemberRole,
     OrganizationProject,
@@ -219,3 +225,47 @@ export const spacesWithNoSavedCharts: Space[] = [
         queries: [],
     },
 ];
+
+export const job: Job = {
+    jobUuid: 'jobUuid',
+    projectUuid: 'projectUuid',
+    userUuid: user.userUuid,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    jobStatus: JobStatusType.DONE,
+    jobType: JobType.COMPILE_PROJECT,
+    steps: [
+        {
+            jobUuid: 'jobUuid',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            stepStatus: JobStepStatusType.DONE,
+            stepType: JobStepType.COMPILING,
+            stepError: undefined,
+            stepLabel: JobLabels[JobStepType.COMPILING],
+            startedAt: new Date(),
+        },
+    ],
+};
+
+export const jobError: Job = {
+    jobUuid: 'jobUuid',
+    projectUuid: 'projectUuid',
+    userUuid: user.userUuid,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    jobStatus: JobStatusType.ERROR,
+    jobType: JobType.COMPILE_PROJECT,
+    steps: [
+        {
+            jobUuid: 'jobUuid',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            stepStatus: JobStepStatusType.ERROR,
+            stepType: JobStepType.COMPILING,
+            stepError: 'Detailed error message',
+            stepLabel: JobLabels[JobStepType.COMPILING],
+            startedAt: new Date(),
+        },
+    ],
+};

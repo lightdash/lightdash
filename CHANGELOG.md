@@ -1,3 +1,45 @@
+# [0.106.0](https://github.com/lightdash/lightdash/compare/0.105.2...0.106.0) (2022-05-18)
+
+
+### Features
+
+* Add permissions for Jobs resource ([#2114](https://github.com/lightdash/lightdash/issues/2114)) ([481fc42](https://github.com/lightdash/lightdash/commit/481fc42c53cb4c8811511ff43bca2049c3ac374f))
+
+## [0.105.2](https://github.com/lightdash/lightdash/compare/0.105.1...0.105.2) (2022-05-18)
+
+
+### Bug Fixes
+
+* update component so it does not cut test ([#2145](https://github.com/lightdash/lightdash/issues/2145)) ([3b32d1a](https://github.com/lightdash/lightdash/commit/3b32d1aa5f33e6b5e32d489fea14939fef61af9c))
+
+## [0.105.1](https://github.com/lightdash/lightdash/compare/0.105.0...0.105.1) (2022-05-18)
+
+
+### Bug Fixes
+
+* show chart updated by user & save user that saved chart for first time ([#2129](https://github.com/lightdash/lightdash/issues/2129)) ([c0c3cdb](https://github.com/lightdash/lightdash/commit/c0c3cdbce16d7d3b9cb47025ec475adf8fd8f68c))
+
+# [0.105.0](https://github.com/lightdash/lightdash/compare/0.104.3...0.105.0) (2022-05-17)
+
+
+### Features
+
+* add multiple chart tiles ([#2137](https://github.com/lightdash/lightdash/issues/2137)) ([ae9333f](https://github.com/lightdash/lightdash/commit/ae9333ff60e0aef5cdaa8f4258c08bfbea0049ab))
+
+## [0.104.3](https://github.com/lightdash/lightdash/compare/0.104.2...0.104.3) (2022-05-17)
+
+
+### Bug Fixes
+
+* allow multiple orgs value check ([#2141](https://github.com/lightdash/lightdash/issues/2141)) ([897fbfd](https://github.com/lightdash/lightdash/commit/897fbfd23214303bf766eec786427ba33638c87e))
+
+## [0.104.2](https://github.com/lightdash/lightdash/compare/0.104.1...0.104.2) (2022-05-17)
+
+
+### Bug Fixes
+
+* reserved keywords sql ([#2136](https://github.com/lightdash/lightdash/issues/2136)) ([438f795](https://github.com/lightdash/lightdash/commit/438f795ad92c6c29ceb65c94e3dad52d7f4d6980))
+
 ## [0.104.1](https://github.com/lightdash/lightdash/compare/0.104.0...0.104.1) (2022-05-17)
 
 
