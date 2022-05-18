@@ -1,3 +1,4 @@
+import { defineAbilityForOrganizationMember, ForbiddenError } from 'common';
 import { analytics } from '../../analytics/client';
 import { dashboardModel } from '../../models/models';
 import { DashboardService } from './DashboardService';
@@ -215,6 +216,39 @@ describe('DashboardService', () => {
             expect.objectContaining({
                 event: 'dashboard.deleted',
             }),
+        );
+    });
+    test('should not see dashboard from other organizations', async () => {
+        const anotherUser = {
+            ...user,
+            ability: defineAbilityForOrganizationMember({
+                ...user,
+                organizationUuid: 'another-org-uuid',
+            }),
+        };
+        await expect(
+            service.getById(anotherUser, dashboard.uuid),
+        ).rejects.toThrowError(ForbiddenError);
+    });
+    test('should not see empty list if getting all dashboard by project uuid from another organization', async () => {
+        const anotherUser = {
+            ...user,
+            ability: defineAbilityForOrganizationMember({
+                ...user,
+                organizationUuid: 'another-org-uuid',
+            }),
+        };
+        const result = await service.getAllByProject(
+            anotherUser,
+            projectUuid,
+            undefined,
+        );
+
+        expect(result).toEqual([]);
+        expect(dashboardModel.getAllByProject).toHaveBeenCalledTimes(1);
+        expect(dashboardModel.getAllByProject).toHaveBeenCalledWith(
+            projectUuid,
+            undefined,
         );
     });
 });

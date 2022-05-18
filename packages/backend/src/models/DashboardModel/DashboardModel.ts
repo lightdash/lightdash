@@ -53,7 +53,8 @@ export type GetDashboardDetailsQuery = Pick<
 > &
     Pick<DashboardVersionTable['base'], 'created_at'> &
     Pick<ProjectTable['base'], 'project_uuid'> &
-    Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'>;
+    Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
+    Pick<OrganizationTable['base'], 'organization_uuid'>;
 export type GetChartTileQuery = Pick<
     DashboardTileChartTable['base'],
     'dashboard_tile_uuid'
@@ -197,6 +198,11 @@ export class DashboardModel {
                         `${SpaceTableName}.project_id`,
                         `${ProjectTableName}.project_id`,
                     )
+                    .innerJoin(
+                        OrganizationTableName,
+                        `${ProjectTableName}.organization_id`,
+                        `${OrganizationTableName}.organization_id`,
+                    )
                     .select<GetDashboardDetailsQuery[]>([
                         `${DashboardsTableName}.dashboard_uuid`,
                         `${DashboardsTableName}.name`,
@@ -207,6 +213,7 @@ export class DashboardModel {
                         `${UserTableName}.user_uuid`,
                         `${UserTableName}.first_name`,
                         `${UserTableName}.last_name`,
+                        `${OrganizationTableName}.organization_uuid`,
                     ])
                     .orderBy([
                         {
@@ -257,7 +264,9 @@ export class DashboardModel {
                 user_uuid,
                 first_name,
                 last_name,
+                organization_uuid,
             }) => ({
+                organizationUuid: organization_uuid,
                 name,
                 description,
                 uuid: dashboard_uuid,

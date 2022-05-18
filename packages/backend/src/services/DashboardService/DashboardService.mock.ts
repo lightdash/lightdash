@@ -24,7 +24,10 @@ export const user: SessionUser = {
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
     ability: new Ability([
-        { subject: 'Dashboard', action: ['update', 'delete', 'create'] },
+        {
+            subject: 'Dashboard',
+            action: ['view', 'update', 'delete', 'create'],
+        },
     ]),
 };
 
@@ -37,6 +40,7 @@ export const space: SpaceTable['base'] = {
 };
 
 export const dashboard: Dashboard = {
+    organizationUuid: user.organizationUuid,
     projectUuid: 'projectUuid',
     uuid: 'uuid',
     name: 'name',
@@ -63,6 +67,7 @@ export const dashboard: Dashboard = {
 
 export const dashboardsDetails: DashboardBasicDetails[] = [
     {
+        organizationUuid: user.organizationUuid,
         projectUuid: dashboard.projectUuid,
         uuid: dashboard.uuid,
         name: dashboard.name,

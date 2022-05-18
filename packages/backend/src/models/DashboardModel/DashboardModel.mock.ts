@@ -158,6 +158,7 @@ export const dashboardViewEntry: DashboardViewTable['base'] = {
 };
 
 export const dashboardWithVersionEntry: GetDashboardQuery = {
+    organization_uuid: 'organizationUuid',
     project_uuid: projectEntry.project_uuid,
     dashboard_id: dashboardEntry.dashboard_id,
     dashboard_uuid: dashboardEntry.dashboard_uuid,
@@ -207,6 +208,7 @@ export const dashboardChartTileEntry: GetChartTileQuery = {
 // Expected returns
 
 export const expectedDashboard: Dashboard = {
+    organizationUuid: 'organizationUuid',
     projectUuid: projectEntry.project_uuid,
     uuid: dashboardEntry.dashboard_uuid,
     name: dashboardEntry.name,
@@ -257,6 +259,7 @@ export const expectedDashboard: Dashboard = {
 
 export const expectedAllDashboards: DashboardBasicDetails[] = [
     {
+        organizationUuid: 'organizationUuid',
         projectUuid: projectEntry.project_uuid,
         uuid: dashboardEntry.dashboard_uuid,
         name: dashboardEntry.name,

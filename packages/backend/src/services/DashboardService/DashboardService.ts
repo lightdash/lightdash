@@ -55,7 +55,13 @@ export class DashboardService {
         projectUuid: string,
         chartUuid?: string,
     ): Promise<DashboardBasicDetails[]> {
-        return this.dashboardModel.getAllByProject(projectUuid, chartUuid);
+        const dashboards = await this.dashboardModel.getAllByProject(
+            projectUuid,
+            chartUuid,
+        );
+        return dashboards.filter((dashboard) =>
+            user.ability.can('view', subject('Dashboard', dashboard)),
+        );
     }
 
     async getById(
@@ -63,14 +69,10 @@ export class DashboardService {
         dashboardUuid: string,
     ): Promise<Dashboard> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
-        if (
-            user.ability.cannot(
-                'view',
-                subject('Dashboard', {
-                    organizationUuid: dashboard.organizationUuid,
-                }),
-            )
-        ) {
+        console.log('user org', user.organizationUuid);
+        console.log('dashboard org', dashboard.organizationUuid);
+
+        if (user.ability.cannot('view', subject('Dashboard', dashboard))) {
             throw new ForbiddenError();
         }
         return dashboard;
@@ -103,11 +105,12 @@ export class DashboardService {
         projectUuid: string,
         dashboardUuid: string,
     ): Promise<Dashboard> {
-        if (user.ability.cannot('create', 'Dashboard')) {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        if (user.ability.cannot('create', subject('Dashboard', dashboard))) {
             throw new ForbiddenError();
         }
         const space = await getSpace(database, projectUuid);
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
         const duplicatedDashboard = {
             ...dashboard,
@@ -144,9 +147,6 @@ export class DashboardService {
         dashboardUuid: string,
         dashboard: UpdateDashboard,
     ): Promise<Dashboard> {
-        if (user.ability.cannot('update', 'Dashboard')) {
-            throw new ForbiddenError();
-        }
         if (isDashboardUnversionedFields(dashboard)) {
             const updatedDashboard = await this.dashboardModel.update(
                 dashboardUuid,
@@ -155,6 +155,14 @@ export class DashboardService {
                     description: dashboard.description,
                 },
             );
+            if (
+                user.ability.cannot(
+                    'update',
+                    subject('Dashboard', updatedDashboard),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             analytics.track({
                 event: 'dashboard.updated',
                 userId: user.userUuid,
@@ -173,6 +181,14 @@ export class DashboardService {
                 },
                 user,
             );
+            if (
+                user.ability.cannot(
+                    'update',
+                    subject('Dashboard', updatedDashboard),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             analytics.track({
                 event: 'dashboard_version.created',
                 userId: user.userUuid,
@@ -184,7 +200,15 @@ export class DashboardService {
     }
 
     async delete(user: SessionUser, dashboardUuid: string): Promise<void> {
-        if (user.ability.cannot('delete', 'Dashboard')) {
+        const { organizationUuid } = await this.dashboardModel.getById(
+            dashboardUuid,
+        );
+        if (
+            user.ability.cannot(
+                'delete',
+                subject('Dashboard', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         const deletedDashboard = await this.dashboardModel.delete(
