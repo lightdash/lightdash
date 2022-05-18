@@ -1,3 +1,10 @@
+## [0.105.2](https://github.com/lightdash/lightdash/compare/0.105.1...0.105.2) (2022-05-18)
+
+
+### Bug Fixes
+
+* update component so it does not cut test ([#2145](https://github.com/lightdash/lightdash/issues/2145)) ([3b32d1a](https://github.com/lightdash/lightdash/commit/3b32d1aa5f33e6b5e32d489fea14939fef61af9c))
+
 ## [0.105.1](https://github.com/lightdash/lightdash/compare/0.105.0...0.105.1) (2022-05-18)
 
 
