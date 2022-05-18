@@ -52,7 +52,7 @@ const VisualizationCardOptions: FC = () => {
                                   icon: 'horizontal-bar-chart',
                               }
                             : {
-                                  text: 'Column chart',
+                                  text: 'Bar chart',
                                   icon: 'timeline-bar-chart',
                               };
                     case CartesianSeriesType.SCATTER:
@@ -107,7 +107,7 @@ const VisualizationCardOptions: FC = () => {
                         }}
                         disabled={disabled}
                         name="Column"
-                        text="Column chart"
+                        text="Bar chart"
                     />
 
                     <ChartOption
