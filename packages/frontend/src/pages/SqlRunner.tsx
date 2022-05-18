@@ -1,16 +1,14 @@
-import { Callout, H5, useHotkeys } from '@blueprintjs/core';
+import { useHotkeys } from '@blueprintjs/core';
 import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
-import { Tooltip2 } from '@blueprintjs/popover2';
 import { TableBase } from 'common';
 import React, { useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { CollapsableCard } from '../components/common/CollapsableCard';
-import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
 import { Tree } from '../components/common/Tree';
-import RefreshServerButton from '../components/RefreshServer';
+import RefreshDbtButton from '../components/RefreshDbtButton';
 import RunSqlQueryButton from '../components/SqlRunner/RunSqlQueryButton';
 import SqlRunnerInput from '../components/SqlRunner/SqlRunnerInput';
 import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable';
@@ -19,7 +17,14 @@ import { useProjectCatalogTree } from '../hooks/useProjectCatalogTree';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
-import './SqlRunner.css';
+import {
+    ButtonsWrapper,
+    ContentContainer,
+    MissingTablesInfo,
+    SideBarWrapper,
+    SqlCallout,
+    Title,
+} from './SqlRunner.styles';
 
 const CardDivider = styled('div')`
     padding-top: 10px;
@@ -78,8 +83,8 @@ const SqlRunnerPage = () => {
     return (
         <PageWithSidebar>
             <Sidebar title="SQL runner">
-                <H5 style={{ paddingLeft: 10 }}>Warehouse schema</H5>
-                <div style={{ overflowY: 'auto' }}>
+                <Title>Warehouse schema</Title>
+                <SideBarWrapper>
                     {isCatalogLoading ? (
                         <SideBarLoadingState />
                     ) : (
@@ -89,36 +94,22 @@ const SqlRunnerPage = () => {
                             onNodeClick={handleNodeClick}
                         />
                     )}
-                </div>
-                <Tooltip2
-                    content="Currently we only display tables that are declared in the dbt project."
-                    className="missing-tables-info"
-                >
-                    <Callout
-                        intent="none"
-                        icon="info-sign"
-                        style={{ marginTop: 20 }}
-                    >
+                </SideBarWrapper>
+                <MissingTablesInfo content="Currently we only display tables that are declared in the dbt project.">
+                    <SqlCallout intent="none" icon="info-sign">
                         Tables missing?
-                    </Callout>
-                </Tooltip2>
+                    </SqlCallout>
+                </MissingTablesInfo>
             </Sidebar>
-            <Content>
+            <ContentContainer>
                 <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
-                    <div
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'row',
-                            justifyContent: 'flex-end',
-                            alignItems: 'center',
-                        }}
-                    >
+                    <ButtonsWrapper>
+                        <RefreshDbtButton />
                         <RunSqlQueryButton
                             onSubmit={onSubmit}
                             isLoading={isLoading}
                         />
-                        <RefreshServerButton />
-                    </div>
+                    </ButtonsWrapper>
                 </TrackSection>
                 <CardDivider />
                 <CollapsableCard title="SQL" isOpenByDefault>
@@ -136,7 +127,7 @@ const SqlRunnerPage = () => {
                         sqlQueryMutation={sqlQueryMutation}
                     />
                 </CollapsableCard>
-            </Content>
+            </ContentContainer>
         </PageWithSidebar>
     );
 };
