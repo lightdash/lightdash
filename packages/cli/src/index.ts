@@ -1,29 +1,46 @@
 #!/usr/bin/env node
+import { LightdashError } from '@lightdash/common';
+import { program } from 'commander';
+import * as os from 'os';
+import * as path from 'path';
+import { generateHandler } from './handlers/generate';
+import * as styles from './styles';
 
-const { program } = require('commander');
-const { exec } = require('child_process');
 const { version: VERSION } = require('../package.json');
 
-function dbt() {
-    const args = process.argv.slice(2).join(' ');
-
-    exec(`dbt ${args}`, (err: string, stdout: string, stderr: string) => {
-        console.log(`${stdout}`);
-        console.error(`${stderr}`);
-    });
-}
-
-function version() {
-    console.log(`lightdash version: ${VERSION}`);
-}
+program.version(VERSION).name('lightdash');
 
 program
-    .command('version')
-    .description('output the version number')
-    .action(version);
-program
-    .command('[dbt_command]', { isDefault: true })
-    .description('runs dbt')
-    .action(dbt);
+    .command('generate <model>')
+    .description('Generates a new schema.yml file for model')
+    .option(
+        '--project-dir <path>',
+        'The directory of the dbt project (defaults: current directory)',
+        '.',
+    )
+    .option(
+        '--profiles-dir <path>',
+        'The directory of the dbt profiles (defaults: ~/.dbt)',
+        path.join(os.homedir(), '.dbt'),
+    )
+    .option(
+        '--profile <name>',
+        'The name of the profile to use (defaults to profile name in dbt_project.yml',
+        undefined,
+    )
+    .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .action(generateHandler);
 
-program.parse();
+const errorHandler = (err: Error) => {
+    console.error(styles.error(err.message));
+    if (!(err instanceof LightdashError)) {
+        console.error(err.stack);
+    }
+    process.exit(1);
+};
+
+const successHandler = () => {
+    process.exit(0);
+};
+
+program.parseAsync().then(successHandler).catch(errorHandler);
