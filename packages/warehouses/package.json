@@ -2,7 +2,6 @@
     "name": "@lightdash/warehouses",
     "version": "0.108.0",
     "license": "MIT",
-    "private": true,
     "main": "dist/index",
     "dependencies": {
         "@google-cloud/bigquery": "^5.9.1",

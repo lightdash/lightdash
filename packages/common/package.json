@@ -3,7 +3,6 @@
     "version": "0.108.0",
     "main": "dist/index",
     "license": "MIT",
-    "private": true,
     "devDependencies": {
         "@redocly/openapi-cli": "^1.0.0-beta.54",
         "@types/jest": "^27.4.0",
