@@ -69,9 +69,6 @@ export class DashboardService {
         dashboardUuid: string,
     ): Promise<Dashboard> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
-        console.log('user org', user.organizationUuid);
-        console.log('dashboard org', dashboard.organizationUuid);
-
         if (user.ability.cannot('view', subject('Dashboard', dashboard))) {
             throw new ForbiddenError();
         }

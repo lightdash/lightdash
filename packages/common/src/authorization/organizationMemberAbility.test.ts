@@ -63,6 +63,22 @@ describe('Organization member permissions', () => {
         it('can view dashboards', () => {
             expect(ability.can('view', 'Dashboard')).toEqual(true);
         });
+        it('cannot manage dashboards from their own organization', () => {
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', { organizationUuid: '456' }),
+                ),
+            ).toEqual(true);
+        });
+        it('cannot manage dashboards from another organization', () => {
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', { organizationUuid: '789' }),
+                ),
+            ).toEqual(false);
+        });
         it('cannot view member profiles', () => {
             expect(ability.can('view', 'OrganizationMemberProfile')).toEqual(
                 false,
@@ -97,6 +113,66 @@ describe('Organization member permissions', () => {
             expect(ability.can('delete', 'Project')).toEqual(false);
             expect(ability.can('delete', 'Organization')).toEqual(false);
             expect(ability.can('delete', 'InviteLink')).toEqual(false);
+        });
+
+        it('can view their own organization', () => {
+            const org: Organization = { organizationUuid: '456' };
+            expect(ability.can('view', subject('Organization', org))).toEqual(
+                true,
+            );
+        });
+        it('cannot view another organization', () => {
+            const org: Organization = { organizationUuid: '789' };
+            expect(ability.can('view', subject('Organization', org))).toEqual(
+                false,
+            );
+        });
+
+        it('can view dashboards from their own organization', () => {
+            const org: Organization = { organizationUuid: '456' };
+            expect(ability.can('view', subject('Dashboard', org))).toEqual(
+                true,
+            );
+        });
+        it('cannot view dashboards from another organization', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', { organizationUuid: '789' }),
+                ),
+            ).toEqual(false);
+        });
+        it('can view savedCharts from their own organization', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', { organizationUuid: '456' }),
+                ),
+            ).toEqual(true);
+        });
+        it('cannot view savedCharts from another organization', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', { organizationUuid: '789' }),
+                ),
+            ).toEqual(false);
+        });
+        it('can view projects from their own organization', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('Project', { organizationUuid: '456' }),
+                ),
+            ).toEqual(true);
+        });
+        it('cannot view projects from another organization', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('Project', { organizationUuid: '789' }),
+                ),
+            ).toEqual(false);
         });
     });
 });

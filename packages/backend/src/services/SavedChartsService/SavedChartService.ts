@@ -155,14 +155,7 @@ export class SavedChartService {
 
     async get(savedChartUuid: string, user: SessionUser): Promise<SavedChart> {
         const savedChart = await this.savedChartModel.get(savedChartUuid);
-        if (
-            user.ability.cannot(
-                'view',
-                subject('SavedChart', {
-                    organizationUuid: savedChart.organizationUuid,
-                }),
-            )
-        ) {
+        if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
             throw new ForbiddenError();
         }
         return savedChart;
