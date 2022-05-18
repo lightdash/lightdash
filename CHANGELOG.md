@@ -1,3 +1,10 @@
+## [0.105.1](https://github.com/lightdash/lightdash/compare/0.105.0...0.105.1) (2022-05-18)
+
+
+### Bug Fixes
+
+* show chart updated by user & save user that saved chart for first time ([#2129](https://github.com/lightdash/lightdash/issues/2129)) ([c0c3cdb](https://github.com/lightdash/lightdash/commit/c0c3cdbce16d7d3b9cb47025ec475adf8fd8f68c))
+
 # [0.105.0](https://github.com/lightdash/lightdash/compare/0.104.3...0.105.0) (2022-05-17)
 
 
