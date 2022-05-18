@@ -35,7 +35,12 @@ import { useExplorer } from '../providers/ExplorerProvider';
 import { TrackSection, useTracking } from '../providers/TrackingProvider';
 import { EventName, SectionName } from '../types/Events';
 import DocumentationHelpButton from './DocumentationHelpButton';
-import { TableTreeGlobalStyle, TooltipContent } from './TableTree.styles';
+import {
+    ItemOptions,
+    Placeholder,
+    TableTreeGlobalStyle,
+    TooltipContent,
+} from './TableTree.styles';
 
 const TreeWrapper = styled.div<{ hasMultipleTables: boolean }>`
     margin-left: ${({ hasMultipleTables }) =>
@@ -258,21 +263,9 @@ const NodeItemButtons: FC<{
     }, [addFilter, createCustomMetric, node, onOpenSourceDialog, track]);
 
     return (
-        <div
-            style={{
-                display: 'inline-flex',
-                gap: '10px',
-                alignItems: 'center',
-                height: '30px',
-                width: '60px',
-            }}
-        >
-            {isFiltered ? (
-                <Icon icon="filter" />
-            ) : (
-                <div style={{ width: '16px' }} />
-            )}
-            {menuItems.length > 0 && (isHovered || isSelected) ? (
+        <ItemOptions>
+            {isFiltered && <Icon icon="filter" />}
+            {menuItems.length > 0 && (isHovered || isSelected) && (
                 <Popover2
                     content={<Menu>{menuItems}</Menu>}
                     autoFocus={false}
@@ -295,10 +288,10 @@ const NodeItemButtons: FC<{
                         </Tooltip2>
                     )}
                 />
-            ) : (
-                <div style={{ width: '34px' }} />
             )}
-        </div>
+
+            {isFiltered && !isHovered && !isSelected && <Placeholder />}
+        </ItemOptions>
     );
 };
 
