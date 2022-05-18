@@ -48,7 +48,7 @@ const VisualizationCardOptions: FC = () => {
                     case CartesianSeriesType.BAR:
                         return cartesianFlipAxis
                             ? {
-                                  text: 'Bar chart',
+                                  text: 'Horizontal bar chart',
                                   icon: 'horizontal-bar-chart',
                               }
                             : {
@@ -129,7 +129,7 @@ const VisualizationCardOptions: FC = () => {
                         }}
                         disabled={disabled}
                         name="Bar"
-                        text="Bar chart"
+                        text="Horizontal bar chart"
                     />
 
                     <ChartOption
