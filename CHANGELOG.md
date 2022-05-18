@@ -1,3 +1,10 @@
+# [0.107.0](https://github.com/lightdash/lightdash/compare/0.106.2...0.107.0) (2022-05-18)
+
+
+### Features
+
+* update bar chart with horizontal bar chart ([#2155](https://github.com/lightdash/lightdash/issues/2155)) ([c120e05](https://github.com/lightdash/lightdash/commit/c120e050d2bdb2ac57898dc6dc06260b4cf4ae6e))
+
 ## [0.106.2](https://github.com/lightdash/lightdash/compare/0.106.1...0.106.2) (2022-05-18)
 
 
