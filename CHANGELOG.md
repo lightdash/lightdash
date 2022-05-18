@@ -1,3 +1,10 @@
+# [0.108.0](https://github.com/lightdash/lightdash/compare/0.107.0...0.108.0) (2022-05-18)
+
+
+### Features
+
+* update sql runner page with new subheader ([#2146](https://github.com/lightdash/lightdash/issues/2146)) ([7cab012](https://github.com/lightdash/lightdash/commit/7cab0123be864b010f3b61d41583a50f647f599d))
+
 # [0.107.0](https://github.com/lightdash/lightdash/compare/0.106.2...0.107.0) (2022-05-18)
 
 
