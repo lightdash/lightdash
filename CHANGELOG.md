@@ -1,3 +1,10 @@
+## [0.106.1](https://github.com/lightdash/lightdash/compare/0.106.0...0.106.1) (2022-05-18)
+
+
+### Bug Fixes
+
+* update typo in tables configuration ([#2151](https://github.com/lightdash/lightdash/issues/2151)) ([4bb4c94](https://github.com/lightdash/lightdash/commit/4bb4c948efa54de140dbb3b8322dd094787f4841))
+
 # [0.106.0](https://github.com/lightdash/lightdash/compare/0.105.2...0.106.0) (2022-05-18)
 
 
