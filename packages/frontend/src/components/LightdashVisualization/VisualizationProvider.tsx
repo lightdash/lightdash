@@ -17,7 +17,6 @@ import React, {
 } from 'react';
 import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import useCartesianChartConfig from '../../hooks/useCartesianChartConfig';
-import { useExplore } from '../../hooks/useExplore';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import usePlottedData from '../../hooks/usePlottedData';
 import { EchartSeriesClickEvent } from '../SimpleChart';
@@ -45,7 +44,6 @@ type Props = {
     chartType: ChartType;
     initialChartConfig: ChartConfig | undefined;
     initialPivotDimensions: string[] | undefined;
-    tableName: string | undefined;
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     columnOrder: string[];
@@ -53,13 +51,13 @@ type Props = {
     onChartConfigChange?: (value: ChartConfig['config']) => void;
     onChartTypeChange?: (value: ChartType) => void;
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
+    explore: Explore | undefined;
 };
 
 export const VisualizationProvider: FC<Props> = ({
     initialChartConfig,
     chartType,
     initialPivotDimensions,
-    tableName,
     resultsData,
     isLoading,
     columnOrder,
@@ -67,10 +65,10 @@ export const VisualizationProvider: FC<Props> = ({
     onChartConfigChange,
     onChartTypeChange,
     onPivotDimensionsChange,
+    explore,
     children,
 }) => {
     const chartRef = useRef<EChartsReact>(null);
-    const { data: explore } = useExplore(tableName);
 
     const [lastValidResultsData, setLastValidResultsData] =
         useState<ApiQueryResults>();
