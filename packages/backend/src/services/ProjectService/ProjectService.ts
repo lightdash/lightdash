@@ -35,7 +35,7 @@ import {
     TablesConfiguration,
     TableSelectionType,
     UpdateProject,
-} from 'common';
+} from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
 import { analytics } from '../../analytics/client';
 import { errorHandler } from '../../errors';

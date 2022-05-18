@@ -1,5 +1,5 @@
 import { Button, Card, Collapse, H5 } from '@blueprintjs/core';
-import { ChartType } from 'common';
+import { ChartType } from '@lightdash/common';
 import { FC } from 'react';
 import {
     ExplorerSection,

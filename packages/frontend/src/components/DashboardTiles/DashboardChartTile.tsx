@@ -13,7 +13,7 @@ import {
     getVisibleFields,
     isFilterableField,
     SavedChart,
-} from 'common';
+} from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';

@@ -7,7 +7,7 @@ import {
     Tag,
 } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { DimensionType, hexToRGB, isNumericItem } from 'common';
+import { DimensionType, hexToRGB, isNumericItem } from '@lightdash/common';
 import React, { FC, ReactNode, useEffect } from 'react';
 import {
     DragDropContext,

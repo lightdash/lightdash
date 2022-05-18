@@ -1,6 +1,6 @@
 import { Button, Colors } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { SessionUser, UpdatedByUser } from 'common';
+import { SessionUser, UpdatedByUser } from '@lightdash/common';
 import React, { Dispatch, FC, SetStateAction } from 'react';
 import styled from 'styled-components';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';

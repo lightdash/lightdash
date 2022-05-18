@@ -5,7 +5,7 @@ import {
     getResultValues,
     hashFieldReference,
     isCompleteLayout,
-} from 'common';
+} from '@lightdash/common';
 import { useMemo } from 'react';
 
 export const getPivotedData = (

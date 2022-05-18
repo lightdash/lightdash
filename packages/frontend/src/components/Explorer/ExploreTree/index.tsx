@@ -7,7 +7,7 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { Explore, Source } from 'common';
+import { Explore, Source } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 import SyntaxHighlighter from 'react-syntax-highlighter';

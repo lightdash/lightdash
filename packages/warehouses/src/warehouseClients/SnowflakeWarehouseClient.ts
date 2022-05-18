@@ -1,12 +1,12 @@
-import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
-import * as Util from 'util';
 import {
     CreateSnowflakeCredentials,
     DimensionType,
     ParseError,
     WarehouseConnectionError,
     WarehouseQueryError,
-} from 'common';
+} from '@lightdash/common';
+import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
+import * as Util from 'util';
 import { WarehouseCatalog, WarehouseClient } from '../types';
 
 export enum SnowflakeTypes {

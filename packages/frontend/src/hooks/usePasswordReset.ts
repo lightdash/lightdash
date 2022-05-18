@@ -1,4 +1,8 @@
-import { ApiError, CreatePasswordResetLink, PasswordReset } from 'common';
+import {
+    ApiError,
+    CreatePasswordResetLink,
+    PasswordReset,
+} from '@lightdash/common';
 import { useMutation, useQuery } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';

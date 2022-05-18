@@ -11,7 +11,7 @@ import {
     parseTimestamp,
     TimeInterval,
     UnitOfTime,
-} from 'common';
+} from '@lightdash/common';
 import moment from 'moment';
 import React, { FC } from 'react';
 import MonthAndYearInput from '../../MonthAndYearInput';

@@ -8,7 +8,7 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
-import { Dashboard } from 'common';
+import { Dashboard } from '@lightdash/common';
 import React, { ReactNode, useState } from 'react';
 import { TileModal } from '../TileForms/TileModal';
 import {

@@ -1,4 +1,4 @@
-import { WarehouseTypes } from 'common';
+import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useWatch } from 'react-hook-form';
 import SelectField from '../ReactHookForm/Select';

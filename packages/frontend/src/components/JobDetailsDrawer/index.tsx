@@ -1,5 +1,10 @@
 import { Classes, Drawer, Icon, Position, Spinner } from '@blueprintjs/core';
-import { Job, JobStatusType, JobStep, JobStepStatusType } from 'common';
+import {
+    Job,
+    JobStatusType,
+    JobStep,
+    JobStepStatusType,
+} from '@lightdash/common';
 import moment from 'moment';
 import React, { FC } from 'react';
 import {

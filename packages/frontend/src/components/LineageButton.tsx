@@ -1,6 +1,10 @@
 import { Button, Colors } from '@blueprintjs/core';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
-import { friendlyName, isExploreError, LineageNodeDependency } from 'common';
+import {
+    friendlyName,
+    isExploreError,
+    LineageNodeDependency,
+} from '@lightdash/common';
 import * as dagre from 'dagre';
 import EChartsReact from 'echarts-for-react';
 import React, { useState } from 'react';

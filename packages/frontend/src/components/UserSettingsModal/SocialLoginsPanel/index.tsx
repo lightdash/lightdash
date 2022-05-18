@@ -1,5 +1,5 @@
 import { Button, Card, Classes, H4, Tag } from '@blueprintjs/core';
-import { ApiError, OpenIdIdentitySummary } from 'common';
+import { ApiError, OpenIdIdentitySummary } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../../../api';

@@ -1,4 +1,4 @@
-import { ForbiddenError, OnboardingStatus } from 'common';
+import { ForbiddenError, OnboardingStatus } from '@lightdash/common';
 import express from 'express';
 import {
     isAuthenticated,

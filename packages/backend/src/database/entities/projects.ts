@@ -1,4 +1,4 @@
-import { ProjectType, TableSelectionType } from 'common';
+import { ProjectType, TableSelectionType } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const ProjectTableName = 'projects';

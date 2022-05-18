@@ -1,4 +1,8 @@
-import { formatTimestamp, PasswordResetLink, SmptError } from 'common';
+import {
+    formatTimestamp,
+    PasswordResetLink,
+    SmptError,
+} from '@lightdash/common';
 import * as nodemailer from 'nodemailer';
 import Mail from 'nodemailer/lib/mailer';
 import { AuthenticationType } from 'nodemailer/lib/smtp-connection';

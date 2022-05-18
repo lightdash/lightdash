@@ -1,7 +1,7 @@
 import {
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
-} from 'common';
+} from '@lightdash/common';
 import { writeFileSync } from 'fs';
 import * as fspromises from 'fs/promises';
 import * as path from 'path';

@@ -13,7 +13,7 @@ import {
     UnexpectedServerError,
     UpdateProject,
     WarehouseCredentials,
-} from 'common';
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
 import {

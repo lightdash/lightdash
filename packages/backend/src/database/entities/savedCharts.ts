@@ -1,4 +1,4 @@
-import { ChartConfig, DBFieldTypes } from 'common';
+import { ChartConfig, DBFieldTypes } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const SavedChartsTableName = 'saved_queries';

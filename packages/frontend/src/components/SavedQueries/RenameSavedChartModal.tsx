@@ -1,5 +1,5 @@
 import { Button, Classes, Dialog, Intent } from '@blueprintjs/core';
-import { UpdateSavedChart } from 'common';
+import { UpdateSavedChart } from '@lightdash/common';
 import React, { FC, useCallback, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSavedQuery, useUpdateMutation } from '../../hooks/useSavedQuery';

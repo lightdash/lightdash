@@ -1,4 +1,4 @@
-import { FilterableField, FilterRule } from 'common';
+import { FilterableField, FilterRule } from '@lightdash/common';
 import React, { createContext, FC, useCallback, useContext } from 'react';
 
 export type FieldWithSuggestions = FilterableField & {

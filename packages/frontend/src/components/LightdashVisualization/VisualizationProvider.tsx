@@ -1,4 +1,9 @@
-import { ApiQueryResults, ChartConfig, ChartType, Explore } from 'common';
+import {
+    ApiQueryResults,
+    ChartConfig,
+    ChartType,
+    Explore,
+} from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import React, {
     createContext,

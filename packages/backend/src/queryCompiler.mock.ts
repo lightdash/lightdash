@@ -7,7 +7,7 @@ import {
     MetricQuery,
     MetricType,
     SupportedDbtAdapter,
-} from 'common';
+} from '@lightdash/common';
 import { emptyTable } from './queryBuilder.mock';
 
 const DIMENSION: CompiledDimension = {

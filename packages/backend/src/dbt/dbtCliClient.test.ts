@@ -1,4 +1,4 @@
-import { DbtError } from 'common';
+import { DbtError } from '@lightdash/common';
 import execa from 'execa';
 import * as fs from 'fs/promises';
 import { DbtCliClient } from './dbtCliClient';

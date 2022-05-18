@@ -1,4 +1,4 @@
-import { ApiError, Space } from 'common';
+import { ApiError, Space } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../api';
 

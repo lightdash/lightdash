@@ -1,4 +1,4 @@
-import { ApiError, Organisation } from 'common';
+import { ApiError, Organisation } from '@lightdash/common';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
 import { useApp } from '../../providers/AppProvider';

@@ -1,5 +1,5 @@
 import { Button, InputGroup, NonIdealState } from '@blueprintjs/core';
-import { ApiError, UpdatedByUser } from 'common';
+import { ApiError, UpdatedByUser } from '@lightdash/common';
 import Fuse from 'fuse.js';
 import React, { useMemo, useState } from 'react';
 import { UseMutationResult } from 'react-query';

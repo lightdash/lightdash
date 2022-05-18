@@ -9,7 +9,7 @@ import {
     FieldId,
     MetricQuery,
     TableCalculation,
-} from 'common';
+} from '@lightdash/common';
 import {
     compileMetricSql,
     getQuoteChar,

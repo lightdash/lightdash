@@ -4,7 +4,7 @@ import {
     fieldId,
     FilterableField,
     getTotalFilterRules,
-} from 'common';
+} from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useExplorer } from '../providers/ExplorerProvider';
 

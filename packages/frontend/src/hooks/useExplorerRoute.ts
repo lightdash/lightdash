@@ -1,4 +1,4 @@
-import { ChartType, CreateSavedChartVersion } from 'common';
+import { ChartType, CreateSavedChartVersion } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useApp } from '../providers/AppProvider';

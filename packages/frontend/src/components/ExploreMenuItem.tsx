@@ -1,6 +1,6 @@
 import { Colors, Icon, Intent, MenuItem } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { InlineErrorType, SummaryExplore } from 'common';
+import { InlineErrorType, SummaryExplore } from '@lightdash/common';
 import React from 'react';
 
 type ExploreMenuItemProps = {

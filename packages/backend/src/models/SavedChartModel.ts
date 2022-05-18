@@ -10,7 +10,7 @@ import {
     Space,
     UpdatedByUser,
     UpdateSavedChart,
-} from 'common';
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     CreateDbSavedChartVersionField,

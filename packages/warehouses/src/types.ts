@@ -1,4 +1,4 @@
-import {DimensionType} from "common";
+import { DimensionType } from '@lightdash/common';
 
 export type WarehouseTableSchema = {
     [column: string]: DimensionType;

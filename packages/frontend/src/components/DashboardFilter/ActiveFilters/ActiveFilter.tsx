@@ -1,5 +1,5 @@
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { FilterableField, FilterRule } from 'common';
+import { FilterableField, FilterRule } from '@lightdash/common';
 import React, { FC } from 'react';
 import { getFilterRuleLabel } from '../../common/Filters/configs';
 import { FilterValues, TagContainer } from './ActiveFilters.styles';

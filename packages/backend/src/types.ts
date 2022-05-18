@@ -5,7 +5,7 @@ import {
     DimensionType,
     Explore,
     ExploreError,
-} from 'common';
+} from '@lightdash/common';
 
 export interface ProjectAdapter {
     compileAllExplores(): Promise<(Explore | ExploreError)[]>;

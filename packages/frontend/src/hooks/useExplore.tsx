@@ -1,4 +1,4 @@
-import { ApiError, ApiExploreResults } from 'common';
+import { ApiError, ApiExploreResults } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';

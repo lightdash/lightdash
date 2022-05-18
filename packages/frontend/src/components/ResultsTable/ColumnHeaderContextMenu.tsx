@@ -1,6 +1,6 @@
 import { Menu, MenuItem } from '@blueprintjs/core';
 import { ContextMenu2 } from '@blueprintjs/popover2';
-import { fieldId, isDimension, isFilterableField } from 'common';
+import { fieldId, isDimension, isFilterableField } from '@lightdash/common';
 import React from 'react';
 import { HeaderGroup } from 'react-table';
 import { useFilters } from '../../hooks/useFilters';

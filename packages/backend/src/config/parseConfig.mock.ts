@@ -1,4 +1,4 @@
-import { LightdashMode } from 'common';
+import { LightdashMode } from '@lightdash/common';
 
 export const UNDEFINED_CONFIG = undefined;
 

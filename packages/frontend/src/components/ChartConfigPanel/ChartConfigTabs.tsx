@@ -12,7 +12,7 @@ import {
     isField,
     Metric,
     TableCalculation,
-} from 'common';
+} from '@lightdash/common';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useOrganisation } from '../../hooks/organisation/useOrganisation';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';

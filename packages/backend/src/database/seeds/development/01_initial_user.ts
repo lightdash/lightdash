@@ -1,4 +1,3 @@
-import bcrypt from 'bcrypt';
 import {
     CreatePostgresCredentials,
     DbtLocalProjectConfig,
@@ -12,7 +11,8 @@ import {
     SEED_SPACE,
     SEED_USER,
     WarehouseTypes,
-} from 'common';
+} from '@lightdash/common';
+import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
 import path from 'path';
 import { lightdashConfig } from '../../../config/lightdashConfig';

@@ -4,7 +4,7 @@ import {
     DbtProjectEnvironmentVariable,
     UnexpectedGitError,
     UnexpectedServerError,
-} from 'common';
+} from '@lightdash/common';
 import * as fspromises from 'fs-extra';
 import * as path from 'path';
 import simpleGit, {

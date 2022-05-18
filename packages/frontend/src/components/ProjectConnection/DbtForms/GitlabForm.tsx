@@ -1,4 +1,4 @@
-import { ProjectType } from 'common';
+import { ProjectType } from '@lightdash/common';
 import React, { FC } from 'react';
 import {
     hasNoWhiteSpaces,

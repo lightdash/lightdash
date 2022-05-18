@@ -5,7 +5,7 @@ import {
     Dialog,
     Intent,
 } from '@blueprintjs/core';
-import { OrganizationProject } from 'common';
+import { OrganizationProject } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import {

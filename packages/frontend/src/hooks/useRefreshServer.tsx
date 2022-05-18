@@ -6,7 +6,7 @@ import {
     JobStatusType,
     JobStep,
     JobStepStatusType,
-} from 'common';
+} from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';

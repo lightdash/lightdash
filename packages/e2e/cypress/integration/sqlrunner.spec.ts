@@ -1,4 +1,4 @@
-import { SEED_PROJECT } from 'common';
+import { SEED_PROJECT } from '@lightdash/common';
 
 describe('Dashboard', () => {
     before(() => {

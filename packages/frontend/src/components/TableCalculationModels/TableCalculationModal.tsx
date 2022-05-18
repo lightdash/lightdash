@@ -1,5 +1,9 @@
 import { Button, Callout, Classes, Intent } from '@blueprintjs/core';
-import { hasSpecialCharacters, snakeCaseName, TableCalculation } from 'common';
+import {
+    hasSpecialCharacters,
+    snakeCaseName,
+    TableCalculation,
+} from '@lightdash/common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';

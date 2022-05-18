@@ -11,7 +11,7 @@ import {
     DashboardTileTypes,
     getDefaultChartTileSize,
     SavedChart,
-} from 'common';
+} from '@lightdash/common';
 import { FC, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';

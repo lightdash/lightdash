@@ -1,5 +1,9 @@
 import { Button, Classes, Dialog, Intent } from '@blueprintjs/core';
-import { Dashboard, DashboardTileTypes, defaultTileSize } from 'common';
+import {
+    Dashboard,
+    DashboardTileTypes,
+    defaultTileSize,
+} from '@lightdash/common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';

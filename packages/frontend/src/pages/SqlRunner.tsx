@@ -1,6 +1,6 @@
 import { useHotkeys } from '@blueprintjs/core';
 import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
-import { TableBase } from 'common';
+import { TableBase } from '@lightdash/common';
 import React, { useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { CollapsableCard } from '../components/common/CollapsableCard';

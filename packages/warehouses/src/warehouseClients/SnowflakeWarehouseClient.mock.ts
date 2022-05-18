@@ -1,4 +1,4 @@
-import { CreateSnowflakeCredentials, WarehouseTypes } from 'common';
+import { CreateSnowflakeCredentials, WarehouseTypes } from '@lightdash/common';
 import { SnowflakeTypes } from './SnowflakeWarehouseClient';
 import { config } from './WarehouseClient.mock';
 

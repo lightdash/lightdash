@@ -1,5 +1,10 @@
 import { Button, FormGroup, InputGroup, Intent } from '@blueprintjs/core';
-import { ApiError, LightdashUser, UpdateUserArgs, validateEmail } from 'common';
+import {
+    ApiError,
+    LightdashUser,
+    UpdateUserArgs,
+    validateEmail,
+} from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../../api';

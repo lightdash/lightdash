@@ -1,6 +1,3 @@
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
-import { AnyValidateFunction } from 'ajv/dist/types';
 import {
     DbtMetric,
     DbtModelNode,
@@ -15,7 +12,10 @@ import {
     MissingCatalogEntryError,
     ParseError,
     SupportedDbtAdapter,
-} from 'common';
+} from '@lightdash/common';
+import Ajv from 'ajv';
+import addFormats from 'ajv-formats';
+import { AnyValidateFunction } from 'ajv/dist/types';
 import {
     attachTypesToModels,
     convertExplores,

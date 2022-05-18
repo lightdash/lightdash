@@ -9,7 +9,7 @@ import {
     JobStepType,
     LightdashError,
     NotFoundError,
-} from 'common';
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     DbJobs,

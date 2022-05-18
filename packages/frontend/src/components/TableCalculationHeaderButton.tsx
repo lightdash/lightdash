@@ -6,7 +6,7 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
-import { TableCalculation } from 'common';
+import { TableCalculation } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';

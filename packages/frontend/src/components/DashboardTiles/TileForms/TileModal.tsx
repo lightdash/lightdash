@@ -1,4 +1,8 @@
-import { Dashboard, DashboardTileTypes, defaultTileSize } from 'common';
+import {
+    Dashboard,
+    DashboardTileTypes,
+    defaultTileSize,
+} from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import ActionModal, { ActionTypeModal } from '../../common/modal/ActionModal';

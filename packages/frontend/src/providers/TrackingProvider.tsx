@@ -1,4 +1,4 @@
-import { LightdashMode } from 'common';
+import { LightdashMode } from '@lightdash/common';
 import React, {
     createContext,
     FC,

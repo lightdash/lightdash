@@ -3,7 +3,7 @@ import {
     LightdashInstallType,
     LightdashMode,
     UnexpectedDatabaseError,
-} from 'common';
+} from '@lightdash/common';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getMigrationStatus } from '../../database/database';

@@ -1,4 +1,4 @@
-import { ApiError, Organisation } from 'common';
+import { ApiError, Organisation } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../../api';
 

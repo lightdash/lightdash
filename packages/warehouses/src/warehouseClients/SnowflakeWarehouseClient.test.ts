@@ -1,8 +1,8 @@
-import { DimensionType } from 'common';
+import { DimensionType } from '@lightdash/common';
 import { createConnection } from 'snowflake-sdk';
 import {
-    SnowflakeWarehouseClient,
     mapFieldType,
+    SnowflakeWarehouseClient,
 } from './SnowflakeWarehouseClient';
 import { columns, credentials } from './SnowflakeWarehouseClient.mock';
 import {

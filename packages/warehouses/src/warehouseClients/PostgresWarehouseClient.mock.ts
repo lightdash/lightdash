@@ -1,4 +1,4 @@
-import { CreatePostgresCredentials, WarehouseTypes } from 'common';
+import { CreatePostgresCredentials, WarehouseTypes } from '@lightdash/common';
 import { PostgresTypes } from './PostgresWarehouseClient';
 import { config } from './WarehouseClient.mock';
 

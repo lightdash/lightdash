@@ -1,4 +1,4 @@
-import { DashboardLoomTile } from 'common';
+import { DashboardLoomTile } from '@lightdash/common';
 import React, { FC } from 'react';
 import TileBase from './TileBase/index';
 import { getLoomId } from './TileForms/LoomTileForm';
