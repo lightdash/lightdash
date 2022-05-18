@@ -178,7 +178,13 @@ export class SavedChartService {
         projectUuid: string,
         savedChart: CreateSavedChart,
     ): Promise<SavedChart> {
-        if (user.ability.cannot('create', 'SavedChart')) {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'create',
+                subject('SavedChart', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         const newSavedChart = await this.savedChartModel.create(

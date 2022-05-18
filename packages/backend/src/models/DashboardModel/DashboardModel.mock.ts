@@ -120,6 +120,7 @@ export const spaceEntry: SpaceTable['base'] = {
     name: 'space name',
     created_at: new Date(),
     project_id: 0,
+    organization_uuid: 'organizationUuid',
 };
 export const savedChartEntry: SavedChartTable['base'] = {
     saved_query_id: 0,

@@ -187,17 +187,6 @@ export class ProjectService {
         user: SessionUser,
         data: UpdateProject,
     ): Promise<{ jobUuid: string }> {
-        const job: CreateJob = {
-            jobUuid: uuidv4(),
-            jobType: JobType.COMPILE_PROJECT,
-            jobStatus: JobStatusType.STARTED,
-            projectUuid: undefined,
-            steps: [
-                { stepType: JobStepType.TESTING_ADAPTOR },
-                { stepType: JobStepType.COMPILING },
-            ],
-        };
-
         const savedProject = await this.projectModel.getWithSensitiveFields(
             projectUuid,
         );
@@ -211,6 +200,17 @@ export class ProjectService {
         ) {
             throw new ForbiddenError();
         }
+
+        const job: CreateJob = {
+            jobUuid: uuidv4(),
+            jobType: JobType.COMPILE_PROJECT,
+            jobStatus: JobStatusType.STARTED,
+            projectUuid: undefined,
+            steps: [
+                { stepType: JobStepType.TESTING_ADAPTOR },
+                { stepType: JobStepType.COMPILING },
+            ],
+        };
 
         const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
             data,

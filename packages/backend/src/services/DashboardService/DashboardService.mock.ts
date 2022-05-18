@@ -37,6 +37,7 @@ export const space: SpaceTable['base'] = {
     name: 'space name',
     created_at: new Date(),
     project_id: 0,
+    organization_uuid: user.organizationUuid,
 };
 
 export const dashboard: Dashboard = {
