@@ -98,5 +98,21 @@ describe('Organization member permissions', () => {
             expect(ability.can('delete', 'Organization')).toEqual(false);
             expect(ability.can('delete', 'InviteLink')).toEqual(false);
         });
+        it('can view their own jobs', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('Job', { userUuid: ORGANIZATION_VIEWER.userUuid }),
+                ),
+            ).toEqual(true);
+        });
+        it('cannot view jobs from another user', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('Job', { userUuid: 'another-user-uuid' }),
+                ),
+            ).toEqual(false);
+        });
     });
 });
