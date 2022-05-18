@@ -6,8 +6,8 @@ import {
     jobStatusLabel,
     jobStepStatusLabel,
     runningStepsInfo,
-} from '../../../hooks/useRefreshServer';
-import { useApp } from '../../../providers/AppProvider';
+} from '../../hooks/useRefreshServer';
+import { useApp } from '../../providers/AppProvider';
 import {
     ErrorMessageWrapper,
     RefreshStepsHeadingWrapper,
