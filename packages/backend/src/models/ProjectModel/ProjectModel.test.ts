@@ -46,7 +46,6 @@ describe('ProjectModel', () => {
             .response([projectMock]);
 
         const project = await model.get(projectUuid);
-
         expect(project).toEqual(expectedProject);
         expect(tracker.history.select).toHaveLength(1);
     });
