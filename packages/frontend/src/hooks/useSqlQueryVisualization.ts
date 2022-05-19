@@ -55,10 +55,14 @@ const useSqlQueryVisualization = ({ sqlQueryMutation: { data } }: Args) => {
         [data],
     );
 
+    const dimensions: string[] = useMemo(() => {
+        return Object.keys(sqlQueryDimensions);
+    }, [sqlQueryDimensions]);
+
     const resultsData: ApiQueryResults = useMemo(
         () => ({
             metricQuery: {
-                dimensions: Object.keys(sqlQueryDimensions),
+                dimensions: dimensions,
                 metrics: [],
                 filters: {},
                 sorts: [],
@@ -73,14 +77,14 @@ const useSqlQueryVisualization = ({ sqlQueryMutation: { data } }: Args) => {
                         [`${SQL_RESULTS_TABLE_NAME}_${columnName}`]: {
                             value: {
                                 raw,
-                                formatted: raw,
+                                formatted: `${raw}`,
                             },
                         },
                     };
                 }, {}),
             ),
         }),
-        [data?.rows, sqlQueryDimensions],
+        [data?.rows, dimensions],
     );
     const explore: Explore = useMemo(
         () => ({
@@ -112,6 +116,7 @@ const useSqlQueryVisualization = ({ sqlQueryMutation: { data } }: Args) => {
         explore,
         resultsData,
         chartType,
+        columnOrder: dimensions,
         setChartType,
     };
 };

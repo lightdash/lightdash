@@ -52,7 +52,7 @@ const SqlRunnerPage = () => {
         useProjectCatalog();
     const sqlQueryMutation = useSqlQueryMutation();
     const { isLoading, mutate } = sqlQueryMutation;
-    const { explore, chartType, resultsData, setChartType } =
+    const { explore, chartType, resultsData, columnOrder, setChartType } =
         useSqlQueryVisualization({ sqlQueryMutation });
     const [vizIsOpen, setVizIsOpen] = useState(false);
     const onSubmit = useCallback(() => {
@@ -137,7 +137,7 @@ const SqlRunnerPage = () => {
                         onChartConfigChange={() => undefined}
                         onChartTypeChange={setChartType}
                         onPivotDimensionsChange={() => undefined}
-                        columnOrder={[]}
+                        columnOrder={columnOrder}
                         explore={explore}
                     >
                         <VisualizationCardHeader>
