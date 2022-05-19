@@ -1,3 +1,10 @@
+## [0.109.1](https://github.com/lightdash/lightdash/compare/0.109.0...0.109.1) (2022-05-19)
+
+
+### Bug Fixes
+
+* remove column filters from catalog ([#2166](https://github.com/lightdash/lightdash/issues/2166)) ([508fef4](https://github.com/lightdash/lightdash/commit/508fef423103326aeb91742bd6ffff8c60171e94))
+
 # [0.109.0](https://github.com/lightdash/lightdash/compare/0.108.2...0.109.0) (2022-05-19)
 
 
