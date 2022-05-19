@@ -1,4 +1,4 @@
-import { Callout, H5 } from '@blueprintjs/core';
+import { Callout, Card, H5 } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
 
@@ -35,4 +35,34 @@ export const ButtonsWrapper = styled.div`
 
 export const SqlCallout = styled(Callout)`
     margin-top: 20px;
+`;
+
+export const VisualizationCard = styled(Card)`
+    padding: 5px;
+    overflow-y: scroll;
+`;
+
+export const VisualizationCardHeader = styled.div`
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+`;
+export const VisualizationCardTitle = styled.div`
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    h5 {
+        margin: 0;
+        padding: 0;
+    }
+`;
+export const VisualizationCardButtons = styled.div`
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-right: 10px;
+`;
+export const VisualizationCardContentWrapper = styled.div`
+    height: 300px;
 `;
