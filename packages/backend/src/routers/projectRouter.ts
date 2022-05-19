@@ -21,14 +21,18 @@ import {
 
 export const projectRouter = express.Router({ mergeParams: true });
 
-projectRouter.get('/', isAuthenticated, async (req, res) => {
-    res.json({
-        status: 'ok',
-        results: await projectService.getProject(
-            req.params.projectUuid,
-            req.user!,
-        ),
-    });
+projectRouter.get('/', isAuthenticated, async (req, res, next) => {
+    try {
+        res.json({
+            status: 'ok',
+            results: await projectService.getProject(
+                req.params.projectUuid,
+                req.user!,
+            ),
+        });
+    } catch (e) {
+        next(e);
+    }
 });
 
 projectRouter.patch(
