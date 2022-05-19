@@ -572,8 +572,7 @@ export class ProjectService {
     async getJobStatus(jobUuid: string, user: SessionUser): Promise<Job> {
         const job = await this.jobModel.get(jobUuid);
 
-        const ability = defineAbilityForOrganizationMember(user);
-        if (ability.cannot('view', subject('Job', job))) {
+        if (user.ability.cannot('view', subject('Job', job))) {
             throw new NotFoundError(`Cannot find job`);
         }
 
@@ -638,6 +637,16 @@ export class ProjectService {
         projectUuid: string,
         filtered: boolean,
     ): Promise<SummaryExplore[]> {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         const explores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );

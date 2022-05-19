@@ -170,6 +170,9 @@ describe('Organization member permissions', () => {
                 ability.can(
                     'view',
                     subject('Project', { organizationUuid: '789' }),
+                ),
+            ).toEqual(true);
+        });
         it('can view their own jobs', () => {
             expect(
                 ability.can(
