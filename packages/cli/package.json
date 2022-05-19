@@ -1,32 +1,35 @@
 {
-  "name": "@lightdash/cli",
-  "version": "0.109.1",
-  "license": "MIT",
-  "bin": {
-    "lightdash": "dist/index.js"
-  },
-  "dependencies": {
-    "commander": "^9.2.0"
-  },
-  "description": "Lightdash CLI tool",
-  "devDependencies": {
-    "@types/node": "^14.14.35",
-    "@typescript-eslint/eslint-plugin": "^5.22.0",
-    "@typescript-eslint/parser": "^5.22.0",
-    "eslint": "^8.7.0",
-    "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-config-airbnb-typescript": "^16.1.0",
-    "eslint-config-prettier": "^8.3.0",
-    "eslint-plugin-import": "^2.25.4",
-    "eslint-plugin-json": "^3.0.0",
-    "prettier": "^2.3.2",
-    "prettier-plugin-organize-imports": "^2.3.4",
-    "ts-node": "^9.1.1",
-    "typescript": "^4.2.3"
-  },
-  "scripts": {
-    "build": "tsc --build tsconfig.json",
-    "lint": "eslint ./src",
-    "format": "prettier --check --ignore-unknown ./src"
-  }
+    "name": "@lightdash/cli",
+    "version": "0.109.1",
+    "license": "MIT",
+    "bin": {
+        "lightdash": "dist/index.js"
+    },
+    "files": [
+        "dist/**/*"
+    ],
+    "dependencies": {
+        "commander": "^9.2.0"
+    },
+    "description": "Lightdash CLI tool",
+    "devDependencies": {
+        "@types/node": "^14.14.35",
+        "@typescript-eslint/eslint-plugin": "^5.22.0",
+        "@typescript-eslint/parser": "^5.22.0",
+        "eslint": "^8.7.0",
+        "eslint-config-airbnb-base": "^15.0.0",
+        "eslint-config-airbnb-typescript": "^16.1.0",
+        "eslint-config-prettier": "^8.3.0",
+        "eslint-plugin-import": "^2.25.4",
+        "eslint-plugin-json": "^3.0.0",
+        "prettier": "^2.3.2",
+        "prettier-plugin-organize-imports": "^2.3.4",
+        "ts-node": "^9.1.1",
+        "typescript": "^4.2.3"
+    },
+    "scripts": {
+        "build": "tsc --build tsconfig.json",
+        "lint": "eslint ./src",
+        "format": "prettier --check --ignore-unknown ./src"
+    }
 }
