@@ -3,8 +3,8 @@ import {
     ApiError,
     LightdashMode,
     LightdashUser,
-    SEED_EMAIL,
-    SEED_PASSWORD,
+    SEED_ORG_1_ADMIN_EMAIL,
+    SEED_ORG_1_ADMIN_PASSWORD,
 } from 'common';
 import React, { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -65,8 +65,8 @@ const Login: FC = () => {
     useEffect(() => {
         if (isDemo && isIdle) {
             mutate({
-                email: SEED_EMAIL.email,
-                password: SEED_PASSWORD.password,
+                email: SEED_ORG_1_ADMIN_EMAIL.email,
+                password: SEED_ORG_1_ADMIN_PASSWORD.password,
             });
         }
     }, [isDemo, mutate, isIdle]);

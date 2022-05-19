@@ -24,7 +24,12 @@
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 import '@testing-library/cypress/add-commands';
-import { SEED_EMAIL, SEED_PASSWORD } from 'common';
+import {
+    SEED_ORG_1_ADMIN_EMAIL,
+    SEED_ORG_1_ADMIN_PASSWORD,
+    SEED_ORG_2_ADMIN_EMAIL,
+    SEED_ORG_2_ADMIN_PASSWORD,
+} from 'common';
 
 declare namespace Cypress {
     interface Chainable<AUTWindow> {
@@ -38,11 +43,36 @@ Cypress.Commands.add('login', () => {
         url: 'api/v1/login',
         method: 'POST',
         body: {
-            email: SEED_EMAIL.email,
-            password: SEED_PASSWORD.password,
+            email: SEED_ORG_1_ADMIN_EMAIL.email,
+            password: SEED_ORG_1_ADMIN_PASSWORD.password,
         },
     });
 });
+
+Cypress.Commands.add('anotherLogin', () => {
+    cy.request({
+        url: 'api/v1/login',
+        method: 'POST',
+        body: {
+            email: SEED_ORG_2_ADMIN_EMAIL.email,
+            password: SEED_ORG_2_ADMIN_PASSWORD.password,
+        },
+    });
+});
+Cypress.Commands.add('registerNewUser', () => {
+    const email = `test+${new Date().getTime()}@lightdash.com`;
+    cy.request({
+        url: 'api/v1/register',
+        method: 'POST',
+        body: {
+            firstName: 'Test',
+            lastName: 'e2e',
+            email,
+            password: 'demo_password!',
+        },
+    });
+});
+
 Cypress.Commands.add('logout', () => {
     cy.request({
         url: 'api/v1/logout',
@@ -54,8 +84,8 @@ Cypress.Commands.add('preCompileProject', () => {
         url: 'api/v1/login',
         method: 'POST',
         body: {
-            email: SEED_EMAIL.email,
-            password: SEED_PASSWORD.password,
+            email: SEED_ORG_1_ADMIN_EMAIL.email,
+            password: SEED_ORG_1_ADMIN_PASSWORD.password,
         },
     });
     cy.request({

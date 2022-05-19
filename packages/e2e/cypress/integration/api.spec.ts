@@ -135,6 +135,23 @@ describe('Dashboard', () => {
         });
     });
 
+    it('Should get list of dashboards on from projects', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(`${apiUrl}/projects/${projectUuid}/dashboards`).then(
+            (resp) => {
+                cy.log(resp.body);
+                expect(resp.status).to.eq(200);
+                expect(resp.body).to.have.property('status', 'ok');
+
+                expect(resp.body.results).to.have.length(1);
+                expect(resp.body.results[0]).to.have.property(
+                    'name',
+                    'Jaffle dashboard',
+                );
+            },
+        );
+    });
+
     it('Should get success response (200) from GET savedChartRouter endpoints', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request(`${apiUrl}/projects/${projectUuid}/spaces`).then(
@@ -213,20 +230,15 @@ describe('Dashboard', () => {
     });
 
     it('Should get forbidden error (403) from endpoints from another organization', () => {
-        const email = `test+${new Date().getTime()}@lightdash.com`;
-        cy.request({
-            url: 'api/v1/register',
-            method: 'POST',
-            body: {
-                firstName: 'javier',
-                lastName: 'rengel',
-                email,
-                password: 'demo_password!',
-            },
-        });
+        cy.anotherLogin();
+
+        // Test new user registered
         cy.request(`${apiUrl}/user`).then((resp) => {
             expect(resp.status).to.eq(200);
-            expect(resp.body.results).to.have.property('email', email);
+            expect(resp.body.results).to.have.property(
+                'email',
+                'another@lightdash.com',
+            );
         });
 
         const projectUuid = SEED_PROJECT.project_uuid; // Same project_uuid that belongs to another organization
@@ -234,7 +246,7 @@ describe('Dashboard', () => {
             `/projects/${projectUuid}`,
             `/projects/${projectUuid}/explores`,
             `/projects/${projectUuid}/spaces`,
-            `/projects/${projectUuid}/dashboards`,
+            // `/projects/${projectUuid}/dashboards`, // This will return 200 but an empty list, check test below
             `/projects/${projectUuid}/catalog`,
             `/projects/${projectUuid}/tablesConfiguration`,
             `/projects/${projectUuid}/hasSavedCharts`,
@@ -251,6 +263,22 @@ describe('Dashboard', () => {
                 cy.log(resp.body);
                 expect(resp.status).to.eq(403);
             });
+        });
+    });
+
+    it('Should get list of dashboards on from projects', () => {
+        cy.anotherLogin();
+
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request({
+            url: `${apiUrl}/projects/${projectUuid}/dashboards`,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            cy.log(resp.body);
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+
+            expect(resp.body.results).to.have.length(0);
         });
     });
 });

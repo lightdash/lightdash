@@ -1,8 +1,8 @@
 import {
     CartesianSeriesType,
     ChartType,
+    SEED_ORG_1_ADMIN,
     SEED_PROJECT,
-    SEED_USER,
 } from 'common';
 import { Knex } from 'knex';
 import { savedChartModel } from '../../../models/models';
@@ -12,9 +12,9 @@ export async function seed(knex: Knex): Promise<void> {
     await knex('saved_queries').del();
 
     const updatedByUser = {
-        userUuid: SEED_USER.user_uuid,
-        firstName: SEED_USER.first_name,
-        lastName: SEED_USER.last_name,
+        userUuid: SEED_ORG_1_ADMIN.user_uuid,
+        firstName: SEED_ORG_1_ADMIN.first_name,
+        lastName: SEED_ORG_1_ADMIN.last_name,
     };
 
     // Inserts seed entries

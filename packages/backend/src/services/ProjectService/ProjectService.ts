@@ -707,6 +707,15 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ProjectCatalog> {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         const explores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );
@@ -732,6 +741,16 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<TablesConfiguration> {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         return this.projectModel.getTablesConfiguration(projectUuid);
     }
 
@@ -778,10 +797,16 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<boolean> {
-        const ability = defineAbilityForOrganizationMember(user);
-        if (ability.cannot('view', 'Project')) {
-            throw new AuthorizationError();
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
         }
+
         const spaces = await this.savedChartModel.getAllSpaces(projectUuid);
         return spaces.some((space) => space.queries.length > 0);
     }

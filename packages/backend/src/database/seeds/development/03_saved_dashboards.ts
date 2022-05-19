@@ -4,8 +4,8 @@ import {
     DashboardMarkdownTile,
     DashboardTileTypes,
     FilterOperator,
+    SEED_ORG_1_ADMIN,
     SEED_PROJECT,
-    SEED_USER,
 } from 'common';
 import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
@@ -182,7 +182,7 @@ export async function seed(knex: Knex): Promise<void> {
             },
         },
         {
-            userUuid: SEED_USER.user_uuid,
+            userUuid: SEED_ORG_1_ADMIN.user_uuid,
         },
     );
 }
