@@ -2,7 +2,11 @@
     "name": "@lightdash/warehouses",
     "version": "0.109.1",
     "license": "MIT",
-    "main": "dist/index",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist/**/*"
+    ],
     "dependencies": {
         "@google-cloud/bigquery": "^5.9.1",
         "snowflake-sdk": "^1.6.4",

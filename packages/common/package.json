@@ -1,7 +1,11 @@
 {
     "name": "@lightdash/common",
     "version": "0.109.1",
-    "main": "dist/index",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist/**/*"
+    ],
     "license": "MIT",
     "devDependencies": {
         "@redocly/openapi-cli": "^1.0.0-beta.54",
