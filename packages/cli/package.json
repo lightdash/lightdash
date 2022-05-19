@@ -29,6 +29,7 @@
     },
     "scripts": {
         "build": "tsc --build tsconfig.json",
+        "prepare": "yarn run build",
         "lint": "eslint ./src",
         "format": "prettier --check --ignore-unknown ./src"
     }
