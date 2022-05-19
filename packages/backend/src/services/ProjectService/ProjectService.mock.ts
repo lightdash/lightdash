@@ -220,6 +220,7 @@ export const spacesWithSavedCharts: Space[] = [
 
 export const spacesWithNoSavedCharts: Space[] = [
     {
+        organizationUuid: user.organizationUuid,
         name: 'sapce',
         uuid: 'uuid',
         queries: [],
