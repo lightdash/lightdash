@@ -101,7 +101,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
         };
     }
 
-    async runQuery(sqlText: string): Promise<Record<string, any>[]> {
+    async runQuery(sqlText: string) {
         let connection: Connection;
         try {
             connection = createConnection(this.connectionOptions);
@@ -111,7 +111,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
         }
 
         try {
-            return await new Promise((resolve, reject) => {
+            const results: any[] = await new Promise((resolve, reject) => {
                 connection.execute({
                     sqlText,
                     complete: (err, stmt, data) => {
@@ -119,6 +119,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                             reject(err);
                         }
                         if (data) {
+                            console.log('getColumns', stmt.getColumns());
                             resolve(data);
                         } else {
                             reject(
@@ -130,6 +131,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                     },
                 });
             });
+            return { fields: {}, rows: results };
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         } finally {
@@ -153,7 +155,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
         }[],
     ) {
         const sqlText = 'SHOW COLUMNS IN ACCOUNT';
-        const rows = await this.runQuery(sqlText);
+        const { rows } = await this.runQuery(sqlText);
         return rows.reduce<WarehouseCatalog>((acc, row) => {
             const match = config.find(
                 ({ database, schema, table }) =>

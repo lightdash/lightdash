@@ -91,6 +91,33 @@ const mapFieldType = (type: string): DimensionType => {
     }
 };
 
+const { builtins } = pg.types;
+const convertDataTypeIdToDimensionType = (
+    dataTypeId: number,
+): DimensionType => {
+    switch (dataTypeId) {
+        case builtins.NUMERIC:
+        case builtins.MONEY:
+        case builtins.INT2:
+        case builtins.INT4:
+        case builtins.INT8:
+        case builtins.FLOAT4:
+        case builtins.FLOAT8:
+            return DimensionType.NUMBER;
+        case builtins.DATE:
+            return DimensionType.DATE;
+        case builtins.TIME:
+        case builtins.TIMETZ:
+        case builtins.TIMESTAMP:
+        case builtins.TIMESTAMPTZ:
+            return DimensionType.TIMESTAMP;
+        case builtins.BOOL:
+            return DimensionType.BOOLEAN;
+        default:
+            return DimensionType.STRING;
+    }
+};
+
 export class PostgresClient implements WarehouseClient {
     pool: pg.Pool;
 
@@ -103,10 +130,19 @@ export class PostgresClient implements WarehouseClient {
         }
     }
 
-    async runQuery(sql: string): Promise<Record<string, any>[]> {
+    async runQuery(sql: string) {
         try {
             const results = await this.pool.query(sql); // automatically checkouts client and cleans up
-            return results.rows;
+            const fields = results.fields.reduce(
+                (acc, { name, dataTypeID }) => ({
+                    ...acc,
+                    [name]: {
+                        type: convertDataTypeIdToDimensionType(dataTypeID),
+                    },
+                }),
+                {},
+            );
+            return { fields, rows: results.rows };
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         }
@@ -151,7 +187,7 @@ export class PostgresClient implements WarehouseClient {
               AND table_name IN (${Array.from(tables)})
         `;
 
-        const rows = await this.runQuery(query);
+        const { rows } = await this.runQuery(query);
         const catalog = rows.reduce(
             (
                 acc,

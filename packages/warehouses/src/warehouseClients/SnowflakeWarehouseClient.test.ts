@@ -25,7 +25,9 @@ jest.mock('snowflake-sdk', () => ({
 describe('SnowflakeWarehouseClient', () => {
     it('expect query rows', async () => {
         const warehouse = new SnowflakeWarehouseClient(credentials);
-        expect((await warehouse.runQuery('fake sql'))[0]).toEqual(expectedRow);
+        expect((await warehouse.runQuery('fake sql')).rows[0]).toEqual(
+            expectedRow,
+        );
     });
     it('expect schema with snowflake types mapped to dimension types', async () => {
         (createConnection as jest.Mock).mockImplementationOnce(() => ({

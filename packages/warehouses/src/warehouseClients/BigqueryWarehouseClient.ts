@@ -131,7 +131,7 @@ export class BigqueryWarehouseClient implements WarehouseClient {
         }
     }
 
-    async runQuery(query: string): Promise<Record<string, any>[]> {
+    async runQuery(query: string) {
         try {
             const [job] = await this.client.createQueryJob({
                 query,
@@ -146,8 +146,11 @@ export class BigqueryWarehouseClient implements WarehouseClient {
                     this.credentials.timeoutSeconds * 1000,
             });
             // auto paginate - hides full response
-            const [rows] = await job.getQueryResults({ autoPaginate: true });
-            return parseRows(rows);
+            const [rows, ...many] = await job.getQueryResults({
+                autoPaginate: true,
+            });
+            console.log('many', many);
+            return { fields: {}, rows: parseRows(rows) };
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         }

@@ -107,7 +107,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         this.connectionString = `Driver=${DRIVER_PATH};Server=${serverHostName};HOST=${serverHostName};PORT=${port};SparkServerType=3;Schema=default;ThriftTransport=2;SSL=1;AuthMech=3;UID=token;PWD=${personalAccessToken};HTTPPath=${httpPath};UseNativeQuery=1`;
     }
 
-    async runQuery(sql: string): Promise<Record<string, any>[]> {
+    async runQuery(sql: string) {
         let connection: odbc.Connection;
         try {
             connection = await odbc.connect(this.connectionString);
@@ -115,7 +115,9 @@ export class DatabricksWarehouseClient implements WarehouseClient {
             throw new WarehouseConnectionError(e.message);
         }
         try {
-            return await connection.query<Record<string, any>>(sql);
+            const result = await connection.query<Record<string, any>>(sql);
+            console.log('result', result.columns);
+            return { fields: {}, rows: result };
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         } finally {

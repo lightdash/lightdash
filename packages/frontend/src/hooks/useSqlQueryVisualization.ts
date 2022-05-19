@@ -2,7 +2,6 @@ import {
     ApiQueryResults,
     ChartType,
     CompiledDimension,
-    DimensionType,
     Explore,
     fieldId,
     FieldId,
@@ -10,7 +9,6 @@ import {
     friendlyName,
     SupportedDbtAdapter,
 } from '@lightdash/common';
-import moment from 'moment';
 import { useMemo, useState } from 'react';
 import { useSqlQueryMutation } from './useSqlQuery';
 
@@ -23,20 +21,8 @@ type Args = {
 const useSqlQueryVisualization = ({ sqlQueryMutation: { data } }: Args) => {
     const sqlQueryDimensions: Record<FieldId, CompiledDimension> = useMemo(
         () =>
-            Object.entries((data?.rows || [])[0] || {}).reduce(
-                (acc, [key, value]) => {
-                    let type = DimensionType.STRING;
-                    if (typeof value === 'number' || !isNaN(value)) {
-                        type = DimensionType.NUMBER;
-                    } else if (typeof value === 'boolean') {
-                        type = DimensionType.BOOLEAN;
-                    } else if (
-                        typeof value === 'string' &&
-                        moment(value).isValid()
-                    ) {
-                        type = DimensionType.TIMESTAMP;
-                    }
-
+            Object.entries(data?.fields || []).reduce(
+                (acc, [key, { type }]) => {
                     const dimension: CompiledDimension = {
                         fieldType: FieldType.DIMENSION,
                         type,

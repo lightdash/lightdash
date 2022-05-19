@@ -476,6 +476,7 @@ export type ApiQueryResults = {
 };
 
 export type ApiSqlQueryResults = {
+    fields: Record<string, { type: DimensionType }>;
     rows: { [col: string]: any }[];
 };
 

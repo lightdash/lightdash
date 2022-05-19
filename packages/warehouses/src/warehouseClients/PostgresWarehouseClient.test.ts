@@ -1,10 +1,10 @@
+import { PostgresWarehouseClient } from './PostgresWarehouseClient';
 import { columns, credentials } from './PostgresWarehouseClient.mock';
 import {
     config,
     expectedRow,
     expectedWarehouseSchema,
 } from './WarehouseClient.mock';
-import { PostgresWarehouseClient } from './PostgresWarehouseClient';
 
 jest.mock('pg', () => ({
     ...jest.requireActual('pg'),
@@ -16,7 +16,9 @@ jest.mock('pg', () => ({
 describe('PostgresWarehouseClient', () => {
     it('expect query rows', async () => {
         const warehouse = new PostgresWarehouseClient(credentials);
-        expect((await warehouse.runQuery('fake sql'))[0]).toEqual(expectedRow);
+        expect((await warehouse.runQuery('fake sql')).rows[0]).toEqual(
+            expectedRow,
+        );
     });
     it('expect schema with postgres types mapped to dimension types', async () => {
         const warehouse = new PostgresWarehouseClient(credentials);
