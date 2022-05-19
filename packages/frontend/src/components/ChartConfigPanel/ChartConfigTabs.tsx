@@ -28,7 +28,7 @@ import BasicSeriesConfiguration from './Series/BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './Series/GroupedSeriesConfiguration';
 
 const MinMax = () => {
-    const [isAuto, setIsAuto] = useState<boolean>(false);
+    const [isAuto, setIsAuto] = useState<boolean>(true);
     const [minValue, setMinValue] = useState<string>('');
     const [maxValue, setMaxValue] = useState<string>('');
     return (
@@ -39,7 +39,7 @@ const MinMax = () => {
                 label="Auto y-axis range"
                 onChange={() => setIsAuto((prev) => !prev)}
             />
-            {isAuto && (
+            {!isAuto && (
                 <MinMaxWrapper>
                     <MinMaxInput label="Min">
                         <InputGroup
