@@ -206,6 +206,7 @@ export const defaultProject: OrganizationProject = {
 
 export const spacesWithSavedCharts: Space[] = [
     {
+        organizationUuid: user.organizationUuid,
         name: 'sapce',
         uuid: 'uuid',
         queries: [
