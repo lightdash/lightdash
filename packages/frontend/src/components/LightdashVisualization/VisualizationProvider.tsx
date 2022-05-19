@@ -13,6 +13,7 @@ import React, {
     useContext,
     useEffect,
     useRef,
+    useState,
 } from 'react';
 import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import useCartesianChartConfig from '../../hooks/useCartesianChartConfig';
@@ -70,9 +71,18 @@ export const VisualizationProvider: FC<Props> = ({
 }) => {
     const chartRef = useRef<EChartsReact>(null);
     const { data: explore } = useExplore(tableName);
+
+    const [lastValidResultsData, setLastValidResultsData] =
+        useState<ApiQueryResults>();
+    useEffect(() => {
+        if (!!resultsData) {
+            setLastValidResultsData(resultsData);
+        }
+    }, [resultsData]);
+
     const { validPivotDimensions, setPivotDimensions } = usePivotDimensions(
         initialPivotDimensions,
-        resultsData,
+        lastValidResultsData,
     );
     const setChartType = useCallback(
         (value: ChartType) => {
@@ -85,7 +95,7 @@ export const VisualizationProvider: FC<Props> = ({
         initialChartConfig?.type === ChartType.BIG_NUMBER
             ? initialChartConfig.config
             : undefined,
-        resultsData,
+        lastValidResultsData,
         explore,
     );
 
@@ -96,7 +106,7 @@ export const VisualizationProvider: FC<Props> = ({
             ? initialChartConfig.config
             : undefined,
         validPivotDimensions?.[0],
-        resultsData,
+        lastValidResultsData,
         setPivotDimensions,
     );
 
@@ -105,7 +115,7 @@ export const VisualizationProvider: FC<Props> = ({
     const plotData = usePlottedData(
         explore,
         validCartesianConfig,
-        resultsData,
+        lastValidResultsData,
         validPivotDimensions,
     );
 
@@ -149,9 +159,9 @@ export const VisualizationProvider: FC<Props> = ({
                 chartRef,
                 chartType,
                 explore,
-                originalData: resultsData?.rows || [],
+                originalData: lastValidResultsData?.rows || [],
                 plotData,
-                resultsData,
+                resultsData: lastValidResultsData,
                 isLoading,
                 columnOrder,
                 onSeriesContextMenu,
