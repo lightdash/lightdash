@@ -45,7 +45,7 @@ const normaliseSnowflakeType = (type: string): string => {
     const match = r.exec(type);
     if (match === null) {
         throw new ParseError(
-            `Cannot understand type from Databricks: ${type}`,
+            `Cannot understand type from Snowflake: ${type}`,
             {},
         );
     }
@@ -111,7 +111,10 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
         }
 
         try {
-            const results: any[] = await new Promise((resolve, reject) => {
+            return await new Promise<{
+                fields: Record<string, { type: DimensionType }>;
+                rows: any[];
+            }>((resolve, reject) => {
                 connection.execute({
                     sqlText,
                     complete: (err, stmt, data) => {
@@ -119,8 +122,18 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                             reject(err);
                         }
                         if (data) {
-                            console.log('getColumns', stmt.getColumns());
-                            resolve(data);
+                            const fields = stmt.getColumns().reduce(
+                                (acc, column) => ({
+                                    ...acc,
+                                    [column.getName()]: {
+                                        type: mapFieldType(
+                                            column.getType().toUpperCase(),
+                                        ),
+                                    },
+                                }),
+                                {},
+                            );
+                            resolve({ fields, rows: data });
                         } else {
                             reject(
                                 new WarehouseQueryError(
@@ -131,7 +144,6 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                     },
                 });
             });
-            return { fields: {}, rows: results };
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         } finally {
