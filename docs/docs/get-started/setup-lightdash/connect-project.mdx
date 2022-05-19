@@ -7,8 +7,11 @@ sidebar_label: Connect a project
 
 Once you've [installed Lightdash](./install-lightdash), you can connect to your existing dbt project:
 
+* [connect to a project in dbt Cloud](#dbt-cloud)
 * [connect to a project on GitHub](#github)
 * [connect to a project on Gitlab](#gitlab)
+* [connect to a project in Azure DevOps](#azure-devops)
+* [connect to a project in Bitbucket](#bitbucket)
 * [connect to a project on your local machine](#local-dbt-project) _(only available for local Lightdash installations)_
 
 
@@ -28,9 +31,21 @@ If we don't support the warehouse you're using, don't be afraid to reach out to 
 
 ----
 
+### dbt Cloud
+
+If you're using dbt Cloud, you can just follow the guides for connecting the repository type of your project:
+
+* [GitHub](#github)
+* [Gitlab](#gitlab)
+* [Azure DevOps](#azure-devops)
+* [Bitbucket](#bitbucket)
+
+We don't support connecting Lightdash to [dbt Cloud managed repositories](https://docs.getdbt.com/docs/dbt-cloud/cloud-configuring-dbt-cloud/cloud-using-a-managed-repository). If you'd like to use Lightdash, you'll need to have a remote repository for your dbt project in one of the services above.
+
 ### GitHub
 
 #### Personal access token
+
 This is used to access your repo.
 See the [instructions for creating a personal access token here](https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token).
 
@@ -39,14 +54,17 @@ Select `repo` scope when you're creating the token.
 ![screenshot](../assets/oauth-scope.png)
 
 #### Repository
+
 This should be in the format `my-org/my-repo`. e.g. `lightdash/lightdash-analytics`
 
 #### Branch
+
 This is the branch in your GitHub repo that Lightdash should sync to. e.g. `main`, `master` or `dev`
 
 By default, we've set this to `main` but you can change it to whatever you'd like.
 
 #### Project directory path
+
 This is the folder where your `dbt_project.yml` file is found in the GitHub repository you entered above.
 
 - Put `/` if your `dbt_project.yml` file is in the main folder of your repo (e.g. lightdash/lightdash-analytics/dbt_project.yml)
@@ -102,20 +120,24 @@ So, in Lightdash, I'd add a new environment variable and put `key` as `DBT_USER`
 ### GitLab
 
 #### Personal access token
+
 This is used to access your repo.
 See the [instructions for creating a personal access token here](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html).
 
 Select `read_repository` scope when you're creating the token.
 
 #### Repository
+
 This should be in the format `my-org/my-repo`. e.g. `lightdash/lightdash-analytics`
 
 #### Branch
+
 This is the branch in your GitLab repo that Lightdash should sync to. e.g. `main`, `master` or `dev`
 
 By default, we've set this to `main` but you can change it to whatever you'd like.
 
 #### Project directory path
+
 This is the folder where your `dbt_project.yml` file is found in the GitLab repository you entered above.
 
 If your `dbt_project.yml` file is in the main folder of your repo (e.g. `lightdash/lightdash-analytics/dbt_project.yml`),
@@ -191,11 +213,13 @@ This is the name of the project that owns your repository
 This is the name of the repository. For many projects, this is the same as your project name above.
 
 #### Branch
+
 This is the branch in your repository that Lightdash should sync to. e.g. `main`, `master` or `dev`
 
 By default, we've set this to `main` but you can change it to whatever you'd like.
 
 #### Project directory path
+
 This is the folder where your `dbt_project.yml` file is found in the repository you entered above.
 
 If your `dbt_project.yml` file is in the main folder of your repo (e.g. `lightdash/lightdash-analytics/dbt_project.yml`),
@@ -263,7 +287,7 @@ docker compose start
 
 ----
 
-### BitBucket
+### Bitbucket
 
 #### Username
 
@@ -283,14 +307,17 @@ See the [instructions for creating a http access token here](https://confluence.
 Select `Project read` and `Repository read` scope when you're creating the token.
 
 #### Repository
+
 This should be in the format `my-org/my-repo`. e.g. `lightdash/lightdash-analytics`
 
 #### Branch
+
 This is the branch in your Bitbucket repo that Lightdash should sync to. e.g. `main`, `master` or `dev`
 
 By default, we've set this to `main` but you can change it to whatever you'd like.
 
 #### Project directory path
+
 This is the folder where your `dbt_project.yml` file is found in the Bitbucket repository you entered above.
 
 - Put `/` if your `dbt_project.yml` file is in the main folder of your repo (e.g. lightdash/lightdash-analytics/dbt_project.yml)
@@ -433,6 +460,7 @@ Operation did not complete within the designated timeout.
 To change this timeout, use the `Timeout in seconds` configuration.
 
 #### Priority
+
 The priority for the BigQuery jobs that Lightdash executes can be configured with the `priority` configuration in your Warehouse Connection settings. The `priority` field can be set to one of `batch` or `interactive`. 
 
 For more information on query priority, [check out the BigQuery documentation.](https://cloud.google.com/bigquery/docs/running-queries)
@@ -519,10 +547,12 @@ This specifies the amount of seconds with no network activity after which the op
 You can see more details in [postgresqlco documentation](https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/).
 
 #### Search path
+
 This controls the Postgres "search path".
 You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#search_path).
 
 #### SSL mode
+
 This controls how dbt connects to Postgres databases using SSL.
 You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode).
 
