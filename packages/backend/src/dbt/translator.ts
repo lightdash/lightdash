@@ -1,4 +1,3 @@
-import { getLocationForJsonPath, parseWithPointers } from '@stoplight/yaml';
 import {
     convertMetric,
     DbtError,
@@ -23,11 +22,12 @@ import {
     Source,
     SupportedDbtAdapter,
     Table,
-} from 'common';
+} from '@lightdash/common';
+import { WarehouseCatalog } from '@lightdash/warehouses';
+import { getLocationForJsonPath, parseWithPointers } from '@stoplight/yaml';
 import { DepGraph } from 'dependency-graph';
 import * as fs from 'fs';
 import { compileExplore } from '../exploreCompiler';
-import { WarehouseCatalog } from '../types';
 
 const patchPathParts = (patchPath: string) => {
     const [project, ...rest] = patchPath.split('://');
@@ -626,10 +626,9 @@ export const attachTypesToModels = (
 
 export const getSchemaStructureFromDbtModels = (
     dbtModels: DbtModelNode[],
-): { database: string; schema: string; table: string; columns: string[] }[] =>
-    dbtModels.map(({ database, schema, name, columns }) => ({
+): { database: string; schema: string; table: string }[] =>
+    dbtModels.map(({ database, schema, name }) => ({
         database,
         schema,
         table: name,
-        columns: Object.keys(columns),
     }));

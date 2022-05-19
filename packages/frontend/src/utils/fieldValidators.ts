@@ -1,4 +1,4 @@
-import { validateEmail } from 'common';
+import { validateEmail } from '@lightdash/common';
 
 type FieldValidator<T> = (
     fieldName: string,

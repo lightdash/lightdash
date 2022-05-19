@@ -1,6 +1,6 @@
 import { Button, MenuItem } from '@blueprintjs/core';
 import { ItemRenderer, Select } from '@blueprintjs/select';
-import { UnitOfTime } from 'common';
+import { UnitOfTime } from '@lightdash/common';
 import React, { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
 

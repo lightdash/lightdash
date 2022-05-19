@@ -10,7 +10,7 @@ import {
     isSeriesWithMixedChartTypes,
     Series,
     TableCalculation,
-} from 'common';
+} from '@lightdash/common';
 import React, { FC, useMemo } from 'react';
 import {
     GroupedSeriesConfigWrapper,

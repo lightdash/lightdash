@@ -1,5 +1,5 @@
 import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
-import { ProjectCatalog } from 'common';
+import { ProjectCatalog } from '@lightdash/common';
 import { useMemo } from 'react';
 
 export type ProjectCatalogTreeNode = TreeNodeInfo<

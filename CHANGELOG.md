@@ -1,3 +1,60 @@
+## [0.109.1](https://github.com/lightdash/lightdash/compare/0.109.0...0.109.1) (2022-05-19)
+
+
+### Bug Fixes
+
+* remove column filters from catalog ([#2166](https://github.com/lightdash/lightdash/issues/2166)) ([508fef4](https://github.com/lightdash/lightdash/commit/508fef423103326aeb91742bd6ffff8c60171e94))
+
+# [0.109.0](https://github.com/lightdash/lightdash/compare/0.108.2...0.109.0) (2022-05-19)
+
+
+### Features
+
+* rename bar chart for coumn chart ([#2161](https://github.com/lightdash/lightdash/issues/2161)) ([a13a904](https://github.com/lightdash/lightdash/commit/a13a9043abd58b07d3c1f1f4fa72dee9e58f34cd))
+
+## [0.108.2](https://github.com/lightdash/lightdash/compare/0.108.1...0.108.2) (2022-05-19)
+
+
+### Bug Fixes
+
+* release cli on merge ([#2165](https://github.com/lightdash/lightdash/issues/2165)) ([f1589c9](https://github.com/lightdash/lightdash/commit/f1589c9dfc989b2e405f2258d7920bddc4481522))
+
+## [0.108.1](https://github.com/lightdash/lightdash/compare/0.108.0...0.108.1) (2022-05-19)
+
+
+### Bug Fixes
+
+* add npm token to workflow ([#2164](https://github.com/lightdash/lightdash/issues/2164)) ([5d7e9bf](https://github.com/lightdash/lightdash/commit/5d7e9bfcf7a4a55fa8f8cfa1e6415356c87849f4))
+* publish common packages ([#2162](https://github.com/lightdash/lightdash/issues/2162)) ([d2aba77](https://github.com/lightdash/lightdash/commit/d2aba77cc4a820df0f7df55690dad7e5567d0361))
+
+# [0.108.0](https://github.com/lightdash/lightdash/compare/0.107.0...0.108.0) (2022-05-18)
+
+
+### Features
+
+* update sql runner page with new subheader ([#2146](https://github.com/lightdash/lightdash/issues/2146)) ([7cab012](https://github.com/lightdash/lightdash/commit/7cab0123be864b010f3b61d41583a50f647f599d))
+
+# [0.107.0](https://github.com/lightdash/lightdash/compare/0.106.2...0.107.0) (2022-05-18)
+
+
+### Features
+
+* update bar chart with horizontal bar chart ([#2155](https://github.com/lightdash/lightdash/issues/2155)) ([c120e05](https://github.com/lightdash/lightdash/commit/c120e050d2bdb2ac57898dc6dc06260b4cf4ae6e))
+
+## [0.106.2](https://github.com/lightdash/lightdash/compare/0.106.1...0.106.2) (2022-05-18)
+
+
+### Bug Fixes
+
+* remove hover state from metrics/dimensions label ([#2154](https://github.com/lightdash/lightdash/issues/2154)) ([08d2356](https://github.com/lightdash/lightdash/commit/08d235625244d8622b9b58e0e67e830e60ac0a25))
+
+## [0.106.1](https://github.com/lightdash/lightdash/compare/0.106.0...0.106.1) (2022-05-18)
+
+
+### Bug Fixes
+
+* update typo in tables configuration ([#2151](https://github.com/lightdash/lightdash/issues/2151)) ([4bb4c94](https://github.com/lightdash/lightdash/commit/4bb4c948efa54de140dbb3b8322dd094787f4841))
+
 # [0.106.0](https://github.com/lightdash/lightdash/compare/0.105.2...0.106.0) (2022-05-18)
 
 

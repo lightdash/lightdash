@@ -9,7 +9,7 @@ import {
     isDashboardVersionedFields,
     SessionUser,
     UpdateDashboard,
-} from 'common';
+} from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytics';
 import database from '../../database/database';

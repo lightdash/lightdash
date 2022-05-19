@@ -2,7 +2,7 @@ import {
     CreateWarehouseCredentials,
     UnexpectedServerError,
     WarehouseTypes,
-} from 'common';
+} from '@lightdash/common';
 import { WarehouseClient } from './types';
 import { BigqueryWarehouseClient } from './warehouseClients/BigqueryWarehouseClient';
 import { DatabricksWarehouseClient } from './warehouseClients/DatabricksWarehouseClient';

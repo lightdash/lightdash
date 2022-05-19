@@ -1,4 +1,8 @@
-import { DbtManifest, DbtPackages, DbtRpcDocsGenerateResults } from 'common';
+import {
+    DbtManifest,
+    DbtPackages,
+    DbtRpcDocsGenerateResults,
+} from '@lightdash/common';
 import { ExecaError, ExecaReturnValue } from 'execa';
 
 export const cliArgs = {

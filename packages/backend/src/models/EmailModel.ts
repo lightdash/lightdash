@@ -1,4 +1,4 @@
-import { NotFoundError } from 'common';
+import { NotFoundError } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DbEmailIn, DbEmailRemove } from '../database/entities/emails';
 

@@ -1,12 +1,12 @@
-import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
-import * as Util from 'util';
 import {
     CreateSnowflakeCredentials,
     DimensionType,
     ParseError,
     WarehouseConnectionError,
     WarehouseQueryError,
-} from 'common';
+} from '@lightdash/common';
+import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
+import * as Util from 'util';
 import { WarehouseCatalog, WarehouseClient } from '../types';
 
 export enum SnowflakeTypes {
@@ -150,7 +150,6 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
             database: string;
             schema: string;
             table: string;
-            columns: string[];
         }[],
     ) {
         const sqlText = 'SHOW COLUMNS IN ACCOUNT';
@@ -163,17 +162,15 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                     schema.toLowerCase() === row.schema_name.toLowerCase() &&
                     table.toLowerCase() === row.table_name.toLowerCase(),
             );
-            const columnMatch = match?.columns.find(
-                (name) => name.toLowerCase() === row.column_name.toLowerCase(),
-            );
-            if (row.kind === 'COLUMN' && !!match && !!columnMatch) {
+            if (row.kind === 'COLUMN' && !!match) {
                 acc[match.database] = acc[match.database] || {};
                 acc[match.database][match.schema] =
                     acc[match.database][match.schema] || {};
                 acc[match.database][match.schema][match.table] =
                     acc[match.database][match.schema][match.table] || {};
-                acc[match.database][match.schema][match.table][columnMatch] =
-                    mapFieldType(JSON.parse(row.data_type).type);
+                acc[match.database][match.schema][match.table][
+                    row.column_name
+                ] = mapFieldType(JSON.parse(row.data_type).type);
             }
             return acc;
         }, {});

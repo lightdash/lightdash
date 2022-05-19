@@ -4,7 +4,7 @@ import {
     ParseError,
     WarehouseConnectionError,
     WarehouseQueryError,
-} from 'common';
+} from '@lightdash/common';
 import odbc, { Result } from 'odbc';
 import { WarehouseCatalog, WarehouseClient } from '../types';
 
@@ -132,7 +132,6 @@ export class DatabricksWarehouseClient implements WarehouseClient {
             database: string;
             schema: string;
             table: string;
-            columns: string[];
         }[],
     ) {
         let pool: odbc.Pool;

@@ -1,4 +1,4 @@
-import { OrganizationMemberRole } from 'common';
+import { OrganizationMemberRole } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const OrganizationMembershipsTableName = 'organization_memberships';

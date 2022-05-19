@@ -31,7 +31,12 @@ code {
     white-space: normal;
 }
 
-.bp4-tree-node-content-1:hover,
+/* When there is a join tables remove hove state from the first item of the treeNode */
+.bp4-tree-node .bp4-tree-node-expanded .bp4-tree-node-content-1:hover {
+    background: none;
+    cursor: auto;
+}
+
 .bp4-tree-node-content-2:hover {
     background: rgba(143, 153, 168, 0.15);
     cursor: pointer;

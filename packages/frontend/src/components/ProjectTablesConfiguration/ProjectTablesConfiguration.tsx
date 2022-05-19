@@ -9,7 +9,7 @@ import {
     Radio,
     Text,
 } from '@blueprintjs/core';
-import { hasIntersection, TableSelectionType } from 'common';
+import { hasIntersection, TableSelectionType } from '@lightdash/common';
 import React, { FC, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';

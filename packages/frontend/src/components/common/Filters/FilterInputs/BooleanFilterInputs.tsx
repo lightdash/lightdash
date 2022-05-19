@@ -1,5 +1,5 @@
 import { HTMLSelect } from '@blueprintjs/core';
-import { FilterOperator } from 'common';
+import { FilterOperator } from '@lightdash/common';
 import React, { FC } from 'react';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 

@@ -1,4 +1,4 @@
-import { DimensionType, Field, TableCalculation } from 'common';
+import { DimensionType, Field, TableCalculation } from '@lightdash/common';
 import {
     UseColumnOrderInstanceProps,
     UseColumnOrderState,

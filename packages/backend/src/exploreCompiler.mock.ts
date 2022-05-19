@@ -5,7 +5,7 @@ import {
     MetricType,
     Source,
     SupportedDbtAdapter,
-} from 'common';
+} from '@lightdash/common';
 import { UncompiledExplore } from './exploreCompiler';
 
 const sourceMock: Source = {

@@ -1,4 +1,4 @@
-import { ApiError, DeleteOpenIdentity } from 'common';
+import { ApiError, DeleteOpenIdentity } from '@lightdash/common';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
 import { useApp } from '../../providers/AppProvider';

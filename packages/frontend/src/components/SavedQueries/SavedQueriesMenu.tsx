@@ -7,7 +7,7 @@ import {
     MenuItem,
     Text,
 } from '@blueprintjs/core';
-import { Space } from 'common';
+import { Space } from '@lightdash/common';
 import React, { Dispatch, SetStateAction } from 'react';
 
 type SavedQueriesMenuProps = {

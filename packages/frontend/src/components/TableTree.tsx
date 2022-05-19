@@ -26,7 +26,7 @@ import {
     Metric,
     MetricType,
     Source,
-} from 'common';
+} from '@lightdash/common';
 import Fuse from 'fuse.js';
 import React, { FC, ReactNode, useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';

@@ -7,7 +7,7 @@ import {
     TablesConfiguration,
     TableSelectionType,
     WarehouseTypes,
-} from 'common';
+} from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { ProjectTable } from '../../database/entities/projects';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';

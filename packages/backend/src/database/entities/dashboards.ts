@@ -1,4 +1,4 @@
-import { DashboardFilters, DashboardTileTypes } from 'common';
+import { DashboardFilters, DashboardTileTypes } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const DashboardsTableName = 'dashboards';

@@ -7,7 +7,7 @@ import {
     MetricQuery,
     ProjectCatalog,
     TablesConfiguration,
-} from 'common';
+} from '@lightdash/common';
 import express from 'express';
 import {
     isAuthenticated,

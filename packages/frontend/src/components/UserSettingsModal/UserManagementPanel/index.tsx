@@ -1,5 +1,8 @@
 import { Button, ButtonGroup, Classes, Dialog } from '@blueprintjs/core';
-import { OrganizationMemberProfile, OrganizationMemberRole } from 'common';
+import {
+    OrganizationMemberProfile,
+    OrganizationMemberRole,
+} from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import {
     useDeleteUserMutation,

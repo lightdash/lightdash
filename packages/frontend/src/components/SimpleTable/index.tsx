@@ -7,7 +7,7 @@ import {
     getResultValues,
     isNumericItem,
     TableCalculation,
-} from 'common';
+} from '@lightdash/common';
 import React, { FC, useMemo } from 'react';
 import { mapDataToTable } from '../../utils/tableData';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';

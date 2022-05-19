@@ -1,5 +1,5 @@
 import { AnchorButton } from '@blueprintjs/core';
-import { SpaceQuery } from 'common';
+import { SpaceQuery } from '@lightdash/common';
 import React, { FC } from 'react';
 import {
     useDeleteMutation,

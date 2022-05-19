@@ -19,7 +19,7 @@ import {
     MetricType,
     UnitOfTime,
     unitOfTimeFormat,
-} from 'common';
+} from '@lightdash/common';
 import moment from 'moment';
 import { getQuoteChar, parseAllReferences } from './exploreCompiler';
 

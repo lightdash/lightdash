@@ -4,7 +4,7 @@ import {
     Organisation,
     OrganizationMemberRole,
     SessionUser,
-} from 'common';
+} from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 
 export const user: SessionUser = {

@@ -1,6 +1,6 @@
 {
   "name": "lightdash",
-  "version": "0.106.0",
+  "version": "0.109.1",
   "main": "index.js",
   "license": "MIT",
   "private": true,
@@ -17,10 +17,10 @@
     "lint-staged": "^12.1.2"
   },
   "scripts": {
-    "common-build": "yarn workspace common build",
-    "common-lint": "yarn workspace common lint",
-    "common-format": "yarn workspace common format",
-    "common-test": "yarn workspace common test",
+    "common-build": "yarn workspace @lightdash/common build",
+    "common-lint": "yarn workspace @lightdash/common lint",
+    "common-format": "yarn workspace @lightdash/common format",
+    "common-test": "yarn workspace @lightdash/common test",
     "backend-dev": "yarn workspace backend dev",
     "backend-build": "yarn workspace backend build",
     "backend-start": "yarn workspace backend start",
@@ -59,8 +59,8 @@
       "yarn workspace backend eslint --fix"
     ],
     "packages/common/src/**/*.(ts|tsx|json)": [
-      "yarn workspace common prettier --write --ignore-unknown",
-      "yarn workspace common eslint --fix"
+      "yarn workspace @lightdash/common prettier --write --ignore-unknown",
+      "yarn workspace @lightdash/common eslint --fix"
     ],
     "packages/e2e/cypress/**/*.(ts|json)": [
       "yarn workspace e2e prettier --write --ignore-unknown",

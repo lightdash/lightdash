@@ -1,5 +1,5 @@
 import { Colors } from '@blueprintjs/core';
-import { getResultValues } from 'common';
+import { getResultValues } from '@lightdash/common';
 import React from 'react';
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';

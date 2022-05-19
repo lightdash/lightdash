@@ -1,6 +1,7 @@
-import { Explore, ExploreError } from 'common';
+import { Explore, ExploreError } from '@lightdash/common';
+import { WarehouseClient } from '@lightdash/warehouses';
 import { DbtCloudV2RpcClient } from '../dbt/dbtCloudV2RpcClient';
-import { CachedWarehouse, WarehouseClient } from '../types';
+import { CachedWarehouse } from '../types';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
 type DbtCloudideProjectAdapterArgs = {

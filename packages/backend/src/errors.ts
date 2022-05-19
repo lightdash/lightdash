@@ -1,4 +1,4 @@
-import { LightdashError, UnexpectedServerError } from 'common';
+import { LightdashError, UnexpectedServerError } from '@lightdash/common';
 import { HttpError } from 'express-openapi-validator/dist/framework/types';
 
 export const errorHandler = (error: Error): LightdashError => {

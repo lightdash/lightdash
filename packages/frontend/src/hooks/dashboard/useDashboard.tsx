@@ -6,7 +6,7 @@ import {
     DashboardTileTypes,
     FilterableField,
     UpdateDashboard,
-} from 'common';
+} from '@lightdash/common';
 import { useMemo, useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from 'react-query';
 import { UseQueryResult } from 'react-query/types/react/types';

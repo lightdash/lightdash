@@ -1,4 +1,4 @@
-import { ApiError } from 'common';
+import { ApiError } from '@lightdash/common';
 import React, { Dispatch, SetStateAction, useEffect } from 'react';
 import { UseMutationResult } from 'react-query';
 import ActionModal, { ActionModalProps } from './ActionModal';

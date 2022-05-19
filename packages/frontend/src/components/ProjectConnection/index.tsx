@@ -4,7 +4,7 @@ import {
     DbtProjectConfig,
     friendlyName,
     ProjectType,
-} from 'common';
+} from '@lightdash/common';
 import React, { FC, useEffect } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';

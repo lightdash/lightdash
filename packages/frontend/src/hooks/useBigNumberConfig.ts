@@ -7,7 +7,7 @@ import {
     friendlyName,
     getFieldLabel,
     isNumericItem,
-} from 'common';
+} from '@lightdash/common';
 import { useEffect, useMemo, useState } from 'react';
 
 const useBigNumberConfig = (

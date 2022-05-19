@@ -1,4 +1,4 @@
-import { CompiledMetricQuery, CompileError } from 'common';
+import { CompiledMetricQuery, CompileError } from '@lightdash/common';
 import { compileMetricQuery } from './queryCompiler';
 import {
     EXPLORE,

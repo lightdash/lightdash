@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v2
       # Install and build Common package
       - name: Install packages/common modules
-        run: yarn workspace common install
+        run: yarn workspace @lightdash/common install
       - name: Build packages/common module
         run: yarn common-build && yarn warehouses-build
       # Install NPM dependencies, cache them correctly

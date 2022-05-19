@@ -1,4 +1,4 @@
-import { SpaceQuery } from 'common';
+import { SpaceQuery } from '@lightdash/common';
 import React from 'react';
 import {
     useDeleteMutation,

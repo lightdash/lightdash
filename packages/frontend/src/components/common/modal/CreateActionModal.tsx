@@ -1,5 +1,5 @@
 import { Intent } from '@blueprintjs/core';
-import { ApiError } from 'common';
+import { ApiError } from '@lightdash/common';
 import React, { useEffect, useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { UseMutationResult } from 'react-query';

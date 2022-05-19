@@ -12,7 +12,7 @@ import {
     DimensionType,
     WarehouseConnectionError,
     WarehouseQueryError,
-} from 'common';
+} from '@lightdash/common';
 import {
     WarehouseCatalog,
     WarehouseClient,
@@ -170,7 +170,6 @@ export class BigqueryWarehouseClient implements WarehouseClient {
             database: string;
             schema: string;
             table: string;
-            columns: string[];
         }[],
     ) {
         const databaseClients: { [client: string]: BigQuery } = {};

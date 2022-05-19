@@ -1,4 +1,8 @@
-import { ApiError, OrganizationMemberProfile, SessionUser } from 'common';
+import {
+    ApiError,
+    OrganizationMemberProfile,
+    SessionUser,
+} from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';

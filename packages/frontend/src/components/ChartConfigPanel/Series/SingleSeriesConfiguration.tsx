@@ -1,5 +1,9 @@
 import { Button, InputGroup } from '@blueprintjs/core';
-import { CartesianChartLayout, CartesianSeriesType, Series } from 'common';
+import {
+    CartesianChartLayout,
+    CartesianSeriesType,
+    Series,
+} from '@lightdash/common';
 import React, { FC } from 'react';
 import {
     SeriesExtraInputs,

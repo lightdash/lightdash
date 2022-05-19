@@ -1,4 +1,4 @@
-import { LightdashInstallType, LightdashMode } from 'common';
+import { LightdashInstallType, LightdashMode } from '@lightdash/common';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { organizationModel } from '../../models/models';
 import { HealthService } from './HealthService';

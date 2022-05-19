@@ -13,7 +13,8 @@ import {
     UnexpectedServerError,
     UpdateProject,
     WarehouseCredentials,
-} from 'common';
+} from '@lightdash/common';
+import { WarehouseCatalog } from '@lightdash/warehouses';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationTableName } from '../../database/entities/organizations';
@@ -26,7 +27,6 @@ import {
 } from '../../database/entities/projects';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
-import { WarehouseCatalog } from '../../types';
 import Transaction = Knex.Transaction;
 
 type ProjectModelDependencies = {

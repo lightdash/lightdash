@@ -1,4 +1,4 @@
-import { ApiError, TablesConfiguration } from 'common';
+import { ApiError, TablesConfiguration } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';

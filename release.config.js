@@ -25,7 +25,7 @@ module.exports = {
             pkgRoot: ".",
           },
           common: {
-            npmPublish: false,
+            npmPublish: true,
             pkgRoot: "packages/common",
           },
           backend: {
@@ -40,13 +40,13 @@ module.exports = {
             npmPublish: false,
             pkgRoot: "packages/e2e",
           },
-          cli: {
-            npmPublish: false,
-            pkgRoot: "packages/cli",
-          },
           warehouses: {
-            npmPublish: false,
+            npmPublish: true,
             pkgRoot: "packages/warehouses",
+          },
+          cli: {
+            npmPublish: true,
+            pkgRoot: "packages/cli",
           },
         },
       },
@@ -62,8 +62,8 @@ module.exports = {
               "packages/frontend/package.json",
               "packages/warehouses/package.json",
             ],
-            from: '"common": "\\^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?"',
-            to: '"common": "^${nextRelease.version}"',
+            from: '"@lightdash/common": "\\^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?"',
+            to: '"@lightdash/common": "^${nextRelease.version}"',
             results: [
               {
                 file: "packages/backend/package.json",

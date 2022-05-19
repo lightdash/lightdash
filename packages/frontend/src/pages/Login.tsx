@@ -5,7 +5,8 @@ import {
     LightdashUser,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
-} from 'common';
+} from '@lightdash/common';
+
 import React, { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation } from 'react-query';

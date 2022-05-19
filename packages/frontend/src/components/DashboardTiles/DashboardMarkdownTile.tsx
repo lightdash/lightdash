@@ -1,5 +1,5 @@
+import { DashboardMarkdownTile } from '@lightdash/common';
 import MDEditor from '@uiw/react-md-editor';
-import { DashboardMarkdownTile } from 'common';
 import React, { FC } from 'react';
 import TileBase from './TileBase/index';
 

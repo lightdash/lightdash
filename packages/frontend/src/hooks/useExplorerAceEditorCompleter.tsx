@@ -8,7 +8,7 @@ import {
     fieldId,
     getFieldRef,
     Metric,
-} from 'common';
+} from '@lightdash/common';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useExplore } from './useExplore';

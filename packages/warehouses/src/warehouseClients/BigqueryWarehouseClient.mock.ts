@@ -1,5 +1,5 @@
 import { BigQueryDate, BigQueryTimestamp } from '@google-cloud/bigquery';
-import { CreateBigqueryCredentials, WarehouseTypes } from 'common';
+import { CreateBigqueryCredentials, WarehouseTypes } from '@lightdash/common';
 import { BigqueryFieldType } from './BigqueryWarehouseClient';
 
 export const credentials: CreateBigqueryCredentials = {

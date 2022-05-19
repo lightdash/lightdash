@@ -1,5 +1,5 @@
 import { Button, Intent } from '@blueprintjs/core';
-import { ApiError } from 'common';
+import { ApiError } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
 import { useMutation } from 'react-query';
 import { lightdashApi } from '../../../api';

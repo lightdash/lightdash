@@ -1,4 +1,4 @@
-import { CreateInviteLink } from 'common';
+import { CreateInviteLink } from '@lightdash/common';
 import express from 'express';
 import {
     isAuthenticated,

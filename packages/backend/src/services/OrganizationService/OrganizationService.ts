@@ -9,7 +9,7 @@ import {
     OrganizationMemberProfileUpdate,
     OrganizationProject,
     SessionUser,
-} from 'common';
+} from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { InviteLinkModel } from '../../models/InviteLinkModel';

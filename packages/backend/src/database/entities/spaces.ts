@@ -1,4 +1,4 @@
-import { NotFoundError, Space } from 'common';
+import { NotFoundError, Space } from '@lightdash/common';
 import { Knex } from 'knex';
 import database from '../database';
 

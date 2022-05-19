@@ -1,4 +1,4 @@
-import {DimensionType} from "common";
+import { DimensionType } from '@lightdash/common';
 
 export type WarehouseTableSchema = {
     [column: string]: DimensionType;
@@ -17,7 +17,6 @@ export interface WarehouseClient {
             database: string;
             schema: string;
             table: string;
-            columns: string[];
         }[],
     ) => Promise<WarehouseCatalog>;
 
@@ -25,8 +24,3 @@ export interface WarehouseClient {
 
     test(): Promise<void>;
 }
-
-export type CachedWarehouse = {
-    warehouseCatalog: WarehouseCatalog | undefined;
-    onWarehouseCatalogChange: (warehouseCatalog: WarehouseCatalog) => void;
-};

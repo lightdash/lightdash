@@ -6,9 +6,9 @@ In Lightdash, the data in your results tables can be visualized in a bunch of di
 
 - [Big Number](#big-number)
 - [Table](#table)
-- [Column chart](#column-chart)
-- [Line chart](#line-chart)
 - [Bar chart](#bar-chart)
+- [Line chart](#line-chart)
+- [Horizontal bar chart](#horizontal-bar-chart)
 - [Scatter chart](#scatter-chart)
 - [Mixed chart](#mixed-chart)
 
@@ -44,17 +44,17 @@ The Table option is good for looking at (surprise, surprise) tabular data, or fo
 
 ![table chart](./assets/table-chart.png)
 
-### Column chart
+### Bar chart
 
-Column charts are helpful to compare things between different groups (e.g. the number of orders you have by product type) or to track how a number changes over time if you have a smaller number of x-axis values (e.g. number of new users per month over a year). 
+Bar charts are helpful to compare things between different groups (e.g. the number of orders you have by product type) or to track how a number changes over time if you have a smaller number of x-axis values (e.g. number of new users per month over a year). 
 
-![column chart](./assets/column-chart.png)
+![bar chart](./assets/column-chart.png)
 
 You can also stack column graphs to compare proportions across different groups.
 
-![stacked column chart](./assets/stacked-column-chart.png)
+![stacked bar chart](./assets/stacked-column-chart.png)
 
-You can see more details about column chart configurations [here](#configure-your-bar-line-and-scatter-charts).
+You can see more details about bar chart configurations [here](#configure-your-bar-line-and-scatter-charts).
 
 ### Line chart
 
@@ -68,13 +68,13 @@ Line charts with multiple lines can also be used to compare changes over the sam
 
 You can see more details about line chart configurations [here](#configure-your-bar-line-and-scatter-charts).
 
-### Bar chart
+### Horizontal bar chart
 
-Bar charts are just column charts, except the columns are placed on the chart horizontally instead of vertically. Bar charts are useful when you're trying to group a number by something with a lot of possible values. They're also useful if your groups have really long label names.
+Horizontal bar charts are just bar charts, except the columns are placed on the chart horizontally instead of vertically. Horizontal bar charts are useful when you're trying to group a number by something with a lot of possible values. They're also useful if your groups have really long label names.
 
-![bar chart](./assets/bar-chart.png)
+![horizontal bar chart](./assets/bar-chart.png)
 
-You can see more details about bar chart configurations [here](#configure-your-bar-line-and-scatter-charts).
+You can see more details about horizontal bar chart configurations [here](#configure-your-bar-line-and-scatter-charts).
 
 ### Scatter chart
 
@@ -94,7 +94,7 @@ You can combine bars, line, and scatter charts on the same chart using a Mixed c
 
 ![mixed chart](./assets/mixed-chart.png)
 
-To use a Mixed chart, you'll need to start with either a line, scatter or bar chart type and have two or more series on your chart. Either from having two or more fields selected for your y-axis or from having a group with two or more groups.
+To use a Mixed chart, you'll need to start with either a line, scatter or horizontal bar chart type and have two or more series on your chart. Either from having two or more fields selected for your y-axis or from having a group with two or more groups.
 
 Once you have the series you want on your chart, you can pick and choose the different chart types you'd like for each series in the `series` tab of the `Configure` space.
 

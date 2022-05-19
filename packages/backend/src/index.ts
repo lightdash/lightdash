@@ -1,9 +1,9 @@
+import { LightdashMode, SessionUser } from '@lightdash/common';
+import apiSpec from '@lightdash/common/dist/openapibundle.json';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
 import { SamplingContext } from '@sentry/types';
 import bodyParser from 'body-parser';
-import { LightdashMode, SessionUser } from 'common';
-import apiSpec from 'common/dist/openapibundle.json';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
 import cookieParser from 'cookie-parser';

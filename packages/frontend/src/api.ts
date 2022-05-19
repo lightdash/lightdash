@@ -1,4 +1,4 @@
-import { ApiError, ApiResponse } from 'common';
+import { ApiError, ApiResponse } from '@lightdash/common';
 
 const apiPrefix = '/api/v1';
 

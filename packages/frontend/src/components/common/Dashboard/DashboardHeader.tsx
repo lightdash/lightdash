@@ -1,6 +1,6 @@
 import { Button, Intent } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { Dashboard } from 'common';
+import { Dashboard } from '@lightdash/common';
 import React, { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';

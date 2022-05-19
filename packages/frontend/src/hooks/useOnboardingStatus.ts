@@ -1,4 +1,8 @@
-import { ApiError, OnboardingStatus, ProjectSavedChartStatus } from 'common';
+import {
+    ApiError,
+    OnboardingStatus,
+    ProjectSavedChartStatus,
+} from '@lightdash/common';
 import { useMutation, useQuery } from 'react-query';
 import { lightdashApi } from '../api';
 

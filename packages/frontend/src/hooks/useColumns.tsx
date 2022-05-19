@@ -6,7 +6,7 @@ import {
     isDimension,
     Metric,
     SortField,
-} from 'common';
+} from '@lightdash/common';
 import React, { FC, useMemo } from 'react';
 import { Column } from 'react-table';
 import { useExplorer } from '../providers/ExplorerProvider';

@@ -6,7 +6,7 @@ import {
     FilterOperator,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
-} from 'common';
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';

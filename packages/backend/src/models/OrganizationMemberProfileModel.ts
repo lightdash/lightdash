@@ -2,7 +2,7 @@ import {
     NotFoundError,
     OrganizationMemberProfile,
     OrganizationMemberProfileUpdate,
-} from 'common';
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { DbEmail, EmailTableName } from '../database/entities/emails';
 import {

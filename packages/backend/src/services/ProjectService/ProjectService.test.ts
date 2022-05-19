@@ -1,4 +1,4 @@
-import { NotFoundError, SessionUser } from 'common';
+import { NotFoundError, SessionUser } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import {
     jobModel,

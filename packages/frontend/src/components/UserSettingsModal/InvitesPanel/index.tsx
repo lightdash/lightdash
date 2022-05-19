@@ -1,5 +1,5 @@
 import { Button, Callout, FormGroup, InputGroup } from '@blueprintjs/core';
-import { formatTimestamp } from 'common';
+import { formatTimestamp } from '@lightdash/common';
 import React, { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import {

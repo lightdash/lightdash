@@ -1,6 +1,6 @@
 import { Button } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import { ChartType } from 'common';
+import { ChartType } from '@lightdash/common';
 import React, { useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import ChartConfigTabs from './ChartConfigTabs';

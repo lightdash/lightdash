@@ -9,7 +9,7 @@ import {
     getItemsFromFilterGroup,
     isAndFilterGroup,
     isFilterRule,
-} from 'common';
+} from '@lightdash/common';
 import React, { FC, useCallback } from 'react';
 import {
     FilterGroupHeader,

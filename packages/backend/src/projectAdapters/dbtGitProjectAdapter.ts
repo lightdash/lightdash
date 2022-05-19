@@ -4,7 +4,8 @@ import {
     DbtProjectEnvironmentVariable,
     UnexpectedGitError,
     UnexpectedServerError,
-} from 'common';
+} from '@lightdash/common';
+import { WarehouseClient } from '@lightdash/warehouses';
 import * as fspromises from 'fs-extra';
 import * as path from 'path';
 import simpleGit, {
@@ -14,7 +15,7 @@ import simpleGit, {
 } from 'simple-git';
 import tempy from 'tempy';
 import Logger from '../logger';
-import { CachedWarehouse, WarehouseClient } from '../types';
+import { CachedWarehouse } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 
 export type DbtGitProjectAdapterArgs = {

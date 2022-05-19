@@ -17,7 +17,7 @@ import {
     PasswordReset,
     SessionUser,
     UpdateUserArgs,
-} from 'common';
+} from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import { analytics, identifyUser } from '../analytics/client';
 import EmailClient from '../clients/EmailClient/EmailClient';

@@ -4,7 +4,7 @@ import {
     CartesianSeriesType,
     ChartType,
     isSeriesWithMixedChartTypes,
-} from 'common';
+} from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import {
@@ -48,11 +48,11 @@ const VisualizationCardOptions: FC = () => {
                     case CartesianSeriesType.BAR:
                         return cartesianFlipAxis
                             ? {
-                                  text: 'Bar chart',
+                                  text: 'Horizontal bar chart',
                                   icon: 'horizontal-bar-chart',
                               }
                             : {
-                                  text: 'Column chart',
+                                  text: 'Bar chart',
                                   icon: 'timeline-bar-chart',
                               };
                     case CartesianSeriesType.SCATTER:
@@ -107,7 +107,7 @@ const VisualizationCardOptions: FC = () => {
                         }}
                         disabled={disabled}
                         name="Column"
-                        text="Column chart"
+                        text="Bar chart"
                     />
 
                     <ChartOption
@@ -129,7 +129,7 @@ const VisualizationCardOptions: FC = () => {
                         }}
                         disabled={disabled}
                         name="Bar"
-                        text="Bar chart"
+                        text="Horizontal bar chart"
                     />
 
                     <ChartOption

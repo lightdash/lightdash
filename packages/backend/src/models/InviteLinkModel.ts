@@ -1,4 +1,4 @@
-import { InviteLink, NotExistsError } from 'common';
+import { InviteLink, NotExistsError } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import { URL } from 'url';

@@ -1,8 +1,9 @@
 import {
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
-} from 'common';
-import { CachedWarehouse, WarehouseClient } from '../types';
+} from '@lightdash/common';
+import { WarehouseClient } from '@lightdash/warehouses';
+import { CachedWarehouse } from '../types';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 
 const DEFAULT_GITHUB_HOST_DOMAIN = 'github.com';

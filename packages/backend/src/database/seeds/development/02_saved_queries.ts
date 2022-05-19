@@ -3,7 +3,7 @@ import {
     ChartType,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
-} from 'common';
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { savedChartModel } from '../../../models/models';
 

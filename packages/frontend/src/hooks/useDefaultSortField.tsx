@@ -5,7 +5,7 @@ import {
     getDimensions,
     getMetrics,
     SortField,
-} from 'common';
+} from '@lightdash/common';
 import { useMemo } from 'react';
 import { useExplore } from './useExplore';
 

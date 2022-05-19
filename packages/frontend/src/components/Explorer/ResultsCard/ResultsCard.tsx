@@ -1,5 +1,5 @@
 import { Button, Card, Collapse, H5 } from '@blueprintjs/core';
-import { getResultValues } from 'common';
+import { getResultValues } from '@lightdash/common';
 import { FC } from 'react';
 import {
     ExplorerSection,

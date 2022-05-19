@@ -3,7 +3,7 @@ import {
     NotFoundError,
     Organisation,
     UpdateOrganisation,
-} from 'common';
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     DbOrganization,

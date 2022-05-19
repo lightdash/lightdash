@@ -4,7 +4,7 @@ import {
     CreateOrganizationUser,
     CreateUserArgs,
     LightdashUser,
-} from 'common';
+} from '@lightdash/common';
 import React, { FC } from 'react';
 import { useMutation } from 'react-query';
 import { Redirect, useParams } from 'react-router-dom';

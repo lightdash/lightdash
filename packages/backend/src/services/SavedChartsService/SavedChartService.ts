@@ -9,7 +9,7 @@ import {
     SessionUser,
     Space,
     UpdateSavedChart,
-} from 'common';
+} from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { CreateSavedChartOrVersionEvent } from '../../analytics/LightdashAnalytics';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';

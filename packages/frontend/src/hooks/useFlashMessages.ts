@@ -1,4 +1,4 @@
-import { ApiError, ApiFlashResults } from 'common';
+import { ApiError, ApiFlashResults } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../api';
 

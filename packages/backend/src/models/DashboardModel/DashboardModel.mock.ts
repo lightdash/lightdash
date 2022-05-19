@@ -12,7 +12,7 @@ import {
     DashboardVersionedFields,
     OrganizationMemberRole,
     SessionUser,
-} from 'common';
+} from '@lightdash/common';
 import {
     DashboardTable,
     DashboardTileTable,

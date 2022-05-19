@@ -1,4 +1,9 @@
-import { ApiError, ApiQueryResults, MetricQuery, SavedChart } from 'common';
+import {
+    ApiError,
+    ApiQueryResults,
+    MetricQuery,
+    SavedChart,
+} from '@lightdash/common';
 import { useCallback } from 'react';
 import { useMutation, useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';

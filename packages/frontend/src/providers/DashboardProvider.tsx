@@ -3,7 +3,7 @@ import {
     DashboardFilterRule,
     DashboardFilters,
     fieldId,
-} from 'common';
+} from '@lightdash/common';
 import React, {
     createContext,
     Dispatch,

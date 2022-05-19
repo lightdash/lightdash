@@ -1,4 +1,4 @@
-import { WarehouseTypes } from 'common';
+import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import Input from '../../ReactHookForm/Input';
