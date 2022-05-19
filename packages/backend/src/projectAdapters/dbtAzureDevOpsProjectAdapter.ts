@@ -2,7 +2,8 @@ import {
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
 } from '@lightdash/common';
-import { CachedWarehouse, WarehouseClient } from '../types';
+import { WarehouseClient } from '@lightdash/warehouses';
+import { CachedWarehouse } from '../types';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 
 type Args = {

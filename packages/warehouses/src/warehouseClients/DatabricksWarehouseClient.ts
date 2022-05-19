@@ -132,7 +132,6 @@ export class DatabricksWarehouseClient implements WarehouseClient {
             database: string;
             schema: string;
             table: string;
-            columns: string[];
         }[],
     ) {
         let pool: odbc.Pool;

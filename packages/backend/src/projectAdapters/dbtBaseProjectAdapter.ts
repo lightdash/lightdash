@@ -13,6 +13,7 @@ import {
     ParseError,
     SupportedDbtAdapter,
 } from '@lightdash/common';
+import { WarehouseClient } from '@lightdash/warehouses';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { AnyValidateFunction } from 'ajv/dist/types';
@@ -25,12 +26,7 @@ import {
 import Logger from '../logger';
 import dbtManifestSchema from '../manifestv4.json';
 import lightdashDbtSchema from '../schema.json';
-import {
-    CachedWarehouse,
-    DbtClient,
-    ProjectAdapter,
-    WarehouseClient,
-} from '../types';
+import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
 
 const ajv = new Ajv({ schemas: [lightdashDbtSchema, dbtManifestSchema] });
 addFormats(ajv);

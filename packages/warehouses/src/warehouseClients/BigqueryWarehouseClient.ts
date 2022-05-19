@@ -170,7 +170,6 @@ export class BigqueryWarehouseClient implements WarehouseClient {
             database: string;
             schema: string;
             table: string;
-            columns: string[];
         }[],
     ) {
         const databaseClients: { [client: string]: BigQuery } = {};
