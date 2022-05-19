@@ -1,4 +1,4 @@
-import { SEED_ORG_1_ADMIN, SEED_ORG_1_ADMIN_EMAIL }from '@lightdash/common';
+import { SEED_ORG_1_ADMIN, SEED_ORG_1_ADMIN_EMAIL } from '@lightdash/common';
 
 describe('Settings - Profile', () => {
     before(() => {
