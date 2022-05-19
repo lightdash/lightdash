@@ -79,7 +79,7 @@ GET /jobs/:jobUuid
 
  */
 const apiUrl = '/api/v1';
-describe('Dashboard', () => {
+describe('Lightdash API', () => {
     before(() => {
         // @ts-ignore
         cy.login();
@@ -228,10 +228,19 @@ describe('Dashboard', () => {
             },
         );
     });
+});
 
-    it('Should get forbidden error (403) from endpoints from another organization', () => {
+describe('Lightdash API forbidden tests', () => {
+    before(() => {
+        // @ts-ignore
+        cy.preCompileProject();
+    });
+
+    beforeEach(() => {
         cy.anotherLogin();
+    });
 
+    it('Test login from another user', () => {
         // Test new user registered
         cy.request(`${apiUrl}/user`).then((resp) => {
             expect(resp.status).to.eq(200);
@@ -240,7 +249,8 @@ describe('Dashboard', () => {
                 'another@lightdash.com',
             );
         });
-
+    });
+    it('Should get forbidden error (403) from project endpoints from another organization', () => {
         const projectUuid = SEED_PROJECT.project_uuid; // Same project_uuid that belongs to another organization
         const endpoints = [
             `/projects/${projectUuid}`,
@@ -264,6 +274,38 @@ describe('Dashboard', () => {
                 expect(resp.status).to.eq(403);
             });
         });
+    });
+
+    it('Should get forbidden error (403) from savedChart endpoints from another organization', () => {
+        cy.login(); // Make request as first user to get the chartUuid
+
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(`${apiUrl}/projects/${projectUuid}/spaces`).then(
+            (projectResponse) => {
+                expect(projectResponse.status).to.eq(200);
+                cy.log(projectResponse.body);
+                const savedChartUuid =
+                    projectResponse.body.results[0].queries[0].uuid;
+
+                cy.anotherLogin(); // Now we login as another user
+
+                const endpoints = [
+                    `/saved/${savedChartUuid}`,
+                    `/saved/${savedChartUuid}/availableFilters`,
+                ];
+
+                endpoints.forEach((endpoint) => {
+                    cy.request({
+                        url: `${apiUrl}${endpoint}`,
+                        timeout: 500,
+                        failOnStatusCode: false,
+                    }).then((resp) => {
+                        cy.log(resp.body);
+                        expect(resp.status).to.eq(403);
+                    });
+                });
+            },
+        );
     });
 
     it('Should get list of dashboards on from projects', () => {

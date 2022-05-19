@@ -34,6 +34,7 @@ import {
 declare namespace Cypress {
     interface Chainable<AUTWindow> {
         login(): Chainable<AUTWindow>;
+        anotherLogin(): Chainable<AUTWindow>;
         preCompileProject(): Chainable<AUTWindow>;
     }
 }

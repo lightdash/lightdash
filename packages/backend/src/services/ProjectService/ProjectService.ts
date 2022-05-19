@@ -3,11 +3,9 @@ import {
     AlreadyProcessingError,
     ApiQueryResults,
     ApiSqlQueryResults,
-    AuthorizationError,
     countTotalFilterRules,
     CreateJob,
     CreateProject,
-    defineAbilityForOrganizationMember,
     Explore,
     ExploreError,
     fieldId,
@@ -778,11 +776,11 @@ export class ProjectService {
         user: SessionUser,
         savedChartUuid: string,
     ): Promise<FilterableField[]> {
-        const ability = defineAbilityForOrganizationMember(user);
-        if (ability.cannot('view', 'Project')) {
-            throw new AuthorizationError();
-        }
         const savedChart = await this.savedChartModel.get(savedChartUuid);
+
+        if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
+            throw new ForbiddenError();
+        }
         const explore = await this.getExplore(
             user,
             savedChart.projectUuid,
