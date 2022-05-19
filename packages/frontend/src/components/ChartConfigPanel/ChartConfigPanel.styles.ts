@@ -97,3 +97,17 @@ export const StackButton = styled(Button)`
     border: 0.5px solid #cdced0;
     box-shadow: none !important;
 `;
+
+export const MinMaxContainer = styled.div`
+    margin-top: 10px;
+`;
+
+export const MinMaxWrapper = styled.div`
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 30px;
+`;
+
+export const MinMaxInput = styled(InputWrapper)`
+    margin-top: 0;
+`;

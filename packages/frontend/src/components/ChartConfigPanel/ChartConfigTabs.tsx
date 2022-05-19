@@ -1,4 +1,4 @@
-import { InputGroup, Tab, Tabs } from '@blueprintjs/core';
+import { InputGroup, Switch, Tab, Tabs } from '@blueprintjs/core';
 import {
     convertAdditionalMetric,
     fieldId,
@@ -16,10 +16,51 @@ import {
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useOrganisation } from '../../hooks/organisation/useOrganisation';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import { InputWrapper, Wrapper } from './ChartConfigPanel.styles';
+import {
+    InputWrapper,
+    MinMaxContainer,
+    MinMaxInput,
+    MinMaxWrapper,
+    Wrapper,
+} from './ChartConfigPanel.styles';
 import FieldLayoutOptions from './FieldLayoutOptions';
 import BasicSeriesConfiguration from './Series/BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './Series/GroupedSeriesConfiguration';
+
+const MinMax = () => {
+    const [isAuto, setIsAuto] = useState<boolean>(false);
+    const [minValue, setMinValue] = useState<string>('');
+    const [maxValue, setMaxValue] = useState<string>('');
+    return (
+        <MinMaxContainer>
+            <Switch
+                name="auto-range"
+                checked={isAuto}
+                label="Auto y-axis range"
+                onChange={() => setIsAuto((prev) => !prev)}
+            />
+            {isAuto && (
+                <MinMaxWrapper>
+                    <MinMaxInput label="Min">
+                        <InputGroup
+                            placeholder="Min"
+                            defaultValue={'0'}
+                            onBlur={(e) => setMinValue(e.currentTarget.value)}
+                        />
+                    </MinMaxInput>
+
+                    <MinMaxInput label="Max">
+                        <InputGroup
+                            placeholder="Min"
+                            defaultValue={'0'}
+                            onBlur={(e) => setMaxValue(e.currentTarget.value)}
+                        />
+                    </MinMaxInput>
+                </MinMaxWrapper>
+            )}
+        </MinMaxContainer>
+    );
+};
 
 const ChartConfigTabs: FC = () => {
     const {
@@ -192,6 +233,7 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
+                            <MinMax />
                             <InputWrapper
                                 label={`${
                                     dirtyLayout?.flipAxes ? 'X' : 'Y'
@@ -217,6 +259,7 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
+                            <MinMax />
                         </>
                     }
                 />
