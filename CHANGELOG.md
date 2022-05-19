@@ -1,3 +1,10 @@
+## [0.108.2](https://github.com/lightdash/lightdash/compare/0.108.1...0.108.2) (2022-05-19)
+
+
+### Bug Fixes
+
+* release cli on merge ([#2165](https://github.com/lightdash/lightdash/issues/2165)) ([f1589c9](https://github.com/lightdash/lightdash/commit/f1589c9dfc989b2e405f2258d7920bddc4481522))
+
 ## [0.108.1](https://github.com/lightdash/lightdash/compare/0.108.0...0.108.1) (2022-05-19)
 
 
