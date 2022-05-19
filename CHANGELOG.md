@@ -1,3 +1,10 @@
+# [0.109.0](https://github.com/lightdash/lightdash/compare/0.108.2...0.109.0) (2022-05-19)
+
+
+### Features
+
+* rename bar chart for coumn chart ([#2161](https://github.com/lightdash/lightdash/issues/2161)) ([a13a904](https://github.com/lightdash/lightdash/commit/a13a9043abd58b07d3c1f1f4fa72dee9e58f34cd))
+
 ## [0.108.2](https://github.com/lightdash/lightdash/compare/0.108.1...0.108.2) (2022-05-19)
 
 
