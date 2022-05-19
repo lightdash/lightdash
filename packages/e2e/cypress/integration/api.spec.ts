@@ -135,7 +135,7 @@ describe('Lightdash API', () => {
         });
     });
 
-    it('Should get list of dashboards on from projects', () => {
+    it('Should get list of dashboards from projects', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request(`${apiUrl}/projects/${projectUuid}/dashboards`).then(
             (resp) => {
@@ -270,9 +270,24 @@ describe('Lightdash API forbidden tests', () => {
                 timeout: 500,
                 failOnStatusCode: false,
             }).then((resp) => {
-                cy.log(resp.body);
                 expect(resp.status).to.eq(403);
             });
+        });
+    });
+
+    it('Should get an empty list of dashboards from projects', () => {
+        cy.anotherLogin();
+
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request({
+            url: `${apiUrl}/projects/${projectUuid}/dashboards`,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            cy.log(resp.body);
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+
+            expect(resp.body.results).to.have.length(0);
         });
     });
 
@@ -300,7 +315,6 @@ describe('Lightdash API forbidden tests', () => {
                         timeout: 500,
                         failOnStatusCode: false,
                     }).then((resp) => {
-                        cy.log(resp.body);
                         expect(resp.status).to.eq(403);
                     });
                 });
@@ -308,19 +322,38 @@ describe('Lightdash API forbidden tests', () => {
         );
     });
 
-    it('Should get list of dashboards on from projects', () => {
-        cy.anotherLogin();
-
-        const projectUuid = SEED_PROJECT.project_uuid;
+    it('Should get Not found response (404) from GET /org/projects', () => {
         cy.request({
-            url: `${apiUrl}/projects/${projectUuid}/dashboards`,
+            url: `${apiUrl}/org/projects`,
+            headers: { 'Content-type': 'application/json' },
             failOnStatusCode: false,
         }).then((resp) => {
-            cy.log(resp.body);
-            expect(resp.status).to.eq(200);
-            expect(resp.body).to.have.property('status', 'ok');
-
-            expect(resp.body.results).to.have.length(0);
+            expect(resp.status).to.eq(404);
         });
+    });
+
+    it('Should get success response (200) from GET dashboardRouter endpoints', () => {
+        cy.login(); // Make request as first user to get the chartUuid
+
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(`${apiUrl}/projects/${projectUuid}/dashboards`).then(
+            (projectResponse) => {
+                expect(projectResponse.status).to.eq(200);
+                cy.log(projectResponse.body);
+
+                cy.anotherLogin(); // Now we login as another user
+
+                const dashboardUuid = projectResponse.body.results[0].uuid;
+                const endpoints = [`/dashboards/${dashboardUuid}`];
+                endpoints.forEach((endpoint) => {
+                    cy.request({
+                        url: `${apiUrl}${endpoint}`,
+                        failOnStatusCode: false,
+                    }).then((resp) => {
+                        expect(resp.status).to.eq(403);
+                    });
+                });
+            },
+        );
     });
 });
