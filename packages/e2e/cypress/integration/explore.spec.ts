@@ -43,7 +43,7 @@ describe('Explore', () => {
 
         cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading Wait until finish loading
         cy.findByText('Edit chart').parent().click();
-        cy.findByText('Column chart').click(); // Change chart type
+        cy.findByText('Bar chart').click(); // Change chart type
         cy.findByText('Horizontal bar chart').click();
 
         // cy.findByText('Save changes').parent().should('not.be.disabled');
@@ -65,7 +65,7 @@ describe('Explore', () => {
 
         cy.findByText('Customers First name');
 
-        cy.findByText('Column chart').click(); // Change chart type
+        cy.findByText('Bar chart').click(); // Change chart type
         cy.findByText('Horizontal bar chart').click();
 
         cy.findByText('Customers First name');
