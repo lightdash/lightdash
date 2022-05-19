@@ -606,8 +606,8 @@ export class ProjectService {
                 throw new NotFoundError(`Cannot find job`);
             }
         } else if (user.ability.cannot('view', subject('Job', job))) {
-                throw new NotFoundError(`Cannot find job`);
-            }
+            throw new NotFoundError(`Cannot find job`);
+        }
 
         return job;
     }
