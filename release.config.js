@@ -40,13 +40,13 @@ module.exports = {
             npmPublish: false,
             pkgRoot: "packages/e2e",
           },
-          cli: {
-            npmPublish: false,
-            pkgRoot: "packages/cli",
-          },
           warehouses: {
             npmPublish: true,
             pkgRoot: "packages/warehouses",
+          },
+          cli: {
+            npmPublish: true,
+            pkgRoot: "packages/cli",
           },
         },
       },
