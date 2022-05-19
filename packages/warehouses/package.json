@@ -40,6 +40,6 @@
         "copy-files": "copyfiles -u 1 src/warehouseClients/amazon-trust-ca-bundle.crt dist/",
         "build": "tsc --build tsconfig.json && yarn copy-files",
         "dev": "nodemon src/index.ts",
-        "prepare": "yarn run build"
+        "prepare": "yarn install && yarn run build"
     }
 }
