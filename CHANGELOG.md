@@ -1,3 +1,11 @@
+## [0.108.1](https://github.com/lightdash/lightdash/compare/0.108.0...0.108.1) (2022-05-19)
+
+
+### Bug Fixes
+
+* add npm token to workflow ([#2164](https://github.com/lightdash/lightdash/issues/2164)) ([5d7e9bf](https://github.com/lightdash/lightdash/commit/5d7e9bfcf7a4a55fa8f8cfa1e6415356c87849f4))
+* publish common packages ([#2162](https://github.com/lightdash/lightdash/issues/2162)) ([d2aba77](https://github.com/lightdash/lightdash/commit/d2aba77cc4a820df0f7df55690dad7e5567d0361))
+
 # [0.108.0](https://github.com/lightdash/lightdash/compare/0.107.0...0.108.0) (2022-05-18)
 
 
