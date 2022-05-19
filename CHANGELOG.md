@@ -1,3 +1,10 @@
+## [0.109.2](https://github.com/lightdash/lightdash/compare/0.109.1...0.109.2) (2022-05-19)
+
+
+### Bug Fixes
+
+* add dist to packages ([#2169](https://github.com/lightdash/lightdash/issues/2169)) ([80d0a34](https://github.com/lightdash/lightdash/commit/80d0a34e4169fa6dd58a1d6caa22a9cbb977b3f8))
+
 ## [0.109.1](https://github.com/lightdash/lightdash/compare/0.109.0...0.109.1) (2022-05-19)
 
 
