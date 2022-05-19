@@ -387,6 +387,18 @@ export class ProjectService {
         projectUuid: string,
         exploreName: string,
     ): Promise<ApiQueryResults> {
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'delete',
+                subject('Project', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         const { query, hasExampleMetric } = await this.compileQuery(
             user,
             metricQuery,
@@ -445,6 +457,18 @@ export class ProjectService {
         projectUuid: string,
         sql: string,
     ): Promise<ApiSqlQueryResults> {
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'delete',
+                subject('Project', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         await analytics.track({
             userId: user.userUuid,
             event: 'sql.executed',
