@@ -171,7 +171,7 @@ describe('Organization member permissions', () => {
                     'view',
                     subject('Project', { organizationUuid: '789' }),
                 ),
-            ).toEqual(true);
+            ).toEqual(false);
         });
         it('can view their own jobs', () => {
             expect(

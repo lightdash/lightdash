@@ -1,4 +1,7 @@
-import { defineAbilityForOrganizationMember, ForbiddenError } from 'common';
+import {
+    defineAbilityForOrganizationMember,
+    ForbiddenError,
+} from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { dashboardModel } from '../../models/models';
 import { DashboardService } from './DashboardService';
