@@ -48,6 +48,7 @@ export class JobModel {
             throw new NotFoundError(
                 `job with jobUuid ${jobUuid} does not exist`,
             );
+
         return this.convertRowToJob(row);
     }
 
@@ -57,6 +58,7 @@ export class JobModel {
             createdAt: row.created_at,
             updatedAt: row.updated_at,
             projectUuid: row.project_uuid,
+            userUuid: row.user_uuid,
             jobUuid: row.job_uuid,
             jobStatus: row.job_status,
             steps,
@@ -112,6 +114,7 @@ export class JobModel {
             await trx(JobsTableName)
                 .insert({
                     project_uuid: job.projectUuid,
+                    user_uuid: job.userUuid,
                     job_uuid: job.jobUuid,
                     job_type: job.jobType,
                     job_status: job.jobStatus,

@@ -44,6 +44,7 @@ export const JobLabels = {
 export type BaseJob = {
     jobUuid: string;
     projectUuid: string | undefined;
+    userUuid: string | undefined;
     createdAt: Date;
     updatedAt: Date;
     jobStatus: JobStatusType;
@@ -66,7 +67,7 @@ export type Job = CompileJob | CreateProjectJob;
 
 export type CreateJob = Pick<
     Job,
-    'jobUuid' | 'projectUuid' | 'jobType' | 'jobStatus'
+    'jobUuid' | 'projectUuid' | 'jobType' | 'jobStatus' | 'userUuid'
 > & {
     steps: CreateJobStep[];
 };

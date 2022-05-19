@@ -2,6 +2,7 @@ import { buildQuery, renderDateFilterSql } from './queryBuilder';
 import {
     DimensionSqlMock,
     EXPLORE,
+    EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
     InTheLast1CompletedYearFilter,
     InTheLast1CompletedYearFilterSQL,
@@ -17,6 +18,7 @@ import {
     METRIC_QUERY_JOIN_CHAIN,
     METRIC_QUERY_JOIN_CHAIN_SQL,
     METRIC_QUERY_SQL,
+    METRIC_QUERY_SQL_BIGQUERY,
     METRIC_QUERY_TWO_TABLES,
     METRIC_QUERY_TWO_TABLES_SQL,
     METRIC_QUERY_WITH_ADDITIONAL_METRIC,
@@ -37,6 +39,15 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY,
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL);
+    });
+
+    test('Should build simple metric query in BigQuery', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_BIGQUERY,
+                compiledMetricQuery: METRIC_QUERY,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_SQL_BIGQUERY);
     });
 
     test('Should build metric query across two tables', () => {

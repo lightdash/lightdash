@@ -16,6 +16,7 @@ type Subject =
     | 'SavedChart'
     | 'Project'
     | 'InviteLink'
+    | 'Job'
     | 'all';
 
 type PossibleAbilities = [
@@ -48,6 +49,8 @@ const organizationMemberAbilities: Record<
         can('view', 'Organization', {
             organizationUuid: member.organizationUuid,
         });
+
+        can('view', 'Job', { userUuid: member.userUuid });
     },
     editor(member, { can }) {
         organizationMemberAbilities.viewer(member, { can });
