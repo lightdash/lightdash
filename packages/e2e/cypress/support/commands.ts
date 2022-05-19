@@ -23,15 +23,13 @@
 //
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
-import { SEED_EMAIL, SEED_PASSWORD } from '@lightdash/common';
-import '@testing-library/cypress/add-commands';
 import {
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
     SEED_ORG_2_ADMIN_EMAIL,
     SEED_ORG_2_ADMIN_PASSWORD,
 } from '@lightdash/common';
-
+import '@testing-library/cypress/add-commands';
 
 declare namespace Cypress {
     interface Chainable<AUTWindow> {
