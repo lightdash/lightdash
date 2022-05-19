@@ -392,7 +392,7 @@ export class ProjectService {
 
         if (
             user.ability.cannot(
-                'delete',
+                'view',
                 subject('Project', { organizationUuid }),
             )
         ) {
@@ -462,7 +462,7 @@ export class ProjectService {
 
         if (
             user.ability.cannot(
-                'delete',
+                'view',
                 subject('Project', { organizationUuid }),
             )
         ) {
@@ -594,9 +594,20 @@ export class ProjectService {
     async getJobStatus(jobUuid: string, user: SessionUser): Promise<Job> {
         const job = await this.jobModel.get(jobUuid);
 
-        if (user.ability.cannot('view', subject('Job', job))) {
-            throw new NotFoundError(`Cannot find job`);
-        }
+        if (job.projectUuid) {
+            const { organizationUuid } =
+                await this.projectModel.getWithSensitiveFields(job.projectUuid);
+            if (
+                user.ability.cannot(
+                    'view',
+                    subject('Project', { organizationUuid }),
+                )
+            ) {
+                throw new NotFoundError(`Cannot find job`);
+            }
+        } else if (user.ability.cannot('view', subject('Job', job))) {
+                throw new NotFoundError(`Cannot find job`);
+            }
 
         return job;
     }

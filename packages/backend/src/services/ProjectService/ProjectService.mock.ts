@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     ApiSqlQueryResults,
+    DbtCloudIDEProjectConfig,
     Explore,
     ExploreError,
     FieldType,
@@ -13,6 +14,8 @@ import {
     MetricType,
     OrganizationMemberRole,
     OrganizationProject,
+    Project,
+    ProjectType,
     SessionUser,
     Space,
     SummaryExplore,
@@ -34,7 +37,10 @@ export const user: SessionUser = {
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
-    ability: new Ability([{ subject: 'Project', action: 'update' }]),
+    ability: new Ability([
+        { subject: 'Project', action: ['update', 'view'] },
+        { subject: 'Job', action: ['view'] },
+    ]),
 };
 
 export const expectedTablesConfiguration: TablesConfiguration = {
@@ -199,6 +205,18 @@ export const expectedCatalog = {
     },
 };
 
+export const projectWithSensitiveFields: Project = {
+    organizationUuid: user.organizationUuid,
+    projectUuid: 'projectUuid',
+    name: 'name',
+    dbtConnection: {
+        account_id: 'account_id',
+        environment_id: 'environment_id',
+        name: 'name',
+        project_id: 'project_id',
+        type: ProjectType.DBT_CLOUD_IDE,
+    } as any as DbtCloudIDEProjectConfig,
+};
 export const defaultProject: OrganizationProject = {
     projectUuid: 'projectUuid',
     name: 'name',
