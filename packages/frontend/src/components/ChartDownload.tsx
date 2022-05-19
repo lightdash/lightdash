@@ -13,7 +13,6 @@ import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { RefObject, useCallback, useState } from 'react';
 import { CSVLink } from 'react-csv';
-import { useExplorer } from '../providers/ExplorerProvider';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 const FILE_NAME = 'lightdash_chart';
@@ -110,13 +109,6 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     tableData,
 }) => {
     const [type, setType] = useState<DownloadType>(DownloadType.JPEG);
-
-    const {
-        state: {
-            unsavedChartVersion: { tableName: activeTableName },
-        },
-    } = useExplorer();
-
     const isTable = chartType === ChartType.TABLE;
     const onDownload = useCallback(async () => {
         const echartsInstance = chartRef.current?.getEchartsInstance();
@@ -178,9 +170,9 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                         tabIndex={0}
                         className="bp4-button"
                         data={tableData.map((row: {}) => row)}
-                        filename={`lightdash-${
-                            activeTableName || 'export'
-                        }-${new Date().toISOString().slice(0, 10)}.csv`}
+                        filename={`lightdash-export-${new Date()
+                            .toISOString()
+                            .slice(0, 10)}.csv`}
                         target="_blank"
                     >
                         <Icon icon="export" />
