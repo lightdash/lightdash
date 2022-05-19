@@ -2,10 +2,10 @@ import {
     DbtPackages,
     DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
-    DimensionType,
     Explore,
     ExploreError,
 } from '@lightdash/common';
+import { WarehouseCatalog } from '@lightdash/warehouses';
 
 export interface ProjectAdapter {
     compileAllExplores(): Promise<(Explore | ExploreError)[]>;
@@ -20,31 +20,6 @@ export interface DbtClient {
     getDbtManifest(): Promise<DbtRpcGetManifestResults>;
     getDbtCatalog(): Promise<DbtRpcDocsGenerateResults>;
     getDbtPackages?(): Promise<DbtPackages | undefined>;
-    test(): Promise<void>;
-}
-
-export type WarehouseTableSchema = {
-    [column: string]: DimensionType;
-};
-
-export type WarehouseCatalog = {
-    [database: string]: {
-        [schema: string]: {
-            [table: string]: WarehouseTableSchema;
-        };
-    };
-};
-
-export interface WarehouseClient {
-    getCatalog: (
-        config: {
-            database: string;
-            schema: string;
-            table: string;
-            columns: string[];
-        }[],
-    ) => Promise<WarehouseCatalog>;
-    runQuery(sql: string): Promise<Record<string, any>[]>;
     test(): Promise<void>;
 }
 

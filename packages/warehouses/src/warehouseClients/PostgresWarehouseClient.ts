@@ -121,7 +121,6 @@ export class PostgresClient implements WarehouseClient {
             database: string;
             schema: string;
             table: string;
-            columns: string[];
         }[],
     ) {
         const { databases, schemas, tables } = requests.reduce<{
@@ -171,10 +170,7 @@ export class PostgresClient implements WarehouseClient {
                         schema === table_schema &&
                         table === table_name,
                 );
-                const columnMatch = match?.columns.find(
-                    (name) => name === column_name,
-                );
-                if (!!match && !!columnMatch) {
+                if (match) {
                     acc[table_catalog] = acc[table_catalog] || {};
                     acc[table_catalog][table_schema] =
                         acc[table_catalog][table_schema] || {};

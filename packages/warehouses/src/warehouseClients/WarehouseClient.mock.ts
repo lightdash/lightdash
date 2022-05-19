@@ -5,21 +5,11 @@ export const config: {
     database: string;
     schema: string;
     table: string;
-    columns: string[];
 }[] = [
     {
         database: 'myDatabase',
         schema: 'mySchema',
         table: 'myTable',
-        columns: [
-            'myStringColumn',
-            'myNumberColumn',
-            'myDateColumn',
-            'myTimestampColumn',
-            'myBooleanColumn',
-            'myArrayColumn',
-            'myObjectColumn',
-        ],
     },
 ];
 

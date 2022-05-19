@@ -1,5 +1,6 @@
+import { WarehouseClient } from '@lightdash/warehouses';
 import { DbtCliClient } from '../dbt/dbtCliClient';
-import { CachedWarehouse, WarehouseClient } from '../types';
+import { CachedWarehouse } from '../types';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
 type DbtLocalProjectAdapterArgs = {

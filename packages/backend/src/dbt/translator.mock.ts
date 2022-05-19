@@ -6,7 +6,7 @@ import {
     MetricType,
     Table,
 } from '@lightdash/common';
-import { WarehouseCatalog } from '../types';
+import { WarehouseCatalog } from '@lightdash/warehouses';
 
 export const VALID_ID_COLUMN_NAMES = [
     { input: 'userid', output: 'user' },
