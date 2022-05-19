@@ -25,7 +25,7 @@ module.exports = {
             pkgRoot: ".",
           },
           common: {
-            npmPublish: false,
+            npmPublish: true,
             pkgRoot: "packages/common",
           },
           backend: {
@@ -45,7 +45,7 @@ module.exports = {
             pkgRoot: "packages/cli",
           },
           warehouses: {
-            npmPublish: false,
+            npmPublish: true,
             pkgRoot: "packages/warehouses",
           },
         },
