@@ -1,0 +1,44 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "type": "object",
+    "properties": {
+        "version": {
+            "type": "number"
+        },
+        "models": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "joins": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "join": {
+                                            "type": "string"
+                                        },
+                                        "sql_on": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["join", "sql_on"]
+                                }
+                            }
+                        }
+                    }
+                },
+                "required": ["name"]
+            }
+        }
+    }
+}
