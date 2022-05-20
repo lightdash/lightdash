@@ -26,9 +26,6 @@ export const generateHandler = async (
     model: string,
     options: GenerateHandlerOptions,
 ) => {
-    console.log(
-        `${styles.title('⚡️lightdash')} generate ${styles.bold(model)}\n`,
-    );
     console.log(styles.info(`Generated .yml files:`));
     const spinner = ora(
         `  Generating .yml for model ${styles.bold(model)}`,

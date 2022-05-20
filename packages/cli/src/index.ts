@@ -8,11 +8,41 @@ import * as styles from './styles';
 
 const { version: VERSION } = require('../package.json');
 
-program.version(VERSION).name('lightdash');
+program
+    .version(VERSION)
+    .name(styles.title('⚡️lightdash'))
+    .description(
+        'Developer tools for dbt and Lightdash.\nSee https://docs.lightdash.com for more help and examples',
+    )
+    .showHelpAfterError(
+        styles.bold('Run ⚡️lightdash help [command] for more information'),
+    )
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Examples:')}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'generate',
+        )} mymodel ${styles.secondary(
+            '-- generates a mymodel.yml file for a single dbt model',
+        )}
+`,
+    );
 
 program
     .command('generate <model>')
     .description('Generates a new schema.yml file for model')
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Examples:')}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'generate',
+        )} mymodel ${styles.secondary(
+            '-- generates a mymodel.yml file for a single dbt model',
+        )}
+`,
+    )
     .option(
         '--project-dir <path>',
         'The directory of the dbt project (defaults: current directory)',

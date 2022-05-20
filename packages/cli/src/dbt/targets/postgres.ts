@@ -4,6 +4,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { JSONSchemaType } from 'ajv';
+import betterAjvErrors from 'better-ajv-errors';
 import { ajv } from '../ajv';
 import { Target } from '../types';
 
@@ -105,10 +106,8 @@ export const convertPostgresSchema = (
             sslmode: target.sslmode,
         };
     }
-    const lineErrorMessages = (validate.errors || [])
-        .map((err) => `Field at ${err.instancePath} ${err.message}`)
-        .join('\n');
+    const errs = betterAjvErrors(postgresSchema, target, validate.errors || []);
     throw new ParseError(
-        `Couldn't read profiles.yml file for ${target.type}:\n${lineErrorMessages}`,
+        `Couldn't read profiles.yml file for ${target.type}:\n${errs}`,
     );
 };
