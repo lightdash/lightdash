@@ -169,6 +169,7 @@
                                                     "items": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "RAW",
                                                             "DAY",
                                                             "WEEK",
                                                             "MONTH",
