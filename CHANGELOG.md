@@ -1,3 +1,10 @@
+## [0.110.1](https://github.com/lightdash/lightdash/compare/0.110.0...0.110.1) (2022-05-20)
+
+
+### Bug Fixes
+
+* handle invalid chart configuration ([#2168](https://github.com/lightdash/lightdash/issues/2168)) ([9923a15](https://github.com/lightdash/lightdash/commit/9923a1513802018c9d1e364c76f3d316f95fe7b1))
+
 # [0.110.0](https://github.com/lightdash/lightdash/compare/0.109.6...0.110.0) (2022-05-20)
 
 
