@@ -4,6 +4,7 @@ import {
     CompiledField,
     convertAdditionalMetric,
     DimensionType,
+    ECHARTS_DEFAULT_COLORS,
     Field,
     findItem,
     formatItemValue,
@@ -521,9 +522,7 @@ const useEcharts = () => {
             top: 70, // pixels from top (makes room for legend)
             bottom: 30, // pixels from bottom (makes room for x-axis)
         },
-        ...(organisationData?.chartColors && {
-            color: organisationData?.chartColors,
-        }),
+        color: organisationData?.chartColors || ECHARTS_DEFAULT_COLORS,
     };
 };
 
