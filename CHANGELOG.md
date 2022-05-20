@@ -1,3 +1,10 @@
+## [0.109.6](https://github.com/lightdash/lightdash/compare/0.109.5...0.109.6) (2022-05-20)
+
+
+### Bug Fixes
+
+* update default echarts colors ([#2174](https://github.com/lightdash/lightdash/issues/2174)) ([ecce7ef](https://github.com/lightdash/lightdash/commit/ecce7ef9ea834b3bf9a5c54e3c2ae8701a34f891))
+
 ## [0.109.5](https://github.com/lightdash/lightdash/compare/0.109.4...0.109.5) (2022-05-20)
 
 
