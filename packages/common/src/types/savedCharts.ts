@@ -110,16 +110,17 @@ export type SavedChart = {
     };
     updatedAt: Date;
     updatedByUser?: UpdatedByUser;
+    organizationUuid: string;
 };
 
 export type CreateSavedChart = Omit<
     SavedChart,
-    'uuid' | 'updatedAt' | 'projectUuid'
+    'uuid' | 'updatedAt' | 'projectUuid' | 'organizationUuid'
 >;
 
 export type CreateSavedChartVersion = Omit<
     SavedChart,
-    'uuid' | 'name' | 'updatedAt' | 'projectUuid'
+    'uuid' | 'name' | 'updatedAt' | 'projectUuid' | 'organizationUuid'
 >;
 
 export type UpdateSavedChart = Pick<SavedChart, 'name' | 'description'>;

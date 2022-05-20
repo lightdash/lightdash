@@ -104,7 +104,6 @@ export class OrganizationService {
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
-
         const members =
             await this.organizationMemberProfileModel.getOrganizationMembers(
                 organizationUuid,

@@ -3,11 +3,9 @@ import {
     AlreadyProcessingError,
     ApiQueryResults,
     ApiSqlQueryResults,
-    AuthorizationError,
     countTotalFilterRules,
     CreateJob,
     CreateProject,
-    defineAbilityForOrganizationMember,
     Explore,
     ExploreError,
     fieldId,
@@ -81,8 +79,18 @@ export class ProjectService {
     }
 
     async getProject(projectUuid: string, user: SessionUser): Promise<Project> {
-        // Todo: Check user has access
         const project = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         return project;
     }
 
@@ -179,7 +187,17 @@ export class ProjectService {
         user: SessionUser,
         data: UpdateProject,
     ): Promise<{ jobUuid: string }> {
-        if (user.ability.cannot('update', 'Project')) {
+        const savedProject = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: savedProject.organizationUuid,
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 
@@ -194,10 +212,6 @@ export class ProjectService {
                 { stepType: JobStepType.COMPILING },
             ],
         };
-
-        const savedProject = await this.projectModel.getWithSensitiveFields(
-            projectUuid,
-        );
 
         const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
             data,
@@ -286,7 +300,15 @@ export class ProjectService {
     }
 
     async delete(projectUuid: string, user: SessionUser): Promise<void> {
-        if (user.ability.cannot('delete', 'Project')) {
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'delete',
+                subject('Project', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 
@@ -365,6 +387,18 @@ export class ProjectService {
         projectUuid: string,
         exploreName: string,
     ): Promise<ApiQueryResults> {
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         const { query, hasExampleMetric } = await this.compileQuery(
             user,
             metricQuery,
@@ -423,6 +457,18 @@ export class ProjectService {
         projectUuid: string,
         sql: string,
     ): Promise<ApiSqlQueryResults> {
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         await analytics.track({
             userId: user.userUuid,
             event: 'sql.executed',
@@ -548,8 +594,18 @@ export class ProjectService {
     async getJobStatus(jobUuid: string, user: SessionUser): Promise<Job> {
         const job = await this.jobModel.get(jobUuid);
 
-        const ability = defineAbilityForOrganizationMember(user);
-        if (ability.cannot('view', subject('Job', job))) {
+        if (job.projectUuid) {
+            const { organizationUuid } =
+                await this.projectModel.getWithSensitiveFields(job.projectUuid);
+            if (
+                user.ability.cannot(
+                    'view',
+                    subject('Project', { organizationUuid }),
+                )
+            ) {
+                throw new NotFoundError(`Cannot find job`);
+            }
+        } else if (user.ability.cannot('view', subject('Job', job))) {
             throw new NotFoundError(`Cannot find job`);
         }
 
@@ -614,6 +670,16 @@ export class ProjectService {
         projectUuid: string,
         filtered: boolean,
     ): Promise<SummaryExplore[]> {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         const explores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );
@@ -674,6 +740,15 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ProjectCatalog> {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         const explores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );
@@ -699,6 +774,16 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<TablesConfiguration> {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         return this.projectModel.getTablesConfiguration(projectUuid);
     }
 
@@ -726,11 +811,11 @@ export class ProjectService {
         user: SessionUser,
         savedChartUuid: string,
     ): Promise<FilterableField[]> {
-        const ability = defineAbilityForOrganizationMember(user);
-        if (ability.cannot('view', 'Project')) {
-            throw new AuthorizationError();
-        }
         const savedChart = await this.savedChartModel.get(savedChartUuid);
+
+        if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
+            throw new ForbiddenError();
+        }
         const explore = await this.getExplore(
             user,
             savedChart.projectUuid,
@@ -745,10 +830,16 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<boolean> {
-        const ability = defineAbilityForOrganizationMember(user);
-        if (ability.cannot('view', 'Project')) {
-            throw new AuthorizationError();
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
         }
+
         const spaces = await this.savedChartModel.getAllSpaces(projectUuid);
         return spaces.some((space) => space.queries.length > 0);
     }

@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     CreateDashboard,
     Dashboard,
@@ -54,14 +55,24 @@ export class DashboardService {
         projectUuid: string,
         chartUuid?: string,
     ): Promise<DashboardBasicDetails[]> {
-        return this.dashboardModel.getAllByProject(projectUuid, chartUuid);
+        const dashboards = await this.dashboardModel.getAllByProject(
+            projectUuid,
+            chartUuid,
+        );
+        return dashboards.filter((dashboard) =>
+            user.ability.can('view', subject('Dashboard', dashboard)),
+        );
     }
 
     async getById(
         user: SessionUser,
         dashboardUuid: string,
     ): Promise<Dashboard> {
-        return this.dashboardModel.getById(dashboardUuid);
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        if (user.ability.cannot('view', subject('Dashboard', dashboard))) {
+            throw new ForbiddenError();
+        }
+        return dashboard;
     }
 
     async create(
@@ -69,10 +80,17 @@ export class DashboardService {
         projectUuid: string,
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
-        if (user.ability.cannot('create', 'Dashboard')) {
+        const space = await getSpace(database, projectUuid);
+        if (
+            user.ability.cannot(
+                'create',
+                subject('Dashboard', {
+                    organizationUuid: space.organization_uuid,
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
-        const space = await getSpace(database, projectUuid);
         const newDashboard = await this.dashboardModel.create(
             space.space_uuid,
             dashboard,
@@ -91,11 +109,12 @@ export class DashboardService {
         projectUuid: string,
         dashboardUuid: string,
     ): Promise<Dashboard> {
-        if (user.ability.cannot('create', 'Dashboard')) {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        if (user.ability.cannot('create', subject('Dashboard', dashboard))) {
             throw new ForbiddenError();
         }
         const space = await getSpace(database, projectUuid);
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
         const duplicatedDashboard = {
             ...dashboard,
@@ -132,7 +151,15 @@ export class DashboardService {
         dashboardUuid: string,
         dashboard: UpdateDashboard,
     ): Promise<Dashboard> {
-        if (user.ability.cannot('update', 'Dashboard')) {
+        const { organizationUuid } = await this.dashboardModel.getById(
+            dashboardUuid,
+        );
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Dashboard', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         if (isDashboardUnversionedFields(dashboard)) {
@@ -143,6 +170,7 @@ export class DashboardService {
                     description: dashboard.description,
                 },
             );
+
             analytics.track({
                 event: 'dashboard.updated',
                 userId: user.userUuid,
@@ -172,7 +200,15 @@ export class DashboardService {
     }
 
     async delete(user: SessionUser, dashboardUuid: string): Promise<void> {
-        if (user.ability.cannot('delete', 'Dashboard')) {
+        const { organizationUuid } = await this.dashboardModel.getById(
+            dashboardUuid,
+        );
+        if (
+            user.ability.cannot(
+                'delete',
+                subject('Dashboard', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         const deletedDashboard = await this.dashboardModel.delete(

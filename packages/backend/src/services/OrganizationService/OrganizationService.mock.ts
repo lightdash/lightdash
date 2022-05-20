@@ -25,6 +25,7 @@ export const user: SessionUser = {
 };
 
 export const organisation: Organisation = {
+    organizationUuid: 'organizationUuid',
     name: 'Lightdash',
     allowedEmailDomains: ['lightdash.com'],
 };

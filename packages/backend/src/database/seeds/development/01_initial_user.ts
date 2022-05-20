@@ -4,12 +4,16 @@ import {
     LightdashMode,
     OrganizationMemberRole,
     ProjectType,
-    SEED_EMAIL,
-    SEED_ORGANIZATION,
-    SEED_PASSWORD,
+    SEED_ORG_1,
+    SEED_ORG_1_ADMIN,
+    SEED_ORG_1_ADMIN_EMAIL,
+    SEED_ORG_1_ADMIN_PASSWORD,
+    SEED_ORG_2,
+    SEED_ORG_2_ADMIN,
+    SEED_ORG_2_ADMIN_EMAIL,
+    SEED_ORG_2_ADMIN_PASSWORD,
     SEED_PROJECT,
     SEED_SPACE,
-    SEED_USER,
     WarehouseTypes,
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
@@ -26,33 +30,57 @@ export async function seed(knex: Knex): Promise<void> {
     await knex('users').del();
     await knex('organizations').del();
 
-    const [organizationId] = await knex('organizations')
-        .insert(SEED_ORGANIZATION)
-        .returning('organization_id');
+    const addUser = async (
+        seedOrganization: any,
+        seedUser: any,
+        seedEmail: any,
+        seedPassword: any,
+    ) => {
+        const [organizationId] = await knex('organizations')
+            .insert(seedOrganization)
+            .returning('organization_id');
 
-    const [userId] = await knex('users').insert(SEED_USER).returning('user_id');
+        const [userId] = await knex('users')
+            .insert(seedUser)
+            .returning('user_id');
 
-    await knex('emails').insert({ ...SEED_EMAIL, user_id: userId });
+        await knex('emails').insert({ ...seedEmail, user_id: userId });
 
-    await knex('password_logins').insert({
-        user_id: userId,
-        password_hash: await bcrypt.hash(
-            SEED_PASSWORD.password,
-            await bcrypt.genSalt(),
-        ),
-    });
+        await knex('password_logins').insert({
+            user_id: userId,
+            password_hash: await bcrypt.hash(
+                seedPassword.password,
+                await bcrypt.genSalt(),
+            ),
+        });
 
-    await knex('organization_memberships').insert({
-        user_id: userId,
-        organization_id: organizationId,
-        role: OrganizationMemberRole.ADMIN,
-    });
+        await knex('organization_memberships').insert({
+            user_id: userId,
+            organization_id: organizationId,
+            role: OrganizationMemberRole.ADMIN,
+        });
 
-    await knex(OnboardingTableName).insert({
-        organization_id: organizationId,
-        ranQuery_at: new Date(),
-        shownSuccess_at: new Date(),
-    });
+        await knex(OnboardingTableName).insert({
+            organization_id: organizationId,
+            ranQuery_at: new Date(),
+            shownSuccess_at: new Date(),
+        });
+
+        return organizationId;
+    };
+
+    const organizationId = await addUser(
+        SEED_ORG_1,
+        SEED_ORG_1_ADMIN,
+        SEED_ORG_1_ADMIN_EMAIL,
+        SEED_ORG_1_ADMIN_PASSWORD,
+    );
+    await addUser(
+        SEED_ORG_2,
+        SEED_ORG_2_ADMIN,
+        SEED_ORG_2_ADMIN_EMAIL,
+        SEED_ORG_2_ADMIN_PASSWORD,
+    );
 
     // Try this with relative path
     const enc = new EncryptionService({ lightdashConfig });
@@ -131,7 +159,7 @@ export async function seed(knex: Knex): Promise<void> {
     await knex('spaces').insert({ ...SEED_SPACE, project_id: projectId });
 
     const explores = await projectService.refreshAllTables(
-        { userUuid: SEED_USER.user_uuid },
+        { userUuid: SEED_ORG_1_ADMIN.user_uuid },
         SEED_PROJECT.project_uuid,
     );
     await projectModel.saveExploresToCache(SEED_PROJECT.project_uuid, explores);

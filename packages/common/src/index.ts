@@ -113,11 +113,12 @@ export enum ProjectType {
 }
 
 // Seeds
-export const SEED_ORGANIZATION = {
+
+export const SEED_ORG_1 = {
     organization_uuid: '172a2270-000f-42be-9c68-c4752c23ae51',
     organization_name: 'Jaffle Shop',
 };
-export const SEED_USER = {
+export const SEED_ORG_1_ADMIN = {
     user_uuid: 'b264d83a-9000-426a-85ec-3f9c20f368ce',
     first_name: 'David',
     last_name: 'Attenborough',
@@ -125,13 +126,34 @@ export const SEED_USER = {
     is_tracking_anonymized: false,
     is_setup_complete: true,
 };
-export const SEED_EMAIL = {
+export const SEED_ORG_1_ADMIN_EMAIL = {
     email: 'demo@lightdash.com',
     is_primary: true,
 };
-export const SEED_PASSWORD = {
+export const SEED_ORG_1_ADMIN_PASSWORD = {
     password: 'demo_password!',
 };
+// Another user
+export const SEED_ORG_2 = {
+    organization_uuid: '42339eef-359e-4ec4-b810-54ef0b4e3446',
+    organization_name: 'Another Shop',
+};
+export const SEED_ORG_2_ADMIN = {
+    user_uuid: '57cd4548-cbe3-42b3-aa13-97821713e307',
+    first_name: 'Another',
+    last_name: 'User',
+    is_marketing_opted_in: true,
+    is_tracking_anonymized: false,
+    is_setup_complete: true,
+};
+export const SEED_ORG_2_ADMIN_EMAIL = {
+    email: 'another@lightdash.com',
+    is_primary: true,
+};
+export const SEED_ORG_2_ADMIN_PASSWORD = {
+    password: 'demo_password!',
+};
+
 export const SEED_PROJECT = {
     project_uuid: '3675b69e-8324-4110-bdca-059031aa8da3',
     name: 'Jaffle shop',
@@ -585,6 +607,7 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 export type Organisation = {
+    organizationUuid: string;
     name: string;
     allowedEmailDomains: string[];
     chartColors?: string[];
@@ -877,6 +900,7 @@ export type SpaceQuery = Pick<
 >;
 
 export type Space = {
+    organizationUuid: string;
     uuid: string;
     name: string;
     queries: SpaceQuery[];
@@ -1104,17 +1128,24 @@ export type OrganizationProject = {
 };
 
 export type Project = {
+    organizationUuid: string;
     projectUuid: string;
     name: string;
     dbtConnection: DbtProjectConfig;
     warehouseConnection?: WarehouseCredentials;
 };
 
-export type CreateProject = Omit<Project, 'projectUuid'> & {
+export type CreateProject = Omit<
+    Project,
+    'projectUuid' | 'organizationUuid'
+> & {
     warehouseConnection: CreateWarehouseCredentials;
 };
 
-export type UpdateProject = Omit<Project, 'projectUuid'> & {
+export type UpdateProject = Omit<
+    Project,
+    'projectUuid' | 'organizationUuid'
+> & {
     warehouseConnection: CreateWarehouseCredentials;
 };
 export const findItem = (

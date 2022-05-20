@@ -23,6 +23,10 @@ import {
     DashboardViewsTableName,
 } from '../../database/entities/dashboards';
 import {
+    OrganizationTable,
+    OrganizationTableName,
+} from '../../database/entities/organizations';
+import {
     ProjectTable,
     ProjectTableName,
 } from '../../database/entities/projects';
@@ -40,7 +44,8 @@ export type GetDashboardQuery = Pick<
 > &
     Pick<DashboardVersionTable['base'], 'dashboard_version_id' | 'created_at'> &
     Pick<ProjectTable['base'], 'project_uuid'> &
-    Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'>;
+    Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
+    Pick<OrganizationTable['base'], 'organization_uuid'>;
 
 export type GetDashboardDetailsQuery = Pick<
     DashboardTable['base'],
@@ -48,7 +53,8 @@ export type GetDashboardDetailsQuery = Pick<
 > &
     Pick<DashboardVersionTable['base'], 'created_at'> &
     Pick<ProjectTable['base'], 'project_uuid'> &
-    Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'>;
+    Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
+    Pick<OrganizationTable['base'], 'organization_uuid'>;
 export type GetChartTileQuery = Pick<
     DashboardTileChartTable['base'],
     'dashboard_tile_uuid'
@@ -192,6 +198,11 @@ export class DashboardModel {
                         `${SpaceTableName}.project_id`,
                         `${ProjectTableName}.project_id`,
                     )
+                    .innerJoin(
+                        OrganizationTableName,
+                        `${ProjectTableName}.organization_id`,
+                        `${OrganizationTableName}.organization_id`,
+                    )
                     .select<GetDashboardDetailsQuery[]>([
                         `${DashboardsTableName}.dashboard_uuid`,
                         `${DashboardsTableName}.name`,
@@ -202,6 +213,7 @@ export class DashboardModel {
                         `${UserTableName}.user_uuid`,
                         `${UserTableName}.first_name`,
                         `${UserTableName}.last_name`,
+                        `${OrganizationTableName}.organization_uuid`,
                     ])
                     .orderBy([
                         {
@@ -252,7 +264,9 @@ export class DashboardModel {
                 user_uuid,
                 first_name,
                 last_name,
+                organization_uuid,
             }) => ({
+                organizationUuid: organization_uuid,
                 name,
                 description,
                 uuid: dashboard_uuid,
@@ -284,6 +298,11 @@ export class DashboardModel {
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
             )
+            .leftJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
             .select<GetDashboardQuery[]>([
                 `${ProjectTableName}.project_uuid`,
                 `${DashboardsTableName}.dashboard_id`,
@@ -292,6 +311,7 @@ export class DashboardModel {
                 `${DashboardsTableName}.description`,
                 `${DashboardVersionsTableName}.dashboard_version_id`,
                 `${DashboardVersionsTableName}.created_at`,
+                `${OrganizationTableName}.organization_uuid`,
             ])
             .where('dashboard_uuid', dashboardUuid)
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
@@ -380,6 +400,7 @@ export class DashboardModel {
             );
 
         return {
+            organizationUuid: dashboard.organization_uuid,
             projectUuid: dashboard.project_uuid,
             uuid: dashboard.dashboard_uuid,
             name: dashboard.name,

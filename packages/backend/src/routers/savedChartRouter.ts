@@ -12,7 +12,7 @@ savedChartRouter.get(
     isAuthenticated,
     async (req, res, next) => {
         savedChartsService
-            .get(req.params.savedQueryUuid)
+            .get(req.params.savedQueryUuid, req.user!)
             .then((results) => {
                 res.json({
                     status: 'ok',

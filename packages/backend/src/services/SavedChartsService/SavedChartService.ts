@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ChartType,
     countTotalFilterRules,
@@ -6,6 +7,7 @@ import {
     ForbiddenError,
     SavedChart,
     SessionUser,
+    Space,
     UpdateSavedChart,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
@@ -71,7 +73,16 @@ export class SavedChartService {
         savedChartUuid: string,
         data: CreateSavedChartVersion,
     ): Promise<SavedChart> {
-        if (user.ability.cannot('update', 'SavedChart')) {
+        const { organizationUuid } = await this.savedChartModel.get(
+            savedChartUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('SavedChart', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         const savedChart = await this.savedChartModel.createVersion(
@@ -92,7 +103,16 @@ export class SavedChartService {
         savedChartUuid: string,
         data: UpdateSavedChart,
     ): Promise<SavedChart> {
-        if (user.ability.cannot('update', 'SavedChart')) {
+        const { organizationUuid } = await this.savedChartModel.get(
+            savedChartUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('SavedChart', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         const savedChart = await this.savedChartModel.update(
@@ -111,7 +131,16 @@ export class SavedChartService {
     }
 
     async delete(user: SessionUser, savedChartUuid: string): Promise<void> {
-        if (user.ability.cannot('delete', 'SavedChart')) {
+        const { organizationUuid } = await this.savedChartModel.get(
+            savedChartUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'delete',
+                subject('SavedChart', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         const deletedChart = await this.savedChartModel.delete(savedChartUuid);
@@ -125,8 +154,23 @@ export class SavedChartService {
         });
     }
 
-    async get(savedChartUuid: string): Promise<SavedChart> {
-        return this.savedChartModel.get(savedChartUuid);
+    async get(savedChartUuid: string, user: SessionUser): Promise<SavedChart> {
+        const savedChart = await this.savedChartModel.get(savedChartUuid);
+        if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
+            throw new ForbiddenError();
+        }
+        return savedChart;
+    }
+
+    async getAllSpaces(
+        projectUuid: string,
+        user: SessionUser,
+    ): Promise<Space[]> {
+        const [space] = await this.savedChartModel.getAllSpaces(projectUuid);
+        if (user.ability.cannot('view', subject('SavedChart', space))) {
+            throw new ForbiddenError();
+        }
+        return [space];
     }
 
     async create(
@@ -134,7 +178,13 @@ export class SavedChartService {
         projectUuid: string,
         savedChart: CreateSavedChart,
     ): Promise<SavedChart> {
-        if (user.ability.cannot('create', 'SavedChart')) {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'create',
+                subject('SavedChart', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         const newSavedChart = await this.savedChartModel.create(projectUuid, {
@@ -155,10 +205,10 @@ export class SavedChartService {
         projectUuid: string,
         chartUuid: string,
     ): Promise<SavedChart> {
-        if (user.ability.cannot('create', 'SavedChart')) {
+        const chart = await this.savedChartModel.get(chartUuid);
+        if (user.ability.cannot('create', subject('SavedChart', chart))) {
             throw new ForbiddenError();
         }
-        const chart = await this.savedChartModel.get(chartUuid);
         const duplicatedChart = {
             ...chart,
             name: `Copy of ${chart.name}`,

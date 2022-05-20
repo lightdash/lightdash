@@ -37,17 +37,35 @@ const organizationMemberAbilities: Record<
     ) => void
 > = {
     viewer(member, { can }) {
-        can('view', 'Dashboard');
-        can('view', 'SavedChart');
-        can('view', 'Project');
+        can('view', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'Project', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'Organization', {
+            organizationUuid: member.organizationUuid,
+        });
+
         can('view', 'Job', { userUuid: member.userUuid });
     },
     editor(member, { can }) {
         organizationMemberAbilities.viewer(member, { can });
-        can('manage', 'Project');
-        can('manage', 'Dashboard');
-        can('manage', 'SavedChart');
-        can('manage', 'InviteLink');
+        can('manage', 'Project', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'InviteLink', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     admin(member, { can }) {
         organizationMemberAbilities.editor(member, { can });

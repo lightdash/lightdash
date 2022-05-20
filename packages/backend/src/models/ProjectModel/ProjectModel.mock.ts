@@ -87,6 +87,7 @@ export const projectMock = {
     dbt_connection: Buffer.from(JSON.stringify(dbtCloudIDEProjectConfigMock)),
     encrypted_credentials: Buffer.from(JSON.stringify(bigqueryCredentials)),
     warehouse_type: WarehouseTypes.BIGQUERY,
+    organization_uuid: 'organizationUuid',
 };
 
 export const tableSelectionMock: Pick<
@@ -112,6 +113,7 @@ export const expectedTablesConfiguration: TablesConfiguration = {
 };
 
 export const expectedProject: Project = {
+    organizationUuid: 'organizationUuid',
     projectUuid,
     name: 'my project',
     dbtConnection: {

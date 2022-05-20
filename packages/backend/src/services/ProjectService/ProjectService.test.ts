@@ -1,4 +1,8 @@
-import { NotFoundError, SessionUser } from '@lightdash/common';
+import {
+    defineAbilityForOrganizationMember,
+    NotFoundError,
+    SessionUser,
+} from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import {
     jobModel,
@@ -18,6 +22,7 @@ import {
     expectedSqlResults,
     job,
     projectAdapterMock,
+    projectWithSensitiveFields,
     spacesWithSavedCharts,
     tablesConfiguration,
     tablesConfigurationWithNames,
@@ -33,6 +38,8 @@ jest.mock('../../analytics/client', () => ({
 
 jest.mock('../../models/models', () => ({
     projectModel: {
+        getWithSensitiveFields: jest.fn(async () => projectWithSensitiveFields),
+        get: jest.fn(async () => projectWithSensitiveFields),
         getTablesConfiguration: jest.fn(async () => tablesConfiguration),
         updateTablesConfiguration: jest.fn(),
         getExploresFromCache: jest.fn(async () => allExplores),
@@ -157,6 +164,10 @@ describe('ProjectService', () => {
             const anotherUser: SessionUser = {
                 ...user,
                 userUuid: 'another-user-uuid',
+                ability: defineAbilityForOrganizationMember({
+                    ...user,
+                    userUuid: 'another-user-uuid',
+                }),
             };
             await expect(
                 projectService.getJobStatus('jobUuid', anotherUser),
