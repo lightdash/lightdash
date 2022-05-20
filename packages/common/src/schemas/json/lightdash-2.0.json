@@ -4,7 +4,7 @@
     "properties": {
         "version": {
             "type": "number",
-            "minimum": 2
+            "enum": [2]
         },
         "models": {
             "type": "array",
@@ -269,6 +269,29 @@
                 },
                 "required": ["name", "model", "sql", "type"]
             }
+        },
+        "seeds": {
+            "type": "object"
+        },
+        "snapshots": {
+            "type": "object"
+        },
+        "tests": {
+            "type": "object"
+        },
+        "sources": {
+            "type": "object"
+        },
+        "analyses": {
+            "type": "object"
+        },
+        "exposures": {
+            "type": "object"
+        },
+        "macros": {
+            "type": "object"
         }
-    }
+    },
+    "additionalProperties": false,
+    "required": ["version"]
 }
