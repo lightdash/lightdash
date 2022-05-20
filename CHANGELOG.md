@@ -1,3 +1,10 @@
+# [0.110.0](https://github.com/lightdash/lightdash/compare/0.109.6...0.110.0) (2022-05-20)
+
+
+### Features
+
+* implement org level permissions ([#2142](https://github.com/lightdash/lightdash/issues/2142)) ([312369a](https://github.com/lightdash/lightdash/commit/312369a6998f4e7502f3e2c0c529a2dff8feb94a))
+
 ## [0.109.6](https://github.com/lightdash/lightdash/compare/0.109.5...0.109.6) (2022-05-20)
 
 
