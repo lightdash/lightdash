@@ -2,7 +2,6 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
-    CompleteCartesianChartLayout,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
@@ -188,128 +187,139 @@ const useCartesianChartConfig = (
     // Set fallout layout values
     // https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6
     useEffect(() => {
-        const setAxes = (
-            prev: Partial<Partial<CompleteCartesianChartLayout>> | undefined,
-            xField: string | undefined,
-            yFields: string[],
-        ) => {
-            const isCurrentXFieldValid: boolean =
-                !!prev?.xField && availableFields.includes(prev.xField);
-            const currentValidYFields = prev?.yField
-                ? prev.yField.filter((y) => availableFields.includes(y))
-                : [];
-            return {
-                ...prev,
-                xField: isCurrentXFieldValid ? prev?.xField : xField,
-                yField:
-                    currentValidYFields.length > 0
-                        ? currentValidYFields
-                        : yFields,
-            };
-        };
-
-        const setPivotField = (pivotField: string) => {
-            // Only set pivot field if there are no existing chart configuration (not saved)
-            if (hasInitialValue) return;
-            setPivotDimensions((currentPivots) => {
-                const currentValidPivots = currentPivots
-                    ? currentPivots.filter((y) => availableFields.includes(y))
+        if (availableFields.length > 0) {
+            setDirtyLayout((prev) => {
+                const isCurrentXFieldValid: boolean =
+                    !!prev?.xField && availableFields.includes(prev.xField);
+                const currentValidYFields = prev?.yField
+                    ? prev.yField.filter((y) => availableFields.includes(y))
                     : [];
-                return currentValidPivots.length > 0
-                    ? currentValidPivots
-                    : [pivotField];
-            });
-        };
+                const isCurrentYFieldsValid: boolean =
+                    currentValidYFields.length > 0;
 
-        // one metric , one dimension
-        if (availableMetrics.length === 1 && availableDimensions.length === 1) {
-            setDirtyLayout((prev) => {
-                return setAxes(prev, availableDimensions[0], [
-                    availableMetrics[0],
-                ]);
-            });
-        }
+                // current configuration is still valid
+                if (isCurrentXFieldValid && isCurrentYFieldsValid) {
+                    return {
+                        ...prev,
+                        xField: prev?.xField,
+                        yField: currentValidYFields,
+                    };
+                }
 
-        // one metric, two dimensions
-        else if (
-            availableMetrics.length === 1 &&
-            availableDimensions.length === 2
-        ) {
-            setDirtyLayout((prev) => {
-                return setAxes(prev, availableDimensions[0], [
-                    availableMetrics[0],
-                ]);
-            });
-            setPivotField(availableDimensions[1]);
-        }
+                // try to fix partially invalid configuration
+                if (
+                    (isCurrentXFieldValid && !isCurrentYFieldsValid) ||
+                    (!isCurrentXFieldValid && isCurrentYFieldsValid)
+                ) {
+                    const usedFields: string[] = [];
 
-        // two metrics, one dimension
-        else if (
-            availableMetrics.length === 2 &&
-            availableDimensions.length === 1
-        ) {
-            setDirtyLayout((prev) => {
-                return setAxes(prev, availableDimensions[0], availableMetrics);
-            });
-        }
+                    if (pivotKey) {
+                        usedFields.push(pivotKey);
+                    }
+                    if (isCurrentXFieldValid && prev?.xField) {
+                        usedFields.push(prev?.xField);
+                    }
+                    if (isCurrentYFieldsValid) {
+                        usedFields.push(...currentValidYFields);
+                    }
 
-        // two metrics, two dimensions
-        // AND >2 metrics, >2 dimensions
-        else if (
-            availableMetrics.length >= 2 &&
-            availableDimensions.length >= 2
-        ) {
-            setDirtyLayout((prev) => {
-                //Max 4 metrics in Y-axis
-                return setAxes(
-                    prev,
-                    availableDimensions[0],
-                    availableMetrics.slice(0, 4),
-                );
-            });
-            setPivotField(availableDimensions[1]);
-        }
+                    const fallbackXField = availableFields.filter(
+                        (f) => !usedFields.includes(f),
+                    )[0];
 
-        // 2+ metrics with no dimensions
-        else if (
-            availableMetrics.length >= 2 &&
-            availableDimensions.length === 0
-        ) {
-            setDirtyLayout((prev) => {
-                return setAxes(prev, availableMetrics[0], [
-                    availableMetrics[1],
-                ]);
-            });
-        }
+                    if (!isCurrentXFieldValid && fallbackXField) {
+                        return {
+                            ...prev,
+                            xField: fallbackXField,
+                            yField: currentValidYFields,
+                        };
+                    }
 
-        // 2+ dimensions with no metrics
-        else if (
-            availableMetrics.length === 0 &&
-            availableDimensions.length >= 2
-        ) {
-            setDirtyLayout((prev) => {
-                return setAxes(prev, availableDimensions[0], [
-                    availableDimensions[1],
-                ]);
-            });
-        }
+                    const fallbackYFields = [
+                        ...availableMetrics,
+                        ...availableDimensions,
+                    ].filter((f) => !usedFields.includes(f))[0];
 
-        // else , default behaviour
-        else if (availableFields.length > 1) {
-            setDirtyLayout((prev) => {
-                const fallbackXField =
-                    availableDimensions[0] || availableFields[0];
-                const fallbackYField =
-                    [...availableMetrics, ...availableTableCalculations][0] ||
-                    availableFields[1];
-                return setAxes(prev, fallbackXField, [fallbackYField]);
-            });
-        } else {
-            setDirtyLayout((prev) => {
-                return setAxes(prev, undefined, []);
+                    if (!isCurrentYFieldsValid && fallbackYFields) {
+                        return {
+                            ...prev,
+                            yField: [fallbackYFields],
+                        };
+                    }
+                }
+
+                let newXField: string | undefined = undefined;
+                let newYFields: string[] = [];
+                let newPivotFields: string[] = [];
+
+                // one metric , one dimension
+                if (
+                    availableMetrics.length === 1 &&
+                    availableDimensions.length === 1
+                ) {
+                    newXField = availableDimensions[0];
+                    newYFields = [availableMetrics[0]];
+                }
+
+                // one metric, two dimensions
+                else if (
+                    availableMetrics.length === 1 &&
+                    availableDimensions.length === 2
+                ) {
+                    newXField = availableDimensions[0];
+                    newYFields = [availableMetrics[0]];
+                    newPivotFields = [availableDimensions[1]];
+                }
+
+                // two metrics, one dimension
+                else if (
+                    availableMetrics.length === 2 &&
+                    availableDimensions.length === 1
+                ) {
+                    newXField = availableDimensions[0];
+                    newYFields = availableMetrics;
+                }
+
+                // two metrics, two dimensions
+                // AND >2 metrics, >2 dimensions
+                else if (
+                    availableMetrics.length >= 2 &&
+                    availableDimensions.length >= 2
+                ) {
+                    //Max 4 metrics in Y-axis
+                    newXField = availableDimensions[0];
+                    newYFields = availableMetrics.slice(0, 4);
+                    newPivotFields = [availableDimensions[1]];
+                }
+
+                // 2+ metrics with no dimensions
+                else if (
+                    availableMetrics.length >= 2 &&
+                    availableDimensions.length === 0
+                ) {
+                    newXField = availableMetrics[0];
+                    newYFields = [availableMetrics[1]];
+                }
+
+                // 2+ dimensions with no metrics
+                else if (
+                    availableMetrics.length === 0 &&
+                    availableDimensions.length >= 2
+                ) {
+                    newXField = availableDimensions[0];
+                    newYFields = [availableDimensions[1]];
+                }
+
+                setPivotDimensions(newPivotFields);
+                return {
+                    ...prev,
+                    xField: newXField,
+                    yField: newYFields,
+                };
             });
         }
     }, [
+        pivotKey,
         availableFields,
         availableDimensions,
         availableMetrics,
