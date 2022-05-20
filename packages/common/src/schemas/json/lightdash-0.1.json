@@ -185,6 +185,89 @@
                 },
                 "required": ["name"]
             }
+        },
+        "metrics": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "model": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "average",
+                            "boolean",
+                            "count",
+                            "count_distinct",
+                            "date",
+                            "max",
+                            "min",
+                            "number",
+                            "string",
+                            "sum"
+                        ]
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "timestamp": {
+                        "type": "string"
+                    },
+                    "time_grains": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "dimensions": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "filters": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "hidden": {
+                                "type": "boolean"
+                            },
+                            "round": {
+                                "type": "number",
+                                "minimum": 0
+                            },
+                            "format": {
+                                "type": "string",
+                                "enum": [
+                                    "km",
+                                    "mi",
+                                    "usd",
+                                    "gbp",
+                                    "eur",
+                                    "percent"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "required": ["name", "model", "sql", "type"]
+            }
         }
     }
 }
