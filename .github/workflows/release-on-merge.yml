@@ -19,6 +19,10 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: '16'
+      - name: Install dependencies
+        run: yarn install
+      - name: Build
+        run: yarn build-published-packages
       - name: Semantic Release
         id: semantic
         uses: cycjimmy/semantic-release-action@v2
