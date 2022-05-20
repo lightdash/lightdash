@@ -1,3 +1,10 @@
+## [0.109.5](https://github.com/lightdash/lightdash/compare/0.109.4...0.109.5) (2022-05-20)
+
+
+### Bug Fixes
+
+* build before npm publish ([#2176](https://github.com/lightdash/lightdash/issues/2176)) ([b5c883c](https://github.com/lightdash/lightdash/commit/b5c883c2f5b020b6c05ae37ce83a0371d06bce69))
+
 ## [0.109.4](https://github.com/lightdash/lightdash/compare/0.109.3...0.109.4) (2022-05-19)
 
 
