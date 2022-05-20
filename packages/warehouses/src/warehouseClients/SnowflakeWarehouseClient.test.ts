@@ -4,9 +4,14 @@ import {
     mapFieldType,
     SnowflakeWarehouseClient,
 } from './SnowflakeWarehouseClient';
-import { columns, credentials } from './SnowflakeWarehouseClient.mock';
+import {
+    columns,
+    credentials,
+    queryColumnsMock,
+} from './SnowflakeWarehouseClient.mock';
 import {
     config,
+    expectedFields,
     expectedRow,
     expectedWarehouseSchema,
 } from './WarehouseClient.mock';
@@ -16,7 +21,9 @@ jest.mock('snowflake-sdk', () => ({
     createConnection: jest.fn(() => ({
         connect: jest.fn((callback) => callback(null, {})),
         execute: jest.fn(({ sqlText, complete }) => {
-            complete(undefined, undefined, [expectedRow]);
+            complete(undefined, { getColumns: () => queryColumnsMock }, [
+                expectedRow,
+            ]);
         }),
         destroy: jest.fn(),
     })),
@@ -25,15 +32,19 @@ jest.mock('snowflake-sdk', () => ({
 describe('SnowflakeWarehouseClient', () => {
     it('expect query rows', async () => {
         const warehouse = new SnowflakeWarehouseClient(credentials);
-        expect((await warehouse.runQuery('fake sql')).rows[0]).toEqual(
-            expectedRow,
-        );
+        const results = await warehouse.runQuery('fake sql');
+        expect(results.fields).toEqual(expectedFields);
+        expect(results.rows[0]).toEqual(expectedRow);
     });
     it('expect schema with snowflake types mapped to dimension types', async () => {
         (createConnection as jest.Mock).mockImplementationOnce(() => ({
             connect: jest.fn((callback) => callback(null, {})),
             execute: jest.fn(({ sqlText, complete }) => {
-                complete(undefined, undefined, columns);
+                complete(
+                    undefined,
+                    { getColumns: () => queryColumnsMock },
+                    columns,
+                );
             }),
             destroy: jest.fn(),
         }));

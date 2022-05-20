@@ -8,6 +8,7 @@ import {
 } from './BigqueryWarehouseClient.mock';
 import {
     config,
+    expectedFields,
     expectedRow,
     expectedWarehouseSchema,
 } from './WarehouseClient.mock';
@@ -19,9 +20,9 @@ describe('BigqueryWarehouseClient', () => {
         (warehouse.client.createQueryJob as jest.Mock).mockImplementationOnce(
             () => createJobResponse,
         );
-        expect((await warehouse.runQuery('fake sql')).rows[0]).toEqual(
-            expectedRow,
-        );
+        const results = await warehouse.runQuery('fake sql');
+        expect(results.fields).toEqual(expectedFields);
+        expect(results.rows[0]).toEqual(expectedRow);
         expect(
             warehouse.client.createQueryJob as jest.Mock,
         ).toHaveBeenCalledTimes(1);

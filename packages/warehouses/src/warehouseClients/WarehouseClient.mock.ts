@@ -29,6 +29,16 @@ export const expectedWarehouseSchema: WarehouseCatalog = {
     },
 };
 
+export const expectedFields: Record<string, any> = {
+    myStringColumn: { type: DimensionType.STRING },
+    myNumberColumn: { type: DimensionType.NUMBER },
+    myDateColumn: { type: DimensionType.DATE },
+    myTimestampColumn: { type: DimensionType.TIMESTAMP },
+    myBooleanColumn: { type: DimensionType.BOOLEAN },
+    myArrayColumn: { type: DimensionType.STRING },
+    myObjectColumn: { type: DimensionType.STRING },
+};
+
 export const expectedRow: Record<string, any> = {
     myStringColumn: 'string value',
     myNumberColumn: 100,
