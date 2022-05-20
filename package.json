@@ -37,6 +37,7 @@
     "e2e-format": "yarn workspace e2e format",
     "cli-lint": "yarn workspace @lightdash/cli lint",
     "cli-format": "yarn workspace @lightdash/cli format",
+    "cli-build": "yarn workspace @lightdash/cli build",
     "warehouses-lint": "yarn workspace @lightdash/warehouses lint",
     "warehouses-format": "yarn workspace @lightdash/warehouses format",
     "warehouses-test": "yarn workspace @lightdash/warehouses test",
@@ -46,6 +47,7 @@
     "test": "run-s common-test warehouses-test backend-test",
     "dev": "npm-run-all common-build warehouses-build --parallel backend-dev frontend-dev",
     "build": "run-s common-build warehouses-build frontend-build backend-build",
+    "build-published-packages": "run-s common-build warehouses-build cli-build",
     "start": "run-p backend-start",
     "prepare": "husky install"
   },

@@ -35,7 +35,6 @@
         "format": "prettier --check --ignore-unknown ./src",
         "fix-format": "prettier --write --ignore-unknown ./src",
         "bundle-openapi": "openapi bundle --output ./src/openapibundle --ext json ./src/openapi/openapi.json --lint",
-        "test": "jest",
-        "prepare": "yarn install && yarn run build"
+        "test": "jest"
     }
 }
