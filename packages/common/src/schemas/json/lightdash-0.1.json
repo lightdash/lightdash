@@ -3,7 +3,8 @@
     "type": "object",
     "properties": {
         "version": {
-            "type": "number"
+            "type": "number",
+            "minimum": 2
         },
         "models": {
             "type": "array",
