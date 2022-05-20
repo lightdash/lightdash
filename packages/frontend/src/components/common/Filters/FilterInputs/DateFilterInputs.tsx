@@ -24,6 +24,8 @@ import UnitOfTimeAutoComplete from './UnitOfTimeAutoComplete';
 const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
     const { field, filterRule, onChange } = props;
     const isTimestamp = field.type === DimensionType.TIMESTAMP;
+
+    console.log('filterRule.values', filterRule.values);
     switch (filterRule.operator) {
         case FilterOperator.EQUALS:
         case FilterOperator.NOT_EQUALS:
@@ -48,7 +50,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                     onChange={(value: Date) => {
                                         onChange({
                                             ...filterRule,
-                                            values: [value],
+                                            values: [moment(value).utc(true)],
                                         });
                                     }}
                                 />
@@ -62,7 +64,9 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                     onChange({
                                         ...filterRule,
                                         values: [
-                                            moment(value).startOf('month'),
+                                            moment(value)
+                                                .utc(true)
+                                                .startOf('month'),
                                         ],
                                     });
                                 }}
@@ -75,7 +79,11 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                 onChange={(value: Date) => {
                                     onChange({
                                         ...filterRule,
-                                        values: [moment(value).startOf('year')],
+                                        values: [
+                                            moment(value)
+                                                .utc(true)
+                                                .startOf('year'),
+                                        ],
                                     });
                                 }}
                             />
@@ -102,7 +110,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         if (value) {
                             onChange({
                                 ...filterRule,
-                                values: [value],
+                                values: [moment(value).utc(true)],
                             });
                         }
                     }}
