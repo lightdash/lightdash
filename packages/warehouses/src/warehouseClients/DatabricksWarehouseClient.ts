@@ -95,6 +95,49 @@ const mapFieldType = (type: string): DimensionType => {
     }
 };
 
+// https://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.infocenter.dc36273.1570/html/sprocs/CIHHGDBC.htm
+enum DatabricksDataTypes {
+    CHAR = 1,
+    DECIMAL = 2,
+    DOUBLE_PRECISION = 8,
+    FLOAT = 6,
+    INTEGER = 4,
+    NUMERIC = 2,
+    REAL = 7,
+    SMALL_INT = 5,
+    BIG_INT = -5,
+    BINARY = -2,
+    BIT = -7,
+    DATE = 9,
+    TIME = 10,
+    TIMESTAMP = 11,
+    TINY_INT = -6,
+}
+
+const convertDataTypeToDimensionType = (type: number): DimensionType => {
+    switch (type) {
+        case DatabricksDataTypes.BIT:
+        case DatabricksDataTypes.BINARY:
+            return DimensionType.BOOLEAN;
+        case DatabricksDataTypes.TINY_INT:
+        case DatabricksDataTypes.SMALL_INT:
+        case DatabricksDataTypes.INTEGER:
+        case DatabricksDataTypes.BIG_INT:
+        case DatabricksDataTypes.FLOAT:
+        case DatabricksDataTypes.REAL:
+        case DatabricksDataTypes.DOUBLE_PRECISION:
+        case DatabricksDataTypes.DECIMAL:
+        case DatabricksDataTypes.NUMERIC:
+            return DimensionType.NUMBER;
+        case DatabricksDataTypes.DATE:
+            return DimensionType.DATE;
+        case DatabricksDataTypes.TIMESTAMP:
+            return DimensionType.TIMESTAMP;
+        default:
+            return DimensionType.STRING;
+    }
+};
+
 export class DatabricksWarehouseClient implements WarehouseClient {
     connectionString: string;
 
@@ -116,8 +159,18 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         }
         try {
             const result = await connection.query<Record<string, any>>(sql);
-            console.log('result', result.columns);
-            return { fields: {}, rows: result };
+            const fields = (result.columns || []).reduce<
+                Record<string, { type: DimensionType }>
+            >(
+                (acc, column) => ({
+                    ...acc,
+                    [column.name]: {
+                        type: convertDataTypeToDimensionType(column.dataType),
+                    },
+                }),
+                {},
+            );
+            return { fields, rows: result };
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         } finally {
