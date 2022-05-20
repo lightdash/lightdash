@@ -81,7 +81,14 @@ export class DashboardService {
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
         const space = await getSpace(database, projectUuid);
-        if (user.ability.cannot('create', subject('Dashboard', space))) {
+        if (
+            user.ability.cannot(
+                'create',
+                subject('Dashboard', {
+                    organizationUuid: space.organization_uuid,
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         const newDashboard = await this.dashboardModel.create(
