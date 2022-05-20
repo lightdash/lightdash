@@ -16,6 +16,20 @@
                     "description": {
                         "type": "string"
                     },
+                    "docs": {
+                        "type": "object",
+                        "properties": {
+                            "show": {
+                                "type": "boolean"
+                            }
+                        }
+                    },
+                    "tests": {
+                        "type": "array",
+                        "items": {
+                            "type": ["string", "object"]
+                        }
+                    },
                     "meta": {
                         "type": "object",
                         "properties": {
@@ -32,6 +46,138 @@
                                         }
                                     },
                                     "required": ["join", "sql_on"]
+                                }
+                            }
+                        }
+                    },
+                    "columns": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "description": {
+                                    "type": "string"
+                                },
+                                "quote": {
+                                    "type": "boolean"
+                                },
+                                "tests": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": ["string", "object"]
+                                    }
+                                },
+                                "tags": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                "meta": {
+                                    "type": "object",
+                                    "properties": {
+                                        "metrics": {
+                                            "type": "object",
+                                            "patternProperties": {
+                                                "^[a-z0-9_]+$": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "type": {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "average",
+                                                                "boolean",
+                                                                "count",
+                                                                "count_distinct",
+                                                                "date",
+                                                                "max",
+                                                                "min",
+                                                                "number",
+                                                                "string",
+                                                                "sum"
+                                                            ]
+                                                        },
+                                                        "label": {
+                                                            "type": "string"
+                                                        },
+                                                        "description": {
+                                                            "type": "string"
+                                                        },
+                                                        "sql": {
+                                                            "type": "string"
+                                                        },
+                                                        "hidden": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "round": {
+                                                            "type": "number",
+                                                            "minimum": 0
+                                                        },
+                                                        "format": {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "km",
+                                                                "mi",
+                                                                "usd",
+                                                                "gbp",
+                                                                "eur",
+                                                                "percent"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": ["type"]
+                                                }
+                                            }
+                                        },
+                                        "dimension": {
+                                            "type": "object",
+                                            "properties": {
+                                                "label": {
+                                                    "type": "string"
+                                                },
+                                                "description": {
+                                                    "type": "string"
+                                                },
+                                                "sql": {
+                                                    "type": "string"
+                                                },
+                                                "hidden": {
+                                                    "type": "boolean"
+                                                },
+                                                "round": {
+                                                    "type": "number",
+                                                    "minimum": 0
+                                                },
+                                                "format": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "km",
+                                                        "mi",
+                                                        "usd",
+                                                        "gbp",
+                                                        "eur",
+                                                        "percent"
+                                                    ]
+                                                },
+                                                "time_intervals": {
+                                                    "type": ["string", "array"],
+                                                    "enum": ["default", "OFF"],
+                                                    "items": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "DAY",
+                                                            "WEEK",
+                                                            "MONTH",
+                                                            "YEAR"
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
