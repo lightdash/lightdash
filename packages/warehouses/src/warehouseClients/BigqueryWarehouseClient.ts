@@ -62,7 +62,7 @@ const parseCell = (cell: any) => {
     return `${cell}`;
 };
 
-const mapFieldType = (type: string): DimensionType => {
+const mapFieldType = (type: string | undefined): DimensionType => {
     switch (type) {
         case BigqueryFieldType.DATE:
             return DimensionType.DATE;
@@ -146,11 +146,24 @@ export class BigqueryWarehouseClient implements WarehouseClient {
                     this.credentials.timeoutSeconds * 1000,
             });
             // auto paginate - hides full response
-            const [rows, ...many] = await job.getQueryResults({
+            const [rows] = await job.getQueryResults({
                 autoPaginate: true,
             });
-            console.log('many', many);
-            return { fields: {}, rows: parseRows(rows) };
+            const [, , response] = await job.getQueryResults({
+                autoPaginate: false,
+            });
+            const fields = (response?.schema?.fields || []).reduce<
+                Record<string, { type: DimensionType }>
+            >((acc, field) => {
+                if (field.name) {
+                    return {
+                        ...acc,
+                        [field.name]: { type: mapFieldType(field.type) },
+                    };
+                }
+                return acc;
+            }, {});
+            return { fields, rows: parseRows(rows) };
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         }

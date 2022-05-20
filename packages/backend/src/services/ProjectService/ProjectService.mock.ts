@@ -58,6 +58,7 @@ export const updateTablesConfiguration: TablesConfiguration = {
 };
 
 export const expectedSqlResults: ApiSqlQueryResults = {
+    fields: {},
     rows: [{ col1: 'val1' }],
 };
 
@@ -66,7 +67,7 @@ export const projectAdapterMock: ProjectAdapter = {
     getDbtPackages: jest.fn(),
     test: jest.fn(),
     destroy: jest.fn(),
-    runQuery: jest.fn(async () => expectedSqlResults.rows),
+    runQuery: jest.fn(async () => expectedSqlResults),
 };
 
 export const validExplore: Explore = {
