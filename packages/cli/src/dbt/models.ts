@@ -213,7 +213,7 @@ const selectModels = ({ selector, projectName, models }: SelectModelsArgs) => {
 
 type GetCompiledModelsFromManifestArgs = {
     projectName: string;
-    selectors: string[];
+    selectors: string[] | undefined;
     manifest: DbtManifest;
 };
 export const getCompiledModelsFromManifest = ({
@@ -229,13 +229,18 @@ export const getCompiledModelsFromManifest = ({
         );
     }
     const adapterType = manifest.metadata.adapter_type;
-    const nodeIds = Array.from(
-        new Set(
-            selectors.flatMap((selector) =>
-                selectModels({ selector, projectName, models }),
+    let nodeIds: string[] = [];
+    if (selectors === undefined) {
+        nodeIds = models.map((model) => model.unique_id);
+    } else {
+        nodeIds = Array.from(
+            new Set(
+                selectors.flatMap((selector) =>
+                    selectModels({ selector, projectName, models }),
+                ),
             ),
-        ),
-    );
+        );
+    }
     const modelLookup = models.reduce<{ [nodeId: string]: DbtRawModelNode }>(
         (acc, model) => {
             acc[model.unique_id] = model;

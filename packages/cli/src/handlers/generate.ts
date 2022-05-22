@@ -1,6 +1,7 @@
 import { ParseError } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import { promises as fs } from 'fs';
+import inquirer from 'inquirer';
 import * as yaml from 'js-yaml';
 import ora from 'ora';
 import * as path from 'path';
@@ -18,13 +19,26 @@ import {
 import * as styles from '../styles';
 
 type GenerateHandlerOptions = {
-    select: string[];
+    select: string[] | undefined;
     projectDir: string;
     profilesDir: string;
     target: string | undefined;
     profile: string | undefined;
 };
 export const generateHandler = async (options: GenerateHandlerOptions) => {
+    if (options.select === undefined) {
+        const answers = await inquirer.prompt([
+            {
+                type: 'confirm',
+                name: 'isConfirm',
+                message:
+                    'Are you sure you want to generate .yml for all models in project?',
+            },
+        ]);
+        if (!answers.confirm) {
+            return;
+        }
+    }
     const absoluteProjectPath = path.resolve(options.projectDir);
     const absoluteProfilesPath = path.resolve(options.profilesDir);
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
@@ -70,7 +84,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
             }
             spinner.succeed(
                 `  ${styles.bold(compiledModel.name)}${styles.info(
-                    ` ➡️${path.relative(process.cwd(), outputFilePath)}`,
+                    ` ➡️  ${path.relative(process.cwd(), outputFilePath)}`,
                 )}`,
             );
         } catch (e) {

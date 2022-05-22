@@ -11,11 +11,14 @@
     "dependencies": {
         "@lightdash/common": "^0.109.6",
         "@lightdash/warehouses": "^0.109.6",
+        "@types/inquirer": "^8.2.1",
         "@types/nunjucks": "^3.2.1",
         "ajv": "^8.11.0",
         "better-ajv-errors": "^1.2.0",
         "chalk": "4.1.2",
         "commander": "^9.2.0",
+        "execa": "^5",
+        "inquirer": "^8.2.4",
         "js-yaml": "^4.1.0",
         "nunjucks": "^3.2.3",
         "ora": "5.4.1"

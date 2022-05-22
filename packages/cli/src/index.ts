@@ -3,6 +3,7 @@ import { LightdashError } from '@lightdash/common';
 import { program } from 'commander';
 import * as os from 'os';
 import * as path from 'path';
+import { dbtRunHandler } from './handlers/dbt/run';
 import { generateHandler } from './handlers/generate';
 import * as styles from './styles';
 
@@ -44,6 +45,29 @@ ${styles.bold('Examples:')}
 `,
     );
 
+const dbtProgram = program.command('dbt').description('runs dbt commands');
+
+dbtProgram
+    .command('run')
+    .description('Run dbt')
+    .option('--project-dir <path>', 'The directory of the dbt project', '.')
+    .option(
+        '--profiles-dir <path>',
+        'The directory of the dbt profiles',
+        path.join(os.homedir(), '.dbt'),
+    )
+    .option('--profile <name>')
+    .option('-t, --target <target>')
+    .option('-x, --fail-fast')
+    .option('--threads <threads>')
+    .option('--no-version-check')
+    .option('-s, --select, <select> [selects...]')
+    .option('--state <state>')
+    .option('--defer')
+    .option('--no-defer')
+    .option('--full-refresh')
+    .action(dbtRunHandler);
+
 program
     .command('generate')
     .description('Generates a new schema.yml file for model')
@@ -51,6 +75,9 @@ program
         'after',
         `
 ${styles.bold('Examples:')}
+  ${styles.title('⚡')}️lightdash ${styles.bold('generate')} ${styles.secondary(
+            '-- generates .yml file for all dbt models',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'generate',
         )} -s mymodel ${styles.secondary(
@@ -68,7 +95,7 @@ ${styles.bold('Examples:')}
         )}
 `,
     )
-    .requiredOption(
+    .option(
         '-s, --select <models...>',
         'specify models (accepts dbt selection syntax)',
     )
