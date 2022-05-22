@@ -1,5 +1,5 @@
 import { CreateWarehouseCredentials, ParseError } from '@lightdash/common';
-import { readFileSync } from 'fs';
+import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
 import { convertBigquerySchema } from './targets/bigquery';
@@ -8,15 +8,15 @@ import { convertSnowflakeSchema } from './targets/snowflake';
 import { renderProfilesYml } from './templating';
 import { LoadProfileArgs, Profiles, Target } from './types';
 
-export const loadDbtTarget = ({
+export const loadDbtTarget = async ({
     profilesDir,
     profileName,
     targetName,
-}: LoadProfileArgs): Target => {
+}: LoadProfileArgs): Promise<Target> => {
     const profilePath = path.join(profilesDir, 'profiles.yml');
     let allProfiles;
     try {
-        const raw = readFileSync(profilePath, { encoding: 'utf8' });
+        const raw = await fs.readFile(profilePath, { encoding: 'utf8' });
         const rendered = renderProfilesYml(raw);
         allProfiles = yaml.load(rendered) as Profiles;
     } catch (e) {
@@ -40,9 +40,9 @@ export const loadDbtTarget = ({
     return target;
 };
 
-export const warehouseCredentialsFromDbtTarget = (
+export const warehouseCredentialsFromDbtTarget = async (
     target: Target,
-): CreateWarehouseCredentials => {
+): Promise<CreateWarehouseCredentials> => {
     switch (target.type) {
         case 'postgres':
             return convertPostgresSchema(target);

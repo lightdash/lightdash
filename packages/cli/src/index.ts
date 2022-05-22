@@ -23,14 +23,29 @@ program
 ${styles.bold('Examples:')}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'generate',
-        )} mymodel ${styles.secondary(
-            '-- generates a mymodel.yml file for a single dbt model',
+        )} -s mymodel ${styles.secondary(
+            '-- generates .yml file for a single dbt model',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'generate',
+        )} -s model1 model2 ${styles.secondary(
+            '-- generates .yml for multiple dbt models',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'generate',
+        )} -s tag:sales ${styles.secondary(
+            '-- generates .yml for all dbt models tagged as sales',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'help',
+        )} generate ${styles.secondary(
+            '-- show detailed help for the "generate" command',
         )}
 `,
     );
 
 program
-    .command('generate <model>')
+    .command('generate')
     .description('Generates a new schema.yml file for model')
     .addHelpText(
         'after',
@@ -38,24 +53,34 @@ program
 ${styles.bold('Examples:')}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'generate',
-        )} mymodel ${styles.secondary(
-            '-- generates a mymodel.yml file for a single dbt model',
+        )} -s mymodel ${styles.secondary(
+            '-- generates .yml file for a single dbt model',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'generate',
+        )} -s model1 model2 ${styles.secondary(
+            '-- generates .yml for multiple dbt models',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'generate',
+        )} -s tag:sales ${styles.secondary(
+            '-- generates .yml for all dbt models tagged as sales',
         )}
 `,
     )
-    .option(
-        '--project-dir <path>',
-        'The directory of the dbt project (defaults: current directory)',
-        '.',
+    .requiredOption(
+        '-s, --select <models...>',
+        'specify models (accepts dbt selection syntax)',
     )
+    .option('--project-dir <path>', 'The directory of the dbt project', '.')
     .option(
         '--profiles-dir <path>',
-        'The directory of the dbt profiles (defaults: ~/.dbt)',
+        'The directory of the dbt profiles',
         path.join(os.homedir(), '.dbt'),
     )
     .option(
         '--profile <name>',
-        'The name of the profile to use (defaults to profile name in dbt_project.yml',
+        'The name of the profile to use (defaults to profile name in dbt_project.yml)',
         undefined,
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)

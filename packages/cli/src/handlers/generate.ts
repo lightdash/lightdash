@@ -1,14 +1,15 @@
 import { ParseError } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
-import { writeFileSync } from 'fs';
+import { promises as fs } from 'fs';
+import * as yaml from 'js-yaml';
 import ora from 'ora';
 import * as path from 'path';
 import { getDbtContext } from '../dbt/context';
 import { loadManifest } from '../dbt/manifest';
 import {
-    generateSchemaFileForModel,
-    getCompiledModelFromManifest,
+    getCompiledModelsFromManifest,
     getWarehouseTableForModel,
+    updateModelYmlFile,
 } from '../dbt/models';
 import {
     loadDbtTarget,
@@ -17,63 +18,64 @@ import {
 import * as styles from '../styles';
 
 type GenerateHandlerOptions = {
+    select: string[];
     projectDir: string;
     profilesDir: string;
     target: string | undefined;
     profile: string | undefined;
 };
-export const generateHandler = async (
-    model: string,
-    options: GenerateHandlerOptions,
-) => {
+export const generateHandler = async (options: GenerateHandlerOptions) => {
+    const absoluteProjectPath = path.resolve(options.projectDir);
+    const absoluteProfilesPath = path.resolve(options.profilesDir);
+    const context = await getDbtContext({ projectDir: absoluteProjectPath });
+    const profileName = options.profile || context.profileName;
+    const target = await loadDbtTarget({
+        profilesDir: absoluteProfilesPath,
+        profileName,
+        targetName: options.target,
+    });
+    const credentials = await warehouseCredentialsFromDbtTarget(target);
+    const warehouseClient = warehouseClientFromCredentials(credentials);
+    const manifest = await loadManifest({ targetDir: context.targetDir });
+    const compiledModels = getCompiledModelsFromManifest({
+        projectName: context.projectName,
+        selectors: options.select,
+        manifest,
+    });
+
     console.log(styles.info(`Generated .yml files:`));
-    const spinner = ora(
-        `  Generating .yml for model ${styles.bold(model)}`,
-    ).start();
-    try {
-        const absoluteProjectPath = path.resolve(options.projectDir);
-        const absoluteProfilesPath = path.resolve(options.profilesDir);
-        const context = getDbtContext({ projectDir: absoluteProjectPath });
-        const profileName = options.profile || context.profileName;
-        const target = loadDbtTarget({
-            profilesDir: absoluteProfilesPath,
-            profileName,
-            targetName: options.target,
-        });
-        const credentials = warehouseCredentialsFromDbtTarget(target);
-        const warehouseClient = warehouseClientFromCredentials(credentials);
-        const manifest = loadManifest({ targetDir: context.targetDir });
-        const compiledModel = getCompiledModelFromManifest({
-            projectName: context.projectName,
-            modelName: model,
-            manifest,
-        });
-        const table = await getWarehouseTableForModel({
-            model: compiledModel,
-            warehouseClient,
-        });
-        const schemaFile = generateSchemaFileForModel({
-            modelName: model,
-            table,
-        });
-        const outputDir = path.dirname(
-            path.join(compiledModel.rootPath, compiledModel.originalFilePath),
-        );
-        const outputPath = path.join(outputDir, `${model}.yml`);
+    // eslint-disable-next-line no-restricted-syntax
+    for await (const compiledModel of compiledModels) {
+        const spinner = ora(
+            `  Generating .yml for model ${styles.bold(compiledModel.name)}`,
+        ).start();
         try {
-            writeFileSync(outputPath, schemaFile, { flag: 'wx' });
-        } catch (e) {
-            throw new ParseError(
-                `Could not write generated schema file to ${outputPath}\n  ${e}`,
+            const table = await getWarehouseTableForModel({
+                model: compiledModel,
+                warehouseClient,
+            });
+            const { updatedYml, outputFilePath } = await updateModelYmlFile({
+                model: compiledModel,
+                table,
+            });
+            try {
+                await fs.writeFile(
+                    outputFilePath,
+                    yaml.dump(updatedYml, { quotingType: '"' }),
+                );
+            } catch (e) {
+                throw new ParseError(
+                    `Failed to write file ${outputFilePath}\n ${e}`,
+                );
+            }
+            spinner.succeed(
+                `  ${styles.bold(compiledModel.name)}${styles.info(
+                    ` ➡️${path.relative(process.cwd(), outputFilePath)}`,
+                )}`,
             );
+        } catch (e) {
+            spinner.fail(`  Failed to generate ${compiledModel.name}.yml`);
+            throw e;
         }
-        spinner.succeed(
-            `  ${styles.bold(model)}${styles.info(
-                ` ➡️${path.relative(process.cwd(), outputPath)}`,
-            )}`,
-        );
-    } catch (e) {
-        spinner.fail(`  Failed to generate ${model}.yml`);
-        throw e;
     }
 };

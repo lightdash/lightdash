@@ -28,7 +28,14 @@
                     "tests": {
                         "type": "array",
                         "items": {
-                            "type": ["string", "object"]
+                            "anyOf": [
+                                {
+                                    "type": "object"
+                                },
+                                {
+                                    "type": "string"
+                                }
+                            ]
                         }
                     },
                     "meta": {
@@ -68,7 +75,14 @@
                                 "tests": {
                                     "type": "array",
                                     "items": {
-                                        "type": ["string", "object"]
+                                        "anyOf": [
+                                            {
+                                                "type": "object"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ]
                                     }
                                 },
                                 "tags": {
@@ -164,18 +178,28 @@
                                                     ]
                                                 },
                                                 "time_intervals": {
-                                                    "type": ["string", "array"],
-                                                    "enum": ["default", "OFF"],
-                                                    "items": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "RAW",
-                                                            "DAY",
-                                                            "WEEK",
-                                                            "MONTH",
-                                                            "YEAR"
-                                                        ]
-                                                    }
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "RAW",
+                                                                    "DAY",
+                                                                    "WEEK",
+                                                                    "MONTH",
+                                                                    "YEAR"
+                                                                ]
+                                                            }
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "default",
+                                                                "OFF"
+                                                            ]
+                                                        }
+                                                    ]
                                                 }
                                             }
                                         }

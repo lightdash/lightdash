@@ -4,7 +4,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { JSONSchemaType } from 'ajv';
-import { readFileSync } from 'fs';
+import { promises as fs } from 'fs';
 import { ajv } from '../ajv';
 import { Target } from '../types';
 
@@ -78,9 +78,9 @@ export const bigqueryServiceAccountSchema: JSONSchemaType<BigqueryServiceAccount
         ],
     };
 
-export const convertBigquerySchema = (
+export const convertBigquerySchema = async (
     target: Target,
-): CreateBigqueryCredentials => {
+): Promise<CreateBigqueryCredentials> => {
     if (target.method !== 'service-account') {
         throw new ParseError(
             `BigQuery method ${target.method} is not yet supported`,
@@ -93,10 +93,9 @@ export const convertBigquerySchema = (
         const keyfilePath = target.keyfile;
         let keyfile;
         try {
-            keyfile = JSON.parse(readFileSync(keyfilePath, 'utf8')) as Record<
-                string,
-                string
-            >;
+            keyfile = JSON.parse(
+                await fs.readFile(keyfilePath, 'utf8'),
+            ) as Record<string, string>;
         } catch (e) {
             throw new ParseError(
                 `Cannot read keyfile for bigquery target expect at: ${keyfilePath}:\n  ${e.message}`,

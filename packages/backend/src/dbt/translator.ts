@@ -1,10 +1,8 @@
 import {
     convertMetric,
-    DbtError,
     DbtMetric,
     DbtModelColumn,
     DbtModelNode,
-    DbtRawModelNode,
     defaultSql,
     Dimension,
     DimensionType,
@@ -19,6 +17,7 @@ import {
     MissingCatalogEntryError,
     ParseError,
     parseMetricType,
+    patchPathParts,
     Source,
     SupportedDbtAdapter,
     Table,
@@ -28,20 +27,6 @@ import { getLocationForJsonPath, parseWithPointers } from '@stoplight/yaml';
 import { DepGraph } from 'dependency-graph';
 import * as fs from 'fs';
 import { compileExplore } from '../exploreCompiler';
-
-const patchPathParts = (patchPath: string) => {
-    const [project, ...rest] = patchPath.split('://');
-    if (rest.length === 0) {
-        throw new DbtError(
-            'Could not parse dbt manifest. It looks like you might be using an old version of dbt. You must be using dbt version 0.20.0 or above.',
-            {},
-        );
-    }
-    return {
-        project,
-        path: rest.join('://'),
-    };
-};
 
 const getDataTruncSql = (
     adapterType: SupportedDbtAdapter,
@@ -541,33 +526,6 @@ export const convertExplores = async (
     });
 
     return [...explores, ...exploreErrors];
-};
-
-export const normaliseModelDatabase = (
-    model: DbtRawModelNode,
-    targetWarehouse: SupportedDbtAdapter,
-): DbtModelNode => {
-    switch (targetWarehouse) {
-        case SupportedDbtAdapter.POSTGRES:
-        case SupportedDbtAdapter.BIGQUERY:
-        case SupportedDbtAdapter.SNOWFLAKE:
-        case SupportedDbtAdapter.REDSHIFT:
-            if (model.database === null) {
-                throw new ParseError(
-                    `Cannot parse dbt model '${model.unique_id}' because the database field has null value.`,
-                    {},
-                );
-            }
-            return { ...model, database: model.database };
-        case SupportedDbtAdapter.DATABRICKS:
-            return { ...model, database: 'SPARK' };
-        default:
-            const never: never = targetWarehouse;
-            throw new ParseError(
-                `Cannot recognise warehouse ${targetWarehouse}`,
-                {},
-            );
-    }
 };
 
 export const attachTypesToModels = (

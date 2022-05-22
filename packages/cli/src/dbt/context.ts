@@ -1,26 +1,26 @@
 import { ParseError } from '@lightdash/common';
-import { readFileSync } from 'fs';
+import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
 
 type GetDbtContextArgs = {
     projectDir: string;
 };
-type DbtContext = {
+export type DbtContext = {
     projectName: string;
     profileName: string;
     targetDir: string;
     modelsDir: string;
 };
 
-export const getDbtContext = ({
+export const getDbtContext = async ({
     projectDir,
-}: GetDbtContextArgs): DbtContext => {
+}: GetDbtContextArgs): Promise<DbtContext> => {
     const projectFilename = path.join(projectDir, 'dbt_project.yml');
     let config;
     try {
         config = yaml.load(
-            readFileSync(projectFilename, { encoding: 'utf-8' }),
+            await fs.readFile(projectFilename, { encoding: 'utf-8' }),
         ) as any;
     } catch (e) {
         throw new ParseError(
