@@ -256,17 +256,12 @@ export class UserService {
         openIdUser: OpenIdUser,
         inviteCode: string | undefined,
     ): Promise<SessionUser> {
-        if (!(await this.organizationModel.hasOrgs())) {
-            const user = await this.registerNewUserWithOrg(openIdUser);
-            return this.userModel.findSessionUserByUUID(user.userUuid);
-        }
         if (inviteCode) {
             const user = await this.createFromInvite(inviteCode, openIdUser);
             return this.userModel.findSessionUserByUUID(user.userUuid);
         }
-        throw new AuthorizationError(
-            'Can not create user in existing organization',
-        );
+        const user = await this.registerNewUserWithOrg(openIdUser);
+        return this.userModel.findSessionUserByUUID(user.userUuid);
     }
 
     async completeUserSetup(
