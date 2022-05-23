@@ -437,7 +437,7 @@ export class ProjectService {
         const explore = await this.getExplore(user, projectUuid, exploreName);
 
         const adapter = await this.getAdapter(projectUuid);
-        const rows = await adapter.runQuery(query);
+        const { rows } = await adapter.runQuery(query);
 
         const formattedRows = formatRows(
             rows,
@@ -477,10 +477,7 @@ export class ProjectService {
             },
         });
         const adapter = await this.getAdapter(projectUuid);
-        const rows = await adapter.runQuery(sql);
-        return {
-            rows,
-        };
+        return adapter.runQuery(sql);
     }
 
     async refreshAllTables(

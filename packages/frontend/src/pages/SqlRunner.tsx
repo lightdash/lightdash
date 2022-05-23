@@ -1,13 +1,19 @@
-import { useHotkeys } from '@blueprintjs/core';
+import { Button, Collapse, H5, useHotkeys } from '@blueprintjs/core';
 import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
-import { TableBase } from '@lightdash/common';
+import { ChartType, TableBase } from '@lightdash/common';
 import React, { useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
+import BigNumberConfigPanel from '../components/BigNumberConfig';
+import ChartConfigPanel from '../components/ChartConfigPanel';
+import { ChartDownloadMenu } from '../components/ChartDownload';
 import { CollapsableCard } from '../components/common/CollapsableCard';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
 import { Tree } from '../components/common/Tree';
+import VisualizationCardOptions from '../components/Explorer/VisualizationCardOptions';
+import LightdashVisualization from '../components/LightdashVisualization';
+import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import RefreshDbtButton from '../components/RefreshDbtButton';
 import RunSqlQueryButton from '../components/SqlRunner/RunSqlQueryButton';
 import SqlRunnerInput from '../components/SqlRunner/SqlRunnerInput';
@@ -15,6 +21,7 @@ import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable
 import { useProjectCatalog } from '../hooks/useProjectCatalog';
 import { useProjectCatalogTree } from '../hooks/useProjectCatalogTree';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
+import useSqlQueryVisualization from '../hooks/useSqlQueryVisualization';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import {
@@ -24,6 +31,11 @@ import {
     SideBarWrapper,
     SqlCallout,
     Title,
+    VisualizationCard,
+    VisualizationCardButtons,
+    VisualizationCardContentWrapper,
+    VisualizationCardHeader,
+    VisualizationCardTitle,
 } from './SqlRunner.styles';
 
 const CardDivider = styled('div')`
@@ -40,6 +52,9 @@ const SqlRunnerPage = () => {
         useProjectCatalog();
     const sqlQueryMutation = useSqlQueryMutation();
     const { isLoading, mutate } = sqlQueryMutation;
+    const { explore, chartType, resultsData, columnOrder, setChartType } =
+        useSqlQueryVisualization({ sqlQueryMutation });
+    const [vizIsOpen, setVizIsOpen] = useState(false);
     const onSubmit = useCallback(() => {
         if (sql) {
             mutate(sql);
@@ -112,6 +127,54 @@ const SqlRunnerPage = () => {
                     </ButtonsWrapper>
                 </TrackSection>
                 <CardDivider />
+                <VisualizationCard elevation={1}>
+                    <VisualizationProvider
+                        initialChartConfig={undefined}
+                        chartType={chartType}
+                        initialPivotDimensions={undefined}
+                        resultsData={resultsData}
+                        isLoading={isLoading}
+                        onChartConfigChange={() => undefined}
+                        onChartTypeChange={setChartType}
+                        onPivotDimensionsChange={() => undefined}
+                        columnOrder={columnOrder}
+                        explore={explore}
+                    >
+                        <VisualizationCardHeader>
+                            <VisualizationCardTitle>
+                                <Button
+                                    icon={
+                                        vizIsOpen
+                                            ? 'chevron-down'
+                                            : 'chevron-right'
+                                    }
+                                    minimal
+                                    onClick={() =>
+                                        setVizIsOpen((value) => !value)
+                                    }
+                                />
+                                <H5>Charts</H5>
+                            </VisualizationCardTitle>
+                            {vizIsOpen && (
+                                <VisualizationCardButtons>
+                                    <VisualizationCardOptions />
+                                    {chartType === ChartType.BIG_NUMBER ? (
+                                        <BigNumberConfigPanel />
+                                    ) : (
+                                        <ChartConfigPanel />
+                                    )}
+                                    <ChartDownloadMenu />
+                                </VisualizationCardButtons>
+                            )}
+                        </VisualizationCardHeader>
+                        <Collapse isOpen={vizIsOpen}>
+                            <VisualizationCardContentWrapper className="cohere-block">
+                                <LightdashVisualization />
+                            </VisualizationCardContentWrapper>
+                        </Collapse>
+                    </VisualizationProvider>
+                </VisualizationCard>
+                <CardDivider />
                 <CollapsableCard title="SQL" isOpenByDefault>
                     <SqlRunnerInput
                         sql={sql}
@@ -131,5 +194,4 @@ const SqlRunnerPage = () => {
         </PageWithSidebar>
     );
 };
-
 export default SqlRunnerPage;

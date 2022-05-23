@@ -1,6 +1,7 @@
 import { Button, Card, Collapse, H5 } from '@blueprintjs/core';
 import { ChartType } from '@lightdash/common';
 import { FC } from 'react';
+import { useExplore } from '../../../hooks/useExplore';
 import {
     ExplorerSection,
     useExplorer,
@@ -23,6 +24,7 @@ const VisualizationCard: FC = () => {
             toggleExpandedSection,
         },
     } = useExplorer();
+    const { data: explore } = useExplore(unsavedChartVersion.tableName);
     const vizIsOpen = expandedSections.includes(ExplorerSection.VISUALIZATION);
 
     return (
@@ -34,7 +36,7 @@ const VisualizationCard: FC = () => {
                     initialPivotDimensions={
                         unsavedChartVersion.pivotConfig?.columns
                     }
-                    tableName={unsavedChartVersion.tableName}
+                    explore={explore}
                     resultsData={queryResults.data}
                     isLoading={queryResults.isLoading}
                     onChartConfigChange={setChartConfig}

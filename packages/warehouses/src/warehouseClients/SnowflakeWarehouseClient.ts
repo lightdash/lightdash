@@ -45,7 +45,7 @@ const normaliseSnowflakeType = (type: string): string => {
     const match = r.exec(type);
     if (match === null) {
         throw new ParseError(
-            `Cannot understand type from Databricks: ${type}`,
+            `Cannot understand type from Snowflake: ${type}`,
             {},
         );
     }
@@ -101,7 +101,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
         };
     }
 
-    async runQuery(sqlText: string): Promise<Record<string, any>[]> {
+    async runQuery(sqlText: string) {
         let connection: Connection;
         try {
             connection = createConnection(this.connectionOptions);
@@ -111,7 +111,10 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
         }
 
         try {
-            return await new Promise((resolve, reject) => {
+            return await new Promise<{
+                fields: Record<string, { type: DimensionType }>;
+                rows: any[];
+            }>((resolve, reject) => {
                 connection.execute({
                     sqlText,
                     complete: (err, stmt, data) => {
@@ -119,7 +122,18 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                             reject(err);
                         }
                         if (data) {
-                            resolve(data);
+                            const fields = stmt.getColumns().reduce(
+                                (acc, column) => ({
+                                    ...acc,
+                                    [column.getName()]: {
+                                        type: mapFieldType(
+                                            column.getType().toUpperCase(),
+                                        ),
+                                    },
+                                }),
+                                {},
+                            );
+                            resolve({ fields, rows: data });
                         } else {
                             reject(
                                 new WarehouseQueryError(
@@ -153,7 +167,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
         }[],
     ) {
         const sqlText = 'SHOW COLUMNS IN ACCOUNT';
-        const rows = await this.runQuery(sqlText);
+        const { rows } = await this.runQuery(sqlText);
         return rows.reduce<WarehouseCatalog>((acc, row) => {
             const match = config.find(
                 ({ database, schema, table }) =>

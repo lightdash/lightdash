@@ -56,3 +56,13 @@ export const columns: Record<string, any>[] = [
         data_type: PostgresTypes.JSON,
     },
 ];
+
+export const queryColumnsMock = [
+    { name: 'myStringColumn', dataTypeID: 1043 },
+    { name: 'myNumberColumn', dataTypeID: 1700 },
+    { name: 'myBooleanColumn', dataTypeID: 16 },
+    { name: 'myDateColumn', dataTypeID: 1082 },
+    { name: 'myTimestampColumn', dataTypeID: 1114 },
+    { name: 'myArrayColumn', dataTypeID: 3802 },
+    { name: 'myObjectColumn', dataTypeID: 3802 },
+];

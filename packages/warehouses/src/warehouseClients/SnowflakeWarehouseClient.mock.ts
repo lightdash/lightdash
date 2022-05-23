@@ -120,3 +120,32 @@ export const columns: Record<string, any>[] = [
         }),
     },
 ];
+
+class ColumnMock {
+    private readonly name: string;
+
+    private readonly type: string;
+
+    constructor(name: string, type: string) {
+        this.name = name;
+        this.type = type;
+    }
+
+    getName() {
+        return this.name;
+    }
+
+    getType() {
+        return this.type;
+    }
+}
+
+export const queryColumnsMock = [
+    new ColumnMock('myStringColumn', 'string'),
+    new ColumnMock('myNumberColumn', 'number'),
+    new ColumnMock('myBooleanColumn', 'boolean'),
+    new ColumnMock('myDateColumn', 'date'),
+    new ColumnMock('myTimestampColumn', 'timestamp'),
+    new ColumnMock('myArrayColumn', 'array'),
+    new ColumnMock('myObjectColumn', 'object'),
+];

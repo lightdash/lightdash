@@ -40,6 +40,7 @@ const ValidDashboardChartTile: FC<{
 }> = ({ data, project, onSeriesContextMenu }) => {
     const { data: resultData, isLoading } = useSavedChartResults(project, data);
     const { addSuggestions } = useDashboardContext();
+    const { data: explore } = useExplore(data.tableName);
 
     useEffect(() => {
         if (resultData) {
@@ -65,7 +66,7 @@ const ValidDashboardChartTile: FC<{
             initialChartConfig={data.chartConfig}
             initialPivotDimensions={data.pivotConfig?.columns}
             resultsData={resultData}
-            tableName={data.tableName}
+            explore={explore}
             isLoading={isLoading}
             onSeriesContextMenu={onSeriesContextMenu}
             columnOrder={data.tableConfig.columnOrder}
