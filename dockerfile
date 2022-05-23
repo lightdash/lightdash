@@ -22,12 +22,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # dbt
 RUN python3 -m venv /usr/local/venv
 RUN /usr/local/venv/bin/pip install \
-    "dbt-core==1.0.2" \
-    "dbt-postgres==1.0.2" \
-    "dbt-redshift==1.0.0" \
-    "dbt-snowflake==1.0.0" \
-    "dbt-bigquery==1.0.0" \
-    "dbt-databricks==1.0.1"
+    "dbt-core==1.1.0" \
+    "dbt-postgres==1.1.0" \
+    "dbt-redshift==1.1.0" \
+    "dbt-snowflake==1.1.0" \
+    "dbt-bigquery==1.1.0" \
+    "dbt-databricks==1.1.0"
 ENV PATH $PATH:/usr/local/venv/bin
 
 RUN wget \
@@ -45,7 +45,7 @@ RUN wget \
 FROM base AS dev
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    postgresql-client \ 
+    postgresql-client \
     && apt-get clean
 
 EXPOSE 3000
