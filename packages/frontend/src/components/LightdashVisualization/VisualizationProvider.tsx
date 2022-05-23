@@ -88,6 +88,7 @@ export const VisualizationProvider: FC<Props> = ({
         },
         [onChartTypeChange],
     );
+    console.log({ resultsData });
 
     const bigNumberConfig = useBigNumberConfig(
         initialChartConfig?.type === ChartType.BIG_NUMBER
@@ -109,6 +110,7 @@ export const VisualizationProvider: FC<Props> = ({
     );
 
     const { validCartesianConfig } = cartesianConfig;
+    console.log({ validCartesianConfig });
 
     const plotData = usePlottedData(
         explore,

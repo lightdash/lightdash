@@ -27,10 +27,13 @@ import FieldLayoutOptions from './FieldLayoutOptions';
 import BasicSeriesConfiguration from './Series/BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './Series/GroupedSeriesConfiguration';
 
-const MinMax = () => {
+const AxisMinMax = () => {
     const [isAuto, setIsAuto] = useState<boolean>(true);
-    const [minValue, setMinValue] = useState<string>('');
-    const [maxValue, setMaxValue] = useState<string>('');
+    const {
+        cartesianConfig: { dirtyEchartsConfig, setMinValue, setMaxValue },
+    } = useVisualizationContext();
+    console.log({ aquiii: dirtyEchartsConfig });
+
     return (
         <MinMaxContainer>
             <Switch
@@ -44,16 +47,20 @@ const MinMax = () => {
                     <MinMaxInput label="Min">
                         <InputGroup
                             placeholder="Min"
-                            defaultValue={'0'}
-                            onBlur={(e) => setMinValue(e.currentTarget.value)}
+                            defaultValue={dirtyEchartsConfig?.yAxis?.[0]?.min}
+                            onBlur={(e) =>
+                                setMinValue(0, e.currentTarget.value)
+                            }
                         />
                     </MinMaxInput>
 
                     <MinMaxInput label="Max">
                         <InputGroup
-                            placeholder="Min"
-                            defaultValue={'0'}
-                            onBlur={(e) => setMaxValue(e.currentTarget.value)}
+                            placeholder="Max"
+                            defaultValue={dirtyEchartsConfig?.yAxis?.[0]?.max}
+                            onBlur={(e) =>
+                                setMaxValue(0, e.currentTarget.value)
+                            }
                         />
                     </MinMaxInput>
                 </MinMaxWrapper>
@@ -77,8 +84,8 @@ const ChartConfigTabs: FC = () => {
         pivotDimensions,
     } = useVisualizationContext();
     const pivotDimension = pivotDimensions?.[0];
-
     const [tab, setTab] = useState<string | number>('layout');
+    console.log({ resultsData, dirtyEchartsConfig });
 
     const dimensionsInMetricQuery = explore
         ? getDimensions(explore).filter((field) =>
@@ -233,7 +240,7 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
-                            <MinMax />
+                            <AxisMinMax />
                             <InputWrapper
                                 label={`${
                                     dirtyLayout?.flipAxes ? 'X' : 'Y'
@@ -259,7 +266,7 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
-                            <MinMax />
+                            <AxisMinMax />
                         </>
                     }
                 />
