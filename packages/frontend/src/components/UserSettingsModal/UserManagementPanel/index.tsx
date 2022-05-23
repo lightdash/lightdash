@@ -11,7 +11,6 @@ import {
     OrganizationMemberRole,
 } from '@lightdash/common';
 import React, { FC, useState } from 'react';
-import { useToggle } from 'react-use';
 import {
     useDeleteUserMutation,
     useOrganizationUsers,
@@ -117,19 +116,19 @@ const UserListItem: FC<{
 
 const UserManagementPanel: FC<{
     showInvitePage: boolean;
-}> = ({ showInvitePage }) => {
+    setShowInvitePage: (showInvitePage: boolean) => void;
+}> = ({ showInvitePage, setShowInvitePage }) => {
     const { user } = useApp();
     const { data: organizationUsers, isLoading } = useOrganizationUsers();
-    const [showInviteForm, toggleInviteForm] = useToggle(showInvitePage);
 
-    if (showInviteForm) {
+    if (showInvitePage) {
         return (
             <TrackPage
                 name={PageName.INVITE_MANAGEMENT_SETTINGS}
                 type={PageType.MODAL}
                 category={CategoryName.SETTINGS}
             >
-                <InvitesPanel onBackClick={toggleInviteForm} />
+                <InvitesPanel onBackClick={() => setShowInvitePage(false)} />
             </TrackPage>
         );
     }
@@ -139,7 +138,7 @@ const UserManagementPanel: FC<{
             {user.data?.ability?.can('manage', 'InviteLink') && (
                 <AddUserButton
                     intent="primary"
-                    onClick={toggleInviteForm}
+                    onClick={() => setShowInvitePage(true)}
                     text="Add user"
                 />
             )}

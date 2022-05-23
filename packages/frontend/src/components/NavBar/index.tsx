@@ -157,6 +157,7 @@ const NavBar = () => {
                 panelProps={{
                     userManagementProps: {
                         showInvitePage,
+                        setShowInvitePage,
                     },
                 }}
             />
