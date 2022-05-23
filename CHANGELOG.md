@@ -1,3 +1,16 @@
+# [0.113.0](https://github.com/lightdash/lightdash/compare/0.112.0...0.113.0) (2022-05-23)
+
+
+### Bug Fixes
+
+* type error ([#2206](https://github.com/lightdash/lightdash/issues/2206)) ([3f3dfe6](https://github.com/lightdash/lightdash/commit/3f3dfe6bc08feba37925a8b2a5296a4953c9651a))
+
+
+### Features
+
+* add graph selectors to cli ([#2198](https://github.com/lightdash/lightdash/issues/2198)) ([52b2612](https://github.com/lightdash/lightdash/commit/52b261246045d2273586bfd1ebe2be32718af6bf)), closes [#2187](https://github.com/lightdash/lightdash/issues/2187)
+* copy default formatting on custom metrics ([#2197](https://github.com/lightdash/lightdash/issues/2197)) ([235ef46](https://github.com/lightdash/lightdash/commit/235ef46b04ae689d37bcce84732630782d489773))
+
 # [0.112.0](https://github.com/lightdash/lightdash/compare/0.111.0...0.112.0) (2022-05-23)
 
 
