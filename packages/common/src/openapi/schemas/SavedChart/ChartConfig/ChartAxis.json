@@ -11,6 +11,9 @@
                 },
                 {
                     "type": "number"
+                },
+                {
+                    "type": "undefined"
                 }
             ]
         },
@@ -21,6 +24,9 @@
                 },
                 {
                     "type": "number"
+                },
+                {
+                    "type": "undefined"
                 }
             ]
         }
