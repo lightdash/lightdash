@@ -1,3 +1,10 @@
+## [0.113.1](https://github.com/lightdash/lightdash/compare/0.113.0...0.113.1) (2022-05-23)
+
+
+### Bug Fixes
+
+* table lineage typo ([#2210](https://github.com/lightdash/lightdash/issues/2210)) ([59f8e34](https://github.com/lightdash/lightdash/commit/59f8e3457088e2d1f2f94158f94d1bae2c0de90d))
+
 # [0.113.0](https://github.com/lightdash/lightdash/compare/0.112.0...0.113.0) (2022-05-23)
 
 
