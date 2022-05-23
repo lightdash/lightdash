@@ -1,4 +1,4 @@
-import { Card, HTMLSelect, Tag } from '@blueprintjs/core';
+import { Button, Card, HTMLSelect, Tag } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const UserManagementPanelWrapper = styled.div`
@@ -40,4 +40,9 @@ export const UserEmail = styled(Tag)`
 
 export const RoleSelectButton = styled(HTMLSelect)`
     margin-right: 0.5em;
+`;
+
+export const AddUserButton = styled(Button)`
+    align-self: flex-end;
+    margin-bottom: 20px;
 `;

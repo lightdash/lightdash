@@ -9,8 +9,11 @@ import {
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import { BackButton } from './InvitesPanel.styles';
 
-const InvitePanel: FC = () => {
+const InvitePanel: FC<{
+    onBackClick: () => void;
+}> = ({ onBackClick }) => {
     const { track } = useTracking();
     const { showToastSuccess } = useApp();
     const inviteLink = useCreateInviteLinkMutation();
@@ -20,6 +23,11 @@ const InvitePanel: FC = () => {
         <div
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
         >
+            <BackButton
+                icon="chevron-left"
+                text="Back to all users"
+                onClick={onBackClick}
+            />
             <FormGroup
                 label="Invite users to your organization"
                 labelFor="invite-link-input"

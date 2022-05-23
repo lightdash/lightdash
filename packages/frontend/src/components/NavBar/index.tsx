@@ -50,6 +50,7 @@ const NavBar = () => {
         params.projectUuid || defaultProject.data?.projectUuid;
     const history = useHistory();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [showInvitePage, setShowInvitePage] = useState(false);
     const [activeTab, setActiveTab] = useState<string | undefined>();
     const { mutate } = useMutation(logoutQuery, {
         mutationKey: ['logout'],
@@ -126,7 +127,8 @@ const NavBar = () => {
                                         icon="new-person"
                                         text="Invite user"
                                         onClick={() => {
-                                            setActiveTab('invites');
+                                            setActiveTab('userManagement');
+                                            setShowInvitePage(true);
                                             setIsSettingsOpen(true);
                                         }}
                                     />
@@ -148,7 +150,15 @@ const NavBar = () => {
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
                 activeTab={activeTab}
-                onChangeTab={setActiveTab}
+                onChangeTab={(tab) => {
+                    setActiveTab(tab);
+                    setShowInvitePage(false);
+                }}
+                panelProps={{
+                    userManagementProps: {
+                        showInvitePage,
+                    },
+                }}
             />
             <ErrorLogsDrawer />
         </>
