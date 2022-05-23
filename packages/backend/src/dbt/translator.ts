@@ -1,4 +1,5 @@
 import {
+    buildModelGraph,
     convertMetric,
     DbtMetric,
     DbtModelColumn,
@@ -114,17 +115,17 @@ const generateTableLineage = (
     model: DbtModelNode,
     depGraph: DepGraph<LineageNodeDependency>,
 ): LineageGraph => {
-    const modelFamily = [
-        ...depGraph.dependantsOf(model.name),
-        ...depGraph.dependenciesOf(model.name),
-        model.name,
+    const modelFamilyIds = [
+        ...depGraph.dependantsOf(model.unique_id),
+        ...depGraph.dependenciesOf(model.unique_id),
+        model.unique_id,
     ];
-    return modelFamily.reduce<LineageGraph>(
-        (prev, modelName) => ({
+    return modelFamilyIds.reduce<LineageGraph>(
+        (prev, nodeId) => ({
             ...prev,
-            [modelName]: depGraph
-                .directDependenciesOf(modelName)
-                .map((d) => depGraph.getNodeData(d)),
+            [depGraph.getNodeData(nodeId).name]: depGraph
+                .directDependenciesOf(nodeId)
+                .map((d) => depGraph.getNodeData(nodeId)),
         }),
         {},
     );
@@ -262,31 +263,10 @@ export const convertTable = (
     };
 };
 
-const modelGraph = (
-    allModels: DbtModelNode[],
-): DepGraph<LineageNodeDependency> => {
-    const depGraph = new DepGraph<LineageNodeDependency>();
-    allModels.forEach((model) => {
-        const [type, project, name] = model.unique_id.split('.');
-        if (type === 'model') {
-            depGraph.addNode(name, { type, name });
-        }
-        // Only use models for graph.
-        model.depends_on.nodes.forEach((nodeId) => {
-            const [nodeType, nodeProject, nodeName] = nodeId.split('.');
-            if (nodeType === 'model') {
-                depGraph.addNode(nodeName, { type: nodeType, name: nodeName });
-                depGraph.addDependency(model.name, nodeName);
-            }
-        });
-    });
-    return depGraph;
-};
-
 const translateDbtModelsToTableLineage = (
     models: DbtModelNode[],
 ): Record<string, Pick<Table, 'lineageGraph'>> => {
-    const graph = modelGraph(models);
+    const graph = buildModelGraph(models);
     return models.reduce<Record<string, Pick<Table, 'lineageGraph'>>>(
         (previousValue, currentValue) => ({
             ...previousValue,

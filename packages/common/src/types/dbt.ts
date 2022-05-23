@@ -1,3 +1,4 @@
+import { DepGraph } from 'dependency-graph';
 import { DbtError, ParseError } from './errors';
 import { DimensionType, MetricType } from './field';
 
@@ -129,4 +130,32 @@ export type DbtSchemaDotYaml = {
             description?: string;
         }[];
     }[];
+};
+export type LineageGraph = Record<string, LineageNodeDependency[]>;
+export type LineageNodeDependency = {
+    type: 'model' | 'seed' | 'source';
+    name: string;
+};
+export const buildModelGraph = (
+    allModels: Pick<DbtModelNode, 'unique_id' | 'name' | 'depends_on'>[],
+): DepGraph<LineageNodeDependency> => {
+    const depGraph = new DepGraph<LineageNodeDependency>();
+    const lookup = Object.fromEntries(
+        allModels.map((model) => [model.unique_id, model]),
+    );
+    allModels.forEach((model) => {
+        depGraph.addNode(model.unique_id, { type: 'model', name: model.name });
+        // Only use models for graph.
+        model.depends_on.nodes.forEach((nodeId) => {
+            const node = lookup[nodeId];
+            if (node) {
+                depGraph.addNode(node.unique_id, {
+                    type: 'model',
+                    name: node.name,
+                });
+                depGraph.addDependency(model.unique_id, node.unique_id);
+            }
+        });
+    });
+    return depGraph;
 };
