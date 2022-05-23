@@ -35,7 +35,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                     'Are you sure you want to generate .yml for all models in project?',
             },
         ]);
-        if (!answers.confirm) {
+        if (!answers.isConfirm) {
             return;
         }
     }
