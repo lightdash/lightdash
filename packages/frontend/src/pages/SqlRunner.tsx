@@ -2,6 +2,7 @@ import { Button, Collapse, H5, useHotkeys } from '@blueprintjs/core';
 import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
 import { ChartType, TableBase } from '@lightdash/common';
 import React, { useCallback, useMemo, useState } from 'react';
+import { useMount } from 'react-use';
 import styled from 'styled-components';
 import BigNumberConfigPanel from '../components/BigNumberConfig';
 import ChartConfigPanel from '../components/ChartConfigPanel';
@@ -21,7 +22,10 @@ import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable
 import { useProjectCatalog } from '../hooks/useProjectCatalog';
 import { useProjectCatalogTree } from '../hooks/useProjectCatalogTree';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
-import useSqlQueryVisualization from '../hooks/useSqlQueryVisualization';
+import useSqlQueryVisualization, {
+    useSqlRunnerRoute,
+    useSqlRunnerUrlState,
+} from '../hooks/useSqlQueryVisualization';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import {
@@ -47,19 +51,47 @@ const generateBasicSqlQuery = (table: string) =>
      FROM ${table} LIMIT 25`;
 
 const SqlRunnerPage = () => {
-    const [sql, setSql] = useState<string>('');
+    const initialState = useSqlRunnerUrlState();
+    const [sql, setSql] = useState<string>(initialState?.sqlRunner?.sql || '');
     const { isLoading: isCatalogLoading, data: catalogData } =
         useProjectCatalog();
     const sqlQueryMutation = useSqlQueryMutation();
     const { isLoading, mutate } = sqlQueryMutation;
-    const { explore, chartType, resultsData, columnOrder, setChartType } =
-        useSqlQueryVisualization({ sqlQueryMutation });
-    const [vizIsOpen, setVizIsOpen] = useState(false);
+    const {
+        initialChartConfig,
+        initialPivotDimensions,
+        explore,
+        chartType,
+        resultsData,
+        columnOrder,
+        createSavedChart,
+        setChartType,
+        setChartConfig,
+        setPivotFields,
+    } = useSqlQueryVisualization({
+        initialState: initialState?.createSavedChart,
+        sqlQueryMutation,
+    });
+    const sqlRunnerState = useMemo(
+        () => ({ createSavedChart, sqlRunner: { sql } }),
+        [createSavedChart, sql],
+    );
+    useSqlRunnerRoute(sqlRunnerState);
+    const [vizIsOpen, setVizIsOpen] = useState(
+        !!initialState?.createSavedChart,
+    );
     const onSubmit = useCallback(() => {
         if (sql) {
             mutate(sql);
         }
     }, [mutate, sql]);
+
+    useMount(() => {
+        if (sql) {
+            mutate(sql);
+        }
+    });
+
     const hotkeys = useMemo(() => {
         const runQueryHotkey = {
             combo: 'ctrl+enter',
@@ -129,14 +161,14 @@ const SqlRunnerPage = () => {
                 <CardDivider />
                 <VisualizationCard elevation={1}>
                     <VisualizationProvider
-                        initialChartConfig={undefined}
+                        initialChartConfig={initialChartConfig}
                         chartType={chartType}
-                        initialPivotDimensions={undefined}
+                        initialPivotDimensions={initialPivotDimensions}
                         resultsData={resultsData}
                         isLoading={isLoading}
-                        onChartConfigChange={() => undefined}
+                        onChartConfigChange={setChartConfig}
                         onChartTypeChange={setChartType}
-                        onPivotDimensionsChange={() => undefined}
+                        onPivotDimensionsChange={setPivotFields}
                         columnOrder={columnOrder}
                         explore={explore}
                     >

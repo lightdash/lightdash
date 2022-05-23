@@ -23,7 +23,9 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
     };
 };
 
-const parseExplorerSearchParams = (search: string): CreateSavedChartVersion => {
+export const parseExplorerSearchParams = (
+    search: string,
+): CreateSavedChartVersion => {
     const searchParams = new URLSearchParams(search);
     const chartConfigSearchParam = searchParams.get(
         'create_saved_chart_version',
