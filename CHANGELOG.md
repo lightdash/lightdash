@@ -1,3 +1,10 @@
+# [0.112.0](https://github.com/lightdash/lightdash/compare/0.111.0...0.112.0) (2022-05-23)
+
+
+### Features
+
+* add chart vizualization to sql runner ([#2156](https://github.com/lightdash/lightdash/issues/2156)) ([d26aad7](https://github.com/lightdash/lightdash/commit/d26aad7a1764730f5f3ddd671ed820ab0e8e2495))
+
 # [0.111.0](https://github.com/lightdash/lightdash/compare/0.110.1...0.111.0) (2022-05-23)
 
 
