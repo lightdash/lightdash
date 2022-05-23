@@ -10,6 +10,7 @@ import {
     InlineErrorType,
     isSupportedDbtAdapter,
     MissingCatalogEntryError,
+    normaliseModelDatabase,
     ParseError,
     SupportedDbtAdapter,
 } from '@lightdash/common';
@@ -21,7 +22,6 @@ import {
     attachTypesToModels,
     convertExplores,
     getSchemaStructureFromDbtModels,
-    normaliseModelDatabase,
 } from '../dbt/translator';
 import Logger from '../logger';
 import dbtManifestSchema from '../manifestv4.json';

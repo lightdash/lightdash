@@ -11,6 +11,7 @@
         "project": "./tsconfig.json"
     },
     "rules": {
-        "no-console": "off"
+        "no-console": "off",
+        "import/prefer-default-export": "off"
     }
 }

@@ -136,9 +136,14 @@ export class BigqueryWarehouseClient implements WarehouseClient {
             const [job] = await this.client.createQueryJob({
                 query,
                 useLegacySql: false,
-                maximumBytesBilled: `${this.credentials.maximumBytesBilled}`,
+                maximumBytesBilled:
+                    this.credentials.maximumBytesBilled === undefined
+                        ? undefined
+                        : `${this.credentials.maximumBytesBilled}`,
                 priority: this.credentials.priority,
-                jobTimeoutMs: this.credentials.timeoutSeconds * 1000,
+                jobTimeoutMs:
+                    this.credentials.timeoutSeconds &&
+                    this.credentials.timeoutSeconds * 1000,
             });
             // auto paginate - hides full response
             const [rows] = await job.getQueryResults({ autoPaginate: true });

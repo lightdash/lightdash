@@ -61,6 +61,7 @@ module.exports = {
               "packages/e2e/package.json",
               "packages/frontend/package.json",
               "packages/warehouses/package.json",
+              "packages/cli/package.json",
             ],
             from: '"@lightdash/common": "\\^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?"',
             to: '"@lightdash/common": "^${nextRelease.version}"',
@@ -89,16 +90,31 @@ module.exports = {
                 numMatches: 1,
                 numReplacements: 1,
               },
+              {
+                file: "packages/cli/package.json",
+                hasChanged: true,
+                numMatches: 1,
+                numReplacements: 1,
+              },
             ],
             countMatches: true,
           },
           {
-            files: ["packages/backend/package.json"],
+            files: [
+              "packages/backend/package.json",
+              "packages/cli/package.json",
+            ],
             from: '"@lightdash/warehouses": "\\^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?"',
             to: '"@lightdash/warehouses": "^${nextRelease.version}"',
             results: [
               {
                 file: "packages/backend/package.json",
+                hasChanged: true,
+                numMatches: 1,
+                numReplacements: 1,
+              },
+              {
+                file: "packages/cli/package.json",
                 hasChanged: true,
                 numMatches: 1,
                 numReplacements: 1,

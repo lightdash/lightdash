@@ -12,4 +12,5 @@ jaffle_shop:
       user: "{{ env_var('PGUSER') }}"
       pass: "{{ env_var('PGPASSWORD') }}"
       dbname: "{{ env_var('PGDATABASE') }}"
+      sslmode: disable
       schema: jaffle

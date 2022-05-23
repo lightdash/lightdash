@@ -9,5 +9,8 @@
     "plugins": ["@typescript-eslint"],
     "parserOptions": {
         "project": "./tsconfig.json"
+    },
+    "rules": {
+        "no-case-declarations": "off"
     }
 }

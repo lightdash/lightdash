@@ -152,8 +152,7 @@ export class PostgresClient implements WarehouseClient {
         `;
 
         const rows = await this.runQuery(query);
-
-        return rows.reduce(
+        const catalog = rows.reduce(
             (
                 acc,
                 {
@@ -184,6 +183,7 @@ export class PostgresClient implements WarehouseClient {
             },
             {},
         );
+        return catalog;
     }
 }
 

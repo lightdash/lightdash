@@ -118,6 +118,7 @@ export const model: DbtModelNode = {
     depends_on: { nodes: [] },
     root_path: 'root_path',
     patch_path: null,
+    original_file_path: '',
 };
 
 export const MODEL_WITH_NO_METRICS: DbtModelNode = {
