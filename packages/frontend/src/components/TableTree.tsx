@@ -183,6 +183,24 @@ const NodeItemButtons: FC<{
 
     const createCustomMetric = useCallback(
         (dimension: Dimension, type: MetricType) => {
+            const shouldCopyFormatting = [
+                MetricType.AVERAGE,
+                MetricType.SUM,
+                MetricType.MIN,
+                MetricType.MAX,
+            ].includes(type);
+            const format =
+                shouldCopyFormatting && dimension.format
+                    ? { format: dimension.format }
+                    : {};
+
+            const defaultRound =
+                type === MetricType.AVERAGE ? { round: 2 } : {};
+            const round =
+                shouldCopyFormatting && dimension.round
+                    ? { round: dimension.round }
+                    : defaultRound;
+
             addAdditionalMetric({
                 name: `${dimension.name}_${type}`,
                 label: `${friendlyName(type)} of ${dimension.label}`,
@@ -192,7 +210,8 @@ const NodeItemButtons: FC<{
                     dimension.label
                 } on the table ${dimension.tableLabel}`,
                 type,
-                ...(type === MetricType.AVERAGE ? { round: 2 } : {}),
+                ...format,
+                ...round,
             });
         },
         [addAdditionalMetric],

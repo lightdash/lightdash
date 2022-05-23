@@ -107,6 +107,7 @@ const convertDimension = (
         timeInterval,
         hidden: !!column.meta.dimension?.hidden,
         format: column.meta.dimension?.format,
+        round: column.meta.dimension?.round,
     };
 };
 
