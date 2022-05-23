@@ -1,11 +1,6 @@
-import {
-    DimensionType,
-    Explore,
-    FieldType,
-    MetricType,
-    Source,
-    SupportedDbtAdapter,
-} from '@lightdash/common';
+import { SupportedDbtAdapter } from '../types/dbt';
+import { Explore } from '../types/explore';
+import { DimensionType, FieldType, MetricType, Source } from '../types/field';
 import { UncompiledExplore } from './exploreCompiler';
 
 const sourceMock: Source = {

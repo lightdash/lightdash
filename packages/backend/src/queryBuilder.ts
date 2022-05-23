@@ -14,14 +14,15 @@ import {
     getFields,
     getFilterRulesFromGroup,
     getMetrics,
+    getQuoteChar,
     isAndFilterGroup,
     isMetric,
     MetricType,
+    parseAllReferences,
     UnitOfTime,
     unitOfTimeFormat,
 } from '@lightdash/common';
 import moment from 'moment';
-import { getQuoteChar, parseAllReferences } from './exploreCompiler';
 
 const formatTimestamp = (date: Date): string =>
     moment(date).format('YYYY-MM-DD HH:mm:ss');

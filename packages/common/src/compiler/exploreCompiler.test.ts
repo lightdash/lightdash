@@ -1,4 +1,5 @@
-import { CompileError, friendlyName } from '@lightdash/common';
+import { CompileError } from '../types/errors';
+import { friendlyName } from '../types/field';
 import { compileExplore } from './exploreCompiler';
 import {
     exploreCircularReference,
