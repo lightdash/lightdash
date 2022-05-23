@@ -126,7 +126,7 @@ const generateTableLineage = (
             ...prev,
             [depGraph.getNodeData(nodeId).name]: depGraph
                 .directDependenciesOf(nodeId)
-                .map((d) => depGraph.getNodeData(nodeId)),
+                .map((d) => depGraph.getNodeData(d)),
         }),
         {},
     );
