@@ -3244,34 +3244,6 @@
   dependencies:
     "@sinonjs/commons" "^1.7.0"
 
-"@stoplight/ordered-object-literal@^1.0.1":
-  version "1.0.2"
-  resolved "https://registry.yarnpkg.com/@stoplight/ordered-object-literal/-/ordered-object-literal-1.0.2.tgz#2a88a5ebc8b68b54837ac9a9ae7b779cdd862062"
-  integrity sha512-0ZMS/9sNU3kVo/6RF3eAv7MK9DY8WLjiVJB/tVyfF2lhr2R4kqh534jZ0PlrFB9CRXrdndzn1DbX6ihKZXft2w==
-
-"@stoplight/types@^12.0.0":
-  version "12.3.0"
-  resolved "https://registry.yarnpkg.com/@stoplight/types/-/types-12.3.0.tgz#ac71d295319f26abb279e3d89d1c1774857d20b4"
-  integrity sha512-hgzUR1z5BlYvIzUeFK5pjs5JXSvEutA9Pww31+dVicBlunsG1iXopDx/cvfBY7rHOrgtZDuvyeK4seqkwAZ6Cg==
-  dependencies:
-    "@types/json-schema" "^7.0.4"
-    utility-types "^3.10.0"
-
-"@stoplight/yaml-ast-parser@0.0.48":
-  version "0.0.48"
-  resolved "https://registry.yarnpkg.com/@stoplight/yaml-ast-parser/-/yaml-ast-parser-0.0.48.tgz#442b21f419427acaa8a3106ebc5d73351c407002"
-  integrity sha512-sV+51I7WYnLJnKPn2EMWgS4EUfoP4iWEbrWwbXsj0MZCB/xOK8j6+C9fntIdOM50kpx45ZLC3s6kwKivWuqvyg==
-
-"@stoplight/yaml@^4.2.2":
-  version "4.2.2"
-  resolved "https://registry.yarnpkg.com/@stoplight/yaml/-/yaml-4.2.2.tgz#8c48a46dcdaee114f659764827f46afc0669d65b"
-  integrity sha512-N086FU8pmSpjc5TvMBjmlTniZVh3OXzmEh6SYljSLiuv6aMxgjyjf13YrAlUqgu0b4b6pQ5zmkjrfo9i0SiLsw==
-  dependencies:
-    "@stoplight/ordered-object-literal" "^1.0.1"
-    "@stoplight/types" "^12.0.0"
-    "@stoplight/yaml-ast-parser" "0.0.48"
-    tslib "^2.2.0"
-
 "@surma/rollup-plugin-off-main-thread@^2.2.3":
   version "2.2.3"
   resolved "https://registry.yarnpkg.com/@surma/rollup-plugin-off-main-thread/-/rollup-plugin-off-main-thread-2.2.3.tgz#ee34985952ca21558ab0d952f00298ad2190c053"
@@ -18525,11 +18497,6 @@ utila@~0.4:
   version "0.4.0"
   resolved "https://registry.yarnpkg.com/utila/-/utila-0.4.0.tgz#8a16a05d445657a3aea5eecc5b12a4fa5379772c"
   integrity sha1-ihagXURWV6Oupe7MWxKk+lN5dyw=
-
-utility-types@^3.10.0:
-  version "3.10.0"
-  resolved "https://registry.yarnpkg.com/utility-types/-/utility-types-3.10.0.tgz#ea4148f9a741015f05ed74fd615e1d20e6bed82b"
-  integrity sha512-O11mqxmi7wMKCo6HKFt5AhO4BwY3VV68YU07tgxfz8zJTIxr4BpsezN49Ffwy9j3ZpwwJp4fkRwjRzq3uWE6Rg==
 
 utils-merge@1.0.1:
   version "1.0.1"

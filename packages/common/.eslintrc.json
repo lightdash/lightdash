@@ -11,6 +11,7 @@
         "project": "./tsconfig.json"
     },
     "rules": {
-        "no-case-declarations": "off"
+        "no-case-declarations": "off",
+        "no-template-curly-in-string": "off"
     }
 }

@@ -1,4 +1,6 @@
 import {
+    attachTypesToModels,
+    convertExplores,
     DbtMetric,
     DbtModelNode,
     DbtPackages,
@@ -6,6 +8,7 @@ import {
     Explore,
     ExploreError,
     friendlyName,
+    getSchemaStructureFromDbtModels,
     InlineError,
     InlineErrorType,
     isSupportedDbtAdapter,
@@ -18,11 +21,6 @@ import { WarehouseClient } from '@lightdash/warehouses';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { AnyValidateFunction } from 'ajv/dist/types';
-import {
-    attachTypesToModels,
-    convertExplores,
-    getSchemaStructureFromDbtModels,
-} from '../dbt/translator';
 import Logger from '../logger';
 import dbtManifestSchema from '../manifestv4.json';
 import lightdashDbtSchema from '../schema.json';
