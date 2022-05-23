@@ -22,10 +22,11 @@ import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable
 import { useProjectCatalog } from '../hooks/useProjectCatalog';
 import { useProjectCatalogTree } from '../hooks/useProjectCatalogTree';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
-import useSqlQueryVisualization, {
+import useSqlQueryVisualization from '../hooks/useSqlQueryVisualization';
+import {
     useSqlRunnerRoute,
     useSqlRunnerUrlState,
-} from '../hooks/useSqlQueryVisualization';
+} from '../hooks/useSqlRunnerRoute';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import {
