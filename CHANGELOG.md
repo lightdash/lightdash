@@ -1,3 +1,18 @@
+# [0.111.0](https://github.com/lightdash/lightdash/compare/0.110.1...0.111.0) (2022-05-23)
+
+
+### Bug Fixes
+
+* manually fix cli dependency versions ([#2195](https://github.com/lightdash/lightdash/issues/2195)) ([a439934](https://github.com/lightdash/lightdash/commit/a439934ebff1f75c24edae38e8d69f4171328ec1))
+* multi org google register ([#2186](https://github.com/lightdash/lightdash/issues/2186)) ([86f73fa](https://github.com/lightdash/lightdash/commit/86f73fa4c6d5c8534f001c7d19135717c7926ba6))
+* timezone filter ([#2180](https://github.com/lightdash/lightdash/issues/2180)) ([923a3af](https://github.com/lightdash/lightdash/commit/923a3af7521ecc67e02a4b506eda987257f201c7))
+
+
+### Features
+
+* add cli generate command ([#2150](https://github.com/lightdash/lightdash/issues/2150)) ([c4262c2](https://github.com/lightdash/lightdash/commit/c4262c2a5a110f5abe9c13079287d39d88584d1d))
+* upgrade dbt to 1.1.0 ([#2185](https://github.com/lightdash/lightdash/issues/2185)) ([bec1f54](https://github.com/lightdash/lightdash/commit/bec1f548ab1ea04de1330e8ae6a4685abf8b4f39))
+
 ## [0.110.1](https://github.com/lightdash/lightdash/compare/0.110.0...0.110.1) (2022-05-20)
 
 
