@@ -25,7 +25,6 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
     const { field, filterRule, onChange } = props;
     const isTimestamp = field.type === DimensionType.TIMESTAMP;
 
-    console.log('filterRule.values', filterRule.values);
     switch (filterRule.operator) {
         case FilterOperator.EQUALS:
         case FilterOperator.NOT_EQUALS:
