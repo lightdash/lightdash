@@ -22,6 +22,9 @@ program
         'after',
         `
 ${styles.bold('Examples:')}
+  ${styles.title('⚡')}️lightdash ${styles.bold('generate')} ${styles.secondary(
+            '-- generates .yml file for all dbt models',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'generate',
         )} -s mymodel ${styles.secondary(
@@ -38,9 +41,27 @@ ${styles.bold('Examples:')}
             '-- generates .yml for all dbt models tagged as sales',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-            'help',
-        )} generate ${styles.secondary(
+            'generate',
+        )} -s +mymodel ${styles.secondary(
+            "-- generates .yml for mymodel and all it's parents",
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'generate',
+        )} --help ${styles.secondary(
             '-- show detailed help for the "generate" command',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold('dbt run')} ${styles.secondary(
+            '-- Runs dbt for all models and updates .yml for all models',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'dbt run',
+        )} -s model1 model2+ tag:dev ${styles.secondary(
+            '-- Runs dbt for models and generates .yml for affected models',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'dbt run',
+        )} --help ${styles.secondary(
+            '-- show detailed help for the "dbt run" command',
         )}
 `,
     );
@@ -49,7 +70,36 @@ const dbtProgram = program.command('dbt').description('runs dbt commands');
 
 dbtProgram
     .command('run')
-    .description('Run dbt')
+    .description('Runs dbt and then generates .yml for affected models')
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Examples:')}
+  ${styles.title('⚡')}️lightdash ${styles.bold('dbt run')} ${styles.secondary(
+            '-- run all models and generate .yml files',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'dbt run',
+        )} -s mymodel ${styles.secondary(
+            '-- runs a single model and generates .yml',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'dbt run',
+        )} -s model1 model2 ${styles.secondary(
+            '-- runs multiple models and generates .yml',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'dbt run',
+        )} -s tag:sales ${styles.secondary(
+            '-- runs all models tagged as "sales" and generates .yml',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'dbt run',
+        )} -s +mymodel ${styles.secondary(
+            "-- runs mymodel and it's parents and generates .yml",
+        )}
+`,
+    )
     .option('--project-dir <path>', 'The directory of the dbt project', '.')
     .option(
         '--profiles-dir <path>',
@@ -92,6 +142,11 @@ ${styles.bold('Examples:')}
             'generate',
         )} -s tag:sales ${styles.secondary(
             '-- generates .yml for all dbt models tagged as sales',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'generate',
+        )} -s +mymodel ${styles.secondary(
+            "-- generates .yml for mymodel and all it's parents",
         )}
 `,
     )

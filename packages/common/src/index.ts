@@ -3,6 +3,7 @@ import { Dashboard, DashboardBasicDetails } from './types/dashboard';
 import {
     DbtColumnLightdashMetric,
     DbtNode,
+    LineageGraph,
     SupportedDbtAdapter,
 } from './types/dbt';
 import {
@@ -234,12 +235,6 @@ export type CompiledTable = TableBase & {
     metrics: Record<string, CompiledMetric>;
     lineageGraph: LineageGraph;
     source?: Source | undefined;
-};
-
-export type LineageGraph = Record<string, LineageNodeDependency[]>;
-export type LineageNodeDependency = {
-    type: 'model' | 'seed' | 'source';
-    name: string;
 };
 
 // Helper function to get a list of all dimensions in an explore

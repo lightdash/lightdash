@@ -1,7 +1,9 @@
 import {
+    buildModelGraph,
     DbtManifest,
     DbtRawModelNode,
     isSupportedDbtAdapter,
+    LineageNodeDependency,
     normaliseModelDatabase,
     ParseError,
     patchPathParts,
@@ -168,16 +170,18 @@ const methodSelector = ({
 type ModelNameSelectorArgs = {
     projectName: string;
     value: string | undefined | null;
-    // includeParents: boolean;
-    // includeChildren: boolean;
+    includeParents: boolean;
+    includeChildren: boolean;
     models: DbtRawModelNode[];
+    modelGraph: DepGraph<LineageNodeDependency>;
 };
 const modelNameSelector = ({
     projectName,
     value,
-    // includeParents,
-    // includeChildren,
+    includeParents,
+    includeChildren,
     models,
+    modelGraph,
 }: ModelNameSelectorArgs): string[] => {
     if (!value) {
         throw new ParseError(`Invalid model name given`);
@@ -190,15 +194,31 @@ const modelNameSelector = ({
             `Could not find model with name "${modelName}" in project "${projectName}"`,
         );
     }
-    return [node.unique_id];
+    let selectedNodes: string[] = [];
+    if (includeParents) {
+        const parents = modelGraph.dependenciesOf(nodeId);
+        selectedNodes = [...selectedNodes, ...parents];
+    }
+    selectedNodes = [...selectedNodes, nodeId];
+    if (includeChildren) {
+        const children = modelGraph.dependantsOf(nodeId);
+        selectedNodes = [...selectedNodes, ...children];
+    }
+    return selectedNodes;
 };
 
 type SelectModelsArgs = {
     selector: string;
     projectName: string;
     models: DbtRawModelNode[];
+    modelGraph: ReturnType<typeof buildModelGraph>;
 };
-const selectModels = ({ selector, projectName, models }: SelectModelsArgs) => {
+const selectModels = ({
+    selector,
+    projectName,
+    models,
+    modelGraph,
+}: SelectModelsArgs) => {
     const parsedSelector = parseSelector(selector);
     const { method } = parsedSelector;
     if (method) {
@@ -208,6 +228,7 @@ const selectModels = ({ selector, projectName, models }: SelectModelsArgs) => {
         ...parsedSelector,
         projectName,
         models,
+        modelGraph,
     });
 };
 
@@ -222,6 +243,7 @@ export const getCompiledModelsFromManifest = ({
     manifest,
 }: GetCompiledModelsFromManifestArgs): CompiledModel[] => {
     const models = getModelsFromManifest(manifest);
+    const modelGraph = buildModelGraph(models);
     if (!isSupportedDbtAdapter(manifest.metadata)) {
         throw new ParseError(
             `dbt adapter not supported. Lightdash does not support adapter ${manifest.metadata.adapter_type}`,
@@ -236,7 +258,7 @@ export const getCompiledModelsFromManifest = ({
         nodeIds = Array.from(
             new Set(
                 selectors.flatMap((selector) =>
-                    selectModels({ selector, projectName, models }),
+                    selectModels({ selector, projectName, models, modelGraph }),
                 ),
             ),
         );
