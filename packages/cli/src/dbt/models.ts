@@ -3,7 +3,6 @@ import {
     DbtManifest,
     DbtRawModelNode,
     isSupportedDbtAdapter,
-    LineageNodeDependency,
     normaliseModelDatabase,
     ParseError,
     patchPathParts,
@@ -173,7 +172,7 @@ type ModelNameSelectorArgs = {
     includeParents: boolean;
     includeChildren: boolean;
     models: DbtRawModelNode[];
-    modelGraph: DepGraph<LineageNodeDependency>;
+    modelGraph: ReturnType<typeof buildModelGraph>;
 };
 const modelNameSelector = ({
     projectName,
