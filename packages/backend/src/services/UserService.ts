@@ -259,10 +259,9 @@ export class UserService {
         if (inviteCode) {
             const user = await this.createFromInvite(inviteCode, openIdUser);
             return this.userModel.findSessionUserByUUID(user.userUuid);
-        } 
-            const user = await this.registerNewUserWithOrg(openIdUser);
-            return this.userModel.findSessionUserByUUID(user.userUuid);
-        
+        }
+        const user = await this.registerNewUserWithOrg(openIdUser);
+        return this.userModel.findSessionUserByUUID(user.userUuid);
     }
 
     async completeUserSetup(
