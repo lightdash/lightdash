@@ -3,6 +3,26 @@
     "properties": {
         "name": {
             "type": "string"
+        },
+        "min": {
+            "oneOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "number"
+                }
+            ]
+        },
+        "max": {
+            "oneOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "number"
+                }
+            ]
         }
     }
 }
