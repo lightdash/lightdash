@@ -1,5 +1,4 @@
-import { DbtColumnLightdashMetric } from './dbt';
-import { CompiledMetric, FieldId } from './field';
+import { CompiledMetric, FieldId, MetricType } from './field';
 import { Filters } from './filter';
 
 export type TableCalculation = {
@@ -12,7 +11,14 @@ export type CompiledTableCalculation = TableCalculation & {
     compiledSql: string;
 };
 
-export interface AdditionalMetric extends DbtColumnLightdashMetric {
+export interface AdditionalMetric {
+    label?: string;
+    type: MetricType;
+    description?: string;
+    sql?: string;
+    hidden?: boolean;
+    round?: number;
+    format?: string;
     table: string;
     name: string;
 }

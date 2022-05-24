@@ -4,17 +4,15 @@ import {
     CompiledMetricQuery,
     CompiledTableCalculation,
     CompileError,
+    compileMetricSql,
     convertAdditionalMetric,
     Explore,
     FieldId,
+    getQuoteChar,
+    lightdashVariablePattern,
     MetricQuery,
     TableCalculation,
 } from '@lightdash/common';
-import {
-    compileMetricSql,
-    getQuoteChar,
-    lightdashVariablePattern,
-} from './exploreCompiler';
 
 const resolveQueryFieldReference = (ref: string): FieldId => {
     const parts = ref.split('.');

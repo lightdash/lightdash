@@ -4,30 +4,23 @@ import {
     DbtMetric,
     DbtModelColumn,
     DbtModelNode,
+    LineageGraph,
+    SupportedDbtAdapter,
+} from '../types/dbt';
+import { MissingCatalogEntryError, ParseError } from '../types/errors';
+import { Explore, ExploreError, Table } from '../types/explore';
+import {
     defaultSql,
     Dimension,
     DimensionType,
-    Explore,
-    ExploreError,
     FieldType,
     friendlyName,
-    LineageGraph,
-    LineageNodeDependency,
     Metric,
     MetricType,
-    MissingCatalogEntryError,
-    ParseError,
     parseMetricType,
-    patchPathParts,
     Source,
-    SupportedDbtAdapter,
-    Table,
-} from '@lightdash/common';
-import { WarehouseCatalog } from '@lightdash/warehouses';
-import { getLocationForJsonPath, parseWithPointers } from '@stoplight/yaml';
-import { DepGraph } from 'dependency-graph';
-import * as fs from 'fs';
-import { compileExplore } from '../exploreCompiler';
+} from '../types/field';
+import { compileExplore } from './exploreCompiler';
 
 const getDataTruncSql = (
     adapterType: SupportedDbtAdapter,
@@ -47,6 +40,7 @@ const getDataTruncSql = (
         case SupportedDbtAdapter.DATABRICKS:
             return `DATE_TRUNC('${timeInterval.toUpperCase()}', ${field})`;
         default:
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const never: never = adapterType;
             throw new ParseError(`Cannot recognise warehouse ${adapterType}`);
     }
@@ -114,7 +108,7 @@ const convertDimension = (
 
 const generateTableLineage = (
     model: DbtModelNode,
-    depGraph: DepGraph<LineageNodeDependency>,
+    depGraph: ReturnType<typeof buildModelGraph>,
 ): LineageGraph => {
     const modelFamilyIds = [
         ...depGraph.dependantsOf(model.unique_id),
@@ -126,7 +120,7 @@ const generateTableLineage = (
             ...prev,
             [depGraph.getNodeData(nodeId).name]: depGraph
                 .directDependenciesOf(nodeId)
-                .map((d) => depGraph.getNodeData(nodeId)),
+                .map((d) => depGraph.getNodeData(d)),
         }),
         {},
     );
@@ -279,130 +273,6 @@ const translateDbtModelsToTableLineage = (
     );
 };
 
-const translateDbtModelTableSource = (
-    model: DbtModelNode & { patch_path: string },
-) => {
-    const patchPath = model.patch_path;
-    const modelPath = patchPathParts(patchPath).path;
-    const schemaPath = `${model.root_path}/${modelPath}`;
-
-    let ymlFile: string;
-    try {
-        ymlFile = fs.readFileSync(schemaPath, 'utf-8');
-    } catch {
-        throw new ParseError(
-            `It was not possible to read the dbt schema ${schemaPath}`,
-            {},
-        );
-    }
-
-    const lines = ymlFile.split(/\r?\n/);
-    const parsedFile = parseWithPointers<{ models: DbtModelNode[] }>(
-        ymlFile.toString(),
-    );
-
-    if (!parsedFile.data) {
-        throw new ParseError(
-            `It was not possible to parse the dbt schema "${schemaPath}"`,
-            {},
-        );
-    }
-
-    const modelIndex = parsedFile.data.models.findIndex(
-        (m: DbtModelNode) => m.name === model.name,
-    );
-    const modelRange = getLocationForJsonPath(parsedFile, [
-        'models',
-        modelIndex,
-    ])?.range;
-
-    if (!modelRange) {
-        throw new ParseError(
-            `It was not possible to find the dbt model "${model.name}" in ${schemaPath}`,
-            {},
-        );
-    }
-
-    const tableSource: Source = {
-        path: patchPathParts(patchPath).path,
-        range: modelRange,
-        content: lines
-            .slice(modelRange.start.line, modelRange.end.line + 1)
-            .join('\r\n'),
-    };
-    const sources = Object.entries(model.columns).reduce<{
-        dimensions: Record<string, Source>;
-        metrics: Record<string, Source>;
-    }>(
-        (previousValue, [columnName, column], columnIndex) => {
-            const columnRange = getLocationForJsonPath(parsedFile, [
-                'models',
-                modelIndex,
-                'columns',
-                columnIndex,
-            ])?.range;
-            if (!columnRange) {
-                throw new ParseError(
-                    `It was not possible to find the column "${columnName}" for the model "${model.name}" in ${schemaPath}`,
-                    {},
-                );
-            }
-            const dimensionSource: Source = {
-                path: patchPathParts(patchPath).path,
-                range: columnRange,
-                content: lines
-                    .slice(columnRange.start.line, columnRange.end.line + 1)
-                    .join('\r\n'),
-            };
-            const metrics = column.meta.metrics || {};
-            const metricSources: Record<string, Source> = Object.keys(
-                metrics,
-            ).reduce<Record<string, Source>>(
-                (previousMetricSources, metricName) => {
-                    const metricRange = getLocationForJsonPath(parsedFile, [
-                        'models',
-                        modelIndex,
-                        'columns',
-                        columnIndex,
-                        'meta',
-                        'metrics',
-                        metricName,
-                    ])?.range;
-                    if (!metricRange) {
-                        throw new ParseError(
-                            `It was not possible to find the metric "${metricName}" for the model "${model.name}" in ${schemaPath}`,
-                            {},
-                        );
-                    }
-                    const metricSource: Source = {
-                        path: dimensionSource.path,
-                        range: dimensionSource.range,
-                        highlight: metricRange,
-                        content: dimensionSource.content,
-                    };
-                    return {
-                        ...previousMetricSources,
-                        [metricName]: metricSource,
-                    };
-                },
-                {},
-            );
-            return {
-                dimensions: {
-                    ...previousValue.dimensions,
-                    [columnName]: dimensionSource,
-                },
-                metrics: { ...previousValue.metrics, ...metricSources },
-            };
-        },
-        { dimensions: {}, metrics: {} },
-    );
-    return {
-        source: tableSource,
-        ...sources,
-    };
-};
-
 export const convertExplores = async (
     models: DbtModelNode[],
     loadSources: boolean,
@@ -424,29 +294,7 @@ export const convertExplores = async (
 
                 // add sources
                 if (loadSources && model.patch_path !== null) {
-                    const tableSource = translateDbtModelTableSource({
-                        ...model,
-                        patch_path: model.patch_path,
-                    });
-                    table.source = tableSource.source;
-                    table.dimensions = Object.keys(table.dimensions).reduce<
-                        Record<string, Dimension>
-                    >((accDimensions, dimensionName) => {
-                        const dimension: Dimension = {
-                            ...table.dimensions[dimensionName],
-                            source: tableSource.dimensions[dimensionName],
-                        };
-                        return { ...accDimensions, [dimensionName]: dimension };
-                    }, {});
-                    table.metrics = Object.keys(table.metrics).reduce<
-                        Record<string, Metric>
-                    >((accMetrics, metricName) => {
-                        const metric: Metric = {
-                            ...table.metrics[metricName],
-                            source: tableSource.metrics[metricName],
-                        };
-                        return { ...accMetrics, [metricName]: metric };
-                    }, {});
+                    throw new Error('Not Implemented');
                 }
 
                 // add lineage
@@ -511,7 +359,13 @@ export const convertExplores = async (
 
 export const attachTypesToModels = (
     models: DbtModelNode[],
-    warehouseCatalog: WarehouseCatalog,
+    warehouseCatalog: {
+        [database: string]: {
+            [schema: string]: {
+                [table: string]: { [column: string]: DimensionType };
+            };
+        };
+    },
     throwOnMissingCatalogEntry: boolean = true,
 ): DbtModelNode[] => {
     // Check that all models appear in the warehouse

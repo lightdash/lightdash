@@ -1,5 +1,6 @@
 import {
     ApiQueryResults,
+    ChartConfig,
     ChartType,
     CompiledDimension,
     Explore,
@@ -10,15 +11,21 @@ import {
     SupportedDbtAdapter,
 } from '@lightdash/common';
 import { useMemo, useState } from 'react';
+import { getValidChartConfig } from '../providers/ExplorerProvider';
 import { useSqlQueryMutation } from './useSqlQuery';
+import { SqlRunnerState } from './useSqlRunnerRoute';
 
 const SQL_RESULTS_TABLE_NAME = 'sql_runner';
 
 type Args = {
+    initialState: SqlRunnerState['createSavedChart'];
     sqlQueryMutation: ReturnType<typeof useSqlQueryMutation>;
 };
 
-const useSqlQueryVisualization = ({ sqlQueryMutation: { data } }: Args) => {
+const useSqlQueryVisualization = ({
+    initialState,
+    sqlQueryMutation: { data },
+}: Args) => {
     const sqlQueryDimensions: Record<FieldId, CompiledDimension> = useMemo(
         () =>
             Object.entries(data?.fields || []).reduce(
@@ -96,14 +103,51 @@ const useSqlQueryVisualization = ({ sqlQueryMutation: { data } }: Args) => {
         [sqlQueryDimensions],
     );
 
-    const [chartType, setChartType] = useState<ChartType>(ChartType.CARTESIAN);
+    const [chartType, setChartType] = useState<ChartType>(
+        initialState?.chartConfig?.type || ChartType.CARTESIAN,
+    );
+    const [chartConfig, setChartConfig] = useState<ChartConfig['config']>(
+        initialState?.chartConfig?.config,
+    );
+    const [pivotFields, setPivotFields] = useState<string[] | undefined>(
+        initialState?.pivotConfig?.columns,
+    );
+
+    const createSavedChart = useMemo(
+        () => ({
+            tableName: explore.name,
+            metricQuery: resultsData.metricQuery,
+            pivotConfig: pivotFields
+                ? {
+                      columns: pivotFields,
+                  }
+                : undefined,
+            chartConfig: getValidChartConfig(chartType, chartConfig),
+            tableConfig: {
+                columnOrder: dimensions,
+            },
+        }),
+        [
+            chartConfig,
+            chartType,
+            dimensions,
+            explore.name,
+            pivotFields,
+            resultsData.metricQuery,
+        ],
+    );
 
     return {
+        initialChartConfig: initialState?.chartConfig,
+        initialPivotDimensions: initialState?.pivotConfig?.columns,
         explore,
         resultsData,
         chartType,
         columnOrder: dimensions,
+        createSavedChart,
         setChartType,
+        setChartConfig,
+        setPivotFields,
     };
 };
 

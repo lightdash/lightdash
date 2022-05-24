@@ -1,11 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Dashboard, DashboardBasicDetails } from './types/dashboard';
-import {
-    DbtColumnLightdashMetric,
-    DbtNode,
-    LineageGraph,
-    SupportedDbtAdapter,
-} from './types/dbt';
+import { Explore, SummaryExplore } from './types/explore';
 import {
     CompiledDimension,
     CompiledField,
@@ -15,15 +10,12 @@ import {
     Field,
     FieldId,
     fieldId,
-    FieldType,
     FilterableDimension,
     FilterableField,
     isDimension,
     isField,
     isFilterableDimension,
-    Metric,
     MetricType,
-    Source,
 } from './types/field';
 import {
     DashboardFilterRule,
@@ -44,14 +36,18 @@ import {
 } from './types/metricQuery';
 import { OrganizationMemberProfile } from './types/organizationMemberProfile';
 import { SavedChart, Series } from './types/savedCharts';
+import { TableBase } from './types/table';
 import { LightdashUser } from './types/user';
 import { formatItemValue } from './utils/formatting';
 
 export * from './authorization/organizationMemberAbility';
+export * from './compiler/exploreCompiler';
+export * from './compiler/translator';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export * from './types/dashboard';
 export * from './types/dbt';
 export * from './types/errors';
+export * from './types/explore';
 export * from './types/field';
 export * from './types/filter';
 export * from './types/job';
@@ -59,6 +55,7 @@ export * from './types/metricQuery';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
 export * from './types/savedCharts';
+export * from './types/table';
 export * from './types/user';
 export * from './utils/formatting';
 
@@ -171,71 +168,6 @@ export type ArgumentsOf<F extends Function> = F extends (
 ) => any
     ? A
     : never;
-
-export type Explore = {
-    name: string; // Must be sql friendly (a-Z, 0-9, _)
-    label: string; // Friendly name
-    tags: string[];
-    baseTable: string; // Must match a tableName in tables
-    joinedTables: CompiledExploreJoin[]; // Must match a tableName in tables
-    tables: { [tableName: string]: CompiledTable }; // All tables in this explore
-    targetDatabase: SupportedDbtAdapter; // Type of target database e.g. postgres/redshift/bigquery/snowflake/spark
-};
-
-export enum InlineErrorType {
-    METADATA_PARSE_ERROR = 'METADATA_PARSE_ERROR',
-    NO_DIMENSIONS_FOUND = 'NO_DIMENSIONS_FOUND',
-}
-
-export type InlineError = {
-    type: InlineErrorType;
-    message: string;
-};
-
-export type ExploreError = Partial<Explore> & {
-    name: string;
-    label: string;
-    errors: InlineError[];
-};
-export const isExploreError = (
-    explore: Explore | ExploreError,
-): explore is ExploreError => 'errors' in explore;
-
-export type ExploreJoin = {
-    table: string; // Must match a tableName in containing Explore
-    sqlOn: string; // Built sql
-};
-
-export type CompiledExploreJoin = ExploreJoin & {
-    compiledSqlOn: string; // Sql on clause with template variables resolved
-};
-
-export type SummaryExplore =
-    | Pick<Explore, 'name' | 'label' | 'tags'>
-    | Pick<ExploreError, 'name' | 'label' | 'tags' | 'errors'>;
-
-export type TableBase = {
-    name: string; // Must be sql friendly (a-Z, 0-9, _)
-    label: string; // Friendly name
-    description?: string; // Optional description of table
-    database: string;
-    schema: string;
-    sqlTable: string; // The sql identifier for the table
-};
-
-export type Table = TableBase & {
-    dimensions: { [fieldName: string]: Dimension }; // Field names must be unique across dims and metrics
-    metrics: { [fieldName: string]: Metric }; //
-    lineageGraph: LineageGraph; // DAG structure representing the lineage of the table
-    source?: Source;
-};
-
-export type CompiledTable = TableBase & {
-    dimensions: Record<string, CompiledDimension>;
-    metrics: Record<string, CompiledMetric>;
-    lineageGraph: LineageGraph;
-    source?: Source | undefined;
-};
 
 // Helper function to get a list of all dimensions in an explore
 export const getDimensions = (explore: Explore): CompiledDimension[] =>
@@ -429,23 +361,6 @@ export const getFilterRulesByFieldType = (
             metrics: [],
         },
     );
-
-const capitalize = (word: string): string =>
-    word ? `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}` : '';
-
-export const friendlyName = (text: string): string => {
-    if (text === '') {
-        return '';
-    }
-    const normalisedText =
-        text === text.toUpperCase() ? text.toLowerCase() : text; // force all uppercase to all lowercase
-    const [first, ...rest] =
-        normalisedText.match(/[0-9]*[A-Za-z][a-z]*|[0-9]+/g) || [];
-    return [
-        capitalize(first.toLowerCase()),
-        ...rest.map((word) => word.toLowerCase()),
-    ].join(' ');
-};
 
 export const snakeCaseName = (text: string): string =>
     text
@@ -714,181 +629,6 @@ export type HealthState = {
     };
     siteUrl: string;
 };
-
-export interface DbtCatalogNode {
-    metadata: DbtCatalogNodeMetadata;
-    columns: {
-        [k: string]: DbtCatalogNodeColumn;
-    };
-}
-
-export interface DbtCatalogNodeMetadata {
-    type: string;
-    database: string | null;
-    schema: string;
-    name: string;
-    comment?: string;
-    owner?: string;
-}
-
-export interface DbtCatalogNodeColumn {
-    type: string;
-    comment?: string;
-    index: number;
-    name: string;
-}
-
-export interface DbtRpcDocsGenerateResults {
-    nodes: {
-        [k: string]: DbtCatalogNode;
-    };
-}
-
-export const isDbtRpcDocsGenerateResults = (
-    results: Record<string, any>,
-): results is DbtRpcDocsGenerateResults =>
-    'nodes' in results &&
-    typeof results.nodes === 'object' &&
-    results.nodes !== null &&
-    Object.values(results.nodes).every(
-        (node) =>
-            typeof node === 'object' &&
-            node !== null &&
-            'metadata' in node &&
-            'columns' in node,
-    );
-
-export interface DbtPackage {
-    package: string;
-    version: string;
-}
-
-export interface DbtPackages {
-    packages: DbtPackage[];
-}
-
-export const isDbtPackages = (
-    results: Record<string, any>,
-): results is DbtPackages => 'packages' in results;
-
-type DbtMetricFilter = {
-    field: string;
-    operator: string;
-    value: string;
-};
-
-export type DbtMetric = {
-    unique_id: string;
-    package_name: string;
-    path: string;
-    root_path: string;
-    original_file_path: string;
-    model: string;
-    name: string;
-    description: string;
-    label: string;
-    type: string;
-    timestamp: string | null;
-    filters: DbtMetricFilter[];
-    time_grains: string[];
-    dimensions: string[];
-    resource_type?: 'metric';
-    meta?: Record<string, any> & DbtMetricLightdashMetadata;
-    tags?: string[];
-    sql?: string | null;
-};
-
-export type DbtMetricLightdashMetadata = {
-    hidden?: boolean;
-};
-
-export interface DbtManifest {
-    nodes: Record<string, DbtNode>;
-    metadata: DbtRawManifestMetadata;
-    metrics: Record<string, DbtMetric>;
-}
-
-export interface DbtRawManifestMetadata {
-    dbt_schema_version: string;
-    generated_at: string;
-    adapter_type: string;
-}
-
-export interface DbtManifestMetadata extends DbtRawManifestMetadata {
-    adapter_type: SupportedDbtAdapter;
-}
-
-const isDbtRawManifestMetadata = (x: any): x is DbtRawManifestMetadata =>
-    typeof x === 'object' &&
-    x !== null &&
-    'dbt_schema_version' in x &&
-    'generated_at' in x &&
-    'adapter_type' in x;
-
-export const isSupportedDbtAdapter = (
-    x: DbtRawManifestMetadata,
-): x is DbtManifestMetadata =>
-    isDbtRawManifestMetadata(x) &&
-    Object.values<string>(SupportedDbtAdapter).includes(x.adapter_type);
-
-export interface DbtRpcGetManifestResults {
-    manifest: DbtManifest;
-}
-
-export const isDbtRpcManifestResults = (
-    results: Record<string, any>,
-): results is DbtRpcGetManifestResults =>
-    'manifest' in results &&
-    typeof results.manifest === 'object' &&
-    results.manifest !== null &&
-    'nodes' in results.manifest &&
-    'metadata' in results.manifest &&
-    'metrics' in results.manifest &&
-    isDbtRawManifestMetadata(results.manifest.metadata);
-
-export interface DbtRpcCompileResults {
-    results: { node: DbtNode }[];
-}
-
-export const isDbtRpcCompileResults = (
-    results: Record<string, any>,
-): results is DbtRpcCompileResults =>
-    'results' in results &&
-    Array.isArray(results.results) &&
-    results.results.every(
-        (result) =>
-            typeof result === 'object' &&
-            result !== null &&
-            'node' in result &&
-            typeof result.node === 'object' &&
-            result.node !== null &&
-            'unique_id' in result.node &&
-            'resource_type' in result.node,
-    );
-
-export interface DbtRpcRunSqlResults {
-    results: {
-        table: { column_names: string[]; rows: any[][] };
-    }[];
-}
-
-export const isDbtRpcRunSqlResults = (
-    results: Record<string, any>,
-): results is DbtRpcRunSqlResults =>
-    'results' in results &&
-    Array.isArray(results.results) &&
-    results.results.every(
-        (result) =>
-            typeof result === 'object' &&
-            result !== null &&
-            'table' in result &&
-            typeof result.table === 'object' &&
-            result.table !== null &&
-            'column_names' in result.table &&
-            Array.isArray(result.table.column_names) &&
-            'rows' in result.table &&
-            Array.isArray(result.table.rows),
-    );
 
 export type SpaceQuery = Pick<
     SavedChart,
@@ -1321,59 +1061,3 @@ export const deepEqual = (
         );
     });
 };
-
-export const defaultSql = (columnName: string): string =>
-    // eslint-disable-next-line no-useless-escape
-    `\$\{TABLE\}.${columnName}`;
-
-type ConvertMetricArgs = {
-    modelName: string;
-    columnName: string;
-    name: string;
-    metric: DbtColumnLightdashMetric;
-    source?: Source;
-    tableLabel: string;
-};
-export const convertMetric = ({
-    modelName,
-    columnName,
-    name,
-    metric,
-    source,
-    tableLabel,
-}: ConvertMetricArgs): Metric => ({
-    fieldType: FieldType.METRIC,
-    name,
-    label: metric.label || friendlyName(name),
-    sql: metric.sql || defaultSql(columnName),
-    table: modelName,
-    tableLabel,
-    type: metric.type,
-    isAutoGenerated: false,
-    description:
-        metric.description ||
-        `${friendlyName(metric.type)} of ${friendlyName(columnName)}`,
-    source,
-    hidden: !!metric.hidden,
-    round: metric.round,
-    format: metric.format,
-});
-
-type ConvertAdditionalMetricArgs = {
-    additionalMetric: AdditionalMetric;
-    table: TableBase;
-    dimension?: string;
-};
-
-export const convertAdditionalMetric = ({
-    additionalMetric,
-    table,
-    dimension,
-}: ConvertAdditionalMetricArgs): Metric =>
-    convertMetric({
-        modelName: table.name,
-        columnName: dimension || '',
-        name: additionalMetric.name,
-        metric: additionalMetric,
-        tableLabel: table.label,
-    });

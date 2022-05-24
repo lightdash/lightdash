@@ -1,8 +1,9 @@
 import {
+    attachTypesToModels,
+    convertTable,
     extractEntityNameFromIdColumn,
     SupportedDbtAdapter,
 } from '@lightdash/common';
-import { attachTypesToModels, convertTable } from './translator';
 import {
     expectedModelWithType,
     INVALID_ID_COLUMN_NAMES,

@@ -1,18 +1,20 @@
+import { SupportedDbtAdapter } from '../types/dbt';
+import { CompileError } from '../types/errors';
 import {
-    CompiledDimension,
     CompiledExploreJoin,
-    CompiledMetric,
     CompiledTable,
-    CompileError,
-    Dimension,
     Explore,
     ExploreJoin,
+    Table,
+} from '../types/explore';
+import {
+    CompiledDimension,
+    CompiledMetric,
+    Dimension,
     isNonAggregateMetric,
     Metric,
     MetricType,
-    SupportedDbtAdapter,
-    Table,
-} from '@lightdash/common';
+} from '../types/field';
 
 export const getQuoteChar = (targetDatabase: SupportedDbtAdapter): string => {
     switch (targetDatabase) {
@@ -172,7 +174,8 @@ export const compileMetricSql = (
         case MetricType.BOOLEAN:
             break;
         default:
-            const nope: never = metricType;
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const never: never = metricType;
             throw new CompileError(
                 `No SQL render function implemented for metric with type "${metricType}"`,
                 {},

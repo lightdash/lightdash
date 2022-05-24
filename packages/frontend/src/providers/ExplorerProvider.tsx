@@ -198,7 +198,7 @@ const defaultState: ExplorerReduceState = {
     },
 };
 
-const getValidChartConfig = (
+export const getValidChartConfig = (
     type: ChartType,
     config: ChartConfig['config'],
 ): ChartConfig => {
