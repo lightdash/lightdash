@@ -42,7 +42,8 @@ type GenericEvent = {
         | EventName.NOTIFICATIONS_ITEM_CLICKED
         | EventName.NOTIFICATIONS_READ_MORE_CLICKED
         | EventName.ADD_CUSTOM_METRIC_CLICKED
-        | EventName.REMOVE_CUSTOM_METRIC_CLICKED;
+        | EventName.REMOVE_CUSTOM_METRIC_CLICKED
+        | EventName.CUSTOM_AXIS_RANGE_TOGGLE_CLICKED;
     properties?: {};
 };
 

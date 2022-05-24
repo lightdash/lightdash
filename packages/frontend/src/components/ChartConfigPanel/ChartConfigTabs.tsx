@@ -15,6 +15,8 @@ import {
 } from '@lightdash/common';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useOrganisation } from '../../hooks/organisation/useOrganisation';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
     InputWrapper,
@@ -39,6 +41,7 @@ const AxisMinMax: FC<MinMaxProps> = ({ minVal, maxVal, index, axis }) => {
     const {
         cartesianConfig: { dirtyEchartsConfig },
     } = useVisualizationContext();
+    const { track } = useTracking();
 
     const minDefaultValue =
         (axis === 'y'
@@ -55,7 +58,15 @@ const AxisMinMax: FC<MinMaxProps> = ({ minVal, maxVal, index, axis }) => {
                 name="auto-range"
                 checked={isAuto}
                 label="Auto y-axis range"
-                onChange={() => setIsAuto((prev) => !prev)}
+                onChange={() => {
+                    setIsAuto((prev) => !prev);
+                    track({
+                        name: EventName.CUSTOM_AXIS_RANGE_TOGGLE_CLICKED,
+                        properties: {
+                            custom_axis_range: isAuto,
+                        },
+                    });
+                }}
             />
             {!isAuto && (
                 <MinMaxWrapper>

@@ -72,4 +72,5 @@ export enum EventName {
     NOTIFICATIONS_CLICKED = 'notifications.clicked',
     NOTIFICATIONS_ITEM_CLICKED = 'notifications_item.clicked',
     NOTIFICATIONS_READ_MORE_CLICKED = 'notifications_read_more.clicked',
+    CUSTOM_AXIS_RANGE_TOGGLE_CLICKED = 'custom_axis_range_toggle_clicked',
 }
