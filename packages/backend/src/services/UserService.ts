@@ -14,6 +14,7 @@ import {
     NotFoundError,
     OpenIdIdentitySummary,
     OpenIdUser,
+    ParameterError,
     PasswordReset,
     SessionUser,
     UpdateUserArgs,
@@ -175,7 +176,7 @@ export class UserService {
             email,
         );
         if (existingUserWithEmail) {
-            throw new NotExistsError(
+            throw new ParameterError(
                 'Email is already used by a user in your organization',
             );
         }
