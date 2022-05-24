@@ -5,7 +5,6 @@ import * as path from 'path';
 
 type GetDbtContextArgs = {
     projectDir: string;
-    initialProjectDir?: string;
 };
 export type DbtContext = {
     projectName: string;
@@ -16,7 +15,6 @@ export type DbtContext = {
 
 export const getDbtContext = async ({
     projectDir,
-    initialProjectDir,
 }: GetDbtContextArgs): Promise<DbtContext> => {
     const projectFilename = path.join(projectDir, 'dbt_project.yml');
     let config;
@@ -26,23 +24,15 @@ export const getDbtContext = async ({
             await fs.readFile(projectFilename, { encoding: 'utf-8' }),
         ) as any;
     } catch (e: any) {
-        if (projectDir !== '/') {
+        if (projectDir !== path.parse(projectDir).root) {
             const parentDir = path.join(projectDir, '..');
-            console.log(
-                `File dbt_project.yml does not exist on ${projectDir}, trying with parent dir ${parentDir}`,
-            );
             return await getDbtContext({
                 projectDir: parentDir,
-                initialProjectDir: initialProjectDir || projectDir,
             });
         }
-        const initialProjectFilename = path.join(
-            initialProjectDir || projectDir,
-            'dbt_project.yml',
-        );
 
         throw new ParseError(
-            `Is ${projectDir} a valid dbt project? Couldn't find a valid dbt_project.yml file at ${initialProjectFilename}:\n  ${e.message}`,
+            `Is ${projectDir} a valid dbt project? Couldn't find a valid dbt_project.yml on this directory or any of its parents:\n  ${e.message}`,
         );
     }
     const targetSubDir = config['target-path'] || './target';
