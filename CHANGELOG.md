@@ -1,3 +1,10 @@
+# [0.115.0](https://github.com/lightdash/lightdash/compare/0.114.0...0.115.0) (2022-05-24)
+
+
+### Features
+
+* move invite creation to user management ([#2207](https://github.com/lightdash/lightdash/issues/2207)) ([01c08ad](https://github.com/lightdash/lightdash/commit/01c08adc8ba9eeffd077ac07bcc50875cf7fa626))
+
 # [0.114.0](https://github.com/lightdash/lightdash/compare/0.113.1...0.114.0) (2022-05-24)
 
 
