@@ -23,33 +23,16 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
     };
 };
 
-const parseExplorerSearchParams = (search: string): CreateSavedChartVersion => {
+export const parseExplorerSearchParams = (
+    search: string,
+): CreateSavedChartVersion | undefined => {
     const searchParams = new URLSearchParams(search);
     const chartConfigSearchParam = searchParams.get(
         'create_saved_chart_version',
     );
     return chartConfigSearchParam
         ? JSON.parse(chartConfigSearchParam)
-        : {
-              tableName: '',
-              metricQuery: {
-                  dimensions: [],
-                  metrics: [],
-                  filters: {},
-                  sorts: [],
-                  limit: 500,
-                  tableCalculations: [],
-                  additionalMetrics: [],
-              },
-              pivotConfig: undefined,
-              tableConfig: {
-                  columnOrder: [],
-              },
-              chartConfig: {
-                  type: ChartType.CARTESIAN,
-                  config: { layout: {}, eChartsConfig: {} },
-              },
-          };
+        : undefined;
 };
 
 export const useExplorerRoute = () => {
@@ -103,7 +86,26 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
 
     return useMemo(() => {
         if (pathParams.tableId) {
-            const unsavedChartVersion = parseExplorerSearchParams(search);
+            const unsavedChartVersion = parseExplorerSearchParams(search) || {
+                tableName: '',
+                metricQuery: {
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                },
+                pivotConfig: undefined,
+                tableConfig: {
+                    columnOrder: [],
+                },
+                chartConfig: {
+                    type: ChartType.CARTESIAN,
+                    config: { layout: {}, eChartsConfig: {} },
+                },
+            };
             try {
                 return {
                     shouldFetchResults: true,
