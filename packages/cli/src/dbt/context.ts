@@ -5,6 +5,7 @@ import * as path from 'path';
 
 type GetDbtContextArgs = {
     projectDir: string;
+    initialProjectDir?: string;
 };
 export type DbtContext = {
     projectName: string;
@@ -15,6 +16,7 @@ export type DbtContext = {
 
 export const getDbtContext = async ({
     projectDir,
+    initialProjectDir,
 }: GetDbtContextArgs): Promise<DbtContext> => {
     const projectFilename = path.join(projectDir, 'dbt_project.yml');
     let config;
@@ -28,11 +30,12 @@ export const getDbtContext = async ({
             const parentDir = path.join(projectDir, '..');
             return await getDbtContext({
                 projectDir: parentDir,
+                initialProjectDir: initialProjectDir || projectDir,
             });
         }
 
         throw new ParseError(
-            `Is ${projectDir} a valid dbt project? Couldn't find a valid dbt_project.yml on this directory or any of its parents:\n  ${e.message}`,
+            `Is ${initialProjectDir} a valid dbt project directory? Couldn't find a valid dbt_project.yml on ${initialProjectDir} or any of its parents:\n  ${e.message}`,
         );
     }
     const targetSubDir = config['target-path'] || './target';
