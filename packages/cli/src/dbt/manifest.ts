@@ -12,7 +12,7 @@ export const loadManifest = async ({ targetDir }: LoadManifestArgs) => {
             await fs.readFile(filename, { encoding: 'utf-8' }),
         ) as any;
         return manifest;
-    } catch (err) {
+    } catch (err: any) {
         throw new Error(
             `Could not load manifest from ${filename}:\n  ${err.message}`,
         );

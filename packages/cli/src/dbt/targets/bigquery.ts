@@ -96,7 +96,7 @@ export const convertBigquerySchema = async (
             keyfile = JSON.parse(
                 await fs.readFile(keyfilePath, 'utf8'),
             ) as Record<string, string>;
-        } catch (e) {
+        } catch (e: any) {
             throw new ParseError(
                 `Cannot read keyfile for bigquery target expect at: ${keyfilePath}:\n  ${e.message}`,
             );
