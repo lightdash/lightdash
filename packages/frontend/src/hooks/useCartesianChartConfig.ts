@@ -61,7 +61,7 @@ const useCartesianChartConfig = (
         });
     }, []);
 
-    const setMinValue = useCallback(
+    const setYMinValue = useCallback(
         (index: number, value: string | number | undefined) => {
             setDirtyEchartsConfig((prevState) => {
                 return {
@@ -78,7 +78,7 @@ const useCartesianChartConfig = (
         [],
     );
 
-    const setMaxValue = useCallback(
+    const setYMaxValue = useCallback(
         (index: number, value: string | number | undefined) => {
             setDirtyEchartsConfig((prevState) => {
                 return {
@@ -86,6 +86,40 @@ const useCartesianChartConfig = (
                     yAxis: [
                         prevState?.yAxis?.[0] || {},
                         prevState?.yAxis?.[1] || {},
+                    ].map((axis, axisIndex) =>
+                        axisIndex === index ? { ...axis, max: value } : axis,
+                    ),
+                };
+            });
+        },
+        [],
+    );
+
+    const setXMinValue = useCallback(
+        (index: number, value: string | number | undefined) => {
+            setDirtyEchartsConfig((prevState) => {
+                return {
+                    ...prevState,
+                    yAxis: [
+                        prevState?.xAxis?.[0] || {},
+                        prevState?.xAxis?.[1] || {},
+                    ].map((axis, axisIndex) =>
+                        axisIndex === index ? { ...axis, min: value } : axis,
+                    ),
+                };
+            });
+        },
+        [],
+    );
+
+    const setXMaxValue = useCallback(
+        (index: number, value: string | number | undefined) => {
+            setDirtyEchartsConfig((prevState) => {
+                return {
+                    ...prevState,
+                    yAxis: [
+                        prevState?.xAxis?.[0] || {},
+                        prevState?.xAxis?.[1] || {},
                     ].map((axis, axisIndex) =>
                         axisIndex === index ? { ...axis, max: value } : axis,
                     ),
@@ -472,8 +506,10 @@ const useCartesianChartConfig = (
         updateAllGroupedSeries,
         updateYField,
         setFlipAxis,
-        setMinValue,
-        setMaxValue,
+        setYMinValue,
+        setYMaxValue,
+        setXMinValue,
+        setXMaxValue,
     };
 };
 

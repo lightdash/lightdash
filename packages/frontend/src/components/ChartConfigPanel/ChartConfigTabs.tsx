@@ -31,18 +31,23 @@ interface MinMaxProps {
     minVal: (index: number, value: string | number | undefined) => void;
     maxVal: (index: number, value: string | number | undefined) => void;
     index: number;
+    axis: string;
 }
 
-const AxisMinMax: FC<MinMaxProps> = ({ minVal, maxVal, index }) => {
+const AxisMinMax: FC<MinMaxProps> = ({ minVal, maxVal, index, axis }) => {
     const [isAuto, setIsAuto] = useState<boolean>(true);
     const {
         cartesianConfig: { dirtyEchartsConfig },
     } = useVisualizationContext();
 
     const minDefaultValue =
-        dirtyEchartsConfig?.yAxis?.[index]?.min?.toString() || undefined;
+        (axis === 'y'
+            ? dirtyEchartsConfig?.yAxis?.[index]?.min?.toString()
+            : dirtyEchartsConfig?.xAxis?.[index]?.min?.toString()) || undefined;
     const maxDefaultValue =
-        dirtyEchartsConfig?.yAxis?.[index]?.max?.toString() || undefined;
+        (axis === 'y'
+            ? dirtyEchartsConfig?.yAxis?.[index]?.max?.toString()
+            : dirtyEchartsConfig?.xAxis?.[index]?.max?.toString()) || undefined;
 
     return (
         <MinMaxContainer>
@@ -86,8 +91,10 @@ const ChartConfigTabs: FC = () => {
             updateAllGroupedSeries,
             setXAxisName,
             setYAxisName,
-            setMaxValue,
-            setMinValue,
+            setYMinValue,
+            setYMaxValue,
+            setXMinValue,
+            setXMaxValue,
         },
         pivotDimensions,
     } = useVisualizationContext();
@@ -99,7 +106,7 @@ const ChartConfigTabs: FC = () => {
               resultsData?.metricQuery.dimensions.includes(fieldId(field)),
           )
         : [];
-
+    console.log({ resultsData, dirtyLayout });
     const metricsAndTableCalculations: Array<Metric | TableCalculation> =
         explore
             ? [
@@ -222,6 +229,12 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
+                            <AxisMinMax
+                                minVal={setXMinValue}
+                                maxVal={setXMaxValue}
+                                index={0}
+                                axis="x"
+                            />
                             <InputWrapper
                                 label={`${
                                     dirtyLayout?.flipAxes ? 'X' : 'Y'
@@ -248,9 +261,10 @@ const ChartConfigTabs: FC = () => {
                                 />
                             </InputWrapper>
                             <AxisMinMax
-                                minVal={setMinValue}
-                                maxVal={setMaxValue}
+                                minVal={setYMinValue}
+                                maxVal={setYMaxValue}
                                 index={0}
+                                axis="y"
                             />
                             <InputWrapper
                                 label={`${
@@ -278,9 +292,10 @@ const ChartConfigTabs: FC = () => {
                                 />
                             </InputWrapper>
                             <AxisMinMax
-                                minVal={setMinValue}
-                                maxVal={setMaxValue}
+                                minVal={setYMinValue}
+                                maxVal={setYMaxValue}
                                 index={1}
+                                axis="y"
                             />
                         </>
                     }
