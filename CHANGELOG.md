@@ -1,3 +1,10 @@
+# [0.114.0](https://github.com/lightdash/lightdash/compare/0.113.1...0.114.0) (2022-05-24)
+
+
+### Features
+
+* share sql runner chart ([#2194](https://github.com/lightdash/lightdash/issues/2194)) ([e9f32a0](https://github.com/lightdash/lightdash/commit/e9f32a089bf9ba4109c72e624ff83abb099e4ee6))
+
 ## [0.113.1](https://github.com/lightdash/lightdash/compare/0.113.0...0.113.1) (2022-05-23)
 
 
