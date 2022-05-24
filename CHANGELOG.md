@@ -1,3 +1,10 @@
+## [0.115.2](https://github.com/lightdash/lightdash/compare/0.115.1...0.115.2) (2022-05-24)
+
+
+### Bug Fixes
+
+* datetime filters ([#2215](https://github.com/lightdash/lightdash/issues/2215)) ([c736f25](https://github.com/lightdash/lightdash/commit/c736f2580d14b2d9da9a95c9956d4b0979e20592))
+
 ## [0.115.1](https://github.com/lightdash/lightdash/compare/0.115.0...0.115.1) (2022-05-24)
 
 
