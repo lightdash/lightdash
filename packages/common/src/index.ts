@@ -252,7 +252,9 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         completed: false,
                     } as DateFilterRule['settings'];
                 } else {
-                    filterRuleDefaults.values = [new Date()];
+                    filterRuleDefaults.values = [
+                        value !== undefined ? value : new Date(),
+                    ];
                 }
                 break;
             }
