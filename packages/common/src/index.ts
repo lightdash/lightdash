@@ -312,9 +312,8 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     ) {
         switch (filterType) {
             case FilterType.DATE: {
-                if (filterRule.operator === FilterOperator.IN_THE_PAST) {
-                    filterRuleDefaults.values =
-                        value !== undefined ? [value] : [1];
+                if (value !== undefined) {
+                    filterRuleDefaults.values = [value];
                     filterRuleDefaults.settings = {
                         unitOfTime: UnitOfTime.days,
                         completed: false,
