@@ -1,5 +1,6 @@
 // This script will be executed after npm install
-chalk = require('chalk')
+
+const chalk = require('chalk')
 
 const title = chalk.bold.yellowBright;
 const success = chalk.green;
