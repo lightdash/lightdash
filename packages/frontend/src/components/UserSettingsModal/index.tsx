@@ -6,7 +6,6 @@ import { useApp } from '../../providers/AppProvider';
 import { TrackPage } from '../../providers/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../types/Events';
 import AppearancePanel from './AppearancePanel';
-import InvitesPanel from './InvitesPanel';
 import OrganisationPanel from './OrganisationPanel';
 import PasswordPanel from './PasswordPanel';
 import ProfilePanel from './ProfilePanel';
@@ -20,6 +19,9 @@ interface Props {
     onClose: () => void;
     activeTab: string | undefined;
     onChangeTab: (tab: string) => void;
+    panelProps: {
+        userManagementProps: React.ComponentProps<typeof UserManagementPanel>;
+    };
 }
 
 const UserSettingsModal: FC<Props> = ({
@@ -27,6 +29,7 @@ const UserSettingsModal: FC<Props> = ({
     onClose,
     activeTab,
     onChangeTab,
+    panelProps,
 }) => {
     const { user, health } = useApp();
     const allowPasswordAuthentication =
@@ -97,22 +100,6 @@ const UserSettingsModal: FC<Props> = ({
                             }
                         />
                     )}
-                    {user.data?.ability?.can('manage', 'InviteLink') && (
-                        <Tab
-                            id="invites"
-                            title="Invites"
-                            panel={
-                                <TrackPage
-                                    name={PageName.INVITE_MANAGEMENT_SETTINGS}
-                                    type={PageType.MODAL}
-                                    category={CategoryName.SETTINGS}
-                                >
-                                    <InvitesPanel />
-                                </TrackPage>
-                            }
-                        />
-                    )}
-
                     {user.data?.ability?.can(
                         'manage',
                         'OrganizationMemberProfile',
@@ -126,7 +113,9 @@ const UserSettingsModal: FC<Props> = ({
                                     type={PageType.MODAL}
                                     category={CategoryName.SETTINGS}
                                 >
-                                    <UserManagementPanel />
+                                    <UserManagementPanel
+                                        {...panelProps.userManagementProps}
+                                    />
                                 </TrackPage>
                             }
                         />

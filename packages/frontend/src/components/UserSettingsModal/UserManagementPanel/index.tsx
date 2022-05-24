@@ -1,4 +1,11 @@
-import { Button, ButtonGroup, Classes, Dialog } from '@blueprintjs/core';
+import {
+    Button,
+    ButtonGroup,
+    Classes,
+    Dialog,
+    NonIdealState,
+    Spinner,
+} from '@blueprintjs/core';
 import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
@@ -10,7 +17,11 @@ import {
     useUpdateUserMutation,
 } from '../../../hooks/useOrganizationUsers';
 import { useApp } from '../../../providers/AppProvider';
+import { TrackPage } from '../../../providers/TrackingProvider';
+import { CategoryName, PageName, PageType } from '../../../types/Events';
+import InvitesPanel from '../InvitesPanel';
 import {
+    AddUserButton,
     ItemContent,
     RoleSelectButton,
     UserEmail,
@@ -103,14 +114,38 @@ const UserListItem: FC<{
     );
 };
 
-const UserManagementPanel: FC = () => {
+const UserManagementPanel: FC<{
+    showInvitePage: boolean;
+    setShowInvitePage: (showInvitePage: boolean) => void;
+}> = ({ showInvitePage, setShowInvitePage }) => {
     const { user } = useApp();
-    const { data: organizationUsers } = useOrganizationUsers();
+    const { data: organizationUsers, isLoading } = useOrganizationUsers();
+
+    if (showInvitePage) {
+        return (
+            <TrackPage
+                name={PageName.INVITE_MANAGEMENT_SETTINGS}
+                type={PageType.MODAL}
+                category={CategoryName.SETTINGS}
+            >
+                <InvitesPanel onBackClick={() => setShowInvitePage(false)} />
+            </TrackPage>
+        );
+    }
 
     return (
         <UserManagementPanelWrapper>
-            <div>
-                {organizationUsers?.map((orgUser) => (
+            {user.data?.ability?.can('manage', 'InviteLink') && (
+                <AddUserButton
+                    intent="primary"
+                    onClick={() => setShowInvitePage(true)}
+                    text="Add user"
+                />
+            )}
+            {isLoading ? (
+                <NonIdealState title="Loading users" icon={<Spinner />} />
+            ) : (
+                organizationUsers?.map((orgUser) => (
                     <UserListItem
                         key={orgUser.email}
                         user={orgUser}
@@ -119,8 +154,8 @@ const UserManagementPanel: FC = () => {
                             organizationUsers.length <= 1
                         }
                     />
-                ))}
-            </div>
+                ))
+            )}
         </UserManagementPanelWrapper>
     );
 };
