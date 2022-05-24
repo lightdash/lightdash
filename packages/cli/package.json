@@ -1,12 +1,13 @@
 {
     "name": "@lightdash/cli",
-    "version": "0.114.0",
+    "version": "0.115.1",
     "license": "MIT",
     "bin": {
         "lightdash": "dist/index.js"
     },
     "files": [
-        "dist/**/*"
+        "dist/**/*",
+        "postinstall.js"
     ],
     "dependencies": {
         "@lightdash/common": "^0.114.0",
@@ -43,6 +44,6 @@
         "build": "tsc --build tsconfig.json",
         "lint": "eslint ./src",
         "format": "prettier --check --ignore-unknown ./src",
-        "postinstall": "node src/postinstall.js"
+        "postinstall": "node postinstall.js"
     }
 }
