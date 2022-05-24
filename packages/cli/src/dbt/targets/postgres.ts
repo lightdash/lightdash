@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { JSONSchemaType } from 'ajv';
 import betterAjvErrors from 'better-ajv-errors';
-import { ajv } from '../ajv';
+import { ajv } from '../../ajv';
 import { Target } from '../types';
 
 export type PostgresTarget = {

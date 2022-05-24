@@ -30,7 +30,7 @@ export type DbtNode = {
 };
 export type DbtRawModelNode = DbtNode & {
     columns: { [name: string]: DbtModelColumn };
-    config?: { meta?: DbtModelMetadata };
+    config?: { meta?: DbtModelMetadata; materialized?: string };
     meta: DbtModelMetadata;
     database: string | null;
     schema: string;
@@ -259,10 +259,17 @@ export type DbtMetricLightdashMetadata = {
     hidden?: boolean;
 };
 
+export type DbtDoc = {
+    unique_id: string;
+    name: string;
+    block_contents: string;
+};
+
 export interface DbtManifest {
     nodes: Record<string, DbtNode>;
     metadata: DbtRawManifestMetadata;
     metrics: Record<string, DbtMetric>;
+    docs: Record<string, DbtDoc>;
 }
 
 export interface DbtRawManifestMetadata {

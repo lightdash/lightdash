@@ -184,7 +184,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                 acc[match.database][match.schema][match.table] =
                     acc[match.database][match.schema][match.table] || {};
                 acc[match.database][match.schema][match.table][
-                    row.column_name
+                    row.column_name.toLowerCase()
                 ] = mapFieldType(JSON.parse(row.data_type).type);
             }
             return acc;

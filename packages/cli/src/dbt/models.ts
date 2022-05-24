@@ -1,6 +1,8 @@
 import {
     buildModelGraph,
+    DbtDoc,
     DbtManifest,
+    DbtModelNode,
     DbtRawModelNode,
     DimensionType,
     isSupportedDbtAdapter,
@@ -70,12 +72,6 @@ const generateModelYml = ({ model, table }: GenerateModelYamlArgs) => ({
     })),
 });
 
-type Doc = {
-    unique_id: string;
-    name: string;
-    block_contents: string;
-};
-
 const askOverwrite = async (message: string): Promise<boolean> => {
     const answers = await inquirer.prompt([
         {
@@ -114,7 +110,7 @@ const askOverwriteDescription = async (
 type FindAndUpdateModelYamlArgs = {
     model: CompiledModel;
     table: WarehouseTableSchema;
-    docs: Record<string, Doc>;
+    docs: Record<string, DbtDoc>;
     spinner: ora.Ora;
 };
 export const findAndUpdateModelYaml = async ({
@@ -232,12 +228,29 @@ const parseSelector = (selector: string) => {
     };
 };
 
-const getModelsFromManifest = (manifest: DbtManifest): DbtRawModelNode[] =>
-    Object.values(manifest.nodes).filter(
+export const getModelsFromManifest = (
+    manifest: DbtManifest,
+): DbtModelNode[] => {
+    const models = Object.values(manifest.nodes).filter(
         (node) =>
             node.resource_type === 'model' &&
             node.config?.materialized !== 'ephemeral',
     ) as DbtRawModelNode[];
+    if (!isSupportedDbtAdapter(manifest.metadata)) {
+        throw new ParseError(
+            `dbt adapter not supported. Lightdash does not support adapter ${manifest.metadata.adapter_type}`,
+            {},
+        );
+    }
+    const adapterType = manifest.metadata.adapter_type;
+    return models
+        .filter(
+            (model) =>
+                model.config?.materialized &&
+                model.config.materialized !== 'ephemeral',
+        )
+        .map((model) => normaliseModelDatabase(model, adapterType));
+};
 
 type MethodSelectorArgs = {
     method: string;
@@ -339,13 +352,6 @@ export const getCompiledModelsFromManifest = ({
 }: GetCompiledModelsFromManifestArgs): CompiledModel[] => {
     const models = getModelsFromManifest(manifest);
     const modelGraph = buildModelGraph(models);
-    if (!isSupportedDbtAdapter(manifest.metadata)) {
-        throw new ParseError(
-            `dbt adapter not supported. Lightdash does not support adapter ${manifest.metadata.adapter_type}`,
-            {},
-        );
-    }
-    const adapterType = manifest.metadata.adapter_type;
     let nodeIds: string[] = [];
     if (selectors === undefined) {
         nodeIds = models.map((model) => model.unique_id);
@@ -358,7 +364,7 @@ export const getCompiledModelsFromManifest = ({
             ),
         );
     }
-    const modelLookup = models.reduce<{ [nodeId: string]: DbtRawModelNode }>(
+    const modelLookup = models.reduce<{ [nodeId: string]: DbtModelNode }>(
         (acc, model) => {
             acc[model.unique_id] = model;
             return acc;
@@ -368,8 +374,7 @@ export const getCompiledModelsFromManifest = ({
     return nodeIds.map((nodeId) => ({
         name: modelLookup[nodeId].name,
         schema: modelLookup[nodeId].schema,
-        database: normaliseModelDatabase(modelLookup[nodeId], adapterType)
-            .database,
+        database: modelLookup[nodeId].database,
         rootPath: modelLookup[nodeId].root_path,
         originalFilePath: modelLookup[nodeId].original_file_path,
         patchPath: modelLookup[nodeId].patch_path,

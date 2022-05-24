@@ -210,6 +210,36 @@ export class SavedChartModel {
         return [space];
     }
 
+    async upsert(
+        projectUuid: string,
+        chart: CreateSavedChart & {
+            updatedByUser: UpdatedByUser;
+            uuid: string;
+        },
+    ): Promise<SavedChart> {
+        const newChartUuid = await this.database.transaction(async (trx) => {
+            await trx('saved_queries')
+                .delete()
+                .where({ saved_query_uuid: chart.uuid });
+            const space = await getSpace(trx, projectUuid);
+            const [newSavedChart] = await trx('saved_queries')
+                .insert({
+                    saved_query_uuid: chart.uuid,
+                    name: chart.name,
+                    space_id: space.space_id,
+                    description: chart.description,
+                })
+                .returning('*');
+            await createSavedChartVersion(
+                trx,
+                newSavedChart.saved_query_id,
+                chart,
+            );
+            return newSavedChart.saved_query_uuid;
+        });
+        return this.get(newChartUuid);
+    }
+
     async create(
         projectUuid: string,
         {

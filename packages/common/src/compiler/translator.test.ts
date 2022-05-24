@@ -65,7 +65,7 @@ describe('attachTypesToModels', () => {
                 true,
             ),
         ).toThrowError(
-            'Column "myColumnName" from model "myTable" does not exist.\n "myColumnName.myTable" was not found in your target warehouse at myDatabase.mySchema.myTable. Try rerunning dbt to update your warehouse.',
+            'Column "myColumnName" from model "myTable" does not exist.\n "myTable.myColumnName" was not found in your target warehouse at myDatabase.mySchema.myTable. Try rerunning dbt to update your warehouse.',
         );
     });
     it('should throw an error when column has wrong case', async () => {

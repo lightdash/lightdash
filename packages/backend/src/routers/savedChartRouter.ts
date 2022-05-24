@@ -91,3 +91,17 @@ savedChartRouter.post(
             .catch(next);
     },
 );
+
+savedChartRouter.put(
+    '/:savedQueryUuid',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        savedChartsService
+            .upsert(req.user!, { ...req.body, uuid: req.params.savedQueryUuid })
+            .then((results) => {
+                res.json({ status: 'ok', results });
+            })
+            .catch(next);
+    },
+);

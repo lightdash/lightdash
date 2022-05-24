@@ -3,8 +3,13 @@ import { LightdashError } from '@lightdash/common';
 import { program } from 'commander';
 import * as os from 'os';
 import * as path from 'path';
-import { dbtRunHandler } from './handlers/dbt/run';
+import { compileHandler } from './handlers/compile';
+import { getChart } from './handlers/dbt/getChart';
+import { dbtCompileHandler, dbtRunHandler } from './handlers/dbt/run';
 import { generateHandler } from './handlers/generate';
+import { login } from './handlers/login';
+import { setProject } from './handlers/setProject';
+import { updateResource } from './handlers/update';
 import * as styles from './styles';
 
 const { version: VERSION } = require('../package.json');
@@ -66,6 +71,38 @@ ${styles.bold('Examples:')}
 `,
     );
 
+// LOGIN
+program
+    .command('login <url>')
+    .description('Login to a Lightdash instance')
+    .action(login);
+
+// CONFIG
+program
+    .command('config')
+    .description('Set configuration')
+    .command('set-project')
+    .description('Interactively choose project')
+    .action(setProject);
+
+// UPDATE
+
+program
+    .command('update')
+    .description('Update a resource in the API')
+    .requiredOption('-f, --file <file>', 'Path to the resource file')
+    .action(updateResource);
+
+// GET
+
+program
+    .command('get')
+    .description('Get a resource from the API')
+    .command('chart <id>')
+    .option('-o, --output <filename>', 'output yml file')
+    .description('Get a chart by a specific id')
+    .action(getChart);
+
 const dbtProgram = program.command('dbt').description('runs dbt commands');
 
 dbtProgram
@@ -118,6 +155,43 @@ ${styles.bold('Examples:')}
     .option('--full-refresh')
     .action(dbtRunHandler);
 
+dbtProgram
+    .command('compile')
+    .option('--project-dir <path>', 'The directory of the dbt project', '.')
+    .option(
+        '--profiles-dir <path>',
+        'The directory of the dbt profiles',
+        path.join(os.homedir(), '.dbt'),
+    )
+    .option('--profile <name>')
+    .option('-t, --target <target>')
+    .option('-x, --fail-fast')
+    .option('--threads <threads>')
+    .option('--no-version-check')
+    .option('-s, --select, <select> [selects...]')
+    .option('--state <state>')
+    .option('--defer')
+    .option('--no-defer')
+    .option('--full-refresh')
+    .action(dbtCompileHandler);
+
+program
+    .command('compile')
+    .description('Compile Lightdash resources')
+    .option('--project-dir <path>', 'The directory of the dbt project', '.')
+    .option(
+        '--profiles-dir <path>',
+        'The directory of the dbt profiles',
+        path.join(os.homedir(), '.dbt'),
+    )
+    .option(
+        '--profile <name>',
+        'The name of the profile to use (defaults to profile name in dbt_project.yml)',
+        undefined,
+    )
+    .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .action(compileHandler);
+
 program
     .command('generate')
     .description('Generates a new schema.yml file for model')
@@ -167,6 +241,7 @@ ${styles.bold('Examples:')}
         undefined,
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option('-y, --assume-yes', 'assume yes to prompts', false)
     .action(generateHandler);
 
 const errorHandler = (err: Error) => {
@@ -184,6 +259,7 @@ const errorHandler = (err: Error) => {
 };
 
 const successHandler = () => {
+    console.error(`Done 🕶`);
     process.exit(0);
 };
 

@@ -455,9 +455,11 @@ export const attachTypesToModels = (
                 columnMatch
             ];
         }
+        return DimensionType.STRING;
+
         if (throwOnMissingCatalogEntry) {
             throw new MissingCatalogEntryError(
-                `Column "${columnName}" from model "${name}" does not exist.\n "${columnName}.${name}" was not found in your target warehouse at ${database}.${schema}.${name}. Try rerunning dbt to update your warehouse.`,
+                `Column "${columnName}" from model "${name}" does not exist.\n "${name}.${columnName}" was not found in your target warehouse at ${database}.${schema}.${name}. Try rerunning dbt to update your warehouse.`,
                 {},
             );
         }

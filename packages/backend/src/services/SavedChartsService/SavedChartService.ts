@@ -173,6 +173,16 @@ export class SavedChartService {
         return [space];
     }
 
+    async upsert(
+        user: SessionUser,
+        savedChart: CreateSavedChart & { uuid: string; projectUuid: string },
+    ): Promise<SavedChart> {
+        return this.savedChartModel.upsert(savedChart.projectUuid, {
+            ...savedChart,
+            updatedByUser: user,
+        });
+    }
+
     async create(
         user: SessionUser,
         projectUuid: string,
