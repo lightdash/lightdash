@@ -1,4 +1,4 @@
-import { InputGroup, Switch, Tab, Tabs } from '@blueprintjs/core';
+import { InputGroup, Tab, Tabs } from '@blueprintjs/core';
 import {
     convertAdditionalMetric,
     fieldId,
@@ -14,11 +14,13 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import React, { FC, useCallback, useMemo, useState } from 'react';
+import { useToggle } from 'react-use';
 import { useOrganisation } from '../../hooks/organisation/useOrganisation';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
+    AutoRangeSwitch,
     InputWrapper,
     MinMaxContainer,
     MinMaxInput,
@@ -30,36 +32,34 @@ import BasicSeriesConfiguration from './Series/BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './Series/GroupedSeriesConfiguration';
 
 interface MinMaxProps {
-    minVal: (index: number, value: string | number | undefined) => void;
-    maxVal: (index: number, value: string | number | undefined) => void;
-    index: number;
-    axis: string;
+    label: string;
+    min: string | undefined;
+    max: string | undefined;
+    setMin: (value: string | undefined) => void;
+    setMax: (value: string | undefined) => void;
 }
 
-const AxisMinMax: FC<MinMaxProps> = ({ minVal, maxVal, index, axis }) => {
-    const [isAuto, setIsAuto] = useState<boolean>(true);
-    const {
-        cartesianConfig: { dirtyEchartsConfig },
-    } = useVisualizationContext();
+const AxisMinMax: FC<MinMaxProps> = ({ label, min, max, setMin, setMax }) => {
+    const [isAuto, toggleAuto] = useToggle(!(min || max));
     const { track } = useTracking();
 
-    const minDefaultValue =
-        (axis === 'y'
-            ? dirtyEchartsConfig?.yAxis?.[index]?.min?.toString()
-            : dirtyEchartsConfig?.xAxis?.[index]?.min?.toString()) || undefined;
-    const maxDefaultValue =
-        (axis === 'y'
-            ? dirtyEchartsConfig?.yAxis?.[index]?.max?.toString()
-            : dirtyEchartsConfig?.xAxis?.[index]?.max?.toString()) || undefined;
+    const clearRange = useCallback(() => {
+        if (!isAuto) {
+            setMin(undefined);
+            setMax(undefined);
+        }
+        return;
+    }, [isAuto, setMin, setMax]);
 
     return (
         <MinMaxContainer>
-            <Switch
+            <AutoRangeSwitch
                 name="auto-range"
                 checked={isAuto}
-                label={`Auto ${axis}-axis range`}
+                label={label}
                 onChange={() => {
-                    setIsAuto((prev) => !prev);
+                    toggleAuto((prev: boolean) => !prev);
+                    clearRange();
                     track({
                         name: EventName.CUSTOM_AXIS_RANGE_TOGGLE_CLICKED,
                         properties: {
@@ -73,16 +73,16 @@ const AxisMinMax: FC<MinMaxProps> = ({ minVal, maxVal, index, axis }) => {
                     <MinMaxInput label="Min">
                         <InputGroup
                             placeholder="Min"
-                            defaultValue={minDefaultValue}
-                            onBlur={(e) => minVal(index, e.currentTarget.value)}
+                            defaultValue={min || undefined}
+                            onBlur={(e) => setMin(e.currentTarget.value)}
                         />
                     </MinMaxInput>
 
                     <MinMaxInput label="Max">
                         <InputGroup
                             placeholder="Max"
-                            defaultValue={maxDefaultValue}
-                            onBlur={(e) => maxVal(index, e.currentTarget.value)}
+                            defaultValue={max || undefined}
+                            onBlur={(e) => setMax(e.currentTarget.value)}
                         />
                     </MinMaxInput>
                 </MinMaxWrapper>
@@ -117,7 +117,7 @@ const ChartConfigTabs: FC = () => {
               resultsData?.metricQuery.dimensions.includes(fieldId(field)),
           )
         : [];
-    console.log({ resultsData, dirtyLayout });
+
     const metricsAndTableCalculations: Array<Metric | TableCalculation> =
         explore
             ? [
@@ -241,10 +241,29 @@ const ChartConfigTabs: FC = () => {
                                 />
                             </InputWrapper>
                             <AxisMinMax
-                                minVal={setXMinValue}
-                                maxVal={setXMaxValue}
-                                index={0}
-                                axis="x"
+                                label={`Auto ${
+                                    dirtyLayout?.flipAxes ? 'y' : 'x'
+                                }-axis range`}
+                                min={
+                                    dirtyLayout?.flipAxes
+                                        ? dirtyEchartsConfig?.yAxis?.[0]?.min
+                                        : dirtyEchartsConfig?.xAxis?.[0]?.min
+                                }
+                                max={
+                                    dirtyLayout?.flipAxes
+                                        ? dirtyEchartsConfig?.yAxis?.[0]?.max
+                                        : dirtyEchartsConfig?.xAxis?.[0]?.max
+                                }
+                                setMin={(newValue: string | undefined) =>
+                                    dirtyLayout?.flipAxes
+                                        ? setYMinValue(0, newValue)
+                                        : setXMinValue(0, newValue)
+                                }
+                                setMax={(newValue: string | undefined) =>
+                                    dirtyLayout?.flipAxes
+                                        ? setYMaxValue(0, newValue)
+                                        : setXMaxValue(0, newValue)
+                                }
                             />
                             <InputWrapper
                                 label={`${
@@ -272,10 +291,29 @@ const ChartConfigTabs: FC = () => {
                                 />
                             </InputWrapper>
                             <AxisMinMax
-                                minVal={setYMinValue}
-                                maxVal={setYMaxValue}
-                                index={0}
-                                axis="y"
+                                label={`Auto ${
+                                    dirtyLayout?.flipAxes ? 'x' : 'y'
+                                }-axis range`}
+                                min={
+                                    dirtyLayout?.flipAxes
+                                        ? dirtyEchartsConfig?.xAxis?.[0]?.min
+                                        : dirtyEchartsConfig?.yAxis?.[0]?.min
+                                }
+                                max={
+                                    dirtyLayout?.flipAxes
+                                        ? dirtyEchartsConfig?.xAxis?.[0]?.max
+                                        : dirtyEchartsConfig?.yAxis?.[0]?.max
+                                }
+                                setMin={(newValue: string | undefined) =>
+                                    dirtyLayout?.flipAxes
+                                        ? setXMinValue(0, newValue)
+                                        : setYMinValue(0, newValue)
+                                }
+                                setMax={(newValue: string | undefined) =>
+                                    dirtyLayout?.flipAxes
+                                        ? setXMaxValue(0, newValue)
+                                        : setYMaxValue(0, newValue)
+                                }
                             />
                             <InputWrapper
                                 label={`${
@@ -303,10 +341,29 @@ const ChartConfigTabs: FC = () => {
                                 />
                             </InputWrapper>
                             <AxisMinMax
-                                minVal={setYMinValue}
-                                maxVal={setYMaxValue}
-                                index={1}
-                                axis="y"
+                                label={`Auto ${
+                                    dirtyLayout?.flipAxes ? 'x' : 'y'
+                                }-axis range`}
+                                min={
+                                    dirtyLayout?.flipAxes
+                                        ? dirtyEchartsConfig?.xAxis?.[1]?.min
+                                        : dirtyEchartsConfig?.yAxis?.[1]?.min
+                                }
+                                max={
+                                    dirtyLayout?.flipAxes
+                                        ? dirtyEchartsConfig?.xAxis?.[1]?.max
+                                        : dirtyEchartsConfig?.yAxis?.[1]?.max
+                                }
+                                setMin={(newValue: string | undefined) =>
+                                    dirtyLayout?.flipAxes
+                                        ? setXMinValue(1, newValue)
+                                        : setYMinValue(1, newValue)
+                                }
+                                setMax={(newValue: string | undefined) =>
+                                    dirtyLayout?.flipAxes
+                                        ? setXMaxValue(1, newValue)
+                                        : setYMaxValue(1, newValue)
+                                }
                             />
                         </>
                     }

@@ -62,7 +62,7 @@ const useCartesianChartConfig = (
     }, []);
 
     const setYMinValue = useCallback(
-        (index: number, value: string | number | undefined) => {
+        (index: number, value: string | undefined) => {
             setDirtyEchartsConfig((prevState) => {
                 return {
                     ...prevState,
@@ -79,7 +79,7 @@ const useCartesianChartConfig = (
     );
 
     const setYMaxValue = useCallback(
-        (index: number, value: string | number | undefined) => {
+        (index: number, value: string | undefined) => {
             setDirtyEchartsConfig((prevState) => {
                 return {
                     ...prevState,
@@ -96,11 +96,11 @@ const useCartesianChartConfig = (
     );
 
     const setXMinValue = useCallback(
-        (index: number, value: string | number | undefined) => {
+        (index: number, value: string | undefined) => {
             setDirtyEchartsConfig((prevState) => {
                 return {
                     ...prevState,
-                    yAxis: [
+                    xAxis: [
                         prevState?.xAxis?.[0] || {},
                         prevState?.xAxis?.[1] || {},
                     ].map((axis, axisIndex) =>
@@ -113,11 +113,11 @@ const useCartesianChartConfig = (
     );
 
     const setXMaxValue = useCallback(
-        (index: number, value: string | number | undefined) => {
+        (index: number, value: string | undefined) => {
             setDirtyEchartsConfig((prevState) => {
                 return {
                     ...prevState,
-                    yAxis: [
+                    xAxis: [
                         prevState?.xAxis?.[0] || {},
                         prevState?.xAxis?.[1] || {},
                     ].map((axis, axisIndex) =>

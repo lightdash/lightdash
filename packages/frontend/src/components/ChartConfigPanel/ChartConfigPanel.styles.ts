@@ -1,4 +1,10 @@
-import { Button, ButtonGroup, Colors, FormGroup } from '@blueprintjs/core';
+import {
+    Button,
+    ButtonGroup,
+    Colors,
+    FormGroup,
+    Switch,
+} from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const InputWrapper = styled(FormGroup)`
@@ -110,4 +116,8 @@ export const MinMaxWrapper = styled.div`
 
 export const MinMaxInput = styled(InputWrapper)`
     margin-top: 0;
+`;
+
+export const AutoRangeSwitch = styled(Switch)`
+    width: fit-content !important;
 `;
