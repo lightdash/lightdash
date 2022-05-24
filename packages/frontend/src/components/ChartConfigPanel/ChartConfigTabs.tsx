@@ -57,7 +57,7 @@ const AxisMinMax: FC<MinMaxProps> = ({ minVal, maxVal, index, axis }) => {
             <Switch
                 name="auto-range"
                 checked={isAuto}
-                label="Auto y-axis range"
+                label={`Auto ${axis}-axis range`}
                 onChange={() => {
                     setIsAuto((prev) => !prev);
                     track({
