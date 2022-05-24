@@ -369,15 +369,43 @@ export const attachTypesToModels = (
     throwOnMissingCatalogEntry: boolean = true,
 ): DbtModelNode[] => {
     // Check that all models appear in the warehouse
+    const normalisedCatalog = Object.fromEntries(
+        Object.entries(warehouseCatalog).map(([database, schemas]) => [
+            database.toLowerCase(),
+            Object.fromEntries(
+                Object.entries(schemas).map(([schema, tables]) => [
+                    schema.toLowerCase(),
+                    Object.fromEntries(
+                        Object.entries(tables).map(([table, columns]) => [
+                            table.toLowerCase(),
+                            Object.fromEntries(
+                                Object.entries(columns).map(
+                                    ([column, type]) => [
+                                        column.toLowerCase(),
+                                        type,
+                                    ],
+                                ),
+                            ),
+                        ]),
+                    ),
+                ]),
+            ),
+        ]),
+    );
     models.forEach(({ database, schema, name }) => {
+        const databaseLower = database.toLowerCase();
+        const schemaLower = schema.toLowerCase();
+        const tableLower = name.toLowerCase();
         if (
-            (!(database in warehouseCatalog) ||
-                !(schema in warehouseCatalog[database]) ||
-                !(name in warehouseCatalog[database][schema])) &&
+            (!(databaseLower in normalisedCatalog) ||
+                !(schemaLower in normalisedCatalog[databaseLower]) ||
+                !(
+                    tableLower in warehouseCatalog[databaseLower][schemaLower]
+                )) &&
             throwOnMissingCatalogEntry
         ) {
             throw new MissingCatalogEntryError(
-                `Model "${name}" was expected in your target warehouse at "${database}.${schema}.${name}". Does the table exist in your target data warehouse?`,
+                `Model "${name}" was expected in your target warehouse at "${databaseLower}.${schemaLower}.${tableLower}". Does the table exist in your target data warehouse?`,
                 {},
             );
         }
@@ -387,18 +415,25 @@ export const attachTypesToModels = (
         { database, schema, name }: DbtModelNode,
         columnName: string,
     ): DimensionType | undefined => {
+        const databaseLower = database.toLowerCase();
+        const schemaLower = schema.toLowerCase();
+        const tableLower = name.toLowerCase();
+        const columnLower = columnName.toLowerCase();
         if (
-            database in warehouseCatalog &&
-            schema in warehouseCatalog[database] &&
-            name in warehouseCatalog[database][schema] &&
-            columnName in warehouseCatalog[database][schema][name]
+            databaseLower in warehouseCatalog &&
+            schemaLower in warehouseCatalog[databaseLower] &&
+            tableLower in warehouseCatalog[databaseLower][schemaLower] &&
+            columnLower in
+                warehouseCatalog[databaseLower][schemaLower][tableLower]
         ) {
-            return warehouseCatalog[database][schema][name][columnName];
+            return warehouseCatalog[databaseLower][schemaLower][tableLower][
+                columnLower
+            ];
         }
 
         if (throwOnMissingCatalogEntry) {
             throw new MissingCatalogEntryError(
-                `Column "${columnName}" from model "${name}" does not exist.\n "${columnName}.${name}" was not found in your target warehouse at ${database}.${schema}.${name}. Try rerunning dbt to update your warehouse.`,
+                `Column "${columnName}" from model "${name}" does not exist.\n "${tableLower}.${columnLower}" was not found in your target warehouse at ${databaseLower}.${schemaLower}.${tableLower}. Try rerunning dbt to update your warehouse.`,
                 {},
             );
         }
