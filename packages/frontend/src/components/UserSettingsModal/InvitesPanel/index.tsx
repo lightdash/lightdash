@@ -69,7 +69,7 @@ const InvitePanel: FC<{
                             track({
                                 name: EventName.INVITE_BUTTON_CLICKED,
                             });
-                            inviteLink.mutate();
+                            inviteLink.mutate('demo@lightdash.com');
                         }}
                         data-cy="create-invite-link-button"
                     />

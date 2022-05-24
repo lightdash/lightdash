@@ -110,6 +110,7 @@ export class UserService {
             inviteCode,
             createUser,
         );
+        await this.inviteLinkModel.deleteByCode(inviteLink.inviteCode);
         identifyUser(user);
         analytics.track({
             event: 'user.created',
@@ -164,15 +165,26 @@ export class UserService {
             throw new ForbiddenError();
         }
         const { organizationUuid } = user;
-        const { expiresAt } = createInviteLink;
+        const { expiresAt, email } = createInviteLink;
         const inviteCode = nanoid(30);
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
+
+        const existingUserWithEmail = await this.userModel.findUserByEmail(
+            email,
+        );
+        if (existingUserWithEmail) {
+            throw new NotExistsError(
+                'Email is already used by a user in your organization',
+            );
+        }
+
         const inviteLink = await this.inviteLinkModel.create(
             inviteCode,
             expiresAt,
             organizationUuid,
+            email,
         );
         analytics.track({
             userId: user.userUuid,

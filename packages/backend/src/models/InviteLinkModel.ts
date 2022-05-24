@@ -28,6 +28,7 @@ export class InviteLinkModel {
             expiresAt: data.expires_at,
             inviteUrl: InviteLinkModel.transformInviteCodeToUrl(inviteCode),
             organisationUuid: data.organization_uuid,
+            email: data.email,
         };
     }
 
@@ -69,6 +70,7 @@ export class InviteLinkModel {
         inviteCode: string,
         expiresAt: Date,
         organizationUuid: string,
+        email: string,
     ): Promise<InviteLink> {
         const inviteCodeHash = InviteLinkModel._hash(inviteCode);
         const orgs = await this.database('organizations')
@@ -82,6 +84,7 @@ export class InviteLinkModel {
             organization_id: org.organization_id,
             invite_code_hash: inviteCodeHash,
             expires_at: expiresAt,
+            email,
         });
         return this.getByCode(inviteCode);
     }
