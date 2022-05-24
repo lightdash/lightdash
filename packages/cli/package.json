@@ -42,6 +42,7 @@
     "scripts": {
         "build": "tsc --build tsconfig.json",
         "lint": "eslint ./src",
-        "format": "prettier --check --ignore-unknown ./src"
+        "format": "prettier --check --ignore-unknown ./src",
+        "postinstall": "node src/postinstall.js"
     }
 }
