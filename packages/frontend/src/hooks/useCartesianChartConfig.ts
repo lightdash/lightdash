@@ -61,33 +61,39 @@ const useCartesianChartConfig = (
         });
     }, []);
 
-    const setMinValue = useCallback((index: number, value: string) => {
-        setDirtyEchartsConfig((prevState) => {
-            return {
-                ...prevState,
-                yAxis: [
-                    prevState?.yAxis?.[0] || {},
-                    prevState?.yAxis?.[1] || {},
-                ].map((axis, axisIndex) =>
-                    axisIndex === index ? { ...axis, min: value } : axis,
-                ),
-            };
-        });
-    }, []);
+    const setMinValue = useCallback(
+        (index: number, value: string | number | undefined) => {
+            setDirtyEchartsConfig((prevState) => {
+                return {
+                    ...prevState,
+                    yAxis: [
+                        prevState?.yAxis?.[0] || {},
+                        prevState?.yAxis?.[1] || {},
+                    ].map((axis, axisIndex) =>
+                        axisIndex === index ? { ...axis, min: value } : axis,
+                    ),
+                };
+            });
+        },
+        [],
+    );
 
-    const setMaxValue = useCallback((index: number, value: string) => {
-        setDirtyEchartsConfig((prevState) => {
-            return {
-                ...prevState,
-                yAxis: [
-                    prevState?.yAxis?.[0] || {},
-                    prevState?.yAxis?.[1] || {},
-                ].map((axis, axisIndex) =>
-                    axisIndex === index ? { ...axis, max: value } : axis,
-                ),
-            };
-        });
-    }, []);
+    const setMaxValue = useCallback(
+        (index: number, value: string | number | undefined) => {
+            setDirtyEchartsConfig((prevState) => {
+                return {
+                    ...prevState,
+                    yAxis: [
+                        prevState?.yAxis?.[0] || {},
+                        prevState?.yAxis?.[1] || {},
+                    ].map((axis, axisIndex) =>
+                        axisIndex === index ? { ...axis, max: value } : axis,
+                    ),
+                };
+            });
+        },
+        [],
+    );
 
     const setXField = useCallback((xField: string | undefined) => {
         setDirtyLayout((prev) => ({

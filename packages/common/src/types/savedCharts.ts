@@ -67,8 +67,8 @@ export type EChartsConfig = Partial<CompleteEChartsConfig>;
 
 type Axis = {
     name?: string;
-    min?: any;
-    max?: any;
+    min?: string | number | undefined;
+    max?: string | number | undefined;
 };
 
 export type CompleteCartesianChartLayout = {

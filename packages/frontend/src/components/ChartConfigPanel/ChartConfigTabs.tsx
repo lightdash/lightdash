@@ -27,12 +27,22 @@ import FieldLayoutOptions from './FieldLayoutOptions';
 import BasicSeriesConfiguration from './Series/BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './Series/GroupedSeriesConfiguration';
 
-const AxisMinMax = () => {
+interface MinMaxProps {
+    minVal: (index: number, value: string | number | undefined) => void;
+    maxVal: (index: number, value: string | number | undefined) => void;
+    index: number;
+}
+
+const AxisMinMax: FC<MinMaxProps> = ({ minVal, maxVal, index }) => {
     const [isAuto, setIsAuto] = useState<boolean>(true);
     const {
-        cartesianConfig: { dirtyEchartsConfig, setMinValue, setMaxValue },
+        cartesianConfig: { dirtyEchartsConfig },
     } = useVisualizationContext();
-    console.log({ aquiii: dirtyEchartsConfig });
+
+    const minDefaultValue =
+        dirtyEchartsConfig?.yAxis?.[index]?.min?.toString() || undefined;
+    const maxDefaultValue =
+        dirtyEchartsConfig?.yAxis?.[index]?.max?.toString() || undefined;
 
     return (
         <MinMaxContainer>
@@ -47,20 +57,16 @@ const AxisMinMax = () => {
                     <MinMaxInput label="Min">
                         <InputGroup
                             placeholder="Min"
-                            defaultValue={dirtyEchartsConfig?.yAxis?.[0]?.min}
-                            onBlur={(e) =>
-                                setMinValue(0, e.currentTarget.value)
-                            }
+                            defaultValue={minDefaultValue}
+                            onBlur={(e) => minVal(index, e.currentTarget.value)}
                         />
                     </MinMaxInput>
 
                     <MinMaxInput label="Max">
                         <InputGroup
                             placeholder="Max"
-                            defaultValue={dirtyEchartsConfig?.yAxis?.[0]?.max}
-                            onBlur={(e) =>
-                                setMaxValue(0, e.currentTarget.value)
-                            }
+                            defaultValue={maxDefaultValue}
+                            onBlur={(e) => maxVal(index, e.currentTarget.value)}
                         />
                     </MinMaxInput>
                 </MinMaxWrapper>
@@ -80,12 +86,13 @@ const ChartConfigTabs: FC = () => {
             updateAllGroupedSeries,
             setXAxisName,
             setYAxisName,
+            setMaxValue,
+            setMinValue,
         },
         pivotDimensions,
     } = useVisualizationContext();
     const pivotDimension = pivotDimensions?.[0];
     const [tab, setTab] = useState<string | number>('layout');
-    console.log({ resultsData, dirtyEchartsConfig });
 
     const dimensionsInMetricQuery = explore
         ? getDimensions(explore).filter((field) =>
@@ -240,7 +247,11 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
-                            <AxisMinMax />
+                            <AxisMinMax
+                                minVal={setMinValue}
+                                maxVal={setMaxValue}
+                                index={0}
+                            />
                             <InputWrapper
                                 label={`${
                                     dirtyLayout?.flipAxes ? 'X' : 'Y'
@@ -266,7 +277,11 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
-                            <AxisMinMax />
+                            <AxisMinMax
+                                minVal={setMinValue}
+                                maxVal={setMaxValue}
+                                index={1}
+                            />
                         </>
                     }
                 />

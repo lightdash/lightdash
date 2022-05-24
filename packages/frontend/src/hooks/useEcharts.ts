@@ -338,6 +338,12 @@ const getEchartAxis = ({
                       })
                     : xAxisConfiguration?.[0]?.name ||
                       (xAxisItem ? getItemLabel(xAxisItem) : undefined),
+                min:
+                    validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.min ||
+                    undefined,
+                max:
+                    validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.max ||
+                    undefined,
                 nameLocation: 'center',
                 nameGap: 30,
                 nameTextStyle: {
@@ -358,6 +364,12 @@ const getEchartAxis = ({
                           series: validCartesianConfig.eChartsConfig.series,
                       })
                     : undefined,
+                min:
+                    validCartesianConfig?.eChartsConfig?.xAxis?.[1]?.min ||
+                    undefined,
+                max:
+                    validCartesianConfig?.eChartsConfig?.xAxis?.[1]?.max ||
+                    undefined,
                 nameLocation: 'center',
                 nameGap: 30,
                 nameTextStyle: {
@@ -383,6 +395,12 @@ const getEchartAxis = ({
                           items,
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
+                min:
+                    validCartesianConfig?.eChartsConfig?.yAxis?.[0]?.min ||
+                    undefined,
+                max:
+                    validCartesianConfig?.eChartsConfig?.yAxis?.[0]?.max ||
+                    undefined,
                 nameTextStyle: {
                     fontWeight: 'bold',
                     align: 'left',
@@ -404,6 +422,12 @@ const getEchartAxis = ({
                           items,
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
+                min:
+                    validCartesianConfig?.eChartsConfig?.yAxis?.[1]?.min ||
+                    undefined,
+                max:
+                    validCartesianConfig?.eChartsConfig?.yAxis?.[1]?.max ||
+                    undefined,
                 nameTextStyle: {
                     fontWeight: 'bold',
                     align: 'right',
