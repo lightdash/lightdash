@@ -7,7 +7,8 @@ describe('Dashboard List', () => {
 
     it('Should invite user', () => {
         cy.get('[data-cy="settings-button"]').click();
-        cy.contains('Invites').click();
+        cy.contains('User management').click();
+        cy.contains('Add user').click();
         cy.get('[data-cy="create-invite-link-button"]').click();
         cy.get('#invite-link-input')
             .should('be.visible')
