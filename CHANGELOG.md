@@ -1,3 +1,15 @@
+# [0.118.0](https://github.com/lightdash/lightdash/compare/0.117.0...0.118.0) (2022-05-25)
+
+
+### Bug Fixes
+
+* resource arrays in lightdash schema ([#2242](https://github.com/lightdash/lightdash/issues/2242)) ([717e13d](https://github.com/lightdash/lightdash/commit/717e13df24b0cddad481ba448290d026f790b5c1))
+
+
+### Features
+
+* min/max axis range for chart ([#2175](https://github.com/lightdash/lightdash/issues/2175)) ([0d55339](https://github.com/lightdash/lightdash/commit/0d5533996255bfdafb11315a1d25f839d42c9173))
+
 # [0.117.0](https://github.com/lightdash/lightdash/compare/0.116.0...0.117.0) (2022-05-25)
 
 
