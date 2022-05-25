@@ -198,6 +198,7 @@ export function formatFieldValue(
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
+            return `${value}`;
         case DimensionType.NUMBER:
         case MetricType.NUMBER:
         case MetricType.AVERAGE:
