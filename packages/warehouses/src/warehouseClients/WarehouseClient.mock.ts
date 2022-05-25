@@ -17,13 +17,13 @@ export const expectedWarehouseSchema: WarehouseCatalog = {
     myDatabase: {
         mySchema: {
             myTable: {
-                myStringColumn: DimensionType.STRING,
-                myNumberColumn: DimensionType.NUMBER,
-                myDateColumn: DimensionType.DATE,
-                myTimestampColumn: DimensionType.TIMESTAMP,
-                myBooleanColumn: DimensionType.BOOLEAN,
-                myArrayColumn: DimensionType.STRING,
-                myObjectColumn: DimensionType.STRING,
+                mystringcolumn: DimensionType.STRING,
+                mynumbercolumn: DimensionType.NUMBER,
+                mydatecolumn: DimensionType.DATE,
+                mytimestampcolumn: DimensionType.TIMESTAMP,
+                mybooleancolumn: DimensionType.BOOLEAN,
+                myarraycolumn: DimensionType.STRING,
+                myobjectcolumn: DimensionType.STRING,
             },
         },
     },
