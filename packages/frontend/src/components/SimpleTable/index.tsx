@@ -46,7 +46,9 @@ const SimpleTable: FC = () => {
             explore && fieldId
                 ? findFieldByIdInExplore(explore, fieldId)
                 : undefined;
-        return field?.label || friendlyName(fieldId);
+        return field
+            ? `${friendlyName(field.table)} ${field.label}`
+            : friendlyName(fieldId);
     });
 
     const validData = rows && headers;
