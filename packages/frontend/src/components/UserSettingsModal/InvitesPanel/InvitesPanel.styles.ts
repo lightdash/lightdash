@@ -52,6 +52,6 @@ export const ShareLinkCallout = styled(Callout)`
 `;
 
 export const RoleSelectButton = styled(HTMLSelect)`
-    margin: 21px 7px 0;
+    margin: 20px 7px 0;
     width: 75.5px !important;
 `;
