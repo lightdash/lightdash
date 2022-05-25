@@ -106,6 +106,7 @@ const Signup: FC = () => {
                             {allowPasswordAuthentication && (
                                 <CreateUserForm
                                     isLoading={isLoading}
+                                    readOnlyEmail={inviteLinkQuery.data?.email}
                                     onSubmit={(data: CreateUserArgs) => {
                                         mutate({
                                             inviteCode,

@@ -9,7 +9,10 @@ describe('Dashboard List', () => {
         cy.get('[data-cy="settings-button"]').click();
         cy.contains('User management').click();
         cy.contains('Add user').click();
-        cy.get('[data-cy="create-invite-link-button"]').click();
+        cy.findByLabelText('Enter user email address *').type(
+            'marygreen@lightdash.com',
+        );
+        cy.contains('Generate invite').click();
         cy.get('#invite-link-input')
             .should('be.visible')
             .then(($input) => {
@@ -22,7 +25,9 @@ describe('Dashboard List', () => {
             });
         cy.findByLabelText('First name *').type('Mary');
         cy.findByLabelText('Last name *').type('Green');
-        cy.findByLabelText('Email *').type('marygreen@lightdash.com');
+        cy.findByLabelText('Email *')
+            .should('be.disabled')
+            .should('have.value', 'marygreen@lightdash.com');
         cy.findByLabelText('Password *').type('PasswordMary1');
         cy.findByRole('button', { name: 'Next' }).click();
         cy.get('[data-cy="user-avatar"]').should('contain', 'MG');

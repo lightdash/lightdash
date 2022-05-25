@@ -10,12 +10,16 @@ import PasswordInput from './ReactHookForm/PasswordInput';
 
 type Props = {
     isLoading: boolean;
+    readOnlyEmail?: string;
     onSubmit: (data: CreateUserArgs) => void;
 };
 
-const CreateUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
+const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
     const methods = useForm<CreateUserArgs>({
         mode: 'onSubmit',
+        defaultValues: {
+            email: readOnlyEmail,
+        },
     });
 
     return (
@@ -42,7 +46,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
                 label="Email"
                 name="email"
                 placeholder="d.attenborough@greenplanet.com"
-                disabled={isLoading}
+                disabled={isLoading || !!readOnlyEmail}
                 rules={{
                     required: 'Required field',
                     validate: {

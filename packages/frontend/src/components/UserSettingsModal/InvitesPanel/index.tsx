@@ -1,7 +1,8 @@
-import { Button, Callout, FormGroup, InputGroup } from '@blueprintjs/core';
+import { Button, Callout, Card, InputGroup, Intent } from '@blueprintjs/core';
 import { formatTimestamp } from '@lightdash/common';
 import React, { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
+import { useForm } from 'react-hook-form';
 import {
     useCreateInviteLinkMutation,
     useRevokeInvitesMutation,
@@ -9,7 +10,16 @@ import {
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import { BackButton } from './InvitesPanel.styles';
+import { isValidEmail } from '../../../utils/fieldValidators';
+import {
+    BackButton,
+    EmailInput,
+    InviteForm,
+    InviteFormGroup,
+    Panel,
+    ShareLinkCallout,
+    SubmitButton,
+} from './InvitesPanel.styles';
 
 const InvitePanel: FC<{
     onBackClick: () => void;
@@ -18,63 +28,87 @@ const InvitePanel: FC<{
     const { showToastSuccess } = useApp();
     const inviteLink = useCreateInviteLinkMutation();
     const revokeInvitesMutation = useRevokeInvitesMutation();
+    const methods = useForm<{ email: string }>({
+        mode: 'onSubmit',
+    });
+
+    const handleSubmit = (formData: { email: string }) => {
+        track({
+            name: EventName.INVITE_BUTTON_CLICKED,
+        });
+        inviteLink.mutate(formData.email);
+        methods.setValue('email', '');
+    };
 
     return (
-        <div
-            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-        >
+        <Panel>
             <BackButton
                 icon="chevron-left"
                 text="Back to all users"
                 onClick={onBackClick}
             />
-            <FormGroup
-                label="Invite users to your organization"
-                labelFor="invite-link-input"
-            >
-                {inviteLink.data ? (
-                    <>
-                        <InputGroup
-                            id="invite-link-input"
-                            className="cohere-block"
-                            type="text"
-                            readOnly
-                            value={inviteLink.data.inviteUrl}
-                            rightElement={
-                                <CopyToClipboard
-                                    text={inviteLink.data.inviteUrl}
-                                    options={{ message: 'Copied' }}
-                                    onCopy={() =>
-                                        showToastSuccess({
-                                            title: 'Invite link copied',
-                                        })
-                                    }
-                                >
-                                    <Button minimal icon="clipboard" />
-                                </CopyToClipboard>
-                            }
-                        />
-                        <Callout intent="primary" style={{ marginTop: 10 }}>
-                            Share this link with your colleagues and they can
-                            join your organization. This link will expire at{' '}
-                            <b>{formatTimestamp(inviteLink.data.expiresAt)}</b>
-                        </Callout>
-                    </>
-                ) : (
-                    <Button
-                        text="Create invite link"
-                        style={{ marginTop: 10 }}
-                        loading={inviteLink.isLoading}
-                        onClick={() => {
-                            track({
-                                name: EventName.INVITE_BUTTON_CLICKED,
-                            });
-                            inviteLink.mutate();
+            <Card>
+                <InviteForm
+                    name="add_saved_charts_to_dashboard"
+                    methods={methods}
+                    onSubmit={handleSubmit}
+                >
+                    <EmailInput
+                        name="email"
+                        label="Enter user email address"
+                        placeholder="example@gmail.com"
+                        disabled={inviteLink.isLoading}
+                        rules={{
+                            required: 'Required field',
+                            validate: {
+                                isValidEmail: isValidEmail('Email'),
+                            },
                         }}
-                        data-cy="create-invite-link-button"
                     />
-                )}
-            </FormGroup>
+                    <SubmitButton
+                        intent={Intent.PRIMARY}
+                        text="Generate invite"
+                        type="submit"
+                        disabled={inviteLink.isLoading}
+                    />
+                </InviteForm>
+            </Card>
+            {inviteLink.data && (
+                <InviteFormGroup
+                    label={
+                        <span>
+                            <b>{inviteLink.data.email}</b>'s invite link
+                        </span>
+                    }
+                    labelFor="invite-link-input"
+                >
+                    <InputGroup
+                        id="invite-link-input"
+                        className="cohere-block"
+                        type="text"
+                        readOnly
+                        value={inviteLink.data.inviteUrl}
+                        rightElement={
+                            <CopyToClipboard
+                                text={inviteLink.data.inviteUrl}
+                                options={{ message: 'Copied' }}
+                                onCopy={() =>
+                                    showToastSuccess({
+                                        title: 'Invite link copied',
+                                    })
+                                }
+                            >
+                                <Button minimal icon="clipboard" />
+                            </CopyToClipboard>
+                        }
+                    />
+                    <ShareLinkCallout intent="primary">
+                        Share this link with {inviteLink.data.email} and they
+                        can join your organization. This link will expire at{' '}
+                        <b>{formatTimestamp(inviteLink.data.expiresAt)}</b>
+                    </ShareLinkCallout>
+                </InviteFormGroup>
+            )}
             <Callout intent="warning" style={{ marginTop: 20 }}>
                 <p>This action will revoke all pending invitations.</p>
                 <Button
@@ -90,7 +124,7 @@ const InvitePanel: FC<{
                     }}
                 />
             </Callout>
-        </div>
+        </Panel>
     );
 };
 

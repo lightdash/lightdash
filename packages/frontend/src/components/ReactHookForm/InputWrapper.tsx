@@ -19,6 +19,7 @@ export interface InputWrapperProps {
     placeholder?: string;
     defaultValue?: any;
     documentationUrl?: string;
+    className?: string;
     rules?: React.ComponentProps<typeof Controller>['rules'];
     render: (
         inputProps: InputProps,
@@ -35,6 +36,7 @@ const InputWrapper: FC<InputWrapperProps> = ({
     label,
     rules,
     render,
+    className,
     ...rest
 }) => {
     const {
@@ -46,7 +48,7 @@ const InputWrapper: FC<InputWrapperProps> = ({
 
     return (
         <FormGroup
-            className="input-wrapper"
+            className={`input-wrapper ${className}`}
             label={label}
             labelFor={id}
             labelInfo={
