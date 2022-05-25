@@ -1,3 +1,15 @@
+# [0.117.0](https://github.com/lightdash/lightdash/compare/0.116.0...0.117.0) (2022-05-25)
+
+
+### Bug Fixes
+
+* formatting strings ([#2236](https://github.com/lightdash/lightdash/issues/2236)) ([729d199](https://github.com/lightdash/lightdash/commit/729d1997b485e448dc08bdfda1ecb365a71705f1))
+
+
+### Features
+
+* find dbtproject subdirectory ([#2220](https://github.com/lightdash/lightdash/issues/2220)) ([170e636](https://github.com/lightdash/lightdash/commit/170e636d43c4a2c43c5a0746c50c37f467a5e507))
+
 # [0.116.0](https://github.com/lightdash/lightdash/compare/0.115.2...0.116.0) (2022-05-25)
 
 
