@@ -64,7 +64,7 @@ const InvitePanel: FC<{
                 >
                     <EmailInput
                         name="email"
-                        label="Enter users email address"
+                        label="Enter user email address"
                         placeholder="example@gmail.com"
                         disabled={inviteLink.isLoading}
                         rules={{
