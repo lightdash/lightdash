@@ -197,8 +197,8 @@ export function formatFieldValue(
     const { type, round, format } = field;
     switch (type) {
         case DimensionType.STRING:
-            return `${value}`;
         case MetricType.STRING:
+            return `${value}`;
         case DimensionType.NUMBER:
         case MetricType.NUMBER:
         case MetricType.AVERAGE:
