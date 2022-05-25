@@ -18,7 +18,7 @@ export const dbtRunHandler = async (
             stdio: 'inherit',
         });
         await subprocess;
-    } catch (e) {
+    } catch (e: any) {
         throw new ParseError(`Failed to run dbt:\n  ${e.message}`);
     }
     await generateHandler(options);

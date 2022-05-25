@@ -19,7 +19,7 @@ export const loadDbtTarget = async ({
         const raw = await fs.readFile(profilePath, { encoding: 'utf8' });
         const rendered = renderProfilesYml(raw);
         allProfiles = yaml.load(rendered) as Profiles;
-    } catch (e) {
+    } catch (e: any) {
         throw new ParseError(
             `Could not find a valid profiles.yml file at ${profilePath}:\n  ${e.message}`,
         );
