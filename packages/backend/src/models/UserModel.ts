@@ -1,4 +1,5 @@
 import {
+    AuthorizationError,
     CreateUserArgs,
     defineAbilityForOrganizationMember,
     isOpenIdUser,
@@ -333,6 +334,13 @@ export class UserModel {
             throw new NotExistsError('No invite link found');
         }
         const inviteLink = inviteLinks[0];
+
+        const createUserEmail = isOpenIdUser(createUser)
+            ? createUser.openId.email
+            : createUser.email;
+        if (inviteLink.email !== createUserEmail) {
+            throw new AuthorizationError('Email does not match the invite');
+        }
 
         const duplicatedEmails = await this.database(EmailTableName).where(
             'email',

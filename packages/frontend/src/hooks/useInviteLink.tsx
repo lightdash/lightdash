@@ -29,9 +29,11 @@ const revokeInvitesQuery = async () =>
         body: undefined,
     });
 
-const createInviteWith3DayExpiryQuery = async (): Promise<InviteLink> => {
+const createInviteWith3DayExpiryQuery = async (
+    email: string,
+): Promise<InviteLink> => {
     const dateIn3Days = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-    const response = await createInviteQuery({ expiresAt: dateIn3Days });
+    const response = await createInviteQuery({ expiresAt: dateIn3Days, email });
     return response;
 };
 
@@ -51,23 +53,26 @@ export const useInviteLink = (inviteCode: string) =>
 export const useCreateInviteLinkMutation = () => {
     const queryClient = useQueryClient();
     const { showToastError, showToastSuccess } = useApp();
-    return useMutation<InviteLink, ApiError>(createInviteWith3DayExpiryQuery, {
-        mutationKey: ['invite_link'],
-        onError: (error1) => {
-            const [title, ...rest] = error1.error.message.split('\n');
-            showToastError({
-                title,
-                subtitle: rest.join('\n'),
-            });
+    return useMutation<InviteLink, ApiError, string>(
+        createInviteWith3DayExpiryQuery,
+        {
+            mutationKey: ['invite_link'],
+            onError: (error1) => {
+                const [title, ...rest] = error1.error.message.split('\n');
+                showToastError({
+                    title,
+                    subtitle: rest.join('\n'),
+                });
+            },
+            onSuccess: async (data) => {
+                await queryClient.invalidateQueries(['onboarding-status']);
+                showToastSuccess({
+                    title: 'Created new invite link',
+                    subtitle: `Expires on ${formatTimestamp(data.expiresAt)}`,
+                });
+            },
         },
-        onSuccess: async (data) => {
-            await queryClient.invalidateQueries(['onboarding-status']);
-            showToastSuccess({
-                title: 'Created new invite link',
-                subtitle: `Expires on ${formatTimestamp(data.expiresAt)}`,
-            });
-        },
-    });
+    );
 };
 
 export const useRevokeInvitesMutation = () => {

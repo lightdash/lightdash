@@ -503,8 +503,9 @@ export type InviteLink = {
     inviteCode: string;
     inviteUrl: string;
     organisationUuid: string;
+    email: string;
 };
-export type CreateInviteLink = Pick<InviteLink, 'expiresAt'>;
+export type CreateInviteLink = Pick<InviteLink, 'expiresAt' | 'email'>;
 
 export type OnbordingRecord = {
     ranQueryAt: Date | null;
