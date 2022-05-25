@@ -10,6 +10,7 @@ import {
     getMetrics,
     getSeriesId,
     isField,
+    isNumericItem,
     Metric,
     TableCalculation,
 } from '@lightdash/common';
@@ -104,8 +105,6 @@ const ChartConfigTabs: FC = () => {
             setYAxisName,
             setYMinValue,
             setYMaxValue,
-            setXMinValue,
-            setXMaxValue,
         },
         pivotDimensions,
     } = useVisualizationContext();
@@ -183,6 +182,21 @@ const ChartConfigTabs: FC = () => {
         selectedAxisInSeries.length === 1;
     const selectedAxisIndex = selectedAxisInSeries[0] || 0;
 
+    const [showFirstAxisRange, showSecondAxisRange] = (
+        dirtyEchartsConfig?.series || []
+    ).reduce<[boolean, boolean]>(
+        (acc, series) => {
+            const seriesField = items.find(
+                (item) => getItemId(item) === series.encode.yRef.field,
+            );
+            if (isNumericItem(seriesField)) {
+                acc[series.yAxisIndex || 0] = true;
+            }
+            return acc;
+        },
+        [false, false],
+    );
+
     return (
         <Wrapper>
             <Tabs
@@ -240,31 +254,7 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
-                            <AxisMinMax
-                                label={`Auto ${
-                                    dirtyLayout?.flipAxes ? 'y' : 'x'
-                                }-axis range`}
-                                min={
-                                    dirtyLayout?.flipAxes
-                                        ? dirtyEchartsConfig?.yAxis?.[0]?.min
-                                        : dirtyEchartsConfig?.xAxis?.[0]?.min
-                                }
-                                max={
-                                    dirtyLayout?.flipAxes
-                                        ? dirtyEchartsConfig?.yAxis?.[0]?.max
-                                        : dirtyEchartsConfig?.xAxis?.[0]?.max
-                                }
-                                setMin={(newValue: string | undefined) =>
-                                    dirtyLayout?.flipAxes
-                                        ? setYMinValue(0, newValue)
-                                        : setXMinValue(0, newValue)
-                                }
-                                setMax={(newValue: string | undefined) =>
-                                    dirtyLayout?.flipAxes
-                                        ? setYMaxValue(0, newValue)
-                                        : setXMaxValue(0, newValue)
-                                }
-                            />
+
                             <InputWrapper
                                 label={`${
                                     dirtyLayout?.flipAxes ? 'X' : 'Y'
@@ -290,31 +280,26 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
-                            <AxisMinMax
-                                label={`Auto ${
-                                    dirtyLayout?.flipAxes ? 'x' : 'y'
-                                }-axis range`}
-                                min={
-                                    dirtyLayout?.flipAxes
-                                        ? dirtyEchartsConfig?.xAxis?.[0]?.min
-                                        : dirtyEchartsConfig?.yAxis?.[0]?.min
-                                }
-                                max={
-                                    dirtyLayout?.flipAxes
-                                        ? dirtyEchartsConfig?.xAxis?.[0]?.max
-                                        : dirtyEchartsConfig?.yAxis?.[0]?.max
-                                }
-                                setMin={(newValue: string | undefined) =>
-                                    dirtyLayout?.flipAxes
-                                        ? setXMinValue(0, newValue)
-                                        : setYMinValue(0, newValue)
-                                }
-                                setMax={(newValue: string | undefined) =>
-                                    dirtyLayout?.flipAxes
-                                        ? setXMaxValue(0, newValue)
-                                        : setYMaxValue(0, newValue)
-                                }
-                            />
+                            {showFirstAxisRange && (
+                                <AxisMinMax
+                                    label={`Auto ${
+                                        dirtyLayout?.flipAxes ? 'x' : 'y'
+                                    }-axis range (${
+                                        dirtyLayout?.flipAxes
+                                            ? 'bottom'
+                                            : 'left'
+                                    })`}
+                                    min={dirtyEchartsConfig?.yAxis?.[0]?.min}
+                                    max={dirtyEchartsConfig?.yAxis?.[0]?.max}
+                                    setMin={(newValue) =>
+                                        setYMinValue(0, newValue)
+                                    }
+                                    setMax={(newValue) =>
+                                        setYMaxValue(0, newValue)
+                                    }
+                                />
+                            )}
+
                             <InputWrapper
                                 label={`${
                                     dirtyLayout?.flipAxes ? 'X' : 'Y'
@@ -340,31 +325,23 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
-                            <AxisMinMax
-                                label={`Auto ${
-                                    dirtyLayout?.flipAxes ? 'x' : 'y'
-                                }-axis range`}
-                                min={
-                                    dirtyLayout?.flipAxes
-                                        ? dirtyEchartsConfig?.xAxis?.[1]?.min
-                                        : dirtyEchartsConfig?.yAxis?.[1]?.min
-                                }
-                                max={
-                                    dirtyLayout?.flipAxes
-                                        ? dirtyEchartsConfig?.xAxis?.[1]?.max
-                                        : dirtyEchartsConfig?.yAxis?.[1]?.max
-                                }
-                                setMin={(newValue: string | undefined) =>
-                                    dirtyLayout?.flipAxes
-                                        ? setXMinValue(1, newValue)
-                                        : setYMinValue(1, newValue)
-                                }
-                                setMax={(newValue: string | undefined) =>
-                                    dirtyLayout?.flipAxes
-                                        ? setXMaxValue(1, newValue)
-                                        : setYMaxValue(1, newValue)
-                                }
-                            />
+                            {showSecondAxisRange && (
+                                <AxisMinMax
+                                    label={`Auto ${
+                                        dirtyLayout?.flipAxes ? 'x' : 'y'
+                                    }-axis range (${
+                                        dirtyLayout?.flipAxes ? 'top' : 'right'
+                                    })`}
+                                    min={dirtyEchartsConfig?.yAxis?.[1]?.min}
+                                    max={dirtyEchartsConfig?.yAxis?.[1]?.max}
+                                    setMin={(newValue) =>
+                                        setYMinValue(1, newValue)
+                                    }
+                                    setMax={(newValue) =>
+                                        setYMaxValue(1, newValue)
+                                    }
+                                />
+                            )}
                         </>
                     }
                 />

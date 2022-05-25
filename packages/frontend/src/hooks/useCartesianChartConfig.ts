@@ -95,40 +95,6 @@ const useCartesianChartConfig = (
         [],
     );
 
-    const setXMinValue = useCallback(
-        (index: number, value: string | undefined) => {
-            setDirtyEchartsConfig((prevState) => {
-                return {
-                    ...prevState,
-                    xAxis: [
-                        prevState?.xAxis?.[0] || {},
-                        prevState?.xAxis?.[1] || {},
-                    ].map((axis, axisIndex) =>
-                        axisIndex === index ? { ...axis, min: value } : axis,
-                    ),
-                };
-            });
-        },
-        [],
-    );
-
-    const setXMaxValue = useCallback(
-        (index: number, value: string | undefined) => {
-            setDirtyEchartsConfig((prevState) => {
-                return {
-                    ...prevState,
-                    xAxis: [
-                        prevState?.xAxis?.[0] || {},
-                        prevState?.xAxis?.[1] || {},
-                    ].map((axis, axisIndex) =>
-                        axisIndex === index ? { ...axis, max: value } : axis,
-                    ),
-                };
-            });
-        },
-        [],
-    );
-
     const setXField = useCallback((xField: string | undefined) => {
         setDirtyLayout((prev) => ({
             ...prev,
@@ -508,8 +474,6 @@ const useCartesianChartConfig = (
         setFlipAxis,
         setYMinValue,
         setYMaxValue,
-        setXMinValue,
-        setXMaxValue,
     };
 };
 
