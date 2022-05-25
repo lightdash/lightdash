@@ -34,7 +34,10 @@ import {
     MetricQuery,
     TableCalculation,
 } from './types/metricQuery';
-import { OrganizationMemberProfile } from './types/organizationMemberProfile';
+import {
+    OrganizationMemberProfile,
+    OrganizationMemberRole,
+} from './types/organizationMemberProfile';
 import { SavedChart, Series } from './types/savedCharts';
 import { TableBase } from './types/table';
 import { LightdashUser } from './types/user';
@@ -505,7 +508,9 @@ export type InviteLink = {
     organisationUuid: string;
     email: string;
 };
-export type CreateInviteLink = Pick<InviteLink, 'expiresAt' | 'email'>;
+export type CreateInviteLink = Pick<InviteLink, 'expiresAt' | 'email'> & {
+    role: OrganizationMemberRole;
+};
 
 export type OnbordingRecord = {
     ranQueryAt: Date | null;

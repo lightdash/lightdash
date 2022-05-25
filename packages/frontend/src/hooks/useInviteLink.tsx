@@ -3,6 +3,7 @@ import {
     CreateInviteLink,
     formatTimestamp,
     InviteLink,
+    OrganizationMemberRole,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
@@ -33,7 +34,11 @@ const createInviteWith3DayExpiryQuery = async (
     email: string,
 ): Promise<InviteLink> => {
     const dateIn3Days = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-    const response = await createInviteQuery({ expiresAt: dateIn3Days, email });
+    const response = await createInviteQuery({
+        expiresAt: dateIn3Days,
+        email,
+        role: OrganizationMemberRole.EDITOR,
+    });
     return response;
 };
 
