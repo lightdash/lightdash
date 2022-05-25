@@ -180,28 +180,43 @@ export class UserService {
         const existingUserWithEmail = await this.userModel.findUserByEmail(
             email,
         );
-        if (existingUserWithEmail) {
+        if (
+            existingUserWithEmail &&
+            existingUserWithEmail.organizationUuid !== organizationUuid
+        ) {
+            throw new ParameterError(
+                'Email is already used by a user in another organization',
+            );
+        }
+        if (existingUserWithEmail && existingUserWithEmail.isActive) {
             throw new ParameterError(
                 'Email is already used by a user in your organization',
             );
         }
 
-        const pendingUser = await this.userModel.createPendingUser(
-            organizationUuid,
-            {
-                email,
-                firstName: '',
-                lastName: '',
-                role,
-            },
-        );
+        let userUuid: string;
+        if (!existingUserWithEmail) {
+            const pendingUser = await this.userModel.createPendingUser(
+                organizationUuid,
+                {
+                    email,
+                    firstName: '',
+                    lastName: '',
+                    role,
+                },
+            );
+            userUuid = pendingUser.userUuid;
+        } else {
+            userUuid = existingUserWithEmail.userUuid;
+        }
 
-        const inviteLink = await this.inviteLinkModel.create(
+        const inviteLink = await this.inviteLinkModel.upsert(
             inviteCode,
             expiresAt,
             organizationUuid,
-            pendingUser.userUuid,
+            userUuid,
         );
+
         analytics.track({
             userId: user.userUuid,
             event: 'invite_link.created',

@@ -1,6 +1,10 @@
 import { Button, Callout, Card, InputGroup, Intent } from '@blueprintjs/core';
-import { formatTimestamp, OrganizationMemberRole } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import {
+    CreateInviteLink,
+    formatTimestamp,
+    OrganizationMemberRole,
+} from '@lightdash/common';
+import React, { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useForm } from 'react-hook-form';
 import {
@@ -28,20 +32,19 @@ const InvitePanel: FC<{
     const { track } = useTracking();
     const { showToastSuccess } = useApp();
     const inviteLink = useCreateInviteLinkMutation();
-    const [role, setRole] = useState<string | undefined>();
     const revokeInvitesMutation = useRevokeInvitesMutation();
-    const methods = useForm<{ email: string; role: OrganizationMemberRole }>({
+    const methods = useForm<Omit<CreateInviteLink, 'expiresAt'>>({
         mode: 'onSubmit',
+        defaultValues: {
+            role: OrganizationMemberRole.EDITOR,
+        },
     });
 
-    const handleSubmit = (formData: {
-        email: string;
-        role: OrganizationMemberRole;
-    }) => {
+    const handleSubmit = (formData: Omit<CreateInviteLink, 'expiresAt'>) => {
         track({
             name: EventName.INVITE_BUTTON_CLICKED,
         });
-        inviteLink.mutate(formData.email);
+        inviteLink.mutate(formData);
         methods.setValue('email', '');
         methods.setValue('role', OrganizationMemberRole.EDITOR);
     };
@@ -72,18 +75,17 @@ const InvitePanel: FC<{
                         }}
                     />
                     <RoleSelectButton
-                        id="user-role"
+                        name="role"
+                        disabled={inviteLink.isLoading}
                         options={Object.values(OrganizationMemberRole).map(
                             (orgMemberRole) => ({
                                 value: orgMemberRole,
                                 label: orgMemberRole,
                             }),
                         )}
-                        required
-                        onChange={(e) => {
-                            setRole(e.currentTarget.value);
+                        rules={{
+                            required: 'Required field',
                         }}
-                        value={role}
                     />
                     <SubmitButton
                         intent={Intent.PRIMARY}

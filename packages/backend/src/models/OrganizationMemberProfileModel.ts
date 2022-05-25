@@ -76,6 +76,7 @@ export class OrganizationMemberProfileModel {
     ): Promise<OrganizationMemberProfile[]> {
         const members = await this.queryBuilder()
             .where('organization_uuid', organizationUuid)
+            .where('is_active', true)
             .select('*');
         return members.map(OrganizationMemberProfileModel.parseRow);
     }

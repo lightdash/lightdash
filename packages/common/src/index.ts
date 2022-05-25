@@ -443,6 +443,13 @@ export type CreateUserArgs = {
     lastName: string;
     email: string;
     password?: string;
+};
+
+export type CreateUserWithRole = {
+    firstName: string;
+    lastName: string;
+    email: string;
+    password?: string;
     role: OrganizationMemberRole;
 };
 

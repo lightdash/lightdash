@@ -79,7 +79,7 @@ export class InviteLinkModel {
         );
     }
 
-    async create(
+    async upsert(
         inviteCode: string,
         expiresAt: Date,
         organizationUuid: string,
@@ -93,12 +93,15 @@ export class InviteLinkModel {
             throw new NotExistsError('Cannot find organization');
         }
         const org = orgs[0];
-        await this.database('invite_links').insert({
-            organization_id: org.organization_id,
-            invite_code_hash: inviteCodeHash,
-            expires_at: expiresAt,
-            user_uuid: userUuid,
-        });
+        await this.database('invite_links')
+            .insert({
+                organization_id: org.organization_id,
+                invite_code_hash: inviteCodeHash,
+                expires_at: expiresAt,
+                user_uuid: userUuid,
+            })
+            .onConflict('user_uuid')
+            .merge();
         return this.getByCode(inviteCode);
     }
 

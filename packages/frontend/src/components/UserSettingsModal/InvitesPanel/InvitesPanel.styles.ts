@@ -1,8 +1,9 @@
-import { Button, Callout, FormGroup, HTMLSelect } from '@blueprintjs/core';
+import { Button, Callout, FormGroup } from '@blueprintjs/core';
 import styled from 'styled-components';
 import SimpleButton from '../../common/SimpleButton';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
+import Select from '../../ReactHookForm/Select';
 
 export const Panel = styled.div`
     height: 100%;
@@ -51,7 +52,7 @@ export const ShareLinkCallout = styled(Callout)`
     margin-top: 10px;
 `;
 
-export const RoleSelectButton = styled(HTMLSelect)`
+export const RoleSelectButton = styled(Select)`
     margin: 20px 7px 0;
     width: 75.5px !important;
 `;

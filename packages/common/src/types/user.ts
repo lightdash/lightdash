@@ -12,6 +12,7 @@ export interface LightdashUser {
     isMarketingOptedIn: boolean;
     isSetupComplete: boolean;
     role: OrganizationMemberRole;
+    isActive: boolean;
 }
 
 export interface SessionUser extends LightdashUser {
