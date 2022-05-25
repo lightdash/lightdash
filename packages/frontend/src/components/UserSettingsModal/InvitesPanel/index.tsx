@@ -1,6 +1,6 @@
 import { Button, Callout, Card, InputGroup, Intent } from '@blueprintjs/core';
-import { formatTimestamp } from '@lightdash/common';
-import React, { FC } from 'react';
+import { formatTimestamp, OrganizationMemberRole } from '@lightdash/common';
+import React, { FC, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useForm } from 'react-hook-form';
 import {
@@ -17,6 +17,7 @@ import {
     InviteForm,
     InviteFormGroup,
     Panel,
+    RoleSelectButton,
     ShareLinkCallout,
     SubmitButton,
 } from './InvitesPanel.styles';
@@ -27,17 +28,22 @@ const InvitePanel: FC<{
     const { track } = useTracking();
     const { showToastSuccess } = useApp();
     const inviteLink = useCreateInviteLinkMutation();
+    const [role, setRole] = useState<string | undefined>();
     const revokeInvitesMutation = useRevokeInvitesMutation();
-    const methods = useForm<{ email: string }>({
+    const methods = useForm<{ email: string; role: OrganizationMemberRole }>({
         mode: 'onSubmit',
     });
 
-    const handleSubmit = (formData: { email: string }) => {
+    const handleSubmit = (formData: {
+        email: string;
+        role: OrganizationMemberRole;
+    }) => {
         track({
             name: EventName.INVITE_BUTTON_CLICKED,
         });
         inviteLink.mutate(formData.email);
         methods.setValue('email', '');
+        methods.setValue('role', OrganizationMemberRole.EDITOR);
     };
 
     return (
@@ -55,7 +61,7 @@ const InvitePanel: FC<{
                 >
                     <EmailInput
                         name="email"
-                        label="Enter user email address"
+                        label="Enter users email address"
                         placeholder="example@gmail.com"
                         disabled={inviteLink.isLoading}
                         rules={{
@@ -64,6 +70,20 @@ const InvitePanel: FC<{
                                 isValidEmail: isValidEmail('Email'),
                             },
                         }}
+                    />
+                    <RoleSelectButton
+                        id="user-role"
+                        options={Object.values(OrganizationMemberRole).map(
+                            (orgMemberRole) => ({
+                                value: orgMemberRole,
+                                label: orgMemberRole,
+                            }),
+                        )}
+                        required
+                        onChange={(e) => {
+                            setRole(e.currentTarget.value);
+                        }}
+                        value={role}
                     />
                     <SubmitButton
                         intent={Intent.PRIMARY}
