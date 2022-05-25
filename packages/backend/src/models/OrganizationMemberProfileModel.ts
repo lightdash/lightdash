@@ -57,6 +57,8 @@ export class OrganizationMemberProfileModel {
             email: member.email,
             organizationUuid: member.organization_uuid,
             role: member.role,
+            isActive: true,
+            isInviteExpired: false,
         };
     }
 

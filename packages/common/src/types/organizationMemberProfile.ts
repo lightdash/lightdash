@@ -11,6 +11,8 @@ export type OrganizationMemberProfile = {
     email: string;
     organizationUuid: string;
     role: OrganizationMemberRole;
+    isActive: boolean;
+    isInviteExpired?: boolean;
 };
 
 export type OrganizationMemberProfileUpdate = Partial<
