@@ -432,11 +432,18 @@ export type ApiJobStartedResults = {
     jobUuid: string;
 };
 
+export type ActivateUser = {
+    firstName: string;
+    lastName: string;
+    password: string;
+};
+
 export type CreateUserArgs = {
     firstName: string;
     lastName: string;
     email: string;
-    password: string;
+    password?: string;
+    role: OrganizationMemberRole;
 };
 
 export type CreateOrganizationUser = CreateUserArgs & {
@@ -506,9 +513,11 @@ export type InviteLink = {
     inviteCode: string;
     inviteUrl: string;
     organisationUuid: string;
+    userUuid: string;
     email: string;
 };
 export type CreateInviteLink = Pick<InviteLink, 'expiresAt' | 'email'> & {
+    email: string;
     role: OrganizationMemberRole;
 };
 

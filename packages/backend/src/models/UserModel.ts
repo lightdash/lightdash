@@ -1,5 +1,5 @@
 import {
-    AuthorizationError,
+    ActivateUser,
     CreateUserArgs,
     defineAbilityForOrganizationMember,
     isOpenIdUser,
@@ -28,7 +28,10 @@ import {
     OpenIdIdentitiesTableName,
 } from '../database/entities/openIdIdentities';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
-import { createOrganization } from '../database/entities/organizations';
+import {
+    createOrganization,
+    OrganizationTableName,
+} from '../database/entities/organizations';
 import {
     createPasswordLogin,
     PasswordLoginTableName,
@@ -155,13 +158,15 @@ export class UserModel {
                 email: createUser.email,
                 is_primary: true,
             });
-            await createPasswordLogin(trx, {
-                user_id: newUser.user_id,
-                password_hash: await bcrypt.hash(
-                    createUser.password,
-                    await bcrypt.genSalt(),
-                ),
-            });
+            if (createUser.password) {
+                await createPasswordLogin(trx, {
+                    user_id: newUser.user_id,
+                    password_hash: await bcrypt.hash(
+                        createUser.password,
+                        await bcrypt.genSalt(),
+                    ),
+                });
+            }
         }
         return newUser;
     }
@@ -321,6 +326,89 @@ export class UserModel {
         };
     }
 
+    async createPendingUser(
+        organizationUuid: string,
+        createUser: CreateUserArgs,
+    ): Promise<LightdashUser> {
+        const [org] = await this.database(OrganizationTableName)
+            .where('organization_uuid', organizationUuid)
+            .select('organization_id');
+        if (!org) {
+            throw new NotExistsError('Cannot find organization');
+        }
+
+        const duplicatedEmails = await this.database(EmailTableName).where(
+            'email',
+            isOpenIdUser(createUser)
+                ? createUser.openId.email
+                : createUser.email,
+        );
+        if (duplicatedEmails.length > 0) {
+            throw new ParameterError('Email already in use');
+        }
+
+        const user = await this.database.transaction(async (trx) => {
+            const newUser = await UserModel.createUserTransaction(
+                trx,
+                org.organization_id,
+                createUser,
+            );
+            await trx(OrganizationMembershipsTableName).insert({
+                organization_id: org.organization_id,
+                user_id: newUser.user_id,
+                role: createUser.role,
+            });
+            return newUser;
+        });
+        return this.getUserDetailsByUuid(user.user_uuid);
+    }
+
+    async activateUser(
+        userUuid: string,
+        activateUser: ActivateUser | OpenIdUser,
+    ): Promise<LightdashUser> {
+        await this.database.transaction(async (trx) => {
+            try {
+                const [user] = await trx(UserTableName)
+                    .where('user_uuid', userUuid)
+                    .update<DbUserUpdate>({
+                        first_name: isOpenIdUser(activateUser)
+                            ? activateUser.openId.firstName
+                            : activateUser.firstName,
+                        last_name: isOpenIdUser(activateUser)
+                            ? activateUser.openId.lastName
+                            : activateUser.lastName,
+                    })
+                    .returning('*');
+
+                if (!isOpenIdUser(activateUser)) {
+                    await createPasswordLogin(trx, {
+                        user_id: user.user_id,
+                        password_hash: await bcrypt.hash(
+                            activateUser.password,
+                            await bcrypt.genSalt(),
+                        ),
+                    });
+                } else {
+                    const issuer = new URL('/', activateUser.openId.issuer)
+                        .origin; // normalise issuer
+                    await trx(OpenIdIdentitiesTableName)
+                        .insert({
+                            issuer,
+                            subject: activateUser.openId.subject,
+                            user_id: user.user_id,
+                            email: activateUser.openId.email,
+                        })
+                        .returning('*');
+                }
+            } catch (e) {
+                await trx.rollback(e);
+                throw e;
+            }
+        });
+        return this.getUserDetailsByUuid(userUuid);
+    }
+
     async createUserFromInvite(
         inviteCode: string,
         createUser: CreateUserArgs | OpenIdUser,
@@ -334,23 +422,6 @@ export class UserModel {
             throw new NotExistsError('No invite link found');
         }
         const inviteLink = inviteLinks[0];
-
-        const createUserEmail = isOpenIdUser(createUser)
-            ? createUser.openId.email
-            : createUser.email;
-        if (inviteLink.email !== createUserEmail) {
-            throw new AuthorizationError('Email does not match the invite');
-        }
-
-        const duplicatedEmails = await this.database(EmailTableName).where(
-            'email',
-            isOpenIdUser(createUser)
-                ? createUser.openId.email
-                : createUser.email,
-        );
-        if (duplicatedEmails.length > 0) {
-            throw new ParameterError('Email already in use');
-        }
 
         const user = await this.database.transaction(async (trx) => {
             const newUser = await UserModel.createUserTransaction(
