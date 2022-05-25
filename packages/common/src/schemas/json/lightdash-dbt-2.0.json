@@ -296,25 +296,46 @@
             }
         },
         "seeds": {
-            "type": "object"
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
         },
         "snapshots": {
-            "type": "object"
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
         },
         "tests": {
-            "type": "object"
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
         },
         "sources": {
-            "type": "object"
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
         },
         "analyses": {
-            "type": "object"
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
         },
         "exposures": {
-            "type": "object"
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
         },
         "macros": {
-            "type": "object"
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
         }
     },
     "additionalProperties": false,
