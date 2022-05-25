@@ -61,6 +61,40 @@ const useCartesianChartConfig = (
         });
     }, []);
 
+    const setYMinValue = useCallback(
+        (index: number, value: string | undefined) => {
+            setDirtyEchartsConfig((prevState) => {
+                return {
+                    ...prevState,
+                    yAxis: [
+                        prevState?.yAxis?.[0] || {},
+                        prevState?.yAxis?.[1] || {},
+                    ].map((axis, axisIndex) =>
+                        axisIndex === index ? { ...axis, min: value } : axis,
+                    ),
+                };
+            });
+        },
+        [],
+    );
+
+    const setYMaxValue = useCallback(
+        (index: number, value: string | undefined) => {
+            setDirtyEchartsConfig((prevState) => {
+                return {
+                    ...prevState,
+                    yAxis: [
+                        prevState?.yAxis?.[0] || {},
+                        prevState?.yAxis?.[1] || {},
+                    ].map((axis, axisIndex) =>
+                        axisIndex === index ? { ...axis, max: value } : axis,
+                    ),
+                };
+            });
+        },
+        [],
+    );
+
     const setXField = useCallback((xField: string | undefined) => {
         setDirtyLayout((prev) => ({
             ...prev,
@@ -438,6 +472,8 @@ const useCartesianChartConfig = (
         updateAllGroupedSeries,
         updateYField,
         setFlipAxis,
+        setYMinValue,
+        setYMaxValue,
     };
 };
 

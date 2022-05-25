@@ -338,6 +338,8 @@ const getEchartAxis = ({
                       })
                     : xAxisConfiguration?.[0]?.name ||
                       (xAxisItem ? getItemLabel(xAxisItem) : undefined),
+                min: xAxisConfiguration?.[0]?.min || undefined,
+                max: xAxisConfiguration?.[0]?.max || undefined,
                 nameLocation: 'center',
                 nameGap: 30,
                 nameTextStyle: {
@@ -358,6 +360,8 @@ const getEchartAxis = ({
                           series: validCartesianConfig.eChartsConfig.series,
                       })
                     : undefined,
+                min: xAxisConfiguration?.[1]?.min || undefined,
+                max: xAxisConfiguration?.[1]?.max || undefined,
                 nameLocation: 'center',
                 nameGap: 30,
                 nameTextStyle: {
@@ -383,6 +387,8 @@ const getEchartAxis = ({
                           items,
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
+                min: yAxisConfiguration?.[0]?.min || undefined,
+                max: yAxisConfiguration?.[0]?.max || undefined,
                 nameTextStyle: {
                     fontWeight: 'bold',
                     align: 'left',
@@ -404,6 +410,8 @@ const getEchartAxis = ({
                           items,
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
+                min: yAxisConfiguration?.[1]?.min || undefined,
+                max: yAxisConfiguration?.[1]?.max || undefined,
                 nameTextStyle: {
                     fontWeight: 'bold',
                     align: 'right',
