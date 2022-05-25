@@ -390,10 +390,12 @@ export const attachTypesToModels = (
         if (
             database in warehouseCatalog &&
             schema in warehouseCatalog[database] &&
-            name in warehouseCatalog[database][schema] &&
-            columnName in warehouseCatalog[database][schema][name]
+            name in warehouseCatalog[database][schema]
         ) {
-            return warehouseCatalog[database][schema][name][columnName];
+            const warehouseName = warehouseCatalog[database][schema][name];
+            if (columnName in warehouseName) return warehouseName[columnName];
+            if (columnName.toLowerCase() in warehouseName)
+                return warehouseName[columnName.toLowerCase()];
         }
 
         if (throwOnMissingCatalogEntry) {
