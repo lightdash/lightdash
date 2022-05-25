@@ -2,6 +2,7 @@ import { HTMLTable, NonIdealState } from '@blueprintjs/core';
 import {
     AdditionalMetric,
     Field,
+    findFieldByIdInExplore,
     friendlyName,
     getItemMap,
     getResultValues,
@@ -21,12 +22,8 @@ import {
 } from './SimpleTable.styles';
 
 const SimpleTable: FC = () => {
-    const {
-        resultsData,
-        isLoading,
-        columnOrder: headers,
-        explore,
-    } = useVisualizationContext();
+    const { resultsData, isLoading, columnOrder, explore } =
+        useVisualizationContext();
     const tableItems = resultsData?.rows
         ? getResultValues(resultsData?.rows).slice(0, 25)
         : [];
@@ -43,10 +40,16 @@ const SimpleTable: FC = () => {
         }
         return {};
     }, [explore, resultsData]);
+    const rows = mapDataToTable(tableItems, columnOrder);
+    const headers = columnOrder.map((fieldId) => {
+        const field =
+            explore && fieldId
+                ? findFieldByIdInExplore(explore, fieldId)
+                : undefined;
+        return field?.label || friendlyName(fieldId);
+    });
 
-    const rows = mapDataToTable(tableItems, headers);
     const validData = rows && headers;
-
     if (isLoading) return <LoadingChart />;
 
     return (
@@ -58,7 +61,7 @@ const SimpleTable: FC = () => {
                             <TableHeader>
                                 <tr>
                                     {headers.map((header: string) => (
-                                        <th>{friendlyName(header)}</th>
+                                        <th>{header}</th>
                                     ))}
                                 </tr>
                             </TableHeader>
