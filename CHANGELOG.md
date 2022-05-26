@@ -1,3 +1,10 @@
+## [0.119.2](https://github.com/lightdash/lightdash/compare/0.119.1...0.119.2) (2022-05-26)
+
+
+### Bug Fixes
+
+* table column label ([#2239](https://github.com/lightdash/lightdash/issues/2239)) ([3adc686](https://github.com/lightdash/lightdash/commit/3adc686ece5c4e2c636e2c8e4faac4e0a89e9ec7))
+
 ## [0.119.1](https://github.com/lightdash/lightdash/compare/0.119.0...0.119.1) (2022-05-26)
 
 
