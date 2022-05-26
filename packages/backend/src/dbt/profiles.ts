@@ -4,6 +4,7 @@ import path from 'path';
 
 export const LIGHTDASH_PROFILE_NAME = 'lightdash_profile';
 export const LIGHTDASH_TARGET_NAME = 'prod';
+const DEFAULT_THREADS = 1;
 
 const envVar = (v: string) => `LIGHTDASH_DBT_PROFILE_VAR_${v.toUpperCase()}`;
 const envVarReference = (v: string) => `{{ env_var('${envVar(v)}') }}`;
@@ -18,7 +19,7 @@ const credentialsTarget = (
                     method: 'service-account-json',
                     project: credentials.project,
                     dataset: credentials.dataset,
-                    threads: credentials.threads,
+                    threads: DEFAULT_THREADS,
                     timeout_seconds: credentials.timeoutSeconds,
                     priority: credentials.priority,
                     retries: credentials.retries,
@@ -46,7 +47,7 @@ const credentialsTarget = (
                     port: credentials.port,
                     dbname: credentials.dbname,
                     schema: credentials.schema,
-                    threads: credentials.threads,
+                    threads: DEFAULT_THREADS,
                     keepalives_idle: credentials.keepalivesIdle,
                     sslmode: credentials.sslmode,
                     sslrootcert: path.resolve(
@@ -70,7 +71,7 @@ const credentialsTarget = (
                     port: credentials.port,
                     dbname: credentials.dbname,
                     schema: credentials.schema,
-                    threads: credentials.threads,
+                    threads: DEFAULT_THREADS,
                     keepalives_idle: credentials.keepalivesIdle,
                     search_path: credentials.searchPath,
                     role: credentials.role,
@@ -92,7 +93,7 @@ const credentialsTarget = (
                     database: credentials.database,
                     warehouse: credentials.warehouse,
                     schema: credentials.schema,
-                    threads: credentials.threads,
+                    threads: DEFAULT_THREADS,
                     client_session_keep_alive:
                         credentials.clientSessionKeepAlive,
                     query_tag: credentials.queryTag,

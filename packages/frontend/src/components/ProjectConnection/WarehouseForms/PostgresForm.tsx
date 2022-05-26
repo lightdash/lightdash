@@ -102,16 +102,6 @@ const PostgresForm: FC<{
                     defaultValue={5432}
                 />
                 <NumericInput
-                    name="warehouse.threads"
-                    label="Threads"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#threads-1"
-                    rules={{
-                        required: 'Required field',
-                    }}
-                    disabled={disabled}
-                    defaultValue={1}
-                />
-                <NumericInput
                     name="warehouse.keepalivesIdle"
                     label="Keep alive idle (seconds)"
                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#keep-alive-idle-seconds"

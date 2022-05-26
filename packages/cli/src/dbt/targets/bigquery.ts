@@ -38,6 +38,7 @@ export const bigqueryServiceAccountSchema: JSONSchemaType<BigqueryServiceAccount
             threads: {
                 type: 'integer',
                 minimum: 1,
+                nullable: true,
             },
             method: {
                 type: 'string',
@@ -68,14 +69,7 @@ export const bigqueryServiceAccountSchema: JSONSchemaType<BigqueryServiceAccount
                 nullable: true,
             },
         },
-        required: [
-            'type',
-            'project',
-            'dataset',
-            'threads',
-            'method',
-            'keyfile',
-        ],
+        required: ['type', 'project', 'dataset', 'method', 'keyfile'],
     };
 
 export const convertBigquerySchema = async (
@@ -105,7 +99,6 @@ export const convertBigquerySchema = async (
             type: WarehouseTypes.BIGQUERY,
             project: target.project,
             dataset: target.dataset,
-            threads: target.threads,
             timeoutSeconds: target.timeout_seconds,
             priority: target.priority,
             keyfileContents: keyfile,

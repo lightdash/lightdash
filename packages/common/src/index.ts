@@ -686,7 +686,7 @@ export type CreateBigqueryCredentials = {
     type: WarehouseTypes.BIGQUERY;
     project: string;
     dataset: string;
-    threads: number;
+    threads?: number;
     timeoutSeconds: number | undefined;
     priority: 'interactive' | 'batch' | undefined;
     keyfileContents: Record<string, string>;
@@ -737,7 +737,7 @@ export type CreatePostgresCredentials = {
     port: number;
     dbname: string;
     schema: string;
-    threads: number;
+    threads?: number;
     keepalivesIdle?: number;
     searchPath?: string;
     role?: string;
@@ -757,7 +757,7 @@ export type CreateRedshiftCredentials = {
     port: number;
     dbname: string;
     schema: string;
-    threads: number;
+    threads?: number;
     keepalivesIdle?: number;
     sslmode?: string;
     ra3Node?: boolean;
@@ -777,7 +777,7 @@ export type CreateSnowflakeCredentials = {
     database: string;
     warehouse: string;
     schema: string;
-    threads: number;
+    threads?: number;
     clientSessionKeepAlive?: boolean;
     queryTag?: string;
 };

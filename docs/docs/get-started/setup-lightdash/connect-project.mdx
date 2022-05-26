@@ -442,14 +442,8 @@ The service account you use with Lightdash will need to have the following roles
 If you need to provide access to data across multiple BigQuery projects, the service account will need to be granted `roles/bigquery.dataViewer` on each additional BigQuery project.
 
 Once you have a service account all ready to go, you'll need to add its JSON key file to Lightdash in the `key file` section of the Warehouse Connection page.
-
-#### Threads
-
-This is the number of multiple concurrent queries Lightdash will run against your BigQuery warehouse. Use a higher 
-number if you have a larger warehouse. A larger number of threads will increase performance for many users Lightdash 
-at the same time.
-
 #### Timeout in seconds
+
 
 BigQuery supports query timeouts. By default, the timeout is set to 300 seconds. If a query run by Lightdash takes longer than this timeout to complete, then BigQuery may cancel the query and issue the following error:
 
@@ -535,11 +529,6 @@ company-name:
 
 This is the port where the database is running.
 
-#### Threads
-
-This is the number of multiple concurrent queries Lightdash will run against your Postgres warehouse. Use a higher 
-number if you have a larger warehouse. A larger number of threads will increase performance for many users Lightdash 
-at the same time.
 
 #### Keep alive idle (seconds)
 
@@ -607,12 +596,6 @@ company-name:
 #### Port
 
 This is the port where the database is running.
-
-#### Threads
-
-This is the number of multiple concurrent queries Lightdash will run against your Redshift warehouse. Use a higher 
-number if you have a larger warehouse. A larger number of threads will increase performance for many users Lightdash 
-at the same time.
 
 #### Keep alive idle (seconds)
 
@@ -731,12 +714,6 @@ my-snowflake-db:
       warehouse: [warehouse name]
       schema: [dbt schema]    # Look for this one!
 ```
-
-#### Threads
-
-This is the number of multiple concurrent queries Lightdash will run against your Snowflake warehouse. Use a higher 
-number if you have a larger warehouse. A larger number of threads will increase performance for many users Lightdash 
-at the same time.
 
 #### Keep client session alive
 

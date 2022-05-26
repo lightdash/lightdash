@@ -103,16 +103,6 @@ const RedshiftForm: FC<{
                     defaultValue={5439}
                 />
                 <NumericInput
-                    name="warehouse.threads"
-                    label="Threads"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#threads-2"
-                    rules={{
-                        required: 'Required field',
-                    }}
-                    disabled={disabled}
-                    defaultValue={1}
-                />
-                <NumericInput
                     name="warehouse.keepalivesIdle"
                     label="Keep alive idle (seconds)"
                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#keep-alive-idle-seconds-1"

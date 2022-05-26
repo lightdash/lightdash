@@ -55,6 +55,7 @@ export const postgresSchema: JSONSchemaType<PostgresTarget> = {
         },
         threads: {
             type: 'integer',
+            nullable: true,
         },
         pass: {
             type: 'string',
@@ -85,7 +86,7 @@ export const postgresSchema: JSONSchemaType<PostgresTarget> = {
             nullable: true,
         },
     },
-    required: ['type', 'host', 'user', 'port', 'schema', 'threads'],
+    required: ['type', 'host', 'user', 'port', 'schema'],
 };
 
 export const convertPostgresSchema = (
@@ -113,7 +114,6 @@ export const convertPostgresSchema = (
             port: target.port,
             dbname,
             schema: target.schema,
-            threads: target.threads,
             keepalivesIdle: target.keepalives_idle,
             searchPath: target.search_path,
             role: target.role,
