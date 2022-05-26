@@ -1,3 +1,17 @@
+## [0.119.2](https://github.com/lightdash/lightdash/compare/0.119.1...0.119.2) (2022-05-26)
+
+
+### Bug Fixes
+
+* table column label ([#2239](https://github.com/lightdash/lightdash/issues/2239)) ([3adc686](https://github.com/lightdash/lightdash/commit/3adc686ece5c4e2c636e2c8e4faac4e0a89e9ec7))
+
+## [0.119.1](https://github.com/lightdash/lightdash/compare/0.119.0...0.119.1) (2022-05-26)
+
+
+### Bug Fixes
+
+* case insensitive behaviour for snowflake ([#2249](https://github.com/lightdash/lightdash/issues/2249)) ([a8c5d49](https://github.com/lightdash/lightdash/commit/a8c5d49e14e747e1d778c09bc294fce5de4b5d20))
+
 # [0.119.0](https://github.com/lightdash/lightdash/compare/0.118.1...0.119.0) (2022-05-26)
 
 

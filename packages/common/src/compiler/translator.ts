@@ -367,15 +367,32 @@ export const attachTypesToModels = (
         };
     },
     throwOnMissingCatalogEntry: boolean = true,
+    caseSensitiveMatching: boolean = true,
 ): DbtModelNode[] => {
     // Check that all models appear in the warehouse
     models.forEach(({ database, schema, name }) => {
-        if (
-            (!(database in warehouseCatalog) ||
-                !(schema in warehouseCatalog[database]) ||
-                !(name in warehouseCatalog[database][schema])) &&
-            throwOnMissingCatalogEntry
-        ) {
+        const databaseMatch = Object.keys(warehouseCatalog).find((db) =>
+            caseSensitiveMatching
+                ? db === database
+                : db.toLowerCase() === database.toLowerCase(),
+        );
+        const schemaMatch =
+            databaseMatch &&
+            Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
+                caseSensitiveMatching
+                    ? s === schema
+                    : s.toLowerCase() === schema.toLowerCase(),
+            );
+        const tableMatch =
+            databaseMatch &&
+            schemaMatch &&
+            Object.keys(warehouseCatalog[databaseMatch][schemaMatch]).find(
+                (t) =>
+                    caseSensitiveMatching
+                        ? t === name
+                        : t.toLowerCase() === name.toLowerCase(),
+            );
+        if (!tableMatch && throwOnMissingCatalogEntry) {
             throw new MissingCatalogEntryError(
                 `Model "${name}" was expected in your target warehouse at "${database}.${schema}.${name}". Does the table exist in your target data warehouse?`,
                 {},
@@ -387,15 +404,43 @@ export const attachTypesToModels = (
         { database, schema, name }: DbtModelNode,
         columnName: string,
     ): DimensionType | undefined => {
-        if (
-            database in warehouseCatalog &&
-            schema in warehouseCatalog[database] &&
-            name in warehouseCatalog[database][schema] &&
-            columnName in warehouseCatalog[database][schema][name]
-        ) {
-            return warehouseCatalog[database][schema][name][columnName];
+        const databaseMatch = Object.keys(warehouseCatalog).find((db) =>
+            caseSensitiveMatching
+                ? db === database
+                : db.toLowerCase() === database.toLowerCase(),
+        );
+        const schemaMatch =
+            databaseMatch &&
+            Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
+                caseSensitiveMatching
+                    ? s === schema
+                    : s.toLowerCase() === schema.toLowerCase(),
+            );
+        const tableMatch =
+            databaseMatch &&
+            schemaMatch &&
+            Object.keys(warehouseCatalog[databaseMatch][schemaMatch]).find(
+                (t) =>
+                    caseSensitiveMatching
+                        ? t === name
+                        : t.toLowerCase() === name.toLowerCase(),
+            );
+        const columnMatch =
+            databaseMatch &&
+            schemaMatch &&
+            tableMatch &&
+            Object.keys(
+                warehouseCatalog[databaseMatch][schemaMatch][tableMatch],
+            ).find((c) =>
+                caseSensitiveMatching
+                    ? c === columnName
+                    : c.toLowerCase() === columnName.toLowerCase(),
+            );
+        if (databaseMatch && schemaMatch && tableMatch && columnMatch) {
+            return warehouseCatalog[databaseMatch][schemaMatch][tableMatch][
+                columnMatch
+            ];
         }
-
         if (throwOnMissingCatalogEntry) {
             throw new MissingCatalogEntryError(
                 `Column "${columnName}" from model "${name}" does not exist.\n "${columnName}.${name}" was not found in your target warehouse at ${database}.${schema}.${name}. Try rerunning dbt to update your warehouse.`,
