@@ -2,11 +2,13 @@ import { HTMLTable, NonIdealState } from '@blueprintjs/core';
 import {
     AdditionalMetric,
     Field,
-    findFieldByIdInExplore,
     friendlyName,
+    getAdditionalMetricLabel,
     getItemLabel,
     getItemMap,
     getResultValues,
+    isAdditionalMetric,
+    isField,
     isNumericItem,
     TableCalculation,
 } from '@lightdash/common';
@@ -41,14 +43,20 @@ const SimpleTable: FC = () => {
         }
         return {};
     }, [explore, resultsData]);
+
     const rows = mapDataToTable(tableItems, columnOrder);
     const headers = columnOrder.map((fieldId) => {
-        const field =
-            explore && fieldId
-                ? findFieldByIdInExplore(explore, fieldId)
-                : undefined;
-
-        return field ? getItemLabel(field) : friendlyName(fieldId);
+        const field = itemMap && itemMap[fieldId];
+        if (isAdditionalMetric(field)) {
+            // AdditionalMetric
+            return getAdditionalMetricLabel(field);
+        } else if (isField(field)) {
+            // Field
+            return getItemLabel(field);
+        } else {
+            //TableCalculation
+            return friendlyName(fieldId);
+        }
     });
 
     const validData = rows && headers;
