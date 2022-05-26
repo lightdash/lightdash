@@ -17,7 +17,7 @@ export type SnowflakeUserPasswordTarget = {
     warehouse: string;
     schema: string;
     threads: number;
-    client_session_keep_alive: boolean;
+    client_session_keep_alive?: boolean;
     query_tag?: string;
     connect_retries?: number;
     connect_timeout?: number;
@@ -59,6 +59,7 @@ export const snowflakeUserPasswordSchema: JSONSchemaType<SnowflakeUserPasswordTa
             },
             client_session_keep_alive: {
                 type: 'boolean',
+                nullable: true,
             },
             query_tag: {
                 type: 'string',
@@ -91,7 +92,6 @@ export const snowflakeUserPasswordSchema: JSONSchemaType<SnowflakeUserPasswordTa
             'warehouse',
             'schema',
             'threads',
-            'client_session_keep_alive',
         ],
     };
 
@@ -112,7 +112,7 @@ export const convertSnowflakeSchema = (
             database: target.database,
             schema: target.schema,
             threads: target.threads,
-            clientSessionKeepAlive: target.client_session_keep_alive,
+            clientSessionKeepAlive: !!target.client_session_keep_alive,
             queryTag: target.query_tag,
         };
     }
