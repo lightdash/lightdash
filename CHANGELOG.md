@@ -1,3 +1,10 @@
+# [0.119.0](https://github.com/lightdash/lightdash/compare/0.118.1...0.119.0) (2022-05-26)
+
+
+### Features
+
+* skip ephemeral nodes ([#2247](https://github.com/lightdash/lightdash/issues/2247)) ([ff543ec](https://github.com/lightdash/lightdash/commit/ff543ec8d21b7a81d2d1450fdadee83bc1990f11))
+
 ## [0.118.1](https://github.com/lightdash/lightdash/compare/0.118.0...0.118.1) (2022-05-26)
 
 
