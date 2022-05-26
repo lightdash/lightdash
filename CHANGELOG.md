@@ -1,3 +1,10 @@
+## [0.119.1](https://github.com/lightdash/lightdash/compare/0.119.0...0.119.1) (2022-05-26)
+
+
+### Bug Fixes
+
+* case insensitive behaviour for snowflake ([#2249](https://github.com/lightdash/lightdash/issues/2249)) ([a8c5d49](https://github.com/lightdash/lightdash/commit/a8c5d49e14e747e1d778c09bc294fce5de4b5d20))
+
 # [0.119.0](https://github.com/lightdash/lightdash/compare/0.118.1...0.119.0) (2022-05-26)
 
 
