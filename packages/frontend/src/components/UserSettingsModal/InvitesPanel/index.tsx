@@ -28,14 +28,8 @@ const InvitePanel: FC<{
 }> = ({ onBackClick }) => {
     const { track } = useTracking();
     const { showToastSuccess } = useApp();
-    const {
-        data,
-        mutate,
-        isError,
-        isLoading,
-        isSuccess,
-        reset: resetForm,
-    } = useCreateInviteLinkMutation();
+    const { data, mutate, isError, isLoading, isSuccess } =
+        useCreateInviteLinkMutation();
     const methods = useForm<Omit<CreateInviteLink, 'expiresAt'>>({
         mode: 'onSubmit',
         defaultValues: {
@@ -45,15 +39,13 @@ const InvitePanel: FC<{
 
     useEffect(() => {
         if (isError) {
-            console.log('siiii');
             methods.reset({ ...methods.getValues() }, { keepValues: true });
         }
         if (isSuccess) {
-            resetForm();
             methods.setValue('email', '');
             methods.setValue('role', OrganizationMemberRole.EDITOR);
         }
-    }, [isError, methods, isSuccess, resetForm]);
+    }, [isError, methods, isSuccess]);
 
     const handleSubmit = (formData: Omit<CreateInviteLink, 'expiresAt'>) => {
         track({
