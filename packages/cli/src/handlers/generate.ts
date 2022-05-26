@@ -71,6 +71,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
             const { updatedYml, outputFilePath } = await updateModelYmlFile({
                 model: compiledModel,
                 table,
+                docs: manifest.docs,
             });
             try {
                 await fs.writeFile(

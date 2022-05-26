@@ -50,23 +50,35 @@ export const getWarehouseTableForModel = async ({
     return table;
 };
 
+type Doc = {
+    unique_id: string;
+    name: string;
+    block_contents: string;
+};
 type UpdatedModelYmlFileArgs = {
     model: CompiledModel;
     table: WarehouseTableSchema;
+    docs: Record<string, Doc>;
 };
 export const updateModelYmlFile = async ({
     model,
     table,
+    docs,
 }: UpdatedModelYmlFileArgs): Promise<{
     updatedYml: YamlSchema;
     outputFilePath: string;
 }> => {
     const generatedModel = {
         name: model.name,
-        columns: Object.entries(table).map(([columnName]) => ({
-            name: columnName,
-            description: '',
-        })),
+        columns: Object.entries(table).map(([columnName]) => {
+            const hasDoc = Object.values(docs).find(
+                (doc) => doc.name === columnName,
+            );
+            return {
+                name: columnName,
+                description: hasDoc ? `{{doc("${columnName}")}}` : '',
+            };
+        }),
     };
     if (model.patchPath) {
         const { path: yamlSubpath } = patchPathParts(model.patchPath);
