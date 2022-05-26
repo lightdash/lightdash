@@ -20,9 +20,13 @@ export enum SupportedDbtAdapter {
     POSTGRES = 'postgres',
 }
 
+export type DbtNodeConfig = {
+    materialized: string;
+};
 export type DbtNode = {
     unique_id: string;
     resource_type: string;
+    config?: DbtNodeConfig;
 };
 export type DbtRawModelNode = DbtNode & {
     columns: { [name: string]: DbtModelColumn };

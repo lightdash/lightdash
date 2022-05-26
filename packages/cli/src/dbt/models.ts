@@ -140,7 +140,9 @@ const parseSelector = (selector: string) => {
 
 const getModelsFromManifest = (manifest: DbtManifest): DbtRawModelNode[] =>
     Object.values(manifest.nodes).filter(
-        (node) => node.resource_type === 'model',
+        (node) =>
+            node.resource_type === 'model' &&
+            node.config?.materialized !== 'ephemeral',
     ) as DbtRawModelNode[];
 
 type MethodSelectorArgs = {
