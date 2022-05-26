@@ -1,16 +1,13 @@
-import { Button, Callout, Card, InputGroup, Intent } from '@blueprintjs/core';
+import { Button, Card, InputGroup, Intent } from '@blueprintjs/core';
 import {
     CreateInviteLink,
     formatTimestamp,
     OrganizationMemberRole,
 } from '@lightdash/common';
-import React, { FC } from 'react';
+import React, { FC, useEffect } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useForm } from 'react-hook-form';
-import {
-    useCreateInviteLinkMutation,
-    useRevokeInvitesMutation,
-} from '../../../hooks/useInviteLink';
+import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -31,8 +28,14 @@ const InvitePanel: FC<{
 }> = ({ onBackClick }) => {
     const { track } = useTracking();
     const { showToastSuccess } = useApp();
-    const inviteLink = useCreateInviteLinkMutation();
-    const revokeInvitesMutation = useRevokeInvitesMutation();
+    const {
+        data,
+        mutate,
+        isError,
+        isLoading,
+        isSuccess,
+        reset: resetForm,
+    } = useCreateInviteLinkMutation();
     const methods = useForm<Omit<CreateInviteLink, 'expiresAt'>>({
         mode: 'onSubmit',
         defaultValues: {
@@ -40,13 +43,23 @@ const InvitePanel: FC<{
         },
     });
 
+    useEffect(() => {
+        if (isError) {
+            console.log('siiii');
+            methods.reset({ ...methods.getValues() }, { keepValues: true });
+        }
+        if (isSuccess) {
+            resetForm();
+            methods.setValue('email', '');
+            methods.setValue('role', OrganizationMemberRole.EDITOR);
+        }
+    }, [isError, methods, isSuccess, resetForm]);
+
     const handleSubmit = (formData: Omit<CreateInviteLink, 'expiresAt'>) => {
         track({
             name: EventName.INVITE_BUTTON_CLICKED,
         });
-        inviteLink.mutate(formData);
-        methods.setValue('email', '');
-        methods.setValue('role', OrganizationMemberRole.EDITOR);
+        mutate(formData.email);
     };
 
     return (
@@ -66,7 +79,7 @@ const InvitePanel: FC<{
                         name="email"
                         label="Enter user email address"
                         placeholder="example@gmail.com"
-                        disabled={inviteLink.isLoading}
+                        disabled={isLoading}
                         rules={{
                             required: 'Required field',
                             validate: {
@@ -76,7 +89,7 @@ const InvitePanel: FC<{
                     />
                     <RoleSelectButton
                         name="role"
-                        disabled={inviteLink.isLoading}
+                        disabled={isLoading}
                         options={Object.values(OrganizationMemberRole).map(
                             (orgMemberRole) => ({
                                 value: orgMemberRole,
@@ -91,15 +104,15 @@ const InvitePanel: FC<{
                         intent={Intent.PRIMARY}
                         text="Generate invite"
                         type="submit"
-                        disabled={inviteLink.isLoading}
+                        disabled={isLoading}
                     />
                 </InviteForm>
             </Card>
-            {inviteLink.data && (
+            {data && (
                 <InviteFormGroup
                     label={
                         <span>
-                            <b>{inviteLink.data.email}</b>'s invite link
+                            <b>{data.email}</b>'s invite link
                         </span>
                     }
                     labelFor="invite-link-input"
@@ -109,10 +122,10 @@ const InvitePanel: FC<{
                         className="cohere-block"
                         type="text"
                         readOnly
-                        value={inviteLink.data.inviteUrl}
+                        value={data.inviteUrl}
                         rightElement={
                             <CopyToClipboard
-                                text={inviteLink.data.inviteUrl}
+                                text={data.inviteUrl}
                                 options={{ message: 'Copied' }}
                                 onCopy={() =>
                                     showToastSuccess({
@@ -125,27 +138,12 @@ const InvitePanel: FC<{
                         }
                     />
                     <ShareLinkCallout intent="primary">
-                        Share this link with {inviteLink.data.email} and they
-                        can join your organization. This link will expire at{' '}
-                        <b>{formatTimestamp(inviteLink.data.expiresAt)}</b>
+                        Share this link with {data.email} and they can join your
+                        organization. This link will expire at{' '}
+                        <b>{formatTimestamp(data.expiresAt)}</b>
                     </ShareLinkCallout>
                 </InviteFormGroup>
             )}
-            <Callout intent="warning" style={{ marginTop: 20 }}>
-                <p>This action will revoke all pending invitations.</p>
-                <Button
-                    intent="danger"
-                    text="Revoke all invites"
-                    loading={inviteLink.isLoading}
-                    onClick={() => {
-                        track({
-                            name: EventName.REVOKE_INVITES_BUTTON_CLICKED,
-                        });
-                        revokeInvitesMutation.mutate();
-                        inviteLink.reset();
-                    }}
-                />
-            </Callout>
         </Panel>
     );
 };
