@@ -12,7 +12,6 @@ export const credentials: CreateSnowflakeCredentials = {
     warehouse: '',
     schema: '',
     threads: 1,
-    clientSessionKeepAlive: true,
 };
 
 const columnBase = {

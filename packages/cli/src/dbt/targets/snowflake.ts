@@ -112,7 +112,7 @@ export const convertSnowflakeSchema = (
             database: target.database,
             schema: target.schema,
             threads: target.threads,
-            clientSessionKeepAlive: !!target.client_session_keep_alive,
+            clientSessionKeepAlive: target.client_session_keep_alive,
             queryTag: target.query_tag,
         };
     }

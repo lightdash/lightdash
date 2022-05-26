@@ -755,7 +755,7 @@ export type CreateSnowflakeCredentials = {
     warehouse: string;
     schema: string;
     threads: number;
-    clientSessionKeepAlive: boolean;
+    clientSessionKeepAlive?: boolean;
     queryTag?: string;
 };
 
