@@ -1,7 +1,7 @@
 import { getAxisDefaultMaxValue, getAxisDefaultMinValue } from './useEcharts';
 
 describe('getAxisDefaultMinValue', () => {
-    test('get axis default min value for NaN', () => {
+    test('should return undefined', () => {
         expect(getAxisDefaultMinValue({ min: '', max: 5 })).toBeUndefined();
         expect(getAxisDefaultMinValue({ min: 10, max: '' })).toBeUndefined();
         expect(getAxisDefaultMinValue({ min: '', max: '' })).toBeUndefined();
@@ -17,9 +17,6 @@ describe('getAxisDefaultMinValue', () => {
                 max: new Date('2021-03-10T00:00:00.100Z'),
             }),
         ).toBeUndefined();
-    });
-
-    test('get axis default min value for positive numbers', () => {
         expect(getAxisDefaultMinValue({ min: 0, max: 5 })).toBeUndefined();
         expect(getAxisDefaultMinValue({ min: 0.1, max: 0.5 })).toBeUndefined();
         expect(getAxisDefaultMinValue({ min: 10, max: 50 })).toBeUndefined();
@@ -28,13 +25,6 @@ describe('getAxisDefaultMinValue', () => {
             getAxisDefaultMinValue({ min: 1000, max: 5000 }),
         ).toBeUndefined();
         expect(getAxisDefaultMinValue({ min: 0, max: 60 })).toBeUndefined();
-        expect(getAxisDefaultMinValue({ min: 0.5, max: 0.6 })).toBe(0.5);
-        expect(getAxisDefaultMinValue({ min: 50, max: 60 })).toBe(50);
-        expect(getAxisDefaultMinValue({ min: 500, max: 600 })).toBe(500);
-        expect(getAxisDefaultMinValue({ min: 5000, max: 6000 })).toBe(5000);
-    });
-
-    test('get axis default min value for negative numbers', () => {
         expect(getAxisDefaultMinValue({ min: -5, max: 0 })).toBeUndefined();
         expect(getAxisDefaultMinValue({ min: -50, max: -10 })).toBeUndefined();
         expect(
@@ -51,9 +41,6 @@ describe('getAxisDefaultMinValue', () => {
         expect(
             getAxisDefaultMinValue({ min: -6000, max: -5000 }),
         ).toBeUndefined();
-    });
-
-    test('get axis default min value for positive and negative numbers', () => {
         expect(getAxisDefaultMinValue({ min: -5, max: 5 })).toBeUndefined();
         expect(getAxisDefaultMinValue({ min: -50, max: 50 })).toBeUndefined();
         expect(getAxisDefaultMinValue({ min: -500, max: 100 })).toBeUndefined();
@@ -61,10 +48,17 @@ describe('getAxisDefaultMinValue', () => {
             getAxisDefaultMinValue({ min: -5000, max: 1000 }),
         ).toBeUndefined();
     });
+
+    test('should return min value', () => {
+        expect(getAxisDefaultMinValue({ min: 0.5, max: 0.6 })).toBe(0.5);
+        expect(getAxisDefaultMinValue({ min: 50, max: 60 })).toBe(50);
+        expect(getAxisDefaultMinValue({ min: 500, max: 600 })).toBe(500);
+        expect(getAxisDefaultMinValue({ min: 5000, max: 6000 })).toBe(5000);
+    });
 });
 
 describe('getAxisDefaultMaxValue', () => {
-    test('get axis default min value for NaN', () => {
+    test('should return undefined', () => {
         expect(getAxisDefaultMaxValue({ min: '', max: 5 })).toBeUndefined();
         expect(getAxisDefaultMaxValue({ min: 10, max: '' })).toBeUndefined();
         expect(getAxisDefaultMaxValue({ min: '', max: '' })).toBeUndefined();
@@ -80,9 +74,6 @@ describe('getAxisDefaultMaxValue', () => {
                 max: new Date('2021-03-10T00:00:00.100Z'),
             }),
         ).toBeUndefined();
-    });
-
-    test('get axis default min value for positive numbers', () => {
         expect(getAxisDefaultMaxValue({ min: 0, max: 5 })).toBeUndefined();
         expect(getAxisDefaultMaxValue({ min: 0.1, max: 0.5 })).toBeUndefined();
         expect(getAxisDefaultMaxValue({ min: 10, max: 50 })).toBeUndefined();
@@ -98,9 +89,6 @@ describe('getAxisDefaultMaxValue', () => {
         expect(
             getAxisDefaultMaxValue({ min: 5000, max: 6000 }),
         ).toBeUndefined();
-    });
-
-    test('get axis default min value for negative numbers', () => {
         expect(getAxisDefaultMaxValue({ min: -5, max: 0 })).toBeUndefined();
         expect(getAxisDefaultMaxValue({ min: -50, max: -10 })).toBeUndefined();
         expect(
@@ -110,17 +98,17 @@ describe('getAxisDefaultMaxValue', () => {
             getAxisDefaultMaxValue({ min: -5000, max: -1000 }),
         ).toBeUndefined();
         expect(getAxisDefaultMaxValue({ min: -60, max: 0 })).toBeUndefined();
-        expect(getAxisDefaultMaxValue({ min: -60, max: -50 })).toBe(-50);
-        expect(getAxisDefaultMaxValue({ min: -600, max: -500 })).toBe(-500);
-        expect(getAxisDefaultMaxValue({ min: -6000, max: -5000 })).toBe(-5000);
-    });
-
-    test('get axis default min value for positive and negative numbers', () => {
         expect(getAxisDefaultMaxValue({ min: -5, max: 5 })).toBeUndefined();
         expect(getAxisDefaultMaxValue({ min: -50, max: 50 })).toBeUndefined();
         expect(getAxisDefaultMaxValue({ min: -500, max: 100 })).toBeUndefined();
         expect(
             getAxisDefaultMaxValue({ min: -5000, max: 1000 }),
         ).toBeUndefined();
+    });
+
+    test('should return max value', () => {
+        expect(getAxisDefaultMaxValue({ min: -60, max: -50 })).toBe(-50);
+        expect(getAxisDefaultMaxValue({ min: -600, max: -500 })).toBe(-500);
+        expect(getAxisDefaultMaxValue({ min: -6000, max: -5000 })).toBe(-5000);
     });
 });
