@@ -4,6 +4,7 @@ import {
     Field,
     findFieldByIdInExplore,
     friendlyName,
+    getItemLabel,
     getItemMap,
     getResultValues,
     isNumericItem,
@@ -47,9 +48,7 @@ const SimpleTable: FC = () => {
                 ? findFieldByIdInExplore(explore, fieldId)
                 : undefined;
 
-        return field
-            ? `${field.tableLabel} ${field.label}`
-            : friendlyName(fieldId);
+        return field ? getItemLabel(field) : friendlyName(fieldId);
     });
 
     const validData = rows && headers;
