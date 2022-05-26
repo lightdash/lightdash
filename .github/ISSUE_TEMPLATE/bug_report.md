@@ -7,24 +7,16 @@ assignees: ''
 
 ---
 
-### Describe the bug
+### Description
 
-<!-- A clear and concise description of what the bug is. -->
+<!-- What happened and what did you expect? -->
 
 ### To Reproduce
 
 <!--
-Steps to reproduce the behavior:
+Steps & screenshot/gif/loom to reproduce the behavior
 1. Go to '...'
 2. Click on '....'
 3. Scroll down to '....'
 4. See error
 -->
-
-### Expected behavior
-
-<!-- A clear and concise description of what you expected to happen. -->
-
-### Screenshots or Loom video
-
-<!-- If applicable, add screenshots or a Loom video to help explain your problem. -->
