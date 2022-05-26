@@ -83,7 +83,7 @@ describe('Explore', () => {
         cy.findByText('Scatter chart').click();
         cy.get('[name="Table"]').click();
 
-        cy.findByText('Customers First name'); // Different label ¿?
+        cy.findByText('Customers First name');
 
         cy.get('.bp4-icon-panel-table').first().parent().click();
         cy.findByText('Big number').click();
