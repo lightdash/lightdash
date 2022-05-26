@@ -1,4 +1,4 @@
-import { CompiledMetric, FieldId, MetricType } from './field';
+import { CompiledMetric, FieldId, friendlyName, MetricType } from './field';
 import { Filters } from './filter';
 
 export type TableCalculation = {
@@ -62,3 +62,6 @@ export const extractEntityNameFromIdColumn = (
             .join('_') || null
     );
 };
+
+export const getAdditionalMetricLabel = (item: AdditionalMetric) =>
+    `${friendlyName(item.table)} ${item.label}`;
