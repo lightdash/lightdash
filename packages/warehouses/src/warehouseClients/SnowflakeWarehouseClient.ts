@@ -176,6 +176,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                     schema.toLowerCase() === row.schema_name.toLowerCase() &&
                     table.toLowerCase() === row.table_name.toLowerCase(),
             );
+            // Unquoted identifiers will always be
             if (row.kind === 'COLUMN' && !!match) {
                 acc[match.database] = acc[match.database] || {};
                 acc[match.database][match.schema] =
@@ -183,7 +184,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                 acc[match.database][match.schema][match.table] =
                     acc[match.database][match.schema][match.table] || {};
                 acc[match.database][match.schema][match.table][
-                    row.column_name.toLowerCase()
+                    row.column_name
                 ] = mapFieldType(JSON.parse(row.data_type).type);
             }
             return acc;
