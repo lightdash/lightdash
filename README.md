@@ -245,6 +245,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/chadfl"><img src="https://avatars.githubusercontent.com/u/44757973?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Chad Floyd</b></sub></a><br /><a href="#ideas-chadfl" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="https://github.com/claudino-kognita"><img src="https://avatars.githubusercontent.com/u/102805681?v=4?s=100" width="100px;" alt=""/><br /><sub><b>André Claudino</b></sub></a><br /><a href="#ideas-claudino-kognita" title="Ideas, Planning, & Feedback">🤔</a></td>
   </tr>
+  <tr>
+    <td align="center"><a href="https://www.linkedin.com/in/ianahuja/"><img src="https://avatars.githubusercontent.com/u/9979944?v=4?s=100" width="100px;" alt=""/><br /><sub><b>12ian34</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=12ian34" title="Documentation">📖</a></td>
+  </tr>
 </table>
 
 <!-- markdownlint-restore -->
