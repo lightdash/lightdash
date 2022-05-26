@@ -1,3 +1,11 @@
+## [0.118.1](https://github.com/lightdash/lightdash/compare/0.118.0...0.118.1) (2022-05-26)
+
+
+### Bug Fixes
+
+* docker container name in contributing guide ([#2245](https://github.com/lightdash/lightdash/issues/2245)) ([27c629b](https://github.com/lightdash/lightdash/commit/27c629b6ab158e41fb7ded7ec6502506e26b5c4d))
+* revert jaffle rollback ([#2243](https://github.com/lightdash/lightdash/issues/2243)) ([d9e6f4f](https://github.com/lightdash/lightdash/commit/d9e6f4f4e7787c22c837ea495446893608eb8ced))
+
 # [0.118.0](https://github.com/lightdash/lightdash/compare/0.117.0...0.118.0) (2022-05-25)
 
 
