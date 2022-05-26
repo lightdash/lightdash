@@ -51,7 +51,7 @@ const InvitePanel: FC<{
         track({
             name: EventName.INVITE_BUTTON_CLICKED,
         });
-        mutate(formData.email);
+        mutate(formData);
     };
 
     return (
