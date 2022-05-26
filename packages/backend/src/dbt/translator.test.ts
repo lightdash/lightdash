@@ -24,6 +24,7 @@ import {
     warehouseSchema,
     warehouseSchemaWithMissingColumn,
     warehouseSchemaWithMissingTable,
+    warehouseSchemaWithUpperCaseColumn,
 } from './translator.mock';
 
 describe('attachTypesToModels', () => {
@@ -67,6 +68,27 @@ describe('attachTypesToModels', () => {
         ).toThrowError(
             'Column "myColumnName" from model "myTable" does not exist.\n "myColumnName.myTable" was not found in your target warehouse at myDatabase.mySchema.myTable. Try rerunning dbt to update your warehouse.',
         );
+    });
+    it('should throw an error when column has wrong case', async () => {
+        expect(() =>
+            attachTypesToModels(
+                [model],
+                warehouseSchemaWithUpperCaseColumn,
+                true,
+            ),
+        ).toThrowError(
+            'Column "myColumnName" from model "myTable" does not exist.\n "myColumnName.myTable" was not found in your target warehouse at myDatabase.mySchema.myTable. Try rerunning dbt to update your warehouse.',
+        );
+    });
+    it('should match uppercase column names when case-sensitive is false', async () => {
+        expect(
+            attachTypesToModels(
+                [model],
+                warehouseSchemaWithUpperCaseColumn,
+                true,
+                false,
+            )[0],
+        ).toEqual(expectedModelWithType);
     });
 });
 

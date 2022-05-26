@@ -7,14 +7,12 @@ import {
 import {
     columns,
     credentials,
-    queryColumnsMock,
-} from './SnowflakeWarehouseClient.mock';
-import {
-    config,
     expectedFields,
     expectedRow,
     expectedWarehouseSchema,
-} from './WarehouseClient.mock';
+    queryColumnsMock,
+} from './SnowflakeWarehouseClient.mock';
+import { config } from './WarehouseClient.mock';
 
 jest.mock('snowflake-sdk', () => ({
     ...jest.requireActual('snowflake-sdk'),

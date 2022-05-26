@@ -1,4 +1,8 @@
-import { CreateSnowflakeCredentials, WarehouseTypes } from '@lightdash/common';
+import {
+    CreateSnowflakeCredentials,
+    DimensionType,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { SnowflakeTypes } from './SnowflakeWarehouseClient';
 import { config } from './WarehouseClient.mock';
 
@@ -25,7 +29,7 @@ const columnBase = {
 export const columns: Record<string, any>[] = [
     {
         ...columnBase,
-        column_name: 'myStringColumn',
+        column_name: 'MYSTRINGCOLUMN',
         data_type: JSON.stringify({
             type: SnowflakeTypes.TEXT,
             length: 16777216,
@@ -36,7 +40,7 @@ export const columns: Record<string, any>[] = [
     },
     {
         ...columnBase,
-        column_name: 'myNumberColumn',
+        column_name: 'MYNUMBERCOLUMN',
         data_type: JSON.stringify({
             type: SnowflakeTypes.FIXED,
             precision: 18,
@@ -46,7 +50,7 @@ export const columns: Record<string, any>[] = [
     },
     {
         ...columnBase,
-        column_name: 'myDateColumn',
+        column_name: 'MYDATECOLUMN',
         data_type: JSON.stringify({
             type: SnowflakeTypes.DATE,
             nullable: true,
@@ -54,7 +58,7 @@ export const columns: Record<string, any>[] = [
     },
     {
         ...columnBase,
-        column_name: 'myTimestampColumn',
+        column_name: 'MYTIMESTAMPCOLUMN',
         data_type: JSON.stringify({
             type: SnowflakeTypes.TIMESTAMP_NTZ,
             precision: 0,
@@ -64,7 +68,7 @@ export const columns: Record<string, any>[] = [
     },
     {
         ...columnBase,
-        column_name: 'myBooleanColumn',
+        column_name: 'MYBOOLEANCOLUMN',
         data_type: JSON.stringify({
             type: SnowflakeTypes.BOOLEAN,
             nullable: true,
@@ -72,7 +76,7 @@ export const columns: Record<string, any>[] = [
     },
     {
         ...columnBase,
-        column_name: 'myArrayColumn',
+        column_name: 'MYARRAYCOLUMN',
         data_type: JSON.stringify({
             type: SnowflakeTypes.ARRAY,
             nullable: true,
@@ -80,7 +84,7 @@ export const columns: Record<string, any>[] = [
     },
     {
         ...columnBase,
-        column_name: 'myObjectColumn',
+        column_name: 'MYOBJECTCOLUMN',
         data_type: JSON.stringify({
             type: SnowflakeTypes.OBJECT,
             nullable: true,
@@ -91,7 +95,7 @@ export const columns: Record<string, any>[] = [
         database_name: 'databaseNotInModel',
         schema_name: 'schemaNotInModel',
         table_name: 'tableNotInModel',
-        column_name: 'columnNotInModel',
+        column_name: 'COLUMNNOTINMODEL',
         data_type: JSON.stringify({
             type: SnowflakeTypes.BOOLEAN,
             nullable: true,
@@ -102,7 +106,7 @@ export const columns: Record<string, any>[] = [
         database_name: columnBase.database_name,
         schema_name: 'schemaNotInModel',
         table_name: 'tableNotInModel',
-        column_name: 'columnNotInModel',
+        column_name: 'COLUMNNOTINMODEL',
         data_type: JSON.stringify({
             type: SnowflakeTypes.BOOLEAN,
             nullable: true,
@@ -113,7 +117,7 @@ export const columns: Record<string, any>[] = [
         database_name: columnBase.database_name,
         schema_name: columnBase.schema_name,
         table_name: 'tableNotInModel',
-        column_name: 'columnNotInModel',
+        column_name: 'COLUMNNOTINMODEL',
         data_type: JSON.stringify({
             type: SnowflakeTypes.BOOLEAN,
             nullable: true,
@@ -141,11 +145,47 @@ class ColumnMock {
 }
 
 export const queryColumnsMock = [
-    new ColumnMock('myStringColumn', 'string'),
-    new ColumnMock('myNumberColumn', 'number'),
-    new ColumnMock('myBooleanColumn', 'boolean'),
-    new ColumnMock('myDateColumn', 'date'),
-    new ColumnMock('myTimestampColumn', 'timestamp'),
-    new ColumnMock('myArrayColumn', 'array'),
-    new ColumnMock('myObjectColumn', 'object'),
+    new ColumnMock('MYSTRINGCOLUMN', 'string'),
+    new ColumnMock('MYNUMBERCOLUMN', 'number'),
+    new ColumnMock('MYBOOLEANCOLUMN', 'boolean'),
+    new ColumnMock('MYDATECOLUMN', 'date'),
+    new ColumnMock('MYTIMESTAMPCOLUMN', 'timestamp'),
+    new ColumnMock('MYARRAYCOLUMN', 'array'),
+    new ColumnMock('MYOBJECTCOLUMN', 'object'),
 ];
+
+export const expectedWarehouseSchema = {
+    myDatabase: {
+        mySchema: {
+            myTable: {
+                MYSTRINGCOLUMN: DimensionType.STRING,
+                MYNUMBERCOLUMN: DimensionType.NUMBER,
+                MYDATECOLUMN: DimensionType.DATE,
+                MYTIMESTAMPCOLUMN: DimensionType.TIMESTAMP,
+                MYBOOLEANCOLUMN: DimensionType.BOOLEAN,
+                MYARRAYCOLUMN: DimensionType.STRING,
+                MYOBJECTCOLUMN: DimensionType.STRING,
+            },
+        },
+    },
+};
+
+export const expectedFields: Record<string, any> = {
+    MYSTRINGCOLUMN: { type: DimensionType.STRING },
+    MYNUMBERCOLUMN: { type: DimensionType.NUMBER },
+    MYDATECOLUMN: { type: DimensionType.DATE },
+    MYTIMESTAMPCOLUMN: { type: DimensionType.TIMESTAMP },
+    MYBOOLEANCOLUMN: { type: DimensionType.BOOLEAN },
+    MYARRAYCOLUMN: { type: DimensionType.STRING },
+    MYOBJECTCOLUMN: { type: DimensionType.STRING },
+};
+
+export const expectedRow: Record<string, any> = {
+    MYSTRINGCOLUMN: 'string value',
+    MYNUMBERCOLUMN: 100,
+    MYDATECOLUMN: new Date('2021-03-10T00:00:00.000Z'),
+    MYTIMESTAMPCOLUMN: new Date('1990-03-02T08:30:00.010Z'),
+    MYBOOLEANCOLUMN: false,
+    MYARRAYCOLUMN: '1,2,3',
+    MYOBJECTCOLUMN: '[object Object]',
+};

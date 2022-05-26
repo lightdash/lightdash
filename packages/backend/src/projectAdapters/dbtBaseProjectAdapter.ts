@@ -135,6 +135,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 validModels,
                 this.cachedWarehouse.warehouseCatalog,
                 true,
+                adapterType !== 'snowflake',
             );
             Logger.debug('Convert explores');
             const lazyExplores = await convertExplores(
@@ -169,6 +170,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     validModels,
                     warehouseCatalog,
                     false,
+                    adapterType !== 'snowflake',
                 );
                 Logger.debug('Convert explores after missing catalog error');
                 const explores = await convertExplores(

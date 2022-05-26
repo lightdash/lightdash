@@ -562,6 +562,16 @@ export const warehouseSchemaWithMissingColumn: WarehouseCatalog = {
     },
 };
 
+export const warehouseSchemaWithUpperCaseColumn: WarehouseCatalog = {
+    [model.database]: {
+        [model.schema]: {
+            [model.name]: {
+                [column.name.toUpperCase()]: DimensionType.STRING,
+            },
+        },
+    },
+};
+
 export const expectedModelWithType: DbtModelNode = {
     ...model,
     columns: {
