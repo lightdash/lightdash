@@ -96,12 +96,17 @@ export const useJob = (
     onSuccess: (job: Job) => void,
     onError: (error: ApiError) => void,
 ) => {
+    const queryClient = useQueryClient();
+
     return useQuery<Job, ApiError>({
         queryKey: ['job', jobId],
         queryFn: () => getJob(jobId || ''),
         enabled: !!jobId,
         refetchInterval: (data) => data?.jobStatus === 'RUNNING' && 500,
-        onSuccess,
+        onSuccess: (job) => {
+            queryClient.invalidateQueries('tables');
+            onSuccess(job);
+        },
         onError,
     });
 };
