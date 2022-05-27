@@ -58,9 +58,14 @@ type GenerateModelYamlArgs = {
 };
 const generateModelYml = ({ model, table }: GenerateModelYamlArgs) => ({
     name: model.name,
-    columns: Object.entries(table).map(([columnName]) => ({
+    columns: Object.entries(table).map(([columnName, dimensionType]) => ({
         name: columnName,
         description: '',
+        meta: {
+            dimension: {
+                type: dimensionType,
+            },
+        },
     })),
 });
 
