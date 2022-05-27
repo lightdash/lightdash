@@ -63,6 +63,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
         const spinner = ora(
             `  Generating .yml for model ${styles.bold(compiledModel.name)}`,
         ).start();
+
         try {
             const table = await getWarehouseTableForModel({
                 model: compiledModel,
@@ -72,6 +73,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                 model: compiledModel,
                 table,
                 docs: manifest.docs,
+                spinner,
             });
             try {
                 await fs.writeFile(

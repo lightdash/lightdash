@@ -8,6 +8,8 @@ import {
     patchPathParts,
 } from '@lightdash/common';
 import { WarehouseClient, WarehouseTableSchema } from '@lightdash/warehouses';
+import inquirer from 'inquirer';
+import ora from 'ora';
 import * as path from 'path';
 import { loadYamlSchema, YamlSchema } from './schema';
 
@@ -59,26 +61,58 @@ type UpdatedModelYmlFileArgs = {
     model: CompiledModel;
     table: WarehouseTableSchema;
     docs: Record<string, Doc>;
+    spinner: ora.Ora;
+};
+
+const askOverwrite = async (message: string): Promise<boolean> => {
+    const answers = await inquirer.prompt([
+        {
+            type: 'confirm',
+            name: 'isConfirm',
+            message,
+        },
+    ]);
+    if (!answers.isConfirm) {
+        return false;
+    }
+    return true;
+};
+
+const askOverwriteDescription = async (
+    columnName: string,
+    existingDescription: string | undefined,
+    newDescription: string | undefined,
+    spinner: ora.Ora,
+): Promise<string> => {
+    if (!existingDescription) return newDescription || '';
+    if (!newDescription) return existingDescription;
+    
+        const shortDescription = `${existingDescription.substring(0, 20)}${
+            existingDescription.length > 20 ? '...' : ''
+        }`;
+        const overwriteMessage = `Do you want to overwrite the existing column "${columnName}" description (${shortDescription}) with a doc block?`;
+        spinner.stop();
+        const overwrite = await askOverwrite(overwriteMessage);
+        spinner.start();
+        if (overwrite) return newDescription;
+        return existingDescription;
+    
 };
 export const updateModelYmlFile = async ({
     model,
     table,
     docs,
+    spinner,
 }: UpdatedModelYmlFileArgs): Promise<{
     updatedYml: YamlSchema;
     outputFilePath: string;
 }> => {
     const generatedModel = {
         name: model.name,
-        columns: Object.entries(table).map(([columnName]) => {
-            const hasDoc = Object.values(docs).find(
-                (doc) => doc.name === columnName,
-            );
-            return {
+        columns: Object.entries(table).map(([columnName]) => ({
                 name: columnName,
-                description: hasDoc ? `{{doc("${columnName}")}}` : '',
-            };
-        }),
+                description: '',
+            })),
     };
     if (model.patchPath) {
         const { path: yamlSubpath } = patchPathParts(model.patchPath);
@@ -95,13 +129,39 @@ export const updateModelYmlFile = async ({
         }
         const existingModel = models[existingModelIndex];
         const existingColumns = existingModel.columns || [];
+        const existingColumnsUpdatedPromise = existingColumns?.map(
+            async (column) => {
+                const hasDoc = Object.values(docs).find(
+                    (doc) => doc.name === column.name,
+                );
+                const newDescription = hasDoc
+                    ? `{{doc("${column.name}")}}`
+                    : '';
+                const existingDescription = column.description;
+
+                return {
+                    ...column,
+                    name: column.name,
+                    description: await askOverwriteDescription(
+                        column.name,
+                        existingDescription,
+                        newDescription,
+                        spinner,
+                    ),
+                };
+            },
+        );
+        const existingColumnsUpdated = await Promise.all(
+            existingColumnsUpdatedPromise,
+        );
+
         const existingColumnNames = existingColumns.map((c) => c.name);
         const newColumns = generatedModel.columns.filter(
             (c) => !existingColumnNames.includes(c.name),
         );
         const updatedModel = {
             ...existingModel,
-            columns: [...existingColumns, ...newColumns],
+            columns: [...existingColumnsUpdated, ...newColumns],
         };
         const updatedYml: YamlSchema = {
             ...existingYml,

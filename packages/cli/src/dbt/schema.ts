@@ -9,7 +9,7 @@ type YamlColumn = {
     description?: string;
 };
 
-type YamlModel = {
+export type YamlModel = {
     name: string;
     description?: string;
     columns?: YamlColumn[];
