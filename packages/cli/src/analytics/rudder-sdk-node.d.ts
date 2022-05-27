@@ -35,6 +35,7 @@ declare module '@rudderstack/rudder-sdk-node' {
         identify(payload: Identify): void;
         track(payload: Track): void;
         group(payload: Group): void;
+        flush(callback: (err, batch) => void): void;
     }
 
     export default Analytics;

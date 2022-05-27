@@ -9,41 +9,41 @@ const { version: VERSION } = require('../../package.json');
 type BaseTrack = Omit<AnalyticsTrack, 'context'>;
 
 type CliInstallStarted = BaseTrack & {
-    event: 'cli_install_started';
+    event: 'install_started';
 };
 type CliInstallCompleted = BaseTrack & {
-    event: 'cli_install_completed';
+    event: 'install_completed';
 };
 type CliGenerateStarted = BaseTrack & {
-    event: 'cli_generate_started';
+    event: 'generate_started';
     properties: {
         numModelsSelected: number | undefined;
         trigger: string; // generate or dbt
     };
 };
 type CliGenerateCompleted = BaseTrack & {
-    event: 'cli_generate_completed';
+    event: 'generate_completed';
     properties: {
         numModelsSelected: number | undefined;
         trigger: string; // generate or dbt
     };
 };
 type CliGenerateError = BaseTrack & {
-    event: 'cli_generate_error';
+    event: 'generate_error';
     properties: {
         trigger: string;
         error: string;
     };
 };
 type CliDbtCommand = BaseTrack & {
-    event: 'cli_dbt_command';
+    event: 'dbt_command';
     properties: {
         command: string;
     };
 };
 
 type CliDbtError = BaseTrack & {
-    event: 'cli_dbt_error';
+    event: 'dbt_error';
     properties: {
         command: string;
         error: string;
@@ -68,6 +68,7 @@ class LightdashAnalytics extends Analytics {
     };
 
     track(payload: Track) {
+        console.log('adding tracking ', payload.event);
         super.track({
             anonymousId: uuidv4(),
             ...payload,
@@ -75,12 +76,19 @@ class LightdashAnalytics extends Analytics {
             context: { ...LightdashAnalytics.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
         });
     }
+
+    async flush(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            super.flush((err: any, batch: any) => {
+                console.log('flush', err, batch);
+                if (err) return reject(err);
+                return resolve(batch);
+            });
+        });
+    }
 }
 
 export const analytics: LightdashAnalytics = new LightdashAnalytics(
-    '1u1wwlT1wrKltYqbctwmDRJk69M',
+    '1vqkSlWMVtYOl70rk3QSE0v1fqY',
     'https://analytics.lightdash.com/v1/batch',
-    {
-        enable: true,
-    },
 );

@@ -45,7 +45,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
         ? options.select.length
         : undefined;
     analytics.track({
-        event: 'cli_generate_started',
+        event: 'generate_started',
         properties: {
             trigger: 'generate',
             numModelsSelected,
@@ -100,16 +100,9 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                     ` ➡️  ${path.relative(process.cwd(), outputFilePath)}`,
                 )}`,
             );
-            analytics.track({
-                event: 'cli_generate_completed',
-                properties: {
-                    trigger: 'generate',
-                    numModelsSelected,
-                },
-            });
         } catch (e: any) {
             analytics.track({
-                event: 'cli_generate_error',
+                event: 'generate_error',
                 properties: {
                     trigger: 'generate',
                     error: `${e.message}`,
@@ -119,4 +112,16 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
             throw e;
         }
     }
+
+    analytics.track({
+        event: 'generate_completed',
+        properties: {
+            trigger: 'generate',
+            numModelsSelected,
+        },
+    });
+
+    console.log('before flush');
+    const f = await analytics.flush();
+    console.log('after flush', f);
 };
