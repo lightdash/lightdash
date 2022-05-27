@@ -12,6 +12,7 @@
     "dependencies": {
         "@lightdash/common": "^0.120.1",
         "@lightdash/warehouses": "^0.120.1",
+        "@rudderstack/rudder-sdk-node": "^1.0.7",
         "@types/inquirer": "^8.2.1",
         "@types/nunjucks": "^3.2.1",
         "ajv": "^8.11.0",
@@ -23,8 +24,9 @@
         "js-yaml": "^4.1.0",
         "nunjucks": "^3.2.3",
         "ora": "5.4.1",
-        "@rudderstack/rudder-sdk-node": "^1.0.7",
-        "uuid": "^8.3.2"
+        "uuid": "^8.3.2",
+        "node-fetch": "^2.6.1"
+
     },
     "description": "Lightdash CLI tool",
     "devDependencies": {
@@ -46,7 +48,7 @@
         "build": "tsc --build tsconfig.json",
         "lint": "eslint ./src",
         "format": "prettier --check --ignore-unknown ./src",
-        "preinstall": "sh track.sh started",
-        "postinstall": "sh track.sh completed"
+        "preinstall": "bash track.sh started",
+        "postinstall": "bash track.sh completed"
     }
 }

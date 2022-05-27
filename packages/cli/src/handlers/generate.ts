@@ -5,7 +5,7 @@ import inquirer from 'inquirer';
 import * as yaml from 'js-yaml';
 import ora from 'ora';
 import * as path from 'path';
-import { analytics } from '../analytics/analytics';
+import { LightdashAnalytics } from '../analytics/analytics';
 import { getDbtContext } from '../dbt/context';
 import { loadManifest } from '../dbt/manifest';
 import {
@@ -44,7 +44,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     const numModelsSelected = options.select
         ? options.select.length
         : undefined;
-    analytics.track({
+    LightdashAnalytics.track({
         event: 'generate_started',
         properties: {
             trigger: 'generate',
@@ -101,7 +101,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                 )}`,
             );
         } catch (e: any) {
-            analytics.track({
+            LightdashAnalytics.track({
                 event: 'generate_error',
                 properties: {
                     trigger: 'generate',
@@ -113,15 +113,11 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
         }
     }
 
-    analytics.track({
+    await LightdashAnalytics.track({
         event: 'generate_completed',
         properties: {
             trigger: 'generate',
             numModelsSelected,
         },
     });
-
-    console.log('before flush');
-    const f = await analytics.flush();
-    console.log('after flush', f);
 };

@@ -1,6 +1,6 @@
 import { ParseError } from '@lightdash/common';
 import execa from 'execa';
-import { analytics } from '../../analytics/analytics';
+import { LightdashAnalytics } from '../../analytics/analytics';
 import { generateHandler } from '../generate';
 
 type DbtRunHandlerOptions = {
@@ -14,7 +14,7 @@ export const dbtRunHandler = async (
     options: DbtRunHandlerOptions,
     command: any,
 ) => {
-    analytics.track({
+    LightdashAnalytics.track({
         event: 'dbt_command',
         properties: {
             command: `${command.parent.args}`,
@@ -26,7 +26,7 @@ export const dbtRunHandler = async (
         });
         await subprocess;
     } catch (e: any) {
-        analytics.track({
+        LightdashAnalytics.track({
             event: 'dbt_error',
             properties: {
                 command: `${command.parent.args}`,

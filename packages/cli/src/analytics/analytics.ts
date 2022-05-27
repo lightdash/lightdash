@@ -1,10 +1,15 @@
-/// <reference path="rudder-sdk-node.d.ts" />
-import Analytics, {
-    Track as AnalyticsTrack,
-} from '@rudderstack/rudder-sdk-node';
+import fetch from 'node-fetch';
 import { v4 as uuidv4 } from 'uuid';
 
 const { version: VERSION } = require('../../package.json');
+
+export interface AnalyticsTrack {
+    userId?: string;
+    anonymousId?: string;
+    event: string;
+    properties?: Record<string, any>;
+    context?: Record<string, any>;
+}
 
 type BaseTrack = Omit<AnalyticsTrack, 'context'>;
 
@@ -58,37 +63,32 @@ type Track =
     | CliDbtCommand
     | CliDbtError;
 
-class LightdashAnalytics extends Analytics {
-    static lightdashContext = {
-        app: {
-            namespace: 'lightdash',
-            name: 'lightdash_cli',
-            version: VERSION,
-        },
-    };
+export class LightdashAnalytics {
+    static async track(payload: Track): Promise<void> {
+        const lightdashContext = {
+            app: {
+                namespace: 'lightdash',
+                name: 'lightdash_cli',
+                version: VERSION,
+            },
+        };
 
-    track(payload: Track) {
-        console.log('adding tracking ', payload.event);
-        super.track({
+        console.log('adding request tracking ', payload.event);
+        const headers = {
+            Authorization: 'Basic MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg==',
+        };
+        const body = {
             anonymousId: uuidv4(),
             ...payload,
-            event: `${LightdashAnalytics.lightdashContext.app.name}.${payload.event}`,
-            context: { ...LightdashAnalytics.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
-        });
-    }
-
-    async flush(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            super.flush((err: any, batch: any) => {
-                console.log('flush', err, batch);
-                if (err) return reject(err);
-                return resolve(batch);
-            });
+            event: `${lightdashContext.app.name}.${payload.event}`,
+            context: { ...lightdashContext },
+        };
+        await fetch('https://analytics.lightdash.com/v1/track', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(body),
         });
     }
 }
 
-export const analytics: LightdashAnalytics = new LightdashAnalytics(
-    '1vqkSlWMVtYOl70rk3QSE0v1fqY',
-    'https://analytics.lightdash.com/v1/batch',
-);
+export const analytics: LightdashAnalytics = new LightdashAnalytics();
