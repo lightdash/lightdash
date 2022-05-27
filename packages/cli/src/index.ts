@@ -150,6 +150,7 @@ ${styles.bold('Examples:')}
         )}
 `,
     )
+
     .option(
         '-s, --select <models...>',
         'specify models (accepts dbt selection syntax)',
