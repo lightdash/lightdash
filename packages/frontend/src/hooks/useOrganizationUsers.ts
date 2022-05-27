@@ -1,7 +1,7 @@
 import {
     ApiError,
     OrganizationMemberProfile,
-    SessionUser,
+    OrganizationMemberProfileUpdate,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
@@ -22,7 +22,10 @@ const deleteUserQuery = async (id: string) =>
         body: undefined,
     });
 
-export const updateUser = async (id: string, data: { role: string }) =>
+export const updateUser = async (
+    id: string,
+    data: OrganizationMemberProfileUpdate,
+) =>
     lightdashApi<undefined>({
         url: `/org/users/${id}`,
         method: 'PATCH',
@@ -61,7 +64,7 @@ export const useDeleteUserMutation = () => {
 export const useUpdateUserMutation = (userUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
-    return useMutation<undefined, ApiError, SessionUser>(
+    return useMutation<undefined, ApiError, OrganizationMemberProfileUpdate>(
         (data) => {
             if (userUuid) {
                 return updateUser(userUuid, data);
@@ -76,9 +79,9 @@ export const useUpdateUserMutation = (userUuid: string) => {
                     'organization_memberships',
                     'organization_users',
                 ]);
-                queryClient.refetchQueries('organization_users');
+                await queryClient.refetchQueries('organization_users');
                 showToastSuccess({
-                    title: `Success! Project was updated.`,
+                    title: `Success! User was updated.`,
                 });
             },
             onError: (error) => {

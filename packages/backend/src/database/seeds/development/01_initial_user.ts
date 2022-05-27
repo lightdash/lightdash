@@ -23,7 +23,10 @@ import { lightdashConfig } from '../../../config/lightdashConfig';
 import { projectModel } from '../../../models/models';
 import { EncryptionService } from '../../../services/EncryptionService/EncryptionService';
 import { projectService } from '../../../services/services';
+import { DbEmailIn } from '../../entities/emails';
 import { OnboardingTableName } from '../../entities/onboarding';
+import { DbOrganizationIn } from '../../entities/organizations';
+import { DbUserIn } from '../../entities/users';
 
 export async function seed(knex: Knex): Promise<void> {
     // Deletes ALL existing entries
@@ -31,10 +34,10 @@ export async function seed(knex: Knex): Promise<void> {
     await knex('organizations').del();
 
     const addUser = async (
-        seedOrganization: any,
-        seedUser: any,
-        seedEmail: any,
-        seedPassword: any,
+        seedOrganization: DbOrganizationIn,
+        seedUser: DbUserIn,
+        seedEmail: Omit<DbEmailIn, 'user_id'>,
+        seedPassword: { password: string },
     ) => {
         const [organizationId] = await knex('organizations')
             .insert(seedOrganization)

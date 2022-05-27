@@ -2,9 +2,11 @@ import {
     NotFoundError,
     OrganizationMemberProfile,
     OrganizationMemberProfileUpdate,
+    OrganizationMemberRole,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { DbEmail, EmailTableName } from '../database/entities/emails';
+import { EmailTableName } from '../database/entities/emails';
+import { InviteLinkTableName } from '../database/entities/inviteLinks';
 import {
     DbOrganizationMembership,
     DbOrganizationMembershipIn,
@@ -16,10 +18,27 @@ import {
 } from '../database/entities/organizations';
 import { DbUser, UserTableName } from '../database/entities/users';
 
-type DbOrganizationMemberProfile = DbUser &
-    DbOrganizationMembership &
-    DbOrganization &
-    DbEmail;
+type DbOrganizationMemberProfile = {
+    user_uuid: string;
+    first_name: string;
+    last_name: string;
+    is_active: boolean;
+    email: string;
+    organization_uuid: string;
+    role: OrganizationMemberRole;
+    expires_at?: Date;
+};
+
+const SelectColumns = [
+    `${UserTableName}.user_uuid`,
+    `${UserTableName}.first_name`,
+    `${UserTableName}.last_name`,
+    `${UserTableName}.is_active`,
+    `${EmailTableName}.email`,
+    `${OrganizationTableName}.organization_uuid`,
+    `${OrganizationMembershipsTableName}.role`,
+    `${InviteLinkTableName}.expires_at`,
+];
 
 export class OrganizationMemberProfileModel {
     private readonly database: Knex;
@@ -44,6 +63,11 @@ export class OrganizationMemberProfileModel {
                     OrganizationTableName,
                     `${OrganizationMembershipsTableName}.organization_id`,
                     `${OrganizationTableName}.organization_id`,
+                )
+                .leftJoin(
+                    InviteLinkTableName,
+                    `${UserTableName}.user_uuid`,
+                    `${InviteLinkTableName}.user_uuid`,
                 );
     }
 
@@ -57,8 +81,10 @@ export class OrganizationMemberProfileModel {
             email: member.email,
             organizationUuid: member.organization_uuid,
             role: member.role,
-            isActive: true,
-            isInviteExpired: false,
+            isActive: member.is_active,
+            isInviteExpired:
+                !member.is_active &&
+                (!member.expires_at || member.expires_at < new Date()),
         };
     }
 
@@ -67,9 +93,13 @@ export class OrganizationMemberProfileModel {
         userUuid: string,
     ): Promise<OrganizationMemberProfile | undefined> {
         const [member] = await this.queryBuilder()
-            .where('user_uuid', userUuid)
-            .andWhere('organization_uuid', organizationUuid)
-            .select('*');
+            .where(`${UserTableName}.user_uuid`, userUuid)
+            .andWhere(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .select<DbOrganizationMemberProfile[]>(SelectColumns);
+
         return member && OrganizationMemberProfileModel.parseRow(member);
     }
 
@@ -77,9 +107,11 @@ export class OrganizationMemberProfileModel {
         organizationUuid: string,
     ): Promise<OrganizationMemberProfile[]> {
         const members = await this.queryBuilder()
-            .where('organization_uuid', organizationUuid)
-            .where('is_active', true)
-            .select('*');
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .select<DbOrganizationMemberProfile[]>(SelectColumns);
         return members.map(OrganizationMemberProfileModel.parseRow);
     }
 
@@ -87,9 +119,12 @@ export class OrganizationMemberProfileModel {
         organizationUuid: string,
     ): Promise<OrganizationMemberProfile[]> {
         const members = await this.queryBuilder()
-            .where('organization_uuid', organizationUuid)
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
             .andWhere('role', 'admin')
-            .select('*');
+            .select<DbOrganizationMemberProfile[]>(SelectColumns);
         return members.map(OrganizationMemberProfileModel.parseRow);
     }
 
@@ -127,15 +162,14 @@ export class OrganizationMemberProfileModel {
                 (DbOrganizationMemberProfile & DbOrganization & DbUser)[]
             >(
                 `
-UPDATE organization_memberships AS m
-SET role = :role
-    FROM organizations AS o, users AS u
-WHERE o.organization_id = m.organization_id
-  AND u.user_id = m.user_id
-  AND user_uuid = :userUuid
-  AND organization_uuid = :organizationUuid
-RETURNING *
-        `,
+                    UPDATE organization_memberships AS m
+                    SET role = :role FROM organizations AS o, users AS u
+                    WHERE o.organization_id = m.organization_id
+                      AND u.user_id = m.user_id
+                      AND user_uuid = :userUuid
+                      AND organization_uuid = :organizationUuid
+                        RETURNING *
+                `,
                 sqlParams,
             );
         }

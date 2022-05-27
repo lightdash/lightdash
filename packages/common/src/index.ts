@@ -127,6 +127,7 @@ export const SEED_ORG_1_ADMIN = {
     is_marketing_opted_in: true,
     is_tracking_anonymized: false,
     is_setup_complete: true,
+    is_active: true,
 };
 export const SEED_ORG_1_ADMIN_EMAIL = {
     email: 'demo@lightdash.com',
@@ -147,6 +148,7 @@ export const SEED_ORG_2_ADMIN = {
     is_marketing_opted_in: true,
     is_tracking_anonymized: false,
     is_setup_complete: true,
+    is_active: true,
 };
 export const SEED_ORG_2_ADMIN_EMAIL = {
     email: 'another@lightdash.com',
