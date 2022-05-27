@@ -73,10 +73,6 @@ export class LightdashAnalytics {
             },
         };
 
-        console.log('adding request tracking ', payload.event);
-        const headers = {
-            Authorization: 'Basic MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg==',
-        };
         const body = {
             anonymousId: uuidv4(),
             ...payload,
@@ -85,7 +81,9 @@ export class LightdashAnalytics {
         };
         await fetch('https://analytics.lightdash.com/v1/track', {
             method: 'POST',
-            headers,
+            headers: {
+                Authorization: 'Basic MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg==',
+            },
             body: JSON.stringify(body),
         });
     }
