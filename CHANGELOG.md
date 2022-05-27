@@ -1,3 +1,10 @@
+## [0.120.1](https://github.com/lightdash/lightdash/compare/0.120.0...0.120.1) (2022-05-27)
+
+
+### Bug Fixes
+
+* database field name in profiles.yml ([#2254](https://github.com/lightdash/lightdash/issues/2254)) ([8a6636a](https://github.com/lightdash/lightdash/commit/8a6636ac1ca5d14928829082c285ad51d80fe971))
+
 # [0.120.0](https://github.com/lightdash/lightdash/compare/0.119.3...0.120.0) (2022-05-27)
 
 
