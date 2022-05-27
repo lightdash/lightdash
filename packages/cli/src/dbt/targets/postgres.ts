@@ -13,7 +13,8 @@ export type PostgresTarget = {
     host: string;
     user: string;
     port: number;
-    dbname: string;
+    dbname?: string;
+    database?: string;
     schema: string;
     threads: number;
     pass?: string;
@@ -43,6 +44,11 @@ export const postgresSchema: JSONSchemaType<PostgresTarget> = {
         },
         dbname: {
             type: 'string',
+            nullable: true,
+        },
+        database: {
+            type: 'string',
+            nullable: true,
         },
         schema: {
             type: 'string',
@@ -79,7 +85,7 @@ export const postgresSchema: JSONSchemaType<PostgresTarget> = {
             nullable: true,
         },
     },
-    required: ['type', 'host', 'user', 'port', 'dbname', 'schema', 'threads'],
+    required: ['type', 'host', 'user', 'port', 'schema', 'threads'],
 };
 
 export const convertPostgresSchema = (
@@ -89,7 +95,15 @@ export const convertPostgresSchema = (
     if (validate(target)) {
         const password = target.pass || target.password;
         if (!password) {
-            throw new ParseError(`Postgres target requires a password`);
+            throw new ParseError(
+                `Postgres target requires a password: "password"`,
+            );
+        }
+        const dbname = target.dbname || target.database;
+        if (!dbname) {
+            throw new ParseError(
+                `Postgres target requires a database name: "database"`,
+            );
         }
         return {
             type: WarehouseTypes.POSTGRES,
@@ -97,7 +111,7 @@ export const convertPostgresSchema = (
             user: target.user,
             password,
             port: target.port,
-            dbname: target.dbname,
+            dbname,
             schema: target.schema,
             threads: target.threads,
             keepalivesIdle: target.keepalives_idle,
