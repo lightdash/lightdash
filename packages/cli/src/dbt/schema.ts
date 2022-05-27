@@ -20,7 +20,7 @@ export type YamlSchema = {
     models?: YamlModel[];
 };
 
-export const loadYamlSchema = async (path: string): Promise<YamlSchema> => {
+const loadYamlSchema = async (path: string): Promise<YamlSchema> => {
     const schemaFile = yaml.load(await fs.readFile(path, 'utf8'));
     const validate = ajv.compile<YamlSchema>(lightdashDbtYamlSchema);
     if (!validate(schemaFile)) {
@@ -34,4 +34,55 @@ export const loadYamlSchema = async (path: string): Promise<YamlSchema> => {
         );
     }
     return schemaFile;
+};
+
+type FindModelInYamlArgs = {
+    filename: string;
+    modelName: string;
+};
+const findModelInYaml = async ({
+    filename,
+    modelName,
+}: FindModelInYamlArgs) => {
+    try {
+        const existingYaml = await loadYamlSchema(filename);
+        const models = existingYaml.models || [];
+        const modelIndex = models.findIndex(
+            (model) => model.name === modelName,
+        );
+        if (modelIndex < 0) {
+            return undefined;
+        }
+        return {
+            doc: existingYaml as YamlSchema &
+                Required<Pick<YamlSchema, 'models'>>,
+            modelIndex,
+        };
+    } catch (e) {
+        if (e.code === 'ENOENT') {
+            return undefined;
+        }
+        throw e;
+    }
+};
+
+type SearchForModelArgs = {
+    modelName: string;
+    filenames: string[];
+};
+export const searchForModel = async ({
+    modelName,
+    filenames,
+}: SearchForModelArgs) => {
+    // eslint-disable-next-line no-restricted-syntax
+    for await (const filename of filenames) {
+        const results = await findModelInYaml({ filename, modelName });
+        if (results) {
+            return {
+                ...results,
+                filename,
+            };
+        }
+    }
+    return undefined;
 };

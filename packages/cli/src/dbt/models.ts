@@ -3,7 +3,6 @@ import {
     DbtManifest,
     DbtRawModelNode,
     isSupportedDbtAdapter,
-    LightdashError,
     normaliseModelDatabase,
     ParseError,
     patchPathParts,
@@ -12,7 +11,7 @@ import { WarehouseClient, WarehouseTableSchema } from '@lightdash/warehouses';
 import inquirer from 'inquirer';
 import ora from 'ora';
 import * as path from 'path';
-import { loadYamlSchema, YamlSchema } from './schema';
+import { searchForModel, YamlSchema } from './schema';
 
 type CompiledModel = {
     name: string;
@@ -106,45 +105,40 @@ const askOverwriteDescription = async (
     return existingDescription;
 };
 
-class ExistingModelNotFoundError extends LightdashError {
-    constructor(message: string) {
-        super({
-            message,
-            name: 'EXISTING_MODEL_NOT_FOUND',
-            statusCode: 404,
-            data: {},
-        });
-    }
-}
-type MergeModelYamlArgs = {
-    model: CompiledModel & { patchPath: string };
+type FindAndUpdateModelYamlArgs = {
+    model: CompiledModel;
     table: WarehouseTableSchema;
     docs: Record<string, Doc>;
     spinner: ora.Ora;
 };
-export const mergeModelYaml = async ({
+export const findAndUpdateModelYaml = async ({
     model,
     table,
     docs,
     spinner,
-}: MergeModelYamlArgs): Promise<{
+}: FindAndUpdateModelYamlArgs): Promise<{
     updatedYml: YamlSchema;
     outputFilePath: string;
 }> => {
-    const { path: yamlSubpath } = patchPathParts(model.patchPath);
-    const existingYamlPath = path.join(model.rootPath, yamlSubpath);
-    try {
-        const existingYml = await loadYamlSchema(existingYamlPath);
-        const models = existingYml.models || [];
-        const existingModelIndex = models.findIndex(
-            (m) => m.name === model.name,
-        );
-        if (existingModelIndex === -1) {
-            throw new ExistingModelNotFoundError(
-                `Expected to find model ${model.name} in ${existingYamlPath} but couldn't find it`,
-            );
-        }
-        const existingModel = models[existingModelIndex];
+    const generatedModel = generateModelYml({ model, table });
+    const filenames = [];
+    const { patchPath } = model;
+    if (patchPath) {
+        const { path: expectedYamlSubPath } = patchPathParts(patchPath);
+        const expectedYamlPath = path.join(model.rootPath, expectedYamlSubPath);
+        filenames.push(expectedYamlPath);
+    }
+    const defaultYmlPath = path.join(
+        path.dirname(path.join(model.rootPath, model.originalFilePath)),
+        `${model.name}.yml`,
+    );
+    filenames.push(defaultYmlPath);
+    const match = await searchForModel({
+        modelName: model.name,
+        filenames,
+    });
+    if (match) {
+        const existingModel = match.doc.models[match.modelIndex];
         const existingColumns = existingModel.columns || [];
         const existingColumnsUpdatedPromise = existingColumns?.map(
             async (column) => {
@@ -171,8 +165,6 @@ export const mergeModelYaml = async ({
         const existingColumnsUpdated = await Promise.all(
             existingColumnsUpdatedPromise,
         );
-        const generatedModel = generateModelYml({ model, table });
-
         const existingColumnNames = existingColumns.map((c) => c.name);
         const newColumns = generatedModel.columns.filter(
             (c) => !existingColumnNames.includes(c.name),
@@ -182,62 +174,25 @@ export const mergeModelYaml = async ({
             columns: [...existingColumnsUpdated, ...newColumns],
         };
         const updatedYml: YamlSchema = {
-            ...existingYml,
+            ...match.doc,
             models: [
-                ...models.slice(0, existingModelIndex),
+                ...match.doc.models.slice(0, match.modelIndex),
                 updatedModel,
-                ...models.slice(existingModelIndex + 1),
+                ...match.doc.models.slice(match.modelIndex + 1),
             ],
         };
         return {
             updatedYml,
-            outputFilePath: existingYamlPath,
+            outputFilePath: match.filename,
         };
-    } catch (e) {
-        if (e.code === 'ENOENT') {
-            throw new ExistingModelNotFoundError(
-                `Expected to find yaml file for model "${model.name}" at "${existingYamlPath}" but it doesn't exist. Do you need to run dbt compile?`,
-            );
-        }
-        throw e;
     }
-};
-export const updateModelYmlFile = async ({
-    model,
-    table,
-    docs,
-    spinner,
-}: MergeModelYamlArgs): Promise<{
-    updatedYml: YamlSchema;
-    outputFilePath: string;
-}> => {
-    const { patchPath } = model;
-    if (patchPath) {
-        try {
-            return await mergeModelYaml({
-                model: { ...model, patchPath },
-                table,
-                docs,
-                spinner,
-            });
-        } catch (e) {
-            if (!(e instanceof ExistingModelNotFoundError)) {
-                throw e;
-            }
-        }
-    }
-    const outputDir = path.dirname(
-        path.join(model.rootPath, model.originalFilePath),
-    );
-    const outputFilePath = path.join(outputDir, `${model.name}.yml`);
-    const generatedModel = generateModelYml({ model, table });
     const updatedYml = {
         version: 2 as const,
         models: [generatedModel],
     };
     return {
         updatedYml,
-        outputFilePath,
+        outputFilePath: defaultYmlPath,
     };
 };
 
