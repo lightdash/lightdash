@@ -3,6 +3,7 @@ import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
+import { DbEmail, EmailTableName } from '../database/entities/emails';
 import {
     DbInviteLink,
     InviteLinkTableName,
@@ -11,6 +12,7 @@ import {
     DbOrganization,
     OrganizationTableName,
 } from '../database/entities/organizations';
+import { DbUser, UserTableName } from '../database/entities/users';
 
 export class InviteLinkModel {
     private database: Knex;
@@ -21,13 +23,14 @@ export class InviteLinkModel {
 
     static mapDbObjectToInviteLink(
         inviteCode: string,
-        data: DbInviteLink & DbOrganization,
+        data: DbInviteLink & DbOrganization & DbUser & DbEmail,
     ): InviteLink {
         return {
             inviteCode,
             expiresAt: data.expires_at,
             inviteUrl: InviteLinkModel.transformInviteCodeToUrl(inviteCode),
             organisationUuid: data.organization_uuid,
+            userUuid: data.user_uuid,
             email: data.email,
         };
     }
@@ -55,8 +58,18 @@ export class InviteLinkModel {
                 `${InviteLinkTableName}.organization_id`,
                 `${OrganizationTableName}.organization_id`,
             )
+            .leftJoin(
+                UserTableName,
+                `${InviteLinkTableName}.user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .joinRaw(
+                `LEFT JOIN ${EmailTableName} ON ${UserTableName}.user_id = ${EmailTableName}.user_id AND ${EmailTableName}.is_primary`,
+            )
             .where('invite_code_hash', inviteCodeHash)
-            .select('*');
+            .select<Array<DbInviteLink & DbOrganization & DbUser & DbEmail>>(
+                '*',
+            );
         if (inviteLinks.length === 0) {
             throw new NotExistsError('No invite link found');
         }
@@ -66,11 +79,11 @@ export class InviteLinkModel {
         );
     }
 
-    async create(
+    async upsert(
         inviteCode: string,
         expiresAt: Date,
         organizationUuid: string,
-        email: string,
+        userUuid: string,
     ): Promise<InviteLink> {
         const inviteCodeHash = InviteLinkModel._hash(inviteCode);
         const orgs = await this.database('organizations')
@@ -80,12 +93,15 @@ export class InviteLinkModel {
             throw new NotExistsError('Cannot find organization');
         }
         const org = orgs[0];
-        await this.database('invite_links').insert({
-            organization_id: org.organization_id,
-            invite_code_hash: inviteCodeHash,
-            expires_at: expiresAt,
-            email,
-        });
+        await this.database('invite_links')
+            .insert({
+                organization_id: org.organization_id,
+                invite_code_hash: inviteCodeHash,
+                expires_at: expiresAt,
+                user_uuid: userUuid,
+            })
+            .onConflict('user_uuid')
+            .merge();
         return this.getByCode(inviteCode);
     }
 

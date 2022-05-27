@@ -29,6 +29,7 @@ export const user: SessionUser = {
             action: ['view', 'update', 'delete', 'create'],
         },
     ]),
+    isActive: true,
 };
 
 export const space: SpaceTable['base'] = {

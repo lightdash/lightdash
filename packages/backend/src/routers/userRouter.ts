@@ -6,7 +6,7 @@ import {
 import { userModel } from '../models/models';
 import { UserModel } from '../models/UserModel';
 import { userService } from '../services/services';
-import { sanitizeEmailParam, sanitizeStringParam } from '../utils';
+import { sanitizeStringParam } from '../utils';
 
 export const userRouter = express.Router();
 
@@ -19,12 +19,11 @@ userRouter.get('/', isAuthenticated, async (req, res) => {
 
 userRouter.post('/', unauthorisedInDemo, async (req, res, next) => {
     try {
-        const lightdashUser = await userService.createFromInvite(
+        const lightdashUser = await userService.activateUserFromInvite(
             req.body.inviteCode,
             {
                 firstName: sanitizeStringParam(req.body.firstName),
                 lastName: sanitizeStringParam(req.body.lastName),
-                email: sanitizeEmailParam(req.body.email),
                 password: sanitizeStringParam(req.body.password),
             },
         );

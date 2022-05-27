@@ -30,10 +30,13 @@ const revokeInvitesQuery = async () =>
     });
 
 const createInviteWith3DayExpiryQuery = async (
-    email: string,
+    createInvite: Omit<CreateInviteLink, 'expiresAt'>,
 ): Promise<InviteLink> => {
     const dateIn3Days = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-    const response = await createInviteQuery({ expiresAt: dateIn3Days, email });
+    const response = await createInviteQuery({
+        ...createInvite,
+        expiresAt: dateIn3Days,
+    });
     return response;
 };
 
@@ -53,26 +56,27 @@ export const useInviteLink = (inviteCode: string) =>
 export const useCreateInviteLinkMutation = () => {
     const queryClient = useQueryClient();
     const { showToastError, showToastSuccess } = useApp();
-    return useMutation<InviteLink, ApiError, string>(
-        createInviteWith3DayExpiryQuery,
-        {
-            mutationKey: ['invite_link'],
-            onError: (error1) => {
-                const [title, ...rest] = error1.error.message.split('\n');
-                showToastError({
-                    title,
-                    subtitle: rest.join('\n'),
-                });
-            },
-            onSuccess: async (data) => {
-                await queryClient.invalidateQueries(['onboarding-status']);
-                showToastSuccess({
-                    title: 'Created new invite link',
-                    subtitle: `Expires on ${formatTimestamp(data.expiresAt)}`,
-                });
-            },
+    return useMutation<
+        InviteLink,
+        ApiError,
+        Omit<CreateInviteLink, 'expiresAt'>
+    >(createInviteWith3DayExpiryQuery, {
+        mutationKey: ['invite_link'],
+        onError: (error1) => {
+            const [title, ...rest] = error1.error.message.split('\n');
+            showToastError({
+                title,
+                subtitle: rest.join('\n'),
+            });
         },
-    );
+        onSuccess: async (data) => {
+            await queryClient.invalidateQueries(['onboarding-status']);
+            showToastSuccess({
+                title: 'Created new invite link',
+                subtitle: `Expires on ${formatTimestamp(data.expiresAt)}`,
+            });
+        },
+    });
 };
 
 export const useRevokeInvitesMutation = () => {

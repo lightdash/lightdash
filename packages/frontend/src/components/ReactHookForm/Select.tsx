@@ -2,11 +2,14 @@ import { HTMLSelect } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 
-interface SelectFieldProps extends Omit<InputWrapperProps, 'render'> {
+type SelectFieldProps = {
     options: React.ComponentProps<typeof HTMLSelect>['options'];
-}
+};
 
-const Select: FC<SelectFieldProps> = ({ options, ...rest }) => (
+const Select: FC<Omit<InputWrapperProps, 'render'> & SelectFieldProps> = ({
+    options,
+    ...rest
+}) => (
     <InputWrapper
         {...rest}
         render={(props, { field }) => (

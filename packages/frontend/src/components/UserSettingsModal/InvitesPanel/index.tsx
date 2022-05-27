@@ -1,12 +1,13 @@
-import { Button, Callout, Card, InputGroup, Intent } from '@blueprintjs/core';
-import { formatTimestamp } from '@lightdash/common';
-import React, { FC } from 'react';
+import { Button, Card, InputGroup, Intent } from '@blueprintjs/core';
+import {
+    CreateInviteLink,
+    formatTimestamp,
+    OrganizationMemberRole,
+} from '@lightdash/common';
+import React, { FC, useEffect } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useForm } from 'react-hook-form';
-import {
-    useCreateInviteLinkMutation,
-    useRevokeInvitesMutation,
-} from '../../../hooks/useInviteLink';
+import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -17,6 +18,7 @@ import {
     InviteForm,
     InviteFormGroup,
     Panel,
+    RoleSelectButton,
     ShareLinkCallout,
     SubmitButton,
 } from './InvitesPanel.styles';
@@ -26,18 +28,30 @@ const InvitePanel: FC<{
 }> = ({ onBackClick }) => {
     const { track } = useTracking();
     const { showToastSuccess } = useApp();
-    const inviteLink = useCreateInviteLinkMutation();
-    const revokeInvitesMutation = useRevokeInvitesMutation();
-    const methods = useForm<{ email: string }>({
+    const { data, mutate, isError, isLoading, isSuccess } =
+        useCreateInviteLinkMutation();
+    const methods = useForm<Omit<CreateInviteLink, 'expiresAt'>>({
         mode: 'onSubmit',
+        defaultValues: {
+            role: OrganizationMemberRole.EDITOR,
+        },
     });
 
-    const handleSubmit = (formData: { email: string }) => {
+    useEffect(() => {
+        if (isError) {
+            methods.reset({ ...methods.getValues() }, { keepValues: true });
+        }
+        if (isSuccess) {
+            methods.setValue('email', '');
+            methods.setValue('role', OrganizationMemberRole.EDITOR);
+        }
+    }, [isError, methods, isSuccess]);
+
+    const handleSubmit = (formData: Omit<CreateInviteLink, 'expiresAt'>) => {
         track({
             name: EventName.INVITE_BUTTON_CLICKED,
         });
-        inviteLink.mutate(formData.email);
-        methods.setValue('email', '');
+        mutate(formData);
     };
 
     return (
@@ -57,7 +71,7 @@ const InvitePanel: FC<{
                         name="email"
                         label="Enter user email address"
                         placeholder="example@gmail.com"
-                        disabled={inviteLink.isLoading}
+                        disabled={isLoading}
                         rules={{
                             required: 'Required field',
                             validate: {
@@ -65,19 +79,32 @@ const InvitePanel: FC<{
                             },
                         }}
                     />
+                    <RoleSelectButton
+                        name="role"
+                        disabled={isLoading}
+                        options={Object.values(OrganizationMemberRole).map(
+                            (orgMemberRole) => ({
+                                value: orgMemberRole,
+                                label: orgMemberRole,
+                            }),
+                        )}
+                        rules={{
+                            required: 'Required field',
+                        }}
+                    />
                     <SubmitButton
                         intent={Intent.PRIMARY}
                         text="Generate invite"
                         type="submit"
-                        disabled={inviteLink.isLoading}
+                        disabled={isLoading}
                     />
                 </InviteForm>
             </Card>
-            {inviteLink.data && (
+            {data && (
                 <InviteFormGroup
                     label={
                         <span>
-                            <b>{inviteLink.data.email}</b>'s invite link
+                            <b>{data.email}</b>'s invite link
                         </span>
                     }
                     labelFor="invite-link-input"
@@ -87,10 +114,10 @@ const InvitePanel: FC<{
                         className="cohere-block"
                         type="text"
                         readOnly
-                        value={inviteLink.data.inviteUrl}
+                        value={data.inviteUrl}
                         rightElement={
                             <CopyToClipboard
-                                text={inviteLink.data.inviteUrl}
+                                text={data.inviteUrl}
                                 options={{ message: 'Copied' }}
                                 onCopy={() =>
                                     showToastSuccess({
@@ -103,27 +130,12 @@ const InvitePanel: FC<{
                         }
                     />
                     <ShareLinkCallout intent="primary">
-                        Share this link with {inviteLink.data.email} and they
-                        can join your organization. This link will expire at{' '}
-                        <b>{formatTimestamp(inviteLink.data.expiresAt)}</b>
+                        Share this link with {data.email} and they can join your
+                        organization. This link will expire at{' '}
+                        <b>{formatTimestamp(data.expiresAt)}</b>
                     </ShareLinkCallout>
                 </InviteFormGroup>
             )}
-            <Callout intent="warning" style={{ marginTop: 20 }}>
-                <p>This action will revoke all pending invitations.</p>
-                <Button
-                    intent="danger"
-                    text="Revoke all invites"
-                    loading={inviteLink.isLoading}
-                    onClick={() => {
-                        track({
-                            name: EventName.REVOKE_INVITES_BUTTON_CLICKED,
-                        });
-                        revokeInvitesMutation.mutate();
-                        inviteLink.reset();
-                    }}
-                />
-            </Callout>
         </Panel>
     );
 };

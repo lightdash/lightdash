@@ -33,7 +33,7 @@ inviteLinksRouter.post(
         try {
             const createInviteLink = req.body as CreateInviteLink;
             const user = req.user!;
-            const inviteLink = await userService.createOrganizationInviteLink(
+            const inviteLink = await userService.createPendingUserAndInviteLink(
                 user,
                 createInviteLink,
             );

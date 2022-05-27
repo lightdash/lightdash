@@ -1,4 +1,5 @@
 import {
+    ActivateUser,
     AuthorizationError,
     CompleteUserArgs,
     CreateInviteLink,
@@ -86,30 +87,34 @@ export class UserService {
         this.organizationMemberProfileModel = organizationMemberProfileModel;
     }
 
-    async createFromInvite(
+    async activateUserFromInvite(
         inviteCode: string,
-        createUser: CreateUserArgs | OpenIdUser,
+        activateUser: ActivateUser | OpenIdUser,
     ): Promise<LightdashUser> {
         if (
-            !isOpenIdUser(createUser) &&
+            !isOpenIdUser(activateUser) &&
             lightdashConfig.auth.disablePasswordAuthentication
         ) {
             throw new ForbiddenError('Password credentials are not allowed');
         }
         const inviteLink = await this.inviteLinkModel.getByCode(inviteCode);
+        const userEmail = isOpenIdUser(activateUser)
+            ? activateUser.openId.email
+            : inviteLink.email;
         if (
             !(await this.verifyUserEmail(
                 inviteLink.organisationUuid,
-                isOpenIdUser(createUser)
-                    ? createUser.openId.email
-                    : createUser.email,
+                userEmail,
             ))
         ) {
             throw new AuthorizationError('Email domain not allowed');
         }
-        const user = await this.userModel.createUserFromInvite(
-            inviteCode,
-            createUser,
+        if (inviteLink.email !== userEmail) {
+            throw new AuthorizationError('Email does not match the invite');
+        }
+        const user = await this.userModel.activateUser(
+            inviteLink.userUuid,
+            activateUser,
         );
         await this.inviteLinkModel.deleteByCode(inviteLink.inviteCode);
         identifyUser(user);
@@ -158,7 +163,7 @@ export class UserService {
         });
     }
 
-    async createOrganizationInviteLink(
+    async createPendingUserAndInviteLink(
         user: SessionUser,
         createInviteLink: CreateInviteLink,
     ): Promise<InviteLink> {
@@ -166,7 +171,7 @@ export class UserService {
             throw new ForbiddenError();
         }
         const { organizationUuid } = user;
-        const { expiresAt, email } = createInviteLink;
+        const { expiresAt, email, role } = createInviteLink;
         const inviteCode = nanoid(30);
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
@@ -175,18 +180,43 @@ export class UserService {
         const existingUserWithEmail = await this.userModel.findUserByEmail(
             email,
         );
-        if (existingUserWithEmail) {
+        if (
+            existingUserWithEmail &&
+            existingUserWithEmail.organizationUuid !== organizationUuid
+        ) {
+            throw new ParameterError(
+                'Email is already used by a user in another organization',
+            );
+        }
+        if (existingUserWithEmail && existingUserWithEmail.isActive) {
             throw new ParameterError(
                 'Email is already used by a user in your organization',
             );
         }
 
-        const inviteLink = await this.inviteLinkModel.create(
+        let userUuid: string;
+        if (!existingUserWithEmail) {
+            const pendingUser = await this.userModel.createPendingUser(
+                organizationUuid,
+                {
+                    email,
+                    firstName: '',
+                    lastName: '',
+                    role,
+                },
+            );
+            userUuid = pendingUser.userUuid;
+        } else {
+            userUuid = existingUserWithEmail.userUuid;
+        }
+
+        const inviteLink = await this.inviteLinkModel.upsert(
             inviteCode,
             expiresAt,
             organizationUuid,
-            email,
+            userUuid,
         );
+
         analytics.track({
             userId: user.userUuid,
             event: 'invite_link.created',
@@ -262,15 +292,18 @@ export class UserService {
         }
 
         // Create user
-        return this.createUserWithOpenId(openIdUser, inviteCode);
+        return this.activateUserWithOpenId(openIdUser, inviteCode);
     }
 
-    async createUserWithOpenId(
+    async activateUserWithOpenId(
         openIdUser: OpenIdUser,
         inviteCode: string | undefined,
     ): Promise<SessionUser> {
         if (inviteCode) {
-            const user = await this.createFromInvite(inviteCode, openIdUser);
+            const user = await this.activateUserFromInvite(
+                inviteCode,
+                openIdUser,
+            );
             return this.userModel.findSessionUserByUUID(user.userUuid);
         }
         const user = await this.registerNewUserWithOrg(openIdUser);

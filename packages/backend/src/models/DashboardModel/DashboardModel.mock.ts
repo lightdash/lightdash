@@ -289,4 +289,5 @@ export const user: SessionUser = {
     ability: new Ability([
         { subject: 'Dashboard', action: ['update', 'delete', 'create'] },
     ]),
+    isActive: true,
 };
