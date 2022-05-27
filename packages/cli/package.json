@@ -21,7 +21,9 @@
         "inquirer": "^8.2.4",
         "js-yaml": "^4.1.0",
         "nunjucks": "^3.2.3",
-        "ora": "5.4.1"
+        "ora": "5.4.1",
+        "@rudderstack/rudder-sdk-node": "^1.0.7",
+        "uuid": "^8.3.2"
     },
     "description": "Lightdash CLI tool",
     "devDependencies": {
