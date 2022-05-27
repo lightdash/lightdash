@@ -1,6 +1,7 @@
 import {
     ApiQueryResults,
     CartesianChart,
+    CartesianSeriesType,
     CompiledField,
     convertAdditionalMetric,
     DimensionType,
@@ -24,8 +25,8 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { useMemo } from 'react';
-import { useVisualizationContext } from '../components/LightdashVisualization/VisualizationProvider';
-import { useOrganisation } from './organisation/useOrganisation';
+import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
+import { useOrganisation } from '../organisation/useOrganisation';
 
 const getLabelFromField = (
     fields: Array<Field | TableCalculation>,
@@ -64,6 +65,46 @@ const getAxisTypeFromField = (item?: Field): string => {
     } else {
         return 'value';
     }
+};
+
+export const getAxisDefaultMinValue = ({
+    min,
+    max,
+}: {
+    min: any;
+    max: any;
+}) => {
+    if (
+        isNaN(parseInt(min)) ||
+        isNaN(parseInt(max)) ||
+        min instanceof Date ||
+        max instanceof Date
+    ) {
+        return undefined;
+    } else if (min >= 0 && min > (max - min) * 3) {
+        return min;
+    }
+    return undefined;
+};
+
+export const getAxisDefaultMaxValue = ({
+    min,
+    max,
+}: {
+    min: any;
+    max: any;
+}) => {
+    if (
+        isNaN(parseInt(min)) ||
+        isNaN(parseInt(max)) ||
+        min instanceof Date ||
+        max instanceof Date
+    ) {
+        return undefined;
+    } else if (max < 0 && Math.abs(max) > Math.abs(min - max) * 3) {
+        return max;
+    }
+    return undefined;
 };
 
 export type EChartSeries = {
@@ -252,20 +293,22 @@ const getEchartAxis = ({
         | Record<string, Pick<CompiledField, 'round' | 'format'>>
         | undefined;
 }) => {
-    const xAxisItem = items.find(
-        (item) =>
-            getItemId(item) ===
-            (validCartesianConfig.layout.flipAxes
-                ? validCartesianConfig.layout?.yField?.[0]
-                : validCartesianConfig.layout?.xField),
+    const itemMap = items.reduce<Record<string, Field | TableCalculation>>(
+        (acc, item) => ({
+            ...acc,
+            [getItemId(item)]: item,
+        }),
+        {},
     );
-    const yAxisItem = items.find(
-        (item) =>
-            getItemId(item) ===
-            (validCartesianConfig.layout.flipAxes
-                ? validCartesianConfig.layout?.xField
-                : validCartesianConfig.layout?.yField?.[0]),
-    );
+    const xAxisItemId = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.layout?.yField?.[0]
+        : validCartesianConfig.layout?.xField;
+    const xAxisItem = xAxisItemId ? itemMap[xAxisItemId] : undefined;
+
+    const yAxisItemId = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.layout?.xField
+        : validCartesianConfig.layout?.yField?.[0];
+    const yAxisItem = yAxisItemId ? itemMap[yAxisItemId] : undefined;
 
     const defaultXAxisType = getAxisTypeFromField(
         isField(xAxisItem) ? xAxisItem : undefined,
@@ -305,6 +348,18 @@ const getEchartAxis = ({
         ? validCartesianConfig.eChartsConfig?.xAxis
         : validCartesianConfig.eChartsConfig?.yAxis;
 
+    const [allowFirstAxisDefaultRange, allowSecondAxisDefaultRange] = (
+        series || []
+    ).reduce<[boolean, boolean]>(
+        (acc, singleSeries) => {
+            if (singleSeries.type === CartesianSeriesType.BAR) {
+                acc[singleSeries.yAxisIndex || 0] = false;
+            }
+            return acc;
+        },
+        [true, true],
+    );
+
     const getAxisFormatter = (
         axisItem: Field | TableCalculation | undefined,
     ) => {
@@ -338,8 +393,16 @@ const getEchartAxis = ({
                       })
                     : xAxisConfiguration?.[0]?.name ||
                       (xAxisItem ? getItemLabel(xAxisItem) : undefined),
-                min: xAxisConfiguration?.[0]?.min || undefined,
-                max: xAxisConfiguration?.[0]?.max || undefined,
+                min: validCartesianConfig.layout.flipAxes
+                    ? xAxisConfiguration?.[0]?.min || allowFirstAxisDefaultRange
+                        ? getAxisDefaultMinValue
+                        : undefined
+                    : undefined,
+                max: validCartesianConfig.layout.flipAxes
+                    ? xAxisConfiguration?.[0]?.max || allowFirstAxisDefaultRange
+                        ? getAxisDefaultMaxValue
+                        : undefined
+                    : undefined,
                 nameLocation: 'center',
                 nameGap: 30,
                 nameTextStyle: {
@@ -360,8 +423,18 @@ const getEchartAxis = ({
                           series: validCartesianConfig.eChartsConfig.series,
                       })
                     : undefined,
-                min: xAxisConfiguration?.[1]?.min || undefined,
-                max: xAxisConfiguration?.[1]?.max || undefined,
+                min: validCartesianConfig.layout.flipAxes
+                    ? xAxisConfiguration?.[1]?.min ||
+                      allowSecondAxisDefaultRange
+                        ? getAxisDefaultMinValue
+                        : undefined
+                    : undefined,
+                max: validCartesianConfig.layout.flipAxes
+                    ? xAxisConfiguration?.[1]?.max ||
+                      allowSecondAxisDefaultRange
+                        ? getAxisDefaultMaxValue
+                        : undefined
+                    : undefined,
                 nameLocation: 'center',
                 nameGap: 30,
                 nameTextStyle: {
@@ -387,8 +460,16 @@ const getEchartAxis = ({
                           items,
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
-                min: yAxisConfiguration?.[0]?.min || undefined,
-                max: yAxisConfiguration?.[0]?.max || undefined,
+                min: !validCartesianConfig.layout.flipAxes
+                    ? yAxisConfiguration?.[0]?.min || allowFirstAxisDefaultRange
+                        ? getAxisDefaultMinValue
+                        : undefined
+                    : undefined,
+                max: !validCartesianConfig.layout.flipAxes
+                    ? yAxisConfiguration?.[0]?.max || allowFirstAxisDefaultRange
+                        ? getAxisDefaultMaxValue
+                        : undefined
+                    : undefined,
                 nameTextStyle: {
                     fontWeight: 'bold',
                     align: 'left',
@@ -410,8 +491,18 @@ const getEchartAxis = ({
                           items,
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
-                min: yAxisConfiguration?.[1]?.min || undefined,
-                max: yAxisConfiguration?.[1]?.max || undefined,
+                min: !validCartesianConfig.layout.flipAxes
+                    ? yAxisConfiguration?.[1]?.min ||
+                      allowSecondAxisDefaultRange
+                        ? getAxisDefaultMinValue
+                        : undefined
+                    : undefined,
+                max: !validCartesianConfig.layout.flipAxes
+                    ? yAxisConfiguration?.[1]?.max ||
+                      allowSecondAxisDefaultRange
+                        ? getAxisDefaultMaxValue
+                        : undefined
+                    : undefined,
                 nameTextStyle: {
                     fontWeight: 'bold',
                     align: 'right',

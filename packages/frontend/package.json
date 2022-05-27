@@ -52,7 +52,7 @@
     "scripts": {
         "start": "GENERATE_SOURCEMAP=false react-scripts start",
         "build": "GENERATE_SOURCEMAP=false react-scripts build",
-        "test": "react-scripts test",
+        "test": "react-scripts test --watchAll=false",
         "eject": "react-scripts eject",
         "lint": "eslint ./src",
         "fix-lint": "eslint --fix ./src",
