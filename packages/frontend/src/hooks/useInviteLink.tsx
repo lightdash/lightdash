@@ -71,6 +71,7 @@ export const useCreateInviteLinkMutation = () => {
         },
         onSuccess: async (data) => {
             await queryClient.invalidateQueries(['onboarding-status']);
+            await queryClient.refetchQueries(['organization_users']);
             showToastSuccess({
                 title: 'Created new invite link',
                 subtitle: `Expires on ${formatTimestamp(data.expiresAt)}`,

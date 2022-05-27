@@ -10,6 +10,7 @@ export const ORGANIZATION_VIEWER: OrganizationMemberProfile = {
     firstName: 'jane',
     lastName: 'jackson',
     email: 'jane@gmail.com',
+    isActive: true,
 };
 
 export const ORGANIZATION_EDITOR: OrganizationMemberProfile = {

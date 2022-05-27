@@ -11,19 +11,31 @@ import {
     OrganizationMemberRole,
 } from '@lightdash/common';
 import React, { FC, useState } from 'react';
+import CopyToClipboard from 'react-copy-to-clipboard';
+import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {
     useDeleteUserMutation,
     useOrganizationUsers,
     useUpdateUserMutation,
 } from '../../../hooks/useOrganizationUsers';
 import { useApp } from '../../../providers/AppProvider';
-import { TrackPage } from '../../../providers/TrackingProvider';
-import { CategoryName, PageName, PageType } from '../../../types/Events';
+import { TrackPage, useTracking } from '../../../providers/TrackingProvider';
+import {
+    CategoryName,
+    EventName,
+    PageName,
+    PageType,
+} from '../../../types/Events';
 import InvitesPanel from '../InvitesPanel';
 import {
     AddUserButton,
+    InviteInput,
     ItemContent,
+    NewLinkButton,
+    PendingEmail,
+    PendingTag,
     RoleSelectButton,
+    SectionWrapper,
     UserEmail,
     UserInfo,
     UserListItemWrapper,
@@ -34,50 +46,111 @@ import {
 const UserListItem: FC<{
     disabled: boolean;
     user: OrganizationMemberProfile;
-}> = ({ disabled, user: { userUuid, firstName, lastName, email, role } }) => {
+}> = ({
+    disabled,
+    user: {
+        userUuid,
+        firstName,
+        lastName,
+        email,
+        role,
+        isActive,
+        isInviteExpired,
+    },
+}) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const { mutate, isLoading: isDeleting } = useDeleteUserMutation();
+    const inviteLink = useCreateInviteLinkMutation();
+    const { track } = useTracking();
+    const { showToastSuccess } = useApp();
     const updateUser = useUpdateUserMutation(userUuid);
     const handleDelete = () => mutate(userUuid);
+
+    const getNewLink = () => {
+        track({
+            name: EventName.INVITE_BUTTON_CLICKED,
+        });
+        inviteLink.mutate({ email, role });
+    };
 
     return (
         <UserListItemWrapper elevation={0}>
             <ItemContent>
-                <UserInfo>
-                    <UserName className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
-                        {firstName} {lastName}
-                    </UserName>
-                    {email && <UserEmail minimal>{email}</UserEmail>}
-                </UserInfo>
-                <ButtonGroup>
-                    <RoleSelectButton
-                        fill
-                        id="user-role"
-                        options={Object.values(OrganizationMemberRole).map(
-                            (orgMemberRole) => ({
-                                value: orgMemberRole,
-                                label: orgMemberRole,
-                            }),
-                        )}
-                        required
-                        onChange={(e) => {
-                            // @ts-ignore
-                            updateUser.mutate({
-                                role: e.currentTarget
-                                    .value as OrganizationMemberRole,
-                            });
-                        }}
-                        value={role}
+                <SectionWrapper>
+                    {isActive ? (
+                        <UserInfo>
+                            <UserName
+                                className={Classes.TEXT_OVERFLOW_ELLIPSIS}
+                            >
+                                {firstName} {lastName}
+                            </UserName>
+                            {email && <UserEmail minimal>{email}</UserEmail>}
+                        </UserInfo>
+                    ) : (
+                        <UserInfo>
+                            {email && <PendingEmail>{email}</PendingEmail>}
+                            <div>
+                                <PendingTag intent="warning">
+                                    {!isInviteExpired ? 'Pending' : 'Expired'}
+                                </PendingTag>
+                                <NewLinkButton onClick={getNewLink}>
+                                    Get new link
+                                </NewLinkButton>
+                            </div>
+                        </UserInfo>
+                    )}
+
+                    <ButtonGroup>
+                        <RoleSelectButton
+                            fill
+                            id="user-role"
+                            options={Object.values(OrganizationMemberRole).map(
+                                (orgMemberRole) => ({
+                                    value: orgMemberRole,
+                                    label: orgMemberRole,
+                                }),
+                            )}
+                            required
+                            onChange={(e) => {
+                                updateUser.mutate({
+                                    role: e.currentTarget
+                                        .value as OrganizationMemberRole,
+                                });
+                            }}
+                            value={role}
+                        />
+                        <Button
+                            icon="delete"
+                            intent="danger"
+                            outlined
+                            onClick={() => setIsDeleteDialogOpen(true)}
+                            text="Delete"
+                            disabled={disabled}
+                        />
+                    </ButtonGroup>
+                </SectionWrapper>
+                {inviteLink.data && (
+                    <InviteInput
+                        id="invite-link-input"
+                        className="cohere-block"
+                        type="text"
+                        readOnly
+                        value={inviteLink.data.inviteUrl}
+                        rightElement={
+                            <CopyToClipboard
+                                text={inviteLink.data.inviteUrl}
+                                options={{ message: 'Copied' }}
+                                onCopy={() =>
+                                    showToastSuccess({
+                                        title: 'Invite link copied',
+                                    })
+                                }
+                            >
+                                <Button minimal icon="clipboard" />
+                            </CopyToClipboard>
+                        }
                     />
-                    <Button
-                        icon="delete"
-                        intent="danger"
-                        outlined
-                        onClick={() => setIsDeleteDialogOpen(true)}
-                        text="Delete"
-                        disabled={disabled}
-                    />
-                </ButtonGroup>
+                )}
             </ItemContent>
             <Dialog
                 isOpen={isDeleteDialogOpen}
