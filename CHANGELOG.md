@@ -1,3 +1,10 @@
+# [0.122.0](https://github.com/lightdash/lightdash/compare/0.121.0...0.122.0) (2022-05-27)
+
+
+### Features
+
+* show pending users ([#2250](https://github.com/lightdash/lightdash/issues/2250)) ([f11ea69](https://github.com/lightdash/lightdash/commit/f11ea690627f2b42e85aafda4d02e0695150a6a2))
+
 # [0.121.0](https://github.com/lightdash/lightdash/compare/0.120.1...0.121.0) (2022-05-27)
 
 
