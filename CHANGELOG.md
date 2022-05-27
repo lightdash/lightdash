@@ -1,3 +1,10 @@
+# [0.124.0](https://github.com/lightdash/lightdash/compare/0.123.0...0.124.0) (2022-05-27)
+
+
+### Features
+
+* remove threads option from warehouse clients ([#2255](https://github.com/lightdash/lightdash/issues/2255)) ([bc38c25](https://github.com/lightdash/lightdash/commit/bc38c25838eb37dfba91283dc191bb044ffee762))
+
 # [0.123.0](https://github.com/lightdash/lightdash/compare/0.122.0...0.123.0) (2022-05-27)
 
 
