@@ -77,16 +77,6 @@ const BigQueryForm: FC<{
             />
             <FormSection isOpen={isOpen} name="advanced">
                 <NumericInput
-                    name="warehouse.threads"
-                    label="Threads"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#threads"
-                    rules={{
-                        required: 'Required field',
-                    }}
-                    disabled={disabled}
-                    defaultValue={1}
-                />
-                <NumericInput
                     name="warehouse.timeoutSeconds"
                     label="Timeout in seconds"
                     documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#timeout-in-seconds"

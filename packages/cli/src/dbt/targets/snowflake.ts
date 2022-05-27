@@ -56,6 +56,7 @@ export const snowflakeUserPasswordSchema: JSONSchemaType<SnowflakeUserPasswordTa
             },
             threads: {
                 type: 'integer',
+                nullable: true,
             },
             client_session_keep_alive: {
                 type: 'boolean',
@@ -91,7 +92,6 @@ export const snowflakeUserPasswordSchema: JSONSchemaType<SnowflakeUserPasswordTa
             'database',
             'warehouse',
             'schema',
-            'threads',
         ],
     };
 
@@ -111,7 +111,6 @@ export const convertSnowflakeSchema = (
             warehouse: target.warehouse,
             database: target.database,
             schema: target.schema,
-            threads: target.threads,
             clientSessionKeepAlive: target.client_session_keep_alive,
             queryTag: target.query_tag,
         };

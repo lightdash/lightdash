@@ -9,7 +9,6 @@ export const credentials: CreatePostgresCredentials = {
     password: '',
     dbname: '',
     schema: '',
-    threads: 1,
     port: 5432,
 };
 

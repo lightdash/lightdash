@@ -6,7 +6,6 @@ export const credentials: CreateBigqueryCredentials = {
     type: WarehouseTypes.BIGQUERY,
     project: '',
     dataset: '',
-    threads: 0,
     timeoutSeconds: 0,
     priority: 'interactive',
     keyfileContents: {},

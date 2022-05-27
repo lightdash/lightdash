@@ -6,7 +6,6 @@ import { hasNoWhiteSpaces, isUppercase } from '../../../utils/fieldValidators';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
-import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import { useProjectFormContext } from '../ProjectFormProvider';
 
@@ -114,16 +113,6 @@ const SnowflakeForm: FC<{
             />
 
             <FormSection isOpen={isOpen} name="advanced">
-                <NumericInput
-                    name="warehouse.threads"
-                    label="Threads"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#threads-3"
-                    rules={{
-                        required: 'Required field',
-                    }}
-                    disabled={disabled}
-                    defaultValue={1}
-                />
                 <BooleanSwitch
                     name="warehouse.clientSessionKeepAlive"
                     label="Keep client session alive"

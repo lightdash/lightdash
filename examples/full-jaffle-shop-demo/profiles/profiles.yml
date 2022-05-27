@@ -6,7 +6,6 @@ jaffle_shop:
   outputs:
     jaffle:
       type: postgres
-      threads: 1
       host: "{{ env_var('PGHOST') }}"
       port: "{{ env_var('PGPORT') | as_number }}"
       user: "{{ env_var('PGUSER') }}"

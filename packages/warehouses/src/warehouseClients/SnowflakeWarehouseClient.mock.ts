@@ -15,7 +15,6 @@ export const credentials: CreateSnowflakeCredentials = {
     database: '',
     warehouse: '',
     schema: '',
-    threads: 1,
 };
 
 const columnBase = {
