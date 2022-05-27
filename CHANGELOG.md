@@ -1,3 +1,10 @@
+## [0.124.1](https://github.com/lightdash/lightdash/compare/0.124.0...0.124.1) (2022-05-27)
+
+
+### Bug Fixes
+
+* refresh tables on refresh dbt ([#2266](https://github.com/lightdash/lightdash/issues/2266)) ([757c26e](https://github.com/lightdash/lightdash/commit/757c26e3de682c63a022ee4a39ef3c7917a25e5e))
+
 # [0.124.0](https://github.com/lightdash/lightdash/compare/0.123.0...0.124.0) (2022-05-27)
 
 
