@@ -86,17 +86,17 @@ const askOverwriteDescription = async (
 ): Promise<string> => {
     if (!existingDescription) return newDescription || '';
     if (!newDescription) return existingDescription;
-    
-        const shortDescription = `${existingDescription.substring(0, 20)}${
-            existingDescription.length > 20 ? '...' : ''
-        }`;
-        const overwriteMessage = `Do you want to overwrite the existing column "${columnName}" description (${shortDescription}) with a doc block?`;
-        spinner.stop();
-        const overwrite = await askOverwrite(overwriteMessage);
-        spinner.start();
-        if (overwrite) return newDescription;
-        return existingDescription;
-    
+    if (newDescription === existingDescription) return existingDescription;
+
+    const shortDescription = `${existingDescription.substring(0, 20)}${
+        existingDescription.length > 20 ? '...' : ''
+    }`;
+    const overwriteMessage = `Do you want to overwrite the existing column "${columnName}" description (${shortDescription}) with a doc block?`;
+    spinner.stop();
+    const overwrite = await askOverwrite(overwriteMessage);
+    spinner.start();
+    if (overwrite) return newDescription;
+    return existingDescription;
 };
 export const updateModelYmlFile = async ({
     model,
@@ -110,9 +110,9 @@ export const updateModelYmlFile = async ({
     const generatedModel = {
         name: model.name,
         columns: Object.entries(table).map(([columnName]) => ({
-                name: columnName,
-                description: '',
-            })),
+            name: columnName,
+            description: '',
+        })),
     };
     if (model.patchPath) {
         const { path: yamlSubpath } = patchPathParts(model.patchPath);
