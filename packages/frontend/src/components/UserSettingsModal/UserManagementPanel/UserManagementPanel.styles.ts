@@ -68,8 +68,14 @@ export const NewLinkButton = styled(SimpleButton)`
     font-size: 12px;
     margin-left: 10px;
 `;
+
+export const InviteSuccess = styled.div`
+    margin-top: 10px;
+    width: 100%;
+`;
+
 export const InviteInput = styled(InputGroup)`
-    margin-top: 20px;
+    margin-top: 10px;
     margin-bottom: 0;
     width: 100%;
 `;

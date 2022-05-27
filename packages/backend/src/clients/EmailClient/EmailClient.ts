@@ -1,11 +1,14 @@
 import {
-    formatTimestamp,
+    InviteLink,
     PasswordResetLink,
+    SessionUser,
     SmptError,
 } from '@lightdash/common';
 import * as nodemailer from 'nodemailer';
+import hbs from 'nodemailer-express-handlebars';
 import Mail from 'nodemailer/lib/mailer';
 import { AuthenticationType } from 'nodemailer/lib/smtp-connection';
+import path from 'path';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logger';
 
@@ -64,10 +67,27 @@ export default class EmailClient {
                     Logger.debug(`Email transporter verified with success`);
                 }
             });
+
+            this.transporter.use(
+                'compile',
+                hbs({
+                    viewEngine: {
+                        partialsDir: path.join(__dirname, './templates/'),
+                        defaultLayout: false,
+                    },
+                    viewPath: path.join(__dirname, './templates/'),
+                    extName: '.html',
+                }),
+            );
         }
     }
 
-    private async sendEmail(options: Mail.Options) {
+    private async sendEmail(
+        options: Mail.Options & {
+            template: string;
+            context: Record<string, any>;
+        },
+    ) {
         if (this.transporter) {
             try {
                 const info = await this.transporter.sendMail(options);
@@ -83,10 +103,31 @@ export default class EmailClient {
     public async sendPasswordRecoveryEmail(link: PasswordResetLink) {
         return this.sendEmail({
             to: link.email,
-            subject: 'Reset Lightdash password',
-            text: `Reset your password here: ${
-                link.url
-            } This link will expire at ${formatTimestamp(link.expiresAt)}`,
+            subject: 'Reset your password',
+            template: 'recoverPassword',
+            context: {
+                url: link.url,
+            },
+            text: `Forgotten your password? No worries! Just click on the link below within the next 24 hours to create a new one: ${link.url}`,
+        });
+    }
+
+    public async sendInviteEmail(
+        userThatInvited: Pick<
+            SessionUser,
+            'firstName' | 'lastName' | 'organizationName'
+        >,
+        invite: InviteLink,
+    ) {
+        return this.sendEmail({
+            to: invite.email,
+            subject: `You've been invited to join Lightdash`,
+            template: 'invite',
+            context: {
+                orgName: userThatInvited.organizationName,
+                inviteUrl: invite.inviteUrl,
+            },
+            text: `Your teammates at ${userThatInvited.organizationName} are using Lightdash to discover and share data insights. Click on the link below within the next 72 hours to join your team and start exploring your data! ${invite.inviteUrl}`,
         });
     }
 }
