@@ -1,3 +1,10 @@
+# [0.121.0](https://github.com/lightdash/lightdash/compare/0.120.1...0.121.0) (2022-05-27)
+
+
+### Features
+
+* default min and max axis range ([#2252](https://github.com/lightdash/lightdash/issues/2252)) ([af36888](https://github.com/lightdash/lightdash/commit/af36888101906523f3b781aa1900027b27c022f1))
+
 ## [0.120.1](https://github.com/lightdash/lightdash/compare/0.120.0...0.120.1) (2022-05-27)
 
 
