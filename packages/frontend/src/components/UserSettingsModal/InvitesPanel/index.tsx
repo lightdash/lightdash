@@ -104,7 +104,7 @@ const InvitePanel: FC<{
                 <InviteFormGroup
                     label={
                         <span>
-                            <b>{data.email}</b>'s invite link
+                            <b>{data.email}</b> has been added
                         </span>
                     }
                     labelFor="invite-link-input"
