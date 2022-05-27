@@ -1,3 +1,10 @@
+# [0.123.0](https://github.com/lightdash/lightdash/compare/0.122.0...0.123.0) (2022-05-27)
+
+
+### Features
+
+* CLI add doc blocks ([#2253](https://github.com/lightdash/lightdash/issues/2253)) ([9ede959](https://github.com/lightdash/lightdash/commit/9ede9592cf61a52d3d8a4b5e69cc0860e159a84c))
+
 # [0.122.0](https://github.com/lightdash/lightdash/compare/0.121.0...0.122.0) (2022-05-27)
 
 
