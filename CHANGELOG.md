@@ -1,3 +1,10 @@
+# [0.120.0](https://github.com/lightdash/lightdash/compare/0.119.3...0.120.0) (2022-05-27)
+
+
+### Features
+
+* invite user with specific role ([#2246](https://github.com/lightdash/lightdash/issues/2246)) ([7b9b57a](https://github.com/lightdash/lightdash/commit/7b9b57a45980eba57d47a72ca25a4bbf5a8d371f))
+
 ## [0.119.3](https://github.com/lightdash/lightdash/compare/0.119.2...0.119.3) (2022-05-26)
 
 
