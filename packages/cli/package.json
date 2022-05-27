@@ -12,7 +12,6 @@
     "dependencies": {
         "@lightdash/common": "^0.120.1",
         "@lightdash/warehouses": "^0.120.1",
-        "@rudderstack/rudder-sdk-node": "^1.0.7",
         "@types/inquirer": "^8.2.1",
         "@types/nunjucks": "^3.2.1",
         "ajv": "^8.11.0",
@@ -26,7 +25,6 @@
         "ora": "5.4.1",
         "uuid": "^8.3.2",
         "node-fetch": "^2.6.1"
-
     },
     "description": "Lightdash CLI tool",
     "devDependencies": {
