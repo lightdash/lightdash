@@ -173,6 +173,10 @@ const errorHandler = (err: Error) => {
     console.error(styles.error(err.message));
     if (!(err instanceof LightdashError)) {
         console.error(err.stack);
+        console.error('\nPlease report this error to:\n');
+        console.error(
+            '  🐛 https://github.com/lightdash/lightdash/issues/new\n',
+        );
     }
     process.exit(1);
 };
