@@ -1,3 +1,10 @@
+## [0.119.3](https://github.com/lightdash/lightdash/compare/0.119.2...0.119.3) (2022-05-26)
+
+
+### Bug Fixes
+
+* client_session_keep_alive shouldn't be required in profiles.yml ([#2251](https://github.com/lightdash/lightdash/issues/2251)) ([639fbed](https://github.com/lightdash/lightdash/commit/639fbed57874c9c2dc5843c4fedd76fb1d5747bb))
+
 ## [0.119.2](https://github.com/lightdash/lightdash/compare/0.119.1...0.119.2) (2022-05-26)
 
 
