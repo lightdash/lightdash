@@ -4,6 +4,7 @@ volumes:
 
 services:
   lightdash-dev:
+    platform: linux/amd64
     build:
       context: ..
       dockerfile: dockerfile
@@ -49,6 +50,7 @@ services:
     entrypoint: ["/bin/sh", "-c", "sleep infinity"]
 
   db-dev:
+    platform: linux/amd64
     image: postgres
     restart: always
     environment:
