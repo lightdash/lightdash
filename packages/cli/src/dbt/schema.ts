@@ -74,7 +74,6 @@ export const searchForModel = async ({
     modelName,
     filenames,
 }: SearchForModelArgs) => {
-    // eslint-disable-next-line no-restricted-syntax
     for await (const filename of filenames) {
         const results = await findModelInYaml({ filename, modelName });
         if (results) {

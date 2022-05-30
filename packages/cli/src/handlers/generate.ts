@@ -58,7 +58,6 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     });
 
     console.log(styles.info(`Generated .yml files:`));
-    // eslint-disable-next-line no-restricted-syntax
     for await (const compiledModel of compiledModels) {
         const spinner = ora(
             `  Generating .yml for model ${styles.bold(compiledModel.name)}`,
