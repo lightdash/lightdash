@@ -8,9 +8,9 @@ import * as path from 'path';
 import { getDbtContext } from '../dbt/context';
 import { loadManifest } from '../dbt/manifest';
 import {
+    findAndUpdateModelYaml,
     getCompiledModelsFromManifest,
     getWarehouseTableForModel,
-    updateModelYmlFile,
 } from '../dbt/models';
 import {
     loadDbtTarget,
@@ -58,7 +58,6 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     });
 
     console.log(styles.info(`Generated .yml files:`));
-    // eslint-disable-next-line no-restricted-syntax
     for await (const compiledModel of compiledModels) {
         const spinner = ora(
             `  Generating .yml for model ${styles.bold(compiledModel.name)}`,
@@ -69,12 +68,14 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                 model: compiledModel,
                 warehouseClient,
             });
-            const { updatedYml, outputFilePath } = await updateModelYmlFile({
-                model: compiledModel,
-                table,
-                docs: manifest.docs,
-                spinner,
-            });
+            const { updatedYml, outputFilePath } = await findAndUpdateModelYaml(
+                {
+                    model: compiledModel,
+                    table,
+                    docs: manifest.docs,
+                    spinner,
+                },
+            );
             try {
                 await fs.writeFile(
                     outputFilePath,
