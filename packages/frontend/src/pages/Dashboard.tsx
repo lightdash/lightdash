@@ -148,10 +148,22 @@ const Dashboard = () => {
     const onAddTiles = useCallback(
         (tiles: IDashboard['tiles'][number][]) => {
             setHasTilesChanged(true);
-            setDashboardTiles((currentDashboardTiles) => [
-                ...currentDashboardTiles,
-                ...tiles,
-            ]);
+            setDashboardTiles((currentDashboardTiles) => {
+                const tilesY =
+                    currentDashboardTiles &&
+                    currentDashboardTiles.map(function (tile) {
+                        return tile.y;
+                    });
+                const maxY =
+                    tilesY && tilesY.length > 0
+                        ? Math.max.apply(Math, tilesY)
+                        : -1;
+                const reorderedTiles = tiles.map((tile) => ({
+                    ...tile,
+                    y: maxY + 1,
+                })); //add to the bottom
+                return [...currentDashboardTiles, ...reorderedTiles];
+            });
         },
         [setDashboardTiles],
     );
