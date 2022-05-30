@@ -216,7 +216,7 @@ export class UserService {
             organizationUuid,
             userUuid,
         );
-
+        await this.emailClient.sendInviteEmail(user, inviteLink);
         analytics.track({
             userId: user.userUuid,
             event: 'invite_link.created',

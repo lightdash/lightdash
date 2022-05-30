@@ -1,6 +1,7 @@
 import {
     Button,
     ButtonGroup,
+    Callout,
     Classes,
     Dialog,
     NonIdealState,
@@ -30,6 +31,7 @@ import InvitesPanel from '../InvitesPanel';
 import {
     AddUserButton,
     InviteInput,
+    InviteSuccess,
     ItemContent,
     NewLinkButton,
     PendingEmail,
@@ -62,7 +64,7 @@ const UserListItem: FC<{
     const { mutate, isLoading: isDeleting } = useDeleteUserMutation();
     const inviteLink = useCreateInviteLinkMutation();
     const { track } = useTracking();
-    const { showToastSuccess } = useApp();
+    const { showToastSuccess, health } = useApp();
     const updateUser = useUpdateUserMutation(userUuid);
     const handleDelete = () => mutate(userUuid);
 
@@ -94,7 +96,9 @@ const UserListItem: FC<{
                                     {!isInviteExpired ? 'Pending' : 'Expired'}
                                 </PendingTag>
                                 <NewLinkButton onClick={getNewLink}>
-                                    Get new link
+                                    {health.data?.hasEmailClient
+                                        ? 'Send new invite'
+                                        : 'Get new link'}
                                 </NewLinkButton>
                             </div>
                         </UserInfo>
@@ -130,26 +134,33 @@ const UserListItem: FC<{
                     </ButtonGroup>
                 </SectionWrapper>
                 {inviteLink.data && (
-                    <InviteInput
-                        id="invite-link-input"
-                        className="cohere-block"
-                        type="text"
-                        readOnly
-                        value={inviteLink.data.inviteUrl}
-                        rightElement={
-                            <CopyToClipboard
-                                text={inviteLink.data.inviteUrl}
-                                options={{ message: 'Copied' }}
-                                onCopy={() =>
-                                    showToastSuccess({
-                                        title: 'Invite link copied',
-                                    })
-                                }
-                            >
-                                <Button minimal icon="clipboard" />
-                            </CopyToClipboard>
-                        }
-                    />
+                    <InviteSuccess>
+                        {health.data?.hasEmailClient && (
+                            <Callout intent="success">
+                                {inviteLink.data.email} has been invited.
+                            </Callout>
+                        )}
+                        <InviteInput
+                            id="invite-link-input"
+                            className="cohere-block"
+                            type="text"
+                            readOnly
+                            value={inviteLink.data.inviteUrl}
+                            rightElement={
+                                <CopyToClipboard
+                                    text={inviteLink.data.inviteUrl}
+                                    options={{ message: 'Copied' }}
+                                    onCopy={() =>
+                                        showToastSuccess({
+                                            title: 'Invite link copied',
+                                        })
+                                    }
+                                >
+                                    <Button minimal icon="clipboard" />
+                                </CopyToClipboard>
+                            }
+                        />
+                    </InviteSuccess>
                 )}
             </ItemContent>
             <Dialog

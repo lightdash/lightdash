@@ -15,6 +15,7 @@ import { isValidEmail } from '../../../utils/fieldValidators';
 import {
     BackButton,
     EmailInput,
+    InvitedCallout,
     InviteForm,
     InviteFormGroup,
     Panel,
@@ -27,7 +28,7 @@ const InvitePanel: FC<{
     onBackClick: () => void;
 }> = ({ onBackClick }) => {
     const { track } = useTracking();
-    const { showToastSuccess } = useApp();
+    const { showToastSuccess, health } = useApp();
     const { data, mutate, isError, isLoading, isSuccess } =
         useCreateInviteLinkMutation();
     const methods = useForm<Omit<CreateInviteLink, 'expiresAt'>>({
@@ -94,7 +95,11 @@ const InvitePanel: FC<{
                     />
                     <SubmitButton
                         intent={Intent.PRIMARY}
-                        text="Generate invite"
+                        text={
+                            health.data?.hasEmailClient
+                                ? 'Send invite'
+                                : 'Generate invite'
+                        }
                         type="submit"
                         disabled={isLoading}
                     />
@@ -103,12 +108,19 @@ const InvitePanel: FC<{
             {data && (
                 <InviteFormGroup
                     label={
-                        <span>
-                            <b>{data.email}</b> has been added
-                        </span>
+                        health.data?.hasEmailClient ? undefined : (
+                            <span>
+                                <b>{data.email}</b> has been added
+                            </span>
+                        )
                     }
                     labelFor="invite-link-input"
                 >
+                    {health.data?.hasEmailClient && (
+                        <InvitedCallout intent="success">
+                            {data.email} has been invited.
+                        </InvitedCallout>
+                    )}
                     <InputGroup
                         id="invite-link-input"
                         className="cohere-block"

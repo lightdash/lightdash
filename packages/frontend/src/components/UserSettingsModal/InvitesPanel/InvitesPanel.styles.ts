@@ -56,3 +56,7 @@ export const RoleSelectButton = styled(Select)`
     margin: 20px 7px 0;
     width: 75.5px !important;
 `;
+
+export const InvitedCallout = styled(Callout)`
+    margin-bottom: 10px;
+`;
