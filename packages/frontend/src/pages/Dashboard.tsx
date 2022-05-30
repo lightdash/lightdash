@@ -19,6 +19,7 @@ import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
 import TileBase from '../components/DashboardTiles/TileBase/index';
 import {
+    appendNewTilesToBottom,
     useDashboardQuery,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
@@ -149,20 +150,7 @@ const Dashboard = () => {
         (tiles: IDashboard['tiles'][number][]) => {
             setHasTilesChanged(true);
             setDashboardTiles((currentDashboardTiles) => {
-                const tilesY =
-                    currentDashboardTiles &&
-                    currentDashboardTiles.map(function (tile) {
-                        return tile.y;
-                    });
-                const maxY =
-                    tilesY && tilesY.length > 0
-                        ? Math.max.apply(Math, tilesY)
-                        : -1;
-                const reorderedTiles = tiles.map((tile) => ({
-                    ...tile,
-                    y: maxY + 1,
-                })); //add to the bottom
-                return [...currentDashboardTiles, ...reorderedTiles];
+                return appendNewTilesToBottom(currentDashboardTiles, tiles);
             });
         },
         [setDashboardTiles],

@@ -286,3 +286,22 @@ export const useDeleteMutation = () => {
         },
     });
 };
+
+export const appendNewTilesToBottom = (
+    existingTiles: Dashboard['tiles'] | [],
+    newTiles: Dashboard['tiles'],
+): Dashboard['tiles'] => {
+    const tilesY =
+        existingTiles &&
+        existingTiles.map(function (tile) {
+            return tile.y;
+        });
+    const maxY =
+        tilesY && tilesY.length > 0 ? Math.max.apply(Math, tilesY) : -1;
+    const reorderedTiles = newTiles.map((tile) => ({
+        ...tile,
+        y: maxY + 1,
+    })); //add to the bottom
+
+    return [...existingTiles, ...reorderedTiles];
+};

@@ -8,6 +8,7 @@ import {
     Intent,
 } from '@blueprintjs/core';
 import {
+    DashboardChartTile,
     DashboardTileTypes,
     getDefaultChartTileSize,
     SavedChart,
@@ -16,6 +17,7 @@ import { FC, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import {
+    appendNewTilesToBottom,
     useCreateMutation,
     useDashboardQuery,
     useUpdateDashboard,
@@ -158,26 +160,26 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                         ],
                                     });
                                 } else if (dashboardData && updateMutation) {
+                                    const newTile: DashboardChartTile = {
+                                        uuid: uuid4(),
+                                        type: DashboardTileTypes.SAVED_CHART,
+                                        properties: {
+                                            savedChartUuid: savedChart.uuid,
+                                        },
+                                        ...getDefaultChartTileSize(
+                                            savedChart.chartConfig?.type ||
+                                                completeSavedChart?.chartConfig
+                                                    .type,
+                                        ),
+                                    };
+
                                     updateMutation({
                                         name: dashboardData.name,
                                         filters: dashboardData.filters,
-                                        tiles: [
-                                            ...dashboardData.tiles,
-                                            {
-                                                uuid: uuid4(),
-                                                type: DashboardTileTypes.SAVED_CHART,
-                                                properties: {
-                                                    savedChartUuid:
-                                                        savedChart.uuid,
-                                                },
-                                                ...getDefaultChartTileSize(
-                                                    savedChart.chartConfig
-                                                        ?.type ||
-                                                        completeSavedChart
-                                                            ?.chartConfig.type,
-                                                ),
-                                            },
-                                        ],
+                                        tiles: appendNewTilesToBottom(
+                                            dashboardData.tiles,
+                                            [newTile],
+                                        ),
                                     });
                                 }
 
