@@ -1,6 +1,6 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
-const firstResult = {
+const firstCustomer = {
     firstName: 'Michael',
     lastName: 'P.',
     created: '2017-01-30T06:00:00.000Z',
@@ -32,9 +32,9 @@ describe('Dashboard', () => {
         const find = [
             '1 results',
             'first_name',
-            firstResult.created,
-            firstResult.firstName,
-            firstResult.lastName,
+            firstCustomer.created,
+            firstCustomer.firstName,
+            firstCustomer.lastName,
         ];
         find.forEach((text) => cy.findByText(text));
     });
@@ -49,9 +49,9 @@ describe('Dashboard', () => {
         const find = [
             '100 results',
             'first_name',
-            firstResult.created,
-            firstResult.firstName,
-            firstResult.lastName,
+            firstCustomer.created,
+            firstCustomer.firstName,
+            firstCustomer.lastName,
             'Shawn', // customer_id = 2
         ];
         find.forEach((text) => cy.findAllByText(text));
