@@ -1,3 +1,10 @@
+# [0.125.0](https://github.com/lightdash/lightdash/compare/0.124.1...0.125.0) (2022-05-30)
+
+
+### Features
+
+* handle deleted schema.yml files on cli ([#2259](https://github.com/lightdash/lightdash/issues/2259)) ([98d4314](https://github.com/lightdash/lightdash/commit/98d431422a6a524877e240d00e1b28f26f80297e))
+
 ## [0.124.1](https://github.com/lightdash/lightdash/compare/0.124.0...0.124.1) (2022-05-27)
 
 
