@@ -1,5 +1,10 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
+const firstResult = {
+    firstName: 'Gerald',
+    lastName: 'C.',
+    created: '2017-01-30T11:00:00.000Z',
+};
 describe('Dashboard', () => {
     before(() => {
         // @ts-ignore
@@ -24,10 +29,10 @@ describe('Dashboard', () => {
 
         const find = [
             '1 results',
-            '2017-01-30T06:00:00.000Z',
             'first_name',
-            'Michael',
-            'P.',
+            firstResult.created,
+            firstResult.firstName,
+            firstResult.lastName,
         ];
         find.forEach((text) => cy.findByText(text));
     });
@@ -39,11 +44,11 @@ describe('Dashboard', () => {
 
         const find = [
             '100 results',
-            '2017-01-30T06:00:00.000Z',
             'first_name',
-            'Michael',
-            'P.',
-            'Shawn',
+            firstResult.created,
+            firstResult.firstName,
+            firstResult.lastName,
+            'Jesse',
         ];
         find.forEach((text) => cy.findAllByText(text));
     });
