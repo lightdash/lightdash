@@ -98,7 +98,10 @@ export class ProjectService {
         user: SessionUser,
         data: CreateProject,
     ): Promise<{ jobUuid: string }> {
-        if (user.ability.cannot('create', 'Project')) {
+        if (
+            user.ability.cannot('manage', 'Job') ||
+            user.ability.cannot('create', 'Project')
+        ) {
             throw new ForbiddenError();
         }
 
@@ -191,6 +194,7 @@ export class ProjectService {
             projectUuid,
         );
         if (
+            user.ability.cannot('manage', 'Job') ||
             user.ability.cannot(
                 'update',
                 subject('Project', {
@@ -610,9 +614,13 @@ export class ProjectService {
     }
 
     async compileProject(
-        user: Pick<SessionUser, 'userUuid'>,
+        user: SessionUser,
         projectUuid: string,
     ): Promise<{ jobUuid: string }> {
+        if (user.ability.cannot('manage', 'Job')) {
+            throw new ForbiddenError();
+        }
+
         const job: CreateJob = {
             jobUuid: uuidv4(),
             jobType: JobType.COMPILE_PROJECT,

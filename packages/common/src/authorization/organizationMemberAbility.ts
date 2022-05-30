@@ -66,6 +66,7 @@ const organizationMemberAbilities: Record<
         can('manage', 'InviteLink', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'Job');
     },
     admin(member, { can }) {
         organizationMemberAbilities.editor(member, { can });
