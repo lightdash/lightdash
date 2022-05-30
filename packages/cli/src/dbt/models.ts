@@ -2,6 +2,7 @@ import {
     buildModelGraph,
     DbtManifest,
     DbtRawModelNode,
+    DimensionType,
     isSupportedDbtAdapter,
     normaliseModelDatabase,
     ParseError,
@@ -154,6 +155,9 @@ export const findAndUpdateModelYaml = async ({
                     ? `{{doc("${column.name}")}}`
                     : '';
                 const existingDescription = column.description;
+                const dimensionType = table[column.name] as
+                    | DimensionType
+                    | undefined;
 
                 return {
                     ...column,
@@ -164,6 +168,13 @@ export const findAndUpdateModelYaml = async ({
                         newDescription,
                         spinner,
                     ),
+                    meta: {
+                        ...(column.meta || {}),
+                        dimension: {
+                            ...(column.meta?.dimension || {}),
+                            ...(dimensionType ? { type: dimensionType } : {}),
+                        },
+                    },
                 };
             },
         );
