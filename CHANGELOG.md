@@ -1,3 +1,10 @@
+# [0.126.0](https://github.com/lightdash/lightdash/compare/0.125.0...0.126.0) (2022-05-30)
+
+
+### Features
+
+* email invites ([#2267](https://github.com/lightdash/lightdash/issues/2267)) ([5b26c2b](https://github.com/lightdash/lightdash/commit/5b26c2b989a05c0de6450fd4dd3501b2469f3b5e))
+
 # [0.125.0](https://github.com/lightdash/lightdash/compare/0.124.1...0.125.0) (2022-05-30)
 
 
