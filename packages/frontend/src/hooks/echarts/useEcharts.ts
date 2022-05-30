@@ -597,6 +597,7 @@ const useEcharts = () => {
     return {
         xAxis: axis.xAxis,
         yAxis: axis.yAxis,
+        useUTC: true,
         series,
         legend: {
             show: series.length > 1,
