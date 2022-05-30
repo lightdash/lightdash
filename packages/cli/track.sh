@@ -79,7 +79,7 @@ track() {
   
   DATA='{
     "anonymousId":"'"$INSTALLATION_ID"'",
-    "event": "lightdash_cli.install_'"$1"'",
+    "event": "lightdash_cli.install.'"$1"'",
     "properties": { "os": "'"$os"'"}
   }'
   echo $DATA

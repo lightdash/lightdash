@@ -45,7 +45,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
         ? options.select.length
         : undefined;
     LightdashAnalytics.track({
-        event: 'generate_started',
+        event: 'generate.started',
         properties: {
             trigger: 'generate',
             numModelsSelected,
@@ -102,7 +102,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
             );
         } catch (e: any) {
             LightdashAnalytics.track({
-                event: 'generate_error',
+                event: 'generate.error',
                 properties: {
                     trigger: 'generate',
                     error: `${e.message}`,
@@ -114,7 +114,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     }
 
     await LightdashAnalytics.track({
-        event: 'generate_completed',
+        event: 'generate.completed',
         properties: {
             trigger: 'generate',
             numModelsSelected,

@@ -13,50 +13,47 @@ export interface AnalyticsTrack {
 
 type BaseTrack = Omit<AnalyticsTrack, 'context'>;
 
-type CliInstallStarted = BaseTrack & {
-    event: 'install_started';
-};
-type CliInstallCompleted = BaseTrack & {
-    event: 'install_completed';
-};
+/** Events triggered on `preinstall` and `postinstall` in package.json: track.sh
+- install.started
+- install.completed
+*/
+
 type CliGenerateStarted = BaseTrack & {
-    event: 'generate_started';
+    event: 'generate.started';
     properties: {
         numModelsSelected: number | undefined;
         trigger: string; // generate or dbt
     };
 };
 type CliGenerateCompleted = BaseTrack & {
-    event: 'generate_completed';
+    event: 'generate.completed';
     properties: {
         numModelsSelected: number | undefined;
         trigger: string; // generate or dbt
     };
 };
 type CliGenerateError = BaseTrack & {
-    event: 'generate_error';
+    event: 'generate.error';
     properties: {
         trigger: string;
         error: string;
     };
 };
 type CliDbtCommand = BaseTrack & {
-    event: 'dbt_command';
+    event: 'dbt_command.started';
     properties: {
         command: string;
     };
 };
 
 type CliDbtError = BaseTrack & {
-    event: 'dbt_error';
+    event: 'dbt_command.error';
     properties: {
         command: string;
         error: string;
     };
 };
 type Track =
-    | CliInstallStarted
-    | CliInstallCompleted
     | CliGenerateStarted
     | CliGenerateCompleted
     | CliGenerateError
@@ -65,27 +62,32 @@ type Track =
 
 export class LightdashAnalytics {
     static async track(payload: Track): Promise<void> {
-        const lightdashContext = {
-            app: {
-                namespace: 'lightdash',
-                name: 'lightdash_cli',
-                version: VERSION,
-            },
-        };
+        try {
+            const lightdashContext = {
+                app: {
+                    namespace: 'lightdash',
+                    name: 'lightdash_cli',
+                    version: VERSION,
+                },
+            };
 
-        const body = {
-            anonymousId: uuidv4(),
-            ...payload,
-            event: `${lightdashContext.app.name}.${payload.event}`,
-            context: { ...lightdashContext },
-        };
-        await fetch('https://analytics.lightdash.com/v1/track', {
-            method: 'POST',
-            headers: {
-                Authorization: 'Basic MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg==',
-            },
-            body: JSON.stringify(body),
-        });
+            const body = {
+                anonymousId: uuidv4(),
+                ...payload,
+                event: `${lightdashContext.app.name}.${payload.event}`,
+                context: { ...lightdashContext },
+            };
+            await fetch('https://analytics.lightdash.com/v1/track', {
+                method: 'POST',
+                headers: {
+                    Authorization:
+                        'Basic MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg==',
+                },
+                body: JSON.stringify(body),
+            });
+        } catch (e) {
+            // do nothing
+        }
     }
 }
 

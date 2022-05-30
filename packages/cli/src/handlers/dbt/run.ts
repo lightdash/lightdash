@@ -15,7 +15,7 @@ export const dbtRunHandler = async (
     command: any,
 ) => {
     LightdashAnalytics.track({
-        event: 'dbt_command',
+        event: 'dbt_command.started',
         properties: {
             command: `${command.parent.args}`,
         },
@@ -27,7 +27,7 @@ export const dbtRunHandler = async (
         await subprocess;
     } catch (e: any) {
         LightdashAnalytics.track({
-            event: 'dbt_error',
+            event: 'dbt_command.error',
             properties: {
                 command: `${command.parent.args}`,
                 error: `${e.message}`,
