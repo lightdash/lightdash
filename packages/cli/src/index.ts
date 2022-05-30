@@ -175,7 +175,9 @@ const errorHandler = (err: Error) => {
         console.error(err.stack);
         console.error('\nPlease report this error to:\n');
         console.error(
-            `  🐛 https://github.com/lightdash/lightdash/issues/new?assignees=&labels=🐛+bug&template=bug_report.md&title=${encodeURIComponent(err.message)}`,
+            `  🐛 https://github.com/lightdash/lightdash/issues/new?assignees=&labels=🐛+bug&template=bug_report.md&title=${encodeURIComponent(
+                err.message,
+            )}`,
         );
     }
     process.exit(1);
