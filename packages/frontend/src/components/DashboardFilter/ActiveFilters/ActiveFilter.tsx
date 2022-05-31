@@ -20,10 +20,11 @@ const ActiveFilter: FC<Props> = ({ field, filterRule, onClick, onRemove }) => {
                 interactionKind="hover"
                 placement={'bottom-start'}
             >
-                {`${filterRuleLabels.field}:`}
+                <>
+                    {`${filterRuleLabels.field}: ${filterRuleLabels.operator} `}
+                    <FilterValues>{filterRuleLabels.value}</FilterValues>
+                </>
             </Tooltip2>
-            {` ${filterRuleLabels.operator} `}
-            <FilterValues>{filterRuleLabels.value}</FilterValues>
         </TagContainer>
     );
 };
