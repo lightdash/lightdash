@@ -86,6 +86,7 @@
         "dev": "nodemon src/index.ts",
         "debug": "nodemon --exec \"node --inspect-brk=0.0.0.0:9229 --require ts-node/register src/index.ts\"",
         "build": "tsc --build tsconfig.json",
+        "postbuild": "copyfiles --error --up 1 src/**/*.html dist",
         "start": "node dist/index.js",
         "test": "jest",
         "lint": "eslint ./src",
