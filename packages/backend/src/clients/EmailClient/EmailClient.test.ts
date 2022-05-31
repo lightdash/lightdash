@@ -15,6 +15,7 @@ jest.mock('nodemailer', () => ({
     createTransport: jest.fn(() => ({
         verify: jest.fn(),
         sendMail: jest.fn(() => ({ messageId: 'messageId' })),
+        use: jest.fn(),
     })),
 }));
 
