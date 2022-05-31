@@ -1,3 +1,10 @@
+## [0.126.1](https://github.com/lightdash/lightdash/compare/0.126.0...0.126.1) (2022-05-31)
+
+
+### Bug Fixes
+
+* rename dbt deprecated paths ([#2278](https://github.com/lightdash/lightdash/issues/2278)) ([1f8ebc9](https://github.com/lightdash/lightdash/commit/1f8ebc995de8a9fd67aa92c7add8ec46ad329223))
+
 # [0.126.0](https://github.com/lightdash/lightdash/compare/0.125.0...0.126.0) (2022-05-30)
 
 
