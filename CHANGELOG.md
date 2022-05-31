@@ -1,3 +1,10 @@
+## [0.126.3](https://github.com/lightdash/lightdash/compare/0.126.2...0.126.3) (2022-05-31)
+
+
+### Bug Fixes
+
+* tooltip dashboard filter ([#2279](https://github.com/lightdash/lightdash/issues/2279)) ([cb607c3](https://github.com/lightdash/lightdash/commit/cb607c3876d40b50268bd89a301fc9b54a5e95ca))
+
 ## [0.126.2](https://github.com/lightdash/lightdash/compare/0.126.1...0.126.2) (2022-05-31)
 
 
