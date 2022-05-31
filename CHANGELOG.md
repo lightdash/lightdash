@@ -1,3 +1,10 @@
+## [0.126.2](https://github.com/lightdash/lightdash/compare/0.126.1...0.126.2) (2022-05-31)
+
+
+### Bug Fixes
+
+* fix tests and prettier code backend for invite on main ([#2277](https://github.com/lightdash/lightdash/issues/2277)) ([d4f2ea8](https://github.com/lightdash/lightdash/commit/d4f2ea85e8b8fd960fec0028c749590bbc94c1b0))
+
 ## [0.126.1](https://github.com/lightdash/lightdash/compare/0.126.0...0.126.1) (2022-05-31)
 
 
