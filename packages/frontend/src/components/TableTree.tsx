@@ -614,7 +614,9 @@ const TableTree: FC<TableTreeProps> = ({
         isExpanded: true,
         secondaryLabel: isFirstTable ? (
             <DocumentationHelpButton
-                url={'https://docs.lightdash.com/guides/adding-custom-metrics/'}
+                url={
+                    'https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view'
+                }
                 tooltipProps={{
                     content: (
                         <TooltipContent>
