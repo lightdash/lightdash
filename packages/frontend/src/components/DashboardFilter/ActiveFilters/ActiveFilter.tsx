@@ -21,7 +21,6 @@ const ActiveFilter: FC<Props> = ({ field, filterRule, onClick, onRemove }) => {
                 placement={'bottom-start'}
             >
                 <>
-                    {' '}
                     {`${filterRuleLabels.field}:`}
                     {` ${filterRuleLabels.operator} `}
                     <FilterValues>{filterRuleLabels.value}</FilterValues>
