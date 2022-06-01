@@ -1,8 +1,16 @@
 import { Button, IconName, Intent } from '@blueprintjs/core';
 import React, { Dispatch, SetStateAction, useCallback, useEffect } from 'react';
 import { useForm, UseFormReturn } from 'react-hook-form';
+import styled from 'styled-components';
 import { useApp } from '../../../providers/AppProvider';
 import BaseModal from './BaseModal';
+
+export const ErrorMessage = styled.div`
+    color: red;
+    width: 300px;
+    margin-left: 0px;
+    margin-right: auto;
+`;
 
 export enum ActionTypeModal {
     CLOSE,
@@ -28,6 +36,7 @@ export type ActionModalProps<T> = {
     completedMutation: boolean;
     setFormValues?: (data: any, methods: UseFormReturn<any, object>) => void;
     onClose?: () => void;
+    errorMessage?: string;
 };
 
 const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
@@ -45,6 +54,7 @@ const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
         onClose: onCloseModal,
         onSubmitForm,
         ModalContent,
+        errorMessage,
     } = props;
     const { showToastError } = useApp();
 
@@ -93,6 +103,7 @@ const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
             renderBody={() => <ModalContent {...props} />}
             renderFooter={() => (
                 <>
+                    <ErrorMessage>{errorMessage}</ErrorMessage>
                     <Button onClick={onClose}>Cancel</Button>
                     <Button
                         data-cy="submit-base-modal"

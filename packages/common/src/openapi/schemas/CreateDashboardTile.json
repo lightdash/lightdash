@@ -10,7 +10,7 @@
             "enum": ["saved_chart", "markdown", "loom"]
         },
         "properties": {
-            "oneOf": [
+            "anyOf": [
                 {
                     "$ref": "./TilePropertiesChart.json"
                 },

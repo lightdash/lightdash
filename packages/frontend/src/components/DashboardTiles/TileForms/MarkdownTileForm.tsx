@@ -15,18 +15,12 @@ const MarkdownTileForm = ({
             name="title"
             label="Title"
             disabled={isDisabled}
-            rules={{
-                required: 'Required field',
-            }}
             placeholder="Tile title"
         />
         <MarkdownInput
             name="content"
             label="Content"
             disabled={isDisabled}
-            rules={{
-                required: 'Required field',
-            }}
             attributes={{
                 preview: 'edit',
                 height: 400,
