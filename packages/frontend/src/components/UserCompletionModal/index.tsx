@@ -1,15 +1,19 @@
-import { Colors, H3, Intent, Overlay } from '@blueprintjs/core';
+import { Colors, Intent, Overlay } from '@blueprintjs/core';
 import { CompleteUserArgs, LightdashMode } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useApp } from '../../providers/AppProvider';
-import { BigButton } from '../common/BigButton';
 import Checkbox from '../ReactHookForm/Checkbox';
 import Form from '../ReactHookForm/Form';
-import Input from '../ReactHookForm/Input';
-import Select from '../ReactHookForm/Select';
-import { UserCompletionModalCard } from './UserCompletionModal.styles';
+import {
+    InputField,
+    InputSelect,
+    SubmitButton,
+    Subtitle,
+    Title,
+    UserCompletionModalCard,
+} from './UserCompletionModal.styles';
 
 const jobTitles = [
     { value: '', label: 'Select an option...' },
@@ -50,18 +54,15 @@ const UserCompletionModal: FC = () => {
             canOutsideClickClose={false}
         >
             <UserCompletionModalCard elevation={2}>
-                <H3>Nearly there!</H3>
-                <p style={{ color: Colors.GRAY1, marginBottom: 20 }}>
-                    Tell us a little bit more about yourself to finish setting
-                    up your account.
-                </p>
+                <Title>Nearly there...</Title>
+                <Subtitle>Tell us a bit more about yourself</Subtitle>
                 <Form
                     name="complete_user"
                     methods={methods}
                     onSubmit={handleSubmit}
                 >
                     {user.data.organizationName === '' && (
-                        <Input
+                        <InputField
                             label="Organization name"
                             name="organizationName"
                             placeholder="Enter company name"
@@ -72,7 +73,7 @@ const UserCompletionModal: FC = () => {
                             defaultValue={user.data.organizationName}
                         />
                     )}
-                    <Select
+                    <InputSelect
                         label="What's your role?"
                         name="jobTitle"
                         disabled={isLoading}
@@ -101,17 +102,12 @@ const UserCompletionModal: FC = () => {
                             }}
                         />
                     )}
-                    <div
-                        style={{ display: 'flex', justifyContent: 'flex-end' }}
-                    >
-                        <BigButton
-                            style={{ minWidth: 82 }}
-                            type="submit"
-                            intent={Intent.PRIMARY}
-                            text="Next"
-                            loading={isLoading}
-                        />
-                    </div>
+                    <SubmitButton
+                        type="submit"
+                        intent={Intent.PRIMARY}
+                        text="Next"
+                        loading={isLoading}
+                    />
                 </Form>
             </UserCompletionModalCard>
         </Overlay>
