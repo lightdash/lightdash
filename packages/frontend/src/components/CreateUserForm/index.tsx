@@ -2,11 +2,11 @@ import { Intent } from '@blueprintjs/core';
 import { CreateUserArgs } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
-import { isValidEmail } from '../utils/fieldValidators';
-import { BigButton } from './common/BigButton';
-import Form from './ReactHookForm/Form';
-import Input from './ReactHookForm/Input';
-import PasswordInput from './ReactHookForm/PasswordInput';
+import { isValidEmail } from '../../utils/fieldValidators';
+import Form from '../ReactHookForm/Form';
+import Input from '../ReactHookForm/Input';
+import PasswordInput from '../ReactHookForm/PasswordInput';
+import { SubmitButton } from './CreateUserForm.styles';
 
 type Props = {
     isLoading: boolean;
@@ -43,7 +43,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                 }}
             />
             <Input
-                label="Email"
+                label="Email address"
                 name="email"
                 placeholder="d.attenborough@greenplanet.com"
                 disabled={isLoading || !!readOnlyEmail}
@@ -57,21 +57,18 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
             <PasswordInput
                 label="Password"
                 name="password"
-                placeholder="Enter your password..."
+                placeholder="Enter a password"
                 disabled={isLoading}
                 rules={{
                     required: 'Required field',
                 }}
             />
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <BigButton
-                    type="submit"
-                    intent={Intent.PRIMARY}
-                    text="Next"
-                    loading={isLoading}
-                    style={{ minWidth: 82 }}
-                />
-            </div>
+            <SubmitButton
+                type="submit"
+                intent={Intent.PRIMARY}
+                text="Sign up"
+                loading={isLoading}
+            />
         </Form>
     );
 };
