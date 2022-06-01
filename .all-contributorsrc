@@ -553,6 +553,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "raphaelauv",
+      "name": "raphaelauv",
+      "avatar_url": "https://avatars.githubusercontent.com/u/10202690?v=4",
+      "profile": "https://github.com/raphaelauv",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
