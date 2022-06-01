@@ -7,6 +7,5 @@
         "content": {
             "type": "string"
         }
-    },
-    "required": ["title", "content"]
+    }
 }

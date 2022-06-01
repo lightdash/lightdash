@@ -1638,8 +1638,7 @@
                     "content": {
                         "type": "string"
                     }
-                },
-                "required": ["title", "content"]
+                }
             },
             "CreateDashboardTile": {
                 "type": "object",
@@ -1653,7 +1652,7 @@
                         "enum": ["saved_chart", "markdown", "loom"]
                     },
                     "properties": {
-                        "oneOf": [
+                        "anyOf": [
                             {
                                 "$ref": "#/components/schemas/TilePropertiesChart"
                             },
