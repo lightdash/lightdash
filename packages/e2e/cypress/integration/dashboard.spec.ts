@@ -11,7 +11,7 @@ describe('Dashboard', () => {
     beforeEach(() => {
         Cypress.Cookies.preserveOnce('connect.sid');
     });
-    /*
+
     it('Should see dasbhoard', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
 
@@ -28,12 +28,12 @@ describe('Dashboard', () => {
         cy.get('.echarts-for-react').should('have.length', 3); // Charts
         cy.contains('Payments total revenue'); // BigNumber chart
         cy.get('th').should('have.length', 5); // Table chart
-    }); */
+    });
 
     it('Should create dashboard with tiles', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
-        cy.contains('Create a dashboard').click();
+        cy.contains('Create dashboard').click();
 
         cy.findByText('Edit dashboard').click();
 
@@ -52,7 +52,12 @@ describe('Dashboard', () => {
         cy.findByText('Add tile').click();
         cy.findByText('Loom video').click();
 
-        cy.get('input')[0].type('Title');
-        cy.get('input')[1].type('https://loom.com/test');
+        cy.get('input').eq(0).type('Title');
+        cy.get('input').eq(1).type('https://www.loom.com/share/12345');
+        cy.findByText('Add').click();
+
+        cy.findByText('Save').click();
+
+        cy.contains('Dashboard was updated');
     });
 });
