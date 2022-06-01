@@ -24,7 +24,7 @@ Connect Lightdash to your dbt project, add some metrics, then create and share y
 - **Exploring your data in Lightdash**
 
   - [Using Tables and the Explore view](/get-started/exploring-data/using-explores.md)
-  - [Inviting your team + sharing insights](/get-started/exploring-data/sharing-insights.md)
+  - [Inviting your team + sharing insights](/get-started/exploring-data/sharing-insights.mdx)
   - [Creating dashboards](/get-started/exploring-data/dashboards.md)
 
 ## 🙋‍♀️ Troubleshooting and getting help
