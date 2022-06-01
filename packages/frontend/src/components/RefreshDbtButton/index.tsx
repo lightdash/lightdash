@@ -12,6 +12,9 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     const isLoading = activeJob && activeJob?.jobStatus === 'RUNNING';
 
     const { track } = useTracking();
+    const { user } = useApp();
+
+    if (user.data?.ability?.cannot('manage', 'Job')) return <div></div>;
 
     const onClick = () => {
         mutate();
