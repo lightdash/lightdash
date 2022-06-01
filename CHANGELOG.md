@@ -1,3 +1,10 @@
+## [0.129.1](https://github.com/lightdash/lightdash/compare/0.129.0...0.129.1) (2022-06-01)
+
+
+### Bug Fixes
+
+* use utc on echart tooltips ([#2271](https://github.com/lightdash/lightdash/issues/2271)) ([c64283d](https://github.com/lightdash/lightdash/commit/c64283d96abd379b4364a0c5a7f6f23cc20ed96a))
+
 # [0.129.0](https://github.com/lightdash/lightdash/compare/0.128.0...0.129.0) (2022-06-01)
 
 
