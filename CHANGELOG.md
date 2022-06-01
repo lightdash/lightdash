@@ -1,3 +1,10 @@
+# [0.127.0](https://github.com/lightdash/lightdash/compare/0.126.3...0.127.0) (2022-06-01)
+
+
+### Features
+
+* allow empty title or content on markdown ([#2291](https://github.com/lightdash/lightdash/issues/2291)) ([cb5fb9a](https://github.com/lightdash/lightdash/commit/cb5fb9ae376dc3b65603a30e2b3ef9e5873edad5))
+
 ## [0.126.3](https://github.com/lightdash/lightdash/compare/0.126.2...0.126.3) (2022-05-31)
 
 
