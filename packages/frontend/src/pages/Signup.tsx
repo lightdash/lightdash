@@ -1,4 +1,4 @@
-import { Card, H2, NonIdealState } from '@blueprintjs/core';
+import { NonIdealState } from '@blueprintjs/core';
 import {
     ApiError,
     CreateOrganizationUser,
@@ -16,6 +16,13 @@ import PageSpinner from '../components/PageSpinner';
 import { useInviteLink } from '../hooks/useInviteLink';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
+import {
+    CardWrapper,
+    Divider,
+    DividerWrapper,
+    FormWrapper,
+    Title,
+} from './SignUp.styles';
 
 const createUserQuery = async (data: CreateOrganizationUser) =>
     lightdashApi<LightdashUser>({
@@ -61,23 +68,8 @@ const Signup: FC = () => {
 
     return (
         <Page isFullHeight>
-            <div
-                style={{
-                    width: '400px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    flex: 1,
-                }}
-            >
-                <Card
-                    style={{
-                        padding: 25,
-                        display: 'flex',
-                        flexDirection: 'column',
-                    }}
-                    elevation={2}
-                >
+            <FormWrapper>
+                <CardWrapper elevation={2}>
                     {inviteLinkQuery.error ? (
                         <NonIdealState
                             title={inviteLinkQuery.error.error.message}
@@ -85,22 +77,17 @@ const Signup: FC = () => {
                         />
                     ) : (
                         <>
-                            <H2 style={{ marginBottom: 25 }}>Create account</H2>
+                            <Title>Create your account</Title>
                             {health.data?.auth.google.oauth2ClientId && (
                                 <>
                                     <GoogleLoginButton
                                         inviteCode={inviteCode}
                                     />
-                                    {allowPasswordAuthentication && (
-                                        <span
-                                            style={{
-                                                textAlign: 'center',
-                                                margin: 15,
-                                            }}
-                                        >
-                                            <b>or</b>
-                                        </span>
-                                    )}
+                                    <DividerWrapper>
+                                        <Divider></Divider>
+                                        <b>OR</b>
+                                        <Divider></Divider>
+                                    </DividerWrapper>
                                 </>
                             )}
                             {allowPasswordAuthentication && (
@@ -117,8 +104,8 @@ const Signup: FC = () => {
                             )}
                         </>
                     )}
-                </Card>
-            </div>
+                </CardWrapper>
+            </FormWrapper>
         </Page>
     );
 };
