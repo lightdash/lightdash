@@ -19,6 +19,7 @@ import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
 import TileBase from '../components/DashboardTiles/TileBase/index';
 import {
+    appendNewTilesToBottom,
     useDashboardQuery,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
@@ -148,10 +149,9 @@ const Dashboard = () => {
     const onAddTiles = useCallback(
         (tiles: IDashboard['tiles'][number][]) => {
             setHasTilesChanged(true);
-            setDashboardTiles((currentDashboardTiles) => [
-                ...currentDashboardTiles,
-                ...tiles,
-            ]);
+            setDashboardTiles((currentDashboardTiles) => {
+                return appendNewTilesToBottom(currentDashboardTiles, tiles);
+            });
         },
         [setDashboardTiles],
     );
