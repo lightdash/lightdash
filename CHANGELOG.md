@@ -1,3 +1,10 @@
+# [0.128.0](https://github.com/lightdash/lightdash/compare/0.127.0...0.128.0) (2022-06-01)
+
+
+### Features
+
+* reorder new dashboard tiles to bottom ([#2273](https://github.com/lightdash/lightdash/issues/2273)) ([b82757c](https://github.com/lightdash/lightdash/commit/b82757c6d32f1e4ee5780562eae7cc7729a1c98e))
+
 # [0.127.0](https://github.com/lightdash/lightdash/compare/0.126.3...0.127.0) (2022-06-01)
 
 
