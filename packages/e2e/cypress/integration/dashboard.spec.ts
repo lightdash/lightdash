@@ -12,8 +12,8 @@ describe('Dashboard', () => {
         Cypress.Cookies.preserveOnce('connect.sid');
     });
 
-    it('Should see dasbhoard', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
+    it('Should see dashboard', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         cy.findByText('Jaffle dashboard').click();
 
