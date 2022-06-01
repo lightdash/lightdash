@@ -1,3 +1,10 @@
+# [0.129.0](https://github.com/lightdash/lightdash/compare/0.128.0...0.129.0) (2022-06-01)
+
+
+### Features
+
+* job manage permission ([#2275](https://github.com/lightdash/lightdash/issues/2275)) ([b4aa2f3](https://github.com/lightdash/lightdash/commit/b4aa2f3ede6ea15bacc74b7b82c2cdae8561e790))
+
 # [0.128.0](https://github.com/lightdash/lightdash/compare/0.127.0...0.128.0) (2022-06-01)
 
 
