@@ -91,7 +91,7 @@ export const AddTileModal: FC<AddProps> = ({ onClose, onAddTile, type }) => {
         if (type === DashboardTileTypes.MARKDOWN) {
             const markdownForm = properties as any;
             if (!markdownForm.title && !markdownForm.content) {
-                setErrorMessage('Title or Content is required');
+                setErrorMessage('Title or content is required');
                 return;
             }
         }
