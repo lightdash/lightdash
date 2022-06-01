@@ -247,6 +247,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   </tr>
   <tr>
     <td align="center"><a href="https://www.linkedin.com/in/ianahuja/"><img src="https://avatars.githubusercontent.com/u/9979944?v=4?s=100" width="100px;" alt=""/><br /><sub><b>12ian34</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=12ian34" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/BA-CY"><img src="https://avatars.githubusercontent.com/u/54427954?v=4?s=100" width="100px;" alt=""/><br /><sub><b>BA-CY</b></sub></a><br /><a href="#ideas-BA-CY" title="Ideas, Planning, & Feedback">🤔</a></td>
   </tr>
 </table>
 
