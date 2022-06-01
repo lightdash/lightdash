@@ -43,7 +43,9 @@ export const InputSelect = styled(Select)`
         box-shadow: inset 0px 1px 1px rgba(16, 22, 26, 0.2);
     }
 
-    .bp4-html-select .bp4-icon .bp4-icon-double-caret-vertical {
+    .bp4-select::after,
+    .bp4-html-select .bp4-icon,
+    .bp4-select .bp4-icon {
         position: absolute;
         top: 50%;
         transform: translateY(-50%);
