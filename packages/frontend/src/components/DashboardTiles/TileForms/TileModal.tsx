@@ -83,10 +83,19 @@ export const AddTileModal: FC<AddProps> = ({ onClose, onAddTile, type }) => {
         actionType: ActionTypeModal.UPDATE,
     });
     const [completedMutation, setCompletedMutation] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string>();
 
     const onSubmitForm = (
         properties: Dashboard['tiles'][number]['properties'],
     ) => {
+        if (type === DashboardTileTypes.MARKDOWN) {
+            const markdownForm = properties as any;
+            if (!markdownForm.title && !markdownForm.content) {
+                setErrorMessage('Title or Content is required');
+                return;
+            }
+        }
+
         setCompletedMutation(true);
         onAddTile({
             uuid: uuid4(),
@@ -106,6 +115,7 @@ export const AddTileModal: FC<AddProps> = ({ onClose, onAddTile, type }) => {
             completedMutation={completedMutation}
             ModalContent={getFormComponent(type)}
             onClose={onClose}
+            errorMessage={errorMessage}
         />
     );
 };
