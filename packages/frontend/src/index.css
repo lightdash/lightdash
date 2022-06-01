@@ -53,15 +53,8 @@ code {
 .bp4-input {
     border: 0.7px solid #d3d8de;
     box-shadow: inset 0px 1px 1px rgba(16, 22, 26, 0.2);
-    height: 40px;
 }
 
 .bp4-input::placeholder {
     color: #8f99a8;
-}
-
-.bp4-input-group .bp4-input-action {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
 }
