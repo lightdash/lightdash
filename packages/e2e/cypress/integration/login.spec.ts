@@ -10,7 +10,9 @@ describe('Login', () => {
     });
     it('Should login successfully', () => {
         cy.visit('/login');
-        cy.findByLabelText('Email *').type(SEED_ORG_1_ADMIN_EMAIL.email);
+        cy.findByLabelText('Email address *').type(
+            SEED_ORG_1_ADMIN_EMAIL.email,
+        );
         cy.findByLabelText('Password *').type(
             SEED_ORG_1_ADMIN_PASSWORD.password,
         );
