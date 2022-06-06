@@ -63,12 +63,12 @@ const organizationMemberAbilities: Record<
         can('manage', 'SavedChart', {
             organizationUuid: member.organizationUuid,
         });
-        can('manage', 'InviteLink', {
-            organizationUuid: member.organizationUuid,
-        });
         can('manage', 'Job');
     },
     admin(member, { can }) {
+        can('manage', 'InviteLink', {
+            organizationUuid: member.organizationUuid,
+        });
         organizationMemberAbilities.editor(member, { can });
         can('manage', 'Organization', {
             organizationUuid: member.organizationUuid,
