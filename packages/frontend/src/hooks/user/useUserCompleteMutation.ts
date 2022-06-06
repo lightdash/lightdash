@@ -1,9 +1,4 @@
-import {
-    ApiError,
-    CompleteUserArgs,
-    defineAbilityForOrganizationMember,
-    LightdashUser,
-} from '@lightdash/common';
+import { ApiError, CompleteUserArgs, LightdashUser } from '@lightdash/common';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
 
@@ -20,11 +15,8 @@ export const useUserCompleteMutation = () => {
         completeUserQuery,
         {
             mutationKey: ['user_complete'],
-            onSuccess: async (data) => {
-                queryClient.setQueryData(['user'], {
-                    ...data,
-                    ability: defineAbilityForOrganizationMember(data),
-                });
+            onSuccess: async () => {
+                await queryClient.refetchQueries('user');
             },
         },
     );

@@ -63,7 +63,7 @@ export const useDeleteUserMutation = () => {
 
 export const useUpdateUserMutation = (userUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError, user } = useApp();
     return useMutation<undefined, ApiError, OrganizationMemberProfileUpdate>(
         (data) => {
             if (userUuid) {
@@ -73,12 +73,10 @@ export const useUpdateUserMutation = (userUuid: string) => {
         },
         {
             mutationKey: ['organization_membership_roles'],
-            onSuccess: async (data) => {
-                await queryClient.invalidateQueries([
-                    'organization_membership_roles',
-                    'organization_memberships',
-                    'organization_users',
-                ]);
+            onSuccess: async () => {
+                if (user.data?.userUuid === userUuid) {
+                    await queryClient.refetchQueries('user');
+                }
                 await queryClient.refetchQueries('organization_users');
                 showToastSuccess({
                     title: `Success! User was updated.`,
