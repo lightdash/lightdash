@@ -14,24 +14,25 @@ export const getPivotedData = (
     yAxis: string[],
     pivotKey: string,
 ): { [col: string]: any }[] => {
-    return Object.values(
-        rows.reduce((acc, row) => {
-            acc[row[xAxis]] = acc[row[xAxis]] || {
-                [xAxis]: row[xAxis],
-            };
-            yAxis.forEach((metricKey) => {
-                acc[row[xAxis]][
-                    hashFieldReference({
-                        field: metricKey,
-                        pivotValues: [
-                            { field: pivotKey, value: row[pivotKey] },
-                        ],
-                    })
-                ] = row[metricKey];
-            });
-            return acc;
-        }, {}),
+    const pivoted = rows.reduce((acc, row) => {
+        acc[row[xAxis]] = acc[row[xAxis]] || {
+            [xAxis]: row[xAxis],
+        };
+        yAxis.forEach((metricKey) => {
+            acc[row[xAxis]][
+                hashFieldReference({
+                    field: metricKey,
+                    pivotValues: [{ field: pivotKey, value: row[pivotKey] }],
+                })
+            ] = row[metricKey];
+        });
+        return acc;
+    }, {});
+
+    const sortedPivoted = rows.flatMap(
+        (row) => row[xAxis] && pivoted[row[xAxis]],
     );
+    return Object.values(sortedPivoted);
 };
 
 const usePlottedData = (
