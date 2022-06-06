@@ -1,3 +1,12 @@
+## [0.132.1](https://github.com/lightdash/lightdash/compare/0.132.0...0.132.1) (2022-06-06)
+
+
+### Bug Fixes
+
+* do not track CLI install on CI  ([#2324](https://github.com/lightdash/lightdash/issues/2324)) ([a9f0038](https://github.com/lightdash/lightdash/commit/a9f00387188186de22a0e6f57a7deb9373cb0944))
+* permissions after changing own role ([#2318](https://github.com/lightdash/lightdash/issues/2318)) ([39455ca](https://github.com/lightdash/lightdash/commit/39455cac588b105c0966c3afded14dc97813f35f))
+* sort pivoted chart ([#2315](https://github.com/lightdash/lightdash/issues/2315)) ([ca6966d](https://github.com/lightdash/lightdash/commit/ca6966d746eb6b91dc4868d1b5241dcdd810464a))
+
 # [0.132.0](https://github.com/lightdash/lightdash/compare/0.131.1...0.132.0) (2022-06-06)
 
 
