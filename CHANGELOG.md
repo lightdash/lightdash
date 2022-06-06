@@ -1,3 +1,10 @@
+## [0.130.1](https://github.com/lightdash/lightdash/compare/0.130.0...0.130.1) (2022-06-06)
+
+
+### Bug Fixes
+
+* view job test role ([#2305](https://github.com/lightdash/lightdash/issues/2305)) ([aabe7d0](https://github.com/lightdash/lightdash/commit/aabe7d0ffd0666a71231d7522c060b309c9fb997))
+
 # [0.130.0](https://github.com/lightdash/lightdash/compare/0.129.2...0.130.0) (2022-06-06)
 
 
