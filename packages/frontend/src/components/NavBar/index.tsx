@@ -120,7 +120,7 @@ const NavBar = () => {
                         content={
                             <Menu>
                                 {user.data?.ability?.can(
-                                    'manage',
+                                    'create',
                                     'InviteLink',
                                 ) ? (
                                     <MenuItem
