@@ -1,3 +1,10 @@
+## [0.132.2](https://github.com/lightdash/lightdash/compare/0.132.1...0.132.2) (2022-06-06)
+
+
+### Bug Fixes
+
+* databricks schema create project ([#2325](https://github.com/lightdash/lightdash/issues/2325)) ([64332fb](https://github.com/lightdash/lightdash/commit/64332fb2b7c099955925a132eefff0bccd5b7b1e))
+
 ## [0.132.1](https://github.com/lightdash/lightdash/compare/0.132.0...0.132.1) (2022-06-06)
 
 
