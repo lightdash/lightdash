@@ -1,3 +1,10 @@
+# [0.132.0](https://github.com/lightdash/lightdash/compare/0.131.1...0.132.0) (2022-06-06)
+
+
+### Features
+
+* add dimension types to yml ([#2265](https://github.com/lightdash/lightdash/issues/2265)) ([23083e8](https://github.com/lightdash/lightdash/commit/23083e8181c2fb1ce348a610df08ad9e2abd0511))
+
 ## [0.131.1](https://github.com/lightdash/lightdash/compare/0.131.0...0.131.1) (2022-06-06)
 
 
