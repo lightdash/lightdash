@@ -72,6 +72,10 @@ has_curl() {
     has_cmd curl
 }
 
+
+echo "ECHO ENV"
+env 
+
 if  [[ $NODE_ENV == "development" ]]; then 
     echo "Do not send tracking on NODE_ENV=$NODE_ENV mode" 
     exit 0 
