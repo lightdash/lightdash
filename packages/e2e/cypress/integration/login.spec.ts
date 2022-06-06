@@ -10,7 +10,9 @@ describe('Login', () => {
     });
     it('Should login successfully', () => {
         cy.visit('/login');
-        cy.findByLabelText('Email *').type(SEED_ORG_1_ADMIN_EMAIL.email);
+        cy.findByLabelText('Email address *').type(
+            SEED_ORG_1_ADMIN_EMAIL.email,
+        );
         cy.findByLabelText('Password *').type(
             SEED_ORG_1_ADMIN_PASSWORD.password,
         );
@@ -28,7 +30,7 @@ describe('Login', () => {
     });
     it('Should display error message when one field is empty', () => {
         cy.visit('/login');
-        cy.findByLabelText('Email *').type('test-email');
+        cy.findByLabelText('Email address *').type('test-email');
         cy.get('[data-cy="login-button"]').click();
         cy.findByText('Required field').should('be.visible');
     });

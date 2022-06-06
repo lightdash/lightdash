@@ -1,4 +1,3 @@
-import { Card, H2 } from '@blueprintjs/core';
 import { ApiError, CreateUserArgs, LightdashUser } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useMutation } from 'react-query';
@@ -10,6 +9,13 @@ import CreateUserForm from '../components/CreateUserForm';
 import PageSpinner from '../components/PageSpinner';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
+import {
+    CardWrapper,
+    Divider,
+    DividerWrapper,
+    FormWrapper,
+    Title,
+} from './SignUp.styles';
 
 const registerQuery = async (data: CreateUserArgs) =>
     lightdashApi<LightdashUser>({
@@ -50,34 +56,17 @@ const Register: FC = () => {
 
     return (
         <Page isFullHeight>
-            <div
-                style={{
-                    width: '400px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    flex: 1,
-                }}
-            >
-                <Card
-                    style={{
-                        padding: 25,
-                        display: 'flex',
-                        flexDirection: 'column',
-                    }}
-                    elevation={2}
-                >
-                    <H2 style={{ marginBottom: 25 }}>Create account</H2>
+            <FormWrapper>
+                <CardWrapper elevation={2}>
+                    <Title>Create your account</Title>
                     {health.data?.auth.google.oauth2ClientId && (
                         <>
                             <GoogleLoginButton />
-                            {allowPasswordAuthentication && (
-                                <span
-                                    style={{ textAlign: 'center', margin: 15 }}
-                                >
-                                    <b>or</b>
-                                </span>
-                            )}
+                            <DividerWrapper>
+                                <Divider></Divider>
+                                <b>OR</b>
+                                <Divider></Divider>
+                            </DividerWrapper>
                         </>
                     )}
                     {allowPasswordAuthentication && (
@@ -88,8 +77,8 @@ const Register: FC = () => {
                             }}
                         />
                     )}
-                </Card>
-            </div>
+                </CardWrapper>
+            </FormWrapper>
         </Page>
     );
 };

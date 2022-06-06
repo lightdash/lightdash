@@ -1,4 +1,4 @@
-import { Button, Card, H2, Intent } from '@blueprintjs/core';
+import { Intent } from '@blueprintjs/core';
 import {
     ApiError,
     LightdashMode,
@@ -6,7 +6,6 @@ import {
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
 } from '@lightdash/common';
-
 import React, { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation } from 'react-query';
@@ -17,10 +16,19 @@ import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import Form from '../components/ReactHookForm/Form';
-import Input from '../components/ReactHookForm/Input';
-import PasswordInput from '../components/ReactHookForm/PasswordInput';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
+import {
+    AnchorLinkWrapper,
+    CardWrapper,
+    Divider,
+    DividerWrapper,
+    FormWrapper,
+    InputField,
+    PasswordInputField,
+    SubmitButton,
+    Title,
+} from './SignUp.styles';
 
 type LoginParams = { email: string; password: string };
 
@@ -96,87 +104,60 @@ const Login: FC = () => {
 
     return (
         <Page isFullHeight>
-            <div
-                style={{
-                    width: '400px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    flex: 1,
-                }}
-            >
-                <Card
-                    style={{
-                        padding: 25,
-                        display: 'flex',
-                        flexDirection: 'column',
-                    }}
-                    elevation={2}
-                >
-                    <H2 style={{ marginBottom: 25 }}>Login</H2>
+            <FormWrapper>
+                <CardWrapper elevation={2}>
+                    <Title>Sign in</Title>
+                    {health.data?.auth.google.oauth2ClientId && (
+                        <>
+                            <GoogleLoginButton />
+
+                            <DividerWrapper>
+                                <Divider></Divider>
+                                <b>OR</b>
+                                <Divider></Divider>
+                            </DividerWrapper>
+                        </>
+                    )}
                     {allowPasswordAuthentication && (
                         <Form
                             name="login"
                             methods={methods}
                             onSubmit={handleLogin}
                         >
-                            <Input
-                                label="Email"
+                            <InputField
+                                label="Email address"
                                 name="email"
-                                placeholder="Email"
+                                placeholder="dave@planet.com"
                                 disabled={isLoading}
                                 rules={{
                                     required: 'Required field',
                                 }}
                             />
-                            <PasswordInput
+                            <PasswordInputField
                                 label="Password"
                                 name="password"
-                                placeholder="Enter your password..."
+                                placeholder="Enter a password"
                                 disabled={isLoading}
                                 rules={{
                                     required: 'Required field',
                                 }}
                             />
-                            <div
-                                style={{
-                                    marginTop: 20,
-                                    display: 'flex',
-                                    justifyContent: health.data?.hasEmailClient
-                                        ? 'space-between'
-                                        : 'flex-end',
-                                    alignItems: 'center',
-                                }}
-                            >
-                                {health.data?.hasEmailClient && (
-                                    <AnchorLink href="/recover-password">
-                                        Forgot your password ?
-                                    </AnchorLink>
-                                )}
-                                <Button
-                                    type="submit"
-                                    intent={Intent.PRIMARY}
-                                    text="Login"
-                                    loading={isLoading}
-                                    data-cy="login-button"
-                                />
-                            </div>
+                            <SubmitButton
+                                type="submit"
+                                intent={Intent.PRIMARY}
+                                text="Sign in"
+                                loading={isLoading}
+                                data-cy="login-button"
+                            />
+                            <AnchorLinkWrapper>
+                                <AnchorLink href="/recover-password">
+                                    Forgot your password ?
+                                </AnchorLink>
+                            </AnchorLinkWrapper>
                         </Form>
                     )}
-                    {health.data?.auth.google.oauth2ClientId && (
-                        <>
-                            {allowPasswordAuthentication && (
-                                <span
-                                    style={{ textAlign: 'center', margin: 15 }}
-                                >
-                                    <b>or</b>
-                                </span>
-                            )}
-                            <GoogleLoginButton />
-                        </>
-                    )}
-                </Card>
-            </div>
+                </CardWrapper>
+            </FormWrapper>
         </Page>
     );
 };
