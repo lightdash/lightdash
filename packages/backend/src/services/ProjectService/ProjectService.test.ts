@@ -1,6 +1,7 @@
 import {
     defineAbilityForOrganizationMember,
     NotFoundError,
+    OrganizationMemberRole,
     SessionUser,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
@@ -164,8 +165,11 @@ describe('ProjectService', () => {
             const anotherUser: SessionUser = {
                 ...user,
                 userUuid: 'another-user-uuid',
+                role: OrganizationMemberRole.VIEWER,
+
                 ability: defineAbilityForOrganizationMember({
                     ...user,
+                    role: OrganizationMemberRole.VIEWER,
                     userUuid: 'another-user-uuid',
                 }),
             };
