@@ -6,7 +6,8 @@
         "lightdash": "dist/index.js"
     },
     "files": [
-        "dist/**/*"
+        "dist/**/*",
+        "track.sh"
     ],
     "dependencies": {
         "@lightdash/common": "^0.129.2",
@@ -21,7 +22,9 @@
         "inquirer": "^8.2.4",
         "js-yaml": "^4.1.0",
         "nunjucks": "^3.2.3",
-        "ora": "5.4.1"
+        "ora": "5.4.1",
+        "uuid": "^8.3.2",
+        "node-fetch": "^2.6.1"
     },
     "description": "Lightdash CLI tool",
     "devDependencies": {
@@ -42,6 +45,8 @@
     "scripts": {
         "build": "tsc --build tsconfig.json",
         "lint": "eslint ./src",
-        "format": "prettier --check --ignore-unknown ./src"
+        "format": "prettier --check --ignore-unknown ./src",
+        "preinstall": "bash track.sh started",
+        "postinstall": "bash track.sh completed"
     }
 }

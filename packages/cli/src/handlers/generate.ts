@@ -5,6 +5,7 @@ import inquirer from 'inquirer';
 import * as yaml from 'js-yaml';
 import ora from 'ora';
 import * as path from 'path';
+import { LightdashAnalytics } from '../analytics/analytics';
 import { getDbtContext } from '../dbt/context';
 import { loadManifest } from '../dbt/manifest';
 import {
@@ -39,6 +40,18 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
             return;
         }
     }
+
+    const numModelsSelected = options.select
+        ? options.select.length
+        : undefined;
+    LightdashAnalytics.track({
+        event: 'generate.started',
+        properties: {
+            trigger: 'generate',
+            numModelsSelected,
+        },
+    });
+
     const absoluteProjectPath = path.resolve(options.projectDir);
     const absoluteProfilesPath = path.resolve(options.profilesDir);
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
@@ -91,9 +104,24 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                     ` ➡️  ${path.relative(process.cwd(), outputFilePath)}`,
                 )}`,
             );
-        } catch (e) {
+        } catch (e: any) {
+            LightdashAnalytics.track({
+                event: 'generate.error',
+                properties: {
+                    trigger: 'generate',
+                    error: `${e.message}`,
+                },
+            });
             spinner.fail(`  Failed to generate ${compiledModel.name}.yml`);
             throw e;
         }
     }
+
+    await LightdashAnalytics.track({
+        event: 'generate.completed',
+        properties: {
+            trigger: 'generate',
+            numModelsSelected,
+        },
+    });
 };
