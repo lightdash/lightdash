@@ -6,6 +6,25 @@ import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import { useProjectFormContext } from '../ProjectFormProvider';
 
+export const DatabricksSchemaInput: FC<{
+    disabled: boolean;
+}> = ({ disabled }) => {
+    return (
+        <Input
+            name="warehouse.schema"
+            label="Schema"
+            documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#databricks"
+            rules={{
+                required: 'Required field',
+                validate: {
+                    hasNoWhiteSpaces: hasNoWhiteSpaces('Schema'),
+                },
+            }}
+            disabled={disabled}
+        />
+    );
+};
+
 const DatabricksForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
@@ -50,18 +69,6 @@ const DatabricksForm: FC<{
                 placeholder={
                     disabled || !requireSecrets ? '**************' : undefined
                 }
-                disabled={disabled}
-            />
-            <Input
-                name="warehouse.database"
-                label="Database"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#database-1"
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('Database'),
-                    },
-                }}
                 disabled={disabled}
             />
             <NumericInput
