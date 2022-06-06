@@ -551,7 +551,9 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/9979944?v=4",
       "profile": "https://www.linkedin.com/in/ianahuja/",
       "contributions": [
-        "doc"
+        "doc",
+        "bug",
+        "code"
       ]
     },
     {
