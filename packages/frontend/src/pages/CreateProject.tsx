@@ -1,44 +1,117 @@
-import { Colors, H1 } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { WarehouseTypes } from '@lightdash/common';
+import React, { FC, useState } from 'react';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { CreateProjectConnection } from '../components/ProjectConnection';
+import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
 import { useApp } from '../providers/AppProvider';
+import {
+    BackToWarehouseButton,
+    ConnectWarehouseWrapper,
+    CreateProjectWrapper,
+    ExternalLink,
+    Subtitle,
+    Title,
+    WarehouseButton,
+    WarehouseGrid,
+    WarehouseIcon,
+    Wrapper,
+} from './CreateProject.styles';
+
+const WarehouseTypeLabels = [
+    { label: 'Bigquery', key: WarehouseTypes.BIGQUERY, icon: './bigquery.png' },
+    {
+        label: 'Databricks',
+        key: WarehouseTypes.DATABRICKS,
+        icon: './databricks.png',
+    },
+    {
+        label: 'PostgreSQL',
+        key: WarehouseTypes.POSTGRES,
+        icon: './postgresql.png',
+    },
+    { label: 'Redshift', key: WarehouseTypes.REDSHIFT, icon: './redshift.png' },
+    {
+        label: 'Snowflake',
+        key: WarehouseTypes.SNOWFLAKE,
+        icon: './snowflake.png',
+    },
+];
+
+export type SelectedWarehouse = {
+    label: string;
+    key: WarehouseTypes;
+    icon: string;
+};
+
+interface WareHouseConnectCardProps {
+    setWarehouse: (warehouse: SelectedWarehouse) => void;
+}
+
+const WareHouseConnectCard: FC<WareHouseConnectCardProps> = ({
+    setWarehouse,
+}) => {
+    return (
+        <Wrapper>
+            <ConnectWarehouseWrapper>
+                <Title>Connect your project</Title>
+                <Subtitle>Select your warehouse:</Subtitle>
+                <WarehouseGrid>
+                    {WarehouseTypeLabels.map((item) => (
+                        <WarehouseButton
+                            key={item.key}
+                            outlined
+                            icon={
+                                <WarehouseIcon src={item.icon} alt={item.key} />
+                            }
+                            onClick={() => setWarehouse(item)}
+                        >
+                            {item.label}
+                        </WarehouseButton>
+                    ))}
+                </WarehouseGrid>
+                <ExternalLink
+                    href="https://demo.lightdash.com/"
+                    target="_blank"
+                >
+                    ...or try our demo project instead
+                </ExternalLink>
+            </ConnectWarehouseWrapper>
+        </Wrapper>
+    );
+};
 
 const CreateProject: FC = () => {
     const { health } = useApp();
+    const [selectedWarehouse, setSelectedWarehouse] = useState<
+        SelectedWarehouse | undefined
+    >();
+
     if (health.isLoading) {
         return <PageSpinner />;
     }
 
     return (
         <Page>
-            <div
-                style={{
-                    display: 'flex',
-                    width: '800px',
-                    flexDirection: 'column',
-                    flex: 1,
-                    paddingTop: 60,
-                }}
-            >
-                <H1 style={{ marginBottom: 30 }}>Connect your project ⚡</H1>
-                <p style={{ color: Colors.GRAY1, marginBottom: 30 }}>
-                    The following steps are best carried out by your
-                    organization&apos;s data/analytics engineering experts. Once
-                    you set up your dbt and warehouse connection, you will be
-                    ready to start exploring your data in Lightdash! If you are
-                    itching to get started,{' '}
-                    <a
-                        target="_blank"
-                        rel="noreferrer"
-                        href="https://demo.lightdash.com"
-                    >
-                        check out our demo project!
-                    </a>
-                </p>
-                <CreateProjectConnection />
-            </div>
+            <ProjectFormProvider>
+                {!selectedWarehouse ? (
+                    <WareHouseConnectCard setWarehouse={setSelectedWarehouse} />
+                ) : (
+                    <CreateProjectWrapper>
+                        <BackToWarehouseButton
+                            icon="chevron-left"
+                            text="Back"
+                            onClick={() => setSelectedWarehouse(undefined)}
+                        />
+                        <Title marginBottom>
+                            {`Create a ${selectedWarehouse.label} connection`}
+                        </Title>
+                        <CreateProjectConnection
+                            selectedWarehouse={selectedWarehouse}
+                        />
+                    </CreateProjectWrapper>
+                )}
+            </ProjectFormProvider>
         </Page>
     );
 };

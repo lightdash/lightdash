@@ -15,6 +15,7 @@ import {
     useProject,
     useUpdateMutation,
 } from '../../hooks/useProject';
+import { SelectedWarehouse } from '../../pages/CreateProject';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
@@ -22,6 +23,7 @@ import DocumentationHelpButton from '../DocumentationHelpButton';
 import Form from '../ReactHookForm/Form';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
+import { WarehouseLogo } from './ProjectConnection.styles';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
@@ -36,12 +38,14 @@ interface Props {
     showGeneralSettings: boolean;
     disabled: boolean;
     defaultType?: ProjectType;
+    selectedWarehouse?: SelectedWarehouse | undefined;
 }
 
 const ProjectForm: FC<Props> = ({
     showGeneralSettings,
     disabled,
     defaultType,
+    selectedWarehouse,
 }) => (
     <>
         {showGeneralSettings && (
@@ -86,13 +90,24 @@ const ProjectForm: FC<Props> = ({
             elevation={1}
         >
             <div style={{ flex: 1 }}>
-                <H5 style={{ display: 'inline', marginRight: 5 }}>
-                    Warehouse connection
-                </H5>
-                <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
+                {selectedWarehouse && (
+                    <WarehouseLogo
+                        src={selectedWarehouse.icon}
+                        alt={selectedWarehouse.key}
+                    />
+                )}
+                <div>
+                    <H5 style={{ display: 'inline', marginRight: 5 }}>
+                        Warehouse connection
+                    </H5>
+                    <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
+                </div>
             </div>
             <div style={{ flex: 1 }}>
-                <WarehouseSettingsForm disabled={disabled} />
+                <WarehouseSettingsForm
+                    disabled={disabled}
+                    selectedWarehouse={selectedWarehouse}
+                />
             </div>
         </Card>
         <Card
@@ -240,7 +255,13 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
     );
 };
 
-export const CreateProjectConnection: FC = () => {
+interface CreateProjectConnectionProps {
+    selectedWarehouse?: SelectedWarehouse | undefined;
+}
+
+export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
+    selectedWarehouse,
+}) => {
     const history = useHistory();
     const { user, health, activeJobIsRunning, activeJob } = useApp();
     const onError = useOnProjectError();
@@ -291,6 +312,7 @@ export const CreateProjectConnection: FC = () => {
                     showGeneralSettings={!orgData?.needsProject}
                     disabled={isSaving || !!activeJobIsRunning}
                     defaultType={health.data?.defaultProject?.type}
+                    selectedWarehouse={selectedWarehouse}
                 />
             </ProjectFormProvider>
             <Button
