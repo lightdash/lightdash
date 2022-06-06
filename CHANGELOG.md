@@ -1,3 +1,10 @@
+## [0.131.1](https://github.com/lightdash/lightdash/compare/0.131.0...0.131.1) (2022-06-06)
+
+
+### Bug Fixes
+
+* user permissions after update ([#2306](https://github.com/lightdash/lightdash/issues/2306)) ([2fe414d](https://github.com/lightdash/lightdash/commit/2fe414d9add781d1e5254369e2eb20f0da7b7cf5))
+
 # [0.131.0](https://github.com/lightdash/lightdash/compare/0.130.2...0.131.0) (2022-06-06)
 
 
