@@ -1,3 +1,10 @@
+## [0.129.2](https://github.com/lightdash/lightdash/compare/0.129.1...0.129.2) (2022-06-06)
+
+
+### Bug Fixes
+
+* add email template to dist ([#2282](https://github.com/lightdash/lightdash/issues/2282)) ([69f59e8](https://github.com/lightdash/lightdash/commit/69f59e8b134af788ba508c3b4fee185eae5e2900))
+
 ## [0.129.1](https://github.com/lightdash/lightdash/compare/0.129.0...0.129.1) (2022-06-01)
 
 
