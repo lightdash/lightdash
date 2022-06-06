@@ -580,6 +580,15 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "jamiedavenport",
+      "name": "Jamie Davenport",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1329874?v=4",
+      "profile": "https://jamiedavenport.dev",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
