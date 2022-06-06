@@ -96,7 +96,9 @@
         "code",
         "design",
         "doc",
-        "bug"
+        "bug",
+        "test",
+        "infra"
       ]
     },
     {
