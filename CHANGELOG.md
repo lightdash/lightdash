@@ -1,3 +1,10 @@
+# [0.130.0](https://github.com/lightdash/lightdash/compare/0.129.2...0.130.0) (2022-06-06)
+
+
+### Features
+
+* add analytics to cli  ([#2261](https://github.com/lightdash/lightdash/issues/2261)) ([e19e70d](https://github.com/lightdash/lightdash/commit/e19e70d2a05a969403d50812b4247e7bd8ad19cc))
+
 ## [0.129.2](https://github.com/lightdash/lightdash/compare/0.129.1...0.129.2) (2022-06-06)
 
 
