@@ -23,7 +23,8 @@
         "code",
         "doc",
         "bug",
-        "design"
+        "design",
+        "infra"
       ]
     },
     {
