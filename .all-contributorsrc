@@ -323,7 +323,9 @@
       "profile": "https://github.com/nathaliabj",
       "contributions": [
         "doc",
-        "code"
+        "code",
+        "bug",
+        "design"
       ]
     },
     {
