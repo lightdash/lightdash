@@ -1,3 +1,11 @@
+## [0.132.3](https://github.com/lightdash/lightdash/compare/0.132.2...0.132.3) (2022-06-06)
+
+
+### Bug Fixes
+
+* emails pre-header text ([#2334](https://github.com/lightdash/lightdash/issues/2334)) ([b9c3031](https://github.com/lightdash/lightdash/commit/b9c3031d08f756138db971b1c18894dc8d2c4c49))
+* validate invite email domain against organization allowed domains ([#2333](https://github.com/lightdash/lightdash/issues/2333)) ([c7873aa](https://github.com/lightdash/lightdash/commit/c7873aa8772da02ac78f2382152af28fb48a3d96))
+
 ## [0.132.2](https://github.com/lightdash/lightdash/compare/0.132.1...0.132.2) (2022-06-06)
 
 
