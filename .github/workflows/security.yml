@@ -15,4 +15,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Dependencies audit
+      id: audit
       run: yarn audit --groups dependencies --level high
+    - name: Check for high vulnerabilities
+      if: job.steps.audit.status > 90
+      run: exit 1
