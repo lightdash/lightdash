@@ -2,6 +2,7 @@ import {
     buildModelGraph,
     DbtManifest,
     DbtRawModelNode,
+    DimensionType,
     isSupportedDbtAdapter,
     normaliseModelDatabase,
     ParseError,
@@ -58,9 +59,14 @@ type GenerateModelYamlArgs = {
 };
 const generateModelYml = ({ model, table }: GenerateModelYamlArgs) => ({
     name: model.name,
-    columns: Object.entries(table).map(([columnName]) => ({
+    columns: Object.entries(table).map(([columnName, dimensionType]) => ({
         name: columnName,
         description: '',
+        meta: {
+            dimension: {
+                type: dimensionType,
+            },
+        },
     })),
 });
 
@@ -149,6 +155,9 @@ export const findAndUpdateModelYaml = async ({
                     ? `{{doc("${column.name}")}}`
                     : '';
                 const existingDescription = column.description;
+                const dimensionType = table[column.name] as
+                    | DimensionType
+                    | undefined;
 
                 return {
                     ...column,
@@ -159,6 +168,13 @@ export const findAndUpdateModelYaml = async ({
                         newDescription,
                         spinner,
                     ),
+                    meta: {
+                        ...(column.meta || {}),
+                        dimension: {
+                            ...(column.meta?.dimension || {}),
+                            ...(dimensionType ? { type: dimensionType } : {}),
+                        },
+                    },
                 };
             },
         );
