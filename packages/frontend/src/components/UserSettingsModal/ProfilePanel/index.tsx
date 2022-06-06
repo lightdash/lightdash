@@ -1,6 +1,7 @@
 import { Button, FormGroup, InputGroup, Intent } from '@blueprintjs/core';
 import {
     ApiError,
+    defineAbilityForOrganizationMember,
     LightdashUser,
     UpdateUserArgs,
     validateEmail,
@@ -40,7 +41,10 @@ const ProfilePanel: FC = () => {
     >(updateUserQuery, {
         mutationKey: ['user_update'],
         onSuccess: (data) => {
-            queryClient.setQueryData(['user'], data);
+            queryClient.setQueryData(['user'], {
+                ...data,
+                ability: defineAbilityForOrganizationMember(data),
+            });
             showToastSuccess({
                 title: 'Success! User details were updated.',
             });
