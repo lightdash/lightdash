@@ -1,3 +1,10 @@
+## [0.130.2](https://github.com/lightdash/lightdash/compare/0.130.1...0.130.2) (2022-06-06)
+
+
+### Bug Fixes
+
+* custom metrics link ([#2285](https://github.com/lightdash/lightdash/issues/2285)) ([29b0c21](https://github.com/lightdash/lightdash/commit/29b0c2112eb89ee2174e3253d9b08ec0c14ad96a))
+
 ## [0.130.1](https://github.com/lightdash/lightdash/compare/0.130.0...0.130.1) (2022-06-06)
 
 
