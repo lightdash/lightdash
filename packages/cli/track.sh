@@ -1,8 +1,6 @@
 #!/bin/bash
 # Send anonymous tracking events to rudderstack so we can monitor installations and errors
 
-set -o errexit
-
 INSTALLATION_ID=$(curl -s 'https://www.uuidgenerator.net/api/version4')
 
 os=""
@@ -72,12 +70,8 @@ has_curl() {
     has_cmd curl
 }
 
-
-echo "ECHO ENV"
-env 
-
-if  [[ $NODE_ENV == "development" ]]; then 
-    echo "Do not send tracking on NODE_ENV=$NODE_ENV mode" 
+if  [[ $NODE_ENV == "development" || "$CI" == "true" ]]; then 
+    echo "Do not send tracking on NODE_ENV=$NODE_ENV or CI=$CI mode" 
     exit 0 
 fi
 
@@ -103,3 +97,5 @@ track() {
 }
 
 track $1
+
+exit 0
