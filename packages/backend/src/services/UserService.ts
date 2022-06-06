@@ -177,6 +177,10 @@ export class UserService {
             throw new NotExistsError('Organization not found');
         }
 
+        if (!(await this.verifyUserEmail(organizationUuid, email))) {
+            throw new AuthorizationError('Email domain not allowed');
+        }
+
         const existingUserWithEmail = await this.userModel.findUserByEmail(
             email,
         );
