@@ -1,3 +1,10 @@
+# [0.131.0](https://github.com/lightdash/lightdash/compare/0.130.2...0.131.0) (2022-06-06)
+
+
+### Features
+
+* upddate general styling on forms ([#2299](https://github.com/lightdash/lightdash/issues/2299)) ([b2cafaf](https://github.com/lightdash/lightdash/commit/b2cafaf068bd6e91203ee3e91798e985335e110c))
+
 ## [0.130.2](https://github.com/lightdash/lightdash/compare/0.130.1...0.130.2) (2022-06-06)
 
 
