@@ -127,7 +127,7 @@ const Login: FC = () => {
                             <InputField
                                 label="Email address"
                                 name="email"
-                                placeholder="dave@planet.com"
+                                placeholder="Email"
                                 disabled={isLoading}
                                 rules={{
                                     required: 'Required field',
