@@ -100,7 +100,10 @@ const UserSettingsModal: FC<Props> = ({
                             }
                         />
                     )}
-                    {user.data?.ability?.can('create', 'InviteLink') && (
+                    {user.data?.ability?.can(
+                        'view',
+                        'OrganizationMemberProfile',
+                    ) && (
                         <Tab
                             id="userManagement"
                             title="User management"
