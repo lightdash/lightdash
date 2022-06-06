@@ -508,7 +508,10 @@
       "profile": "http://coconauts.net/",
       "contributions": [
         "code",
-        "bug"
+        "bug",
+        "test",
+        "infra",
+        "doc"
       ]
     },
     {
