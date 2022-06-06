@@ -18,6 +18,7 @@ import DbtLocalForm from './DbtForms/DbtLocalForm';
 import GithubForm from './DbtForms/GithubForm';
 import GitlabForm from './DbtForms/GitlabForm';
 import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
+import { DatabricksSchemaInput } from './WarehouseForms/DatabricksForm';
 import { PostgresSchemaInput } from './WarehouseForms/PostgresForm';
 import { RedshiftSchemaInput } from './WarehouseForms/RedshiftForm';
 import { SnowflakeSchemaInput } from './WarehouseForms/SnowflakeForm';
@@ -125,7 +126,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             case WarehouseTypes.SNOWFLAKE:
                 return <SnowflakeSchemaInput disabled={disabled} />;
             case WarehouseTypes.DATABRICKS:
-                return <></>;
+                return <DatabricksSchemaInput disabled={disabled} />;
             default: {
                 const never: never = warehouseType;
                 return <></>;
