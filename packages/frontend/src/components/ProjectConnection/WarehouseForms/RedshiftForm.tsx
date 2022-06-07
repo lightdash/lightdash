@@ -1,4 +1,3 @@
-import { Button } from '@blueprintjs/core';
 import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
@@ -9,6 +8,7 @@ import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import Select from '../../ReactHookForm/Select';
+import { AdvancedButton } from '../ProjectConnection.styles';
 import { useProjectFormContext } from '../ProjectFormProvider';
 
 export const RedshiftSchemaInput: FC<{
@@ -143,13 +143,11 @@ const RedshiftForm: FC<{
                     justifyContent: 'flex-end',
                 }}
             >
-                <Button
-                    minimal
-                    text={`${isOpen ? 'Hide' : 'Show'} advanced fields`}
+                <AdvancedButton
+                    text={`${
+                        isOpen ? 'Hide advanced' : 'Advanced'
+                    } configuration options`}
                     onClick={toggleOpen}
-                    style={{
-                        marginRight: 10,
-                    }}
                 />
             </div>
         </>
