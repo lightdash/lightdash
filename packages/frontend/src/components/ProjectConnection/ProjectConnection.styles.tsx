@@ -16,6 +16,7 @@ export const CompileProjectWrapper = styled.div`
     width: 100%;
     position: sticky;
     background: ${Colors.WHITE};
+    border-top: 1px solid ${Colors.LIGHT_GRAY1};
     bottom: 0;
 `;
 
@@ -26,8 +27,14 @@ export const FormWrapper = styled.div`
 
 export const CompileProjectButton = styled(Button)`
     height: 40px;
+    width: 215px;
     float: right;
     margin-top: 15px;
+`;
+
+export const AdvancedButtonWrapper = styled.div`
+    display: flex;
+    justify-content: flex-end;
 `;
 
 export const AdvancedButton = styled(SimpleButton)`

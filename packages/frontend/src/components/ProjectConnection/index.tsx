@@ -131,15 +131,18 @@ const ProjectForm: FC<Props> = ({
                         marginBottom: 15,
                     }}
                 >
-                    <H5
-                        style={{
-                            display: 'inline',
-                            marginRight: 5,
-                        }}
-                    >
-                        dbt connection
-                    </H5>
-                    <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
+                    <WarehouseLogo src="./dbt.png" alt="dbt icon" />
+                    <div>
+                        <H5
+                            style={{
+                                display: 'inline',
+                                marginRight: 5,
+                            }}
+                        >
+                            dbt connection
+                        </H5>
+                        <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
+                    </div>
                 </div>
 
                 <p style={{ color: Colors.GRAY1 }}>

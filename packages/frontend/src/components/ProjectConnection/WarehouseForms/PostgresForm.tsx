@@ -7,7 +7,10 @@ import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import Select from '../../ReactHookForm/Select';
-import { AdvancedButton } from '../ProjectConnection.styles';
+import {
+    AdvancedButton,
+    AdvancedButtonWrapper,
+} from '../ProjectConnection.styles';
 import { useProjectFormContext } from '../ProjectFormProvider';
 
 export const PostgresSchemaInput: FC<{
@@ -135,20 +138,13 @@ const PostgresForm: FC<{
                 />
                 <Input name="warehouse.role" label="Role" disabled={disabled} />
             </FormSection>
-            <div
-                style={{
-                    display: 'flex',
-                    marginTop: 20,
-                    justifyContent: 'flex-end',
-                }}
-            >
+            <AdvancedButtonWrapper>
                 <AdvancedButton
-                    text={`${
-                        isOpen ? 'Hide advanced' : 'Advanced'
-                    } configuration options`}
+                    icon={isOpen ? 'chevron-up' : 'chevron-down'}
+                    text={`Advanced configuration options`}
                     onClick={toggleOpen}
                 />
-            </div>
+            </AdvancedButtonWrapper>
         </>
     );
 };

@@ -16,7 +16,10 @@ import DbtCloudForm from './DbtForms/DbtCloudForm';
 import DbtLocalForm from './DbtForms/DbtLocalForm';
 import GithubForm from './DbtForms/GithubForm';
 import GitlabForm from './DbtForms/GitlabForm';
-import { AdvancedButton } from './ProjectConnection.styles';
+import {
+    AdvancedButton,
+    AdvancedButtonWrapper,
+} from './ProjectConnection.styles';
 import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
 import { DatabricksSchemaInput } from './WarehouseForms/DatabricksForm';
 import { PostgresSchemaInput } from './WarehouseForms/PostgresForm';
@@ -167,20 +170,15 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 />
                 <></>
             </FormSection>
-            <div
-                style={{
-                    display: 'flex',
-                    marginTop: 20,
-                    justifyContent: 'flex-end',
-                }}
-            >
+            <AdvancedButtonWrapper>
                 <AdvancedButton
-                    text={`${
-                        isAdvancedSettingsOpen ? 'Hide advanced' : 'Advanced'
-                    } configuration options`}
+                    icon={
+                        isAdvancedSettingsOpen ? 'chevron-up' : 'chevron-down'
+                    }
+                    text={`Advanced configuration options`}
                     onClick={toggleAdvancedSettingsOpen}
                 />
-            </div>
+            </AdvancedButtonWrapper>
         </div>
     );
 };
