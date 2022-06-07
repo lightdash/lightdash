@@ -25,18 +25,18 @@ describe('Dashboard List', () => {
             });
         cy.findByLabelText('First name *').type('Mary');
         cy.findByLabelText('Last name *').type('Green');
-        cy.findByLabelText('Email *')
+        cy.findByLabelText('Email address *')
             .should('be.disabled')
             .should('have.value', 'marygreen@lightdash.com');
         cy.findByLabelText('Password *').type('PasswordMary1');
-        cy.findByRole('button', { name: 'Next' }).click();
+        cy.contains('Sign up').click();
         cy.get('[data-cy="user-avatar"]').should('contain', 'MG');
     });
 
     it('Should delete user', () => {
         cy.get('[data-cy="settings-button"]').click();
         cy.contains('User management').click();
-        cy.findByText('Mary Green')
+        cy.findByText('marygreen@lightdash.com')
             .parents('.bp4-card')
             .find('[icon="delete"]')
             .click();
