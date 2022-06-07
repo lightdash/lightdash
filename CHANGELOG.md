@@ -1,3 +1,10 @@
+# [0.134.0](https://github.com/lightdash/lightdash/compare/0.133.0...0.134.0) (2022-06-07)
+
+
+### Features
+
+* default last project using localstorage ([#2338](https://github.com/lightdash/lightdash/issues/2338)) ([bea2c4a](https://github.com/lightdash/lightdash/commit/bea2c4aad5aa8f34a2321c15301b5f3ef5c0867f))
+
 # [0.133.0](https://github.com/lightdash/lightdash/compare/0.132.4...0.133.0) (2022-06-07)
 
 
