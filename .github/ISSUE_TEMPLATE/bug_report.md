@@ -20,3 +20,7 @@ Steps & screenshot/gif/loom to reproduce the behavior
 3. Scroll down to '....'
 4. See error
 -->
+
+### App Version
+
+<!-- What version of Lightdash were you using when you encountered the bug? (App version is available in the footer of the Lightdash homepage) -->

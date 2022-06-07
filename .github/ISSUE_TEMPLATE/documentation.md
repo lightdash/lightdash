@@ -14,5 +14,3 @@ assignees: ''
 **Link to existing docs:** <!-- e.g. https://docs.lightdash.com/.... -->
 
 **Changes?**
-
-
