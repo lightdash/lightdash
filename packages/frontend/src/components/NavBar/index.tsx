@@ -13,7 +13,12 @@ import React, { useState } from 'react';
 import { useMutation } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
-import { useDefaultProject, useProjects } from '../../hooks/useProjects';
+import {
+    getLastProject,
+    setLastProject,
+    useDefaultProject,
+    useProjects,
+} from '../../hooks/useProjects';
 import { useApp } from '../../providers/AppProvider';
 import { UserAvatar } from '../Avatar';
 import { ErrorLogsDrawer } from '../ErrorLogsDrawer';
@@ -46,8 +51,10 @@ const NavBar = () => {
     const defaultProject = useDefaultProject();
     const { isLoading, data } = useProjects();
     const params = useParams<{ projectUuid: string | undefined }>();
+    const lastProject = getLastProject();
     const selectedProjectUuid =
-        params.projectUuid || defaultProject.data?.projectUuid;
+        params.projectUuid || lastProject || defaultProject.data?.projectUuid;
+
     const history = useHistory();
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [showInvitePage, setShowInvitePage] = useState(false);
@@ -100,6 +107,7 @@ const NavBar = () => {
                             fill
                             value={selectedProjectUuid}
                             onChange={(e) => {
+                                setLastProject(e.target.value);
                                 showToastSuccess({
                                     icon: 'tick',
                                     title: `You are now viewing ${
