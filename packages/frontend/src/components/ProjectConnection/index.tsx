@@ -23,7 +23,13 @@ import DocumentationHelpButton from '../DocumentationHelpButton';
 import Form from '../ReactHookForm/Form';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
-import { WarehouseLogo } from './ProjectConnection.styles';
+import {
+    CompileProjectButton,
+    CompileProjectWrapper,
+    FormContainer,
+    FormWrapper,
+    WarehouseLogo,
+} from './ProjectConnection.styles';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
@@ -301,27 +307,32 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     const { data: orgData } = useOrganisation();
 
     return (
-        <Form
+        <FormContainer
             name="create_project"
             methods={methods}
             onSubmit={onSubmit}
             onError={onError}
         >
             <ProjectFormProvider>
-                <ProjectForm
-                    showGeneralSettings={!orgData?.needsProject}
-                    disabled={isSaving || !!activeJobIsRunning}
-                    defaultType={health.data?.defaultProject?.type}
-                    selectedWarehouse={selectedWarehouse}
-                />
+                <FormWrapper>
+                    <ProjectForm
+                        showGeneralSettings={!orgData?.needsProject}
+                        disabled={isSaving || !!activeJobIsRunning}
+                        defaultType={health.data?.defaultProject?.type}
+                        selectedWarehouse={selectedWarehouse}
+                    />
+                </FormWrapper>
             </ProjectFormProvider>
-            <Button
-                type="submit"
-                intent={Intent.PRIMARY}
-                text="Test and compile project"
-                loading={isSaving || activeJobIsRunning}
-                style={{ float: 'right' }}
-            />
-        </Form>
+            <CompileProjectWrapper>
+                <FormWrapper>
+                    <CompileProjectButton
+                        type="submit"
+                        intent={Intent.PRIMARY}
+                        text="Test &amp; compile project"
+                        loading={isSaving || activeJobIsRunning}
+                    />
+                </FormWrapper>
+            </CompileProjectWrapper>
+        </FormContainer>
     );
 };

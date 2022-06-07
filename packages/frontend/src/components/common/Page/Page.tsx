@@ -7,6 +7,8 @@ import Content from './Content';
 type Props = {
     isFullHeight?: boolean;
     isContentFullWidth?: boolean;
+    hideFooter?: boolean;
+    noContentPadding?: boolean;
 };
 
 const PageBase = styled('div')<Props>`
@@ -21,10 +23,15 @@ const PageBase = styled('div')<Props>`
     background: ${Colors.LIGHT_GRAY4};
 `;
 
-const Page: FC<Props> = ({ children, ...props }) => (
+const Page: FC<Props> = ({
+    hideFooter,
+    noContentPadding,
+    children,
+    ...props
+}) => (
     <PageBase {...props}>
-        <Content>{children}</Content>
-        <AboutFooter />
+        <Content noPadding={noContentPadding}>{children}</Content>
+        {!hideFooter && <AboutFooter />}
     </PageBase>
 );
 
