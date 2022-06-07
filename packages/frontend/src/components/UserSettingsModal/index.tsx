@@ -101,7 +101,7 @@ const UserSettingsModal: FC<Props> = ({
                         />
                     )}
                     {user.data?.ability?.can(
-                        'manage',
+                        'view',
                         'OrganizationMemberProfile',
                     ) && (
                         <Tab

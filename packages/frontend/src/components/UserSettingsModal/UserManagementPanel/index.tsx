@@ -64,7 +64,7 @@ const UserListItem: FC<{
     const { mutate, isLoading: isDeleting } = useDeleteUserMutation();
     const inviteLink = useCreateInviteLinkMutation();
     const { track } = useTracking();
-    const { showToastSuccess, health } = useApp();
+    const { user, showToastSuccess, health } = useApp();
     const updateUser = useUpdateUserMutation(userUuid);
     const handleDelete = () => mutate(userUuid);
 
@@ -95,43 +95,53 @@ const UserListItem: FC<{
                                 <PendingTag intent="warning">
                                     {!isInviteExpired ? 'Pending' : 'Expired'}
                                 </PendingTag>
-                                <NewLinkButton onClick={getNewLink}>
-                                    {health.data?.hasEmailClient
-                                        ? 'Send new invite'
-                                        : 'Get new link'}
-                                </NewLinkButton>
+                                {user.data?.ability?.can(
+                                    'create',
+                                    'InviteLink',
+                                ) && (
+                                    <NewLinkButton onClick={getNewLink}>
+                                        {health.data?.hasEmailClient
+                                            ? 'Send new invite'
+                                            : 'Get new link'}
+                                    </NewLinkButton>
+                                )}
                             </div>
                         </UserInfo>
                     )}
-
-                    <ButtonGroup>
-                        <RoleSelectButton
-                            fill
-                            id="user-role"
-                            options={Object.values(OrganizationMemberRole).map(
-                                (orgMemberRole) => ({
+                    {user.data?.ability?.can(
+                        'manage',
+                        'OrganizationMemberProfile',
+                    ) && (
+                        <ButtonGroup>
+                            <RoleSelectButton
+                                fill
+                                id="user-role"
+                                options={Object.values(
+                                    OrganizationMemberRole,
+                                ).map((orgMemberRole) => ({
                                     value: orgMemberRole,
                                     label: orgMemberRole,
-                                }),
-                            )}
-                            required
-                            onChange={(e) => {
-                                updateUser.mutate({
-                                    role: e.currentTarget
-                                        .value as OrganizationMemberRole,
-                                });
-                            }}
-                            value={role}
-                        />
-                        <Button
-                            icon="delete"
-                            intent="danger"
-                            outlined
-                            onClick={() => setIsDeleteDialogOpen(true)}
-                            text="Delete"
-                            disabled={disabled}
-                        />
-                    </ButtonGroup>
+                                }))}
+                                required
+                                onChange={(e) => {
+                                    updateUser.mutate({
+                                        role: e.currentTarget
+                                            .value as OrganizationMemberRole,
+                                    });
+                                }}
+                                value={role}
+                            />
+
+                            <Button
+                                icon="delete"
+                                intent="danger"
+                                outlined
+                                onClick={() => setIsDeleteDialogOpen(true)}
+                                text="Delete"
+                                disabled={disabled}
+                            />
+                        </ButtonGroup>
+                    )}
                 </SectionWrapper>
                 {inviteLink.data && (
                     <InviteSuccess>
@@ -219,7 +229,7 @@ const UserManagementPanel: FC<{
 
     return (
         <UserManagementPanelWrapper>
-            {user.data?.ability?.can('manage', 'InviteLink') && (
+            {user.data?.ability?.can('create', 'InviteLink') && (
                 <AddUserButton
                     intent="primary"
                     onClick={() => setShowInvitePage(true)}

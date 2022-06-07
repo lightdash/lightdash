@@ -79,9 +79,9 @@ describe('Organization member permissions', () => {
                 ),
             ).toEqual(false);
         });
-        it('cannot view member profiles', () => {
+        it('can view member profiles', () => {
             expect(ability.can('view', 'OrganizationMemberProfile')).toEqual(
-                false,
+                true,
             );
         });
         it('can create invite links', () => {
@@ -92,6 +92,11 @@ describe('Organization member permissions', () => {
     describe('when user is a viewer', () => {
         beforeEach(() => {
             ability = defineAbilityForOrganizationMember(ORGANIZATION_VIEWER);
+        });
+        it('cannot view member profiles', () => {
+            expect(ability.can('view', 'OrganizationMemberProfile')).toEqual(
+                false,
+            );
         });
         it('cannot create any resource', () => {
             expect(ability.can('create', 'Dashboard')).toEqual(false);
