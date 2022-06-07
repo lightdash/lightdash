@@ -7,7 +7,10 @@ import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
 import SelectField from '../../ReactHookForm/Select';
-import { AdvancedButton } from '../ProjectConnection.styles';
+import {
+    AdvancedButton,
+    AdvancedButtonWrapper,
+} from '../ProjectConnection.styles';
 import { useProjectFormContext } from '../ProjectFormProvider';
 
 export const BigQuerySchemaInput: FC<{
@@ -127,20 +130,13 @@ const BigQueryForm: FC<{
                 />
             </FormSection>
 
-            <div
-                style={{
-                    display: 'flex',
-                    marginTop: 20,
-                    justifyContent: 'flex-end',
-                }}
-            >
+            <AdvancedButtonWrapper>
                 <AdvancedButton
-                    text={`${
-                        isOpen ? 'Hide advanced' : 'Advanced'
-                    } configuration options`}
+                    icon={isOpen ? 'chevron-up' : 'chevron-down'}
+                    text={`Advanced configuration options`}
                     onClick={toggleOpen}
                 />
-            </div>
+            </AdvancedButtonWrapper>
         </>
     );
 };

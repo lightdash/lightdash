@@ -6,7 +6,10 @@ import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
-import { AdvancedButton } from '../ProjectConnection.styles';
+import {
+    AdvancedButton,
+    AdvancedButtonWrapper,
+} from '../ProjectConnection.styles';
 import { useProjectFormContext } from '../ProjectFormProvider';
 
 export const SnowflakeSchemaInput: FC<{
@@ -127,21 +130,13 @@ const SnowflakeForm: FC<{
                     disabled={disabled}
                 />
             </FormSection>
-            <div
-                style={{
-                    display: 'flex',
-                    marginTop: 20,
-                    justifyContent: 'flex-end',
-                }}
-            >
+            <AdvancedButtonWrapper>
                 <AdvancedButton
-                    minimal
-                    text={`${
-                        isOpen ? 'Hide advanced' : 'Advanced'
-                    } configuration options`}
+                    icon={isOpen ? 'chevron-up' : 'chevron-down'}
+                    text={`Advanced configuration options`}
                     onClick={toggleOpen}
                 />
-            </div>
+            </AdvancedButtonWrapper>
         </>
     );
 };
