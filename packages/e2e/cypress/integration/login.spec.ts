@@ -21,7 +21,7 @@ describe('Login', () => {
     });
     it('Should display error message when credentials are invalid', () => {
         cy.visit('/login');
-        cy.findAllByPlaceholderText('Email').type('test-email');
+        cy.findByLabelText('Email address *').type('test-email');
         cy.findByLabelText('Password *').type('test-password');
         cy.get('[data-cy="login-button"]').click();
         cy.findByText('Email and password not recognized.').should(
