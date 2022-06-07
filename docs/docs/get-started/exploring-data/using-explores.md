@@ -39,6 +39,11 @@ To run a query:
 For example, if I wanted to know the "total number of orders split by order status", I'd select the `Unique order
 count` metric to calculate the number of orders and the `Status` dimension to split that by status.
 
+## Ordering your results in your table
+
+Click on the table headers that you want to sort by and click again if you want to change from ascending to descending.
+If you need multiple sorts you can add more by pressing `⌃ Control` or `⌘ Command` and click on the table header.
+
 ## Visualising query results as a chart
 
 Once the query executes, the results will show in the results table. You can then open the charts section and choose

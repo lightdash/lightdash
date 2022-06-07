@@ -16,22 +16,38 @@ const getSortByProps = (
     fieldId: string,
     sortFields: SortField[],
     toggleSortField: (fieldId: string) => void,
+    setSortFields: (sortFields: SortField[]) => void,
 ) => {
+    const sortedIndex = sortFields.findIndex((sf) => fieldId === sf.fieldId);
+    const isFieldSorted = sortedIndex !== -1;
     const getSortByToggleProps = () => ({
         style: {
             cursor: 'pointer',
         },
         title: 'Toggle SortBy',
-        onClick: (e: MouseEvent) => toggleSortField(fieldId),
+        onClick: (e: MouseEvent) => {
+            if (e.metaKey || e.ctrlKey || isFieldSorted) {
+                toggleSortField(fieldId);
+            } else {
+                setSortFields([
+                    {
+                        fieldId,
+                        descending: isFieldSorted
+                            ? !sortFields[sortedIndex].descending
+                            : false,
+                    },
+                ]);
+            }
+        },
     });
 
-    const sortedIndex = sortFields.findIndex((sf) => fieldId === sf.fieldId);
     return {
         getSortByToggleProps,
         sortedIndex,
-        isSorted: sortedIndex !== -1,
-        isSortedDesc:
-            sortedIndex === -1 ? undefined : sortFields[sortedIndex].descending,
+        isSorted: isFieldSorted,
+        isSortedDesc: isFieldSorted
+            ? sortFields[sortedIndex].descending
+            : undefined,
         isMultiSort: sortFields.length > 1,
     };
 };
@@ -51,7 +67,7 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                 },
             },
         },
-        actions: { toggleSortField },
+        actions: { toggleSortField, setSortFields },
     } = useExplorer();
     const { data } = useExplore(tableName);
     return useMemo(() => {
@@ -95,6 +111,7 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                                 fieldId,
                                 sortFields,
                                 toggleSortField,
+                                setSortFields,
                             ),
                             field,
                             Cell: FormatCell,
@@ -122,6 +139,7 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                                 fieldId,
                                 sortFields,
                                 toggleSortField,
+                                setSortFields,
                             ),
                             Cell: FormatCell,
                         },
@@ -134,11 +152,12 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
         }
         return [];
     }, [
-        activeFields,
         data,
-        sortFields,
-        tableCalculations,
         additionalMetrics,
+        tableCalculations,
+        activeFields,
+        sortFields,
         toggleSortField,
+        setSortFields,
     ]);
 };
