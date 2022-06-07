@@ -1,7 +1,7 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { Redirect, useParams } from 'react-router-dom';
-import { useProjects } from '../hooks/useProjects';
+import { getLastProject, useProjects } from '../hooks/useProjects';
 
 export const Projects: FC = () => {
     const params = useParams<{ projectUuid: string | undefined }>();
@@ -33,11 +33,18 @@ export const Projects: FC = () => {
             </div>
         );
     }
+
     const availableProjectUuids = data.map(({ projectUuid }) => projectUuid);
+    const find = (projectUuid: string | undefined) => {
+        return projectUuid && availableProjectUuids.includes(projectUuid)
+            ? projectUuid
+            : undefined;
+    };
+    const lastProject = getLastProject();
     const projectUuid =
-        params.projectUuid && availableProjectUuids.includes(params.projectUuid)
-            ? params.projectUuid
-            : availableProjectUuids[0];
+        find(params.projectUuid) ||
+        find(lastProject) ||
+        availableProjectUuids[0];
 
     return <Redirect to={`/projects/${projectUuid}/home`} />;
 };
