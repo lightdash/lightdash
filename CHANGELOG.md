@@ -1,3 +1,10 @@
+# [0.133.0](https://github.com/lightdash/lightdash/compare/0.132.4...0.133.0) (2022-06-07)
+
+
+### Features
+
+* add multiple sort with key combo ([#2327](https://github.com/lightdash/lightdash/issues/2327)) ([d0d4671](https://github.com/lightdash/lightdash/commit/d0d46716740b1a55d143d156f0c57773614277de))
+
 ## [0.132.4](https://github.com/lightdash/lightdash/compare/0.132.3...0.132.4) (2022-06-07)
 
 
