@@ -20,7 +20,7 @@ export const CreateProjectWrapper = styled.div`
 
 export const CreateHeaderWrapper = styled.div`
     width: 800px;
-    margin: auto;
+    margin: 40px auto 0;
 `;
 
 export const ConnectWarehouseWrapper = styled(Card)`
