@@ -1,4 +1,3 @@
-import { Button } from '@blueprintjs/core';
 import {
     ProjectType,
     ProjectTypeLabels,
@@ -17,6 +16,7 @@ import DbtCloudForm from './DbtForms/DbtCloudForm';
 import DbtLocalForm from './DbtForms/DbtLocalForm';
 import GithubForm from './DbtForms/GithubForm';
 import GitlabForm from './DbtForms/GitlabForm';
+import { AdvancedButton } from './ProjectConnection.styles';
 import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
 import { DatabricksSchemaInput } from './WarehouseForms/DatabricksForm';
 import { PostgresSchemaInput } from './WarehouseForms/PostgresForm';
@@ -174,15 +174,11 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                     justifyContent: 'flex-end',
                 }}
             >
-                <Button
-                    minimal
+                <AdvancedButton
                     text={`${
-                        isAdvancedSettingsOpen ? 'Hide' : 'Show'
-                    } advanced fields`}
+                        isAdvancedSettingsOpen ? 'Hide advanced' : 'Advanced'
+                    } configuration options`}
                     onClick={toggleAdvancedSettingsOpen}
-                    style={{
-                        marginRight: 10,
-                    }}
                 />
             </div>
         </div>

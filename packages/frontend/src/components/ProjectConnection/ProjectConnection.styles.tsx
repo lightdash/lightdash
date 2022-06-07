@@ -1,5 +1,6 @@
 import { Button, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
+import SimpleButton from '../common/SimpleButton';
 import Form from '../ReactHookForm/Form';
 
 export const FormContainer = styled(Form)`
@@ -27,4 +28,8 @@ export const CompileProjectButton = styled(Button)`
     height: 40px;
     float: right;
     margin-top: 15px;
+`;
+
+export const AdvancedButton = styled(SimpleButton)`
+    padding-right: 2px;
 `;
