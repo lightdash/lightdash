@@ -1,3 +1,10 @@
+## [0.132.4](https://github.com/lightdash/lightdash/compare/0.132.3...0.132.4) (2022-06-07)
+
+
+### Bug Fixes
+
+* consistent invitelink permissions only for admin ([#2304](https://github.com/lightdash/lightdash/issues/2304)) ([835f86b](https://github.com/lightdash/lightdash/commit/835f86bc430f52647b829fdc3fa6dfb5e67b480f))
+
 ## [0.132.3](https://github.com/lightdash/lightdash/compare/0.132.2...0.132.3) (2022-06-06)
 
 
