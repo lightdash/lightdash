@@ -95,11 +95,16 @@ const UserListItem: FC<{
                                 <PendingTag intent="warning">
                                     {!isInviteExpired ? 'Pending' : 'Expired'}
                                 </PendingTag>
-                                <NewLinkButton onClick={getNewLink}>
-                                    {health.data?.hasEmailClient
-                                        ? 'Send new invite'
-                                        : 'Get new link'}
-                                </NewLinkButton>
+                                {user.data?.ability?.can(
+                                    'create',
+                                    'InviteLink',
+                                ) && (
+                                    <NewLinkButton onClick={getNewLink}>
+                                        {health.data?.hasEmailClient
+                                            ? 'Send new invite'
+                                            : 'Get new link'}
+                                    </NewLinkButton>
+                                )}
                             </div>
                         </UserInfo>
                     )}
