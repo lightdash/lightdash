@@ -1,15 +1,13 @@
 name: Security
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
 
 jobs:
 
   build:
-
+    if: "false"
     runs-on: ubuntu-latest
 
     steps:
