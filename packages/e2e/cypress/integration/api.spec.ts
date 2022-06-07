@@ -154,7 +154,6 @@ describe('Lightdash API', () => {
                 expect(resp.status).to.eq(200);
                 expect(resp.body).to.have.property('status', 'ok');
 
-                expect(resp.body.results).to.have.length(1);
                 expect(resp.body.results[0]).to.have.property(
                     'name',
                     'Jaffle dashboard',
