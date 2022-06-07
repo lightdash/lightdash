@@ -65,7 +65,7 @@
         "knex": "^0.95.7",
         "moment": "^2.29.2",
         "morgan": "^1.10.0",
-        "nanoid": "^3.1.25",
+        "nanoid": "^3.1.31",
         "node-cache": "^5.1.2",
         "node-fetch": "^2.6.1",
         "nodemailer": "^6.7.2",
