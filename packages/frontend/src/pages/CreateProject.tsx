@@ -8,6 +8,7 @@ import { useApp } from '../providers/AppProvider';
 import {
     BackToWarehouseButton,
     ConnectWarehouseWrapper,
+    CreateHeaderWrapper,
     CreateProjectWrapper,
     ExternalLink,
     Subtitle,
@@ -92,20 +93,25 @@ const CreateProject: FC = () => {
     }
 
     return (
-        <Page>
+        <Page
+            hideFooter={!!selectedWarehouse}
+            noContentPadding={!!selectedWarehouse}
+        >
             <ProjectFormProvider>
                 {!selectedWarehouse ? (
                     <WareHouseConnectCard setWarehouse={setSelectedWarehouse} />
                 ) : (
                     <CreateProjectWrapper>
-                        <BackToWarehouseButton
-                            icon="chevron-left"
-                            text="Back"
-                            onClick={() => setSelectedWarehouse(undefined)}
-                        />
-                        <Title marginBottom>
-                            {`Create a ${selectedWarehouse.label} connection`}
-                        </Title>
+                        <CreateHeaderWrapper>
+                            <BackToWarehouseButton
+                                icon="chevron-left"
+                                text="Back"
+                                onClick={() => setSelectedWarehouse(undefined)}
+                            />
+                            <Title marginBottom>
+                                {`Create a ${selectedWarehouse.label} connection`}
+                            </Title>
+                        </CreateHeaderWrapper>
                         <CreateProjectConnection
                             selectedWarehouse={selectedWarehouse}
                         />

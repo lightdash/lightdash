@@ -13,9 +13,14 @@ export const Wrapper = styled.div`
 
 export const CreateProjectWrapper = styled.div`
     display: flex;
-    width: 800px;
+    width: 100vw;
     flex-direction: column;
     flex: 1;
+`;
+
+export const CreateHeaderWrapper = styled.div`
+    width: 800px;
+    margin: auto;
 `;
 
 export const ConnectWarehouseWrapper = styled(Card)`
