@@ -246,6 +246,19 @@ export const convertTable = (
     );
     const allMetrics = { ...convertedDbtMetrics, ...metrics }; // Model-level metric names take priority
 
+    const duplicatedNames = Object.keys(allMetrics).filter((metric) =>
+        Object.keys(dimensions).includes(metric),
+    );
+    if (duplicatedNames.length > 1) {
+        throw new ParseError(
+            `Found multiple metrics and a dimensions with the same name: ${duplicatedNames}`,
+        );
+    } else if (duplicatedNames.length === 1) {
+        throw new ParseError(
+            `Found a metric and a dimension with the same name: ${duplicatedNames[0]}`,
+        );
+    }
+
     return {
         name: model.name,
         label: tableLabel,
