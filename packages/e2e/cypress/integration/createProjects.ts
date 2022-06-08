@@ -57,9 +57,9 @@ describe('Dashboard', () => {
 
         // Compile
         cy.findByText('Test and compile project').click();
-        cy.contains('Step 1/3', { timeout: 30000 });
-        cy.contains('Step 2/3', { timeout: 30000 });
-        cy.contains('Successfully synced dbt project!', { timeout: 30000 });
+        cy.contains('Step 1/3', { timeout: 60000 });
+        cy.contains('Step 2/3', { timeout: 60000 });
+        cy.contains('Successfully synced dbt project!', { timeout: 60000 });
 
         // Configure
         cy.findByText('Save').click();
@@ -110,9 +110,9 @@ describe('Dashboard', () => {
 
         // Compile
         cy.findByText('Test and compile project').click();
-        cy.contains('Step 1/3', { timeout: 30000 });
-        cy.contains('Step 2/3', { timeout: 30000 });
-        cy.contains('Successfully synced dbt project!', { timeout: 30000 });
+        cy.contains('Step 1/3', { timeout: 60000 });
+        cy.contains('Step 2/3', { timeout: 60000 });
+        cy.contains('Successfully synced dbt project!', { timeout: 60000 });
 
         // Configure
         cy.findByText('Save').click();
