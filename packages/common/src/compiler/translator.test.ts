@@ -1,9 +1,6 @@
-import {
-    attachTypesToModels,
-    convertTable,
-    extractEntityNameFromIdColumn,
-    SupportedDbtAdapter,
-} from '@lightdash/common';
+import { SupportedDbtAdapter } from '../types/dbt';
+import { extractEntityNameFromIdColumn } from '../types/metricQuery';
+import { attachTypesToModels, convertTable } from './translator';
 import {
     expectedModelWithType,
     INVALID_ID_COLUMN_NAMES,
@@ -20,6 +17,8 @@ import {
     MODEL_WITH_NO_METRICS,
     MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
+    MODEL_WITH_WRONG_METRIC,
+    MODEL_WITH_WRONG_METRICS,
     VALID_ID_COLUMN_NAMES,
     warehouseSchema,
     warehouseSchemaWithMissingColumn,
@@ -182,5 +181,27 @@ describe('convert tables from dbt models', () => {
                 [],
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS);
+    });
+    it('should throw an error when metric and dimension have the same name', async () => {
+        expect(() =>
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_WRONG_METRIC,
+                [],
+            ),
+        ).toThrowError(
+            'Found a metric and a dimension with the same name: user_id',
+        );
+    });
+    it('should throw an error when multiple metrics and dimensions have the same name', async () => {
+        expect(() =>
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                MODEL_WITH_WRONG_METRICS,
+                [],
+            ),
+        ).toThrowError(
+            'Found multiple metrics and a dimensions with the same name: user_id,user_id2',
+        );
     });
 });

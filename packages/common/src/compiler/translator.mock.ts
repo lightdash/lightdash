@@ -1,12 +1,14 @@
-import {
-    DbtModelColumn,
-    DbtModelNode,
-    DimensionType,
-    FieldType,
-    MetricType,
-    Table,
-} from '@lightdash/common';
-import { WarehouseCatalog } from '@lightdash/warehouses';
+import { DbtModelColumn, DbtModelNode } from '../types/dbt';
+import { Table } from '../types/explore';
+import { DimensionType, FieldType, MetricType } from '../types/field';
+
+type WarehouseCatalog = {
+    [database: string]: {
+        [schema: string]: {
+            [table: string]: { [column: string]: DimensionType };
+        };
+    };
+};
 
 export const VALID_ID_COLUMN_NAMES = [
     { input: 'userid', output: 'user' },
@@ -161,6 +163,50 @@ export const MODEL_WITH_METRIC: DbtModelNode = {
     ...model,
     description: 'my test table',
     columns: COLUMN_WITH_METRIC,
+};
+
+export const MODEL_WITH_WRONG_METRIC: DbtModelNode = {
+    ...model,
+    columns: {
+        user_id: {
+            name: 'user_id',
+            data_type: DimensionType.STRING,
+            meta: {
+                metrics: {
+                    user_id: { type: MetricType.COUNT_DISTINCT },
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_WRONG_METRICS: DbtModelNode = {
+    ...model,
+    columns: {
+        user_id: {
+            name: 'user_id',
+            data_type: DimensionType.STRING,
+            meta: {},
+        },
+        other: {
+            name: 'other',
+            data_type: DimensionType.STRING,
+            meta: {
+                metrics: {
+                    user_id: { type: MetricType.COUNT_DISTINCT },
+                },
+            },
+        },
+        user_id2: {
+            name: 'user_id2',
+            data_type: DimensionType.STRING,
+            meta: {
+                metrics: {
+                    user_id2: { type: MetricType.COUNT_DISTINCT },
+                },
+            },
+        },
+    },
 };
 
 export const LIGHTDASH_TABLE_WITH_METRIC: Omit<Table, 'lineageGraph'> = {
