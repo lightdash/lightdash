@@ -160,6 +160,7 @@ const ProjectForm: FC<Props> = ({
                 <DbtSettingsForm
                     disabled={disabled}
                     defaultType={defaultType}
+                    selectedWarehouse={selectedWarehouse}
                 />
             </div>
         </Card>

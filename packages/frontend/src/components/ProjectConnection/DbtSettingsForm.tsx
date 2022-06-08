@@ -16,6 +16,7 @@ import DbtCloudForm from './DbtForms/DbtCloudForm';
 import DbtLocalForm from './DbtForms/DbtLocalForm';
 import GithubForm from './DbtForms/GithubForm';
 import GitlabForm from './DbtForms/GitlabForm';
+import { SelectedWarehouse } from './ProjectConnectFlow/WareHouseConnectCard.tsx';
 import {
     AdvancedButton,
     AdvancedButtonWrapper,
@@ -29,11 +30,13 @@ import { SnowflakeSchemaInput } from './WarehouseForms/SnowflakeForm';
 interface DbtSettingsFormProps {
     disabled: boolean;
     defaultType?: ProjectType;
+    selectedWarehouse?: SelectedWarehouse | undefined;
 }
 
 const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     disabled,
     defaultType,
+    selectedWarehouse,
 }) => {
     const type: ProjectType = useWatch({
         name: 'dbt.type',
@@ -119,7 +122,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     };
 
     const warehouseSchemaInput = useMemo(() => {
-        switch (warehouseType) {
+        switch (selectedWarehouse?.key || warehouseType) {
             case WarehouseTypes.BIGQUERY:
                 return <BigQuerySchemaInput disabled={disabled} />;
             case WarehouseTypes.POSTGRES:
@@ -131,11 +134,10 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             case WarehouseTypes.DATABRICKS:
                 return <DatabricksSchemaInput disabled={disabled} />;
             default: {
-                const never: never = warehouseType;
                 return <></>;
             }
         }
-    }, [disabled, warehouseType]);
+    }, [disabled, warehouseType, selectedWarehouse]);
     return (
         <div
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
