@@ -282,6 +282,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         defaultValues: {
             name: user.data?.organizationName,
             dbt: health.data?.defaultProject,
+            warehouse: { type: selectedWarehouse?.key },
         },
     });
     const { track } = useTracking();
@@ -294,11 +295,17 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         track({
             name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
         });
-        await mutateAsync({
-            name: name || user.data?.organizationName || 'My project',
-            dbtConnection,
-            warehouseConnection,
-        });
+        if (selectedWarehouse) {
+            await mutateAsync({
+                name: name || user.data?.organizationName || 'My project',
+                dbtConnection,
+                //@ts-ignore
+                warehouseConnection: {
+                    ...warehouseConnection,
+                    type: selectedWarehouse?.key,
+                },
+            });
+        }
     };
 
     useEffect(() => {
