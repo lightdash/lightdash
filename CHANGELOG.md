@@ -1,3 +1,10 @@
+## [0.134.3](https://github.com/lightdash/lightdash/compare/0.134.2...0.134.3) (2022-06-08)
+
+
+### Bug Fixes
+
+* duplicated tooltip when grouping ([#2361](https://github.com/lightdash/lightdash/issues/2361)) ([948baae](https://github.com/lightdash/lightdash/commit/948baaedf429d3d8756d01d6e0bd050cf9f4f5a1))
+
 ## [0.134.2](https://github.com/lightdash/lightdash/compare/0.134.1...0.134.2) (2022-06-08)
 
 
