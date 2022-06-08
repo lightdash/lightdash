@@ -1,3 +1,11 @@
+## [0.134.1](https://github.com/lightdash/lightdash/compare/0.134.0...0.134.1) (2022-06-08)
+
+
+### Bug Fixes
+
+* disable new version on cloud ([#2351](https://github.com/lightdash/lightdash/issues/2351)) ([7d503c8](https://github.com/lightdash/lightdash/commit/7d503c8654b636963d9eca26d24f9c4461ffd08d))
+* email template image url ([#2347](https://github.com/lightdash/lightdash/issues/2347)) ([e91212c](https://github.com/lightdash/lightdash/commit/e91212c0517db415f5883f575d817207bd0fa707))
+
 # [0.134.0](https://github.com/lightdash/lightdash/compare/0.133.0...0.134.0) (2022-06-07)
 
 
