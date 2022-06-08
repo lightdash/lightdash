@@ -28,6 +28,9 @@ jobs:
         run: yarn common-build && yarn warehouses-build
       # Install NPM dependencies, cache them correctly
       # and run all Cypress tests
+      - name: Echo env
+        run: env
+
       - name: Cypress run 
         uses: cypress-io/github-action@v2
         with:

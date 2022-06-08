@@ -28,7 +28,9 @@ describe('Dashboard', () => {
 
         cy.get('[name="name"]').type('Jaffle PostgreSQL test');
 
-        cy.log('env', process.env, Cypress.env());
+        cy.log('process.env', process.env); // TODO remove
+        cy.log('Cypress.env()', Cypress.env());
+
         // Warehouse
         cy.get('select').eq(1).select('PostgreSQL');
         cy.get('[name="warehouse.host"]').type(
@@ -72,7 +74,7 @@ describe('Dashboard', () => {
         cy.findAllByText('Run query').first().click();
         cy.findAllByText('25 results');
     });
-
+    /* // TODO enable
     it('Should create a Redshift project', () => {
         // https://docs.aws.amazon.com/redshift/latest/dg/c_redshift-and-postgres-sql.html
         // Amazon Redshift is based on PostgreSQL
@@ -124,5 +126,5 @@ describe('Dashboard', () => {
         cy.findByText('payments').click();
         cy.findAllByText('Run query').first().click();
         cy.findAllByText('25 results');
-    });
+    }); */
 });
