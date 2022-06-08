@@ -43,7 +43,12 @@ describe('Dashboard', () => {
         cy.get('[name="warehouse.dbname"]').type(
             Cypress.env('PGDATABASE') || 'postgres',
         );
+
         cy.contains('Show advanced fields').click();
+
+        cy.get('[name="warehouse.port"]')
+            .clear()
+            .type(Cypress.env('PGPORT') || '5432');
         cy.get('select').eq(2).select('disable'); // SSL mode
 
         // DBT
@@ -91,7 +96,12 @@ describe('Dashboard', () => {
         cy.get('[name="warehouse.dbname"]').type(
             Cypress.env('PGDATABASE') || 'postgres',
         );
+
         cy.contains('Show advanced fields').click();
+
+        cy.get('[name="warehouse.port"]')
+            .clear()
+            .type(Cypress.env('PGPORT') || '5432');
         cy.get('select').eq(2).select('disable'); // SSL mode
 
         // DBT
