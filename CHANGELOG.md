@@ -1,3 +1,10 @@
+## [0.134.4](https://github.com/lightdash/lightdash/compare/0.134.3...0.134.4) (2022-06-08)
+
+
+### Bug Fixes
+
+* table calculation table header ([#2365](https://github.com/lightdash/lightdash/issues/2365)) ([ee982c2](https://github.com/lightdash/lightdash/commit/ee982c299edd3226af7e1a913c1366a5451a06cc))
+
 ## [0.134.3](https://github.com/lightdash/lightdash/compare/0.134.2...0.134.3) (2022-06-08)
 
 
