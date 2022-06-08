@@ -1,5 +1,10 @@
 import { WarehouseTypes } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
+import BigQuery from './assets/bigquery.png';
+import Databricks from './assets/databricks.png';
+import PostgressLogo from './assets/postgresql.png';
+import Redshift from './assets/redshift.png';
+import Snowflake from './assets/snowflake.png';
 import {
     ConnectWarehouseWrapper,
     ExternalLink,
@@ -29,27 +34,27 @@ const WareHouseConnectCard: FC<Props> = ({ setWarehouse }) => {
             {
                 label: 'BigQuery',
                 key: WarehouseTypes.BIGQUERY,
-                icon: './bigquery.png',
+                icon: BigQuery,
             },
             {
                 label: 'Databricks',
                 key: WarehouseTypes.DATABRICKS,
-                icon: './databricks.png',
+                icon: Databricks,
             },
             {
                 label: 'PostgreSQL',
                 key: WarehouseTypes.POSTGRES,
-                icon: './postgresql.png',
+                icon: PostgressLogo,
             },
             {
                 label: 'Redshift',
                 key: WarehouseTypes.REDSHIFT,
-                icon: './redshift.png',
+                icon: Redshift,
             },
             {
                 label: 'Snowflake',
                 key: WarehouseTypes.SNOWFLAKE,
-                icon: './snowflake.png',
+                icon: Snowflake,
             },
         ];
         setWarehouseInfo(WarehouseTypeLabels);

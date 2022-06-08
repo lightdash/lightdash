@@ -23,6 +23,7 @@ import DocumentationHelpButton from '../DocumentationHelpButton';
 import Form from '../ReactHookForm/Form';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
+import DbtLogo from './ProjectConnectFlow/assets/dbt.png';
 import {
     CompileProjectButton,
     CompileProjectWrapper,
@@ -131,7 +132,7 @@ const ProjectForm: FC<Props> = ({
                         marginBottom: 15,
                     }}
                 >
-                    <WarehouseLogo src="./dbt.png" alt="dbt icon" />
+                    <WarehouseLogo src={DbtLogo} alt="dbt icon" />
                     <div>
                         <H5
                             style={{
