@@ -1,4 +1,3 @@
-import { Colors } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { fieldId } from '@lightdash/common';
 import React, { FC } from 'react';
@@ -6,7 +5,7 @@ import { useAvailableDashboardFilterTargets } from '../../../hooks/dashboard/use
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import FilterConfiguration from '../FilterConfiguration';
 import ActiveFilter from './ActiveFilter';
-import { TagsWrapper } from './ActiveFilters.styles';
+import { InvalidFilterTag, TagsWrapper } from './ActiveFilters.styles';
 
 const ActiveFilters: FC = () => {
     const {
@@ -27,15 +26,14 @@ const ActiveFilters: FC = () => {
                 );
                 if (!activeField) {
                     return (
-                        <span
-                            style={{
-                                width: '100%',
-                                color: Colors.GRAY1,
-                            }}
+                        <InvalidFilterTag
+                            onRemove={() =>
+                                removeDimensionDashboardFilter(index)
+                            }
                         >
                             Tried to reference field with unknown id:{' '}
                             {item.target.fieldId}
-                        </span>
+                        </InvalidFilterTag>
                     );
                 }
                 return (
