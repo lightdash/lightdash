@@ -37,12 +37,6 @@ jobs:
           project: ./packages/e2e
           # Set the PR deployment url
           config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
-        env:
-          CYPRESS_PGHOST: $PGHOST
-          CYPRESS_PGPORT: $PGPORT
-          CYPRESS_PGUSER: $PGUSER
-          CYPRESS_PGPASSWORD: $PGPASSWORD
-          CYPRESS_PGDATABASE: $PGDATABASE
       # After the test run completes
       # store videos and any screenshots
       - uses: actions/upload-artifact@v1
