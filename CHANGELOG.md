@@ -1,3 +1,10 @@
+## [0.134.2](https://github.com/lightdash/lightdash/compare/0.134.1...0.134.2) (2022-06-08)
+
+
+### Bug Fixes
+
+* throw error when metric and dimension have same name ([#2355](https://github.com/lightdash/lightdash/issues/2355)) ([efd1236](https://github.com/lightdash/lightdash/commit/efd12362227d06833b1a310bfca241d2f3068983))
+
 ## [0.134.1](https://github.com/lightdash/lightdash/compare/0.134.0...0.134.1) (2022-06-08)
 
 
