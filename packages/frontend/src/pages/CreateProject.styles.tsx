@@ -1,6 +1,5 @@
 import { Button, Card, Colors, H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
-import { BigButton } from '../components/common/BigButton';
 import SimpleButton from '../components/common/SimpleButton';
 
 export const CreateProjectWrapper = styled.div`
