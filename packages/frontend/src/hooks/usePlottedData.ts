@@ -30,11 +30,7 @@ export const getPivotedData = (
     }, {});
 
     const rowUniqueKeys = [...new Set(rows.map((r) => r[xAxis]))];
-    console.log('rowUniqueKeys', rowUniqueKeys);
-
     const sortedPivoted = rowUniqueKeys.flatMap((rowKey) => pivoted[rowKey]);
-    console.log('sortedPivoted', sortedPivoted);
-    console.log('pivoted', Object.values(pivoted));
 
     return Object.values(sortedPivoted);
 };
