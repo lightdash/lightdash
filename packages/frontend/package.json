@@ -1,6 +1,6 @@
 {
     "name": "frontend",
-    "version": "0.134.4",
+    "version": "0.134.5",
     "private": true,
     "dependencies": {
         "@blueprintjs/core": "^4.2.0",
@@ -19,7 +19,7 @@
         "@uiw/react-md-editor": "^3.10.0",
         "ace-builds": "^1.4.14",
         "cohere-js": "^1.0.19",
-        "@lightdash/common": "^0.134.4",
+        "@lightdash/common": "^0.134.5",
         "dagre": "^0.8.5",
         "echarts": "^5.3.0",
         "echarts-for-react": "^3.0.2",

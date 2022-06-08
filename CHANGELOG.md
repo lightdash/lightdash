@@ -1,3 +1,10 @@
+## [0.134.5](https://github.com/lightdash/lightdash/compare/0.134.4...0.134.5) (2022-06-08)
+
+
+### Bug Fixes
+
+* allow to remove invalid filters ([#2366](https://github.com/lightdash/lightdash/issues/2366)) ([690721c](https://github.com/lightdash/lightdash/commit/690721cbe8d57187f003acf8b4d8b6186d0210c4))
+
 ## [0.134.4](https://github.com/lightdash/lightdash/compare/0.134.3...0.134.4) (2022-06-08)
 
 
