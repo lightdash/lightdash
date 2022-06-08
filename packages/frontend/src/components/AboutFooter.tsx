@@ -9,6 +9,7 @@ import {
     Intent,
     Tag,
 } from '@blueprintjs/core';
+import { LightdashMode } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { useApp } from '../providers/AppProvider';
 import { TrackPage, TrackSection } from '../providers/TrackingProvider';
@@ -24,6 +25,8 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
     const hasUpdate =
         healthState.data?.latest.version &&
         healthState.data.version !== healthState.data.latest.version;
+
+    const isCloud = healthState.data?.mode === LightdashMode.CLOUD_BETA;
 
     return (
         <TrackSection name={SectionName.PAGE_FOOTER}>
@@ -57,7 +60,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                     >
                         {!minimal && 'Lightdash - '}
                         {healthState.data && `v${healthState.data.version}`}
-                        {hasUpdate && (
+                        {hasUpdate && !isCloud && (
                             <Tag
                                 minimal
                                 intent={Intent.PRIMARY}
@@ -95,7 +98,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                     ? `v${healthState.data.version}`
                                     : 'n/a'}
                             </H5>
-                            {hasUpdate && (
+                            {hasUpdate && !isCloud && (
                                 <Callout
                                     title="New version available!"
                                     intent={Intent.PRIMARY}
