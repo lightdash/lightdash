@@ -1,3 +1,9 @@
+const PGHOST = '34.77.111.105';
+const PGPASSWORD = 'e2e-test-password';
+const PGUSER = 'readonly';
+const PGDATABASE = 'postgres';
+const PGPORT = '5432';
+
 describe('Dashboard', () => {
     before(() => {
         // @ts-ignore
@@ -28,29 +34,16 @@ describe('Dashboard', () => {
 
         cy.get('[name="name"]').type('Jaffle PostgreSQL test');
 
-        cy.log('process.env', process.env); // TODO remove
-        cy.log('Cypress.env()', Cypress.env());
-
         // Warehouse
         cy.get('select').eq(1).select('PostgreSQL');
-        cy.get('[name="warehouse.host"]').type(
-            Cypress.env('PGHOST') || 'db-dev',
-        );
-        cy.get('[name="warehouse.user"]').type(
-            Cypress.env('PGUSER') || 'postgres',
-        );
-        cy.get('[name="warehouse.password"]').type(
-            Cypress.env('PGPASSWORD') || 'password',
-        );
-        cy.get('[name="warehouse.dbname"]').type(
-            Cypress.env('PGDATABASE') || 'postgres',
-        );
+        cy.get('[name="warehouse.host"]').type(PGHOST);
+        cy.get('[name="warehouse.user"]').type(PGUSER);
+        cy.get('[name="warehouse.password"]').type(PGPASSWORD);
+        cy.get('[name="warehouse.dbname"]').type(PGDATABASE);
 
         cy.contains('Show advanced fields').click();
 
-        cy.get('[name="warehouse.port"]')
-            .clear()
-            .type(Cypress.env('PGPORT') || '5432');
+        cy.get('[name="warehouse.port"]').clear().type(PGPORT);
         cy.get('select').eq(2).select('disable'); // SSL mode
 
         // DBT
@@ -59,9 +52,9 @@ describe('Dashboard', () => {
 
         // Compile
         cy.findByText('Test and compile project').click();
-        cy.contains('Step 1/3', { timeout: 60000 });
-        cy.contains('Step 2/3', { timeout: 60000 });
-        cy.contains('Successfully synced dbt project!', { timeout: 60000 });
+        cy.contains('Step 1/3', { timeout: 30000 });
+        cy.contains('Step 2/3', { timeout: 30000 });
+        cy.contains('Successfully synced dbt project!', { timeout: 30000 });
 
         // Configure
         cy.findByText('Save').click();
