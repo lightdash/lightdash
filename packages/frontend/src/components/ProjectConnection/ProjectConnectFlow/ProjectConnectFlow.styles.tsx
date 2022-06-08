@@ -69,9 +69,10 @@ export const Codeblock = styled.div`
     background: #ebf1f5;
     width: 100%;
     border-radius: 3px;
+    text-align: initial;
 
-    pre code {
-        display: block;
+    pre {
+        margin: 0;
         color: ${Colors.GRAY1};
     }
 `;

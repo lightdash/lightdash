@@ -16,6 +16,13 @@ interface Props {
     setHasDimensions: (dimension: string) => void;
 }
 
+const codeBlock = String.raw`models:
+- name: my_model
+    columns:
+    - name: my_column_1
+    - name: my_column_2
+`;
+
 const HowToConnectDataCard: FC<Props> = ({ setHasDimensions }) => {
     const methods = useForm<{ hasDimension: string }>({
         mode: 'onSubmit',
@@ -25,6 +32,7 @@ const HowToConnectDataCard: FC<Props> = ({ setHasDimensions }) => {
         console.log(formData);
         setHasDimensions(formData?.hasDimension);
     };
+
     return (
         <Wrapper>
             <ConnectWarehouseWrapper>
@@ -35,12 +43,7 @@ const HowToConnectDataCard: FC<Props> = ({ setHasDimensions }) => {
                     eg:
                 </Subtitle>
                 <Codeblock>
-                    <pre>
-                        {/* <code> */}
-                        models: - name: my_model columns: - name: my_column_1 -
-                        name: my_column_2
-                        {/* </code> */}
-                    </pre>
+                    <pre>{codeBlock}</pre>
                 </Codeblock>
                 <HasDimensionsForm
                     name="has-dimensions-selector"
@@ -54,6 +57,7 @@ const HowToConnectDataCard: FC<Props> = ({ setHasDimensions }) => {
                         rules={{
                             required: 'Required field',
                         }}
+                        defaultValue="hasDimensions"
                     >
                         <Radio label="Yes" value="hasDimensions" />
                         <Radio label="No" value="doesNotHaveDimensions" />
