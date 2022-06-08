@@ -1,6 +1,6 @@
 const PGHOST = '34.77.111.105';
-const PGPASSWORD = 'e2e-test-password';
-const PGUSER = 'readonly';
+const PGPASSWORD = 'lightdash-e2e-test-password';
+const PGUSER = 'postgres';
 const PGDATABASE = 'postgres';
 const PGPORT = '5432';
 
@@ -48,6 +48,8 @@ describe('Dashboard', () => {
 
         // DBT
         cy.get('select').eq(3).select('dbt local server');
+        cy.get('[name="dbt.target"]').type('test');
+
         cy.get('[name="warehouse.schema"]').type('jaffle');
 
         // Compile
