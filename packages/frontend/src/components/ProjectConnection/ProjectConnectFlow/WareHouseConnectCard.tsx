@@ -2,7 +2,7 @@ import { WarehouseTypes } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
 import BigQuery from './Assets/bigquery.png';
 import Databricks from './Assets/databricks.png';
-import PostgresSql from './Assets/posrtgresql.png';
+import PostgresSql from './Assets/postgresql.png';
 import Redshift from './Assets/redshift.png';
 import Snowflake from './Assets/snowflake.png';
 import {
