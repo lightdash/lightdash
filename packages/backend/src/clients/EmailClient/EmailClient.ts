@@ -13,11 +13,11 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logger';
 
 type Dependencies = {
-    lightdashConfig: Pick<LightdashConfig, 'smtp'>;
+    lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl'>;
 };
 
 export default class EmailClient {
-    lightdashConfig: Pick<LightdashConfig, 'smtp'>;
+    lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl'>;
 
     transporter: nodemailer.Transporter | undefined;
 
@@ -107,6 +107,7 @@ export default class EmailClient {
             template: 'recoverPassword',
             context: {
                 url: link.url,
+                host: this.lightdashConfig.siteUrl,
             },
             text: `Forgotten your password? No worries! Just click on the link below within the next 24 hours to create a new one: ${link.url}`,
         });
@@ -126,6 +127,7 @@ export default class EmailClient {
             context: {
                 orgName: userThatInvited.organizationName,
                 inviteUrl: invite.inviteUrl,
+                host: this.lightdashConfig.siteUrl,
             },
             text: `Your teammates at ${userThatInvited.organizationName} are using Lightdash to discover and share data insights. Click on the link below within the next 72 hours to join your team and start exploring your data! ${invite.inviteUrl}`,
         });
