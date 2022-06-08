@@ -129,9 +129,12 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                         ...acc,
                         {
                             Header: (
-                                <b>{friendlyName(tableCalculation.name)}</b>
+                                <b>
+                                    {tableCalculation.displayName ||
+                                        friendlyName(tableCalculation.name)}
+                                </b>
                             ),
-                            description: friendlyName(tableCalculation.name),
+                            description: '',
                             accessor: fieldId,
                             type: 'table_calculation',
                             tableCalculation,
