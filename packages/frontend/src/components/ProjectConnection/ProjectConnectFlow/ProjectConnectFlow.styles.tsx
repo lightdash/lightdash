@@ -1,5 +1,7 @@
-import { Button, Card, Colors, H3 } from '@blueprintjs/core';
+import { Button, Card, Colors, H3, Radio } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
+import { BigButton } from '../../common/BigButton';
+import Form from '../../ReactHookForm/Form';
 
 export const Wrapper = styled.div`
     width: 400px;
@@ -19,7 +21,6 @@ export const ConnectWarehouseWrapper = styled(Card)`
 
 export const Title = styled(H3)<{ marginBottom?: boolean }>`
     margin: 0;
-
     ${({ marginBottom }) =>
         marginBottom &&
         css`
@@ -52,4 +53,64 @@ export const WarehouseIcon = styled.img`
 
 export const ExternalLink = styled.a`
     color: ${Colors.BLUE3};
+`;
+
+export const RadioButton = styled(Radio)`
+    text-align: left;
+`;
+
+export const SubmitButton = styled(BigButton)`
+    width: 100%;
+`;
+
+export const Codeblock = styled.div`
+    margin: 20px 0;
+    padding: 12px 20px;
+    background: #ebf1f5;
+    width: 100%;
+    border-radius: 3px;
+
+    pre code {
+        display: block;
+        color: ${Colors.GRAY1};
+    }
+`;
+
+export const ButtonsWrapper = styled.div`
+    margin: 20px 0 10px;
+`;
+
+export const LinkToDocsButton = styled.a`
+    padding: 21px 25px;
+    width: 100%;
+    border: 1px solid ${Colors.LIGHT_GRAY2};
+    display: flex;
+    justify-content: space-between;
+    text-decoration: none;
+    align-items: center;
+    border-radius: 3px;
+    margin-bottom: 10px;
+    transition: all 0.3s ease;
+
+    :hover {
+        background: ${Colors.LIGHT_GRAY5};
+        text-decoration: none;
+        svg {
+            transform: translateX(3px);
+        }
+    }
+
+    svg path {
+        fill: ${Colors.BLUE3};
+    }
+`;
+
+export const ButtonLabel = styled.span`
+    color: ${Colors.DARK_GRAY3};
+    font-weight: 600;
+`;
+
+export const HasDimensionsForm = styled(Form)`
+    margin-bottom: 10px;
+    text-align: left;
 `;

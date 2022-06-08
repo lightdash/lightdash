@@ -1,14 +1,12 @@
-import { Icon, Intent, RadioGroup } from '@blueprintjs/core';
 import { WarehouseTypes } from '@lightdash/common';
 import React, { FC, useState } from 'react';
-import { useForm } from 'react-hook-form';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { CreateProjectConnection } from '../components/ProjectConnection';
-import WareHouseConnectCard from '../components/ProjectConnection/ProjectConnectFlow/WareHouseConnectCard.tsx';
+import ConnectionOptions from '../components/ProjectConnection/ProjectConnectFlow/ConnectionOptions';
+import HowToConnectDataCard from '../components/ProjectConnection/ProjectConnectFlow/HowToConnectDataCard';
+import WareHouseConnectCard from '../components/ProjectConnection/ProjectConnectFlow/WareHouseConnectCard';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
-import Form from '../components/ReactHookForm/Form';
-// import RadioGroup from '../components/ReactHookForm/RadioGroup';
 import { useApp } from '../providers/AppProvider';
 import {
     BackToWarehouseButton,
@@ -28,9 +26,7 @@ const CreateProject: FC = () => {
     const [selectedWarehouse, setSelectedWarehouse] = useState<
         SelectedWarehouse | undefined
     >();
-    const [hasDimensions, setHasDimensions] = useState<
-        'yes' | 'no' | undefined
-    >();
+    const [hasDimensions, setHasDimensions] = useState<string | undefined>();
 
     if (health.isLoading) {
         return <PageSpinner />;
@@ -39,7 +35,7 @@ const CreateProject: FC = () => {
 
     const PanelToRender = () => {
         switch (hasDimensions) {
-            case 'yes':
+            case 'hasDimensions':
                 return (
                     <>
                         {!selectedWarehouse ? (
@@ -67,7 +63,7 @@ const CreateProject: FC = () => {
                         )}
                     </>
                 );
-            case 'no':
+            case 'doesNotHaveDimensions':
                 return (
                     <ConnectionOptions setHasDimensions={setHasDimensions} />
                 );
