@@ -29,9 +29,9 @@ export const getPivotedData = (
         return acc;
     }, {});
 
-    const sortedPivoted = rows.flatMap(
-        (row) => row[xAxis] && pivoted[row[xAxis]],
-    );
+    const rowUniqueKeys = [...new Set(rows.map((r) => r[xAxis]))];
+    const sortedPivoted = rowUniqueKeys.flatMap((rowKey) => pivoted[rowKey]);
+
     return Object.values(sortedPivoted);
 };
 
