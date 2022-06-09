@@ -1,3 +1,10 @@
+## [0.135.1](https://github.com/lightdash/lightdash/compare/0.135.0...0.135.1) (2022-06-09)
+
+
+### Bug Fixes
+
+* dashboard filter autocomplete ([#2382](https://github.com/lightdash/lightdash/issues/2382)) ([6bb2d1a](https://github.com/lightdash/lightdash/commit/6bb2d1a793635cd84e0cd1d3018fdc4e6c0414fe))
+
 # [0.135.0](https://github.com/lightdash/lightdash/compare/0.134.11...0.135.0) (2022-06-09)
 
 
