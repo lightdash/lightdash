@@ -42,19 +42,15 @@ const testRunQuery = () => {
     cy.findByText('SQL Runner').click();
 
     cy.contains('payments').click();
-    cy.findAllByText('Run query').first().click();
-    cy.findAllByText('25 results');
 };
 
 const testQuery = () => {
     cy.findByText('Explore').click();
     cy.findByText('Tables').click();
 
-    cy.findByText('Orders').click();
+    cy.contains('Orders').click();
     cy.findByText('First name').click();
     cy.findByText('Unique order count').click();
-    cy.get('th b').first().should('have.text', 'First name').click();
-    cy.get('td', { timeout: 10000 }).eq(1).should('have.text', 'Aaron');
 };
 
 describe('Dashboard', () => {
