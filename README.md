@@ -251,6 +251,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/BA-CY"><img src="https://avatars.githubusercontent.com/u/54427954?v=4?s=100" width="100px;" alt=""/><br /><sub><b>BA-CY</b></sub></a><br /><a href="#ideas-BA-CY" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="https://github.com/JohnRomanski"><img src="https://avatars.githubusercontent.com/u/382382?v=4?s=100" width="100px;" alt=""/><br /><sub><b>John Romanski</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3AJohnRomanski" title="Bug reports">🐛</a></td>
     <td align="center"><a href="https://jamiedavenport.dev"><img src="https://avatars.githubusercontent.com/u/1329874?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Jamie Davenport</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Ajamiedavenport" title="Bug reports">🐛</a></td>
+    <td align="center"><a href="http://www.windmark.se"><img src="https://avatars.githubusercontent.com/u/3810163?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Marcus Windmark</b></sub></a><br /><a href="#ideas-windmark" title="Ideas, Planning, & Feedback">🤔</a></td>
   </tr>
 </table>
 
