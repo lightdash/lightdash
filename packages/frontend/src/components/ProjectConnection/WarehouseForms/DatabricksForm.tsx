@@ -11,7 +11,7 @@ export const DatabricksSchemaInput: FC<{
 }> = ({ disabled }) => {
     return (
         <Input
-            name="warehouse.schema"
+            name="warehouse.database"
             label="Schema"
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#databricks"
             rules={{
