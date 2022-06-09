@@ -221,6 +221,7 @@ export const AppProvider: FC = ({ children }) => {
                                 icon: 'arrow-right',
                                 onClick: () => setIsJobsDrawerOpen(true),
                             },
+                            className: 'toast-with-no-close-button',
                         });
                         break;
                     case 'ERROR':
