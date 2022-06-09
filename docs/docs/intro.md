@@ -14,7 +14,8 @@ Connect Lightdash to your dbt project, add some metrics, then create and share y
 - **Setting up Lightdash**
 
   - [New to dbt?](/get-started/setup-lightdash/new-to-dbt.mdx)
-  - [Install Lightdash](/get-started/setup-lightdash/install-lightdash.mdx)
+  - [Lightdash CLI](/get-started/setup-lightdash/lightdash-cli.mdx)
+  - [Self-host Lightdash](/get-started/setup-lightdash/install-lightdash.mdx)
   - [Connect a project](/get-started/setup-lightdash/connect-project.mdx)  
 
 - **Developing in Lightdash**

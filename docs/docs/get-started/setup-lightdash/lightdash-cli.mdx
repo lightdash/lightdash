@@ -1,0 +1,83 @@
+---
+sidebar_position: 2
+sidebar_label: Lightdash CLI
+---
+
+# Lightdash CLI
+
+The Lightdash CLI is the recommended way to develop your dbt + Lightdash project. It makes development faster and 
+easier, as well as giving you options for building more powerful automation to manage your Lightdash instance.
+
+## Installation
+
+To install Lightdash, you'll need to have [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) 
+installed. Mac/Linux users usually already have `npm` available.
+
+To install Lightdash, run the following on your command line.
+
+```shell
+npm install -g @lightdash/cli
+```
+
+You _may_ need to install an additional package if you see any errors:
+
+**Mac OS**
+
+
+```shell
+brew install unixodbc
+npm install -g @lightdash/cli
+```
+
+**Ubuntu**
+
+```shell
+sudo apt install unixodbc
+npm install -g @lightdash/cli
+```
+
+## Auto-generate `schema.yml` files
+
+<a href="https://www.loom.com/share/82833c5ea8a841dbb0ebdbcd878f85a1">
+    <img src="https://cdn.loom.com/sessions/thumbnails/82833c5ea8a841dbb0ebdbcd878f85a1-with-play.gif" />
+</a>
+
+To make it faster to write and maintain your `schema.yml` files, the Lightdash CLI will automatically generate and 
+sync your `schema.yml` files.
+
+Inside your dbt project, open a terminal and run this command to generate the `schema.yml` file for a model called 
+`mymodel`:
+
+```shell
+git commit # make sure to commit all your existing project first!
+lightdash generate -s mymodel
+```
+
+This will create or update an existing `schema.yml` file to add any new columns that have appeared in the database. 
+
+### Auto-sync `schema.yml` files after `dbt run` 
+
+Since the `generate` command relies on your database schema to detect which columns are required, you'll often want
+to run `dbt run` before running `generate`. You can combine `dbt run` and `lighdash generate` into one command which 
+will run models and then regenerate the 
+`schema.yml` files for any models than changed:
+
+```shell
+git commit
+lightdash dbt run  # Run dbt AND re-sync schema.yml files
+```
+
+### Generating `schema.yml` for multiple models
+
+`lightdash generate` supports dbt model selection syntax to generate files for a group of models:
+```shell
+lightdash generate # all models
+lightdash generate -s payments  # just payments
+lightdash generate -s payments+ # payments and all children
+lightdash generate -s +payments # payments and all parents
+lightdash generate -s +payments+ # payments and all children and parents
+lightdash generate -s tag:prod # all models with the prod tag
+lightdash generate -s payments customers # two specific models
+lightdash generate -s payments+ +customers tag:prod # mix and match
+```
+
