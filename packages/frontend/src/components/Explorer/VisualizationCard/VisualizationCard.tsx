@@ -1,4 +1,4 @@
-import { Button, Card, Collapse, H5 } from '@blueprintjs/core';
+import { Button, Collapse, H5 } from '@blueprintjs/core';
 import { ChartType } from '@lightdash/common';
 import { FC } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
@@ -12,6 +12,7 @@ import { ChartDownloadMenu } from '../../ChartDownload';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import VisualizationCardOptions from '../VisualizationCardOptions';
+import { MainCard } from './VisualizationCard.styles';
 
 const VisualizationCard: FC = () => {
     const {
@@ -29,7 +30,7 @@ const VisualizationCard: FC = () => {
 
     return (
         <>
-            <Card style={{ padding: 5, overflowY: 'scroll' }} elevation={1}>
+            <MainCard elevation={1}>
                 <VisualizationProvider
                     initialChartConfig={unsavedChartVersion.chartConfig}
                     chartType={unsavedChartVersion.chartConfig.type}
@@ -104,7 +105,7 @@ const VisualizationCard: FC = () => {
                         </div>
                     </Collapse>
                 </VisualizationProvider>
-            </Card>
+            </MainCard>
         </>
     );
 };
