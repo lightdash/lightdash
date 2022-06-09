@@ -20,6 +20,7 @@ const VisualizationCardOptions: FC = () => {
         plotData,
         cartesianConfig,
         setPivotDimensions,
+        cartesianConfig: { setStacking },
     } = useVisualizationContext();
     const disabled = isLoading || plotData.length <= 0;
     const cartesianType = cartesianConfig.dirtyChartType;
@@ -34,6 +35,7 @@ const VisualizationCardOptions: FC = () => {
         switch (chartType) {
             case ChartType.CARTESIAN: {
                 if (!isChartTypeTheSameForAllSeries) {
+                    setStacking(false);
                     return {
                         text: 'Mixed',
                         icon: 'chart',
@@ -41,6 +43,7 @@ const VisualizationCardOptions: FC = () => {
                 }
                 switch (cartesianType) {
                     case CartesianSeriesType.LINE:
+                        setStacking(false);
                         return {
                             text: 'Line chart',
                             icon: 'timeline-line-chart',
@@ -56,6 +59,8 @@ const VisualizationCardOptions: FC = () => {
                                   icon: 'timeline-bar-chart',
                               };
                     case CartesianSeriesType.SCATTER:
+                        setStacking(false);
+
                         return { text: 'Scatter chart', icon: 'scatter-plot' };
                     default:
                         const never: never = cartesianType;
@@ -82,6 +87,7 @@ const VisualizationCardOptions: FC = () => {
         cartesianFlipAxis,
         cartesianType,
         chartType,
+        setStacking,
     ]);
 
     return (

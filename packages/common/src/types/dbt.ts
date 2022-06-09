@@ -249,6 +249,7 @@ export type DbtMetric = {
     filters: DbtMetricFilter[];
     time_grains: string[];
     dimensions: string[];
+    refs: string[][];
     resource_type?: 'metric';
     meta?: Record<string, any> & DbtMetricLightdashMetadata;
     tags?: string[];

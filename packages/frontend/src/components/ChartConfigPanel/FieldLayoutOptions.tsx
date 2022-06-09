@@ -1,5 +1,10 @@
 import { Button } from '@blueprintjs/core';
-import { Field, getItemId, TableCalculation } from '@lightdash/common';
+import {
+    Field,
+    getItemId,
+    isSeriesWithMixedChartTypes,
+    TableCalculation,
+} from '@lightdash/common';
 import React, { FC, useCallback, useMemo } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import SimpleButton from '../common/SimpleButton';
@@ -33,9 +38,21 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             setFlipAxis,
         },
         pivotDimensions,
+        cartesianConfig,
         setPivotDimensions,
     } = useVisualizationContext();
     const pivotDimension = pivotDimensions?.[0];
+
+    const cartesianType = cartesianConfig.dirtyChartType;
+    const isChartTypeTheSameForAllSeries: boolean =
+        !isSeriesWithMixedChartTypes(
+            cartesianConfig.dirtyEchartsConfig?.series,
+        );
+
+    const canBeStacked =
+        cartesianType !== 'line' &&
+        cartesianType !== 'scatter' &&
+        isChartTypeTheSameForAllSeries;
 
     // X axis logic
     const xAxisField = items.find(
@@ -148,7 +165,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                     )}
                 </AxisFieldDropdown>
             </AxisGroup>
-            {pivotDimension && (
+            {pivotDimension && canBeStacked && (
                 <AxisGroup>
                     <GridLabel>Stacking</GridLabel>
                     <StackingWrapper fill>

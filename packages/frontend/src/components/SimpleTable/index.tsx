@@ -13,7 +13,6 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import React, { FC, useMemo } from 'react';
-import { mapDataToTable } from '../../utils/tableData';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
 import {
@@ -44,7 +43,6 @@ const SimpleTable: FC = () => {
         return {};
     }, [explore, resultsData]);
 
-    const rows = mapDataToTable(tableItems, columnOrder);
     const headers = columnOrder.map((fieldId) => {
         const field = itemMap && itemMap[fieldId];
         if (isAdditionalMetric(field)) {
@@ -59,7 +57,7 @@ const SimpleTable: FC = () => {
         }
     });
 
-    const validData = rows && headers;
+    const validData = tableItems && headers;
     if (isLoading) return <LoadingChart />;
 
     return (
@@ -76,32 +74,22 @@ const SimpleTable: FC = () => {
                                 </tr>
                             </TableHeader>
                             <tbody>
-                                {rows.map(
-                                    (row: string[] | boolean[], i: number) => (
-                                        <TableRow i={i}>
-                                            {row.map(
-                                                (
-                                                    item: string | boolean,
-                                                    index,
-                                                ) => (
-                                                    <TableCell
-                                                        isNaN={
-                                                            !isNumericItem(
-                                                                itemMap[
-                                                                    headers[
-                                                                        index
-                                                                    ]
-                                                                ],
-                                                            )
-                                                        }
-                                                    >
-                                                        {item || '-'}
-                                                    </TableCell>
-                                                ),
-                                            )}
-                                        </TableRow>
-                                    ),
-                                )}
+                                {tableItems.map((row, i: number) => (
+                                    <TableRow i={i}>
+                                        {columnOrder.map((fieldId) => (
+                                            <TableCell
+                                                key={fieldId}
+                                                isNaN={
+                                                    !isNumericItem(
+                                                        itemMap[fieldId],
+                                                    )
+                                                }
+                                            >
+                                                {row[fieldId] || '-'}
+                                            </TableCell>
+                                        ))}
+                                    </TableRow>
+                                ))}
                             </tbody>
                         </HTMLTable>
                     </TableInnerWrapper>

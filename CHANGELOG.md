@@ -1,3 +1,26 @@
+## [0.134.10](https://github.com/lightdash/lightdash/compare/0.134.9...0.134.10) (2022-06-09)
+
+
+### Bug Fixes
+
+* hide create dashboard demo ([#2378](https://github.com/lightdash/lightdash/issues/2378)) ([bd610f1](https://github.com/lightdash/lightdash/commit/bd610f143deb395c6da84446bfd1e4c9aff656c2))
+* table visualization empty cells ([#2377](https://github.com/lightdash/lightdash/issues/2377)) ([15c5e21](https://github.com/lightdash/lightdash/commit/15c5e21908ebb68196115de7cbb98452165bc5fb))
+* use refs for dbt metrics ([#2374](https://github.com/lightdash/lightdash/issues/2374)) ([8432501](https://github.com/lightdash/lightdash/commit/8432501278c086576ee23a12b225c292bab95196))
+
+## [0.134.9](https://github.com/lightdash/lightdash/compare/0.134.8...0.134.9) (2022-06-09)
+
+
+### Bug Fixes
+
+* do not stack line, scatter or mixed charts ([#2376](https://github.com/lightdash/lightdash/issues/2376)) ([11a5bd8](https://github.com/lightdash/lightdash/commit/11a5bd8ae2dcf529d744da54354c776f724efb7a))
+
+## [0.134.8](https://github.com/lightdash/lightdash/compare/0.134.7...0.134.8) (2022-06-09)
+
+
+### Bug Fixes
+
+* hide refresh dbt toast close button ([#2373](https://github.com/lightdash/lightdash/issues/2373)) ([6670727](https://github.com/lightdash/lightdash/commit/6670727f9c2e3903b0bd7323aeb36488e1c02a24))
+
 ## [0.134.7](https://github.com/lightdash/lightdash/compare/0.134.6...0.134.7) (2022-06-09)
 
 
