@@ -33,7 +33,10 @@ const ConnectionOptions: FC<Props> = ({ setHasDimensions }) => (
                     }
                     targetTagName="div"
                 >
-                    <LinkToDocsButton href="" target="_blank">
+                    <LinkToDocsButton
+                        href="https://docs.lightdash.com/get-started/setup-lightdash/lightdash-cli"
+                        target="_blank"
+                    >
                         <ButtonLabel>By using our handy CLI tool</ButtonLabel>
                         <Icon icon="chevron-right" />
                     </LinkToDocsButton>

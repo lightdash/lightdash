@@ -29,7 +29,6 @@ const HowToConnectDataCard: FC<Props> = ({ setHasDimensions }) => {
     });
 
     const onSubmit = (formData: { hasDimension: string }) => {
-        console.log(formData);
         setHasDimensions(formData?.hasDimension);
     };
 
