@@ -52,7 +52,7 @@ version: 2
 metrics:
   - name: customer_count
     label: DBT METRIC!
-    model: customers
+    model: ref('customers')
     description: "A NEW DBT METRIC nuuuuuts"
     type: count_distinct
     sql: customer_id # must be a simple column name that you want to apply this metric to
