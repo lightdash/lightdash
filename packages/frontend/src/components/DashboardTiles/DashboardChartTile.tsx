@@ -31,6 +31,7 @@ import { Tooltip } from '../DashboardFilter/DashboardFilter.styles';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import { EchartSeriesClickEvent } from '../SimpleChart';
+import { VisualizationWrapper } from './DashboardChartTile.styles';
 import TileBase from './TileBase/index';
 import { FilterLabel } from './TileBase/TileBase.styles';
 
@@ -270,7 +271,6 @@ const DashboardChartTile: FC<Props> = (props) => {
             extraMenuItems={
                 savedChartUuid !== null && (
                     <>
-                        {' '}
                         {user.data?.ability?.can('manage', 'SavedChart') && (
                             <MenuItem
                                 icon="document-open"
@@ -288,7 +288,7 @@ const DashboardChartTile: FC<Props> = (props) => {
             }
             {...props}
         >
-            <div style={{ flex: 1 }}>
+            <VisualizationWrapper>
                 {savedQueryWithDashboardFilters ? (
                     <>
                         <Popover2
@@ -347,7 +347,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                 ) : (
                     <InvalidDashboardChartTile />
                 )}
-            </div>
+            </VisualizationWrapper>
         </TileBase>
     );
 };

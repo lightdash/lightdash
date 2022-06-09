@@ -3,18 +3,12 @@ import styled from 'styled-components';
 
 export const TableWrapper = styled.div`
     height: 100%;
-    margin: 20px 10px 10px;
-    min-height: 300px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    overflow: auto;
+    overflow: hidden;
 `;
 
 export const TableInnerWrapper = styled.div`
-    display: flex;
-    max-width: 100%;
-    flex-direction: row;
+    overflow: auto;
+    height: 100%;
 `;
 
 export const TableHeader = styled.thead`
