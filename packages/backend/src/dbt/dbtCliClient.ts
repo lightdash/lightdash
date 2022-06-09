@@ -117,7 +117,6 @@ export class DbtCliClient implements DbtClient {
                 all: true,
                 stdio: ['pipe', 'pipe', process.stderr],
                 env: {
-                    ...process.env,
                     ...this.environment,
                 },
             });
