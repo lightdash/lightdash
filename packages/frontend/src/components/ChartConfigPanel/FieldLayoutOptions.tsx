@@ -33,9 +33,14 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             setFlipAxis,
         },
         pivotDimensions,
+        cartesianConfig,
         setPivotDimensions,
     } = useVisualizationContext();
     const pivotDimension = pivotDimensions?.[0];
+
+    const canBeStacked =
+        cartesianConfig.dirtyChartType !== 'line' &&
+        cartesianConfig.dirtyChartType !== 'scatter';
 
     // X axis logic
     const xAxisField = items.find(
@@ -148,7 +153,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                     )}
                 </AxisFieldDropdown>
             </AxisGroup>
-            {pivotDimension && (
+            {pivotDimension && canBeStacked && (
                 <AxisGroup>
                     <GridLabel>Stacking</GridLabel>
                     <StackingWrapper fill>
