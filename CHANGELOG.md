@@ -1,3 +1,10 @@
+# [0.135.0](https://github.com/lightdash/lightdash/compare/0.134.11...0.135.0) (2022-06-09)
+
+
+### Features
+
+* separate project set up pages 2 ([#2354](https://github.com/lightdash/lightdash/issues/2354)) ([7afb135](https://github.com/lightdash/lightdash/commit/7afb135e6824e0b3e83fbb38e05440bc4b0478c0))
+
 ## [0.134.11](https://github.com/lightdash/lightdash/compare/0.134.10...0.134.11) (2022-06-09)
 
 
