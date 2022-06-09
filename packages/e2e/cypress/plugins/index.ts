@@ -1,4 +1,3 @@
-/* eslint no-param-reassign: "error" */
 /// <reference types="cypress" />
 // ***********************************************************
 // This example plugins/index.js can be used to load plugins
@@ -15,11 +14,9 @@
 /**
  * @type {Cypress.PluginConfig}
  */
-module.exports = (on, config) => {
-    // Copy system env config into cypress env: Cypress.env('PGHOST')
-    config.env.PGHOST = process.env.PGHOST;
-    config.env.PGPASSWORD = process.env.PGPASSWORD;
+module.exports = (on, config) =>
+    // include any other plugin code...
 
-    console.log('LOG new config', config.env); // TODO REmove me
-    return config;
-};
+    // It's IMPORTANT to return the config object
+    // with any changed environment variables
+    config;
