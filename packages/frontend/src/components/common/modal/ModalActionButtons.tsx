@@ -35,7 +35,11 @@ const ModalActionButtons = ({
         setItemId(data.uuid);
     }, [data.uuid]);
 
-    if (user.data?.ability?.cannot('manage', 'Dashboard')) return <></>;
+    if (isChart) {
+        if (user.data?.ability?.cannot('manage', 'SavedChart')) return <></>;
+    } else {
+        if (user.data?.ability?.cannot('manage', 'Dashboard')) return <></>;
+    }
     return (
         <Popover2
             isOpen={isOpen}
