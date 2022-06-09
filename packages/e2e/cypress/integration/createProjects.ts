@@ -4,6 +4,38 @@ const PGUSER = 'postgres';
 const PGDATABASE = 'postgres';
 const PGPORT = '5432';
 
+const testCompile = () => {
+    // Compile
+    cy.findByText('Test and compile project').click();
+    cy.contains('Step 1/3', { timeout: 30000 });
+    cy.contains('Step 2/3', { timeout: 30000 });
+    cy.contains('Successfully synced dbt project!', { timeout: 30000 });
+
+    // Configure
+    cy.findByText('Save').click();
+};
+
+const testRunQuery = () => {
+    // Open SQL runner
+    cy.findByText('Explore').click();
+    cy.findByText('SQL Runner').click();
+
+    cy.contains('payments').click();
+    cy.findAllByText('Run query').first().click();
+    cy.findAllByText('25 results');
+};
+
+const testQuery = () => {
+    cy.findByText('Explore').click();
+    cy.findByText('Tables').click();
+
+    cy.findByText('Orders').click();
+    cy.findByText('First name').click();
+    cy.findByText('Unique order count').click();
+    cy.get('th b').first().should('have.text', 'First name').click();
+    cy.get('td', { timeout: 10000 }).eq(1).should('have.text', 'Aaron');
+};
+
 describe('Dashboard', () => {
     before(() => {
         // @ts-ignore
@@ -52,22 +84,9 @@ describe('Dashboard', () => {
 
         cy.get('[name="warehouse.schema"]').type('jaffle');
 
-        // Compile
-        cy.findByText('Test and compile project').click();
-        cy.contains('Step 1/3', { timeout: 30000 });
-        cy.contains('Step 2/3', { timeout: 30000 });
-        cy.contains('Successfully synced dbt project!', { timeout: 30000 });
-
-        // Configure
-        cy.findByText('Save').click();
-
-        // Open SQL runner
-        cy.findByText('Explore').click();
-        cy.findByText('SQL Runner').click();
-
-        cy.findByText('payments').click();
-        cy.findAllByText('Run query').first().click();
-        cy.findAllByText('25 results');
+        testCompile();
+        testQuery();
+        testRunQuery();
     });
     it('Should create a Redshift project', () => {
         // https://docs.aws.amazon.com/redshift/latest/dg/c_redshift-and-postgres-sql.html
@@ -94,21 +113,7 @@ describe('Dashboard', () => {
         cy.get('select').eq(3).select('dbt local server');
         cy.get('[name="warehouse.schema"]').type('jaffle');
 
-        // Compile
-        cy.findByText('Test and compile project').click();
-        cy.contains('Step 1/3', { timeout: 60000 });
-        cy.contains('Step 2/3', { timeout: 60000 });
-        cy.contains('Successfully synced dbt project!', { timeout: 60000 });
-
-        // Configure
-        cy.findByText('Save').click();
-
-        // Open SQL runner
-        cy.findByText('Explore').click();
-        cy.findByText('SQL Runner').click();
-
-        cy.findByText('payments').click();
-        cy.findAllByText('Run query').first().click();
-        cy.findAllByText('25 results');
+        testCompile();
+        testQuery();
     });
 });
