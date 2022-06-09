@@ -1,4 +1,5 @@
 import React, { FC } from 'react';
+import { useApp } from '../../../providers/AppProvider';
 import { useExplorer } from '../../../providers/ExplorerProvider';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
 import { RefreshButton } from '../../RefreshButton';
@@ -10,6 +11,9 @@ const ExplorerHeader: FC = () => {
     const {
         state: { isEditMode, savedChart },
     } = useExplorer();
+
+    const { user } = useApp();
+
     return (
         <Wrapper>
             {isEditMode ? (
@@ -17,7 +21,10 @@ const ExplorerHeader: FC = () => {
                     <RefreshDbtButton />
                     <div>
                         <RefreshButton />
-                        {!savedChart && <SaveChartButton isExplorer />}
+                        {!savedChart &&
+                            user.data?.ability?.can('manage', 'SavedChart') && (
+                                <SaveChartButton isExplorer />
+                            )}
                     </div>
                 </>
             ) : (

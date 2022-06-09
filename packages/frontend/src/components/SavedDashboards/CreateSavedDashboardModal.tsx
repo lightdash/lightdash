@@ -10,6 +10,7 @@ import { Dashboard } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../hooks/dashboard/useDashboard';
+import { useApp } from '../../providers/AppProvider';
 
 interface CreateSavedDashboardModalProps {
     isOpen: boolean;
@@ -29,6 +30,10 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = ({
     const useCreate = useCreateMutation(projectUuid, showRedirectButton);
     const { mutate, isLoading: isCreating } = useCreate;
     const [name, setName] = useState<string>('');
+
+    const { user } = useApp();
+
+    if (user.data?.ability?.cannot('manage', 'Dashboard')) return <></>;
 
     return (
         <Dialog isOpen={isOpen} onClose={onClose} lazy title="Create dashboard">

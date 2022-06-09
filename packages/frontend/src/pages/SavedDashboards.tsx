@@ -10,6 +10,7 @@ import {
     useUpdateDashboardName,
 } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
+import { useApp } from '../providers/AppProvider';
 
 export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
 
@@ -23,6 +24,7 @@ const SavedDashboards = () => {
         mutate: createDashboard,
         data: newDashboard,
     } = useCreateMutation(projectUuid);
+    const { user } = useApp();
 
     if (isLoading) {
         return (
@@ -54,17 +56,19 @@ const SavedDashboards = () => {
                 }}
                 ModalContent={DashboardForm}
                 headerAction={
-                    <Button
-                        text="Create dashboard"
-                        loading={isCreatingDashboard}
-                        onClick={() =>
-                            createDashboard({
-                                name: DEFAULT_DASHBOARD_NAME,
-                                tiles: [],
-                            })
-                        }
-                        intent="primary"
-                    />
+                    user.data?.ability?.can('manage', 'Dashboard') && (
+                        <Button
+                            text="Create dashboard"
+                            loading={isCreatingDashboard}
+                            onClick={() =>
+                                createDashboard({
+                                    name: DEFAULT_DASHBOARD_NAME,
+                                    tiles: [],
+                                })
+                            }
+                            intent="primary"
+                        />
+                    )
                 }
             />
         </Page>
