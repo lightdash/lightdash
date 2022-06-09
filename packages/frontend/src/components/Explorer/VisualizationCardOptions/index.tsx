@@ -35,6 +35,7 @@ const VisualizationCardOptions: FC = () => {
         switch (chartType) {
             case ChartType.CARTESIAN: {
                 if (!isChartTypeTheSameForAllSeries) {
+                    setStacking(false);
                     return {
                         text: 'Mixed',
                         icon: 'chart',
