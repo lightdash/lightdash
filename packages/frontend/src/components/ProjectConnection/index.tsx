@@ -195,7 +195,7 @@ const useOnProjectError = (): SubmitErrorHandler<ProjectConnectionForm> => {
 
 export const UpdateProjectConnection: FC<{
     projectUuid: string;
-    selectedWarehouse?: SelectedWarehouse | undefined;
+    selectedWarehouse: SelectedWarehouse;
 }> = ({ projectUuid, selectedWarehouse }) => {
     const { user, health } = useApp();
     const { data } = useProject(projectUuid);
@@ -208,7 +208,10 @@ export const UpdateProjectConnection: FC<{
         defaultValues: {
             name: data?.name,
             dbt: data?.dbtConnection,
-            warehouse: data?.warehouseConnection,
+            warehouse: {
+                ...data?.warehouseConnection,
+                type: selectedWarehouse.key,
+            },
         },
     });
     const { reset } = methods;
@@ -235,7 +238,11 @@ export const UpdateProjectConnection: FC<{
             await mutateAsync({
                 name,
                 dbtConnection,
-                warehouseConnection,
+                // @ts-ignore
+                warehouseConnection: {
+                    ...warehouseConnection,
+                    type: selectedWarehouse.key,
+                },
             });
         }
     };
