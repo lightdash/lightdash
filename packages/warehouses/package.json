@@ -11,7 +11,7 @@
         "@google-cloud/bigquery": "^5.9.1",
         "snowflake-sdk": "^1.6.4",
         "pg": "^8.7.1",
-        "odbc": "^2.4.1",
+        "odbc": "^2.4.2",
         "@lightdash/common": "^0.134.10"
     },
     "description": "Warehouse connectors for Lightdash",
