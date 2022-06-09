@@ -1,3 +1,10 @@
+## [0.134.9](https://github.com/lightdash/lightdash/compare/0.134.8...0.134.9) (2022-06-09)
+
+
+### Bug Fixes
+
+* do not stack line, scatter or mixed charts ([#2376](https://github.com/lightdash/lightdash/issues/2376)) ([11a5bd8](https://github.com/lightdash/lightdash/commit/11a5bd8ae2dcf529d744da54354c776f724efb7a))
+
 ## [0.134.8](https://github.com/lightdash/lightdash/compare/0.134.7...0.134.8) (2022-06-09)
 
 
