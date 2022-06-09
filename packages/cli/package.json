@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/cli",
-    "version": "0.134.6",
+    "version": "0.134.7",
     "license": "MIT",
     "bin": {
         "lightdash": "dist/index.js"
@@ -10,8 +10,8 @@
         "track.sh"
     ],
     "dependencies": {
-        "@lightdash/common": "^0.134.6",
-        "@lightdash/warehouses": "^0.134.6",
+        "@lightdash/common": "^0.134.7",
+        "@lightdash/warehouses": "^0.134.7",
         "@types/inquirer": "^8.2.1",
         "@types/nunjucks": "^3.2.1",
         "ajv": "^8.11.0",

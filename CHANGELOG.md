@@ -1,3 +1,10 @@
+## [0.134.7](https://github.com/lightdash/lightdash/compare/0.134.6...0.134.7) (2022-06-09)
+
+
+### Bug Fixes
+
+* table scroll ([#2372](https://github.com/lightdash/lightdash/issues/2372)) ([5b4daee](https://github.com/lightdash/lightdash/commit/5b4daee93a5bd6c0138259fc0e3d52ea540ee6b0))
+
 ## [0.134.6](https://github.com/lightdash/lightdash/compare/0.134.5...0.134.6) (2022-06-09)
 
 
