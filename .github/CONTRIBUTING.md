@@ -1,4 +1,3 @@
-
 # Contributing to Lightdash
 
 First off, thanks for taking the time to contribute! ❤️
@@ -6,12 +5,12 @@ First off, thanks for taking the time to contribute! ❤️
 All types of contributions are encouraged and valued. See the [Table of Contents](#table-of-contents) for different ways to help and details about how this project handles them. Please make sure to read the relevant section before making your contribution. It will make it a lot easier for us maintainers and smooth out the experience for all involved. The community looks forward to your contributions. 🎉
 
 > And if you like the project, but just don't have time to contribute, that's fine. There are other easy ways to support the project and show your appreciation, which we would also be very happy about:
+>
 > - Join [the community](https://github.com/lightdash/lightdash/discussions)
 > - Star the project
 > - Tweet about it
 > - Refer this project in your project's readme
 > - Mention the project at local meetups and tell your friends/colleagues
-
 
 ## Table of Contents
 
@@ -32,7 +31,6 @@ This project and everyone participating in it is governed by the
 By participating, you are expected to uphold this code. Please report unacceptable behavior
 to <support@lightdash.com>.
 
-
 ## I Have a Question
 
 > If you want to ask a question, we assume that you have read the available [Documentation](https://docs.lightdash.com).
@@ -49,11 +47,11 @@ We will then take care of the issue as soon as possible.
 
 ## I Want To Contribute
 
-> ### Legal Notice 
+> ### Legal Notice
+>
 > When contributing to this project, you must agree that you have authored 100% of the content, that you have the necessary rights to the content and that the content you contribute may be provided under the project license.
 
 ### Reporting Bugs
-
 
 #### Before Submitting a Bug Report
 
@@ -70,10 +68,10 @@ A good bug report shouldn't leave others needing to chase you up for more inform
   - Possibly your input and the output
   - Can you reliably reproduce the issue? And can you also reproduce it with older versions?
 
-
 #### How Do I Submit a Good Bug Report?
 
 > You must never report security related issues, vulnerabilities or bugs to the issue tracker, or elsewhere in public. Instead sensitive bugs must be sent by email to <security@lightdash.com>.
+
 <!-- We may add a PGP key to allow the messages to be sent encrypted as well. -->
 
 We use GitHub issues to track bugs and errors. If you run into an issue with the project:
@@ -93,14 +91,12 @@ Once it's filed:
 
 This section guides you through submitting an enhancement suggestion for Lightdash, **including completely new features and minor improvements to existing functionality**. Following these guidelines will help maintainers and the community to understand your suggestion and find related suggestions.
 
-
 #### Before Submitting an Enhancement
 
 - Make sure that you are using the latest version.
 - Read the [documentation](https://docs.lightdash.com) carefully and find out if the functionality is already covered, maybe by an individual configuration.
 - Perform a [search](https://github.com/lightdash/lightdash/issues) to see if the enhancement has already been suggested. If it has, add a comment to the existing issue instead of opening a new one.
 - Find out whether your idea fits with the scope and aims of the project. It's up to you to make a strong case to convince the project's developers of the merits of this feature. Keep in mind that we want features that will be useful to the majority of our users and not just a small subset.
-
 
 #### How Do I Submit a Good Enhancement Suggestion?
 
@@ -134,7 +130,6 @@ Lightdash is a community project, so Pull Requests are always welcome, but, befo
 When in doubt, keep your Pull Requests small. To give a Pull Request the best chance of getting accepted, don't bundle more than one feature or bug fix per Pull Request. It's often best to create two smaller Pull Requests than one big one.
 
 1. Fork the repository.
-
 2. Clone the fork to your local machine and add upstream remote:
 
 ```sh
@@ -145,11 +140,11 @@ git remote add upstream https://github.com/lightdash/lightdash.git
 
 <!-- #default-branch-switch -->
 
-3. Synchronize your local `master` branch with the upstream one:
+3. Synchronize your local `main` branch with the upstream one:
 
 ```sh
-git checkout master
-git pull upstream master
+git checkout main
+git pull upstream main
 ```
 
 4. Install the dependencies with yarn (npm isn't supported):
@@ -175,6 +170,7 @@ git push -u origin HEAD
 The core team is monitoring for Pull Requests. We will review your Pull Request and either merge it, request changes to it, or close it with an explanation.
 
 #### Commit & Pull Request Naming Conventions
+
 We follow the [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/) standard.
 
 ```
@@ -182,6 +178,7 @@ We follow the [conventional commit](https://www.conventionalcommits.org/en/v1.0.
 ```
 
 E.g:
+
 ```
 feat: add table calculations
 fix: remove infinite loop during login
@@ -191,9 +188,11 @@ docs: add page about metrics
 You can see all the [supported types here](https://github.com/commitizen/conventional-commit-types/blob/v3.0.0/index.json).
 
 #### Merge Strategy
+
 We use `squash & merge` to keep the main branch history clean.
 
 #### Styleguides
+
 Our styleguides should be enforced via a pre-commit hook that runs prettier & eslint.
 The reviewers can still request adhoc changes for situations that haven't been experienced before.
 
@@ -202,8 +201,9 @@ The reviewers can still request adhoc changes for situations that haven't been e
 #### Environment variables in development
 
 When developing, you must activate the `./docker/.env` environment variable file, which configures Lightdash to run
-in development mode. The following two guides will set this up correctly but if you're manually creating a 
+in development mode. The following two guides will set this up correctly but if you're manually creating a
 development environment you must run:
+
 ```shell
 source ./docker/.env
 ```
@@ -219,10 +219,12 @@ This provides:
 * A pre-configured code editor
 
 To get started:
+
 * in Github [create a codespace](https://docs.github.com/en/codespaces/developing-in-codespaces/creating-a-codespace)
 * in VS Code [install the remote containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 
 Once connected run the following commands in the VS Code terminal:
+
 ```shell
 # Setup the database
 yarn workspace backend migrate
@@ -280,12 +282,13 @@ Password: demo_password!
 # yarn start # http://localhost:8080
 ```
 
-Notes: 
+Notes:
+
 - If you change files inside `/packages/common` you should run `yarn common-build` before `yarn dev`
 - If you change files inside `/packages/warehouses` you should run `yarn warehouses-build` before `yarn dev`
 - If you rename files the container might not recognise the changes. To fix this, stop the containers and start again.
 
-When you want to stop: 
+When you want to stop:
 
 ```shell
 docker compose -p lightdash-app -f docker-compose.dev.yml --env-file .env stop
@@ -310,6 +313,7 @@ yarn test
 ```
 
 #### How to run e2e tests
+
 Before running e2e tests make sure you're running the app locally.
 
 ```shell
@@ -326,6 +330,7 @@ yarn e2e-run
 ```
 
 Note:
+
 - Edit `packages/e2e/cypress.json` if you're running Lightdash on a different domain/port than `http://localhost:8080`
 
 #### How to check code quality
@@ -336,7 +341,9 @@ yarn format
 ```
 
 ## Join The Lightdash Team
+
 If you are interested in joining our team, check our [job board](https://www.notion.so/gethubble/Job-Board-a2c7d872794b45deb7b76ad68701d750)!
 
 ## Attribution
+
 This guide is based on the **contributing-gen**. [Make your own](https://github.com/bttger/contributing-gen)!
