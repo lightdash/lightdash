@@ -49,6 +49,7 @@ export const WarehouseButton = styled(Button)`
 
 export const WarehouseIcon = styled.img`
     margin-right: 8px;
+    width: 25px;
 `;
 
 export const ExternalLink = styled.a`

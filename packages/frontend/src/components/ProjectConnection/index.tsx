@@ -23,7 +23,7 @@ import DocumentationHelpButton from '../DocumentationHelpButton';
 import Form from '../ReactHookForm/Form';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
-import DbtLogo from './ProjectConnectFlow/Assets/dbt.png';
+import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import {
     CompileProjectButton,
     CompileProjectWrapper,
