@@ -1,10 +1,10 @@
 import { WarehouseTypes } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
-import BigQuery from './Assets/bigquery.png';
-import Databricks from './Assets/databricks.png';
-import PostgressLogo from './Assets/postgresql.png';
-import Redshift from './Assets/redshift.png';
-import Snowflake from './Assets/snowflake.png';
+import BigQuery from './Assets/bigquery.svg';
+import Databricks from './Assets/databricks.svg';
+import PostgressLogo from './Assets/postgresql.svg';
+import Redshift from './Assets/redshift.svg';
+import Snowflake from './Assets/snowflake.svg';
 import {
     ConnectWarehouseWrapper,
     ExternalLink,

@@ -38,9 +38,11 @@ const HowToConnectDataCard: FC<Props> = ({ setHasDimensions }) => {
             <ConnectWarehouseWrapper>
                 <Title>You're in! 🎉</Title>
                 <Subtitle>
-                    The next step is to connect your data. To see a table in
-                    Lightdash, you need to define its columns in a .yml file.
-                    eg:
+                    The next step is to connect your data.
+                    <br />
+                    To see a table in Lightdash, you need to define its
+                    <br />
+                    columns in a .yml file. eg:
                 </Subtitle>
                 <Codeblock>
                     <pre>{codeBlock}</pre>

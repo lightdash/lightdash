@@ -5,7 +5,7 @@ import PageSpinner from '../components/PageSpinner';
 import { CreateProjectConnection } from '../components/ProjectConnection';
 import ConnectionOptions from '../components/ProjectConnection/ProjectConnectFlow/ConnectionOptions';
 import HowToConnectDataCard from '../components/ProjectConnection/ProjectConnectFlow/HowToConnectDataCard';
-import WareHouseConnectCard from '../components/ProjectConnection/ProjectConnectFlow/WareHouseConnectCard';
+import WareHouseConnectCard from '../components/ProjectConnection/ProjectConnectFlow/WareHouseConnectCard.tsx';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
 import { useApp } from '../providers/AppProvider';
 import {
@@ -31,7 +31,6 @@ const CreateProject: FC = () => {
     if (health.isLoading) {
         return <PageSpinner />;
     }
-    console.log(hasDimensions);
 
     const PanelToRender = () => {
         switch (hasDimensions) {
@@ -41,6 +40,7 @@ const CreateProject: FC = () => {
                         {!selectedWarehouse ? (
                             <WareHouseConnectCard
                                 setWarehouse={setSelectedWarehouse}
+                                showDemoLink
                             />
                         ) : (
                             <CreateProjectWrapper>
@@ -82,28 +82,7 @@ const CreateProject: FC = () => {
             noContentPadding={!!selectedWarehouse}
         >
             <ProjectFormProvider>
-                {!selectedWarehouse ? (
-                    <WareHouseConnectCard
-                        setWarehouse={setSelectedWarehouse}
-                        showDemoLink
-                    />
-                ) : (
-                    <CreateProjectWrapper>
-                        <CreateHeaderWrapper>
-                            <BackToWarehouseButton
-                                icon="chevron-left"
-                                text="Back"
-                                onClick={() => setSelectedWarehouse(undefined)}
-                            />
-                            <Title marginBottom>
-                                {`Create a ${selectedWarehouse.label} connection`}
-                            </Title>
-                        </CreateHeaderWrapper>
-                        <CreateProjectConnection
-                            selectedWarehouse={selectedWarehouse}
-                        />
-                    </CreateProjectWrapper>
-                )}
+                <PanelToRender />
             </ProjectFormProvider>
         </Page>
     );

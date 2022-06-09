@@ -9,6 +9,7 @@ export const FormContainer = styled(Form)`
 
 export const WarehouseLogo = styled.img`
     margin-bottom: 10px;
+    width: 30px;
 `;
 
 export const CompileProjectWrapper = styled.div`

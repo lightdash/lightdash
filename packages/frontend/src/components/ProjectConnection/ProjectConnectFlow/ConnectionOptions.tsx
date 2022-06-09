@@ -22,8 +22,9 @@ const ConnectionOptions: FC<Props> = ({ setHasDimensions }) => (
             <Title>You're in! 🎉</Title>
             <Subtitle>
                 We strongly recommend that you define columns in your .yml file
-                for a smoother experience. Don’t worry! You can do this right
-                now:
+                for a smoother experience.
+                <br />
+                Don’t worry! You can do this right now:
             </Subtitle>
             <ButtonsWrapper>
                 <Tooltip2
