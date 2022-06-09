@@ -56,13 +56,8 @@ const convertDimension = (
     source?: Source,
     timeInterval?: string,
 ): Dimension => {
-    let type = column.meta.dimension?.type || column.data_type;
-    if (type === undefined) {
-        throw new MissingCatalogEntryError(
-            `Could not find dimension "${column.name}" for dbt model "${model.name}". Expected at ${model.relation_name}.`,
-            {},
-        );
-    }
+    let type =
+        column.meta.dimension?.type || column.data_type || DimensionType.STRING;
     if (!Object.values(DimensionType).includes(type)) {
         throw new MissingCatalogEntryError(
             `Could not recognise type "${type}" for dimension "${
