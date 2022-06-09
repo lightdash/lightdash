@@ -1,3 +1,10 @@
+## [0.134.8](https://github.com/lightdash/lightdash/compare/0.134.7...0.134.8) (2022-06-09)
+
+
+### Bug Fixes
+
+* hide refresh dbt toast close button ([#2373](https://github.com/lightdash/lightdash/issues/2373)) ([6670727](https://github.com/lightdash/lightdash/commit/6670727f9c2e3903b0bd7323aeb36488e1c02a24))
+
 ## [0.134.7](https://github.com/lightdash/lightdash/compare/0.134.6...0.134.7) (2022-06-09)
 
 
