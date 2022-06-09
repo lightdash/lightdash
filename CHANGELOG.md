@@ -1,3 +1,16 @@
+# [0.136.0](https://github.com/lightdash/lightdash/compare/0.135.1...0.136.0) (2022-06-09)
+
+
+### Bug Fixes
+
+* dashboard tile scroll ([#2383](https://github.com/lightdash/lightdash/issues/2383)) ([b592e73](https://github.com/lightdash/lightdash/commit/b592e73ac424936fa51baa145dc5be3db42cc261))
+* dont expose env vars to dbt process ([#2384](https://github.com/lightdash/lightdash/issues/2384)) ([9b7331d](https://github.com/lightdash/lightdash/commit/9b7331d50a07e239144f48e64f9d90d13e5b4ebf))
+
+
+### Features
+
+* default to string dimensions ([#2381](https://github.com/lightdash/lightdash/issues/2381)) ([31936d7](https://github.com/lightdash/lightdash/commit/31936d7b09ffbaa62f31c86db050564cb4ee9640))
+
 ## [0.135.1](https://github.com/lightdash/lightdash/compare/0.135.0...0.135.1) (2022-06-09)
 
 
