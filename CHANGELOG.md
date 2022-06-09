@@ -1,3 +1,10 @@
+## [0.134.6](https://github.com/lightdash/lightdash/compare/0.134.5...0.134.6) (2022-06-09)
+
+
+### Bug Fixes
+
+* disable edit buttons with view permissions ([#2367](https://github.com/lightdash/lightdash/issues/2367)) ([57a5084](https://github.com/lightdash/lightdash/commit/57a5084cce516e221f0223cb03e26ae4363be4d0))
+
 ## [0.134.5](https://github.com/lightdash/lightdash/compare/0.134.4...0.134.5) (2022-06-08)
 
 
