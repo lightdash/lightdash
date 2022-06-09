@@ -1,3 +1,10 @@
+## [0.134.11](https://github.com/lightdash/lightdash/compare/0.134.10...0.134.11) (2022-06-09)
+
+
+### Bug Fixes
+
+* database field for databricks form ([#2380](https://github.com/lightdash/lightdash/issues/2380)) ([fa6f97d](https://github.com/lightdash/lightdash/commit/fa6f97d3e9aca58f8799272b6f2bf2b22a549a46))
+
 ## [0.134.10](https://github.com/lightdash/lightdash/compare/0.134.9...0.134.10) (2022-06-09)
 
 
