@@ -30,7 +30,7 @@ beforeEach(() => {
                 hostname: url,
             },
             (req) => {
-                req.reply(); // Do not return error like req.destroy()
+                req.destroy();
             },
         ).as('intercept');
     });
