@@ -7,6 +7,11 @@ const warehouseConfig = {
         port: '5432',
         schema: 'jaffle',
     },
+    bigQuery: {
+        project: 'lightdash-cloud-beta',
+        location: 'e2e-jaffle-shop',
+        keyFile: 'credentials.json',
+    },
 };
 
 const configureWarehouse = (config) => {
@@ -110,5 +115,30 @@ describe('Dashboard', () => {
 
         testCompile();
         testQuery();
+    });
+
+    it.only('Should create a BigQuery project', () => {
+        // This test requires GCP credentials inside /cypress/fixtures
+        // This file is copied on github actions: e2e-tests.yml from Github secrets
+        // If you run this locally you'll have to copy your own credentials.json file manually
+        // This file is gitignored
+
+        cy.visit(`/createProject`);
+
+        cy.get('[name="name"]').type('Jaffle BigQuery test');
+
+        // Warehouse
+        cy.get('select').eq(1).select('BigQuery');
+        cy.get('[name="warehouse.project"]').type(
+            warehouseConfig.bigQuery.project,
+        );
+        cy.get('[name="warehouse.location"]').type(
+            warehouseConfig.bigQuery.location,
+        );
+
+        cy.get('[type="file"]').attachFile(warehouseConfig.bigQuery.keyFile);
+
+        //testCompile();
+        //testQuery();
     });
 });

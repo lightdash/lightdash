@@ -51,3 +51,6 @@ node_modules
 # docs
 /docs/build
 /docs/.docusaurus
+
+# credentials
+credentials.json

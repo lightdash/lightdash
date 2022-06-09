@@ -30,6 +30,7 @@ import {
     SEED_ORG_2_ADMIN_PASSWORD,
 } from '@lightdash/common';
 import '@testing-library/cypress/add-commands';
+import 'cypress-file-upload';
 
 declare namespace Cypress {
     interface Chainable<AUTWindow> {
