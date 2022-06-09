@@ -1,3 +1,10 @@
+# [0.137.0](https://github.com/lightdash/lightdash/compare/0.136.0...0.137.0) (2022-06-09)
+
+
+### Features
+
+* add formatting options for dbt metrics ([#2385](https://github.com/lightdash/lightdash/issues/2385)) ([5216f05](https://github.com/lightdash/lightdash/commit/5216f05f0e842e716c669b2c169ff585c012b7d6))
+
 # [0.136.0](https://github.com/lightdash/lightdash/compare/0.135.1...0.136.0) (2022-06-09)
 
 
