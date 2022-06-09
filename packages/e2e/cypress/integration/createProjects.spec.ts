@@ -1,9 +1,30 @@
-const PGHOST = '34.77.111.105';
-const PGPASSWORD = 'lightdash-e2e-test-password';
-const PGUSER = 'postgres';
-const PGDATABASE = 'postgres';
-const PGPORT = '5432';
+const warehouseConfig = {
+    postgresSQL: {
+        host: Cypress.env('PGHOST'),
+        user: 'postgres',
+        password: Cypress.env('PGPASSWORD'),
+        database: 'postgres',
+        port: '5432',
+        schema: 'jaffle',
+    },
+};
 
+const configureWarehouse = (config) => {
+    cy.get('[name="warehouse.host"]').type(config.host);
+    cy.get('[name="warehouse.user"]').type(config.user);
+    cy.get('[name="warehouse.password"]').type(config.password);
+    cy.get('[name="warehouse.dbname"]').type(config.database);
+
+    cy.contains('Show advanced fields').click();
+
+    cy.get('[name="warehouse.port"]').clear().type(config.port);
+    cy.get('select').eq(2).select('disable'); // SSL mode
+
+    // DBT
+    cy.get('select').eq(3).select('dbt local server');
+    cy.get('[name="dbt.target"]').type('test');
+    cy.get('[name="warehouse.schema"]').type(config.schema);
+};
 const testCompile = () => {
     // Compile
     cy.findByText('Test and compile project').click();
@@ -68,21 +89,7 @@ describe('Dashboard', () => {
 
         // Warehouse
         cy.get('select').eq(1).select('PostgreSQL');
-        cy.get('[name="warehouse.host"]').type(PGHOST);
-        cy.get('[name="warehouse.user"]').type(PGUSER);
-        cy.get('[name="warehouse.password"]').type(PGPASSWORD);
-        cy.get('[name="warehouse.dbname"]').type(PGDATABASE);
-
-        cy.contains('Show advanced fields').click();
-
-        cy.get('[name="warehouse.port"]').clear().type(PGPORT);
-        cy.get('select').eq(2).select('disable'); // SSL mode
-
-        // DBT
-        cy.get('select').eq(3).select('dbt local server');
-        cy.get('[name="dbt.target"]').type('test');
-
-        cy.get('[name="warehouse.schema"]').type('jaffle');
+        configureWarehouse(warehouseConfig.postgresSQL);
 
         testCompile();
         testQuery();
@@ -99,19 +106,7 @@ describe('Dashboard', () => {
 
         // Warehouse
         cy.get('select').eq(1).select('Redshift');
-        cy.get('[name="warehouse.host"]').type(PGHOST);
-        cy.get('[name="warehouse.user"]').type(PGUSER);
-        cy.get('[name="warehouse.password"]').type(PGPASSWORD);
-        cy.get('[name="warehouse.dbname"]').type(PGDATABASE);
-
-        cy.contains('Show advanced fields').click();
-
-        cy.get('[name="warehouse.port"]').clear().type(PGPORT);
-        cy.get('select').eq(2).select('disable'); // SSL mode
-
-        // DBT
-        cy.get('select').eq(3).select('dbt local server');
-        cy.get('[name="warehouse.schema"]').type('jaffle');
+        configureWarehouse(warehouseConfig.postgresSQL);
 
         testCompile();
         testQuery();
