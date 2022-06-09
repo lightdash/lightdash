@@ -140,7 +140,7 @@ git remote add upstream https://github.com/lightdash/lightdash.git
 
 <!-- #default-branch-switch -->
 
-3. Synchronize your local `master` branch with the upstream one:
+3. Synchronize your local `main` branch with the upstream one:
 
 ```sh
 git checkout main
