@@ -1,3 +1,5 @@
+import { SEED_PROJECT } from '@lightdash/common';
+
 describe('Dashboard List', () => {
     before(() => {
         // @ts-ignore
@@ -11,14 +13,14 @@ describe('Dashboard List', () => {
     });
 
     it('Should display dashboards', () => {
-        cy.visit('/');
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
         cy.findByRole('button', { name: 'Browse' }).click();
         cy.findByRole('button', { name: 'Dashboards' }).click();
         cy.findByText('Jaffle dashboard').should('exist');
     });
 
     it('Should create a new dashboard', () => {
-        cy.visit('/');
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
         cy.findByRole('button', { name: 'Browse' }).click();
         cy.findByRole('button', { name: 'Dashboards' }).click();
         cy.findByRole('button', { name: 'Create dashboard' }).click();
@@ -31,7 +33,7 @@ describe('Dashboard List', () => {
     });
 
     it('Should update dashboards', () => {
-        cy.visit('/');
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
         cy.findByRole('button', { name: 'Browse' }).click();
         cy.findByRole('button', { name: 'Dashboards' }).click();
         // click on rename
@@ -46,7 +48,7 @@ describe('Dashboard List', () => {
     });
 
     it('Should delete dashboards', () => {
-        cy.visit('/');
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
         cy.findByRole('button', { name: 'Browse' }).click();
         cy.findByRole('button', { name: 'Dashboards' }).click();
         // click on delete
