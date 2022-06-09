@@ -3,6 +3,7 @@ import { Popover2 } from '@blueprintjs/popover2';
 import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { useDuplicateDashboardMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDuplicateMutation } from '../../../hooks/useSavedQuery';
+import { useApp } from '../../../providers/AppProvider';
 import { ActionTypeModal } from './ActionModal';
 
 type ModalActionButtonsProps = {
@@ -28,11 +29,17 @@ const ModalActionButtons = ({
         true,
     );
     const isDashboardPage = url.includes('/dashboards');
+    const { user } = useApp();
 
     useEffect(() => {
         setItemId(data.uuid);
     }, [data.uuid]);
 
+    if (isChart) {
+        if (user.data?.ability?.cannot('manage', 'SavedChart')) return <></>;
+    } else {
+        if (user.data?.ability?.cannot('manage', 'Dashboard')) return <></>;
+    }
     return (
         <Popover2
             isOpen={isOpen}

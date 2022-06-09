@@ -21,6 +21,7 @@ import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
+import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
@@ -127,6 +128,7 @@ const DashboardChartTile: FC<Props> = (props) => {
     const [dashboardTileFilterOptions, setDashboardFilterOptions] = useState<
         DashboardFilterRule[]
     >([]);
+    const { user } = useApp();
 
     const onSeriesContextMenu = useCallback(
         (e: EchartSeriesClickEvent) => {
@@ -268,11 +270,14 @@ const DashboardChartTile: FC<Props> = (props) => {
             extraMenuItems={
                 savedChartUuid !== null && (
                     <>
-                        <MenuItem
-                            icon="document-open"
-                            text="Edit chart"
-                            href={`/projects/${projectUuid}/saved/${savedChartUuid}/edit`}
-                        />
+                        {' '}
+                        {user.data?.ability?.can('manage', 'SavedChart') && (
+                            <MenuItem
+                                icon="document-open"
+                                text="Edit chart"
+                                href={`/projects/${projectUuid}/saved/${savedChartUuid}/edit`}
+                            />
+                        )}
                         <MenuItem
                             icon="series-search"
                             text="Explore from here"

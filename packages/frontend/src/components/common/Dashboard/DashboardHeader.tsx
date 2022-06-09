@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
+import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
@@ -53,6 +54,11 @@ const DashboardHeader = ({
         });
         onSaveTitle(value);
     };
+
+    const { user } = useApp();
+
+    if (user.data?.ability?.cannot('manage', 'Dashboard')) return <></>;
+
     return (
         <WrapperAddTileButton>
             <TitleContainer
