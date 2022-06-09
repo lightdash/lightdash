@@ -1,4 +1,3 @@
-import { Button } from '@blueprintjs/core';
 import {
     ProjectType,
     ProjectTypeLabels,
@@ -17,6 +16,11 @@ import DbtCloudForm from './DbtForms/DbtCloudForm';
 import DbtLocalForm from './DbtForms/DbtLocalForm';
 import GithubForm from './DbtForms/GithubForm';
 import GitlabForm from './DbtForms/GitlabForm';
+import { SelectedWarehouse } from './ProjectConnectFlow/WareHouseConnectCard.tsx';
+import {
+    AdvancedButton,
+    AdvancedButtonWrapper,
+} from './ProjectConnection.styles';
 import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
 import { DatabricksSchemaInput } from './WarehouseForms/DatabricksForm';
 import { PostgresSchemaInput } from './WarehouseForms/PostgresForm';
@@ -26,11 +30,13 @@ import { SnowflakeSchemaInput } from './WarehouseForms/SnowflakeForm';
 interface DbtSettingsFormProps {
     disabled: boolean;
     defaultType?: ProjectType;
+    selectedWarehouse?: SelectedWarehouse | undefined;
 }
 
 const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     disabled,
     defaultType,
+    selectedWarehouse,
 }) => {
     const type: ProjectType = useWatch({
         name: 'dbt.type',
@@ -116,7 +122,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     };
 
     const warehouseSchemaInput = useMemo(() => {
-        switch (warehouseType) {
+        switch (selectedWarehouse?.key || warehouseType) {
             case WarehouseTypes.BIGQUERY:
                 return <BigQuerySchemaInput disabled={disabled} />;
             case WarehouseTypes.POSTGRES:
@@ -128,11 +134,10 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             case WarehouseTypes.DATABRICKS:
                 return <DatabricksSchemaInput disabled={disabled} />;
             default: {
-                const never: never = warehouseType;
                 return <></>;
             }
         }
-    }, [disabled, warehouseType]);
+    }, [disabled, warehouseType, selectedWarehouse]);
     return (
         <div
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
@@ -167,24 +172,15 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 />
                 <></>
             </FormSection>
-            <div
-                style={{
-                    display: 'flex',
-                    marginTop: 20,
-                    justifyContent: 'flex-end',
-                }}
-            >
-                <Button
-                    minimal
-                    text={`${
-                        isAdvancedSettingsOpen ? 'Hide' : 'Show'
-                    } advanced fields`}
+            <AdvancedButtonWrapper>
+                <AdvancedButton
+                    icon={
+                        isAdvancedSettingsOpen ? 'chevron-up' : 'chevron-down'
+                    }
+                    text={`Advanced configuration options`}
                     onClick={toggleAdvancedSettingsOpen}
-                    style={{
-                        marginRight: 10,
-                    }}
                 />
-            </div>
+            </AdvancedButtonWrapper>
         </div>
     );
 };

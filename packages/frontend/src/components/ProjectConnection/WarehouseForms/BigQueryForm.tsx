@@ -1,4 +1,3 @@
-import { Button } from '@blueprintjs/core';
 import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
@@ -8,6 +7,10 @@ import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
 import SelectField from '../../ReactHookForm/Select';
+import {
+    AdvancedButton,
+    AdvancedButtonWrapper,
+} from '../ProjectConnection.styles';
 import { useProjectFormContext } from '../ProjectFormProvider';
 
 export const BigQuerySchemaInput: FC<{
@@ -127,22 +130,13 @@ const BigQueryForm: FC<{
                 />
             </FormSection>
 
-            <div
-                style={{
-                    display: 'flex',
-                    marginTop: 20,
-                    justifyContent: 'flex-end',
-                }}
-            >
-                <Button
-                    minimal
-                    text={`${isOpen ? 'Hide' : 'Show'} advanced fields`}
+            <AdvancedButtonWrapper>
+                <AdvancedButton
+                    icon={isOpen ? 'chevron-up' : 'chevron-down'}
+                    text={`Advanced configuration options`}
                     onClick={toggleOpen}
-                    style={{
-                        marginRight: 10,
-                    }}
                 />
-            </div>
+            </AdvancedButtonWrapper>
         </>
     );
 };

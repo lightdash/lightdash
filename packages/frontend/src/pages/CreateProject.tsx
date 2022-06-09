@@ -1,44 +1,63 @@
-import { Colors, H1 } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { WarehouseTypes } from '@lightdash/common';
+import React, { FC, useState } from 'react';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { CreateProjectConnection } from '../components/ProjectConnection';
+import WareHouseConnectCard from '../components/ProjectConnection/ProjectConnectFlow/WareHouseConnectCard.tsx';
+import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
 import { useApp } from '../providers/AppProvider';
+import {
+    BackToWarehouseButton,
+    CreateHeaderWrapper,
+    CreateProjectWrapper,
+    Title,
+} from './CreateProject.styles';
+
+export type SelectedWarehouse = {
+    label: string;
+    key: WarehouseTypes;
+    icon: string;
+};
 
 const CreateProject: FC = () => {
     const { health } = useApp();
+    const [selectedWarehouse, setSelectedWarehouse] = useState<
+        SelectedWarehouse | undefined
+    >();
+
     if (health.isLoading) {
         return <PageSpinner />;
     }
 
     return (
-        <Page>
-            <div
-                style={{
-                    display: 'flex',
-                    width: '800px',
-                    flexDirection: 'column',
-                    flex: 1,
-                    paddingTop: 60,
-                }}
-            >
-                <H1 style={{ marginBottom: 30 }}>Connect your project ⚡</H1>
-                <p style={{ color: Colors.GRAY1, marginBottom: 30 }}>
-                    The following steps are best carried out by your
-                    organization&apos;s data/analytics engineering experts. Once
-                    you set up your dbt and warehouse connection, you will be
-                    ready to start exploring your data in Lightdash! If you are
-                    itching to get started,{' '}
-                    <a
-                        target="_blank"
-                        rel="noreferrer"
-                        href="https://demo.lightdash.com"
-                    >
-                        check out our demo project!
-                    </a>
-                </p>
-                <CreateProjectConnection />
-            </div>
+        <Page
+            hideFooter={!!selectedWarehouse}
+            noContentPadding={!!selectedWarehouse}
+        >
+            <ProjectFormProvider>
+                {!selectedWarehouse ? (
+                    <WareHouseConnectCard
+                        setWarehouse={setSelectedWarehouse}
+                        showDemoLink
+                    />
+                ) : (
+                    <CreateProjectWrapper>
+                        <CreateHeaderWrapper>
+                            <BackToWarehouseButton
+                                icon="chevron-left"
+                                text="Back"
+                                onClick={() => setSelectedWarehouse(undefined)}
+                            />
+                            <Title marginBottom>
+                                {`Create a ${selectedWarehouse.label} connection`}
+                            </Title>
+                        </CreateHeaderWrapper>
+                        <CreateProjectConnection
+                            selectedWarehouse={selectedWarehouse}
+                        />
+                    </CreateProjectWrapper>
+                )}
+            </ProjectFormProvider>
         </Page>
     );
 };

@@ -1,4 +1,3 @@
-import { Button } from '@blueprintjs/core';
 import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
@@ -8,6 +7,10 @@ import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import Select from '../../ReactHookForm/Select';
+import {
+    AdvancedButton,
+    AdvancedButtonWrapper,
+} from '../ProjectConnection.styles';
 import { useProjectFormContext } from '../ProjectFormProvider';
 
 export const PostgresSchemaInput: FC<{
@@ -135,22 +138,13 @@ const PostgresForm: FC<{
                 />
                 <Input name="warehouse.role" label="Role" disabled={disabled} />
             </FormSection>
-            <div
-                style={{
-                    display: 'flex',
-                    marginTop: 20,
-                    justifyContent: 'flex-end',
-                }}
-            >
-                <Button
-                    minimal
-                    text={`${isOpen ? 'Hide' : 'Show'} advanced fields`}
+            <AdvancedButtonWrapper>
+                <AdvancedButton
+                    icon={isOpen ? 'chevron-up' : 'chevron-down'}
+                    text={`Advanced configuration options`}
                     onClick={toggleOpen}
-                    style={{
-                        marginRight: 10,
-                    }}
                 />
-            </div>
+            </AdvancedButtonWrapper>
         </>
     );
 };

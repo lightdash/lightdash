@@ -1,4 +1,4 @@
-import { Button, Card, Colors, H5, Intent } from '@blueprintjs/core';
+import { Card, Colors, H5, Intent } from '@blueprintjs/core';
 import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
@@ -15,6 +15,7 @@ import {
     useProject,
     useUpdateMutation,
 } from '../../hooks/useProject';
+import { SelectedWarehouse } from '../../pages/CreateProject';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
@@ -22,6 +23,14 @@ import DocumentationHelpButton from '../DocumentationHelpButton';
 import Form from '../ReactHookForm/Form';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
+import DbtLogo from './ProjectConnectFlow/Assets/dbt.png';
+import {
+    CompileProjectButton,
+    CompileProjectWrapper,
+    FormContainer,
+    FormWrapper,
+    WarehouseLogo,
+} from './ProjectConnection.styles';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
@@ -36,12 +45,14 @@ interface Props {
     showGeneralSettings: boolean;
     disabled: boolean;
     defaultType?: ProjectType;
+    selectedWarehouse?: SelectedWarehouse | undefined;
 }
 
 const ProjectForm: FC<Props> = ({
     showGeneralSettings,
     disabled,
     defaultType,
+    selectedWarehouse,
 }) => (
     <>
         {showGeneralSettings && (
@@ -86,13 +97,24 @@ const ProjectForm: FC<Props> = ({
             elevation={1}
         >
             <div style={{ flex: 1 }}>
-                <H5 style={{ display: 'inline', marginRight: 5 }}>
-                    Warehouse connection
-                </H5>
-                <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
+                {selectedWarehouse && (
+                    <WarehouseLogo
+                        src={selectedWarehouse.icon}
+                        alt={selectedWarehouse.key}
+                    />
+                )}
+                <div>
+                    <H5 style={{ display: 'inline', marginRight: 5 }}>
+                        Warehouse connection
+                    </H5>
+                    <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
+                </div>
             </div>
             <div style={{ flex: 1 }}>
-                <WarehouseSettingsForm disabled={disabled} />
+                <WarehouseSettingsForm
+                    disabled={disabled}
+                    selectedWarehouse={selectedWarehouse}
+                />
             </div>
         </Card>
         <Card
@@ -110,15 +132,18 @@ const ProjectForm: FC<Props> = ({
                         marginBottom: 15,
                     }}
                 >
-                    <H5
-                        style={{
-                            display: 'inline',
-                            marginRight: 5,
-                        }}
-                    >
-                        dbt connection
-                    </H5>
-                    <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
+                    <WarehouseLogo src={DbtLogo} alt="dbt icon" />
+                    <div>
+                        <H5
+                            style={{
+                                display: 'inline',
+                                marginRight: 5,
+                            }}
+                        >
+                            dbt connection
+                        </H5>
+                        <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
+                    </div>
                 </div>
 
                 <p style={{ color: Colors.GRAY1 }}>
@@ -136,6 +161,7 @@ const ProjectForm: FC<Props> = ({
                 <DbtSettingsForm
                     disabled={disabled}
                     defaultType={defaultType}
+                    selectedWarehouse={selectedWarehouse}
                 />
             </div>
         </Card>
@@ -167,10 +193,11 @@ const useOnProjectError = (): SubmitErrorHandler<ProjectConnectionForm> => {
     };
 };
 
-export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
-    projectUuid,
-}) => {
-    const { user } = useApp();
+export const UpdateProjectConnection: FC<{
+    projectUuid: string;
+    selectedWarehouse: SelectedWarehouse;
+}> = ({ projectUuid, selectedWarehouse }) => {
+    const { user, health } = useApp();
     const { data } = useProject(projectUuid);
     const onError = useOnProjectError();
     const updateMutation = useUpdateMutation(projectUuid);
@@ -181,7 +208,10 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
         defaultValues: {
             name: data?.name,
             dbt: data?.dbtConnection,
-            warehouse: data?.warehouseConnection,
+            warehouse: {
+                ...data?.warehouseConnection,
+                type: selectedWarehouse.key,
+            },
         },
     });
     const { reset } = methods;
@@ -208,7 +238,11 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
             await mutateAsync({
                 name,
                 dbtConnection,
-                warehouseConnection,
+                // @ts-ignore
+                warehouseConnection: {
+                    ...warehouseConnection,
+                    type: selectedWarehouse.key,
+                },
             });
         }
     };
@@ -221,7 +255,14 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
             onError={onError}
         >
             <ProjectFormProvider savedProject={data}>
-                <ProjectForm showGeneralSettings disabled={isSaving} />
+                <FormWrapper>
+                    <ProjectForm
+                        showGeneralSettings
+                        disabled={isSaving}
+                        defaultType={health.data?.defaultProject?.type}
+                        selectedWarehouse={selectedWarehouse}
+                    />
+                </FormWrapper>
             </ProjectFormProvider>
             {!isIdle && (
                 <ProjectStatusCallout
@@ -229,18 +270,27 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
                     mutation={updateMutation}
                 />
             )}
-            <Button
-                type="submit"
-                intent={Intent.PRIMARY}
-                text="Test & save connection"
-                loading={isSaving}
-                style={{ float: 'right' }}
-            />
+            <CompileProjectWrapper>
+                <FormWrapper>
+                    <CompileProjectButton
+                        type="submit"
+                        intent={Intent.PRIMARY}
+                        text="Test &amp; compile project"
+                        loading={isSaving}
+                    />
+                </FormWrapper>
+            </CompileProjectWrapper>
         </Form>
     );
 };
 
-export const CreateProjectConnection: FC = () => {
+interface CreateProjectConnectionProps {
+    selectedWarehouse?: SelectedWarehouse | undefined;
+}
+
+export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
+    selectedWarehouse,
+}) => {
     const history = useHistory();
     const { user, health, activeJobIsRunning, activeJob } = useApp();
     const onError = useOnProjectError();
@@ -251,6 +301,7 @@ export const CreateProjectConnection: FC = () => {
         defaultValues: {
             name: user.data?.organizationName,
             dbt: health.data?.defaultProject,
+            warehouse: { type: selectedWarehouse?.key },
         },
     });
     const { track } = useTracking();
@@ -263,11 +314,17 @@ export const CreateProjectConnection: FC = () => {
         track({
             name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
         });
-        await mutateAsync({
-            name: name || user.data?.organizationName || 'My project',
-            dbtConnection,
-            warehouseConnection,
-        });
+        if (selectedWarehouse) {
+            await mutateAsync({
+                name: name || user.data?.organizationName || 'My project',
+                dbtConnection,
+                //@ts-ignore
+                warehouseConnection: {
+                    ...warehouseConnection,
+                    type: selectedWarehouse?.key,
+                },
+            });
+        }
     };
 
     useEffect(() => {
@@ -280,26 +337,32 @@ export const CreateProjectConnection: FC = () => {
     const { data: orgData } = useOrganisation();
 
     return (
-        <Form
+        <FormContainer
             name="create_project"
             methods={methods}
             onSubmit={onSubmit}
             onError={onError}
         >
             <ProjectFormProvider>
-                <ProjectForm
-                    showGeneralSettings={!orgData?.needsProject}
-                    disabled={isSaving || !!activeJobIsRunning}
-                    defaultType={health.data?.defaultProject?.type}
-                />
+                <FormWrapper>
+                    <ProjectForm
+                        showGeneralSettings={!orgData?.needsProject}
+                        disabled={isSaving || !!activeJobIsRunning}
+                        defaultType={health.data?.defaultProject?.type}
+                        selectedWarehouse={selectedWarehouse}
+                    />
+                </FormWrapper>
             </ProjectFormProvider>
-            <Button
-                type="submit"
-                intent={Intent.PRIMARY}
-                text="Test and compile project"
-                loading={isSaving || activeJobIsRunning}
-                style={{ float: 'right' }}
-            />
-        </Form>
+            <CompileProjectWrapper>
+                <FormWrapper>
+                    <CompileProjectButton
+                        type="submit"
+                        intent={Intent.PRIMARY}
+                        text="Test &amp; compile project"
+                        loading={isSaving || activeJobIsRunning}
+                    />
+                </FormWrapper>
+            </CompileProjectWrapper>
+        </FormContainer>
     );
 };
