@@ -1,9 +1,11 @@
 import { AnchorButton } from '@blueprintjs/core';
+import { LightdashMode } from '@lightdash/common';
 import React, { FC } from 'react';
 import { Redirect } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDashboards } from '../../../hooks/dashboard/useDashboards';
 import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
+import { useApp } from '../../../providers/AppProvider';
 import LatestCard from '../LatestCard';
 import {
     CreateDashboardButton,
@@ -20,6 +22,9 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
     const dashboardsRequest = useDashboards(projectUuid);
     const dashboards = dashboardsRequest.data || [];
     const createDashboard = useCreateMutation(projectUuid);
+    const { user, health } = useApp();
+
+    const isDemo = health.data?.mode === LightdashMode.DEMO;
 
     if (createDashboard.isSuccess && createDashboard.data) {
         return (
@@ -72,21 +77,23 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
                             <DashboardTitle>{name}</DashboardTitle>
                         </DashboardLinkButton>
                     ))}
-                {dashboards.length < 6 && (
-                    <CreateDashboardButton
-                        minimal
-                        loading={createDashboard.isLoading}
-                        intent="primary"
-                        onClick={() =>
-                            createDashboard.mutate({
-                                name: DEFAULT_DASHBOARD_NAME,
-                                tiles: [],
-                            })
-                        }
-                    >
-                        + Create a dashboard
-                    </CreateDashboardButton>
-                )}
+                {dashboards.length < 6 &&
+                    user.data?.ability?.can('manage', 'Dashboard') &&
+                    !isDemo && (
+                        <CreateDashboardButton
+                            minimal
+                            loading={createDashboard.isLoading}
+                            intent="primary"
+                            onClick={() =>
+                                createDashboard.mutate({
+                                    name: DEFAULT_DASHBOARD_NAME,
+                                    tiles: [],
+                                })
+                            }
+                        >
+                            + Create a dashboard
+                        </CreateDashboardButton>
+                    )}
             </DashboardsWrapper>
         </LatestCard>
     );
