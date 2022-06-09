@@ -18,6 +18,7 @@ import PageSpinner from '../components/PageSpinner';
 import Form from '../components/ReactHookForm/Form';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
+import LightdashLogo from '../svgs/lightdash-black.svg';
 import {
     AnchorLinkWrapper,
     CardWrapper,
@@ -25,6 +26,8 @@ import {
     DividerWrapper,
     FormWrapper,
     InputField,
+    Logo,
+    LogoWrapper,
     PasswordInputField,
     SubmitButton,
     Title,
@@ -105,12 +108,14 @@ const Login: FC = () => {
     return (
         <Page isFullHeight>
             <FormWrapper>
+                <LogoWrapper>
+                    <Logo src={LightdashLogo} alt="lightdash logo" />
+                </LogoWrapper>
                 <CardWrapper elevation={2}>
                     <Title>Sign in</Title>
                     {health.data?.auth.google.oauth2ClientId && (
                         <>
                             <GoogleLoginButton />
-
                             <DividerWrapper>
                                 <Divider></Divider>
                                 <b>OR</b>

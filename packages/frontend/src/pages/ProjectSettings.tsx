@@ -92,7 +92,7 @@ const ProjectSettings: FC = () => {
                 >
                     <Content>
                         <H3 style={{ marginTop: 10, marginBottom: 0 }}>
-                            Configure your tables
+                            Your project has connected successfully! 🎉
                         </H3>
                         <Divider style={{ margin: '20px 0' }} />
                         <p
@@ -101,8 +101,10 @@ const ProjectSettings: FC = () => {
                                 color: Colors.GRAY1,
                             }}
                         >
-                            Pick the dbt models you want to appear as tables in
-                            Lightdash
+                            Before you start exploring your data, pick the dbt
+                            models you wanto to appear as tables in Lightdash.
+                            You can always adjust this in your project settings
+                            later.
                         </p>
                         <ProjectTablesConfiguration projectUuid={projectUuid} />
                     </Content>

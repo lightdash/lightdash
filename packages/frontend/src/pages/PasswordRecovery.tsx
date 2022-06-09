@@ -10,6 +10,8 @@ import Form from '../components/ReactHookForm/Form';
 import Input from '../components/ReactHookForm/Input';
 import { usePasswordResetLinkMutation } from '../hooks/usePasswordReset';
 import { useApp } from '../providers/AppProvider';
+import LightdashLogo from '../svgs/lightdash-black.svg';
+import { Logo, LogoWrapper } from './SignUp.styles';
 
 type RecoverPasswordForm = { email: string };
 
@@ -69,6 +71,9 @@ const PasswordRecovery: FC = () => {
                     flex: 1,
                 }}
             >
+                <LogoWrapper>
+                    <Logo src={LightdashLogo} alt="lightdash logo" />
+                </LogoWrapper>
                 <Card
                     style={{
                         padding: 25,
