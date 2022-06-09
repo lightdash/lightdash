@@ -608,6 +608,15 @@
       "contributions": [
         "ideas"
       ]
+    },
+    {
+      "login": "kuberaspeaking",
+      "name": "Shruti Kuber",
+      "avatar_url": "https://avatars.githubusercontent.com/u/27010949?v=4",
+      "profile": "https://github.com/restackio",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
