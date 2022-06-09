@@ -1,4 +1,4 @@
-import { Button, Card, Colors, H5, Intent } from '@blueprintjs/core';
+import { Card, Colors, H5, Intent } from '@blueprintjs/core';
 import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
@@ -193,10 +193,11 @@ const useOnProjectError = (): SubmitErrorHandler<ProjectConnectionForm> => {
     };
 };
 
-export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
-    projectUuid,
-}) => {
-    const { user } = useApp();
+export const UpdateProjectConnection: FC<{
+    projectUuid: string;
+    selectedWarehouse?: SelectedWarehouse | undefined;
+}> = ({ projectUuid, selectedWarehouse }) => {
+    const { user, health } = useApp();
     const { data } = useProject(projectUuid);
     const onError = useOnProjectError();
     const updateMutation = useUpdateMutation(projectUuid);
@@ -247,7 +248,14 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
             onError={onError}
         >
             <ProjectFormProvider savedProject={data}>
-                <ProjectForm showGeneralSettings disabled={isSaving} />
+                <FormWrapper>
+                    <ProjectForm
+                        showGeneralSettings
+                        disabled={isSaving}
+                        defaultType={health.data?.defaultProject?.type}
+                        selectedWarehouse={selectedWarehouse}
+                    />
+                </FormWrapper>
             </ProjectFormProvider>
             {!isIdle && (
                 <ProjectStatusCallout
@@ -255,13 +263,16 @@ export const UpdateProjectConnection: FC<{ projectUuid: string }> = ({
                     mutation={updateMutation}
                 />
             )}
-            <Button
-                type="submit"
-                intent={Intent.PRIMARY}
-                text="Test & save connection"
-                loading={isSaving}
-                style={{ float: 'right' }}
-            />
+            <CompileProjectWrapper>
+                <FormWrapper>
+                    <CompileProjectButton
+                        type="submit"
+                        intent={Intent.PRIMARY}
+                        text="Test &amp; compile project"
+                        loading={isSaving}
+                    />
+                </FormWrapper>
+            </CompileProjectWrapper>
         </Form>
     );
 };

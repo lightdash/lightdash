@@ -7,14 +7,6 @@ import PostgresForm from './WarehouseForms/PostgresForm';
 import RedshiftForm from './WarehouseForms/RedshiftForm';
 import SnowflakeForm from './WarehouseForms/SnowflakeForm';
 
-const WarehouseTypeLabels = {
-    [WarehouseTypes.BIGQUERY]: 'BigQuery',
-    [WarehouseTypes.POSTGRES]: 'PostgreSQL',
-    [WarehouseTypes.REDSHIFT]: 'Redshift',
-    [WarehouseTypes.SNOWFLAKE]: 'Snowflake',
-    [WarehouseTypes.DATABRICKS]: 'Databricks',
-};
-
 const WarehouseTypeForms = {
     [WarehouseTypes.BIGQUERY]: BigQueryForm,
     [WarehouseTypes.POSTGRES]: PostgresForm,

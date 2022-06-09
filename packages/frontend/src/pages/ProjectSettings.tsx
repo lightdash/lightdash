@@ -7,19 +7,42 @@ import {
     NonIdealState,
     Spinner,
 } from '@blueprintjs/core';
-import React, { FC, useMemo } from 'react';
+import React, { FC, useEffect, useMemo, useState } from 'react';
 import { Redirect, Route, Switch, useParams } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
-import Sidebar from '../components/common/Page/Sidebar';
 import RouterMenuItem from '../components/common/RouterMenuItem';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
+import WareHouseConnectCard, {
+    SelectedWarehouse,
+    WarehouseTypeLabels,
+} from '../components/ProjectConnection/ProjectConnectFlow/WareHouseConnectCard.tsx';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import { useProject } from '../hooks/useProject';
+import {
+    BackToWarehouseButton,
+    ConnectCardWrapper,
+    SettingsSideBar,
+    Title,
+    UpdateHeaderWrapper,
+    UpdateProjectWrapper,
+} from './ProjectSettings.styles';
 
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isLoading, data, error } = useProject(projectUuid);
+    const [selectedWarehouse, setSelectedWarehouse] = useState<
+        SelectedWarehouse | undefined
+    >();
+
+    useEffect(() => {
+        const activeWarehouse = data?.warehouseConnection?.type;
+
+        const defaultWarehouse = WarehouseTypeLabels.filter((warehouse) => {
+            return warehouse.key === activeWarehouse;
+        });
+        if (defaultWarehouse) setSelectedWarehouse(defaultWarehouse[0]);
+    }, [data]);
 
     const basePath = useMemo(
         () => `/projects/${projectUuid}/settings`,
@@ -46,7 +69,7 @@ const ProjectSettings: FC = () => {
     }
     return (
         <PageWithSidebar>
-            <Sidebar title="Project settings">
+            <SettingsSideBar title="Project settings">
                 <Menu>
                     <RouterMenuItem
                         text="Project connections"
@@ -60,33 +83,63 @@ const ProjectSettings: FC = () => {
                         to={`${basePath}/tablesConfiguration`}
                     />
                 </Menu>
-            </Sidebar>
-            <Content>
-                <Switch>
-                    <Route
-                        exact
-                        path="/projects/:projectUuid/settings/tablesConfiguration"
-                    >
+            </SettingsSideBar>
+
+            <Switch>
+                <Route
+                    exact
+                    path="/projects/:projectUuid/settings/tablesConfiguration"
+                >
+                    <Content>
                         <H3 style={{ marginTop: 10, marginBottom: 0 }}>
                             Configure your tables
                         </H3>
                         <Divider style={{ margin: '20px 0' }} />
-                        <p style={{ marginBottom: 20, color: Colors.GRAY1 }}>
+                        <p
+                            style={{
+                                marginBottom: 20,
+                                color: Colors.GRAY1,
+                            }}
+                        >
                             Pick the dbt models you want to appear as tables in
                             Lightdash
                         </p>
                         <ProjectTablesConfiguration projectUuid={projectUuid} />
-                    </Route>
-                    <Route exact path="/projects/:projectUuid/settings">
-                        <H3 style={{ marginTop: 10, marginBottom: 0 }}>
-                            Edit your project connections
-                        </H3>
-                        <Divider style={{ margin: '20px 0' }} />
-                        <UpdateProjectConnection projectUuid={projectUuid} />
-                    </Route>
-                    <Redirect to={basePath} />
-                </Switch>
-            </Content>
+                    </Content>
+                </Route>
+
+                <Route exact path="/projects/:projectUuid/settings">
+                    <Content noPadding>
+                        {!selectedWarehouse ? (
+                            <ConnectCardWrapper>
+                                <WareHouseConnectCard
+                                    setWarehouse={setSelectedWarehouse}
+                                />
+                            </ConnectCardWrapper>
+                        ) : (
+                            <UpdateProjectWrapper>
+                                <UpdateHeaderWrapper>
+                                    <BackToWarehouseButton
+                                        icon="chevron-left"
+                                        text="Back to warehouses!"
+                                        onClick={() =>
+                                            setSelectedWarehouse(undefined)
+                                        }
+                                    />
+                                    <Title marginBottom>
+                                        {`Edit your ${selectedWarehouse.label} connection`}
+                                    </Title>
+                                </UpdateHeaderWrapper>
+                                <UpdateProjectConnection
+                                    projectUuid={projectUuid}
+                                    selectedWarehouse={selectedWarehouse}
+                                />
+                            </UpdateProjectWrapper>
+                        )}
+                    </Content>
+                </Route>
+                <Redirect to={basePath} />
+            </Switch>
         </PageWithSidebar>
     );
 };

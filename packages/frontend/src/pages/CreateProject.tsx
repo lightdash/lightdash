@@ -36,7 +36,10 @@ const CreateProject: FC = () => {
         >
             <ProjectFormProvider>
                 {!selectedWarehouse ? (
-                    <WareHouseConnectCard setWarehouse={setSelectedWarehouse} />
+                    <WareHouseConnectCard
+                        setWarehouse={setSelectedWarehouse}
+                        showDemoLink
+                    />
                 ) : (
                     <CreateProjectWrapper>
                         <CreateHeaderWrapper>

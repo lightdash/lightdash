@@ -22,41 +22,43 @@ export type SelectedWarehouse = {
 };
 interface Props {
     setWarehouse: (warehouse: SelectedWarehouse) => void;
+    showDemoLink?: boolean;
 }
 
-const WareHouseConnectCard: FC<Props> = ({ setWarehouse }) => {
+export const WarehouseTypeLabels = [
+    {
+        label: 'BigQuery',
+        key: WarehouseTypes.BIGQUERY,
+        icon: BigQuery,
+    },
+    {
+        label: 'Databricks',
+        key: WarehouseTypes.DATABRICKS,
+        icon: Databricks,
+    },
+    {
+        label: 'PostgreSQL',
+        key: WarehouseTypes.POSTGRES,
+        icon: PostgressLogo,
+    },
+    {
+        label: 'Redshift',
+        key: WarehouseTypes.REDSHIFT,
+        icon: Redshift,
+    },
+    {
+        label: 'Snowflake',
+        key: WarehouseTypes.SNOWFLAKE,
+        icon: Snowflake,
+    },
+];
+
+const WareHouseConnectCard: FC<Props> = ({ setWarehouse, showDemoLink }) => {
     const [warehouseInfo, setWarehouseInfo] = useState<
         SelectedWarehouse[] | undefined
     >();
 
     useMemo(() => {
-        const WarehouseTypeLabels = [
-            {
-                label: 'BigQuery',
-                key: WarehouseTypes.BIGQUERY,
-                icon: BigQuery,
-            },
-            {
-                label: 'Databricks',
-                key: WarehouseTypes.DATABRICKS,
-                icon: Databricks,
-            },
-            {
-                label: 'PostgreSQL',
-                key: WarehouseTypes.POSTGRES,
-                icon: PostgressLogo,
-            },
-            {
-                label: 'Redshift',
-                key: WarehouseTypes.REDSHIFT,
-                icon: Redshift,
-            },
-            {
-                label: 'Snowflake',
-                key: WarehouseTypes.SNOWFLAKE,
-                icon: Snowflake,
-            },
-        ];
         setWarehouseInfo(WarehouseTypeLabels);
     }, []);
 
@@ -79,12 +81,14 @@ const WareHouseConnectCard: FC<Props> = ({ setWarehouse }) => {
                         </WarehouseButton>
                     ))}
                 </WarehouseGrid>
-                <ExternalLink
-                    href="https://demo.lightdash.com/"
-                    target="_blank"
-                >
-                    ...or try our demo project instead
-                </ExternalLink>
+                {showDemoLink && (
+                    <ExternalLink
+                        href="https://demo.lightdash.com/"
+                        target="_blank"
+                    >
+                        ...or try our demo project instead
+                    </ExternalLink>
+                )}
             </ConnectWarehouseWrapper>
         </Wrapper>
     );
