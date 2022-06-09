@@ -156,6 +156,8 @@ const convertDbtMetricToLightdashMetric = (
         description: metric.description,
         source: undefined,
         hidden: !!metric.meta?.hidden,
+        round: metric.meta?.round,
+        format: metric.meta?.format,
     };
 };
 
