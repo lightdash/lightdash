@@ -93,7 +93,7 @@ const SimpleChart: FC = () => {
     if (!eChartsOptions) return <EmptyChart />;
 
     return (
-        <div style={{ padding: 10, height: '100%' }}>
+        <div style={{ height: '100%' }}>
             <EChartsReact
                 style={{
                     height: '100%',

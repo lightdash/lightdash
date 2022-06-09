@@ -12,7 +12,10 @@ import { ChartDownloadMenu } from '../../ChartDownload';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import VisualizationCardOptions from '../VisualizationCardOptions';
-import { MainCard } from './VisualizationCard.styles';
+import {
+    MainCard,
+    VisualizationCardContentWrapper,
+} from './VisualizationCard.styles';
 
 const VisualizationCard: FC = () => {
     const {
@@ -97,12 +100,9 @@ const VisualizationCard: FC = () => {
                         )}
                     </div>
                     <Collapse className="explorer-chart" isOpen={vizIsOpen}>
-                        <div
-                            style={{ height: '300px' }}
-                            className="cohere-block"
-                        >
+                        <VisualizationCardContentWrapper className="cohere-block">
                             <LightdashVisualization />
-                        </div>
+                        </VisualizationCardContentWrapper>
                     </Collapse>
                 </VisualizationProvider>
             </MainCard>

@@ -65,4 +65,5 @@ export const VisualizationCardButtons = styled.div`
 `;
 export const VisualizationCardContentWrapper = styled.div`
     height: 300px;
+    padding: 10px;
 `;

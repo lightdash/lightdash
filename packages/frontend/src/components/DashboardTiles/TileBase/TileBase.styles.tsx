@@ -40,6 +40,6 @@ export const FilterLabel = styled.span`
 
 export const ChartContainer = styled.div`
     flex: 1;
-    overflow: auto;
+    overflow: hidden;
     display: flex;
 `;
