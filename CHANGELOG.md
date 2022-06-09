@@ -1,3 +1,10 @@
+## [0.137.1](https://github.com/lightdash/lightdash/compare/0.137.0...0.137.1) (2022-06-09)
+
+
+### Bug Fixes
+
+* Change docs link in big query form - project name to point to correct anchor ([#2389](https://github.com/lightdash/lightdash/issues/2389)) ([ffcba39](https://github.com/lightdash/lightdash/commit/ffcba39f993361647b45cb50ddbba804afe7f2a3))
+
 # [0.137.0](https://github.com/lightdash/lightdash/compare/0.136.0...0.137.0) (2022-06-09)
 
 
