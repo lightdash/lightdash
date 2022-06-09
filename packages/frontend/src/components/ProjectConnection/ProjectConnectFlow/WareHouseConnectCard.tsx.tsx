@@ -1,5 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
+import UserSettingsModal from '../../UserSettingsModal';
 import BigQuery from './Assets/bigquery.svg';
 import Databricks from './Assets/databricks.svg';
 import PostgressLogo from './Assets/postgresql.svg';
@@ -8,6 +9,8 @@ import Snowflake from './Assets/snowflake.svg';
 import {
     ConnectWarehouseWrapper,
     ExternalLink,
+    FormFooterCopy,
+    InviteLinkButton,
     Subtitle,
     Title,
     WarehouseButton,
@@ -57,6 +60,9 @@ const WareHouseConnectCard: FC<Props> = ({ setWarehouse, showDemoLink }) => {
     const [warehouseInfo, setWarehouseInfo] = useState<
         SelectedWarehouse[] | undefined
     >();
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [showInvitePage, setShowInvitePage] = useState(false);
+    const [activeTab, setActiveTab] = useState<string | undefined>();
 
     useMemo(() => {
         setWarehouseInfo(WarehouseTypeLabels);
@@ -90,6 +96,35 @@ const WareHouseConnectCard: FC<Props> = ({ setWarehouse, showDemoLink }) => {
                     </ExternalLink>
                 )}
             </ConnectWarehouseWrapper>
+            {showDemoLink && (
+                <FormFooterCopy>
+                    This step is best carried out by your organization’s
+                    analytics experts. If this is not you,{' '}
+                    <InviteLinkButton
+                        onClick={() => {
+                            setIsSettingsOpen(true);
+                            setActiveTab('userManagement');
+                        }}
+                    >
+                        invite them to Lightdash!
+                    </InviteLinkButton>
+                </FormFooterCopy>
+            )}
+            <UserSettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                activeTab={activeTab}
+                onChangeTab={(tab) => {
+                    setActiveTab(tab);
+                    setShowInvitePage(false);
+                }}
+                panelProps={{
+                    userManagementProps: {
+                        showInvitePage,
+                        setShowInvitePage,
+                    },
+                }}
+            />
         </Wrapper>
     );
 };

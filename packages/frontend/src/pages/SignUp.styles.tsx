@@ -11,6 +11,14 @@ const inputFieldStyles = css`
     }
 `;
 
+export const LogoWrapper = styled.div`
+    margin: 30px auto;
+`;
+
+export const Logo = styled.img`
+    width: 160px;
+`;
+
 export const FormWrapper = styled.div`
     width: 400px;
     display: flex;
@@ -69,4 +77,14 @@ export const Divider = styled.span`
     width: 100%;
     height: 1px;
     background: ${Colors.LIGHT_GRAY3};
+`;
+
+export const FormFooterCopy = styled.p`
+    color: ${Colors.GRAY2};
+    margin-top: 25px;
+    text-align: center;
+`;
+
+export const FooterCta = styled.a`
+    color: ${Colors.BLUE3};
 `;

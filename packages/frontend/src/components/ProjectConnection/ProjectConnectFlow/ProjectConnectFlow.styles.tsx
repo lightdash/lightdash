@@ -1,6 +1,7 @@
 import { Button, Card, Colors, H3, Radio } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 import { BigButton } from '../../common/BigButton';
+import SimpleButton from '../../common/SimpleButton';
 import Form from '../../ReactHookForm/Form';
 
 export const Wrapper = styled.div`
@@ -9,7 +10,7 @@ export const Wrapper = styled.div`
     flex-direction: column;
     justify-content: center;
     flex: 1;
-    margin: auto;
+    margin: 50px auto 0;
 `;
 
 export const ConnectWarehouseWrapper = styled(Card)`
@@ -115,4 +116,16 @@ export const ButtonLabel = styled.span`
 export const HasDimensionsForm = styled(Form)`
     margin-bottom: 10px;
     text-align: left;
+`;
+
+export const FormFooterCopy = styled.p`
+    width: 400px;
+    margin: 35px auto 0;
+    color: ${Colors.GRAY2};
+    text-align: center;
+`;
+
+export const InviteLinkButton = styled(SimpleButton)`
+    width: fit-content;
+    padding-left: 0;
 `;

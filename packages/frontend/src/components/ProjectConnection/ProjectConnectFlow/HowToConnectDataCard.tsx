@@ -1,11 +1,14 @@
 import { Intent, Radio } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import React, { FC, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import RadioGroup from '../../ReactHookForm/RadioGroup';
+import UserSettingsModal from '../../UserSettingsModal';
 import {
     Codeblock,
     ConnectWarehouseWrapper,
+    FormFooterCopy,
     HasDimensionsForm,
+    InviteLinkButton,
     SubmitButton,
     Subtitle,
     Title,
@@ -24,6 +27,9 @@ const codeBlock = String.raw`models:
 `;
 
 const HowToConnectDataCard: FC<Props> = ({ setHasDimensions }) => {
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [showInvitePage, setShowInvitePage] = useState(false);
+    const [activeTab, setActiveTab] = useState<string | undefined>();
     const methods = useForm<{ hasDimension: string }>({
         mode: 'onSubmit',
     });
@@ -70,6 +76,33 @@ const HowToConnectDataCard: FC<Props> = ({ setHasDimensions }) => {
                     />
                 </HasDimensionsForm>
             </ConnectWarehouseWrapper>
+            <FormFooterCopy>
+                This step is best carried out by your organization’s analytics
+                experts. If this is not you,{' '}
+                <InviteLinkButton
+                    onClick={() => {
+                        setIsSettingsOpen(true);
+                        setActiveTab('userManagement');
+                    }}
+                >
+                    invite them to Lightdash!
+                </InviteLinkButton>
+            </FormFooterCopy>
+            <UserSettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                activeTab={activeTab}
+                onChangeTab={(tab) => {
+                    setActiveTab(tab);
+                    setShowInvitePage(false);
+                }}
+                panelProps={{
+                    userManagementProps: {
+                        showInvitePage,
+                        setShowInvitePage,
+                    },
+                }}
+            />
         </Wrapper>
     );
 };
