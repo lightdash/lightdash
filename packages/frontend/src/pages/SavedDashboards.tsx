@@ -1,4 +1,5 @@
 import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
+import { LightdashMode } from '@lightdash/common';
 import React from 'react';
 import { Redirect, useParams } from 'react-router-dom';
 import ActionCardList from '../components/common/ActionCardList';
@@ -24,7 +25,8 @@ const SavedDashboards = () => {
         mutate: createDashboard,
         data: newDashboard,
     } = useCreateMutation(projectUuid);
-    const { user } = useApp();
+    const { user, health } = useApp();
+    const isDemo = health.data?.mode === LightdashMode.DEMO;
 
     if (isLoading) {
         return (
@@ -56,7 +58,8 @@ const SavedDashboards = () => {
                 }}
                 ModalContent={DashboardForm}
                 headerAction={
-                    user.data?.ability?.can('manage', 'Dashboard') && (
+                    user.data?.ability?.can('manage', 'Dashboard') &&
+                    !isDemo && (
                         <Button
                             text="Create dashboard"
                             loading={isCreatingDashboard}
