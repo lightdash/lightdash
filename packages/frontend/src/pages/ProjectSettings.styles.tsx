@@ -1,6 +1,5 @@
 import { H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
-import Sidebar from '../components/common/Page/Sidebar';
 import SimpleButton from '../components/common/SimpleButton';
 
 export const UpdateProjectWrapper = styled.div`
@@ -34,9 +33,4 @@ export const ConnectCardWrapper = styled.div`
     position: relative;
     top: -40%;
     transform: translateY(40%);
-`;
-
-export const SettingsSideBar = styled(Sidebar)`
-    margin-right: 0 !important;
-    z-index: 1;
 `;

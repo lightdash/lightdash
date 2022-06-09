@@ -11,6 +11,7 @@ import React, { FC, useEffect, useMemo, useState } from 'react';
 import { Redirect, Route, Switch, useParams } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
+import Sidebar from '../components/common/Page/Sidebar';
 import RouterMenuItem from '../components/common/RouterMenuItem';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import WareHouseConnectCard, {
@@ -22,7 +23,6 @@ import { useProject } from '../hooks/useProject';
 import {
     BackToWarehouseButton,
     ConnectCardWrapper,
-    SettingsSideBar,
     Title,
     UpdateHeaderWrapper,
     UpdateProjectWrapper,
@@ -69,7 +69,7 @@ const ProjectSettings: FC = () => {
     }
     return (
         <PageWithSidebar>
-            <SettingsSideBar title="Project settings">
+            <Sidebar title="Project settings" noMargin>
                 <Menu>
                     <RouterMenuItem
                         text="Project connections"
@@ -83,7 +83,7 @@ const ProjectSettings: FC = () => {
                         to={`${basePath}/tablesConfiguration`}
                     />
                 </Menu>
-            </SettingsSideBar>
+            </Sidebar>
 
             <Switch>
                 <Route
