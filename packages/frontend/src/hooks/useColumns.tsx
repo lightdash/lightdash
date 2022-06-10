@@ -1,9 +1,14 @@
 import {
     convertAdditionalMetric,
+    FieldId,
     fieldId as getFieldId,
+    formatFieldValue,
+    formatItemValue,
     friendlyName,
     getFields,
+    getResultColumnTotals,
     isDimension,
+    isNumericItem,
     Metric,
     SortField,
 } from '@lightdash/common';
@@ -67,12 +72,14 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                 },
             },
         },
+        queryResults: { data: resultsData },
         actions: { toggleSortField, setSortFields },
     } = useExplorer();
     const { data } = useExplore(tableName);
-    return useMemo(() => {
+
+    const fields = useMemo(() => {
         if (data) {
-            const fieldColumns = [
+            return [
                 ...getFields(data),
                 ...(additionalMetrics || []).reduce<Metric[]>(
                     (acc, additionalMetric) => {
@@ -88,7 +95,27 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                     },
                     [],
                 ),
-            ].reduce<Column<{ [col: string]: any }>[]>((acc, field) => {
+            ];
+        }
+    }, [additionalMetrics, data]);
+
+    const totals = useMemo<Record<FieldId, number | undefined>>(() => {
+        if (resultsData && fields) {
+            return getResultColumnTotals(
+                resultsData.rows,
+                [...fields, ...tableCalculations].filter((field) =>
+                    isNumericItem(field),
+                ),
+            );
+        }
+        return {};
+    }, [fields, resultsData, tableCalculations]);
+
+    return useMemo(() => {
+        if (fields) {
+            const fieldColumns = fields.reduce<
+                Column<{ [col: string]: any }>[]
+            >((acc, field) => {
                 const fieldId = getFieldId(field);
                 if (activeFields.has(fieldId)) {
                     return [
@@ -115,6 +142,10 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                             ),
                             field,
                             Cell: FormatCell,
+                            Footer: () =>
+                                totals[fieldId]
+                                    ? formatFieldValue(field, totals[fieldId])
+                                    : null,
                         },
                     ];
                 }
@@ -145,6 +176,13 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
                                 setSortFields,
                             ),
                             Cell: FormatCell,
+                            Footer: () =>
+                                totals[fieldId]
+                                    ? formatItemValue(
+                                          tableCalculation,
+                                          totals[fieldId],
+                                      )
+                                    : null,
                         },
                     ];
                 }
@@ -155,12 +193,12 @@ export const useColumns = (): Column<{ [col: string]: any }>[] => {
         }
         return [];
     }, [
-        data,
-        additionalMetrics,
+        fields,
         tableCalculations,
         activeFields,
         sortFields,
         toggleSortField,
         setSortFields,
+        totals,
     ]);
 };

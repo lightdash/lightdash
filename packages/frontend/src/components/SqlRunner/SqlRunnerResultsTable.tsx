@@ -1,4 +1,5 @@
 import { NonIdealState } from '@blueprintjs/core';
+import { ApiQueryResults, FieldId } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
 import { useSqlQueryMutation } from '../../hooks/useSqlQuery';
 import { TrackSection } from '../../providers/TrackingProvider';
@@ -29,26 +30,39 @@ const ResultsIdleState: FC<React.ComponentProps<typeof RunSqlQueryButton>> = (
 
 const SqlRunnerResultsTable: FC<{
     onSubmit: () => void;
+    resultsData: ApiQueryResults;
+    totals: Record<FieldId, number | undefined>;
     sqlQueryMutation: ReturnType<typeof useSqlQueryMutation>;
-}> = ({ onSubmit, sqlQueryMutation: { isIdle, isLoading, data, error } }) => {
+}> = ({
+    onSubmit,
+    resultsData,
+    totals,
+    sqlQueryMutation: { isIdle, isLoading, error },
+}) => {
     const [columnsOrder, setColumnsOrder] = useState<string[]>([]);
-
     const dataColumns = useMemo(() => {
-        if (data && data.rows.length > 0) {
-            return Object.keys(data.rows[0]).map((key) => ({
+        if (resultsData && resultsData.rows.length > 0) {
+            return Object.keys(resultsData.rows[0]).map((key) => ({
                 Header: key,
                 accessor: key,
                 type: 'dimension',
-                Cell: ({ value }: any) => {
-                    if (value === null) return '∅';
-                    if (value === undefined) return '-';
-                    if (value instanceof Date) return value.toISOString();
-                    return `${value}`;
+                Cell: ({
+                    value: {
+                        value: { raw },
+                    },
+                }: any) => {
+                    if (raw === null) return '∅';
+                    if (raw === undefined) return '-';
+                    if (raw instanceof Date) return raw.toISOString();
+                    return `${raw}`;
+                },
+                Footer: () => {
+                    return totals[key] ? totals[key] : null;
                 },
             }));
         }
         return [];
-    }, [data]);
+    }, [resultsData, totals]);
 
     if (error) {
         return <ResultsErrorState error={error.error.message} />;
@@ -57,7 +71,7 @@ const SqlRunnerResultsTable: FC<{
     return (
         <Table
             isEditMode={false}
-            data={data?.rows || []}
+            data={resultsData?.rows || []}
             dataColumns={dataColumns}
             loading={isLoading}
             idle={isIdle}

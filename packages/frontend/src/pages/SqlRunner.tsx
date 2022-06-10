@@ -66,6 +66,7 @@ const SqlRunnerPage = () => {
         resultsData,
         columnOrder,
         createSavedChart,
+        totals,
         setChartType,
         setChartConfig,
         setPivotFields,
@@ -220,6 +221,8 @@ const SqlRunnerPage = () => {
                 <CollapsableCard title="Results" isOpenByDefault>
                     <SqlRunnerResultsTable
                         onSubmit={onSubmit}
+                        resultsData={resultsData}
+                        totals={totals}
                         sqlQueryMutation={sqlQueryMutation}
                     />
                 </CollapsableCard>
