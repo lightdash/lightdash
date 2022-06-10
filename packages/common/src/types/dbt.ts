@@ -49,6 +49,12 @@ export type DbtModelNode = DbtRawModelNode & {
 type DbtTableDependency = {
     nodes: string[];
 };
+
+type DbtColumnFilters = {
+    field: string;
+    operator: string;
+    value: string;
+};
 export type DbtModelColumn = {
     name: string;
     description?: string;
@@ -82,6 +88,7 @@ type DbtColumnLightdashDimension = {
     hidden?: boolean;
     round?: number;
     format?: string;
+    fiters?: DbtColumnFilters[];
 };
 
 export type DbtColumnLightdashMetric = {
@@ -92,6 +99,7 @@ export type DbtColumnLightdashMetric = {
     hidden?: boolean;
     round?: number;
     format?: string;
+    fiters?: DbtColumnFilters[];
 };
 export const normaliseModelDatabase = (
     model: DbtRawModelNode,
