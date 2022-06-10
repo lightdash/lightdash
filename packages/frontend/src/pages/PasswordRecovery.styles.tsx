@@ -40,6 +40,7 @@ export const InputField = styled(Input)`
 
 export const PasswordInputField = styled(PasswordInput)`
     ${inputFieldStyles}
+    margin-top: 25px;
     .bp4-input-group .bp4-input-action {
         position: absolute;
         right: 10px;
