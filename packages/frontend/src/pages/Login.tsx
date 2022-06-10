@@ -24,8 +24,6 @@ import {
     CardWrapper,
     Divider,
     DividerWrapper,
-    FooterCta,
-    FormFooterCopy,
     FormWrapper,
     InputField,
     Logo,
@@ -164,15 +162,6 @@ const Login: FC = () => {
                         </Form>
                     )}
                 </CardWrapper>
-                <FormFooterCopy>
-                    By creating an account, you agree to our{' '}
-                    <FooterCta
-                        href="https://www.lightdash.com/privacy-policy"
-                        target="_blank"
-                    >
-                        Privacy Policy.
-                    </FooterCta>
-                </FormFooterCopy>
             </FormWrapper>
         </Page>
     );
