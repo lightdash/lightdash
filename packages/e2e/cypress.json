@@ -3,7 +3,7 @@
   "viewportWidth": 1080,
   "defaultCommandTimeout": 5000,
   "retries": {
-    "runMode": 2,
+    "runMode": 1,
     "openMode": 0
   }
 }

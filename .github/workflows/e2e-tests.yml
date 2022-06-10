@@ -28,12 +28,15 @@ jobs:
         run: yarn common-build && yarn warehouses-build
       # Install NPM dependencies, cache them correctly
       # and run all Cypress tests
-      - name: Cypress run
+      - name: Cypress run 
         uses: cypress-io/github-action@v2
         with:
           project: ./packages/e2e
           # Set the PR deployment url
           config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
+        env:
+          CYPRESS_PGHOST: ${{secrets.PGHOST}}
+          CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
       # After the test run completes
       # store videos and any screenshots
       - uses: actions/upload-artifact@v1

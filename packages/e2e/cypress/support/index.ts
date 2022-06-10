@@ -15,14 +15,16 @@
 
 import './commands';
 
-before(() => {
+beforeEach(() => {
     // Block some external URLs
-    [
+    const ignoredUrls = [
         'static.cohere.so',
         'cdn.headwayapp.co',
         'chat.lightdash.com',
         'www.loom.com',
-    ].forEach((url) => {
+        'analytics.lightdash.com',
+    ];
+    ignoredUrls.forEach((url) => {
         cy.intercept(
             {
                 hostname: url,
@@ -30,6 +32,6 @@ before(() => {
             (req) => {
                 req.destroy();
             },
-        );
+        ).as('intercept');
     });
 });
