@@ -15,23 +15,24 @@ const configureWarehouse = (config) => {
     cy.get('[name="warehouse.password"]').type(config.password);
     cy.get('[name="warehouse.dbname"]').type(config.database);
 
-    cy.contains('Show advanced fields').click();
+    cy.contains('Advanced configuration options').click();
 
     cy.get('[name="warehouse.port"]').clear().type(config.port);
-    cy.get('select').eq(2).select('disable'); // SSL mode
+    cy.get('[name="warehouse.sslmode"]').select('disable'); // SSL mode
 
     // DBT
-    cy.get('select').eq(3).select('dbt local server');
+    cy.get('[name="dbt.type"]').select('dbt local server');
     cy.get('[name="dbt.target"]').type('test');
     cy.get('[name="warehouse.schema"]').type(config.schema);
 };
 const testCompile = () => {
     // Compile
-    cy.findByText('Test and compile project').click();
+    cy.findByText('Test & compile project').click();
     cy.contains('Step 1/3', { timeout: 30000 });
     cy.contains('Step 2/3', { timeout: 30000 });
     cy.contains('Successfully synced dbt project!', { timeout: 30000 });
 
+    cy.contains('selected 6 models');
     // Configure
     cy.findByText('Save').click();
 };
@@ -81,10 +82,9 @@ describe('Dashboard', () => {
     it('Should create a Postgres project', () => {
         cy.visit(`/createProject`);
 
-        cy.get('[name="name"]').type('Jaffle PostgreSQL test');
+        cy.contains('PostgreSQL').click();
 
-        // Warehouse
-        cy.get('select').eq(1).select('PostgreSQL');
+        cy.get('[name="name"]').type('Jaffle PostgreSQL test');
         configureWarehouse(warehouseConfig.postgresSQL);
 
         testCompile();
@@ -98,10 +98,9 @@ describe('Dashboard', () => {
 
         cy.visit(`/createProject`);
 
-        cy.get('[name="name"]').type('Jaffle Redshift test');
+        cy.contains('Redshift').click();
 
-        // Warehouse
-        cy.get('select').eq(1).select('Redshift');
+        cy.get('[name="name"]').type('Jaffle Redshift test');
         configureWarehouse(warehouseConfig.postgresSQL);
 
         testCompile();
