@@ -318,6 +318,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                                                             });
                                                             addDimensionDashboardFilter(
                                                                 filter,
+                                                                !isEditMode,
                                                             );
                                                         }}
                                                     />

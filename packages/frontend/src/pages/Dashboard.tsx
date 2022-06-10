@@ -62,13 +62,20 @@ const Dashboard = () => {
     }>();
     const {
         dashboardFilters,
+        dashboardTemporaryFilters,
         haveFiltersChanged,
         setHaveFiltersChanged,
         dashboardTiles,
         setDashboardTiles,
         setDashboardFilters,
+        setDashboardTemporaryFilters,
     } = useDashboardContext();
-
+    const hasTemporaryFilters = useMemo(
+        () =>
+            dashboardTemporaryFilters.dimensions.length > 0 ||
+            dashboardTemporaryFilters.metrics.length > 0,
+        [dashboardTemporaryFilters],
+    );
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
     const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
@@ -105,6 +112,7 @@ const Dashboard = () => {
         if (isSuccess) {
             setHasTilesChanged(false);
             setHaveFiltersChanged(false);
+            setDashboardTemporaryFilters({ dimensions: [], metrics: [] });
             reset();
             history.push(
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
@@ -116,6 +124,7 @@ const Dashboard = () => {
         isSuccess,
         projectUuid,
         reset,
+        setDashboardTemporaryFilters,
         setHaveFiltersChanged,
     ]);
 
@@ -278,12 +287,23 @@ const Dashboard = () => {
                 dashboardName={dashboard.name}
                 isEditMode={isEditMode}
                 isSaving={isSaving}
-                hasDashboardChanged={hasTilesChanged || haveFiltersChanged}
+                hasDashboardChanged={
+                    hasTilesChanged || haveFiltersChanged || hasTemporaryFilters
+                }
                 onAddTiles={onAddTiles}
                 onSaveDashboard={() =>
                     mutate({
                         tiles: dashboardTiles,
-                        filters: dashboardFilters,
+                        filters: {
+                            dimensions: [
+                                ...dashboardFilters.dimensions,
+                                ...dashboardTemporaryFilters.dimensions,
+                            ],
+                            metrics: [
+                                ...dashboardFilters.metrics,
+                                ...dashboardTemporaryFilters.metrics,
+                            ],
+                        },
                         name: dashboardName || dashboard.name,
                     })
                 }

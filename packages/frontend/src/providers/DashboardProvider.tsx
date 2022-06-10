@@ -32,14 +32,26 @@ type DashboardContext = {
     dashboardTiles: Dashboard['tiles'] | [];
     setDashboardTiles: Dispatch<SetStateAction<Dashboard['tiles'] | []>>;
     dashboardFilters: DashboardFilters;
+    dashboardTemporaryFilters: DashboardFilters;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
-    addDimensionDashboardFilter: (filter: DashboardFilterRule) => void;
+    setDashboardTemporaryFilters: Dispatch<SetStateAction<DashboardFilters>>;
+    addDimensionDashboardFilter: (
+        filter: DashboardFilterRule,
+        isTemporary: boolean,
+    ) => void;
     updateDimensionDashboardFilter: (
         filter: DashboardFilterRule,
         index: number,
+        isTemporary: boolean,
     ) => void;
-    removeDimensionDashboardFilter: (index: number) => void;
-    addMetricDashboardFilter: (filter: DashboardFilterRule) => void;
+    removeDimensionDashboardFilter: (
+        index: number,
+        isTemporary: boolean,
+    ) => void;
+    addMetricDashboardFilter: (
+        filter: DashboardFilterRule,
+        isTemporary: boolean,
+    ) => void;
     haveFiltersChanged: boolean;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     addSuggestions: (newSuggestionsMap: Record<string, string[]>) => void;
@@ -62,6 +74,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
     );
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
+    const [dashboardTemporaryFilters, setDashboardTemporaryFilters] =
+        useState<DashboardFilters>(emptyFilters);
     const [dashboardFilters, setDashboardFilters] =
         useState<DashboardFilters>(emptyFilters);
     const [haveFiltersChanged, setHaveFiltersChanged] =
@@ -75,8 +89,11 @@ export const DashboardProvider: React.FC = ({ children }) => {
     }, [dashboard]);
 
     const addDimensionDashboardFilter = useCallback(
-        (filter: DashboardFilterRule) => {
-            setDashboardFilters((previousFilters) => ({
+        (filter: DashboardFilterRule, isTemporary: boolean) => {
+            const setFunction = isTemporary
+                ? setDashboardTemporaryFilters
+                : setDashboardFilters;
+            setFunction((previousFilters) => ({
                 dimensions: [...previousFilters.dimensions, filter],
                 metrics: previousFilters.metrics,
             }));
@@ -85,8 +102,11 @@ export const DashboardProvider: React.FC = ({ children }) => {
         [setDashboardFilters],
     );
     const updateDimensionDashboardFilter = useCallback(
-        (item: DashboardFilterRule, index: number) => {
-            setDashboardFilters((previousFilters) => ({
+        (item: DashboardFilterRule, index: number, isTemporary: boolean) => {
+            const setFunction = isTemporary
+                ? setDashboardTemporaryFilters
+                : setDashboardFilters;
+            setFunction((previousFilters) => ({
                 dimensions: [
                     ...previousFilters.dimensions.slice(0, index),
                     item,
@@ -98,24 +118,36 @@ export const DashboardProvider: React.FC = ({ children }) => {
         },
         [],
     );
-    const addMetricDashboardFilter = useCallback((filter) => {
-        setDashboardFilters((previousFilters) => ({
-            dimensions: previousFilters.dimensions,
-            metrics: [...previousFilters.metrics, filter],
-        }));
-        setHaveFiltersChanged(true);
-    }, []);
+    const addMetricDashboardFilter = useCallback(
+        (filter, isTemporary: boolean) => {
+            const setFunction = isTemporary
+                ? setDashboardTemporaryFilters
+                : setDashboardFilters;
+            setFunction((previousFilters) => ({
+                dimensions: previousFilters.dimensions,
+                metrics: [...previousFilters.metrics, filter],
+            }));
+            setHaveFiltersChanged(true);
+        },
+        [],
+    );
 
-    const removeDimensionDashboardFilter = useCallback((index: number) => {
-        setDashboardFilters((previousFilters) => ({
-            dimensions: [
-                ...previousFilters.dimensions.slice(0, index),
-                ...previousFilters.dimensions.slice(index + 1),
-            ],
-            metrics: previousFilters.metrics,
-        }));
-        setHaveFiltersChanged(true);
-    }, []);
+    const removeDimensionDashboardFilter = useCallback(
+        (index: number, isTemporary: boolean) => {
+            const setFunction = isTemporary
+                ? setDashboardTemporaryFilters
+                : setDashboardFilters;
+            setFunction((previousFilters) => ({
+                dimensions: [
+                    ...previousFilters.dimensions.slice(0, index),
+                    ...previousFilters.dimensions.slice(index + 1),
+                ],
+                metrics: previousFilters.metrics,
+            }));
+            setHaveFiltersChanged(true);
+        },
+        [],
+    );
 
     useEffect(() => {
         if (filterableFields.length > 0) {
@@ -161,32 +193,34 @@ export const DashboardProvider: React.FC = ({ children }) => {
         const searchParams = new URLSearchParams(search);
         const filterSearchParam = searchParams.get('filters');
         if (filterSearchParam) {
-            setDashboardFilters(JSON.parse(filterSearchParam));
+            setDashboardTemporaryFilters(JSON.parse(filterSearchParam));
         }
     });
 
     useEffect(() => {
         const newParams = new URLSearchParams();
         if (
-            dashboardFilters.dimensions.length === 0 &&
-            dashboardFilters.metrics.length === 0
+            dashboardTemporaryFilters.dimensions.length === 0 &&
+            dashboardTemporaryFilters.metrics.length === 0
         ) {
             newParams.delete('filters');
         } else {
-            newParams.set('filters', JSON.stringify(dashboardFilters));
+            newParams.set('filters', JSON.stringify(dashboardTemporaryFilters));
         }
         history.replace({
             pathname,
             search: newParams.toString(),
         });
-    }, [dashboardFilters, history, pathname]);
+    }, [dashboardTemporaryFilters, history, pathname]);
 
     const value = {
         dashboard,
         fieldsWithSuggestions,
         dashboardTiles,
         setDashboardTiles,
+        setDashboardTemporaryFilters,
         dashboardFilters,
+        dashboardTemporaryFilters,
         addDimensionDashboardFilter,
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
