@@ -1,3 +1,10 @@
+# [0.140.0](https://github.com/lightdash/lightdash/compare/0.139.1...0.140.0) (2022-06-13)
+
+
+### Features
+
+* sort dimension column ([#2409](https://github.com/lightdash/lightdash/issues/2409)) ([ef4bd28](https://github.com/lightdash/lightdash/commit/ef4bd2854d4beeff979aac7ce5a4e6632bfa3d33))
+
 ## [0.139.1](https://github.com/lightdash/lightdash/compare/0.139.0...0.139.1) (2022-06-13)
 
 
