@@ -237,11 +237,10 @@ const calcColumnOrder = (
     const missingColumns = fieldIds.filter(
         (fieldId) => !cleanColumnOrder.includes(fieldId),
     );
-    const positionDimensionColumn = dimensions
-        ? Math.max(...dimensions.map((d) => cleanColumnOrder.indexOf(d)))
-        : undefined;
-
-    if (positionDimensionColumn !== undefined) {
+    if (dimensions !== undefined) {
+        const positionDimensionColumn = Math.max(
+            ...dimensions.map((d) => cleanColumnOrder.indexOf(d)),
+        );
         cleanColumnOrder.splice(
             positionDimensionColumn + 1,
             0,
