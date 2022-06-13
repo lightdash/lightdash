@@ -292,10 +292,6 @@ function reducer(
                 state.unsavedChartVersion.metricQuery.dimensions,
                 action.payload,
             );
-            console.log(
-                'state.unsavedChartVersion.tableConfig.columnOrder',
-                state.unsavedChartVersion.tableConfig.columnOrder,
-            );
             return {
                 ...state,
                 unsavedChartVersion: {
