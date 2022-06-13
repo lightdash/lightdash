@@ -9,6 +9,7 @@ type DbtRunHandlerOptions = {
     target: string | undefined;
     profile: string | undefined;
     select: string[] | undefined;
+    models: string[] | undefined;
 };
 export const dbtRunHandler = async (
     options: DbtRunHandlerOptions,
