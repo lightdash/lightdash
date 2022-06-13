@@ -241,7 +241,7 @@ const calcColumnOrder = (
         ? Math.max(...dimensions.map((d) => cleanColumnOrder.indexOf(d)))
         : undefined;
 
-    if (positionDimensionColumn) {
+    if (positionDimensionColumn !== undefined) {
         cleanColumnOrder.splice(
             positionDimensionColumn + 1,
             0,
