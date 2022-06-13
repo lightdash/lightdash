@@ -23,6 +23,7 @@ import { useProjectCatalog } from '../hooks/useProjectCatalog';
 import { useProjectCatalogTree } from '../hooks/useProjectCatalogTree';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
 import useSqlQueryVisualization from '../hooks/useSqlQueryVisualization';
+import useSqlRunnerColumns from '../hooks/useSqlRunnerColumns';
 import {
     useSqlRunnerRoute,
     useSqlRunnerUrlState,
@@ -66,13 +67,17 @@ const SqlRunnerPage = () => {
         resultsData,
         columnOrder,
         createSavedChart,
-        totals,
+        sqlQueryDimensions,
         setChartType,
         setChartConfig,
         setPivotFields,
     } = useSqlQueryVisualization({
         initialState: initialState?.createSavedChart,
         sqlQueryMutation,
+    });
+    const dataColumns = useSqlRunnerColumns({
+        resultsData,
+        fieldsMap: sqlQueryDimensions,
     });
     const sqlRunnerState = useMemo(
         () => ({ createSavedChart, sqlRunner: { sql } }),
@@ -222,7 +227,7 @@ const SqlRunnerPage = () => {
                     <SqlRunnerResultsTable
                         onSubmit={onSubmit}
                         resultsData={resultsData}
-                        totals={totals}
+                        dataColumns={dataColumns}
                         sqlQueryMutation={sqlQueryMutation}
                     />
                 </CollapsableCard>

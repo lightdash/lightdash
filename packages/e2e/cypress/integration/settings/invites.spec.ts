@@ -1,4 +1,4 @@
-describe('Dashboard List', () => {
+describe('Settings - Invites', () => {
     beforeEach(() => {
         // @ts-ignore
         cy.login();

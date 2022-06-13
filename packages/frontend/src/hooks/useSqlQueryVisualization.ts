@@ -8,8 +8,6 @@ import {
     FieldId,
     FieldType,
     friendlyName,
-    getResultColumnTotals,
-    isNumericItem,
     SupportedDbtAdapter,
 } from '@lightdash/common';
 import { useMemo, useState } from 'react';
@@ -139,27 +137,15 @@ const useSqlQueryVisualization = ({
         ],
     );
 
-    const totals = useMemo<Record<FieldId, number | undefined>>(() => {
-        if (resultsData && sqlQueryDimensions) {
-            return getResultColumnTotals(
-                resultsData.rows,
-                Object.values(sqlQueryDimensions).filter((field) =>
-                    isNumericItem(field),
-                ),
-            );
-        }
-        return {};
-    }, [sqlQueryDimensions, resultsData]);
-
     return {
         initialChartConfig: initialState?.chartConfig,
         initialPivotDimensions: initialState?.pivotConfig?.columns,
         explore,
+        sqlQueryDimensions,
         resultsData,
         chartType,
         columnOrder: dimensions,
         createSavedChart,
-        totals,
         setChartType,
         setChartConfig,
         setPivotFields,
