@@ -51,7 +51,7 @@ const FilterSearch: FC<Props> = ({ fields, onClose, isEditMode }) => {
                             },
                         });
                         setSelectedField(undefined);
-                        addDimensionDashboardFilter(value);
+                        addDimensionDashboardFilter(value, !isEditMode);
                         onClose();
                     }}
                     onBack={() => setSelectedField(undefined)}

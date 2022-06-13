@@ -1,31 +1,65 @@
-import { Tooltip2 } from '@blueprintjs/popover2';
-import { FilterableField, FilterRule } from '@lightdash/common';
+import { Classes, Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { DashboardFilterRule, FilterableField } from '@lightdash/common';
 import React, { FC } from 'react';
 import { getFilterRuleLabel } from '../../common/Filters/configs';
-import { FilterValues, TagContainer } from './ActiveFilters.styles';
+import FilterConfiguration from '../FilterConfiguration';
+import {
+    FilterValues,
+    InvalidFilterTag,
+    TagContainer,
+} from './ActiveFilters.styles';
 
 type Props = {
-    field: FilterableField;
-    filterRule: FilterRule;
+    fieldId: string;
+    field: FilterableField | undefined;
+    filterRule: DashboardFilterRule;
     onClick?: () => void;
     onRemove: () => void;
+    onUpdate: (value: DashboardFilterRule) => void;
 };
 
-const ActiveFilter: FC<Props> = ({ field, filterRule, onClick, onRemove }) => {
+const ActiveFilter: FC<Props> = ({
+    fieldId,
+    field,
+    filterRule,
+    onClick,
+    onRemove,
+    onUpdate,
+}) => {
+    if (!field) {
+        return (
+            <InvalidFilterTag onRemove={onRemove}>
+                Tried to reference field with unknown id: {fieldId}
+            </InvalidFilterTag>
+        );
+    }
     const filterRuleLabels = getFilterRuleLabel(filterRule, field);
     return (
-        <TagContainer interactive onRemove={onRemove} onClick={onClick}>
-            <Tooltip2
-                content={`Table: ${field.tableLabel}`}
-                interactionKind="hover"
-                placement={'bottom-start'}
-            >
-                <>
-                    {`${filterRuleLabels.field}: ${filterRuleLabels.operator} `}
-                    <FilterValues>{filterRuleLabels.value}</FilterValues>
-                </>
-            </Tooltip2>
-        </TagContainer>
+        <Popover2
+            content={
+                <FilterConfiguration
+                    field={field}
+                    filterRule={filterRule}
+                    onSave={onUpdate}
+                />
+            }
+            popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
+            position="bottom"
+            lazy={false}
+        >
+            <TagContainer interactive onRemove={onRemove} onClick={onClick}>
+                <Tooltip2
+                    content={`Table: ${field.tableLabel}`}
+                    interactionKind="hover"
+                    placement={'bottom-start'}
+                >
+                    <>
+                        {`${filterRuleLabels.field}: ${filterRuleLabels.operator} `}
+                        <FilterValues>{filterRuleLabels.value}</FilterValues>
+                    </>
+                </Tooltip2>
+            </TagContainer>
+        </Popover2>
     );
 };
 
