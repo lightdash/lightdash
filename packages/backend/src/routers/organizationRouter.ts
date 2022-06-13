@@ -1,6 +1,7 @@
 import { ForbiddenError, OnboardingStatus } from '@lightdash/common';
 import express from 'express';
 import {
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
@@ -39,16 +40,20 @@ organizationRouter.patch(
             .catch(next),
 );
 
-organizationRouter.get('/projects', isAuthenticated, async (req, res, next) =>
-    organizationService
-        .getProjects(req.user!)
-        .then((results) => {
-            res.json({
-                status: 'ok',
-                results,
-            });
-        })
-        .catch(next),
+organizationRouter.get(
+    '/projects',
+    isAuthenticated,
+    allowApiKeyAuthentication,
+    async (req, res, next) =>
+        organizationService
+            .getProjects(req.user!)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next),
 );
 
 organizationRouter.post('/projects', isAuthenticated, async (req, res, next) =>

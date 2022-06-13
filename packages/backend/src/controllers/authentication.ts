@@ -9,6 +9,7 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import { Request, RequestHandler } from 'express';
+import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oidc';
 import { HeaderAPIKeyStrategy } from 'passport-headerapikey';
 import { Strategy as LocalStrategy } from 'passport-local';
@@ -25,7 +26,7 @@ import { userService } from '../services/services';
 // 5. Then passport looks for `req.session.passport.user` and passes the data to `deserializeUser`
 // 6. `deserializeUser` translates `req.session.pasport.user` to a full user object and saves it on `req.user`
 
-// How a userlogs in
+// How a user logs in
 // 1. User sends login credentials to /login
 // 2. passport.LocalStrategy compares the login details to data in postgres
 // 3. passport.LocalStrategy creates a full user object and attaches it to `req.user`
@@ -188,9 +189,9 @@ export const unauthorisedInDemo: RequestHandler = (req, res, next) => {
     }
 };
 
-// export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
-//     if (req.isAuthenticated()) {
-//         next();
-//     }
-//     passport.authenticate('localapikey', { session: false })(req, res, next);
-// };
+export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
+    if (req.isAuthenticated()) {
+        next();
+    }
+    passport.authenticate('localapikey', { session: false })(req, res, next);
+};
