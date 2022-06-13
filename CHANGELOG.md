@@ -1,3 +1,10 @@
+# [0.139.0](https://github.com/lightdash/lightdash/compare/0.138.1...0.139.0) (2022-06-13)
+
+
+### Features
+
+* new you are in step ([#2348](https://github.com/lightdash/lightdash/issues/2348)) ([7cda4b3](https://github.com/lightdash/lightdash/commit/7cda4b3602c4605d00fa39f910655b6dde6c35cd))
+
 ## [0.138.1](https://github.com/lightdash/lightdash/compare/0.138.0...0.138.1) (2022-06-13)
 
 
