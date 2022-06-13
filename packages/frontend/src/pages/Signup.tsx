@@ -7,11 +7,13 @@ import {
 } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
 import { useMutation } from 'react-query';
-import { useParams } from 'react-router-dom';
+import { Redirect, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
 import CreateUserForm from '../components/CreateUserForm';
+import PageSpinner from '../components/PageSpinner';
+import { useOrganisation } from '../hooks/organisation/useOrganisation';
 import { useInviteLink } from '../hooks/useInviteLink';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
@@ -32,23 +34,21 @@ import {
 } from './SignUp.styles';
 
 interface WelcomeCardProps {
-    org: string | undefined;
     email: string | undefined;
     setReadyToJoin: (isReady: boolean) => void;
 }
 
-const WelcomeCard: FC<WelcomeCardProps> = ({ email, org, setReadyToJoin }) => {
+const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
+    const { data: org } = useOrganisation();
+
     return (
         <>
-            <LogoWrapper>
-                <Logo src={LightdashLogo} alt="lightdash logo" />
-            </LogoWrapper>
             <CardWrapper elevation={2}>
                 <Title>You’ve been invited!</Title>
                 {email && <BoldSubtitle>{email}</BoldSubtitle>}
                 <Subtitle>
                     {`Your teammates ${
-                        org && `at ${org}`
+                        org?.name ? `at ${org.name}` : ''
                     } are using Lightdash to discover
                     and share data insights. Click on the link below within the
                     next 72 hours to join your team and start exploring your
@@ -61,7 +61,7 @@ const WelcomeCard: FC<WelcomeCardProps> = ({ email, org, setReadyToJoin }) => {
                 />
             </CardWrapper>
             <FormFooterCopy>
-                {`Not ${email}?`}
+                {`Not ${email ? email : 'for you'}?`}
                 <br />
                 Ignore this invite link and contact your workspace admin.
             </FormFooterCopy>
@@ -71,18 +71,13 @@ const WelcomeCard: FC<WelcomeCardProps> = ({ email, org, setReadyToJoin }) => {
 
 const ExpiredCard: FC = () => {
     return (
-        <>
-            <LogoWrapper>
-                <Logo src={LightdashLogo} alt="lightdash logo" />
-            </LogoWrapper>
-            <CardWrapper elevation={2}>
-                <Title>This invite link has expired 🙈</Title>
-                <Subtitle>
-                    Please check with the person who shared it with you to see
-                    if there’s a new link available.
-                </Subtitle>
-            </CardWrapper>
-        </>
+        <CardWrapper elevation={2}>
+            <Title>This invite link has expired 🙈</Title>
+            <Subtitle>
+                Please check with the person who shared it with you to see if
+                there’s a new link available.
+            </Subtitle>
+        </CardWrapper>
     );
 };
 
@@ -95,10 +90,10 @@ const createUserQuery = async (data: CreateOrganizationUser) =>
 
 const Signup: FC = () => {
     const { inviteCode } = useParams<{ inviteCode: string }>();
-    const { user, health } = useApp();
+    const { health } = useApp();
     const { showToastError } = useApp();
     const { identify } = useTracking();
-    const [isReadyToJoin, setIsReadyToJoin] = useState<boolean>(false);
+    const [isLinkFromEmail, setIsLinkFromEmail] = useState<boolean>(false);
     const { isLoading, mutate } = useMutation<
         LightdashUser,
         ApiError,
@@ -118,40 +113,34 @@ const Signup: FC = () => {
     });
     const inviteLinkQuery = useInviteLink(inviteCode);
 
-    // expiresAt: Date;
-    // inviteCode: string;
-    // inviteUrl: string;
-    // organisationUuid: string;
-    // userUuid: string;
-    // email: string;
-
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
     const isLinkExpired = inviteLinkQuery?.data?.expiresAt
         ? inviteLinkQuery.data?.expiresAt <= new Date()
         : false;
-    console.log({ inviteLinkQuery, user, isLinkExpired });
 
     useEffect(() => {
-        if (inviteCode.includes('&from=email')) {
-            setIsReadyToJoin(true);
+        if (inviteCode.endsWith('&from=email')) {
+            setIsLinkFromEmail(true);
         }
     }, [inviteCode]);
-    console.log();
 
-    // if (health.isLoading || inviteLinkQuery.isLoading) {
-    //     return <PageSpinner />;
-    // }
+    if (health.isLoading || inviteLinkQuery.isLoading) {
+        return <PageSpinner />;
+    }
 
-    // if (health.status === 'success' && health.data?.isAuthenticated) {
-    //     return <Redirect to={{ pathname: '/' }} />;
-    // }
+    if (health.status === 'success' && health.data?.isAuthenticated) {
+        return <Redirect to={{ pathname: '/' }} />;
+    }
 
     return (
         <Page isFullHeight>
             <FormWrapper>
+                <LogoWrapper>
+                    <Logo src={LightdashLogo} alt="lightdash logo" />
+                </LogoWrapper>
                 {!isLinkExpired ? (
-                    isReadyToJoin ? (
+                    isLinkFromEmail ? (
                         <>
                             <CardWrapper elevation={2}>
                                 {inviteLinkQuery.error ? (
@@ -210,9 +199,8 @@ const Signup: FC = () => {
                         </>
                     ) : (
                         <WelcomeCard
-                            org={inviteLinkQuery.data?.organisationUuid}
                             email={inviteLinkQuery.data?.email}
-                            setReadyToJoin={setIsReadyToJoin}
+                            setReadyToJoin={setIsLinkFromEmail}
                         />
                     )
                 ) : (
