@@ -1,18 +1,17 @@
-import { NonIdealState } from '@blueprintjs/core';
+import { Intent, NonIdealState } from '@blueprintjs/core';
 import {
     ApiError,
     CreateOrganizationUser,
     CreateUserArgs,
     LightdashUser,
 } from '@lightdash/common';
-import React, { FC } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import { useMutation } from 'react-query';
-import { Redirect, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
 import CreateUserForm from '../components/CreateUserForm';
-import PageSpinner from '../components/PageSpinner';
 import { useInviteLink } from '../hooks/useInviteLink';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
@@ -26,8 +25,51 @@ import {
     FormWrapper,
     Logo,
     LogoWrapper,
+    SubmitButton,
+    Subtitle,
     Title,
 } from './SignUp.styles';
+
+interface WelcomeCardProps {
+    orgName: string;
+    setReadyToJoin: (isReady: boolean) => void;
+}
+
+const WelcomeCard: FC<WelcomeCardProps> = ({ orgName, setReadyToJoin }) => {
+    return (
+        <CardWrapper elevation={2}>
+            <Title>You’ve been invited!</Title>
+            <Subtitle>
+                {`Your teammates at ${orgName} are using Lightdash to discover
+                    and share data insights. Click on the link below within the
+                    next 72 hours to join your team and start exploring your
+                    data!`}
+            </Subtitle>
+            <SubmitButton
+                intent={Intent.PRIMARY}
+                onClick={() => setReadyToJoin(true)}
+                text="Join your team"
+            />
+        </CardWrapper>
+    );
+};
+
+const ExpiredCard: FC = () => {
+    return (
+        <>
+            <LogoWrapper>
+                <Logo src={LightdashLogo} alt="lightdash logo" />
+            </LogoWrapper>
+            <CardWrapper elevation={2}>
+                <Title>This invite link has expired 🙈</Title>
+                <Subtitle>
+                    Please check with the person who shared it with you to see
+                    if there’s a new link available.
+                </Subtitle>
+            </CardWrapper>
+        </>
+    );
+};
 
 const createUserQuery = async (data: CreateOrganizationUser) =>
     lightdashApi<LightdashUser>({
@@ -41,6 +83,7 @@ const Signup: FC = () => {
     const { health } = useApp();
     const { showToastError } = useApp();
     const { identify } = useTracking();
+    const [isReadyToJoin, setIsReadyToJoin] = useState<boolean>(false);
     const { isLoading, mutate } = useMutation<
         LightdashUser,
         ApiError,
@@ -62,67 +105,92 @@ const Signup: FC = () => {
 
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
+    const isLinkExpired = true;
+    console.log(inviteLinkQuery);
 
-    if (health.isLoading || inviteLinkQuery.isLoading) {
-        return <PageSpinner />;
-    }
+    useEffect(() => {
+        if (inviteCode.includes('&from=email')) {
+            setIsReadyToJoin(true);
+        }
+    }, [inviteCode]);
 
-    if (health.status === 'success' && health.data?.isAuthenticated) {
-        return <Redirect to={{ pathname: '/' }} />;
-    }
+    // if (health.isLoading || inviteLinkQuery.isLoading) {
+    //     return <PageSpinner />;
+    // }
+
+    // if (health.status === 'success' && health.data?.isAuthenticated) {
+    //     return <Redirect to={{ pathname: '/' }} />;
+    // }
 
     return (
         <Page isFullHeight>
             <FormWrapper>
-                <LogoWrapper>
-                    <Logo src={LightdashLogo} alt="lightdash logo" />
-                </LogoWrapper>
-                <CardWrapper elevation={2}>
-                    {inviteLinkQuery.error ? (
-                        <NonIdealState
-                            title={inviteLinkQuery.error.error.message}
-                            icon="error"
-                        />
-                    ) : (
+                {!isLinkExpired ? (
+                    isReadyToJoin ? (
                         <>
-                            <Title>Create your account</Title>
-                            {health.data?.auth.google.oauth2ClientId && (
-                                <>
-                                    <GoogleLoginButton
-                                        inviteCode={inviteCode}
+                            <CardWrapper elevation={2}>
+                                {inviteLinkQuery.error ? (
+                                    <NonIdealState
+                                        title={
+                                            inviteLinkQuery.error.error.message
+                                        }
+                                        icon="error"
                                     />
-                                    <DividerWrapper>
-                                        <Divider></Divider>
-                                        <b>OR</b>
-                                        <Divider></Divider>
-                                    </DividerWrapper>
-                                </>
-                            )}
-                            {allowPasswordAuthentication && (
-                                <CreateUserForm
-                                    isLoading={isLoading}
-                                    readOnlyEmail={inviteLinkQuery.data?.email}
-                                    onSubmit={(data: CreateUserArgs) => {
-                                        mutate({
-                                            inviteCode,
-                                            ...data,
-                                        });
-                                    }}
-                                />
+                                ) : (
+                                    <>
+                                        <Title>Create your account</Title>
+                                        {health.data?.auth.google
+                                            .oauth2ClientId && (
+                                            <>
+                                                <GoogleLoginButton
+                                                    inviteCode={inviteCode}
+                                                />
+                                                <DividerWrapper>
+                                                    <Divider></Divider>
+                                                    <b>OR</b>
+                                                    <Divider></Divider>
+                                                </DividerWrapper>
+                                            </>
+                                        )}
+                                        {allowPasswordAuthentication && (
+                                            <CreateUserForm
+                                                isLoading={isLoading}
+                                                readOnlyEmail={
+                                                    inviteLinkQuery.data?.email
+                                                }
+                                                onSubmit={(
+                                                    data: CreateUserArgs,
+                                                ) => {
+                                                    mutate({
+                                                        inviteCode,
+                                                        ...data,
+                                                    });
+                                                }}
+                                            />
+                                        )}
+                                    </>
+                                )}
+                            </CardWrapper>
+                            {!inviteLinkQuery.error && (
+                                <FormFooterCopy>
+                                    By creating an account, you agree to our{' '}
+                                    <FooterCta
+                                        href="https://www.lightdash.com/privacy-policy"
+                                        target="_blank"
+                                    >
+                                        Privacy Policy.
+                                    </FooterCta>
+                                </FormFooterCopy>
                             )}
                         </>
-                    )}
-                </CardWrapper>
-                {inviteLinkQuery.error && (
-                    <FormFooterCopy>
-                        By creating an account, you agree to our{' '}
-                        <FooterCta
-                            href="https://www.lightdash.com/privacy-policy"
-                            target="_blank"
-                        >
-                            Privacy Policy.
-                        </FooterCta>
-                    </FormFooterCopy>
+                    ) : (
+                        <WelcomeCard
+                            orgName={''}
+                            setReadyToJoin={setIsReadyToJoin}
+                        />
+                    )
+                ) : (
+                    <ExpiredCard />
                 )}
             </FormWrapper>
         </Page>
