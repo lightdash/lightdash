@@ -229,6 +229,7 @@ export const getValidChartConfig = (
 const calcColumnOrder = (
     columnOrder: FieldId[],
     fieldIds: FieldId[],
+    dimensions?: FieldId[],
 ): FieldId[] => {
     const cleanColumnOrder = columnOrder.filter((column) =>
         fieldIds.includes(column),
@@ -236,7 +237,19 @@ const calcColumnOrder = (
     const missingColumns = fieldIds.filter(
         (fieldId) => !cleanColumnOrder.includes(fieldId),
     );
-    return [...cleanColumnOrder, ...missingColumns];
+    if (dimensions !== undefined) {
+        const positionDimensionColumn = Math.max(
+            ...dimensions.map((d) => cleanColumnOrder.indexOf(d)),
+        );
+        cleanColumnOrder.splice(
+            positionDimensionColumn + 1,
+            0,
+            ...missingColumns,
+        );
+        return cleanColumnOrder;
+    } else {
+        return [...cleanColumnOrder, ...missingColumns];
+    }
 };
 
 function reducer(
@@ -301,6 +314,7 @@ function reducer(
                                     ({ name }) => name,
                                 ),
                             ],
+                            dimensions,
                         ),
                     },
                 },
