@@ -37,10 +37,7 @@ interface WelcomeCardProps {
     setReadyToJoin: (isReady: boolean) => void;
 }
 
-const WelcomeCard: FC<WelcomeCardProps> = ({ setReadyToJoin }) => {
-    const email = 'nathalia+test@gmail.com';
-    const org = 'Super company';
-
+const WelcomeCard: FC<WelcomeCardProps> = ({ email, org, setReadyToJoin }) => {
     return (
         <>
             <LogoWrapper>
@@ -63,6 +60,11 @@ const WelcomeCard: FC<WelcomeCardProps> = ({ setReadyToJoin }) => {
                     text="Join your team"
                 />
             </CardWrapper>
+            <FormFooterCopy>
+                {`Not ${email}?`}
+                <br />
+                Ignore this invite link and contact your workspace admin.
+            </FormFooterCopy>
         </>
     );
 };
@@ -125,14 +127,17 @@ const Signup: FC = () => {
 
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
-    const isLinkExpired = false;
-    console.log(inviteLinkQuery);
+    const isLinkExpired = inviteLinkQuery?.data?.expiresAt
+        ? inviteLinkQuery.data?.expiresAt <= new Date()
+        : false;
+    console.log({ inviteLinkQuery, user, isLinkExpired });
 
     useEffect(() => {
         if (inviteCode.includes('&from=email')) {
             setIsReadyToJoin(true);
         }
     }, [inviteCode]);
+    console.log();
 
     // if (health.isLoading || inviteLinkQuery.isLoading) {
     //     return <PageSpinner />;
