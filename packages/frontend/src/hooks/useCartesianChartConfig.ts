@@ -374,6 +374,8 @@ const useCartesianChartConfig = (
 
     // Generate expected series
     useEffect(() => {
+        const areaStyleConfig = areaStyle ? {} : undefined;
+
         if (isCompleteLayout(dirtyLayout) && resultsData) {
             let expectedSeriesMap: Record<string, Series>;
             if (pivotKey) {
@@ -399,6 +401,7 @@ const useCartesianChartConfig = (
                                     ],
                                 },
                             },
+                            areaStyle: areaStyleConfig,
                         };
                         return {
                             ...acc,
@@ -420,6 +423,7 @@ const useCartesianChartConfig = (
                             },
                         },
                         type: dirtyChartType,
+                        areaStyle: areaStyleConfig,
                     };
                     return { ...sum, [getSeriesId(series)]: series };
                 }, {});
@@ -451,7 +455,7 @@ const useCartesianChartConfig = (
                 };
             });
         }
-    }, [dirtyChartType, dirtyLayout, pivotKey, resultsData]);
+    }, [dirtyChartType, dirtyLayout, pivotKey, resultsData, areaStyle]);
 
     const validCartesianConfig: CartesianChart | undefined = useMemo(
         () =>
