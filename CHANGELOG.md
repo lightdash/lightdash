@@ -1,3 +1,10 @@
+## [0.138.1](https://github.com/lightdash/lightdash/compare/0.138.0...0.138.1) (2022-06-13)
+
+
+### Bug Fixes
+
+* dashboard temporary filters ([#2401](https://github.com/lightdash/lightdash/issues/2401)) ([3a2d47a](https://github.com/lightdash/lightdash/commit/3a2d47a134b57bb6c411ab57ea71593faf70ab1b))
+
 # [0.138.0](https://github.com/lightdash/lightdash/compare/0.137.1...0.138.0) (2022-06-13)
 
 
