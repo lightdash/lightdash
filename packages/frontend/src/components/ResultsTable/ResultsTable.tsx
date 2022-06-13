@@ -34,6 +34,7 @@ import {
     RowNumber,
     RowNumberColumn,
     RowNumberHeader,
+    RowTotalFooter,
     TableCell,
     TableContainer,
     TableFooter,
@@ -199,6 +200,7 @@ export const ResultsTable: FC<Props> = ({
         getTableProps,
         getTableBodyProps,
         headerGroups,
+        footerGroups,
         page,
         rows,
         prepareRow,
@@ -441,6 +443,34 @@ export const ResultsTable: FC<Props> = ({
                                         );
                                     })}
                                 </tbody>
+                                <tfoot>
+                                    {rows.length > 0 &&
+                                        footerGroups.map((group) => (
+                                            <tr
+                                                {...group.getFooterGroupProps()}
+                                                style={{ background: 'white' }}
+                                            >
+                                                <RowTotalFooter>
+                                                    Total
+                                                </RowTotalFooter>
+                                                {group.headers.map((column) => (
+                                                    <TableCell
+                                                        {...column.getFooterProps()}
+                                                        isNaN={
+                                                            !isNumericItem(
+                                                                column?.field ||
+                                                                    column?.tableCalculation,
+                                                            )
+                                                        }
+                                                    >
+                                                        {column.render(
+                                                            'Footer',
+                                                        )}
+                                                    </TableCell>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                </tfoot>
                             </HTMLTable>
                         </TableContainer>
                     </TableInnerContainer>

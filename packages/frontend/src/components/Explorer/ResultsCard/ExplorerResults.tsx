@@ -6,7 +6,7 @@ import { useExplore } from '../../../hooks/useExplore';
 import { useExplorer } from '../../../providers/ExplorerProvider';
 import { CellContextMenu } from '../../ResultsTable/CellContextMenu';
 import ColumnHeaderContextMenu from '../../ResultsTable/ColumnHeaderContextMenu';
-import { ResultsTable as Table } from '../../ResultsTable/ResultsTable';
+import { ResultsTable } from '../../ResultsTable/ResultsTable';
 import {
     EmptyStateExploreLoading,
     EmptyStateNoColumns,
@@ -71,7 +71,7 @@ export const ExplorerResults = () => {
         );
 
     return (
-        <Table
+        <ResultsTable
             isEditMode={isEditMode}
             data={formattedData}
             dataColumns={dataColumns}
