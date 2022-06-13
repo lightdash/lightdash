@@ -1,5 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { CreateProjectConnection } from '../components/ProjectConnection';
@@ -24,22 +24,29 @@ export type SelectedWarehouse = {
 
 const CreateProject: FC = () => {
     const { health } = useApp();
-    const { data: orgData } = useOrganisation();
+    const { isLoading, data: orgData } = useOrganisation();
     const [selectedWarehouse, setSelectedWarehouse] = useState<
         SelectedWarehouse | undefined
     >();
-    const [hasDimensions, setHasDimensions] = useState<string | undefined>(
-        !orgData?.needsProject ? 'hasDimensions' : undefined,
-    );
+    const [hasDimensions, setHasDimensions] = useState<string>();
 
-    if (health.isLoading) {
+    useEffect(() => {
+        if (orgData && !orgData.needsProject) {
+            setHasDimensions('hasDimensions');
+        }
+    }, [orgData]);
+
+    if (health.isLoading || isLoading) {
         return <PageSpinner />;
     }
 
-    const PanelToRender = () => {
-        switch (hasDimensions) {
-            case 'hasDimensions':
-                return (
+    return (
+        <Page
+            hideFooter={!!selectedWarehouse}
+            noContentPadding={!!selectedWarehouse}
+        >
+            <ProjectFormProvider>
+                {hasDimensions === 'hasDimensions' && (
                     <>
                         {!selectedWarehouse ? (
                             <WareHouseConnectCard
@@ -67,27 +74,13 @@ const CreateProject: FC = () => {
                             </CreateProjectWrapper>
                         )}
                     </>
-                );
-            case 'doesNotHaveDimensions':
-                return (
+                )}
+                {hasDimensions === 'doesNotHaveDimensions' && (
                     <ConnectionOptions setHasDimensions={setHasDimensions} />
-                );
-            case undefined:
-                return (
+                )}
+                {!hasDimensions && (
                     <HowToConnectDataCard setHasDimensions={setHasDimensions} />
-                );
-            default:
-                return <></>;
-        }
-    };
-
-    return (
-        <Page
-            hideFooter={!!selectedWarehouse}
-            noContentPadding={!!selectedWarehouse}
-        >
-            <ProjectFormProvider>
-                <PanelToRender />
+                )}
             </ProjectFormProvider>
         </Page>
     );
