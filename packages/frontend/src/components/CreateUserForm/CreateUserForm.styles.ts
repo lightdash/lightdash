@@ -24,6 +24,7 @@ export const PasswordInputField = styled(PasswordInput)`
     ${inputFieldStyles}
     .bp4-input-group .bp4-input-action {
         position: absolute;
+        right: 10px;
         top: 50%;
         transform: translateY(-50%);
     }

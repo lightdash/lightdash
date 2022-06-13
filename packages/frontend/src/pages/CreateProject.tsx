@@ -3,8 +3,11 @@ import React, { FC, useState } from 'react';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { CreateProjectConnection } from '../components/ProjectConnection';
+import ConnectionOptions from '../components/ProjectConnection/ProjectConnectFlow/ConnectionOptions';
+import HowToConnectDataCard from '../components/ProjectConnection/ProjectConnectFlow/HowToConnectDataCard';
 import WareHouseConnectCard from '../components/ProjectConnection/ProjectConnectFlow/WareHouseConnectCard.tsx';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
+import { useOrganisation } from '../hooks/organisation/useOrganisation';
 import { useApp } from '../providers/AppProvider';
 import {
     BackToWarehouseButton,
@@ -21,13 +24,62 @@ export type SelectedWarehouse = {
 
 const CreateProject: FC = () => {
     const { health } = useApp();
+    const { data: orgData } = useOrganisation();
     const [selectedWarehouse, setSelectedWarehouse] = useState<
         SelectedWarehouse | undefined
     >();
+    const [hasDimensions, setHasDimensions] = useState<string | undefined>(
+        !orgData?.needsProject ? 'hasDimensions' : undefined,
+    );
 
     if (health.isLoading) {
         return <PageSpinner />;
     }
+
+    const PanelToRender = () => {
+        switch (hasDimensions) {
+            case 'hasDimensions':
+                return (
+                    <>
+                        {!selectedWarehouse ? (
+                            <WareHouseConnectCard
+                                setWarehouse={setSelectedWarehouse}
+                                showDemoLink
+                            />
+                        ) : (
+                            <CreateProjectWrapper>
+                                <CreateHeaderWrapper>
+                                    <BackToWarehouseButton
+                                        icon="chevron-left"
+                                        text="Back"
+                                        onClick={() =>
+                                            setSelectedWarehouse(undefined)
+                                        }
+                                    />
+                                    <Title marginBottom>
+                                        {`Create a ${selectedWarehouse.label} connection`}
+                                    </Title>
+                                </CreateHeaderWrapper>
+                                <CreateProjectConnection
+                                    orgData={orgData}
+                                    selectedWarehouse={selectedWarehouse}
+                                />
+                            </CreateProjectWrapper>
+                        )}
+                    </>
+                );
+            case 'doesNotHaveDimensions':
+                return (
+                    <ConnectionOptions setHasDimensions={setHasDimensions} />
+                );
+            case undefined:
+                return (
+                    <HowToConnectDataCard setHasDimensions={setHasDimensions} />
+                );
+            default:
+                return <></>;
+        }
+    };
 
     return (
         <Page
@@ -35,28 +87,7 @@ const CreateProject: FC = () => {
             noContentPadding={!!selectedWarehouse}
         >
             <ProjectFormProvider>
-                {!selectedWarehouse ? (
-                    <WareHouseConnectCard
-                        setWarehouse={setSelectedWarehouse}
-                        showDemoLink
-                    />
-                ) : (
-                    <CreateProjectWrapper>
-                        <CreateHeaderWrapper>
-                            <BackToWarehouseButton
-                                icon="chevron-left"
-                                text="Back"
-                                onClick={() => setSelectedWarehouse(undefined)}
-                            />
-                            <Title marginBottom>
-                                {`Create a ${selectedWarehouse.label} connection`}
-                            </Title>
-                        </CreateHeaderWrapper>
-                        <CreateProjectConnection
-                            selectedWarehouse={selectedWarehouse}
-                        />
-                    </CreateProjectWrapper>
-                )}
+                <PanelToRender />
             </ProjectFormProvider>
         </Page>
     );

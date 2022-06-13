@@ -1,4 +1,4 @@
-import { H3 } from '@blueprintjs/core';
+import { Button, Card, Colors, H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 import SimpleButton from '../components/common/SimpleButton';
 
@@ -28,4 +28,8 @@ export const BackToWarehouseButton = styled(SimpleButton)`
     width: fit-content;
     padding-left: 0;
     margin-bottom: 10px;
+`;
+
+export const ExternalLink = styled.a`
+    color: ${Colors.BLUE3};
 `;
