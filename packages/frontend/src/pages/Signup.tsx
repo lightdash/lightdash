@@ -17,6 +17,7 @@ import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 import {
+    BoldSubtitle,
     CardWrapper,
     Divider,
     DividerWrapper,
@@ -31,26 +32,38 @@ import {
 } from './SignUp.styles';
 
 interface WelcomeCardProps {
-    orgName: string;
+    org: string | undefined;
+    email: string | undefined;
     setReadyToJoin: (isReady: boolean) => void;
 }
 
-const WelcomeCard: FC<WelcomeCardProps> = ({ orgName, setReadyToJoin }) => {
+const WelcomeCard: FC<WelcomeCardProps> = ({ setReadyToJoin }) => {
+    const email = 'nathalia+test@gmail.com';
+    const org = 'Super company';
+
     return (
-        <CardWrapper elevation={2}>
-            <Title>You’ve been invited!</Title>
-            <Subtitle>
-                {`Your teammates at ${orgName} are using Lightdash to discover
+        <>
+            <LogoWrapper>
+                <Logo src={LightdashLogo} alt="lightdash logo" />
+            </LogoWrapper>
+            <CardWrapper elevation={2}>
+                <Title>You’ve been invited!</Title>
+                {email && <BoldSubtitle>{email}</BoldSubtitle>}
+                <Subtitle>
+                    {`Your teammates ${
+                        org && `at ${org}`
+                    } are using Lightdash to discover
                     and share data insights. Click on the link below within the
                     next 72 hours to join your team and start exploring your
                     data!`}
-            </Subtitle>
-            <SubmitButton
-                intent={Intent.PRIMARY}
-                onClick={() => setReadyToJoin(true)}
-                text="Join your team"
-            />
-        </CardWrapper>
+                </Subtitle>
+                <SubmitButton
+                    intent={Intent.PRIMARY}
+                    onClick={() => setReadyToJoin(true)}
+                    text="Join your team"
+                />
+            </CardWrapper>
+        </>
     );
 };
 
@@ -80,7 +93,7 @@ const createUserQuery = async (data: CreateOrganizationUser) =>
 
 const Signup: FC = () => {
     const { inviteCode } = useParams<{ inviteCode: string }>();
-    const { health } = useApp();
+    const { user, health } = useApp();
     const { showToastError } = useApp();
     const { identify } = useTracking();
     const [isReadyToJoin, setIsReadyToJoin] = useState<boolean>(false);
@@ -103,9 +116,16 @@ const Signup: FC = () => {
     });
     const inviteLinkQuery = useInviteLink(inviteCode);
 
+    // expiresAt: Date;
+    // inviteCode: string;
+    // inviteUrl: string;
+    // organisationUuid: string;
+    // userUuid: string;
+    // email: string;
+
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
-    const isLinkExpired = true;
+    const isLinkExpired = false;
     console.log(inviteLinkQuery);
 
     useEffect(() => {
@@ -185,7 +205,8 @@ const Signup: FC = () => {
                         </>
                     ) : (
                         <WelcomeCard
-                            orgName={''}
+                            org={inviteLinkQuery.data?.organisationUuid}
+                            email={inviteLinkQuery.data?.email}
                             setReadyToJoin={setIsReadyToJoin}
                         />
                     )
