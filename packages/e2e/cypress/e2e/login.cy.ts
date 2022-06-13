@@ -5,7 +5,6 @@ import {
 
 describe('Login', () => {
     beforeEach(() => {
-        // @ts-ignore
         cy.logout();
     });
     it('Should login successfully', () => {

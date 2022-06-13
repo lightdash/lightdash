@@ -1,6 +1,5 @@
 describe('Settings - Invites', () => {
     beforeEach(() => {
-        // @ts-ignore
         cy.login();
         cy.visit('/');
     });
@@ -18,7 +17,6 @@ describe('Settings - Invites', () => {
             .then(($input) => {
                 const value = $input.val();
                 if (typeof value === 'string') {
-                    // @ts-ignore
                     cy.logout();
                     cy.visit(value);
                 }

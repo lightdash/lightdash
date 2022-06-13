@@ -56,9 +56,7 @@ const testQuery = () => {
 
 describe('Create projects', () => {
     before(() => {
-        // @ts-ignore
         cy.login();
-        // @ts-ignore
         cy.preCompileProject();
     });
 

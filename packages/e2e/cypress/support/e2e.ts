@@ -12,8 +12,21 @@
 // You can read more here:
 // https://on.cypress.io/configuration
 // ***********************************************************
+/// <reference types="cypress" />
 
 import './commands';
+
+declare global {
+    namespace Cypress {
+        interface Chainable {
+            login(): Chainable<Element>;
+            anotherLogin(): Chainable<Element>;
+            logout(): Chainable<Element>;
+            registerNewUser(): Chainable<Element>;
+            preCompileProject(): Chainable<Element>;
+        }
+    }
+}
 
 beforeEach(() => {
     // Block some external URLs
