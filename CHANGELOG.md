@@ -1,3 +1,10 @@
+## [0.139.1](https://github.com/lightdash/lightdash/compare/0.139.0...0.139.1) (2022-06-13)
+
+
+### Bug Fixes
+
+* sql runner column labels ([#2407](https://github.com/lightdash/lightdash/issues/2407)) ([b7e71c3](https://github.com/lightdash/lightdash/commit/b7e71c391a3327377ff0ae7819636e46d99bf670))
+
 # [0.139.0](https://github.com/lightdash/lightdash/compare/0.138.1...0.139.0) (2022-06-13)
 
 
