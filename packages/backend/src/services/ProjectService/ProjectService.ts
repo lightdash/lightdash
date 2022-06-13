@@ -264,6 +264,8 @@ export class ProjectService {
                         dbtConnectionType: data.dbtConnection.type,
                     },
                 });
+                if (this.projectAdapters[projectUuid] !== undefined)
+                    await this.projectAdapters[projectUuid].destroy();
                 this.projectAdapters[projectUuid] = adapter;
             } catch (error) {
                 await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
