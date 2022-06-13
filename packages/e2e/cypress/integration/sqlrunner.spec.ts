@@ -5,7 +5,7 @@ const firstCustomer = {
     lastName: 'P.',
     created: '2017-01-30T06:00:00.000Z',
 };
-describe('Dashboard', () => {
+describe('SQL Runner', () => {
     before(() => {
         // @ts-ignore
         cy.login();
@@ -31,7 +31,7 @@ describe('Dashboard', () => {
 
         const find = [
             '1 results',
-            'first_name',
+            'First name',
             firstCustomer.created,
             firstCustomer.firstName,
             firstCustomer.lastName,
@@ -48,7 +48,7 @@ describe('Dashboard', () => {
 
         const find = [
             '100 results',
-            'first_name',
+            'First name',
             firstCustomer.created,
             firstCustomer.firstName,
             firstCustomer.lastName,
@@ -63,7 +63,7 @@ describe('Dashboard', () => {
 
         const find = [
             '25 results',
-            'payment_method',
+            'Payment method',
             'bank_transfer',
             'credit_card',
         ];

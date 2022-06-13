@@ -54,7 +54,7 @@ const testQuery = () => {
     cy.findByText('Unique order count').click();
 };
 
-describe('Dashboard', () => {
+describe('Create projects', () => {
     before(() => {
         // @ts-ignore
         cy.login();
