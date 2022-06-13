@@ -1,13 +1,11 @@
 import { Icon, Intent } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import React, { FC, useState } from 'react';
-import UserSettingsModal from '../../UserSettingsModal';
+import React, { FC } from 'react';
+import InviteExpertFooter from './InviteExpertFooter';
 import {
     ButtonLabel,
     ButtonsWrapper,
     ConnectWarehouseWrapper,
-    FormFooterCopy,
-    InviteLinkButton,
     LinkToDocsButton,
     SubmitButton,
     Subtitle,
@@ -20,9 +18,6 @@ interface Props {
 }
 
 const ConnectionOptions: FC<Props> = ({ setHasDimensions }) => {
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [showInvitePage, setShowInvitePage] = useState(false);
-    const [activeTab, setActiveTab] = useState<string | undefined>();
     return (
         <Wrapper>
             <ConnectWarehouseWrapper>
@@ -74,33 +69,7 @@ const ConnectionOptions: FC<Props> = ({ setHasDimensions }) => {
                     onClick={() => setHasDimensions('hasDimensions')}
                 />
             </ConnectWarehouseWrapper>
-            <FormFooterCopy>
-                This step is best carried out by your organization’s analytics
-                experts. If this is not you,{' '}
-                <InviteLinkButton
-                    onClick={() => {
-                        setIsSettingsOpen(true);
-                        setActiveTab('userManagement');
-                    }}
-                >
-                    invite them to Lightdash!
-                </InviteLinkButton>
-            </FormFooterCopy>
-            <UserSettingsModal
-                isOpen={isSettingsOpen}
-                onClose={() => setIsSettingsOpen(false)}
-                activeTab={activeTab}
-                onChangeTab={(tab) => {
-                    setActiveTab(tab);
-                    setShowInvitePage(false);
-                }}
-                panelProps={{
-                    userManagementProps: {
-                        showInvitePage,
-                        setShowInvitePage,
-                    },
-                }}
-            />
+            <InviteExpertFooter />
         </Wrapper>
     );
 };
