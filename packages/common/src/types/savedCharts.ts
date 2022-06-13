@@ -31,6 +31,7 @@ export enum CartesianSeriesType {
     LINE = 'line',
     BAR = 'bar',
     SCATTER = 'scatter',
+    AREA = 'area',
 }
 
 type PivotReference = {
@@ -55,6 +56,7 @@ export type Series = {
         position?: 'left' | 'top' | 'right' | 'bottom';
     };
     hidden?: boolean;
+    areaStyle?: {};
 };
 
 export type CompleteEChartsConfig = {

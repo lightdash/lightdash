@@ -40,6 +40,10 @@ const SingleSeriesConfiguration: FC<Props> = ({
     isOpen,
     toggleIsOpen,
 }) => {
+    const type =
+        series.type === CartesianSeriesType.LINE && !!series.areaStyle
+            ? CartesianSeriesType.AREA
+            : series.type;
     return (
         <SeriesWrapper $isSingle={isSingle}>
             <SeriesMainInputs $isGrouped={isGrouped}>
@@ -93,7 +97,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     <SeriesExtraInputWrapper label={!isGrouped && 'Chart type'}>
                         <SeriesExtraSelect
                             fill
-                            value={series.type}
+                            value={type}
                             options={[
                                 {
                                     value: CartesianSeriesType.BAR,
@@ -104,14 +108,27 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     label: 'Line',
                                 },
                                 {
+                                    value: CartesianSeriesType.AREA,
+                                    label: 'Area',
+                                },
+                                {
                                     value: CartesianSeriesType.SCATTER,
                                     label: 'Scatter',
                                 },
                             ]}
                             onChange={(e) => {
+                                const value = e.target.value;
+                                const newType =
+                                    value === CartesianSeriesType.AREA
+                                        ? CartesianSeriesType.LINE
+                                        : value;
                                 updateSingleSeries({
                                     ...series,
-                                    type: e.target.value as CartesianSeriesType,
+                                    type: newType as CartesianSeriesType,
+                                    areaStyle:
+                                        value === CartesianSeriesType.AREA
+                                            ? {}
+                                            : undefined,
                                 });
                             }}
                         />

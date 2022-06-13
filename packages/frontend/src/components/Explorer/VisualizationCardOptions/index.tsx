@@ -42,12 +42,18 @@ const VisualizationCardOptions: FC = () => {
                     };
                 }
                 switch (cartesianType) {
+                    case CartesianSeriesType.AREA:
+                        return {
+                            text: 'Area chart',
+                            icon: 'timeline-area-chart',
+                        };
                     case CartesianSeriesType.LINE:
                         setStacking(false);
                         return {
                             text: 'Line chart',
                             icon: 'timeline-line-chart',
                         };
+
                     case CartesianSeriesType.BAR:
                         return cartesianFlipAxis
                             ? {
@@ -108,6 +114,7 @@ const VisualizationCardOptions: FC = () => {
                             cartesianConfig.setType(
                                 CartesianSeriesType.BAR,
                                 false,
+                                false,
                             );
                             setIsOpen(false);
                         }}
@@ -130,6 +137,7 @@ const VisualizationCardOptions: FC = () => {
                             cartesianConfig.setType(
                                 CartesianSeriesType.BAR,
                                 true,
+                                false,
                             );
                             setIsOpen(false);
                         }}
@@ -151,12 +159,35 @@ const VisualizationCardOptions: FC = () => {
                             cartesianConfig.setType(
                                 CartesianSeriesType.LINE,
                                 false,
+                                false,
                             );
                             setIsOpen(false);
                         }}
                         disabled={disabled}
                         name="Line"
                         text="Line chart"
+                    />
+
+                    <ChartOption
+                        minimal
+                        active={
+                            isChartTypeTheSameForAllSeries &&
+                            chartType === ChartType.CARTESIAN &&
+                            cartesianType === CartesianSeriesType.AREA
+                        }
+                        icon="timeline-area-chart"
+                        onClick={() => {
+                            setChartType(ChartType.CARTESIAN);
+                            cartesianConfig.setType(
+                                CartesianSeriesType.LINE,
+                                false,
+                                true,
+                            );
+                            setIsOpen(false);
+                        }}
+                        disabled={disabled}
+                        name="area"
+                        text="Area chart"
                     />
 
                     <ChartOption
@@ -171,6 +202,7 @@ const VisualizationCardOptions: FC = () => {
                             setChartType(ChartType.CARTESIAN);
                             cartesianConfig.setType(
                                 CartesianSeriesType.SCATTER,
+                                false,
                                 false,
                             );
                             setIsOpen(false);

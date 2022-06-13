@@ -26,6 +26,10 @@ const useCartesianChartConfig = (
         initialChartConfig?.eChartsConfig?.series?.[0]?.type ||
             CartesianSeriesType.BAR,
     );
+
+    const [areaStyle, setAreaStyle] = useState<boolean>(
+        !!initialChartConfig?.eChartsConfig?.series?.[0]?.areaStyle,
+    );
     const [dirtyLayout, setDirtyLayout] = useState<
         Partial<CartesianChart['layout']> | undefined
     >(initialChartConfig?.layout);
@@ -130,23 +134,28 @@ const useCartesianChartConfig = (
         }));
     }, []);
 
-    const setType = useCallback((type: Series['type'], flipAxes: boolean) => {
-        setChartType(type);
-        setDirtyLayout((prev) => ({
-            ...prev,
-            flipAxes,
-        }));
-        setDirtyEchartsConfig(
-            (prevState) =>
-                prevState && {
-                    ...prevState,
-                    series: prevState?.series?.map((series) => ({
-                        ...series,
-                        type,
-                    })),
-                },
-        );
-    }, []);
+    const setType = useCallback(
+        (type: Series['type'], flipAxes: boolean, hasAreaStyle: boolean) => {
+            setChartType(type);
+            setAreaStyle(hasAreaStyle);
+            setDirtyLayout((prev) => ({
+                ...prev,
+                flipAxes,
+            }));
+            setDirtyEchartsConfig(
+                (prevState) =>
+                    prevState && {
+                        ...prevState,
+                        series: prevState?.series?.map((series) => ({
+                            ...series,
+                            type,
+                            areaStyle: hasAreaStyle ? {} : undefined,
+                        })),
+                    },
+            );
+        },
+        [],
+    );
 
     const setFlipAxis = useCallback((flipAxes: boolean) => {
         setDirtyLayout((prev) => ({
@@ -455,9 +464,14 @@ const useCartesianChartConfig = (
                 : undefined,
         [dirtyLayout, dirtyEchartsConfig],
     );
+
+    const chartType =
+        dirtyChartType === CartesianSeriesType.LINE && areaStyle
+            ? CartesianSeriesType.AREA
+            : dirtyChartType;
     return {
         validCartesianConfig,
-        dirtyChartType,
+        dirtyChartType: chartType,
         dirtyLayout,
         dirtyEchartsConfig,
         setXField,
