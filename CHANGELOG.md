@@ -1,3 +1,10 @@
+# [0.138.0](https://github.com/lightdash/lightdash/compare/0.137.1...0.138.0) (2022-06-13)
+
+
+### Features
+
+* column totals ([#2397](https://github.com/lightdash/lightdash/issues/2397)) ([23bce6f](https://github.com/lightdash/lightdash/commit/23bce6f51eda2ee8f22794930caaa5077002241c))
+
 ## [0.137.1](https://github.com/lightdash/lightdash/compare/0.137.0...0.137.1) (2022-06-09)
 
 
