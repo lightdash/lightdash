@@ -3,13 +3,13 @@ import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
     friendlyName,
+    Organisation,
     ProjectType,
 } from '@lightdash/common';
 import React, { FC, useEffect } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
 import { useHistory } from 'react-router-dom';
-import { useOrganisation } from '../../hooks/organisation/useOrganisation';
 import {
     useCreateMutation,
     useProject,
@@ -285,10 +285,12 @@ export const UpdateProjectConnection: FC<{
 };
 
 interface CreateProjectConnectionProps {
+    orgData: Organisation | undefined;
     selectedWarehouse?: SelectedWarehouse | undefined;
 }
 
 export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
+    orgData,
     selectedWarehouse,
 }) => {
     const history = useHistory();
@@ -334,7 +336,6 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             });
         }
     }, [activeJob, history]);
-    const { data: orgData } = useOrganisation();
 
     return (
         <FormContainer

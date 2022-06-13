@@ -7,6 +7,7 @@ import ConnectionOptions from '../components/ProjectConnection/ProjectConnectFlo
 import HowToConnectDataCard from '../components/ProjectConnection/ProjectConnectFlow/HowToConnectDataCard';
 import WareHouseConnectCard from '../components/ProjectConnection/ProjectConnectFlow/WareHouseConnectCard.tsx';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
+import { useOrganisation } from '../hooks/organisation/useOrganisation';
 import { useApp } from '../providers/AppProvider';
 import {
     BackToWarehouseButton,
@@ -23,10 +24,13 @@ export type SelectedWarehouse = {
 
 const CreateProject: FC = () => {
     const { health } = useApp();
+    const { data: orgData } = useOrganisation();
     const [selectedWarehouse, setSelectedWarehouse] = useState<
         SelectedWarehouse | undefined
     >();
-    const [hasDimensions, setHasDimensions] = useState<string | undefined>();
+    const [hasDimensions, setHasDimensions] = useState<string | undefined>(
+        !orgData?.needsProject ? 'hasDimensions' : undefined,
+    );
 
     if (health.isLoading) {
         return <PageSpinner />;
@@ -57,6 +61,7 @@ const CreateProject: FC = () => {
                                     </Title>
                                 </CreateHeaderWrapper>
                                 <CreateProjectConnection
+                                    orgData={orgData}
                                     selectedWarehouse={selectedWarehouse}
                                 />
                             </CreateProjectWrapper>
