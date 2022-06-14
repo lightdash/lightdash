@@ -28,23 +28,11 @@ declare global {
     }
 }
 
-beforeEach(() => {
-    // Block some external URLs
-    const ignoredUrls = [
-        'static.cohere.so',
-        'cdn.headwayapp.co',
-        'chat.lightdash.com',
-        'www.loom.com',
-        'analytics.lightdash.com',
-    ];
-    ignoredUrls.forEach((url) => {
-        cy.intercept(
-            {
-                hostname: url,
-            },
-            (req) => {
-                req.destroy();
-            },
-        ).as('intercept');
-    });
-});
+// Hide all requests from
+const cypressLogOriginal = Cypress.log;
+Cypress.log = function name(opts, ...other) {
+    const isFetchLog = ['fetch'].includes(opts.displayName);
+    if (isFetchLog) return;
+    // eslint-disable-next-line consistent-return
+    return cypressLogOriginal(opts, ...other);
+};

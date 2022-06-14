@@ -9,5 +9,14 @@ export default defineConfig({
     },
     e2e: {
         baseUrl: 'http://localhost:3000',
+        blockHosts: [
+            '*.rudderlabs.com',
+            '*.intercom.io',
+            '*.cohere.so',
+            '*.headwayapp.co',
+            'chat.lightdash.com',
+            '*.loom.com',
+            'analytics.lightdash.com',
+        ],
     },
 });
