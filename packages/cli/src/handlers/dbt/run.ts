@@ -36,5 +36,5 @@ export const dbtRunHandler = async (
         });
         throw new ParseError(`Failed to run dbt:\n  ${e.message}`);
     }
-    await generateHandler(options);
+    await generateHandler({ ...options, assumeYes: true });
 };
