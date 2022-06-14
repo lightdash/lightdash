@@ -8,7 +8,6 @@ const firstCustomer = {
 describe('SQL Runner', () => {
     before(() => {
         cy.login();
-        cy.preCompileProject();
     });
 
     beforeEach(() => {

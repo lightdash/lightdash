@@ -28,14 +28,17 @@ const configureWarehouse = (config) => {
 const testCompile = () => {
     // Compile
     cy.findByText('Test & compile project').click();
-    cy.contains('Step 1/3', { timeout: 30000 });
-    cy.contains('Step 2/3', { timeout: 30000 });
+    cy.contains('Step 1/3', { timeout: 60000 });
+    cy.contains('Step 2/3', { timeout: 60000 });
     cy.contains('Successfully synced dbt project!', { timeout: 30000 });
 
     cy.contains('selected 6 models');
     // Configure
-    cy.findByText('Start exploring!').click();
-    cy.contains('Welcome, David!');
+    cy.findByText('Start exploring!')
+        .parent('button')
+        .should('not.be.disabled')
+        .click();
+    cy.url().should('include', '/home', { timeout: 30000 });
 };
 
 const testRunQuery = () => {
@@ -58,7 +61,6 @@ const testQuery = () => {
 describe('Create projects', () => {
     before(() => {
         cy.login();
-        cy.preCompileProject();
     });
 
     beforeEach(() => {
