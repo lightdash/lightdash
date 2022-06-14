@@ -23,7 +23,6 @@ declare global {
             anotherLogin(): Chainable<Element>;
             logout(): Chainable<Element>;
             registerNewUser(): Chainable<Element>;
-            preCompileProject(): Chainable<Element>;
         }
     }
 }

@@ -58,7 +58,6 @@ const testQuery = () => {
 describe('Create projects', () => {
     before(() => {
         cy.login();
-        cy.preCompileProject();
     });
 
     beforeEach(() => {

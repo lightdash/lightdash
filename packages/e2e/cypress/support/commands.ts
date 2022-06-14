@@ -80,28 +80,3 @@ Cypress.Commands.add('logout', () => {
         method: 'GET',
     });
 });
-Cypress.Commands.add('preCompileProject', () => {
-    cy.request({
-        url: 'api/v1/login',
-        method: 'POST',
-        body: {
-            email: SEED_ORG_1_ADMIN_EMAIL.email,
-            password: SEED_ORG_1_ADMIN_PASSWORD.password,
-        },
-    });
-    cy.request({
-        url: 'api/v1/org/projects',
-        headers: { 'Content-Type': 'application/json' },
-        method: 'GET',
-    }).then(({ body }) => {
-        const project = body.results[0];
-        cy.log(
-            `Pre-compiling project ${project.name} (${project.projectUuid})`,
-        );
-        cy.request({
-            url: `api/v1/projects/${project.projectUuid}/explores`,
-            method: 'GET',
-            timeout: 100000,
-        });
-    });
-});
