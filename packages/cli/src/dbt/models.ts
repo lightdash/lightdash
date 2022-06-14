@@ -152,7 +152,9 @@ export const findAndUpdateModelYaml = async ({
                     : '';
                 const existingDescription = column.description;
                 const existingDimensionType = column.meta?.dimension?.type;
-                const dimensionType = existingDimensionType || (table[column.name] as DimensionType | undefined);
+                const dimensionType =
+                    existingDimensionType ||
+                    (table[column.name] as DimensionType | undefined);
 
                 return {
                     ...column,
