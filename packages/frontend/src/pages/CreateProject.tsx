@@ -51,7 +51,7 @@ const CreateProject: FC = () => {
                         {!selectedWarehouse ? (
                             <WareHouseConnectCard
                                 setWarehouse={setSelectedWarehouse}
-                                showDemoLink
+                                showDemoLink={orgData?.needsProject}
                             />
                         ) : (
                             <CreateProjectWrapper>
