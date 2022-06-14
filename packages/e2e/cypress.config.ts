@@ -18,5 +18,6 @@ export default defineConfig({
             '*.loom.com',
             'analytics.lightdash.com',
         ],
+        trashAssetsBeforeRuns: false,
     },
 });
