@@ -149,7 +149,7 @@ const ProjectForm: FC<Props> = ({
                 <p style={{ color: Colors.GRAY1 }}>
                     Your dbt project must be compatible with{' '}
                     <a
-                        href="https://docs.getdbt.com/docs/guides/migration-guide/upgrading-to-1-0-0"
+                        href="https://docs.getdbt.com/guides/migration/versions/upgrading-to-v1.0"
                         target="_blank"
                         rel="noreferrer"
                     >
