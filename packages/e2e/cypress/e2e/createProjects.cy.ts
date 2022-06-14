@@ -35,7 +35,7 @@ const testCompile = () => {
     cy.contains('selected 6 models');
     // Configure
     cy.findByText('Start exploring!').click();
-    cy.contains('Welcome, David!');
+    cy.url().should('include', '/home', { timeout: 10000 });
 };
 
 const testRunQuery = () => {
