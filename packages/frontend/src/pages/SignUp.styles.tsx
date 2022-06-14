@@ -103,13 +103,3 @@ export const BoldSubtitle = styled.p`
     color: ${Colors.DARK_GRAY1};
     margin-bottom: 15px;
 `;
-
-export const FormFooterCopy = styled.p`
-    color: ${Colors.GRAY2};
-    margin-top: 25px;
-    text-align: center;
-`;
-
-export const FooterCta = styled.a`
-    color: ${Colors.BLUE3};
-`;

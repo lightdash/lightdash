@@ -120,7 +120,7 @@ const Signup: FC = () => {
         : false;
 
     useEffect(() => {
-        if (inviteCode.endsWith('&from=email')) {
+        if (window && window.location.href.includes('?from=email')) {
             setIsLinkFromEmail(true);
         }
     }, [inviteCode]);

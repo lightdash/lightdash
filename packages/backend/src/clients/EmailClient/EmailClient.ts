@@ -126,10 +126,10 @@ export default class EmailClient {
             template: 'invite',
             context: {
                 orgName: userThatInvited.organizationName,
-                inviteUrl: `${invite.inviteUrl}&from=email`,
+                inviteUrl: `${invite.inviteUrl}?from=email`,
                 host: this.lightdashConfig.siteUrl,
             },
-            text: `Your teammates at ${userThatInvited.organizationName} are using Lightdash to discover and share data insights. Click on the link below within the next 72 hours to join your team and start exploring your data! ${invite.inviteUrl}`,
+            text: `Your teammates at ${userThatInvited.organizationName} are using Lightdash to discover and share data insights. Click on the link below within the next 72 hours to join your team and start exploring your data! ${invite.inviteUrl}?from=email`,
         });
     }
 }
