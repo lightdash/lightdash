@@ -31,11 +31,14 @@ import {
 } from '@lightdash/common';
 import '@testing-library/cypress/add-commands';
 
-declare namespace Cypress {
-    interface Chainable<AUTWindow> {
-        login(): Chainable<AUTWindow>;
-        anotherLogin(): Chainable<AUTWindow>;
-        preCompileProject(): Chainable<AUTWindow>;
+declare global {
+    namespace Cypress {
+        interface Chainable {
+            login(): Chainable<Element>;
+            anotherLogin(): Chainable<Element>;
+            logout(): Chainable<Element>;
+            registerNewUser(): Chainable<Element>;
+        }
     }
 }
 

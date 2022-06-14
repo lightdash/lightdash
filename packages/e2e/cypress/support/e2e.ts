@@ -16,17 +16,6 @@
 
 import './commands';
 
-declare global {
-    namespace Cypress {
-        interface Chainable {
-            login(): Chainable<Element>;
-            anotherLogin(): Chainable<Element>;
-            logout(): Chainable<Element>;
-            registerNewUser(): Chainable<Element>;
-        }
-    }
-}
-
 // Hide all requests from
 const cypressLogOriginal = Cypress.log;
 Cypress.log = function name(opts, ...other) {
