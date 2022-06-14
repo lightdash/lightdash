@@ -34,7 +34,10 @@ const testCompile = () => {
 
     cy.contains('selected 6 models');
     // Configure
-    cy.findByText('Start exploring!').should('not.be.disabled').click();
+    cy.findByText('Start exploring!')
+        .parent('button')
+        .should('not.be.disabled')
+        .click();
     cy.url().should('include', '/home', { timeout: 30000 });
 };
 
