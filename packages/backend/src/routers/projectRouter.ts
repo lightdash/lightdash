@@ -52,6 +52,22 @@ projectRouter.patch(
     },
 );
 
+projectRouter.put(
+    '/explores',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        projectService
+            .setExplores(req.params.projectUuid, req.body)
+            .then(() => {
+                res.json({
+                    status: 'ok',
+                });
+            })
+            .catch(next);
+    },
+);
+
 projectRouter.get('/explores', isAuthenticated, async (req, res, next) => {
     try {
         const results: ApiExploresResults =
