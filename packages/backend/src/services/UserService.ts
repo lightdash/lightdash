@@ -609,9 +609,14 @@ export class UserService {
         const { user, personalAccessToken } = results;
         const now = new Date();
         if (
-            personalAccessToken.expiresAt !== undefined &&
+            personalAccessToken.expiresAt &&
             personalAccessToken.expiresAt <= now
         ) {
+            if (personalAccessToken.uuid) {
+                await this.personalAccessTokenModel.delete(
+                    personalAccessToken.uuid,
+                );
+            }
             throw new AuthorizationError();
         }
         return user;

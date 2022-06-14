@@ -75,7 +75,7 @@ export const localPassportStrategy = new LocalStrategy(
     },
 );
 export const apiKeyPassportStrategy = new HeaderAPIKeyStrategy(
-    { header: 'Authorization', prefix: 'ApiKey' },
+    { header: 'Authorization', prefix: 'ApiKey ' },
     true,
     async (token, done) => {
         try {
@@ -192,6 +192,7 @@ export const unauthorisedInDemo: RequestHandler = (req, res, next) => {
 export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
     if (req.isAuthenticated()) {
         next();
+        return;
     }
-    passport.authenticate('localapikey', { session: false })(req, res, next);
+    passport.authenticate('headerapikey', { session: false })(req, res, next);
 };

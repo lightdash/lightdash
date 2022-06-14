@@ -511,7 +511,7 @@ export class UserModel {
         const [row] = await userDetailsQueryBuilder(this.database)
             .innerJoin(
                 'personal_access_tokens',
-                'personal_access_token.created_by_user_id',
+                'personal_access_tokens.created_by_user_id',
                 'users.user_id',
             )
             .where('token_hash', tokenHash)

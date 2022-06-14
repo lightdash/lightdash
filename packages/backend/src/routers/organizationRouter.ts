@@ -42,8 +42,8 @@ organizationRouter.patch(
 
 organizationRouter.get(
     '/projects',
-    isAuthenticated,
     allowApiKeyAuthentication,
+    isAuthenticated,
     async (req, res, next) =>
         organizationService
             .getProjects(req.user!)
