@@ -1,3 +1,10 @@
+# [0.141.0](https://github.com/lightdash/lightdash/compare/0.140.0...0.141.0) (2022-06-14)
+
+
+### Features
+
+* final updates sign up flow ([#2387](https://github.com/lightdash/lightdash/issues/2387)) ([7aeb9d2](https://github.com/lightdash/lightdash/commit/7aeb9d264d08841ac7ac6b736098197bd04dced1))
+
 # [0.140.0](https://github.com/lightdash/lightdash/compare/0.139.1...0.140.0) (2022-06-13)
 
 
