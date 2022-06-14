@@ -115,9 +115,6 @@ const Signup: FC = () => {
 
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
-    const isLinkExpired = inviteLinkQuery?.data?.expiresAt
-        ? inviteLinkQuery.data?.expiresAt <= new Date()
-        : false;
 
     useEffect(() => {
         if (window && window.location.href.includes('?from=email')) {
