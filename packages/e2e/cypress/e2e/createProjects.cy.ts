@@ -1,8 +1,8 @@
 const warehouseConfig = {
     postgresSQL: {
-        host: Cypress.env('PGHOST'),
+        host: Cypress.env('PGHOST') || 'host.docker.internal',
         user: 'postgres',
-        password: Cypress.env('PGPASSWORD'),
+        password: Cypress.env('PGPASSWORD') || 'password',
         database: 'postgres',
         port: '5432',
         schema: 'jaffle',
