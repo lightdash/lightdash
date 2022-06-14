@@ -1,3 +1,10 @@
+## [0.141.1](https://github.com/lightdash/lightdash/compare/0.141.0...0.141.1) (2022-06-14)
+
+
+### Bug Fixes
+
+* dashboard page check reload view ([#2418](https://github.com/lightdash/lightdash/issues/2418)) ([8f1aa58](https://github.com/lightdash/lightdash/commit/8f1aa5808196d1bb9ff266b02be0d919cfde4b48))
+
 # [0.141.0](https://github.com/lightdash/lightdash/compare/0.140.0...0.141.0) (2022-06-14)
 
 
