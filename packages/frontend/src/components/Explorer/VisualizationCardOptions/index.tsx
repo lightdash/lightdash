@@ -43,6 +43,8 @@ const VisualizationCardOptions: FC = () => {
                 }
                 switch (cartesianType) {
                     case CartesianSeriesType.AREA:
+                        setStacking(true);
+
                         return {
                             text: 'Area chart',
                             icon: 'timeline-area-chart',

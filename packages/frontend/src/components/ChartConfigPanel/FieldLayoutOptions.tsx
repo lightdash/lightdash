@@ -1,5 +1,6 @@
 import { Button } from '@blueprintjs/core';
 import {
+    CartesianSeriesType,
     Field,
     getItemId,
     isSeriesWithMixedChartTypes,
@@ -50,8 +51,9 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         );
 
     const canBeStacked =
-        cartesianType !== 'line' &&
-        cartesianType !== 'scatter' &&
+        cartesianType !== CartesianSeriesType.LINE &&
+        cartesianType !== CartesianSeriesType.SCATTER &&
+        cartesianType !== CartesianSeriesType.AREA &&
         isChartTypeTheSameForAllSeries;
 
     // X axis logic
