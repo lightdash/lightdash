@@ -26,10 +26,11 @@ type GenerateHandlerOptions = {
     profilesDir: string;
     target: string | undefined;
     profile: string | undefined;
+    assumeYes: boolean;
 };
 export const generateHandler = async (options: GenerateHandlerOptions) => {
     const select = options.select || options.models;
-    if (select === undefined) {
+    if (select === undefined && !options.assumeYes) {
         const answers = await inquirer.prompt([
             {
                 type: 'confirm',
