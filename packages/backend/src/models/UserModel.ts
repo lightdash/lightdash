@@ -11,6 +11,7 @@ import {
     OpenIdUser,
     OrganizationMemberRole,
     ParameterError,
+    PersonalAccessToken,
     SessionUser,
     UpdateUserArgs,
 } from '@lightdash/common';
@@ -36,12 +37,14 @@ import {
     createPasswordLogin,
     PasswordLoginTableName,
 } from '../database/entities/passwordLogins';
+import { DbPersonalAccessToken } from '../database/entities/personalAccessTokens';
 import {
     DbUser,
     DbUserIn,
     DbUserUpdate,
     UserTableName,
 } from '../database/entities/users';
+import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import Transaction = Knex.Transaction;
 
 export type DbUserDetails = {
@@ -181,6 +184,16 @@ export class UserModel {
             .select('*');
         if (user === undefined) {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
+        }
+        return mapDbUserDetailsToLightdashUser(user);
+    }
+
+    async getUserDetailsById(userId: number): Promise<LightdashUser> {
+        const [user] = await userDetailsQueryBuilder(this.database)
+            .where('user_id', userId)
+            .select('*');
+        if (user === undefined) {
+            throw new NotFoundError('Cannot find user');
         }
         return mapDbUserDetailsToLightdashUser(user);
     }
@@ -486,5 +499,30 @@ export class UserModel {
             })
             .onConflict('user_id')
             .merge();
+    }
+
+    async findUserByPersonalAccessToken(
+        token: string,
+    ): Promise<
+        | { user: LightdashUser; personalAccessToken: PersonalAccessToken }
+        | undefined
+    > {
+        const tokenHash = PersonalAccessTokenModel._hash(token);
+        const [row] = await userDetailsQueryBuilder(this.database)
+            .innerJoin(
+                'personal_access_tokens',
+                'personal_access_tokens.created_by_user_id',
+                'users.user_id',
+            )
+            .where('token_hash', tokenHash)
+            .select<(DbUserDetails & DbPersonalAccessToken)[]>('*');
+        if (row === undefined) {
+            return undefined;
+        }
+        return {
+            user: mapDbUserDetailsToLightdashUser(row),
+            personalAccessToken:
+                PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
+        };
     }
 }

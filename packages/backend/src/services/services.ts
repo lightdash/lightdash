@@ -10,6 +10,7 @@ import {
     organizationMemberProfileModel,
     organizationModel,
     passwordResetLinkModel,
+    personalAccessTokenModel,
     projectModel,
     savedChartModel,
     sessionModel,
@@ -18,6 +19,7 @@ import {
 import { DashboardService } from './DashboardService/DashboardService';
 import { HealthService } from './HealthService/HealthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
+import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { UserService } from './UserService';
@@ -34,6 +36,7 @@ export const userService = new UserService({
     emailClient,
     organizationMemberProfileModel,
     organizationModel,
+    personalAccessTokenModel,
 });
 export const organizationService = new OrganizationService({
     organizationModel,
@@ -62,4 +65,8 @@ export const dashboardService = new DashboardService({
 export const savedChartsService = new SavedChartService({
     projectModel,
     savedChartModel,
+});
+
+export const personalAccessTokenService = new PersonalAccessTokenService({
+    personalAccessTokenModel,
 });

@@ -9,7 +9,9 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import { Request, RequestHandler } from 'express';
+import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oidc';
+import { HeaderAPIKeyStrategy } from 'passport-headerapikey';
 import { Strategy as LocalStrategy } from 'passport-local';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -24,7 +26,7 @@ import { userService } from '../services/services';
 // 5. Then passport looks for `req.session.passport.user` and passes the data to `deserializeUser`
 // 6. `deserializeUser` translates `req.session.pasport.user` to a full user object and saves it on `req.user`
 
-// How a userlogs in
+// How a user logs in
 // 1. User sends login credentials to /login
 // 2. passport.LocalStrategy compares the login details to data in postgres
 // 3. passport.LocalStrategy creates a full user object and attaches it to `req.user`
@@ -72,6 +74,23 @@ export const localPassportStrategy = new LocalStrategy(
         }
     },
 );
+export const apiKeyPassportStrategy = new HeaderAPIKeyStrategy(
+    { header: 'Authorization', prefix: 'ApiKey ' },
+    true,
+    async (token, done) => {
+        try {
+            const user = await userService.loginWithPersonalAccessToken(token);
+            return done(null, user);
+        } catch {
+            return done(
+                new AuthorizationError(
+                    'Personal access token is not recognised',
+                ),
+            );
+        }
+    },
+);
+
 export const getGoogleLogin: RequestHandler = (req, res, next) => {
     const { redirect, inviteCode } = req.query;
     req.session.oauth = {};
@@ -161,10 +180,19 @@ export const isAuthenticated: RequestHandler = (req, res, next) => {
         next(new AuthorizationError(`Failed to authorize user`));
     }
 };
+
 export const unauthorisedInDemo: RequestHandler = (req, res, next) => {
     if (lightdashConfig.mode === LightdashMode.DEMO) {
         throw new AuthorizationError('Action not available in demo');
     } else {
         next();
     }
+};
+
+export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
+    if (req.isAuthenticated()) {
+        next();
+        return;
+    }
+    passport.authenticate('headerapikey', { session: false })(req, res, next);
 };

@@ -216,7 +216,7 @@ const Dashboard = () => {
 
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {
-            if (hasTilesChanged || haveFiltersChanged) {
+            if (isEditMode && (hasTilesChanged || haveFiltersChanged)) {
                 const message =
                     'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
                 event.returnValue = message;
@@ -225,7 +225,7 @@ const Dashboard = () => {
         };
         window.addEventListener('beforeunload', checkReload);
         return () => window.removeEventListener('beforeunload', checkReload);
-    }, [hasTilesChanged, haveFiltersChanged]);
+    }, [hasTilesChanged, haveFiltersChanged, isEditMode]);
 
     useEffect(() => {
         history.block((prompt) => {

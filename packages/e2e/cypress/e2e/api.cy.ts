@@ -93,7 +93,6 @@ const sqlQueryBody = { sql: 'select 1' };
 describe('Lightdash API', () => {
     before(() => {
         cy.login();
-        cy.preCompileProject();
     });
 
     beforeEach(() => {
@@ -331,10 +330,6 @@ describe('Lightdash API', () => {
 });
 
 describe('Lightdash API forbidden tests', () => {
-    before(() => {
-        cy.preCompileProject();
-    });
-
     beforeEach(() => {
         cy.anotherLogin();
     });

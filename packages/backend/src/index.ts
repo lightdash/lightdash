@@ -17,6 +17,7 @@ import { analytics } from './analytics/client';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import { lightdashConfig } from './config/lightdashConfig';
 import {
+    apiKeyPassportStrategy,
     googlePassportStrategy,
     localPassportStrategy,
 } from './controllers/authentication';
@@ -222,6 +223,7 @@ declare global {
     }
 }
 
+passport.use(apiKeyPassportStrategy);
 passport.use(localPassportStrategy);
 if (googlePassportStrategy) {
     passport.use(googlePassportStrategy);

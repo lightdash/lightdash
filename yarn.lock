@@ -14192,6 +14192,14 @@ passport-google-oidc@^0.1.0:
   dependencies:
     passport-openidconnect "0.1.x"
 
+passport-headerapikey@^1.2.2:
+  version "1.2.2"
+  resolved "https://registry.yarnpkg.com/passport-headerapikey/-/passport-headerapikey-1.2.2.tgz#b71960523999c9864151b8535c919e3ff5ba75ce"
+  integrity sha512-4BvVJRrWsNJPrd3UoZfcnnl4zvUWYKEtfYkoDsaOKBsrWHYmzTApCjs7qUbncOLexE9ul0IRiYBFfBG0y9IVQA==
+  dependencies:
+    lodash "^4.17.15"
+    passport-strategy "^1.0.0"
+
 passport-local@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/passport-local/-/passport-local-1.0.0.tgz#1fe63268c92e75606626437e3b906662c15ba6ee"

@@ -1,3 +1,17 @@
+# [0.142.0](https://github.com/lightdash/lightdash/compare/0.141.1...0.142.0) (2022-06-14)
+
+
+### Features
+
+* add api token auth ([#2221](https://github.com/lightdash/lightdash/issues/2221)) ([c211cf6](https://github.com/lightdash/lightdash/commit/c211cf6cf028fee14c2be321610e6bdb3d86ba40))
+
+## [0.141.1](https://github.com/lightdash/lightdash/compare/0.141.0...0.141.1) (2022-06-14)
+
+
+### Bug Fixes
+
+* dashboard page check reload view ([#2418](https://github.com/lightdash/lightdash/issues/2418)) ([8f1aa58](https://github.com/lightdash/lightdash/commit/8f1aa5808196d1bb9ff266b02be0d919cfde4b48))
+
 # [0.141.0](https://github.com/lightdash/lightdash/compare/0.140.0...0.141.0) (2022-06-14)
 
 

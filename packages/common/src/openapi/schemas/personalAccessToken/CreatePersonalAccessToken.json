@@ -1,0 +1,13 @@
+{
+    "type": "object",
+    "properties": {
+        "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "description": {
+            "type": "string"
+        }
+    },
+    "required": ["description"]
+}

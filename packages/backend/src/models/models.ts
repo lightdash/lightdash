@@ -2,6 +2,7 @@ import { lightdashConfig } from '../config/lightdashConfig';
 import database from '../database/database';
 import { EncryptionService } from '../services/EncryptionService/EncryptionService';
 import { DashboardModel } from './DashboardModel/DashboardModel';
+import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from './EmailModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
@@ -38,3 +39,6 @@ export const organizationMemberProfileModel =
     new OrganizationMemberProfileModel({ database });
 export const savedChartModel = new SavedChartModel({ database });
 export const jobModel = new JobModel({ database });
+export const personalAccessTokenModel = new PersonalAccessTokenModel({
+    database,
+});

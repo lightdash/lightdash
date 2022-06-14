@@ -21,6 +21,7 @@ import * as styles from '../styles';
 
 type GenerateHandlerOptions = {
     select: string[] | undefined;
+    models: string[] | undefined;
     projectDir: string;
     profilesDir: string;
     target: string | undefined;
@@ -28,7 +29,8 @@ type GenerateHandlerOptions = {
     assumeYes: boolean;
 };
 export const generateHandler = async (options: GenerateHandlerOptions) => {
-    if (options.select === undefined && !options.assumeYes) {
+    const select = options.select || options.models;
+    if (select === undefined && !options.assumeYes) {
         const answers = await inquirer.prompt([
             {
                 type: 'confirm',
@@ -42,9 +44,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
         }
     }
 
-    const numModelsSelected = options.select
-        ? options.select.length
-        : undefined;
+    const numModelsSelected = select ? select.length : undefined;
     LightdashAnalytics.track({
         event: 'generate.started',
         properties: {
@@ -67,7 +67,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     const manifest = await loadManifest({ targetDir: context.targetDir });
     const compiledModels = getCompiledModelsFromManifest({
         projectName: context.projectName,
-        selectors: options.select,
+        selectors: select,
         manifest,
     });
 

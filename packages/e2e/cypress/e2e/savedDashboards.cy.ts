@@ -3,7 +3,6 @@ import { SEED_PROJECT } from '@lightdash/common';
 describe('Dashboard List', () => {
     before(() => {
         cy.login();
-        cy.preCompileProject();
     });
 
     beforeEach(() => {
