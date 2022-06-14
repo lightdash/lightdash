@@ -22,9 +22,10 @@ export const Logo = styled.img`
 
 export const FormWrapper = styled.div`
     width: 400px;
+    margin-top: 30px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     flex: 1;
 `;
 
