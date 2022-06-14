@@ -1,3 +1,10 @@
+# [0.142.0](https://github.com/lightdash/lightdash/compare/0.141.1...0.142.0) (2022-06-14)
+
+
+### Features
+
+* add api token auth ([#2221](https://github.com/lightdash/lightdash/issues/2221)) ([c211cf6](https://github.com/lightdash/lightdash/commit/c211cf6cf028fee14c2be321610e6bdb3d86ba40))
+
 ## [0.141.1](https://github.com/lightdash/lightdash/compare/0.141.0...0.141.1) (2022-06-14)
 
 
