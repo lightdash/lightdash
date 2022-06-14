@@ -33,7 +33,6 @@ jobs:
         uses: cypress-io/github-action@v4
         with:
           browser: chrome
-          record: true
           project: ./packages/e2e
           # Set the PR deployment url
           config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
