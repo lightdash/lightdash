@@ -34,7 +34,8 @@ const testCompile = () => {
 
     cy.contains('selected 6 models');
     // Configure
-    cy.findByText('Save').click();
+    cy.findByText('Start exploring!').click();
+    cy.contains('Welcome, David!');
 };
 
 const testRunQuery = () => {
