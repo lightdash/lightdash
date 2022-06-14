@@ -6,6 +6,7 @@ import {
     CreatePasswordResetLink,
     CreateUserArgs,
     DeleteOpenIdentity,
+    ExpiredError,
     ForbiddenError,
     InviteLink,
     isOpenIdUser,
@@ -422,7 +423,7 @@ export class UserService {
             } catch (e) {
                 throw new NotExistsError('Invite link not found');
             }
-            throw new NotExistsError('Invite link expired');
+            throw new ExpiredError('Invite link expired');
         }
         return inviteLink;
     }
