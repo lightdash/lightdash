@@ -30,6 +30,7 @@ export enum PageName {
     SQL_RUNNER = 'SQL_RUNNER',
     SOCIAL_LOGIN_SETTINGS = 'social_login_settings',
     APPEARANCE = 'appearance_settings',
+    ACCESS_TOKENS = 'access_tokens',
 }
 
 export enum CategoryName {

@@ -5,6 +5,7 @@ import useLocationChange from '../../hooks/useLocationChange';
 import { useApp } from '../../providers/AppProvider';
 import { TrackPage } from '../../providers/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../types/Events';
+import AccessTokensPanel from './AccessTokensPanel';
 import AppearancePanel from './AppearancePanel';
 import OrganisationPanel from './OrganisationPanel';
 import PasswordPanel from './PasswordPanel';
@@ -171,6 +172,21 @@ const UserSettingsModal: FC<Props> = ({
                                 }
                             />
                         )}
+                    {orgData && (
+                        <Tab
+                            id="access-token"
+                            title="Personal access tokens"
+                            panel={
+                                <TrackPage
+                                    name={PageName.ACCESS_TOKENS}
+                                    type={PageType.MODAL}
+                                    category={CategoryName.SETTINGS}
+                                >
+                                    <AccessTokensPanel />
+                                </TrackPage>
+                            }
+                        />
+                    )}
                     <Tabs.Expander />
                 </Tabs>
             </div>

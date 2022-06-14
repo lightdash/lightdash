@@ -1,0 +1,24 @@
+{
+    "type": "object",
+    "properties": {
+        "uuid": {
+            "type": "string"
+        },
+        "token": {
+            "type": "string"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+        },
+        "description": {
+            "type": "string"
+        }
+    },
+    "required": ["createdAt", "description"]
+}
