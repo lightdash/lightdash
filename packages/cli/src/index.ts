@@ -155,6 +155,10 @@ ${styles.bold('Examples:')}
         '-s, --select <models...>',
         'specify models (accepts dbt selection syntax)',
     )
+    .option(
+        '-m, --models <models...>',
+        'specify models (accepts dbt selection syntax)',
+    )
     .option('--project-dir <path>', 'The directory of the dbt project', '.')
     .option(
         '--profiles-dir <path>',
