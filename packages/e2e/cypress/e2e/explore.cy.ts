@@ -2,9 +2,7 @@ import { SEED_PROJECT } from '@lightdash/common';
 
 describe('Explore', () => {
     before(() => {
-        // @ts-ignore
         cy.login();
-        // @ts-ignore
         cy.preCompileProject();
     });
 

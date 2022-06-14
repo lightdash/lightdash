@@ -11,7 +11,7 @@ POST /login
 ...Google auth endpoints
 GET /logout
 
-From savedChartRouter: 
+From savedChartRouter:
 GET /saved/:savedQueryUuid AUTH
 GET /saved/:savedQueryUuid/availableFilters AUTH
 DELETE /saved/:savedQueryUuid AUTH
@@ -19,7 +19,7 @@ PATH /saved/:savedQueryUuid AUTH
 POST /saved/:savedQueryUuid/version AUTH
 GET /saved/:savedQueryUuid AUTH
 
-From inviteLinksRouter: 
+From inviteLinksRouter:
 GET /invite-links/:inviteLinkCode
 POST /invite-links AUTH
 DELETE /invite-links AUTH
@@ -36,7 +36,7 @@ DELETE /org/users/:userUuid AUTH
 GET /org/onboardingStatus AUTH
 POST /org/onboardingStatus/shownSuccess AUTH
 
-From userRouter: 
+From userRouter:
 GET /user AUTH
 POST /user
 PATCH /user/me AUTH
@@ -46,7 +46,7 @@ GET /user/identities AUTH
 DELETE /user/identities AUTH
 PATCH /user/me/complete AUTH
 
-From projectRouter: 
+From projectRouter:
 GET /projects/:projectUuid AUTH
 PATCH /projects/:projectUuid AUTH
 GET /projects/:projectUuid/explores AUTH
@@ -64,7 +64,7 @@ GET /projects/:projectUuid/tablesConfiguration AUTH
 PATCH /projects/:projectUuid/tablesConfiguration AUTH
 GET /projects/:projectUuid/hasSavedCharts AUTH
 
-From dashboardRouter: 
+From dashboardRouter:
 GET /dashboards/:dashboardUuid AUTH
 PATCH /dashboards/:dashboardUuid AUTH
 DELETE /dashboards/:dashboardUuid AUTH
@@ -92,9 +92,7 @@ const runqueryBody = {
 const sqlQueryBody = { sql: 'select 1' };
 describe('Lightdash API', () => {
     before(() => {
-        // @ts-ignore
         cy.login();
-        // @ts-ignore
         cy.preCompileProject();
     });
 
@@ -134,7 +132,7 @@ describe('Lightdash API', () => {
             `/projects/${projectUuid}/tablesConfiguration`,
             `/projects/${projectUuid}/hasSavedCharts`,
         ];
-        /* Not tested 
+        /* Not tested
       /projects/:projectUuid/explores/:exploreId
 */
         endpoints.forEach((endpoint) => {
@@ -334,7 +332,6 @@ describe('Lightdash API', () => {
 
 describe('Lightdash API forbidden tests', () => {
     before(() => {
-        // @ts-ignore
         cy.preCompileProject();
     });
 
@@ -363,7 +360,7 @@ describe('Lightdash API forbidden tests', () => {
             `/projects/${projectUuid}/tablesConfiguration`,
             `/projects/${projectUuid}/hasSavedCharts`,
         ];
-        /* Not tested 
+        /* Not tested
         /projects/:projectUuid/explores/:exploreId
     */
         endpoints.forEach((endpoint) => {

@@ -2,9 +2,7 @@ import { SEED_PROJECT } from '@lightdash/common';
 
 describe('Dashboard List', () => {
     before(() => {
-        // @ts-ignore
         cy.login();
-        // @ts-ignore
         cy.preCompileProject();
     });
 

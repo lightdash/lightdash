@@ -25,11 +25,11 @@ jobs:
       - name: Install packages/common modules
         run: yarn workspace @lightdash/common install
       - name: Build packages/common module
-        run: yarn common-build && yarn warehouses-build
+        run: yarn common-build
       # Install NPM dependencies, cache them correctly
       # and run all Cypress tests
-      - name: Cypress run 
-        uses: cypress-io/github-action@v2
+      - name: Cypress run
+        uses: cypress-io/github-action@v4
         with:
           project: ./packages/e2e
           # Set the PR deployment url
@@ -39,12 +39,12 @@ jobs:
           CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
       # After the test run completes
       # store videos and any screenshots
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v2
         if: always()
         with:
           name: cypress-screenshots
           path: packages/e2e/cypress/screenshots
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v2
         if: always()
         with:
           name: cypress-videos

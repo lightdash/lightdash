@@ -1,8 +1,8 @@
 const warehouseConfig = {
     postgresSQL: {
-        host: Cypress.env('PGHOST'),
+        host: Cypress.env('PGHOST') || 'host.docker.internal',
         user: 'postgres',
-        password: Cypress.env('PGPASSWORD'),
+        password: Cypress.env('PGPASSWORD') || 'password',
         database: 'postgres',
         port: '5432',
         schema: 'jaffle',
@@ -34,7 +34,8 @@ const testCompile = () => {
 
     cy.contains('selected 6 models');
     // Configure
-    cy.findByText('Save').click();
+    cy.findByText('Start exploring!').click();
+    cy.contains('Welcome, David!');
 };
 
 const testRunQuery = () => {
@@ -56,9 +57,7 @@ const testQuery = () => {
 
 describe('Create projects', () => {
     before(() => {
-        // @ts-ignore
         cy.login();
-        // @ts-ignore
         cy.preCompileProject();
     });
 

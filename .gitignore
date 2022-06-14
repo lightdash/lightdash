@@ -8,8 +8,8 @@
 # testing
 /coverage
 /packages/**/coverage
-/cypress/screenshots/**/*
-/cypress/videos/**/*
+/packages/e2e/cypress/screenshots/**/*
+/packages/e2e/cypress/videos/**/*
 
 # logs
 /packages/backend/logs
