@@ -9,11 +9,16 @@ import CreateUserForm from '../components/CreateUserForm';
 import PageSpinner from '../components/PageSpinner';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
+import LightdashLogo from '../svgs/lightdash-black.svg';
 import {
     CardWrapper,
     Divider,
     DividerWrapper,
+    FooterCta,
+    FormFooterCopy,
     FormWrapper,
+    Logo,
+    LogoWrapper,
     Title,
 } from './SignUp.styles';
 
@@ -57,6 +62,9 @@ const Register: FC = () => {
     return (
         <Page isFullHeight>
             <FormWrapper>
+                <LogoWrapper>
+                    <Logo src={LightdashLogo} alt="lightdash logo" />
+                </LogoWrapper>
                 <CardWrapper elevation={2}>
                     <Title>Create your account</Title>
                     {health.data?.auth.google.oauth2ClientId && (
@@ -78,6 +86,15 @@ const Register: FC = () => {
                         />
                     )}
                 </CardWrapper>
+                <FormFooterCopy>
+                    By creating an account, you agree to our{' '}
+                    <FooterCta
+                        href="https://www.lightdash.com/privacy-policy"
+                        target="_blank"
+                    >
+                        Privacy Policy.
+                    </FooterCta>
+                </FormFooterCopy>
             </FormWrapper>
         </Page>
     );

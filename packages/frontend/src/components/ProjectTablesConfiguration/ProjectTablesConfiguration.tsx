@@ -1,14 +1,4 @@
-import {
-    Button,
-    Card,
-    Classes,
-    Collapse,
-    Colors,
-    H5,
-    Intent,
-    Radio,
-    Text,
-} from '@blueprintjs/core';
+import { Classes, Collapse, H5, Intent, Text } from '@blueprintjs/core';
 import { hasIntersection, TableSelectionType } from '@lightdash/common';
 import React, { FC, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
@@ -24,6 +14,16 @@ import DocumentationHelpButton from '../DocumentationHelpButton';
 import Form from '../ReactHookForm/Form';
 import MultiSelect from '../ReactHookForm/MultiSelect';
 import RadioGroup from '../ReactHookForm/RadioGroup';
+import {
+    CardWrapper,
+    LeftPanel,
+    ListTrigger,
+    ListWrapper,
+    RadioField,
+    RightPanel,
+    SaveButton,
+    TextP,
+} from './ProjectTablesConfiguration.styles';
 
 type FormData = {
     type: TableSelectionType;
@@ -151,49 +151,32 @@ const ProjectTablesConfiguration: FC<{
             onSubmit={onSubmit}
             disableSubmitOnEnter
         >
-            <Card
-                style={{
-                    marginBottom: '20px',
-                    display: 'flex',
-                    flexDirection: 'row',
-                }}
-                elevation={1}
-            >
-                <div style={{ flex: 1, width: '50%', paddingRight: 20 }}>
+            <CardWrapper elevation={1}>
+                <LeftPanel>
                     <H5>Table selection</H5>
-                    <p style={{ color: Colors.GRAY1 }}>
+                    <TextP>
                         You have selected <b>{modelsIncluded.length}</b> models{' '}
                         {modelsIncluded.length > 0 && (
-                            <b
+                            <ListTrigger
                                 role="button"
                                 tabIndex={0}
                                 onClick={toggleList}
-                                style={{ cursor: 'pointer' }}
                             >
                                 ({isListOpen ? 'hide' : 'show'} list)
-                            </b>
+                            </ListTrigger>
                         )}
-                    </p>
+                    </TextP>
                     <Collapse isOpen={isListOpen}>
-                        <div
-                            style={{
-                                padding: 10,
-                                color: Colors.GRAY1,
-                                maxHeight: 270,
-                                overflowY: 'auto',
-                                overflowX: 'hidden',
-                            }}
-                            className={Classes.ELEVATION_0}
-                        >
+                        <ListWrapper className={Classes.ELEVATION_0}>
                             {modelsIncluded.map((name) => (
                                 <Text title={name} ellipsize>
                                     {name}
                                 </Text>
                             ))}
-                        </div>
+                        </ListWrapper>
                     </Collapse>
-                </div>
-                <div style={{ flex: 1, width: '50%' }}>
+                </LeftPanel>
+                <RightPanel>
                     <RadioGroup
                         name="type"
                         label="Table selection"
@@ -203,16 +186,16 @@ const ProjectTablesConfiguration: FC<{
                         disabled={disabled}
                         defaultValue={TableSelectionType.ALL}
                     >
-                        <Radio
+                        <RadioField
+                            noMargin
                             label="Show entire project"
                             value={TableSelectionType.ALL}
                         />
-                        <p style={{ color: Colors.GRAY1 }}>
+                        <TextP>
                             Show all of the models in your dbt project in
                             Lightdash.
-                        </p>
-                        <Radio
-                            style={{ marginTop: 20 }}
+                        </TextP>
+                        <RadioField
                             labelElement={
                                 <>
                                     Show models with any of these tags{' '}
@@ -221,10 +204,10 @@ const ProjectTablesConfiguration: FC<{
                             }
                             value={TableSelectionType.WITH_TAGS}
                         />
-                        <p style={{ color: Colors.GRAY1 }}>
+                        <TextP>
                             Write a list of tags you want to include, separated
                             by commas.
-                        </p>
+                        </TextP>
                         {typeValue === TableSelectionType.WITH_TAGS && (
                             <MultiSelect
                                 name="tags"
@@ -238,15 +221,14 @@ const ProjectTablesConfiguration: FC<{
                             />
                         )}
 
-                        <Radio
-                            style={{ marginTop: 20 }}
+                        <RadioField
                             label="Show models in this list"
                             value={TableSelectionType.WITH_NAMES}
                         />
-                        <p style={{ color: Colors.GRAY1 }}>
+                        <TextP>
                             Write a list of models you want to include,
                             separated by commas.
-                        </p>
+                        </TextP>
                         {typeValue === TableSelectionType.WITH_NAMES && (
                             <MultiSelect
                                 name="names"
@@ -260,15 +242,14 @@ const ProjectTablesConfiguration: FC<{
                             />
                         )}
                     </RadioGroup>
-                </div>
-            </Card>
-            <Button
+                </RightPanel>
+            </CardWrapper>
+            <SaveButton
                 type="submit"
                 intent={Intent.PRIMARY}
-                text="Save"
+                text="Start exploring!"
                 loading={isSaving}
                 disabled={disabled}
-                style={{ float: 'right' }}
             />
         </Form>
     );

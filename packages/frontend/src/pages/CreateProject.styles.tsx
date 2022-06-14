@@ -1,4 +1,4 @@
-import { Button, Card, Colors, H3 } from '@blueprintjs/core';
+import { Colors, H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 import SimpleButton from '../components/common/SimpleButton';
 
@@ -22,6 +22,11 @@ export const Title = styled(H3)<{ marginBottom?: boolean }>`
         css`
             margin: 0 0 20px;
         `}
+`;
+
+export const Subtitle = styled.p`
+    color: ${Colors.GRAY2};
+    margin: 0 0 25px;
 `;
 
 export const BackToWarehouseButton = styled(SimpleButton)`

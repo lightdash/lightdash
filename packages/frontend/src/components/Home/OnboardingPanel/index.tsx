@@ -46,11 +46,11 @@ const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
     return (
         <OnboardingPanelWrapper>
             <Title>
-                {`Welcome${userName ? ', ' + userName : ' to Lightdash'}! ⚡`}
+                {`Welcome${userName ? ', ' + userName : ' to Lightdash'}! 👋`}
             </Title>
             <Intro>
-                You&apos;re ready to go! Here&apos;s what you can do with
-                Lightdash:
+                You&apos;re ready to start exploring. Here&apos;s what you can
+                do with Lightdash:
             </Intro>
             <CardWrapper>
                 <StepsWrapper>

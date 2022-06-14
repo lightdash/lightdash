@@ -1,5 +1,6 @@
 import { Card, Colors, H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
+import AnchorLink from '../components/common/AnchorLink';
 import { BigButton } from '../components/common/BigButton';
 import Input from '../components/ReactHookForm/Input';
 import PasswordInput from '../components/ReactHookForm/PasswordInput';
@@ -39,6 +40,7 @@ export const InputField = styled(Input)`
 
 export const PasswordInputField = styled(PasswordInput)`
     ${inputFieldStyles}
+    margin-top: 25px;
     .bp4-input-group .bp4-input-action {
         position: absolute;
         right: 10px;
@@ -49,42 +51,34 @@ export const PasswordInputField = styled(PasswordInput)`
 
 export const Title = styled(H3)`
     text-align: center;
-    margin-bottom: 25px;
+`;
+
+export const Subtitle = styled.p`
+    text-align: center;
+    color: ${Colors.GRAY2};
+    margin: 0 0 25px;
 `;
 
 export const SubmitButton = styled(BigButton)`
     width: 100%;
 `;
 
-export const AnchorLinkWrapper = styled.div`
+export const FormLink = styled(AnchorLink)`
     text-align: center;
+    display: block;
     margin-top: 20px;
-    font-weight: 500;
-    color: ${Colors.BLUE3};
 `;
 
-export const DividerWrapper = styled.div`
-    margin: 20px 0;
+export const List = styled.ul`
+    margin: 0;
+    padding: 0;
     display: flex;
-    flex-direction: row;
-    gap: 15px;
-    color: ${Colors.GRAY4};
+    flex-direction: column;
+    text-align: center;
     align-items: center;
 `;
 
-export const Divider = styled.span`
-    display: block;
-    width: 100%;
-    height: 1px;
-    background: ${Colors.LIGHT_GRAY3};
-`;
-
-export const FormFooterCopy = styled.p`
-    color: ${Colors.GRAY2};
-    margin-top: 25px;
-    text-align: center;
-`;
-
-export const FooterCta = styled.a`
-    color: ${Colors.BLUE3};
+export const ListItem = styled.li`
+    color: ${Colors.DARK_GRAY3};
+    line-height: 1.5;
 `;

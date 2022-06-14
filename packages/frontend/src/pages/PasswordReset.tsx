@@ -1,30 +1,33 @@
-import {
-    Button,
-    Card,
-    Colors,
-    H2,
-    Intent,
-    NonIdealState,
-} from '@blueprintjs/core';
+import { Intent, NonIdealState } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
-import { Redirect, useParams } from 'react-router-dom';
-import AnchorLink from '../components/common/AnchorLink/index';
-import LinkButton from '../components/common/LinkButton';
+import { Redirect, useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import Form from '../components/ReactHookForm/Form';
-import PasswordInput from '../components/ReactHookForm/PasswordInput';
 import {
     usePasswordResetLink,
     usePasswordResetMutation,
 } from '../hooks/usePasswordReset';
 import { useApp } from '../providers/AppProvider';
+import LightdashLogo from '../svgs/lightdash-black.svg';
+import {
+    CardWrapper,
+    FormLink,
+    FormWrapper,
+    Logo,
+    LogoWrapper,
+    PasswordInputField,
+    SubmitButton,
+    Subtitle,
+    Title,
+} from './PasswordRecovery.styles';
 
 type ResetPasswordForm = { password: string };
 
 const PasswordReset: FC = () => {
     const { code } = useParams<{ code: string }>();
+    const history = useHistory();
     const { health } = useApp();
     const { isLoading, error } = usePasswordResetLink(code);
     const resetMutation = usePasswordResetMutation();
@@ -49,23 +52,11 @@ const PasswordReset: FC = () => {
 
     return (
         <Page isFullHeight>
-            <div
-                style={{
-                    width: '400px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    flex: 1,
-                }}
-            >
-                <Card
-                    style={{
-                        padding: 25,
-                        display: 'flex',
-                        flexDirection: 'column',
-                    }}
-                    elevation={2}
-                >
+            <FormWrapper>
+                <LogoWrapper>
+                    <Logo src={LightdashLogo} alt="lightdash logo" />
+                </LogoWrapper>
+                <CardWrapper elevation={2}>
                     {error ? (
                         <NonIdealState
                             title={error.error.message}
@@ -75,81 +66,52 @@ const PasswordReset: FC = () => {
                         <>
                             {!resetMutation.isSuccess ? (
                                 <>
-                                    <H2 style={{ marginBottom: 25 }}>
-                                        Reset password
-                                    </H2>
+                                    <Title>Reset your password</Title>
                                     <Form
                                         name="password_reset"
                                         methods={methods}
                                         onSubmit={handleSubmit}
                                     >
-                                        <PasswordInput
-                                            label="New password"
+                                        <PasswordInputField
+                                            label="Password"
                                             name="password"
-                                            placeholder="Enter your new password..."
+                                            placeholder="Enter a new password"
                                             disabled={resetMutation.isLoading}
                                             rules={{
                                                 required: 'Required field',
                                             }}
                                         />
-                                        <div
-                                            style={{
-                                                marginTop: 20,
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                alignItems: 'center',
-                                            }}
-                                        >
-                                            <AnchorLink href="/login">
-                                                Cancel
-                                            </AnchorLink>
-                                            <Button
-                                                type="submit"
-                                                intent={Intent.PRIMARY}
-                                                text="Save"
-                                                loading={
-                                                    resetMutation.isLoading
-                                                }
-                                            />
-                                        </div>
+
+                                        <SubmitButton
+                                            type="submit"
+                                            intent={Intent.PRIMARY}
+                                            text="Save"
+                                            loading={resetMutation.isLoading}
+                                        />
+                                        <FormLink href="/login">
+                                            Cancel
+                                        </FormLink>
                                     </Form>
                                 </>
                             ) : (
                                 <>
-                                    <H2 style={{ marginBottom: 25 }}>
-                                        Success! ✅
-                                    </H2>
-                                    <p
-                                        style={{
-                                            color: Colors.GRAY1,
-                                            marginBottom: 20,
-                                            lineHeight: 1.46,
-                                        }}
-                                    >
+                                    <Title>Success! ✅</Title>
+                                    <Subtitle>
                                         Your password has been successfully
-                                        updated. Use your new password to log
-                                        in.
-                                    </p>
-                                    <div
-                                        style={{
-                                            marginTop: 20,
-                                            display: 'flex',
-                                            justifyContent: 'flex-end',
-                                        }}
-                                    >
-                                        <LinkButton
-                                            href="/login"
-                                            intent={Intent.PRIMARY}
-                                        >
-                                            Log in
-                                        </LinkButton>
-                                    </div>
+                                        updated.
+                                        <br /> Use your new password to sign in.
+                                    </Subtitle>
+                                    <SubmitButton
+                                        onClick={() => history.push('/login')}
+                                        text="Log in"
+                                        intent={Intent.PRIMARY}
+                                    />
                                 </>
                             )}
                         </>
                     )}
-                </Card>
-            </div>
+                </CardWrapper>
+            </FormWrapper>
         </Page>
     );
 };
