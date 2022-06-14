@@ -185,6 +185,13 @@ export class ProjectService {
         };
     }
 
+    async setExplores(
+        projectUuid: string,
+        explores: (Explore | ExploreError)[],
+    ): Promise<void> {
+        await this.projectModel.saveExploresToCache(projectUuid, explores);
+    }
+
     async update(
         projectUuid: string,
         user: SessionUser,
