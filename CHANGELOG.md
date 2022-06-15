@@ -1,3 +1,10 @@
+## [0.144.2](https://github.com/lightdash/lightdash/compare/0.144.1...0.144.2) (2022-06-15)
+
+
+### Bug Fixes
+
+* fix styling of google button, and migrate to SC the social logins component ([#2442](https://github.com/lightdash/lightdash/issues/2442)) ([7c2636b](https://github.com/lightdash/lightdash/commit/7c2636b110d287e901286803f0dfaca6aab6b06c))
+
 ## [0.144.1](https://github.com/lightdash/lightdash/compare/0.144.0...0.144.1) (2022-06-15)
 
 
