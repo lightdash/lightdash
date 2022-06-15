@@ -171,6 +171,7 @@ ${styles.bold('Examples:')}
         undefined,
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option('-y, --assume-yes', 'assume yes to prompts', false)
     .action(generateHandler);
 
 const errorHandler = (err: Error) => {

@@ -1,3 +1,18 @@
+# [0.143.0](https://github.com/lightdash/lightdash/compare/0.142.0...0.143.0) (2022-06-14)
+
+
+### Bug Fixes
+
+* add missing option for generate handler ([#2434](https://github.com/lightdash/lightdash/issues/2434)) ([bd4ba66](https://github.com/lightdash/lightdash/commit/bd4ba66a4fc72c42f92c325817ca7dec9da69570))
+
+
+### Features
+
+* add cli yes flag ([#2431](https://github.com/lightdash/lightdash/issues/2431)) ([8fbb7dd](https://github.com/lightdash/lightdash/commit/8fbb7dda90004c114befc7f7274451a0f7b67fc3))
+* add models alias ([#2413](https://github.com/lightdash/lightdash/issues/2413)) ([224c679](https://github.com/lightdash/lightdash/commit/224c6793687c6bb0a62fe043dec7f407ccfe117d))
+* api to update explores ([#2430](https://github.com/lightdash/lightdash/issues/2430)) ([9e84481](https://github.com/lightdash/lightdash/commit/9e84481a80ff98306ad968c80ff532b74f596ff8))
+* logo size and card position ([#2432](https://github.com/lightdash/lightdash/issues/2432)) ([d2b5fa5](https://github.com/lightdash/lightdash/commit/d2b5fa5163095355eace8761488af09a74921cc5))
+
 # [0.142.0](https://github.com/lightdash/lightdash/compare/0.141.1...0.142.0) (2022-06-14)
 
 

@@ -54,6 +54,7 @@ export const manifestMock: DbtManifest = {
         adapter_type: '',
     },
     metrics: {},
+    docs: {},
 };
 
 export const catalogMock: DbtRpcDocsGenerateResults = {
