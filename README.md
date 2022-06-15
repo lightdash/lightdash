@@ -65,11 +65,22 @@ Play with our [demo app](https://demo.lightdash.com)!
 
 ### 1-click deploy
 
+Deploy Lightdash with 1-click (free options available
+<div>
+
+<a href="https://render.com/deploy?repo=https://github.com/lightdash/lightdash-deploy-render">
+  <img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render">
+</a>
+<a href="https://heroku.com/deploy?template=https://github.com/lightdash/lightdash-deploy-heroku">
+  <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy to heroku" width="200">
+</a>
+</div>
+
+
 Deploy your own hosted Lightdash instance with Heroku (free account available). Check
 the [documentation page](https://docs.lightdash.com/get-started/setup-lightdash/install-lightdash#deploy-to-heroku) for
 more details.
 
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/lightdash/lightdash-deploy-heroku)
 
 ### Run locally
 
