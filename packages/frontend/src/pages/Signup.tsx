@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
 import { useMutation } from 'react-query';
-import { Redirect, useParams } from 'react-router-dom';
+import { Redirect, useLocation, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
@@ -90,8 +90,8 @@ const createUserQuery = async (data: CreateOrganizationUser) =>
 
 const Signup: FC = () => {
     const { inviteCode } = useParams<{ inviteCode: string }>();
-    const { health } = useApp();
-    const { showToastError } = useApp();
+    const { health, showToastError } = useApp();
+    const { search } = useLocation();
     const { identify } = useTracking();
     const [isLinkFromEmail, setIsLinkFromEmail] = useState<boolean>(false);
     const { isLoading, mutate } = useMutation<
@@ -117,10 +117,12 @@ const Signup: FC = () => {
         !health.data?.auth.disablePasswordAuthentication;
 
     useEffect(() => {
-        if (window && window.location.href.includes('?from=email')) {
+        const searchParams = new URLSearchParams(search);
+        const fromParam = searchParams.get('from');
+        if (fromParam === 'email') {
             setIsLinkFromEmail(true);
         }
-    }, [inviteCode]);
+    }, [search]);
 
     if (health.isLoading || inviteLinkQuery.isLoading) {
         return <PageSpinner />;
