@@ -40,6 +40,7 @@ import {
     Placeholder,
     TableTreeGlobalStyle,
     TooltipContent,
+    WarningIcon,
 } from './TableTree.styles';
 
 const TreeWrapper = styled.div<{ hasMultipleTables: boolean }>`
@@ -284,6 +285,11 @@ const NodeItemButtons: FC<{
     return (
         <ItemOptions>
             {isFiltered && <Icon icon="filter" />}
+            {node.hidden && (
+                <Tooltip2 content="This field has been hidden in the dbt project. It's recommend to remove it from the query">
+                    <WarningIcon icon={'warning-sign'} intent="warning" />
+                </Tooltip2>
+            )}
             {menuItems.length > 0 && (isHovered || isSelected) && (
                 <Popover2
                     content={<Menu>{menuItems}</Menu>}
@@ -461,7 +467,7 @@ const TableTree: FC<TableTreeProps> = ({
         const dimensionsWithSubDimensions = Object.values(allDimensions).reduce<
             Record<string, DimensionWithSubDimensions>
         >((acc, dimension) => {
-            if (dimension.hidden) {
+            if (dimension.hidden && !selectedNodes.has(fieldId(dimension))) {
                 return acc;
             }
             if (dimension.group) {
@@ -480,7 +486,7 @@ const TableTree: FC<TableTreeProps> = ({
         }, {});
 
         return Object.values(dimensionsWithSubDimensions);
-    }, [allDimensions]);
+    }, [allDimensions, selectedNodes]);
 
     const filteredMetrics: Metric[] = useMemo(() => {
         if (search !== '') {

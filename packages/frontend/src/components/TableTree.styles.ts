@@ -1,3 +1,4 @@
+import { Colors, Icon } from '@blueprintjs/core';
 import styled, { createGlobalStyle } from 'styled-components';
 
 export const TableTreeGlobalStyle = createGlobalStyle`
@@ -25,4 +26,8 @@ export const ItemOptions = styled.div`
 
 export const Placeholder = styled.div`
     width: 30px;
+`;
+
+export const WarningIcon = styled(Icon)`
+    color: ${Colors.ORANGE5} !important;
 `;
