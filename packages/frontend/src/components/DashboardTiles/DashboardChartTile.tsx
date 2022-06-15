@@ -104,8 +104,11 @@ const DashboardChartTile: FC<Props> = (props) => {
         id: savedChartUuid || undefined,
     });
     const { data: explore } = useExplore(savedQuery?.tableName);
-    const { dashboardFilters, addDimensionDashboardFilter } =
-        useDashboardContext();
+    const {
+        dashboardFilters,
+        dashboardTemporaryFilters,
+        addDimensionDashboardFilter,
+    } = useDashboardContext();
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -166,14 +169,16 @@ const DashboardChartTile: FC<Props> = (props) => {
     const dashboardFiltersThatApplyToChart: DashboardFilters = useMemo(() => {
         const tables = explore ? Object.keys(explore.tables) : [];
         return {
-            dimensions: dashboardFilters.dimensions.filter((filter) =>
-                tables.includes(filter.target.tableName),
-            ),
-            metrics: dashboardFilters.metrics.filter((filter) =>
-                tables.includes(filter.target.tableName),
-            ),
+            dimensions: [
+                ...dashboardFilters.dimensions,
+                ...dashboardTemporaryFilters.dimensions,
+            ].filter((filter) => tables.includes(filter.target.tableName)),
+            metrics: [
+                ...dashboardFilters.metrics,
+                ...dashboardTemporaryFilters.metrics,
+            ].filter((filter) => tables.includes(filter.target.tableName)),
         };
-    }, [explore, dashboardFilters]);
+    }, [explore, dashboardFilters, dashboardTemporaryFilters]);
 
     if (savedQuery) {
         const dimensionFilters: FilterGroup = {
