@@ -12,6 +12,7 @@ import {
     isField,
     isNumericItem,
     Metric,
+    Series,
     TableCalculation,
 } from '@lightdash/common';
 import React, { FC, useCallback, useMemo, useState } from 'react';
@@ -31,6 +32,7 @@ import {
 import FieldLayoutOptions from './FieldLayoutOptions';
 import BasicSeriesConfiguration from './Series/BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './Series/GroupedSeriesConfiguration';
+import { SeriesDivider } from './Series/Series.styles';
 
 interface MinMaxProps {
     label: string;
@@ -106,9 +108,7 @@ const ChartConfigTabs: FC = () => {
             setYMinValue,
             setYMaxValue,
         },
-        pivotDimensions,
     } = useVisualizationContext();
-    const pivotDimension = pivotDimensions?.[0];
     const [tab, setTab] = useState<string | number>('layout');
 
     const dimensionsInMetricQuery = explore
@@ -197,6 +197,30 @@ const ChartConfigTabs: FC = () => {
         [false, false],
     );
 
+    const { series } = dirtyEchartsConfig || {};
+
+    const [simpleSeries, groupedSeriesMap] = useMemo(
+        () =>
+            (series || []).reduce<[Series[], Record<string, Series[]>]>(
+                ([simple, pivoted], obj) => {
+                    if (obj.encode.yRef.pivotValues) {
+                        return [
+                            simple,
+                            {
+                                ...pivoted,
+                                [obj.encode.yRef.field]: (
+                                    pivoted[obj.encode.yRef.field] || []
+                                ).concat(obj),
+                            },
+                        ];
+                    }
+                    return [[...simple, obj], pivoted];
+                },
+                [[], {}],
+            ) || {},
+        [series],
+    );
+
     return (
         <Wrapper>
             <Tabs
@@ -213,24 +237,27 @@ const ChartConfigTabs: FC = () => {
                     id="series"
                     title="Series"
                     panel={
-                        pivotDimension ? (
+                        <>
+                            <BasicSeriesConfiguration
+                                items={items}
+                                layout={dirtyLayout}
+                                series={simpleSeries}
+                                getSeriesColor={getSeriesColor}
+                                updateSingleSeries={updateSingleSeries}
+                            />
+                            {simpleSeries.length > 0 &&
+                                Object.keys(groupedSeriesMap).length > 0 && (
+                                    <SeriesDivider />
+                                )}
                             <GroupedSeriesConfiguration
                                 items={items}
                                 layout={dirtyLayout}
-                                series={dirtyEchartsConfig?.series}
+                                groupedSeries={groupedSeriesMap}
                                 getSeriesColor={getSeriesColor}
                                 updateSingleSeries={updateSingleSeries}
                                 updateAllGroupedSeries={updateAllGroupedSeries}
                             />
-                        ) : (
-                            <BasicSeriesConfiguration
-                                items={items}
-                                layout={dirtyLayout}
-                                series={dirtyEchartsConfig?.series}
-                                getSeriesColor={getSeriesColor}
-                                updateSingleSeries={updateSingleSeries}
-                            />
-                        )
+                        </>
                     }
                 />
                 <Tab
