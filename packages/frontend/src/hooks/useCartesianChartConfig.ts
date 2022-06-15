@@ -9,14 +9,21 @@ import {
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-const useCartesianChartConfig = (
-    initialChartConfig: CartesianChart | undefined,
-    pivotKey: string | undefined,
-    resultsData: ApiQueryResults | undefined,
+type Args = {
+    initialChartConfig: CartesianChart | undefined;
+    pivotKey: string | undefined;
+    resultsData: ApiQueryResults | undefined;
     setPivotDimensions: React.Dispatch<
         React.SetStateAction<string[] | undefined>
-    >,
-) => {
+    >;
+};
+
+const useCartesianChartConfig = ({
+    initialChartConfig,
+    pivotKey,
+    resultsData,
+    setPivotDimensions,
+}: Args) => {
     const hasInitialValue =
         !!initialChartConfig &&
         isCompleteLayout(initialChartConfig.layout) &&
@@ -239,9 +246,14 @@ const useCartesianChartConfig = (
                     : [];
                 const isCurrentYFieldsValid: boolean =
                     currentValidYFields.length > 0;
+                const isPivotValid: boolean =
+                    !!pivotKey && availableDimensions.includes(pivotKey);
 
                 // current configuration is still valid
                 if (isCurrentXFieldValid && isCurrentYFieldsValid) {
+                    if (pivotKey && !isPivotValid) {
+                        setPivotDimensions(undefined);
+                    }
                     return {
                         ...prev,
                         xField: prev?.xField,
@@ -256,9 +268,6 @@ const useCartesianChartConfig = (
                 ) {
                     const usedFields: string[] = [];
 
-                    if (pivotKey) {
-                        usedFields.push(pivotKey);
-                    }
                     if (isCurrentXFieldValid && prev?.xField) {
                         usedFields.push(prev?.xField);
                     }

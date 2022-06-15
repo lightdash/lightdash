@@ -99,14 +99,15 @@ export const VisualizationProvider: FC<Props> = ({
 
     const { validBigNumberConfig } = bigNumberConfig;
 
-    const cartesianConfig = useCartesianChartConfig(
-        initialChartConfig?.type === ChartType.CARTESIAN
-            ? initialChartConfig.config
-            : undefined,
-        validPivotDimensions?.[0],
-        lastValidResultsData,
+    const cartesianConfig = useCartesianChartConfig({
+        initialChartConfig:
+            initialChartConfig?.type === ChartType.CARTESIAN
+                ? initialChartConfig.config
+                : undefined,
+        pivotKey: validPivotDimensions?.[0],
+        resultsData: lastValidResultsData,
         setPivotDimensions,
-    );
+    });
 
     const { validCartesianConfig } = cartesianConfig;
 
