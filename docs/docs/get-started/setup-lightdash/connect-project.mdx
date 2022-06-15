@@ -1,9 +1,413 @@
 ---
 sidebar_position: 4
-sidebar_label: Connect a project
+sidebar_label: Setup first project
 ---
 
-# Connect a project
+# Setup your first project
+
+To setup your Lightdash project you'll need:
+
+1. Connect to your data warehouse (bigquery, postgres, redshift, snowflake, databricks)
+2. Import your dbt project
+
+## 1. Connect to a warehouse
+
+![choose-database](./assets/choose-database.png)
+
+We always recommend giving read-only permissions to Lightdash, that way you ensure than no data can be manipulated. See each section below for warehouse specific details.
+
+### Bigquery
+
+#### Project
+
+This is project ID from Google Cloud Platform for the data that you want to connect Lightdash to.
+
+To find your project ID, head to the [BigQuery Cloud console](https://console.cloud.google.com/).
+
+Once you're in there, click on the project name in the top bar.
+
+![get to projects](./assets/get-to-projects.png)
+
+Then, you should see all of the projects and their project IDs in your organization (that you have access to).
+
+![project id list](./assets/project-id-list.png)
+
+For the project you want to connect Lightdash to, just copy its `id` and pop it into the `project` field in the Warehouse Connection form in Lightdash.
+
+#### Data set
+
+This is the default dataset used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE
+or  your local `profiles.yml` file.
+
+If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
+
+![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
+
+If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field
+named `dataset`:
+
+```yaml
+my-profile:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth
+      project: abc-123
+      dataset: my_dataset # look for this one!
+      ...
+```
+
+#### Location
+
+The data location of the dataset in BigQuery where the output of your dbt models is written to.
+
+`location` may be either a multi-regional location (e.g. `EU`, `US`), or a regional location (e.g. `us-west2` ). Check out the [BigQuery documentation](https://cloud.google.com/bigquery/docs/locations) for more information on dataset locations.
+
+You can find the location of the dataset you're using for your dbt project [in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations), or in your BigQuery console.
+
+![data location](./assets/data-location.png)
+
+#### Key File
+
+To connect to BigQuery, you'll need to have a service account that you can use with Lightdash. You can read more about [creating and managing service accounts with Google BigQuery in their docs](https://cloud.google.com/iam/docs/creating-managing-service-accounts).
+
+:::info
+
+If you're creating a new service account, make sure that you save your JSON key file somewhere safe! You'll need it for connecting to Lightdash.
+
+:::
+
+The service account you use with Lightdash will need to have the following roles in your GCP project:
+- `roles/bigquery.dataViewer` (to see data in your project)
+- `roles/bigquery.jobUser` (to run queries in your project)
+
+If you need to provide access to data across multiple BigQuery projects, the service account will need to be granted `roles/bigquery.dataViewer` on each additional BigQuery project.
+
+Once you have a service account all ready to go, you'll need to add its JSON key file to Lightdash in the `key file` section of the Warehouse Connection page.
+#### Timeout in seconds
+
+
+BigQuery supports query timeouts. By default, the timeout is set to 300 seconds. If a query run by Lightdash takes longer than this timeout to complete, then BigQuery may cancel the query and issue the following error:
+
+```
+Operation did not complete within the designated timeout.
+```
+
+To change this timeout, use the `Timeout in seconds` configuration.
+
+#### Priority
+
+The priority for the BigQuery jobs that Lightdash executes can be configured with the `priority` configuration in your Warehouse Connection settings. The `priority` field can be set to one of `batch` or `interactive`.
+
+For more information on query priority, [check out the BigQuery documentation.](https://cloud.google.com/bigquery/docs/running-queries)
+
+#### Retries
+
+The `retries` configuration specifies the number of times Lightdash should retry queries that result in unhandled server errors.
+
+For example, setting `retries` to 5 means that Lightdash will retry BigQuery queries 5 times with a delay. If the query does not succeed after the fifth attempt, then Lightdash will raise an error.
+
+By default, the number of retries is set to 3.
+
+#### Maximum bytes billed
+
+If a value for the `Maximum bytes billed` is set, then queries executed by Lightdash will fail if they exceed the configured maximum bytes threshhold. This configuration should be supplied as an integer number of bytes.
+
+For example, setting this to `1000000000` means if a query would bill more than a gigabyte of data (e.g. 2Gb), then BigQuery will reject the query and you'd get an error like this:
+
+```
+  Query exceeded limit for bytes billed: 1000000000. 2000000000 or higher required.
+```
+
+----
+
+### Postgres
+
+You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile).
+
+#### Host
+
+This is the host where the database is running.
+
+#### User
+
+This is the database user name.
+
+#### Password
+
+This is the database user password.
+
+#### DB name
+
+This is the database name.
+
+#### Schema
+
+This is the default schema used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE
+or  your local `profiles.yml` file.
+
+If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
+
+![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
+
+If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field
+named `schema`:
+
+```yaml
+company-name:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: [hostname]
+      user: [username]
+      password: [password]
+      port: [port]
+      dbname: [database name]
+      schema: [dbt schema] # look for this one!
+```
+
+#### Port
+
+This is the port where the database is running.
+
+
+#### Keep alive idle (seconds)
+
+This specifies the amount of seconds with no network activity after which the operating system should send a TCP keepalive message to the client.
+You can see more details in [postgresqlco documentation](https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/).
+
+#### Search path
+
+This controls the Postgres "search path".
+You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#search_path).
+
+#### SSL mode
+
+This controls how dbt connects to Postgres databases using SSL.
+You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode).
+
+----
+
+### Redshift
+
+You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/redshift-profile).
+
+#### Host
+
+This is the host where the database is running.
+
+#### User
+
+This is the database user name.
+
+#### Password
+
+This is the database user password.
+
+#### DB name
+
+This is the database name.
+
+#### Schema
+
+This is the default schema used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE
+or  your local `profiles.yml` file.
+
+If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
+
+![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
+
+If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field
+named `schema`:
+
+```yaml
+company-name:
+  target: dev
+  outputs:
+    dev:
+      type: redshift
+      host: hostname.region.redshift.amazonaws.com
+      user: username
+      password: password1
+      port: 5439
+      dbname: analytics
+      schema: analytics # look for this one!
+```
+
+#### Port
+
+This is the port where the database is running.
+
+#### Keep alive idle (seconds)
+
+This specifies the amount of seconds with no network activity after which the operating system should send a TCP keepalive message to the client.
+
+If the database closes its connection while Lightdash is waiting for data, you may see the error `SSL SYSCALL error: EOF detected`. Lowering the [`keepalives_idle` value](https://www.postgresql.org/docs/9.3/libpq-connect.html) may prevent this, because the server will send a ping to keep the connection active more frequently.
+
+By default, this value is set to 240 seconds, but can be configured lower (perhaps 120 or 60), at the cost of a chattier network connection.
+
+#### SSL mode
+
+This controls how dbt connects to Postgres databases using SSL.
+
+#### RA3 Node
+
+Allow dbt to use cross-database-resources
+
+----
+
+### Snowflake
+
+You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile).
+
+#### Account
+
+This is your Snowflake [account identifer](https://docs.snowflake.com/en/user-guide/admin-account-identifier.html#format-1-preferred-account-name-in-your-organization).
+
+The easiest way to find this is to login to snowflake in your browser and your account identifier is whatever comes
+before `snowflakecomputing.com`.
+
+For example in the image below, the user logs in via `https://aaa99827.snowflakecomputing.com/console/login#/` so
+the account identifier is `aaa99827`.
+
+![snowflake-account-url](./assets/snowflake-account-url.png)
+
+If you don't have access via the browser, you can use the following format `<organization_name>-<account_name>` where
+`organization_name` and `account_name` can be found by following any of the methods listed in
+[Managing accounts in your organization](https://docs.snowflake.com/en/user-guide/organizations-manage-accounts.html#label-viewing-organization-name).
+
+#### User
+
+This is the login name for your Snowflake user. This is usually the same username you use to login to
+Snowflake.
+
+Alternatively, you can [create a new user through the snowflake console](https://docs.snowflake.com/en/user-guide/admin-user-management.html)
+with a username and password specifically for Lightdash to use.
+
+If you're a snowflake admin you can list all users available in the snowflake console:
+
+![snowflake-users-list](./assets/snowflake-users-list.png)
+
+
+#### Password
+
+This is the password your Snowflake user. This is usually the same password you use to login to Snowflake:
+
+![snowflake-login-form](./assets/snowflake-login-form.png)
+
+Alternatively, you can [create a new user through the snowflake console](https://docs.snowflake.com/en/user-guide/admin-user-management.html)
+with a username and password specifically for Lightdash to use.
+
+If you're a Snowflake admin you can list all users available in the snowflake console:
+
+![snowflake-users-list](./assets/snowflake-users-list.png)
+
+#### Role
+
+This is the security role that you would like to use when running queries as the specified user. The role must have
+access to any warehouses, databases, schemas, and tables you want to use.
+
+If you're a Snowflake admin you can list all roles available in the snowflake console:
+
+![snowflake-roles-list](./assets/snowflake-roles-list.png)
+
+You can configure your role to allow read access to all warehouses, databases, schemas, and tables by following the
+guide for
+[Creating custom read-only roles](https://docs.snowflake.com/en/user-guide/security-access-control-configure.html#creating-custom-read-only-roles).
+
+#### Database
+
+This is the name of your database. The specified user must be granted access to this database. You can see a list of
+databases available in the snowflake console:
+
+![snowflake-database-list](./assets/snowflake-database-list.png)
+
+#### Warehouse
+
+This is the name of the warehouse you would like to use for running queries. The specified user must be grantend
+access to use this warehouse. You can see al list of warehouses available in the snowflake console:
+
+![snowflake-warehouse-list](./assets/snowflake-warehouse-list.png)
+
+#### Schema
+
+This is the default schema used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE
+or  your local `profiles.yml` file.
+
+If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
+
+![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
+
+If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field
+named `schema`:
+
+```yaml
+my-snowflake-db:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: [account id]
+      user: [username]
+      password: [password]
+      role: [user role]
+      database: [database name]
+      warehouse: [warehouse name]
+      schema: [dbt schema]    # Look for this one!
+```
+
+#### Keep client session alive
+
+This is intended to keep Snowflake sessions alive beyond the typical 4 hour timeout limit.
+You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive).
+
+#### Query tag
+
+A value with which to tag all queries, for later searching in [QUERY_HISTORY view](https://docs.snowflake.com/en/sql-reference/account-usage/query_history.html))
+
+---
+
+### Databricks
+
+The credentials needed to connect to your cluster can be found in the ODBC options in your databricks account:
+
+1. Go to the `Compute` tab in the sidebar.
+2. Click the configuration tab for the cluster that you're connecting to Lightdash.
+3. Expand the `Advanced options` tab
+4. Open the `JDBC/ODBC` tab
+
+![databricks connect screenshot](./assets/databricks-connect-screenshot.png)
+
+#### Server hostname
+
+Follow the instructions above to find your ODBC connection instructions.
+
+#### HTTP Path
+
+Follow the instructions above to find your ODBC connection instructions.
+
+#### Port
+
+Follow the instructions above to find your ODBC connection instructions.
+
+#### Personal Access Token
+
+Your personal access token can be found in your user settings in databricks:
+
+1. Open `Settings` by clicking the cog ⚙️ in the sidebar and select `User settings`
+2. Click `Generate token`. You'll be asked to enter a name and expiry.
+3. Copy the token
+
+![databricks access screenshot](./assets/databricks-access-screenshot.png)
+
+
+#### Database
+
+The default database name used by dbt for this connection. In databricks/spark the database is also the schema.
+
+
 
 Once you've [installed Lightdash](./install-lightdash), you can connect to your existing dbt project:
 
@@ -27,7 +431,7 @@ We currently support:
 
 If we don't support the warehouse you're using, don't be afraid to reach out to us in [GitHub](https://github.com/lightdash/lightdash)! :)
 
-## dbt connection options
+## 2. Import a dbt project
 
 ----
 
@@ -368,400 +772,4 @@ So, in Lightdash, I'd add a new environment variable and put `key` as `DBT_USER`
 
 
 ----
-
-## Warehouse connection
-
-We always recommend giving read-only permissions to Lightdash, that way you ensure than no data can be manipulated. See each section below for warehouse specific details.
-
-### Bigquery
-
-#### Project
-
-This is project ID from Google Cloud Platform for the data that you want to connect Lightdash to.
-
-To find your project ID, head to the [BigQuery Cloud console](https://console.cloud.google.com/).
-
-Once you're in there, click on the project name in the top bar.
-
-![get to projects](./assets/get-to-projects.png)
-
-Then, you should see all of the projects and their project IDs in your organization (that you have access to).
-
-![project id list](./assets/project-id-list.png)
-
-For the project you want to connect Lightdash to, just copy its `id` and pop it into the `project` field in the Warehouse Connection form in Lightdash.
-
-#### Data set
-
-This is the default dataset used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE 
-or  your local `profiles.yml` file.
-
-If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
-
-![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
-
-If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field 
-named `dataset`:
-
-```yaml
-my-profile:
-  target: dev
-  outputs:
-    dev:
-      type: bigquery
-      method: oauth
-      project: abc-123
-      dataset: my_dataset # look for this one!
-      ...
-```
-
-#### Location
-
-The data location of the dataset in BigQuery where the output of your dbt models is written to.
-
-`location` may be either a multi-regional location (e.g. `EU`, `US`), or a regional location (e.g. `us-west2` ). Check out the [BigQuery documentation](https://cloud.google.com/bigquery/docs/locations) for more information on dataset locations.
-
-You can find the location of the dataset you're using for your dbt project [in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations), or in your BigQuery console.
-
-![data location](./assets/data-location.png)
-
-#### Key File
-
-To connect to BigQuery, you'll need to have a service account that you can use with Lightdash. You can read more about [creating and managing service accounts with Google BigQuery in their docs](https://cloud.google.com/iam/docs/creating-managing-service-accounts). 
-
-:::info
-
-If you're creating a new service account, make sure that you save your JSON key file somewhere safe! You'll need it for connecting to Lightdash.
-
-:::
-
-The service account you use with Lightdash will need to have the following roles in your GCP project:
-- `roles/bigquery.dataViewer` (to see data in your project)
-- `roles/bigquery.jobUser` (to run queries in your project)
-
-If you need to provide access to data across multiple BigQuery projects, the service account will need to be granted `roles/bigquery.dataViewer` on each additional BigQuery project.
-
-Once you have a service account all ready to go, you'll need to add its JSON key file to Lightdash in the `key file` section of the Warehouse Connection page.
-#### Timeout in seconds
-
-
-BigQuery supports query timeouts. By default, the timeout is set to 300 seconds. If a query run by Lightdash takes longer than this timeout to complete, then BigQuery may cancel the query and issue the following error:
-
-```
-Operation did not complete within the designated timeout.
-```
-
-To change this timeout, use the `Timeout in seconds` configuration.
-
-#### Priority
-
-The priority for the BigQuery jobs that Lightdash executes can be configured with the `priority` configuration in your Warehouse Connection settings. The `priority` field can be set to one of `batch` or `interactive`. 
-
-For more information on query priority, [check out the BigQuery documentation.](https://cloud.google.com/bigquery/docs/running-queries)
-
-#### Retries
-
-The `retries` configuration specifies the number of times Lightdash should retry queries that result in unhandled server errors. 
-
-For example, setting `retries` to 5 means that Lightdash will retry BigQuery queries 5 times with a delay. If the query does not succeed after the fifth attempt, then Lightdash will raise an error.
-
-By default, the number of retries is set to 3.
-
-#### Maximum bytes billed
-
-If a value for the `Maximum bytes billed` is set, then queries executed by Lightdash will fail if they exceed the configured maximum bytes threshhold. This configuration should be supplied as an integer number of bytes.
-
-For example, setting this to `1000000000` means if a query would bill more than a gigabyte of data (e.g. 2Gb), then BigQuery will reject the query and you'd get an error like this:
-
-```
-  Query exceeded limit for bytes billed: 1000000000. 2000000000 or higher required.
-```
-
-----
-
-### Postgres
-
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile).
-
-#### Host
-
-This is the host where the database is running.
-
-#### User
-
-This is the database user name.
-
-#### Password
-
-This is the database user password.
-
-#### DB name
-
-This is the database name.
-
-#### Schema
-
-This is the default schema used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE 
-or  your local `profiles.yml` file.
-
-If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
-
-![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
-
-If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field 
-named `schema`:
-
-```yaml
-company-name:
-  target: dev
-  outputs:
-    dev:
-      type: postgres
-      host: [hostname]
-      user: [username]
-      password: [password]
-      port: [port]
-      dbname: [database name]
-      schema: [dbt schema] # look for this one!
-```
-
-#### Port
-
-This is the port where the database is running.
-
-
-#### Keep alive idle (seconds)
-
-This specifies the amount of seconds with no network activity after which the operating system should send a TCP keepalive message to the client.
-You can see more details in [postgresqlco documentation](https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/).
-
-#### Search path
-
-This controls the Postgres "search path".
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#search_path).
-
-#### SSL mode
-
-This controls how dbt connects to Postgres databases using SSL.
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode).
-
-----
-
-### Redshift
-
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/redshift-profile).
-
-#### Host
-
-This is the host where the database is running.
-
-#### User
-
-This is the database user name.
-
-#### Password
-
-This is the database user password.
-
-#### DB name
-
-This is the database name.
-
-#### Schema
-
-This is the default schema used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE 
-or  your local `profiles.yml` file.
-
-If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
-
-![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
-
-If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field 
-named `schema`:
-
-```yaml
-company-name:
-  target: dev
-  outputs:
-    dev:
-      type: redshift
-      host: hostname.region.redshift.amazonaws.com
-      user: username
-      password: password1
-      port: 5439
-      dbname: analytics
-      schema: analytics # look for this one!
-```
-
-#### Port
-
-This is the port where the database is running.
-
-#### Keep alive idle (seconds)
-
-This specifies the amount of seconds with no network activity after which the operating system should send a TCP keepalive message to the client.
-
-If the database closes its connection while Lightdash is waiting for data, you may see the error `SSL SYSCALL error: EOF detected`. Lowering the [`keepalives_idle` value](https://www.postgresql.org/docs/9.3/libpq-connect.html) may prevent this, because the server will send a ping to keep the connection active more frequently.
-
-By default, this value is set to 240 seconds, but can be configured lower (perhaps 120 or 60), at the cost of a chattier network connection.
-
-#### SSL mode
-
-This controls how dbt connects to Postgres databases using SSL.
-
-#### RA3 Node
-
-Allow dbt to use cross-database-resources
-
-----
-
-### Snowflake
-
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile).
-
-#### Account
-
-This is your Snowflake [account identifer](https://docs.snowflake.com/en/user-guide/admin-account-identifier.html#format-1-preferred-account-name-in-your-organization).
-
-The easiest way to find this is to login to snowflake in your browser and your account identifier is whatever comes 
-before `snowflakecomputing.com`.
-
-For example in the image below, the user logs in via `https://aaa99827.snowflakecomputing.com/console/login#/` so 
-the account identifier is `aaa99827`.
-
-![snowflake-account-url](./assets/snowflake-account-url.png)
-
-If you don't have access via the browser, you can use the following format `<organization_name>-<account_name>` where
-`organization_name` and `account_name` can be found by following any of the methods listed in 
-[Managing accounts in your organization](https://docs.snowflake.com/en/user-guide/organizations-manage-accounts.html#label-viewing-organization-name).
-
-#### User
-
-This is the login name for your Snowflake user. This is usually the same username you use to login to 
-Snowflake.
-
-Alternatively, you can [create a new user through the snowflake console](https://docs.snowflake.com/en/user-guide/admin-user-management.html) 
-with a username and password specifically for Lightdash to use.
-
-If you're a snowflake admin you can list all users available in the snowflake console:
-
-![snowflake-users-list](./assets/snowflake-users-list.png)
-
-
-#### Password
-
-This is the password your Snowflake user. This is usually the same password you use to login to Snowflake:
-
-![snowflake-login-form](./assets/snowflake-login-form.png)
-
-Alternatively, you can [create a new user through the snowflake console](https://docs.snowflake.com/en/user-guide/admin-user-management.html) 
-with a username and password specifically for Lightdash to use.
-
-If you're a Snowflake admin you can list all users available in the snowflake console:
-
-![snowflake-users-list](./assets/snowflake-users-list.png)
-
-#### Role
-
-This is the security role that you would like to use when running queries as the specified user. The role must have 
-access to any warehouses, databases, schemas, and tables you want to use.
-
-If you're a Snowflake admin you can list all roles available in the snowflake console:
-
-![snowflake-roles-list](./assets/snowflake-roles-list.png)
-
-You can configure your role to allow read access to all warehouses, databases, schemas, and tables by following the 
-guide for 
-[Creating custom read-only roles](https://docs.snowflake.com/en/user-guide/security-access-control-configure.html#creating-custom-read-only-roles).
-
-#### Database
-
-This is the name of your database. The specified user must be granted access to this database. You can see a list of 
-databases available in the snowflake console:
-
-![snowflake-database-list](./assets/snowflake-database-list.png)
-
-#### Warehouse
-
-This is the name of the warehouse you would like to use for running queries. The specified user must be grantend 
-access to use this warehouse. You can see al list of warehouses available in the snowflake console:
-
-![snowflake-warehouse-list](./assets/snowflake-warehouse-list.png)
-
-#### Schema
-
-This is the default schema used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE 
-or  your local `profiles.yml` file.
-
-If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
-
-![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
-
-If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field 
-named `schema`:
-
-```yaml
-my-snowflake-db:
-  target: dev
-  outputs:
-    dev:
-      type: snowflake
-      account: [account id]
-      user: [username]
-      password: [password]
-      role: [user role]
-      database: [database name]
-      warehouse: [warehouse name]
-      schema: [dbt schema]    # Look for this one!
-```
-
-#### Keep client session alive
-
-This is intended to keep Snowflake sessions alive beyond the typical 4 hour timeout limit.
-You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive).
-
-#### Query tag
-
-A value with which to tag all queries, for later searching in [QUERY_HISTORY view](https://docs.snowflake.com/en/sql-reference/account-usage/query_history.html))
-
----
-
-### Databricks
-
-The credentials needed to connect to your cluster can be found in the ODBC options in your databricks account:
-
-1. Go to the `Compute` tab in the sidebar.
-2. Click the configuration tab for the cluster that you're connecting to Lightdash.
-3. Expand the `Advanced options` tab
-4. Open the `JDBC/ODBC` tab
-
-![databricks connect screenshot](./assets/databricks-connect-screenshot.png)
-
-#### Server hostname
-
-Follow the instructions above to find your ODBC connection instructions.
-
-#### HTTP Path
-
-Follow the instructions above to find your ODBC connection instructions.
-
-#### Port
-
-Follow the instructions above to find your ODBC connection instructions.
-
-#### Personal Access Token
-
-Your personal access token can be found in your user settings in databricks:
-
-1. Open `Settings` by clicking the cog ⚙️ in the sidebar and select `User settings`
-2. Click `Generate token`. You'll be asked to enter a name and expiry.
-3. Copy the token
-
-![databricks access screenshot](./assets/databricks-access-screenshot.png)
-
-
-#### Database
-
-The default database name used by dbt for this connection. In databricks/spark the database is also the schema.
-
 
