@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     ActivateUser,
     CreateUserArgs,
@@ -9,12 +10,15 @@ import {
     NotExistsError,
     NotFoundError,
     OpenIdUser,
+    OrganizationMemberProfile,
     OrganizationMemberRole,
     ParameterError,
     PersonalAccessToken,
     SessionUser,
     UpdateUserArgs,
 } from '@lightdash/common';
+import { defineAbilityForProjectMember } from '@lightdash/common/src/authorization/projectMemberAbility';
+import { ProjectMemberProfile } from '@lightdash/common/src/types/projectMemberProfile';
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
 import { URL } from 'url';
@@ -321,11 +325,29 @@ export class UserModel {
             return user;
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+
         return {
             userId: user.user_id,
             ability: defineAbilityForOrganizationMember(lightdashUser),
             ...lightdashUser,
         };
+    }
+
+    static mergeUserAbilities(
+        organizationProfile: OrganizationMemberProfile,
+        projectProfile: ProjectMemberProfile[],
+    ): Ability {
+        const orgAbility =
+            defineAbilityForOrganizationMember(organizationProfile);
+        const projectAbilities = projectProfile.map((profile) =>
+            defineAbilityForProjectMember(profile),
+        );
+
+        return new Ability(
+            orgAbility.rules.concat(
+                projectAbilities.flatMap((abilities) => abilities.rules),
+            ),
+        );
     }
 
     async createPendingUser(
