@@ -6,7 +6,7 @@ import {
     PROJECT_VIEWER,
 } from './projectMemberAbility.mock';
 
-const {projectUuid} = PROJECT_VIEWER;
+const { projectUuid } = PROJECT_VIEWER;
 
 describe('Project member permissions', () => {
     let ability = defineAbilityForProjectMember(PROJECT_ADMIN);
@@ -17,48 +17,27 @@ describe('Project member permissions', () => {
 
         it('can view resources', () => {
             expect(
-                ability.can(
-                    'view',
-                    subject('SavedChart', { projectUuid }),
-                ),
+                ability.can('view', subject('SavedChart', { projectUuid })),
             ).toEqual(true);
             expect(
-                ability.can(
-                    'view',
-                    subject('Dashboard', { projectUuid }),
-                ),
+                ability.can('view', subject('Dashboard', { projectUuid })),
             ).toEqual(true);
             expect(
-                ability.can(
-                    'view',
-                    subject('Project', { projectUuid }),
-                ),
+                ability.can('view', subject('Project', { projectUuid })),
             ).toEqual(true);
         });
         it('can manage resources', () => {
             expect(
-                ability.can(
-                    'manage',
-                    subject('SavedChart', { projectUuid }),
-                ),
+                ability.can('manage', subject('SavedChart', { projectUuid })),
             ).toEqual(true);
             expect(
-                ability.can(
-                    'manage',
-                    subject('Dashboard', { projectUuid }),
-                ),
+                ability.can('manage', subject('Dashboard', { projectUuid })),
             ).toEqual(true);
             expect(
-                ability.can(
-                    'manage',
-                    subject('Project', { projectUuid }),
-                ),
+                ability.can('manage', subject('Project', { projectUuid })),
             ).toEqual(true);
             expect(
-                ability.can(
-                    'manage',
-                    subject('Job', { projectUuid }),
-                ),
+                ability.can('manage', subject('Job', { projectUuid })),
             ).toEqual(true);
         });
         it('cannot view resources from another projectUuid', () => {
@@ -90,50 +69,29 @@ describe('Project member permissions', () => {
 
         it('can view resources', () => {
             expect(
-                ability.can(
-                    'view',
-                    subject('SavedChart', { projectUuid }),
-                ),
+                ability.can('view', subject('SavedChart', { projectUuid })),
             ).toEqual(true);
             expect(
-                ability.can(
-                    'view',
-                    subject('Dashboard', { projectUuid }),
-                ),
+                ability.can('view', subject('Dashboard', { projectUuid })),
             ).toEqual(true);
             expect(
-                ability.can(
-                    'view',
-                    subject('Project', { projectUuid }),
-                ),
+                ability.can('view', subject('Project', { projectUuid })),
             ).toEqual(true);
         });
         it('can manage resources', () => {
             expect(
-                ability.can(
-                    'manage',
-                    subject('SavedChart', { projectUuid }),
-                ),
+                ability.can('manage', subject('SavedChart', { projectUuid })),
             ).toEqual(true);
             expect(
-                ability.can(
-                    'manage',
-                    subject('Dashboard', { projectUuid }),
-                ),
+                ability.can('manage', subject('Dashboard', { projectUuid })),
             ).toEqual(true);
             expect(
-                ability.can(
-                    'manage',
-                    subject('Job', { projectUuid }),
-                ),
+                ability.can('manage', subject('Job', { projectUuid })),
             ).toEqual(true);
         });
         it('cannot manage projects', () => {
             expect(
-                ability.can(
-                    'manage',
-                    subject('Project', { projectUuid }),
-                ),
+                ability.can('manage', subject('Project', { projectUuid })),
             ).toEqual(false);
         });
     });
@@ -145,22 +103,13 @@ describe('Project member permissions', () => {
 
         it('can view resources', () => {
             expect(
-                ability.can(
-                    'view',
-                    subject('SavedChart', { projectUuid }),
-                ),
+                ability.can('view', subject('SavedChart', { projectUuid })),
             ).toEqual(true);
             expect(
-                ability.can(
-                    'view',
-                    subject('Dashboard', { projectUuid }),
-                ),
+                ability.can('view', subject('Dashboard', { projectUuid })),
             ).toEqual(true);
             expect(
-                ability.can(
-                    'view',
-                    subject('Project', { projectUuid }),
-                ),
+                ability.can('view', subject('Project', { projectUuid })),
             ).toEqual(true);
         });
         it('cannot view resources from another project', () => {
@@ -185,28 +134,16 @@ describe('Project member permissions', () => {
         });
         it('cannot manage resources', () => {
             expect(
-                ability.can(
-                    'manage',
-                    subject('SavedChart', { projectUuid }),
-                ),
+                ability.can('manage', subject('SavedChart', { projectUuid })),
             ).toEqual(false);
             expect(
-                ability.can(
-                    'manage',
-                    subject('Dashboard', { projectUuid }),
-                ),
+                ability.can('manage', subject('Dashboard', { projectUuid })),
             ).toEqual(false);
             expect(
-                ability.can(
-                    'manage',
-                    subject('Project', { projectUuid }),
-                ),
+                ability.can('manage', subject('Project', { projectUuid })),
             ).toEqual(false);
             expect(
-                ability.can(
-                    'manage',
-                    subject('Job', { projectUuid }),
-                ),
+                ability.can('manage', subject('Job', { projectUuid })),
             ).toEqual(false);
         });
     });

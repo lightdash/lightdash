@@ -26,64 +26,118 @@ const projectProfile: ProjectMemberProfile = {
 
 describe('Project member permissions', () => {
     let ability = UserModel.mergeUserAbilities(orgProfile, [projectProfile]);
-
+    let conditions = {
+        organizationUuid: orgProfile.organizationUuid,
+        projectUuid: projectProfile.projectUuid,
+    };
     describe('when user is an org viewer and project viewer', () => {
         beforeEach(() => {
             ability = UserModel.mergeUserAbilities(orgProfile, [
                 projectProfile,
             ]);
-        });
-
-        it('can view org and project', async () => {
-            console.log('ability', ability);
-            const conditions = {
+            conditions = {
                 organizationUuid: orgProfile.organizationUuid,
                 projectUuid: projectProfile.projectUuid,
             };
-
-            expect(
-                ability.can('view', subject('SavedChart', conditions)),
-            ).toEqual(true);
-            expect(
-                ability.can('view', subject('Dashboard', conditions)),
-            ).toEqual(true);
-            expect(ability.can('view', subject('Project', conditions))).toEqual(
-                true,
-            );
         });
-        /*  it('cannot manage org or project', async () => {
-            // Abilities from org
-            expect(ability.can('manage', 'SavedChart')).toEqual(false);
-            expect(ability.can('manage', 'Dashboard')).toEqual(false);
-            expect(ability.can('manage', 'Project')).toEqual(false);
 
-            // Abilities from project
+        it('can view org and project', async () => {
             expect(
-                ability.can(
-                    'manage',
-                    subject('SavedChart', {
-                        projectUuid: projectProfile.projectUuid,
-                    }),
-                ),
+                ability.can('view', subject('SavedChart', { ...conditions })),
+            ).toEqual(true);
+            expect(
+                ability.can('view', subject('Dashboard', { ...conditions })),
+            ).toEqual(true);
+            expect(
+                ability.can('view', subject('Project', { ...conditions })),
+            ).toEqual(true);
+        });
+
+        it('cannot view another org and or another project', async () => {
+            conditions = {
+                organizationUuid: 'another-org',
+                projectUuid: 'another-project',
+            };
+            expect(
+                ability.can('view', subject('SavedChart', { ...conditions })),
             ).toEqual(false);
             expect(
-                ability.can(
-                    'manage',
-                    subject('Dashboard', {
-                        projectUuid: projectProfile.projectUuid,
-                    }),
-                ),
+                ability.can('view', subject('Dashboard', { ...conditions })),
             ).toEqual(false);
             expect(
-                ability.can(
-                    'manage',
-                    subject('Project', {
-                        projectUuid: projectProfile.projectUuid,
-                    }),
-                ),
+                ability.can('view', subject('Project', { ...conditions })),
             ).toEqual(false);
-        }); */
+        });
+        it('cannot manage org or project', async () => {
+            expect(
+                ability.can('manage', subject('SavedChart', { ...conditions })),
+            ).toEqual(false);
+            expect(
+                ability.can('manage', subject('Dashboard', { ...conditions })),
+            ).toEqual(false);
+            expect(
+                ability.can('manage', subject('Project', { ...conditions })),
+            ).toEqual(false);
+        });
     });
+
+    describe('when user is an org admin and project viewer', () => {
+        // org admins and editors have `manage` permissions over all projects
+        // within the org
+        beforeEach(() => {
+            const adminOrgProfile = {
+                ...orgProfile,
+                role: OrganizationMemberRole.ADMIN,
+            };
+            ability = UserModel.mergeUserAbilities(adminOrgProfile, [
+                projectProfile,
+            ]);
+            conditions = {
+                organizationUuid: orgProfile.organizationUuid,
+                projectUuid: projectProfile.projectUuid,
+            };
+        });
+
+        it('can view org and project', async () => {
+            expect(
+                ability.can('view', subject('SavedChart', { ...conditions })),
+            ).toEqual(true);
+            expect(
+                ability.can('view', subject('Dashboard', { ...conditions })),
+            ).toEqual(true);
+            expect(
+                ability.can('view', subject('Project', { ...conditions })),
+            ).toEqual(true);
+        });
+
+        it('cannot view another org and or another project', async () => {
+            conditions = {
+                organizationUuid: 'another-org',
+                projectUuid: 'another-project',
+            };
+            expect(
+                ability.can('view', subject('SavedChart', { ...conditions })),
+            ).toEqual(false);
+            expect(
+                ability.can('view', subject('Dashboard', { ...conditions })),
+            ).toEqual(false);
+            expect(
+                ability.can('view', subject('Project', { ...conditions })),
+            ).toEqual(false);
+        });
+        it('can manage org AND project', async () => {
+            expect(
+                ability.can('manage', subject('SavedChart', { ...conditions })),
+            ).toEqual(true);
+            expect(
+                ability.can('manage', subject('Dashboard', { ...conditions })),
+            ).toEqual(true);
+            expect(
+                ability.can('manage', subject('Project', { ...conditions })),
+            ).toEqual(true);
+        });
+    });
+
     /*
     describe('when user is an org admin and project viewer', () => {
         beforeEach(() => {
