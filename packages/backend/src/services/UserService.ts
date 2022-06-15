@@ -217,8 +217,8 @@ export class UserService {
                         'manage',
                         'OrganizationMemberProfile',
                     )
-                        ? role || OrganizationMemberRole.VIEWER
-                        : OrganizationMemberRole.VIEWER,
+                        ? role || OrganizationMemberRole.MEMBER
+                        : OrganizationMemberRole.MEMBER,
                 },
             );
             userUuid = pendingUser.userUuid;
