@@ -68,7 +68,8 @@ const NavBar = () => {
 
     const homeUrl = selectedProjectUuid
         ? `/projects/${selectedProjectUuid}/home`
-        : '/createProject';
+        : '/';
+
     return (
         <>
             <NavBarWrapper className={Classes.DARK}>

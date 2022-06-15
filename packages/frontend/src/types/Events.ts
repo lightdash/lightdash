@@ -31,6 +31,7 @@ export enum PageName {
     SOCIAL_LOGIN_SETTINGS = 'social_login_settings',
     APPEARANCE = 'appearance_settings',
     ACCESS_TOKENS = 'access_tokens',
+    NO_ACCESS = 'no_access',
 }
 
 export enum CategoryName {

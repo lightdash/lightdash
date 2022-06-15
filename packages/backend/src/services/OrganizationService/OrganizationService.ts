@@ -127,7 +127,7 @@ export class OrganizationService {
                 subject('Project', { organizationUuid }),
             )
         ) {
-            throw new ForbiddenError();
+            return [];
         }
         return this.projectModel.getAllByOrganizationUuid(organizationUuid);
     }
