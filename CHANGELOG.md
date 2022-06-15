@@ -1,3 +1,10 @@
+## [0.144.1](https://github.com/lightdash/lightdash/compare/0.144.0...0.144.1) (2022-06-15)
+
+
+### Bug Fixes
+
+* invite role permission ([#2436](https://github.com/lightdash/lightdash/issues/2436)) ([f0c6f30](https://github.com/lightdash/lightdash/commit/f0c6f30ea2038abaae2a125c92cd841e2ddf0372))
+
 # [0.144.0](https://github.com/lightdash/lightdash/compare/0.143.0...0.144.0) (2022-06-15)
 
 
