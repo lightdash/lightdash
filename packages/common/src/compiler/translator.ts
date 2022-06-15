@@ -31,12 +31,20 @@ const getDataTruncSql = (
     switch (adapterType) {
         case SupportedDbtAdapter.BIGQUERY:
             if (type === DimensionType.TIMESTAMP) {
-                return `DATETIME_TRUNC(${field}, ${timeInterval.toUpperCase()})`;
+                return `DATETIME(DATETIME_TRUNC(${field}, ${timeInterval.toUpperCase()}), 'UTC')`;
             }
             return `DATE_TRUNC(${field}, ${timeInterval.toUpperCase()})`;
+        case SupportedDbtAdapter.SNOWFLAKE:
+            if (type === DimensionType.TIMESTAMP) {
+                return `CONVERT_TIMEZONE('UTC', DATE_TRUNC('${timeInterval.toUpperCase()}', ${field}))`;
+            }
+            return `DATE_TRUNC('${timeInterval.toUpperCase()}', ${field})`;
         case SupportedDbtAdapter.REDSHIFT:
         case SupportedDbtAdapter.POSTGRES:
-        case SupportedDbtAdapter.SNOWFLAKE:
+            if (type === DimensionType.TIMESTAMP) {
+                return `DATE_TRUNC('${timeInterval.toUpperCase()}', ${field}) AT TIME ZONE 'UTC'`;
+            }
+            return `DATE_TRUNC('${timeInterval.toUpperCase()}', ${field})`;
         case SupportedDbtAdapter.DATABRICKS:
             return `DATE_TRUNC('${timeInterval.toUpperCase()}', ${field})`;
         default:
