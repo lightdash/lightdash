@@ -15,6 +15,7 @@ import {
     NotFoundError,
     OpenIdIdentitySummary,
     OpenIdUser,
+    OrganizationMemberRole,
     ParameterError,
     PasswordReset,
     SessionUser,
@@ -212,7 +213,12 @@ export class UserService {
                     email,
                     firstName: '',
                     lastName: '',
-                    role,
+                    role: user.ability.can(
+                        'manage',
+                        'OrganizationMemberProfile',
+                    )
+                        ? role || OrganizationMemberRole.VIEWER
+                        : OrganizationMemberRole.VIEWER,
                 },
             );
             userUuid = pendingUser.userUuid;

@@ -1,3 +1,17 @@
+## [0.144.1](https://github.com/lightdash/lightdash/compare/0.144.0...0.144.1) (2022-06-15)
+
+
+### Bug Fixes
+
+* invite role permission ([#2436](https://github.com/lightdash/lightdash/issues/2436)) ([f0c6f30](https://github.com/lightdash/lightdash/commit/f0c6f30ea2038abaae2a125c92cd841e2ddf0372))
+
+# [0.144.0](https://github.com/lightdash/lightdash/compare/0.143.0...0.144.0) (2022-06-15)
+
+
+### Features
+
+* area charts ([#2402](https://github.com/lightdash/lightdash/issues/2402)) ([944397a](https://github.com/lightdash/lightdash/commit/944397a877ad5431c5d5f1ebe7448ac1b39074d5))
+
 # [0.143.0](https://github.com/lightdash/lightdash/compare/0.142.0...0.143.0) (2022-06-14)
 
 

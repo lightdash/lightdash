@@ -25,22 +25,20 @@ export const InviteForm = styled(Form)`
 export const EmailInput = styled(Input)`
     flex: 1;
     margin: 0;
-    max-width: 166px !important;
 
     .bp4-label {
         font-size: 12px;
         color: #5c7080;
-        width: 166px !important;
     }
+
     .bp4-input-group {
-        width: 166px;
         margin: 0;
     }
 `;
 
 export const SubmitButton = styled(Button)`
-    margin: 21px 0 0 auto;
-    width: 140px;
+    margin-top: 20px;
+    margin-left: 7px;
 `;
 
 export const InviteFormGroup = styled(FormGroup)`
@@ -53,8 +51,8 @@ export const ShareLinkCallout = styled(Callout)`
 `;
 
 export const RoleSelectButton = styled(Select)`
-    margin: 20px 7px 0;
-    width: 75.5px !important;
+    margin-top: 20px;
+    margin-left: 7px;
 `;
 
 export const InvitedCallout = styled(Callout)`
