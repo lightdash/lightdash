@@ -11,6 +11,9 @@ This document is a draft of an upcoming feature
 
 ### Project Roles
 
+Project Admins can invite users to their project and assign the following roles. Note that projects may also be 
+accessible by users with organization roles.
+
 | Action                                | Project Admin | Project Editor | Project Viewer  |
 |:--------------------------------------|:-------------:|:--------------:|:---------------:|
 | View charts and dashboards            |       ✅       |       ✅        |        ✅        |
@@ -23,6 +26,7 @@ This document is a draft of an upcoming feature
 
 ### Organization Roles
 
+Organization Admins can assign roles to organization members, which gives access to all projects in the organization.
 
 | Action                                     | Organization Admin | Organization Editor | Organization Viewer | Organization Member |
 |:-------------------------------------------|:------------------:|:-------------------:|:-------------------:|:-------------------:|
@@ -32,73 +36,3 @@ This document is a draft of an upcoming feature
 | Edit **all** projects                      |         ✅          |          ✅          |          ❌          |          ❌          |
 | Admin for **all** projects                 |         ✅          |          ❌          |          ❌          |          ❌          |
 | Manage organization access and permissions |         ✅          |          ❌          |          ❌          |          ❌          |
-
-## Organization members
-
-Everybody has these permissions by default. They can invite new `Organization Members` and create their own projects.
-
-| Action                                  | Scope |
-|-----------------------------------------|-------|
-| Invite users to organization            | Organization |
-| Create Projects | Organization |
-
-## Project Viewers
-
-Project viewers have the ability to view all content in a project and play with the explorer but cannot edit or
-create any new content.
-
-| Action                      | Scope |
-|-----------------------------|---|
-| View charts / dashboards    | Project |
-| Execute queries in explorer | Project |
-
-## Project Editors
-
-Project editors have full access to running queries and creating content within a project but cannot change any
-project settings.
-
-| Action                        | Scope |
-|-------------------------------|---|
-| View project (see previous)   | Project |
-| Create charts / dashboards    | Project |
-| Edit metrics / dimensions     | Project |
-| Execute queries in SQL Runner | Project |
-
-## Project Admins
-
-Project admins have full control over projects, their settings, and access to other members of the Organization.
-
-| Action                        | Scope |
-|-------------------------------|---|
-| Edit project (see previous)   | Project |
-| Delete project                | Project |
-| Manage access and permissions | Project |
-
-## Organization Viewer
-
-Organization viewers have view access to all projects and content in the organization.
-
-| Action                                 | Scope |
-|----------------------------------------|----|
-| Organization member (see above)        | Organization |
-| View all projects (see Project Viewer) | Organization |
-
-## Organization editor
-
-Organization Editors have editor access to all projects and content in the organization.
-
-| Action                                 | Scope |
-|----------------------------------------|----|
-| Organization viewer (see previous)     | Organization |
-| Edit all projects (see Project Editor) | Organization |
-
-## Organization admin
-
-Organization admins have full admin access to all projects, organization access controls, and destructive actions.
-
-| Action                                  | Scope |
-|-----------------------------------------|----|
-| Organization Editor (see previous)      | Organization |
-| Manage all projects (see Project Admin) | Organization |
-| Manage access and permissions | Organization |
-| Manage organization settings | Organization |
