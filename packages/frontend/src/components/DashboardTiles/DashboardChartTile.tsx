@@ -245,7 +245,6 @@ const DashboardChartTile: FC<Props> = (props) => {
 
     return (
         <TileBase
-            isChart
             extraHeaderElement={
                 appliedFilterRules.length > 0 && (
                     <div>
