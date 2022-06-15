@@ -40,6 +40,7 @@ import {
     Placeholder,
     TableTreeGlobalStyle,
     TooltipContent,
+    WarningIcon,
 } from './TableTree.styles';
 
 const TreeWrapper = styled.div<{ hasMultipleTables: boolean }>`
@@ -286,7 +287,7 @@ const NodeItemButtons: FC<{
             {isFiltered && <Icon icon="filter" />}
             {node.hidden && (
                 <Tooltip2 content="This field has been hidden in the dbt project. It's recommend to remove it from the query">
-                    <Icon icon={'warning-sign'} intent="warning" />
+                    <WarningIcon icon={'warning-sign'} intent="warning" />
                 </Tooltip2>
             )}
             {menuItems.length > 0 && (isHovered || isSelected) && (
