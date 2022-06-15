@@ -40,6 +40,7 @@ describe('Project member permissions', () => {
                 organizationUuid: orgProfile.organizationUuid,
                 projectUuid: projectProfile.projectUuid,
             };
+
             expect(
                 ability.can('view', subject('SavedChart', conditions)),
             ).toEqual(true);
@@ -50,7 +51,7 @@ describe('Project member permissions', () => {
                 true,
             );
         });
-        it('cannot manage org or project', async () => {
+        /*  it('cannot manage org or project', async () => {
             // Abilities from org
             expect(ability.can('manage', 'SavedChart')).toEqual(false);
             expect(ability.can('manage', 'Dashboard')).toEqual(false);
@@ -81,9 +82,9 @@ describe('Project member permissions', () => {
                     }),
                 ),
             ).toEqual(false);
-        });
+        }); */
     });
-
+    /*
     describe('when user is an org admin and project viewer', () => {
         beforeEach(() => {
             const adminOrgProfile = {
@@ -224,5 +225,5 @@ describe('Project member permissions', () => {
                 ),
             ).toEqual(false);
         });
-    });
+    }); */
 });
