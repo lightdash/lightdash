@@ -6,7 +6,32 @@ This document is a draft of an upcoming feature
 
 :::
 
-* Everybody in your organization will join as an `Organization Member` by default.
+* Everybody in your organization will join as an `Organization Member` by default unless specified.
+* All organization members can create their own projects and will be the Project Admin for that project.
+
+### Project Roles
+
+| Action                                | Project Admin | Project Editor | Project Viewer  |
+|:--------------------------------------|:-------------:|:--------------:|:---------------:|
+| View charts and dashboards            |       ✅       |       ✅        |        ✅        |
+| Run metric queries                    |       ✅       |       ✅        |        ✅        |
+| Create/edit charts and dashboards     |       ✅       |       ✅        |        ❌        |    
+| Create/edit metrics                   |       ✅       |       ✅        |        ❌        |
+| Run SQL queries                       |       ✅       |       ✅        |        ❌        |
+| Manage project access and permissions |       ✅       |       ❌        |        ❌        |
+| Delete project                        |       ✅       |       ❌        |        ❌        |
+
+### Organization Roles
+
+
+| Action                                     | Organization Admin | Organization Editor | Organization Viewer | Organization Member |
+|:-------------------------------------------|:------------------:|:-------------------:|:-------------------:|:-------------------:|
+| Invite users to organization               |         ✅          |          ✅          |          ✅          |          ✅          |
+| Create new projects                        |         ✅          |          ✅          |          ✅          |          ✅          |   
+| View **all** projects                      |         ✅          |          ✅          |          ✅          |          ❌          |
+| Edit **all** projects                      |         ✅          |          ✅          |          ❌          |          ❌          |
+| Admin for **all** projects                 |         ✅          |          ❌          |          ❌          |          ❌          |
+| Manage organization access and permissions |         ✅          |          ❌          |          ❌          |          ❌          |
 
 ## Organization members
 
@@ -19,7 +44,7 @@ Everybody has these permissions by default. They can invite new `Organization Me
 
 ## Project Viewers
 
-Project viewers have the ability to view all content in a project and play with the explorer but cannot edit or 
+Project viewers have the ability to view all content in a project and play with the explorer but cannot edit or
 create any new content.
 
 | Action                      | Scope |
@@ -29,7 +54,7 @@ create any new content.
 
 ## Project Editors
 
-Project editors have full access to running queries and creating content within a project but cannot change any 
+Project editors have full access to running queries and creating content within a project but cannot change any
 project settings.
 
 | Action                        | Scope |
@@ -42,7 +67,6 @@ project settings.
 ## Project Admins
 
 Project admins have full control over projects, their settings, and access to other members of the Organization.
-
 
 | Action                        | Scope |
 |-------------------------------|---|
