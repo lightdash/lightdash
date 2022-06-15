@@ -391,6 +391,20 @@ const useCartesianChartConfig = ({
                 expectedSeriesMap = (dirtyLayout.yField || []).reduce<
                     Record<string, Series>
                 >((sum, yField) => {
+                    if (availableDimensions.includes(yField)) {
+                        const series = {
+                            encode: {
+                                xRef: { field: dirtyLayout.xField },
+                                yRef: {
+                                    field: yField,
+                                },
+                            },
+                            type: dirtyChartType,
+                            areaStyle: areaStyleConfig,
+                        };
+                        return { ...sum, [getSeriesId(series)]: series };
+                    }
+
                     const groupSeries = uniquePivotValues.reduce<
                         Record<string, Series>
                     >((acc, rawValue) => {
@@ -459,7 +473,14 @@ const useCartesianChartConfig = ({
                 };
             });
         }
-    }, [dirtyChartType, dirtyLayout, pivotKey, resultsData, areaStyle]);
+    }, [
+        dirtyChartType,
+        dirtyLayout,
+        pivotKey,
+        resultsData,
+        areaStyle,
+        availableDimensions,
+    ]);
 
     const validCartesianConfig: CartesianChart | undefined = useMemo(
         () =>
