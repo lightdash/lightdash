@@ -1,3 +1,10 @@
+## [0.144.3](https://github.com/lightdash/lightdash/compare/0.144.2...0.144.3) (2022-06-15)
+
+
+### Bug Fixes
+
+* apply dashboard filter ([#2450](https://github.com/lightdash/lightdash/issues/2450)) ([8f95e72](https://github.com/lightdash/lightdash/commit/8f95e72ea19b529ff0bb519614f05e17d03dd793))
+
 ## [0.144.2](https://github.com/lightdash/lightdash/compare/0.144.1...0.144.2) (2022-06-15)
 
 
