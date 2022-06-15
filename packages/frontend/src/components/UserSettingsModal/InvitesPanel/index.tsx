@@ -28,7 +28,7 @@ const InvitePanel: FC<{
     onBackClick: () => void;
 }> = ({ onBackClick }) => {
     const { track } = useTracking();
-    const { showToastSuccess, health } = useApp();
+    const { showToastSuccess, health, user } = useApp();
     const { data, mutate, isError, isLoading, isSuccess } =
         useCreateInviteLinkMutation();
     const methods = useForm<Omit<CreateInviteLink, 'expiresAt'>>({
@@ -80,19 +80,21 @@ const InvitePanel: FC<{
                             },
                         }}
                     />
-                    <RoleSelectButton
-                        name="role"
-                        disabled={isLoading}
-                        options={Object.values(OrganizationMemberRole).map(
-                            (orgMemberRole) => ({
-                                value: orgMemberRole,
-                                label: orgMemberRole,
-                            }),
-                        )}
-                        rules={{
-                            required: 'Required field',
-                        }}
-                    />
+                    {user.data?.ability?.can('manage', 'Organization') && (
+                        <RoleSelectButton
+                            name="role"
+                            disabled={isLoading}
+                            options={Object.values(OrganizationMemberRole).map(
+                                (orgMemberRole) => ({
+                                    value: orgMemberRole,
+                                    label: orgMemberRole,
+                                }),
+                            )}
+                            rules={{
+                                required: 'Required field',
+                            }}
+                        />
+                    )}
                     <SubmitButton
                         intent={Intent.PRIMARY}
                         text={

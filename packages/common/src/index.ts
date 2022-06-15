@@ -537,7 +537,7 @@ export type InviteLink = {
 };
 export type CreateInviteLink = Pick<InviteLink, 'expiresAt' | 'email'> & {
     email: string;
-    role: OrganizationMemberRole;
+    role?: OrganizationMemberRole;
 };
 
 export type OnbordingRecord = {
