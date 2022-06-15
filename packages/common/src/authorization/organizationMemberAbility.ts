@@ -52,6 +52,14 @@ const organizationMemberAbilities: Record<
 
         can('view', 'Job', { userUuid: member.userUuid });
     },
+    member(member, { can }) {
+        can('create', 'InviteLink', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'OrganizationMemberProfile', {
+            organizationUuid: member.organizationUuid,
+        });
+    },
     editor(member, { can }) {
         organizationMemberAbilities.viewer(member, { can });
         can('manage', 'Project', {
@@ -72,10 +80,10 @@ const organizationMemberAbilities: Record<
         });
     },
     admin(member, { can }) {
+        organizationMemberAbilities.editor(member, { can });
         can('manage', 'InviteLink', {
             organizationUuid: member.organizationUuid,
         });
-        organizationMemberAbilities.editor(member, { can });
         can('manage', 'Organization', {
             organizationUuid: member.organizationUuid,
         });

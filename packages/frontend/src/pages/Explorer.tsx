@@ -1,11 +1,13 @@
 import React from 'react';
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
+import ForbiddenPanel from '../components/ForbiddenPanel';
 import {
     useExplorerRoute,
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
 import useSidebarResize from '../hooks/useSidebarResize';
+import { useApp } from '../providers/AppProvider';
 import { ExplorerProvider } from '../providers/ExplorerProvider';
 import {
     Main,
@@ -28,6 +30,10 @@ const ExplorerPage = () => {
             minWidth: 300,
             maxWidth: 600,
         });
+    const { user } = useApp();
+    if (user.data?.ability?.cannot('view', 'Project')) {
+        return <ForbiddenPanel />;
+    }
     return (
         <ExplorerProvider isEditMode={true} initialState={explorerUrlState}>
             <PageContainer>

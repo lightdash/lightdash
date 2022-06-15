@@ -1,5 +1,6 @@
 export enum OrganizationMemberRole {
     VIEWER = 'viewer',
+    MEMBER = 'member',
     EDITOR = 'editor',
     ADMIN = 'admin',
 }
