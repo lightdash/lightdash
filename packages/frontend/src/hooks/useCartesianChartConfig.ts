@@ -246,14 +246,9 @@ const useCartesianChartConfig = ({
                     : [];
                 const isCurrentYFieldsValid: boolean =
                     currentValidYFields.length > 0;
-                const isPivotValid: boolean =
-                    !!pivotKey && availableDimensions.includes(pivotKey);
 
                 // current configuration is still valid
                 if (isCurrentXFieldValid && isCurrentYFieldsValid) {
-                    if (pivotKey && !isPivotValid) {
-                        setPivotDimensions(undefined);
-                    }
                     return {
                         ...prev,
                         xField: prev?.xField,
