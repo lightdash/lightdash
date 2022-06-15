@@ -1,3 +1,10 @@
+## [0.144.4](https://github.com/lightdash/lightdash/compare/0.144.3...0.144.4) (2022-06-15)
+
+
+### Bug Fixes
+
+* warn about hidden dimensions being used ([#2439](https://github.com/lightdash/lightdash/issues/2439)) ([098e1d8](https://github.com/lightdash/lightdash/commit/098e1d88e811e5989a0ebe622de8eae55f8f17cd))
+
 ## [0.144.3](https://github.com/lightdash/lightdash/compare/0.144.2...0.144.3) (2022-06-15)
 
 
