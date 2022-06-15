@@ -1,10 +1,18 @@
-import { Button, Card, Classes, H4, Tag } from '@blueprintjs/core';
+import { Button, Classes, Tag } from '@blueprintjs/core';
 import { ApiError, OpenIdIdentitySummary } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../../../api';
 import { useDeleteOpenIdentityMutation } from '../../../hooks/user/useDeleteOpenIdentityMutation';
 import { GoogleLoginButton } from '../../common/GoogleLoginButton';
+import {
+    Bold,
+    CardContainer,
+    CardWrapper,
+    GoogleButtonWrapper,
+    Text,
+    Title,
+} from './SocialLoginsPanel.styles';
 
 const getIdentitiesQuery = async () =>
     lightdashApi<OpenIdIdentitySummary[]>({
@@ -30,38 +38,18 @@ const SocialLoginsPanel: FC = () => {
     const deleteMutation = useDeleteOpenIdentityMutation();
     return (
         <div>
-            <div
-                style={{
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                }}
-            >
+            <CardWrapper>
                 {data &&
                     data.map((id) => (
-                        <Card
-                            elevation={0}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                marginBottom: '20px',
-                            }}
-                        >
-                            <p
-                                style={{
-                                    margin: 0,
-                                    marginRight: '10px',
-                                    flex: 1,
-                                }}
-                            >
-                                <b
+                        <CardContainer elevation={0}>
+                            <Text>
+                                <Bold
                                     className={Classes.TEXT_OVERFLOW_ELLIPSIS}
-                                    style={{ margin: 0, marginRight: '10px' }}
                                 >
                                     {renderIssuerUrl(id.issuer)}
-                                </b>
+                                </Bold>
                                 {id.email && <Tag minimal>{id.email}</Tag>}
-                            </p>
+                            </Text>
                             <Button
                                 icon="delete"
                                 disabled={deleteMutation.isLoading}
@@ -75,11 +63,13 @@ const SocialLoginsPanel: FC = () => {
                                     })
                                 }
                             />
-                        </Card>
+                        </CardContainer>
                     ))}
-            </div>
-            <H4 style={{ marginBottom: 30 }}>Add social login</H4>
-            <GoogleLoginButton />
+            </CardWrapper>
+            <Title>Add social login</Title>
+            <GoogleButtonWrapper>
+                <GoogleLoginButton />
+            </GoogleButtonWrapper>
         </div>
     );
 };
