@@ -1,3 +1,10 @@
+# [0.144.0](https://github.com/lightdash/lightdash/compare/0.143.0...0.144.0) (2022-06-15)
+
+
+### Features
+
+* area charts ([#2402](https://github.com/lightdash/lightdash/issues/2402)) ([944397a](https://github.com/lightdash/lightdash/commit/944397a877ad5431c5d5f1ebe7448ac1b39074d5))
+
 # [0.143.0](https://github.com/lightdash/lightdash/compare/0.142.0...0.143.0) (2022-06-14)
 
 
