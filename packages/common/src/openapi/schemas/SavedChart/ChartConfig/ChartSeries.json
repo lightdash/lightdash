@@ -23,6 +23,9 @@
             "type": "string",
             "enum": ["line", "bar", "scatter"]
         },
+        "areaStyle": {
+            "type": "object"
+        },
         "name": {
             "type": "string"
         },

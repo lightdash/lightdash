@@ -46,6 +46,7 @@ const FLIPPED_AXIS_OPTIONS = [
 const CHART_TYPE_OPTIONS = [
     { value: CartesianSeriesType.BAR, label: 'Bar' },
     { value: CartesianSeriesType.LINE, label: 'Line' },
+    { value: CartesianSeriesType.AREA, label: 'Area' },
     { value: CartesianSeriesType.SCATTER, label: 'Scatter' },
 ];
 
@@ -125,6 +126,15 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
 
                 const hasDivider = layout?.yField?.length !== i + 1;
 
+                const chartType =
+                    seriesGroup[0].type === CartesianSeriesType.LINE &&
+                    !!seriesGroup[0].areaStyle
+                        ? CartesianSeriesType.AREA
+                        : seriesGroup[0].type;
+
+                const chartValue = isChartTypeTheSameForAllSeries
+                    ? chartType
+                    : 'mixed';
                 return (
                     <>
                         <GroupSeriesBlock key={fieldKey}>
@@ -135,11 +145,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                 <SeriesExtraInputWrapper label="Chart type">
                                     <SeriesExtraSelect
                                         fill
-                                        value={
-                                            isChartTypeTheSameForAllSeries
-                                                ? seriesGroup[0].type
-                                                : 'mixed'
-                                        }
+                                        value={chartValue}
                                         options={
                                             isChartTypeTheSameForAllSeries
                                                 ? CHART_TYPE_OPTIONS
@@ -152,9 +158,19 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                                   ]
                                         }
                                         onChange={(e) => {
+                                            const value = e.target.value;
+                                            const newType =
+                                                value ===
+                                                CartesianSeriesType.AREA
+                                                    ? CartesianSeriesType.LINE
+                                                    : value;
                                             updateAllGroupedSeries(fieldKey, {
-                                                type: e.target
-                                                    .value as Series['type'],
+                                                type: newType as Series['type'],
+                                                areaStyle:
+                                                    value ===
+                                                    CartesianSeriesType.AREA
+                                                        ? {}
+                                                        : undefined,
                                             });
                                         }}
                                     />
