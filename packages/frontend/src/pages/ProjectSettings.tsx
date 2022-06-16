@@ -13,10 +13,12 @@ import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
 import RouterMenuItem from '../components/common/RouterMenuItem';
+import ProjectAccess from '../components/ProjectAccess/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import { useProject } from '../hooks/useProject';
 import {
+    ProjectAccessWrapper,
     Title,
     UpdateHeaderWrapper,
     UpdateProjectWrapper,
@@ -64,6 +66,11 @@ const ProjectSettings: FC = () => {
                         exact
                         to={`${basePath}/tablesConfiguration`}
                     />
+                    <RouterMenuItem
+                        text="Project access"
+                        exact
+                        to={`${basePath}/projectAccess`}
+                    />
                 </Menu>
             </Sidebar>
 
@@ -104,6 +111,20 @@ const ProjectSettings: FC = () => {
                                 projectUuid={projectUuid}
                             />
                         </UpdateProjectWrapper>
+                    </Content>
+                </Route>
+
+                <Route
+                    exact
+                    path="/projects/:projectUuid/settings/projectAccess"
+                >
+                    <Content>
+                        <ProjectAccessWrapper>
+                            <Title>
+                                Project access (only visible to Project Admins)
+                            </Title>
+                            <ProjectAccess />
+                        </ProjectAccessWrapper>
                     </Content>
                 </Route>
                 <Redirect to={basePath} />

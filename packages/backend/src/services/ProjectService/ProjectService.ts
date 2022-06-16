@@ -34,6 +34,7 @@ import {
     TableSelectionType,
     UpdateProject,
 } from '@lightdash/common';
+import { ProjectMemberProfile } from '@lightdash/common/src/types/projectMemberProfile';
 import { v4 as uuidv4 } from 'uuid';
 import { analytics } from '../../analytics/client';
 import { errorHandler } from '../../errors';
@@ -856,5 +857,12 @@ export class ProjectService {
 
         const spaces = await this.savedChartModel.getAllSpaces(projectUuid);
         return spaces.some((space) => space.queries.length > 0);
+    }
+
+    async getProjectAccess(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ProjectMemberProfile[]> {
+        return this.projectModel.getProjectAccess(projectUuid);
     }
 }

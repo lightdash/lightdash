@@ -14,6 +14,10 @@ import {
     UpdateProject,
     WarehouseCredentials,
 } from '@lightdash/common';
+import {
+    ProjectMemberProfile,
+    ProjectMemberRole,
+} from '@lightdash/common/src/types/projectMemberProfile';
 import { WarehouseCatalog } from '@lightdash/warehouses';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -497,5 +501,35 @@ export class ProjectModel {
             .returning('*');
 
         return cachedWarehouse;
+    }
+
+    async getProjectAccess(
+        projectUuid: string,
+    ): Promise<ProjectMemberProfile[]> {
+        type QueryResult = {
+            user_uuid: string;
+            email: string;
+            role: ProjectMemberRole;
+            first_name: string;
+            last_name: string;
+        };
+        const projectMemberships = await this.database('project_memberships')
+            .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
+            .leftJoin(
+                'projects',
+                'project_memberships.project_id',
+                'projects.project_id',
+            )
+            .select<QueryResult[]>()
+            .where('project_uuid', projectUuid);
+
+        return projectMemberships.map((membership) => ({
+            userUuid: membership.user_uuid,
+            email: membership.email,
+            role: membership.role,
+            firstName: membership.first_name,
+            projectUuid,
+            lastName: membership.last_name,
+        }));
     }
 }

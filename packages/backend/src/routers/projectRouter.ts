@@ -377,3 +377,18 @@ projectRouter.get(
         }
     },
 );
+
+projectRouter.get('/projectAccess', isAuthenticated, async (req, res, next) => {
+    try {
+        const results = await projectService.getProjectAccess(
+            req.user!,
+            req.params.projectUuid,
+        );
+        res.json({
+            status: 'ok',
+            results,
+        });
+    } catch (e) {
+        next(e);
+    }
+});

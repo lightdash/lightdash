@@ -21,3 +21,5 @@ export const Title = styled(H3)<{ marginBottom?: boolean }>`
             margin: 0 0 20px;
         `}
 `;
+
+export const ProjectAccessWrapper = styled.div``;
