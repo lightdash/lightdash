@@ -1,3 +1,10 @@
+## [0.144.5](https://github.com/lightdash/lightdash/compare/0.144.4...0.144.5) (2022-06-16)
+
+
+### Bug Fixes
+
+* remove divider and update markdown tile styling ([#2451](https://github.com/lightdash/lightdash/issues/2451)) ([c16f554](https://github.com/lightdash/lightdash/commit/c16f5548e362bcdf54b9f5690e12e23be9a9913e))
+
 ## [0.144.4](https://github.com/lightdash/lightdash/compare/0.144.3...0.144.4) (2022-06-15)
 
 
