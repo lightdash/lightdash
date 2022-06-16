@@ -89,3 +89,17 @@ export const FormFooterCopy = styled.p`
 export const FooterCta = styled.a`
     color: ${Colors.BLUE3};
 `;
+
+export const Subtitle = styled.p`
+    color: ${Colors.GRAY2};
+    margin: 5px 0 20px;
+    text-align: center;
+`;
+
+export const BoldSubtitle = styled.p`
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+    color: ${Colors.DARK_GRAY1};
+    margin-bottom: 15px;
+`;

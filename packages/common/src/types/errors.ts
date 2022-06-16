@@ -58,6 +58,17 @@ export class NotExistsError extends LightdashError {
     }
 }
 
+export class ExpiredError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'ExpiredError',
+            statusCode: 406,
+            data: {},
+        });
+    }
+}
+
 export class ParameterError extends LightdashError {
     constructor(
         message: string = 'Incorrect parameters',
