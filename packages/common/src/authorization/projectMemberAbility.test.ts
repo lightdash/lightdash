@@ -10,7 +10,7 @@ const { projectUuid } = PROJECT_VIEWER;
 
 describe('Project member permissions', () => {
     let ability = defineAbilityForProjectMember(PROJECT_ADMIN);
-    describe('when user is an organization admin', () => {
+    describe('when user is an project admin', () => {
         beforeEach(() => {
             ability = defineAbilityForProjectMember(PROJECT_ADMIN);
         });
