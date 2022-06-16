@@ -1,22 +1,43 @@
+import { NonIdealState } from '@blueprintjs/core';
 import React, { ComponentProps, FC } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { useOrganisation } from '../hooks/organisation/useOrganisation';
+import { useProjects } from '../hooks/useProjects';
 import { useApp } from '../providers/AppProvider';
 import PageSpinner from './PageSpinner';
 
 const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
     const { health } = useApp();
-    const { data: orgData } = useOrganisation();
+    const orgRequest = useOrganisation();
+    const projectsRequest = useProjects();
 
     return (
         <Route
             {...rest}
             render={({ location }) => {
-                if (health.isLoading || health.error) {
+                if (
+                    health.isLoading ||
+                    orgRequest.isLoading ||
+                    projectsRequest.isLoading
+                ) {
                     return <PageSpinner />;
                 }
 
-                if (orgData?.needsProject) {
+                if (orgRequest.error || projectsRequest.error || health.error) {
+                    return (
+                        <div style={{ marginTop: '20px' }}>
+                            <NonIdealState
+                                title="Unexpected error"
+                                description={
+                                    (orgRequest.error || projectsRequest.error)
+                                        ?.error.message
+                                }
+                            />
+                        </div>
+                    );
+                }
+
+                if (orgRequest.data?.needsProject) {
                     return (
                         <Redirect
                             to={{
@@ -25,6 +46,13 @@ const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
                             }}
                         />
                     );
+                }
+
+                if (
+                    !projectsRequest.data ||
+                    projectsRequest.data?.length <= 0
+                ) {
+                    return <Redirect to={`/no-access`} />;
                 }
 
                 return children;
