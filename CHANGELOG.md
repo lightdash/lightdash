@@ -1,3 +1,10 @@
+# [0.146.0](https://github.com/lightdash/lightdash/compare/0.145.0...0.146.0) (2022-06-16)
+
+
+### Features
+
+* add UI for responding to invite codes ([#2415](https://github.com/lightdash/lightdash/issues/2415)) ([008476d](https://github.com/lightdash/lightdash/commit/008476d6dc9e6db45610d52a99b099db2844ebf5))
+
 # [0.145.0](https://github.com/lightdash/lightdash/compare/0.144.6...0.145.0) (2022-06-16)
 
 
