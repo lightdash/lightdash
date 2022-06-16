@@ -1,4 +1,4 @@
-import { OrganizationMemberAbility } from '../authorization/organizationMemberAbility';
+import { Ability } from '@casl/ability';
 import { OrganizationMemberRole } from './organizationMemberProfile';
 
 export interface LightdashUser {
@@ -17,7 +17,7 @@ export interface LightdashUser {
 
 export interface SessionUser extends LightdashUser {
     userId: number;
-    ability: OrganizationMemberAbility;
+    ability: Ability;
 }
 
 export interface UpdatedByUser {
