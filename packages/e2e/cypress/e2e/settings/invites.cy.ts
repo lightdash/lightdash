@@ -21,6 +21,8 @@ describe('Settings - Invites', () => {
                     cy.visit(value);
                 }
             });
+        cy.get('[data-cy="welcome-user"]').should('be.visible');
+        cy.contains('Join your team').click();
         cy.findByLabelText('First name *').type('Mary');
         cy.findByLabelText('Last name *').type('Green');
         cy.findByLabelText('Email address *')

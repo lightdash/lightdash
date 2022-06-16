@@ -43,7 +43,7 @@ const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
 
     return (
         <>
-            <CardWrapper elevation={2}>
+            <CardWrapper elevation={2} data-cy="welcome-user">
                 <Title>You’ve been invited!</Title>
                 {email && <BoldSubtitle>{email}</BoldSubtitle>}
                 <Subtitle>
