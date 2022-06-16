@@ -24,17 +24,11 @@ export const Projects: FC = () => {
         );
     }
     if (!data || data.length <= 0) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <NonIdealState
-                    title="No projects found"
-                    description="Please contact support"
-                />
-            </div>
-        );
+        return <Redirect to={`/no-access`} />;
     }
 
     const availableProjectUuids = data.map(({ projectUuid }) => projectUuid);
+
     const find = (projectUuid: string | undefined) => {
         return projectUuid && availableProjectUuids.includes(projectUuid)
             ? projectUuid

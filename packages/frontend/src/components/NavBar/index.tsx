@@ -66,12 +66,16 @@ const NavBar = () => {
         },
     });
 
+    const homeUrl = selectedProjectUuid
+        ? `/projects/${selectedProjectUuid}/home`
+        : '/';
+
     return (
         <>
             <NavBarWrapper className={Classes.DARK}>
                 <NavbarGroup align={Alignment.LEFT}>
                     <NavLink
-                        to={`/projects/${selectedProjectUuid}/home`}
+                        to={homeUrl}
                         style={{ marginRight: 24, display: 'flex' }}
                     >
                         <LogoContainer title="Home" />

@@ -14,7 +14,12 @@ const useQueryError = (): Dispatch<SetStateAction<ApiError | undefined>> => {
             const { error } = errorResponse || {};
             if (error) {
                 const { statusCode } = error;
-                if (statusCode === 401) {
+                if (statusCode === 403) {
+                    // Forbidden error
+                    // This will be expected for some users like member
+                    // So don't show the error popup there,
+                    // we will handle this on pages showing a nice message
+                } else if (statusCode === 401) {
                     await queryClient.invalidateQueries('health');
                 } else {
                     // drawer

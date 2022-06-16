@@ -36,7 +36,16 @@ const organizationMemberAbilities: Record<
         builder: Pick<AbilityBuilder<OrganizationMemberAbility>, 'can'>,
     ) => void
 > = {
+    member(member, { can }) {
+        can('create', 'InviteLink', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'OrganizationMemberProfile', {
+            organizationUuid: member.organizationUuid,
+        });
+    },
     viewer(member, { can }) {
+        organizationMemberAbilities.member(member, { can });
         can('view', 'Dashboard', {
             organizationUuid: member.organizationUuid,
         });
@@ -49,7 +58,6 @@ const organizationMemberAbilities: Record<
         can('view', 'Organization', {
             organizationUuid: member.organizationUuid,
         });
-
         can('view', 'Job', { userUuid: member.userUuid });
     },
     editor(member, { can }) {
@@ -63,19 +71,14 @@ const organizationMemberAbilities: Record<
         can('manage', 'SavedChart', {
             organizationUuid: member.organizationUuid,
         });
-        can('create', 'InviteLink', {
-            organizationUuid: member.organizationUuid,
-        });
+
         can('manage', 'Job');
-        can('view', 'OrganizationMemberProfile', {
-            organizationUuid: member.organizationUuid,
-        });
     },
     admin(member, { can }) {
+        organizationMemberAbilities.editor(member, { can });
         can('manage', 'InviteLink', {
             organizationUuid: member.organizationUuid,
         });
-        organizationMemberAbilities.editor(member, { can });
         can('manage', 'Organization', {
             organizationUuid: member.organizationUuid,
         });

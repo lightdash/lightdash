@@ -4,6 +4,7 @@ import { defineAbilityForOrganizationMember } from './organizationMemberAbility'
 import {
     ORGANIZATION_ADMIN,
     ORGANIZATION_EDITOR,
+    ORGANIZATION_MEMBER,
     ORGANIZATION_VIEWER,
 } from './organizationMemberAbility.mock';
 
@@ -88,22 +89,42 @@ describe('Organization member permissions', () => {
             expect(ability.can('create', 'InviteLink')).toEqual(true);
         });
     });
-
+    describe('when user is a member', () => {
+        beforeEach(() => {
+            ability = defineAbilityForOrganizationMember(ORGANIZATION_MEMBER);
+        });
+        it('can view member profiles', () => {
+            expect(ability.can('view', 'OrganizationMemberProfile')).toEqual(
+                true,
+            );
+        });
+        it('can create invitations', () => {
+            expect(ability.can('create', 'InviteLink')).toEqual(true);
+        });
+        it('cannot view organizations', () => {
+            expect(ability.can('view', 'Organization')).toEqual(false);
+        });
+        it('cannot view charts', () => {
+            expect(ability.can('view', 'SavedChart')).toEqual(false);
+        });
+    });
     describe('when user is a viewer', () => {
         beforeEach(() => {
             ability = defineAbilityForOrganizationMember(ORGANIZATION_VIEWER);
         });
-        it('cannot view member profiles', () => {
+        it('can view member profiles', () => {
             expect(ability.can('view', 'OrganizationMemberProfile')).toEqual(
-                false,
+                true,
             );
+        });
+        it('can create invitations', () => {
+            expect(ability.can('create', 'InviteLink')).toEqual(true);
         });
         it('cannot create any resource', () => {
             expect(ability.can('create', 'Dashboard')).toEqual(false);
             expect(ability.can('create', 'SavedChart')).toEqual(false);
             expect(ability.can('create', 'Project')).toEqual(false);
             expect(ability.can('create', 'Organization')).toEqual(false);
-            expect(ability.can('create', 'InviteLink')).toEqual(false);
         });
         it('cannot update any resource', () => {
             expect(ability.can('update', 'Dashboard')).toEqual(false);

@@ -3,6 +3,7 @@ import React, { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import Page from '../components/common/Page/Page';
+import ForbiddenPanel from '../components/ForbiddenPanel';
 import LandingPanel from '../components/Home/LandingPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
 import {
@@ -17,12 +18,18 @@ const Home: FC = () => {
     const selectedProjectUuid = params.projectUuid;
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
+
+    const { user } = useApp();
     const savedChartStatus = useProjectSavedChartStatus(selectedProjectUuid);
     const isLoading =
         onboarding.isLoading || project.isLoading || savedChartStatus.isLoading;
+
     const error = onboarding.error || project.error || savedChartStatus.error;
-    const { user } = useApp();
     useUnmount(() => onboarding.remove());
+
+    if (user.data?.ability?.cannot('view', 'SavedChart')) {
+        return <ForbiddenPanel />;
+    }
 
     if (isLoading) {
         return (

@@ -13,6 +13,7 @@ import {
 import './App.css';
 import AppStyle from './App.styles';
 import AppRoute from './components/AppRoute';
+import ForbiddenPanel from './components/ForbiddenPanel';
 import { Intercom } from './components/Intercom';
 import JobDetailsDrawer from './components/JobDetailsDrawer';
 import MobileView from './components/Mobile';
@@ -129,6 +130,16 @@ const App = () => (
                                                         }
                                                     >
                                                         <CreateProjectSettings />
+                                                    </TrackPage>
+                                                </Route>
+                                                <Route path="/no-access">
+                                                    <NavBar />
+                                                    <TrackPage
+                                                        name={
+                                                            PageName.NO_ACCESS
+                                                        }
+                                                    >
+                                                        <ForbiddenPanel />
                                                     </TrackPage>
                                                 </Route>
                                                 <AppRoute path="/">

@@ -17,5 +17,5 @@ export const useSpaces = (projectUuid: string) =>
 
 export const useSavedCharts = (projectUuid: string) => {
     const spaces = useSpaces(projectUuid);
-    return { ...spaces, data: spaces.data?.[0].queries };
+    return { ...spaces, data: spaces.data?.[0]?.queries };
 };

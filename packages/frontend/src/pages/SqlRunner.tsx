@@ -13,6 +13,7 @@ import Sidebar from '../components/common/Page/Sidebar';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
 import { Tree } from '../components/common/Tree';
 import VisualizationCardOptions from '../components/Explorer/VisualizationCardOptions';
+import ForbiddenPanel from '../components/ForbiddenPanel';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import RefreshDbtButton from '../components/RefreshDbtButton';
@@ -28,6 +29,7 @@ import {
     useSqlRunnerRoute,
     useSqlRunnerUrlState,
 } from '../hooks/useSqlRunnerRoute';
+import { useApp } from '../providers/AppProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import {
@@ -134,6 +136,10 @@ const SqlRunnerPage = () => {
         [setSql],
     );
 
+    const { user } = useApp();
+    if (user.data?.ability?.cannot('view', 'Project')) {
+        return <ForbiddenPanel />;
+    }
     return (
         <PageWithSidebar>
             <Sidebar title="SQL runner">

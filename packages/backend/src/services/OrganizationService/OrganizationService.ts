@@ -121,6 +121,14 @@ export class OrganizationService {
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid }),
+            )
+        ) {
+            return [];
+        }
         return this.projectModel.getAllByOrganizationUuid(organizationUuid);
     }
 
