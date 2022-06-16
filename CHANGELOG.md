@@ -1,3 +1,10 @@
+# [0.145.0](https://github.com/lightdash/lightdash/compare/0.144.6...0.145.0) (2022-06-16)
+
+
+### Features
+
+* add member role, update permissions ([#2435](https://github.com/lightdash/lightdash/issues/2435)) ([8cdd9d0](https://github.com/lightdash/lightdash/commit/8cdd9d0e6f6ce6566e269e213f609a02434a71fb))
+
 ## [0.144.6](https://github.com/lightdash/lightdash/compare/0.144.5...0.144.6) (2022-06-16)
 
 
