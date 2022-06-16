@@ -28,6 +28,7 @@ import {
     NotFoundError,
     Project,
     ProjectCatalog,
+    ProjectMember,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
@@ -864,5 +865,26 @@ export class ProjectService {
         projectUuid: string,
     ): Promise<ProjectMemberProfile[]> {
         return this.projectModel.getProjectAccess(projectUuid);
+    }
+
+    async createProjectAccess(
+        user: SessionUser,
+        projectUuid: string,
+        data: ProjectMember,
+    ): Promise<void> {
+        console.log('data', data);
+        await this.projectModel.createProjectAccess(
+            projectUuid,
+            data.userUuid,
+            data.role,
+        );
+    }
+
+    async deleteProjectAccess(
+        user: SessionUser,
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<void> {
+        await this.projectModel.deleteProjectAccess(projectUuid, userUuid);
     }
 }

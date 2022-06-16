@@ -42,6 +42,7 @@ import {
     CreatePersonalAccessToken,
     PersonalAccessToken,
 } from './types/personalAccessToken';
+import { ProjectMemberRole } from './types/projectMemberProfile';
 import { SavedChart, Series } from './types/savedCharts';
 import { TableBase } from './types/table';
 import { LightdashUser } from './types/user';
@@ -62,6 +63,7 @@ export * from './types/metricQuery';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
 export * from './types/personalAccessToken';
+export * from './types/projectMemberProfile';
 export * from './types/savedCharts';
 export * from './types/table';
 export * from './types/user';
@@ -421,6 +423,11 @@ export type TablesConfiguration = {
         type: TableSelectionType;
         value: string[] | null;
     };
+};
+
+export type ProjectMember = {
+    userUuid: string;
+    role: ProjectMemberRole;
 };
 
 export type ApiCompiledQueryResults = string;

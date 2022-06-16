@@ -392,3 +392,43 @@ projectRouter.get('/projectAccess', isAuthenticated, async (req, res, next) => {
         next(e);
     }
 });
+
+projectRouter.post(
+    '/projectAccess',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results = await projectService.createProjectAccess(
+                req.user!,
+                req.params.projectUuid,
+                req.body,
+            );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+projectRouter.delete(
+    '/projectAccess/:userUuid',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results = await projectService.deleteProjectAccess(
+                req.user!,
+                req.params.projectUuid,
+                req.params.userUuid,
+            );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);

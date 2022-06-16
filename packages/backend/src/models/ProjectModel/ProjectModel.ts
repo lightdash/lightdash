@@ -532,4 +532,45 @@ export class ProjectModel {
             lastName: membership.last_name,
         }));
     }
+
+    async createProjectAccess(
+        projectUuid: string,
+        userUuid: string,
+        role: ProjectMemberRole,
+    ): Promise<void> {
+        const [project] = await this.database('projects')
+            .select(['project_id'])
+            .where('project_uuid', projectUuid);
+        console.log('project', project);
+
+        console.log('userUuid', userUuid);
+
+        const [user] = await this.database('users')
+            .select(['user_id'])
+            .where('user_uuid', userUuid);
+        console.log('user', user);
+
+        await this.database('project_memberships').insert({
+            project_id: project.project_id,
+            role,
+            user_id: user.user_id,
+        });
+    }
+
+    async deleteProjectAccess(
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<void> {
+        const [project] = await this.database('projects')
+            .select(['project_id'])
+            .where('project_uuid', projectUuid);
+        const [user] = await this.database('users')
+            .select(['user_id'])
+            .where('user_uuid', userUuid);
+
+        await this.database('project_memberships')
+            .where('project_id', project.project_id)
+            .andWhere('user_id', user.user_id)
+            .delete();
+    }
 }
