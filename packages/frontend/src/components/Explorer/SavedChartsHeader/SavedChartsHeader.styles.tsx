@@ -8,8 +8,8 @@ export const Wrapper = styled.div`
     align-items: center;
     height: 80px;
     width: 100%;
-    position: sticky;
-    top: 50px;
+    position: relative;
+    top: 0;
     left: 0;
     z-index: 1;
     background: ${Colors.WHITE};
