@@ -1,3 +1,10 @@
+## [0.144.6](https://github.com/lightdash/lightdash/compare/0.144.5...0.144.6) (2022-06-16)
+
+
+### Bug Fixes
+
+* add back dropdown to choose warehouse on project update ([#2424](https://github.com/lightdash/lightdash/issues/2424)) ([8554dc9](https://github.com/lightdash/lightdash/commit/8554dc9d5a79b1bc75e58d7bc653b672cd6366dd))
+
 ## [0.144.5](https://github.com/lightdash/lightdash/compare/0.144.4...0.144.5) (2022-06-16)
 
 
