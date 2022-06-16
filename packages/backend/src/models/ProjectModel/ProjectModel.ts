@@ -515,6 +515,7 @@ export class ProjectModel {
         };
         const projectMemberships = await this.database('project_memberships')
             .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
+            .leftJoin('emails', 'emails.user_id', 'users.user_id')
             .leftJoin(
                 'projects',
                 'project_memberships.project_id',

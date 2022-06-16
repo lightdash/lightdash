@@ -42,7 +42,10 @@ import {
     CreatePersonalAccessToken,
     PersonalAccessToken,
 } from './types/personalAccessToken';
-import { ProjectMemberRole } from './types/projectMemberProfile';
+import {
+    ProjectMemberProfile,
+    ProjectMemberRole,
+} from './types/projectMemberProfile';
 import { SavedChart, Series } from './types/savedCharts';
 import { TableBase } from './types/table';
 import { LightdashUser } from './types/user';
@@ -604,7 +607,8 @@ type ApiResults =
     | ApiJobStartedResults
     | ApiCreateUserTokenResults
     | CreatePersonalAccessToken
-    | PersonalAccessToken;
+    | PersonalAccessToken
+    | ProjectMemberProfile[];
 
 export type ApiResponse = {
     status: 'ok';

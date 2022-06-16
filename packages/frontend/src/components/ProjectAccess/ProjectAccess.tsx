@@ -2,9 +2,12 @@ import { Button, ButtonGroup, Classes } from '@blueprintjs/core';
 import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
+    ProjectMemberProfile,
 } from '@lightdash/common';
 import { FC, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useApp } from '../../providers/AppProvider';
 import {
     AddUserButton,
@@ -20,7 +23,7 @@ import {
 
 const UserListItem: FC<{
     key: string;
-    user: OrganizationMemberProfile; //TODO replace with project
+    user: OrganizationMemberProfile | ProjectMemberProfile; //TODO replace with project
 }> = ({ key, user: { userUuid, firstName, lastName, email, role } }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -64,14 +67,25 @@ const UserListItem: FC<{
     );
 };
 const ProjectAccess: FC = () => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    const { data: projectMemberships } = useProjectAccess(projectUuid);
+
     const { user } = useApp();
-    const { data: organizationUsers, isLoading } = useOrganizationUsers();
+
+    const { data: organizationUsers } = useOrganizationUsers();
 
     return (
         <ProjectAccessWrapper>
-            {organizationUsers?.map((orgUser) => (
-                <UserListItem key={orgUser.email} user={orgUser} />
+            {projectMemberships?.map((projectMember) => (
+                <UserListItem key={projectMember.email} user={projectMember} />
             ))}
+
+            {/**
+             * TODO in  #2440
+             * organizationUsers?.map((orgUser) => (
+                <UserListItem key={orgUser.email} user={orgUser} />
+             ))*/}
             <AddUserButton
                 intent="primary"
                 onClick={() => {}}
