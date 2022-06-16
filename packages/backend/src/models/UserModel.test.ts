@@ -1,44 +1,21 @@
 import { subject } from '@casl/ability';
-import {
-    OrganizationMemberProfile,
-    OrganizationMemberRole,
-} from '@lightdash/common';
-import {
-    ProjectMemberProfile,
-    ProjectMemberRole,
-} from '@lightdash/common/src/types/projectMemberProfile';
 import { UserModel } from './UserModel';
-
-const orgProfile: OrganizationMemberProfile = {
-    userUuid: 'user-uuid-1234',
-    role: OrganizationMemberRole.VIEWER,
-    email: '',
-    firstName: '',
-    lastName: '',
-    organizationUuid: 'organization-uuid-1234',
-    isActive: true,
-};
-const projectProfile: ProjectMemberProfile = {
-    userUuid: 'user-uuid-1234',
-    role: ProjectMemberRole.VIEWER,
-    projectUuid: 'project-uuid-1234',
-};
+import {
+    adminOrgProfile,
+    adminProjectProfile,
+    conditions as defaultConditions,
+    orgProfile,
+    projectProfile,
+} from './UserModel.mock';
 
 describe('Project member permissions', () => {
     let ability = UserModel.mergeUserAbilities(orgProfile, [projectProfile]);
-    let conditions = {
-        organizationUuid: orgProfile.organizationUuid,
-        projectUuid: projectProfile.projectUuid,
-    };
+    let conditions = defaultConditions;
     describe('when user is an org viewer and project viewer', () => {
         beforeEach(() => {
             ability = UserModel.mergeUserAbilities(orgProfile, [
                 projectProfile,
             ]);
-            conditions = {
-                organizationUuid: orgProfile.organizationUuid,
-                projectUuid: projectProfile.projectUuid,
-            };
         });
 
         it('can view org and project', async () => {
@@ -101,15 +78,11 @@ describe('Project member permissions', () => {
         // org admins and editors have `manage` permissions over all projects
         // within the org
         beforeEach(() => {
-            const adminOrgProfile = {
-                ...orgProfile,
-                role: OrganizationMemberRole.ADMIN,
-            };
             ability = UserModel.mergeUserAbilities(adminOrgProfile, [
                 projectProfile,
             ]);
             conditions = {
-                organizationUuid: orgProfile.organizationUuid,
+                organizationUuid: adminOrgProfile.organizationUuid,
                 projectUuid: projectProfile.projectUuid,
             };
         });
@@ -156,16 +129,12 @@ describe('Project member permissions', () => {
 
     describe('when user is an org viewer and project admin', () => {
         beforeEach(() => {
-            const adminProjectProfile = {
-                ...projectProfile,
-                role: ProjectMemberRole.ADMIN,
-            };
             ability = UserModel.mergeUserAbilities(orgProfile, [
                 adminProjectProfile,
             ]);
             conditions = {
                 organizationUuid: orgProfile.organizationUuid,
-                projectUuid: projectProfile.projectUuid,
+                projectUuid: adminProjectProfile.projectUuid,
             };
         });
 
@@ -254,30 +223,20 @@ describe('Project member permissions', () => {
     });
 
     describe('when user is viewer in one project but admin in another', () => {
-        const viewerProjectProfile = {
-            ...projectProfile,
-            role: ProjectMemberRole.VIEWER,
-            projectUuid: 'project-uuid-view',
-        };
-        const adminProjectProfile = {
-            ...projectProfile,
-            role: ProjectMemberRole.ADMIN,
-            projectUuid: 'project-uuid-admin',
-        };
         beforeEach(() => {
             ability = UserModel.mergeUserAbilities(orgProfile, [
-                viewerProjectProfile,
+                projectProfile,
                 adminProjectProfile,
             ]);
             conditions = {
                 organizationUuid: orgProfile.organizationUuid,
-                projectUuid: viewerProjectProfile.projectUuid,
+                projectUuid: projectProfile.projectUuid,
             };
         });
 
         it('can view org and project', async () => {
             const conditionsProjectView = {
-                projectUuid: viewerProjectProfile.projectUuid,
+                projectUuid: projectProfile.projectUuid,
             };
 
             expect(
@@ -348,7 +307,7 @@ describe('Project member permissions', () => {
 
         it('can manage admin project but cannot manage view project', async () => {
             const conditionsProjectView = {
-                projectUuid: viewerProjectProfile.projectUuid,
+                projectUuid: projectProfile.projectUuid,
             };
 
             expect(
