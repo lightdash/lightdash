@@ -30,6 +30,7 @@ Organization Admins can assign roles to organization members, which gives access
 
 | Action                                     | Organization Admin | Organization Editor | Organization Viewer | Organization Member |
 |:-------------------------------------------|:------------------:|:-------------------:|:-------------------:|:-------------------:|
+| Create Personal access tokens              |         ✅          |          ✅          |          ✅          |          ✅          |
 | Invite users to organization               |         ✅          |          ✅          |          ✅          |          ✅          |
 | Create new projects                        |         ✅          |          ✅          |          ✅          |          ✅          |   
 | View **all** projects                      |         ✅          |          ✅          |          ✅          |          ❌          |
