@@ -1,7 +1,6 @@
 import {
     Button,
     Classes,
-    Divider,
     Menu,
     MenuDivider,
     MenuItem,
@@ -30,7 +29,6 @@ type Props<T> = {
     onDelete: (tile: T) => void;
     onEdit: (tile: T) => void;
     children: ReactNode;
-    isChart?: boolean;
     extraHeaderElement?: React.ReactNode;
 };
 
@@ -44,7 +42,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     onDelete,
     onEdit,
     children,
-    isChart,
     extraHeaderElement,
 }: Props<T>) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -99,7 +96,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     </Popover2>
                 )}
             </HeaderContainer>
-            {!isChart && <Divider />}
+
             <ChartContainer className="non-draggable cohere-block">
                 {children}
             </ChartContainer>
@@ -118,7 +115,6 @@ TileBase.defaultProps = {
     isLoading: false,
     extraMenuItems: null,
     description: null,
-    isChart: false,
     hasFilters: false,
 };
 

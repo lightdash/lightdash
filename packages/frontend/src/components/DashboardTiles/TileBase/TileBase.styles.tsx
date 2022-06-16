@@ -28,6 +28,7 @@ export const Title = styled(H5)`
 export const HeaderWrapper = styled.div`
     display: flex;
     flex-direction: column;
+    margin-bottom: 15px;
 `;
 
 export const FilterLabel = styled.span`

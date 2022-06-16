@@ -1,6 +1,7 @@
 import { DashboardMarkdownTile } from '@lightdash/common';
 import MDEditor from '@uiw/react-md-editor';
 import React, { FC } from 'react';
+import { MarkdownWrapper } from './DashboardMarkdownTile.styles';
 import TileBase from './TileBase/index';
 
 type Props = Pick<
@@ -16,12 +17,9 @@ const MarkdownTile: FC<Props> = (props) => {
     } = props;
     return (
         <TileBase title={title} {...props}>
-            <div
-                style={{ flex: 1, overflow: 'auto' }}
-                className="non-draggable"
-            >
+            <MarkdownWrapper className="non-draggable">
                 <MDEditor.Markdown source={content} linkTarget="_blank" />
-            </div>
+            </MarkdownWrapper>
         </TileBase>
     );
 };
