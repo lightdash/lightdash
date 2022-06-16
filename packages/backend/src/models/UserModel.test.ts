@@ -32,8 +32,8 @@ describe('Project member permissions', () => {
 
         it('cannot view another org or another project', async () => {
             conditions = {
-                organizationUuid: 'another-org',
                 projectUuid: 'another-project',
+                organizationUuid: 'another-org',
             };
             expect(
                 ability.can('view', subject('SavedChart', { ...conditions })),
@@ -46,20 +46,36 @@ describe('Project member permissions', () => {
             ).toEqual(false);
         });
 
-        it('cannot view another org or another project', async () => {
+        it('cannot view another org', async () => {
             conditions = {
+                ...defaultConditions,
                 organizationUuid: 'another-org',
+            };
+            expect(
+                ability.can('view', subject('SavedChart', { ...conditions })),
+            ).toEqual(true);
+            expect(
+                ability.can('view', subject('Dashboard', { ...conditions })),
+            ).toEqual(true);
+            expect(
+                ability.can('view', subject('Project', { ...conditions })),
+            ).toEqual(true);
+        });
+
+        it('cannot view another project', async () => {
+            conditions = {
+                ...defaultConditions,
                 projectUuid: 'another-project',
             };
             expect(
                 ability.can('view', subject('SavedChart', { ...conditions })),
-            ).toEqual(false);
+            ).toEqual(true);
             expect(
                 ability.can('view', subject('Dashboard', { ...conditions })),
-            ).toEqual(false);
+            ).toEqual(true);
             expect(
                 ability.can('view', subject('Project', { ...conditions })),
-            ).toEqual(false);
+            ).toEqual(true);
         });
         it('cannot manage org or project', async () => {
             expect(
