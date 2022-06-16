@@ -1,6 +1,5 @@
 import { H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
-import SimpleButton from '../components/common/SimpleButton';
 
 export const UpdateProjectWrapper = styled.div`
     display: flex;
@@ -21,16 +20,4 @@ export const Title = styled(H3)<{ marginBottom?: boolean }>`
         css`
             margin: 0 0 20px;
         `}
-`;
-
-export const BackToWarehouseButton = styled(SimpleButton)`
-    width: fit-content;
-    padding-left: 0;
-    margin-bottom: 10px;
-`;
-
-export const ConnectCardWrapper = styled.div`
-    position: relative;
-    top: -40%;
-    transform: translateY(40%);
 `;

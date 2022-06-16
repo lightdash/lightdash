@@ -6,7 +6,7 @@ import {
     Organisation,
     ProjectType,
 } from '@lightdash/common';
-import React, { FC, useEffect } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
 import { useHistory } from 'react-router-dom';
@@ -46,6 +46,7 @@ interface Props {
     disabled: boolean;
     defaultType?: ProjectType;
     selectedWarehouse?: SelectedWarehouse | undefined;
+    isProjectUpdate?: boolean | undefined;
 }
 
 const ProjectForm: FC<Props> = ({
@@ -53,9 +54,78 @@ const ProjectForm: FC<Props> = ({
     disabled,
     defaultType,
     selectedWarehouse,
-}) => (
-    <>
-        {showGeneralSettings && (
+    isProjectUpdate,
+}) => {
+    const [hasWarehouse, setHasWarehouse] = useState<
+        SelectedWarehouse | undefined
+    >(selectedWarehouse);
+
+    return (
+        <>
+            {showGeneralSettings && (
+                <Card
+                    style={{
+                        marginBottom: '20px',
+                        display: 'flex',
+                        flexDirection: 'row',
+                        gap: 20,
+                    }}
+                    elevation={1}
+                >
+                    <div style={{ flex: 1 }}>
+                        <div
+                            style={{
+                                marginBottom: 15,
+                            }}
+                        >
+                            <H5 style={{ display: 'inline', marginRight: 5 }}>
+                                General settings
+                            </H5>
+                        </div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <Input
+                            name="name"
+                            label="Project name"
+                            rules={{
+                                required: 'Required field',
+                            }}
+                            disabled={disabled}
+                        />
+                    </div>
+                </Card>
+            )}
+            <Card
+                style={{
+                    marginBottom: '20px',
+                    display: 'flex',
+                    flexDirection: 'row',
+                }}
+                elevation={1}
+            >
+                <div style={{ flex: 1 }}>
+                    {hasWarehouse && (
+                        <WarehouseLogo
+                            src={hasWarehouse.icon}
+                            alt={hasWarehouse.key}
+                        />
+                    )}
+                    <div>
+                        <H5 style={{ display: 'inline', marginRight: 5 }}>
+                            Warehouse connection
+                        </H5>
+                        <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
+                    </div>
+                </div>
+                <div style={{ flex: 1 }}>
+                    <WarehouseSettingsForm
+                        disabled={disabled}
+                        setSelectedWarehouse={setHasWarehouse}
+                        selectedWarehouse={hasWarehouse}
+                        isProjectUpdate={isProjectUpdate}
+                    />
+                </div>
+            </Card>
             <Card
                 style={{
                     marginBottom: '20px',
@@ -71,102 +141,42 @@ const ProjectForm: FC<Props> = ({
                             marginBottom: 15,
                         }}
                     >
-                        <H5 style={{ display: 'inline', marginRight: 5 }}>
-                            General settings
-                        </H5>
+                        <WarehouseLogo src={DbtLogo} alt="dbt icon" />
+                        <div>
+                            <H5
+                                style={{
+                                    display: 'inline',
+                                    marginRight: 5,
+                                }}
+                            >
+                                dbt connection
+                            </H5>
+                            <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
+                        </div>
                     </div>
+
+                    <p style={{ color: Colors.GRAY1 }}>
+                        Your dbt project must be compatible with{' '}
+                        <a
+                            href="https://docs.getdbt.com/docs/guides/migration-guide/upgrading-to-1-0-0"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            dbt version <b>1.0.0</b>
+                        </a>
+                    </p>
                 </div>
                 <div style={{ flex: 1 }}>
-                    <Input
-                        name="name"
-                        label="Project name"
-                        rules={{
-                            required: 'Required field',
-                        }}
+                    <DbtSettingsForm
                         disabled={disabled}
+                        defaultType={defaultType}
+                        selectedWarehouse={hasWarehouse}
                     />
                 </div>
             </Card>
-        )}
-        <Card
-            style={{
-                marginBottom: '20px',
-                display: 'flex',
-                flexDirection: 'row',
-            }}
-            elevation={1}
-        >
-            <div style={{ flex: 1 }}>
-                {selectedWarehouse && (
-                    <WarehouseLogo
-                        src={selectedWarehouse.icon}
-                        alt={selectedWarehouse.key}
-                    />
-                )}
-                <div>
-                    <H5 style={{ display: 'inline', marginRight: 5 }}>
-                        Warehouse connection
-                    </H5>
-                    <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
-                </div>
-            </div>
-            <div style={{ flex: 1 }}>
-                <WarehouseSettingsForm
-                    disabled={disabled}
-                    selectedWarehouse={selectedWarehouse}
-                />
-            </div>
-        </Card>
-        <Card
-            style={{
-                marginBottom: '20px',
-                display: 'flex',
-                flexDirection: 'row',
-                gap: 20,
-            }}
-            elevation={1}
-        >
-            <div style={{ flex: 1 }}>
-                <div
-                    style={{
-                        marginBottom: 15,
-                    }}
-                >
-                    <WarehouseLogo src={DbtLogo} alt="dbt icon" />
-                    <div>
-                        <H5
-                            style={{
-                                display: 'inline',
-                                marginRight: 5,
-                            }}
-                        >
-                            dbt connection
-                        </H5>
-                        <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
-                    </div>
-                </div>
-
-                <p style={{ color: Colors.GRAY1 }}>
-                    Your dbt project must be compatible with{' '}
-                    <a
-                        href="https://docs.getdbt.com/guides/migration/versions/upgrading-to-v1.0"
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        dbt version <b>1.1.0</b>
-                    </a>
-                </p>
-            </div>
-            <div style={{ flex: 1 }}>
-                <DbtSettingsForm
-                    disabled={disabled}
-                    defaultType={defaultType}
-                    selectedWarehouse={selectedWarehouse}
-                />
-            </div>
-        </Card>
-    </>
-);
+        </>
+    );
+};
 
 const useOnProjectError = (): SubmitErrorHandler<ProjectConnectionForm> => {
     const { showToastError } = useApp();
@@ -195,8 +205,7 @@ const useOnProjectError = (): SubmitErrorHandler<ProjectConnectionForm> => {
 
 export const UpdateProjectConnection: FC<{
     projectUuid: string;
-    selectedWarehouse: SelectedWarehouse;
-}> = ({ projectUuid, selectedWarehouse }) => {
+}> = ({ projectUuid }) => {
     const { user, health } = useApp();
     const { data } = useProject(projectUuid);
     const onError = useOnProjectError();
@@ -210,7 +219,6 @@ export const UpdateProjectConnection: FC<{
             dbt: data?.dbtConnection,
             warehouse: {
                 ...data?.warehouseConnection,
-                type: selectedWarehouse.key,
             },
         },
     });
@@ -238,11 +246,7 @@ export const UpdateProjectConnection: FC<{
             await mutateAsync({
                 name,
                 dbtConnection,
-                // @ts-ignore
-                warehouseConnection: {
-                    ...warehouseConnection,
-                    type: selectedWarehouse.key,
-                },
+                warehouseConnection,
             });
         }
     };
@@ -258,9 +262,9 @@ export const UpdateProjectConnection: FC<{
                 <FormWrapper>
                     <ProjectForm
                         showGeneralSettings
+                        isProjectUpdate
                         disabled={isSaving}
                         defaultType={health.data?.defaultProject?.type}
-                        selectedWarehouse={selectedWarehouse}
                     />
                 </FormWrapper>
             </ProjectFormProvider>
