@@ -1,3 +1,10 @@
+## [0.148.1](https://github.com/lightdash/lightdash/compare/0.148.0...0.148.1) (2022-06-17)
+
+
+### Bug Fixes
+
+* project member common imports ([#2462](https://github.com/lightdash/lightdash/issues/2462)) ([8052e23](https://github.com/lightdash/lightdash/commit/8052e23441a9e2fe653b0be396c146622c37da8b))
+
 # [0.148.0](https://github.com/lightdash/lightdash/compare/0.147.1...0.148.0) (2022-06-17)
 
 
