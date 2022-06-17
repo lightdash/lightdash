@@ -4,7 +4,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { JSONSchemaType } from 'ajv';
-import { ajv } from '../ajv';
+import { ajv } from '../../ajv';
 import { Target } from '../types';
 
 export type SnowflakeUserPasswordTarget = {
