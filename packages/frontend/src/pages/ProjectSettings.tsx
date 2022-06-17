@@ -18,6 +18,7 @@ import ProjectAccessCreation from '../components/ProjectAccess/ProjectAccessCrea
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import { useProject } from '../hooks/useProject';
+import { useApp } from '../providers/AppProvider';
 import {
     ProjectAccessWrapper,
     Title,
@@ -28,6 +29,7 @@ import {
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isLoading, data, error } = useProject(projectUuid);
+    const { user } = useApp();
 
     const [projectAccessCreate, setProjectAccessCreate] =
         useState<boolean>(false);
@@ -36,6 +38,10 @@ const ProjectSettings: FC = () => {
         [projectUuid],
     );
 
+    const isOrgAdmin = user.data?.ability.can(
+        'manage',
+        'OrganizationMemberProfile',
+    );
     if (error) {
         return (
             <div style={{ marginTop: '20px' }}>
@@ -69,11 +75,13 @@ const ProjectSettings: FC = () => {
                         exact
                         to={`${basePath}/tablesConfiguration`}
                     />
-                    <RouterMenuItem
-                        text="Project access"
-                        exact
-                        to={`${basePath}/projectAccess`}
-                    />
+                    {isOrgAdmin && (
+                        <RouterMenuItem
+                            text="Project access"
+                            exact
+                            to={`${basePath}/projectAccess`}
+                        />
+                    )}
                 </Menu>
             </Sidebar>
 
@@ -116,32 +124,34 @@ const ProjectSettings: FC = () => {
                         </UpdateProjectWrapper>
                     </Content>
                 </Route>
-
-                <Route
-                    exact
-                    path="/projects/:projectUuid/settings/projectAccess"
-                >
-                    <Content>
-                        <ProjectAccessWrapper>
-                            <Title>
-                                Project access (only visible to Project Admins)
-                            </Title>
-                            {projectAccessCreate ? (
-                                <ProjectAccessCreation
-                                    onBackClick={() => {
-                                        setProjectAccessCreate(false);
-                                    }}
-                                />
-                            ) : (
-                                <ProjectAccess
-                                    onAddUser={() => {
-                                        setProjectAccessCreate(true);
-                                    }}
-                                />
-                            )}
-                        </ProjectAccessWrapper>
-                    </Content>
-                </Route>
+                {isOrgAdmin && (
+                    <Route
+                        exact
+                        path="/projects/:projectUuid/settings/projectAccess"
+                    >
+                        <Content>
+                            <ProjectAccessWrapper>
+                                <Title>
+                                    Project access (only visible to Project
+                                    Admins)
+                                </Title>
+                                {projectAccessCreate ? (
+                                    <ProjectAccessCreation
+                                        onBackClick={() => {
+                                            setProjectAccessCreate(false);
+                                        }}
+                                    />
+                                ) : (
+                                    <ProjectAccess
+                                        onAddUser={() => {
+                                            setProjectAccessCreate(true);
+                                        }}
+                                    />
+                                )}
+                            </ProjectAccessWrapper>
+                        </Content>
+                    </Route>
+                )}
                 <Redirect to={basePath} />
             </Switch>
         </PageWithSidebar>

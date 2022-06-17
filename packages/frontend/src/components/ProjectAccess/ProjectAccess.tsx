@@ -12,7 +12,6 @@ import {
     useRevokeProjectAccessMutation,
     useUpdateProjectAccessMutation,
 } from '../../hooks/useProjectAccess';
-import { useApp } from '../../providers/AppProvider';
 import {
     AddUserButton,
     ItemContent,
@@ -116,9 +115,6 @@ const ProjectAccess: FC<{
         useUpdateProjectAccessMutation(projectUuid);
 
     const { data: projectMemberships } = useProjectAccess(projectUuid);
-
-    const { user } = useApp();
-
     const { data: organizationUsers } = useOrganizationUsers();
 
     return (
