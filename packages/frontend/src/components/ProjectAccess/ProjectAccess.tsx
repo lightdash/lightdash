@@ -15,9 +15,14 @@ import {
 import {
     AddUserButton,
     ItemContent,
+    OrgAccess,
+    OrgAccessCounter,
+    OrgAccessHeader,
+    OrgAccessTitle,
     ProjectAccessWrapper,
     RoleSelectButton,
     SectionWrapper,
+    Separator,
     UserEmail,
     UserInfo,
     UserListItemWrapper,
@@ -27,8 +32,8 @@ import {
 const UserListItem: FC<{
     key: string;
     user: OrganizationMemberProfile | ProjectMemberProfile;
-    onDelete: () => void;
-    onUpdate: (newRole: ProjectMemberRole) => void;
+    onDelete?: () => void;
+    onUpdate?: (newRole: ProjectMemberRole) => void;
 }> = ({
     key,
     user: { firstName, lastName, email, role },
@@ -49,31 +54,36 @@ const UserListItem: FC<{
                     </UserInfo>
 
                     <ButtonGroup>
-                        <RoleSelectButton
-                            fill
-                            id="user-role"
-                            options={Object.values(ProjectMemberRole).map(
-                                (orgMemberRole) => ({
-                                    value: orgMemberRole,
-                                    label: orgMemberRole,
-                                }),
-                            )}
-                            required
-                            onChange={(e) => {
-                                const newRole = e.target
-                                    .value as ProjectMemberRole;
-                                onUpdate(newRole);
-                            }}
-                            value={role}
-                        />
-
-                        <Button
-                            icon="delete"
-                            intent="danger"
-                            outlined
-                            onClick={() => setIsDeleteDialogOpen(true)}
-                            text="Delete"
-                        />
+                        {onUpdate ? (
+                            <RoleSelectButton
+                                fill
+                                id="user-role"
+                                options={Object.values(ProjectMemberRole).map(
+                                    (orgMemberRole) => ({
+                                        value: orgMemberRole,
+                                        label: orgMemberRole,
+                                    }),
+                                )}
+                                required
+                                onChange={(e) => {
+                                    const newRole = e.target
+                                        .value as ProjectMemberRole;
+                                    onUpdate(newRole);
+                                }}
+                                value={role}
+                            />
+                        ) : (
+                            <p>{role}</p>
+                        )}
+                        {onDelete && (
+                            <Button
+                                icon="delete"
+                                intent="danger"
+                                outlined
+                                onClick={() => setIsDeleteDialogOpen(true)}
+                                text="Delete"
+                            />
+                        )}
                     </ButtonGroup>
                 </SectionWrapper>
             </ItemContent>
@@ -132,17 +142,26 @@ const ProjectAccess: FC<{
                     onDelete={() => revokeAccess(projectMember.userUuid)}
                 />
             ))}
-
-            {/**
-             * TODO in  #2440
-             * organizationUsers?.map((orgUser) => (
-                <UserListItem key={orgUser.email} user={orgUser} />
-             ))*/}
             <AddUserButton
                 intent="primary"
                 onClick={onAddUser}
                 text="Add user"
             />
+            {organizationUsers && (
+                <OrgAccess>
+                    <OrgAccessHeader>
+                        <OrgAccessTitle>Inherited permissions </OrgAccessTitle>
+                        <OrgAccessCounter>
+                            {organizationUsers.length} can see this project
+                        </OrgAccessCounter>
+                    </OrgAccessHeader>
+                    <Separator />
+
+                    {organizationUsers?.map((orgUser) => (
+                        <UserListItem key={orgUser.email} user={orgUser} />
+                    ))}
+                </OrgAccess>
+            )}
         </ProjectAccessWrapper>
     );
 };
