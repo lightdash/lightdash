@@ -11,7 +11,9 @@ import OrganisationPanel from '../components/UserSettingsModal/OrganisationPanel
 import PasswordPanel from '../components/UserSettingsModal/PasswordPanel';
 import ProfilePanel from '../components/UserSettingsModal/ProfilePanel';
 import ProjectManagementPanel from '../components/UserSettingsModal/ProjectManagementPanel';
+import SocialLoginsPanel from '../components/UserSettingsModal/SocialLoginsPanel';
 import UserManagementPanel from '../components/UserSettingsModal/UserManagementPanel';
+import { useOrganisation } from '../hooks/organisation/useOrganisation';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 import {
@@ -47,11 +49,11 @@ const ExpandableSection: FC<ExpandableSectionProps> = ({ label, children }) => {
 };
 
 const Settings: FC = () => {
-    const { health } = useApp();
+    const { health, user } = useApp();
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
-    const [showInvitePage, setShowInvitePage] = useState(false);
-
+    const [showInvitePage, setShowInvitePage] = useState(true);
+    const { data: orgData } = useOrganisation();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isLoading, data, error } = useProject(projectUuid);
 
@@ -88,107 +90,164 @@ const Settings: FC = () => {
                 <SidebarMenu>
                     <ExpandableSection label="User settings">
                         <RouterMenuItem text="Profile" exact to={basePath} />
-                        <RouterMenuItem
-                            text="Password"
-                            exact
-                            to={`${basePath}/password`}
-                        />
-                        <RouterMenuItem
-                            text="Personal access tokens"
-                            exact
-                            to={`${basePath}/personalAccessTokens`}
-                        />
+                        {allowPasswordAuthentication && (
+                            <RouterMenuItem
+                                text="Password"
+                                exact
+                                to={`${basePath}/password`}
+                            />
+                        )}
+                        {health.data?.auth.google.oauth2ClientId && (
+                            <RouterMenuItem
+                                text="Social logins"
+                                exact
+                                to={`${basePath}/socialLogins`}
+                            />
+                        )}
+                        {orgData && (
+                            <RouterMenuItem
+                                text="Personal access tokens"
+                                exact
+                                to={`${basePath}/personalAccessTokens`}
+                            />
+                        )}
                     </ExpandableSection>
                     <ExpandableSection label="Organization settings">
-                        <RouterMenuItem
-                            text="Organization"
-                            exact
-                            to={`${basePath}/organization`}
-                        />
-                        <RouterMenuItem
-                            text="User management"
-                            exact
-                            to={`${basePath}/userManagement`}
-                        />
-                        <RouterMenuItem
-                            text="Project management"
-                            exact
-                            to={`${basePath}/projectManagement`}
-                        />
-                        <RouterMenuItem
-                            text="Appearance"
-                            exact
-                            to={`${basePath}/appearance`}
-                        />
+                        {user.data?.ability?.can('manage', 'Organization') && (
+                            <RouterMenuItem
+                                text="Organization"
+                                exact
+                                to={`${basePath}/organization`}
+                            />
+                        )}
+                        {user.data?.ability?.can(
+                            'view',
+                            'OrganizationMemberProfile',
+                        ) && (
+                            <RouterMenuItem
+                                text="User management"
+                                exact
+                                to={`${basePath}/userManagement`}
+                            />
+                        )}
+                        {orgData &&
+                            !orgData.needsProject &&
+                            user.data?.ability?.can('manage', 'Project') && (
+                                <RouterMenuItem
+                                    text="Project management"
+                                    exact
+                                    to={`${basePath}/projectManagement`}
+                                />
+                            )}
+                        {orgData &&
+                            !orgData.needsProject &&
+                            user.data?.ability?.can('manage', 'Project') && (
+                                <RouterMenuItem
+                                    text="Appearance"
+                                    exact
+                                    to={`${basePath}/appearance`}
+                                />
+                            )}
                     </ExpandableSection>
                 </SidebarMenu>
             </Sidebar>
 
             <Switch>
-                <Route
-                    exact
-                    path="/projects/:projectUuid/generalSettings/password"
-                >
-                    <Content>
-                        <CardContainer>
-                            <Title>Password settings</Title>
-                            <PasswordPanel />
-                        </CardContainer>
-                    </Content>
-                </Route>
-                <Route
-                    exact
-                    path="/projects/:projectUuid/generalSettings/organization"
-                >
-                    <Content>
-                        <CardContainer>
-                            <Title>Organization settings</Title>
-                            <OrganisationPanel />
-                        </CardContainer>
-                    </Content>
-                </Route>
-                <Route
-                    exact
-                    path="/projects/:projectUuid/generalSettings/userManagement"
-                >
-                    <Content>
-                        <ContentWrapper>
-                            <UserManagementPanel {...userManagementProps} />
-                        </ContentWrapper>
-                    </Content>
-                </Route>
-                <Route
-                    exact
-                    path="/projects/:projectUuid/generalSettings/projectManagement"
-                >
-                    <Content>
-                        <ContentWrapper>
-                            <ProjectManagementPanel />
-                        </ContentWrapper>
-                    </Content>
-                </Route>
-                <Route
-                    exact
-                    path="/projects/:projectUuid/generalSettings/appearance"
-                >
-                    <Content>
-                        <CardContainer>
-                            <Title>Appearance settings</Title>
-                            <AppearancePanel />
-                        </CardContainer>
-                    </Content>
-                </Route>
-                <Route
-                    exact
-                    path="/projects/:projectUuid/generalSettings/personalAccessTokens"
-                >
-                    <Content>
-                        <ContentWrapper>
-                            <AccessTokensPanel />
-                        </ContentWrapper>
-                    </Content>
-                </Route>
-
+                {allowPasswordAuthentication && (
+                    <Route
+                        exact
+                        path="/projects/:projectUuid/generalSettings/password"
+                    >
+                        <Content>
+                            <CardContainer>
+                                <Title>Password settings</Title>
+                                <PasswordPanel />
+                            </CardContainer>
+                        </Content>
+                    </Route>
+                )}
+                {health.data?.auth.google.oauth2ClientId && (
+                    <Route
+                        exact
+                        path="/projects/:projectUuid/generalSettings/socialLogins"
+                    >
+                        <Content>
+                            <CardContainer>
+                                <Title>Social logins</Title>
+                                <SocialLoginsPanel />
+                            </CardContainer>
+                        </Content>
+                    </Route>
+                )}
+                {user.data?.ability?.can('manage', 'Organization') && (
+                    <Route
+                        exact
+                        path="/projects/:projectUuid/generalSettings/organization"
+                    >
+                        <Content>
+                            <CardContainer>
+                                <Title>Organization settings</Title>
+                                <OrganisationPanel />
+                            </CardContainer>
+                        </Content>
+                    </Route>
+                )}
+                {user.data?.ability?.can(
+                    'view',
+                    'OrganizationMemberProfile',
+                ) && (
+                    <Route
+                        exact
+                        path="/projects/:projectUuid/generalSettings/userManagement"
+                    >
+                        <Content>
+                            <ContentWrapper>
+                                <UserManagementPanel {...userManagementProps} />
+                            </ContentWrapper>
+                        </Content>
+                    </Route>
+                )}
+                {orgData &&
+                    !orgData.needsProject &&
+                    user.data?.ability?.can('manage', 'Project') && (
+                        <Route
+                            exact
+                            path="/projects/:projectUuid/generalSettings/projectManagement"
+                        >
+                            <Content>
+                                <ContentWrapper>
+                                    <ProjectManagementPanel />
+                                </ContentWrapper>
+                            </Content>
+                        </Route>
+                    )}
+                {orgData &&
+                    !orgData.needsProject &&
+                    user.data?.ability?.can('manage', 'Project') && (
+                        <Route
+                            exact
+                            path="/projects/:projectUuid/generalSettings/appearance"
+                        >
+                            <Content>
+                                <CardContainer>
+                                    <Title>Appearance settings</Title>
+                                    <AppearancePanel />
+                                </CardContainer>
+                            </Content>
+                        </Route>
+                    )}
+                {orgData && (
+                    <Route
+                        exact
+                        path="/projects/:projectUuid/generalSettings/personalAccessTokens"
+                    >
+                        <Content>
+                            <ContentWrapper>
+                                <AccessTokensPanel />
+                            </ContentWrapper>
+                        </Content>
+                    </Route>
+                )}
                 <Route exact path="/projects/:projectUuid/generalSettings">
                     <Content>
                         <CardContainer>

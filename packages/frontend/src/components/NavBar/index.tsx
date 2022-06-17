@@ -9,7 +9,7 @@ import {
     Position,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import React, { useState } from 'react';
+import React from 'react';
 import { useMutation } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
@@ -24,7 +24,6 @@ import { UserAvatar } from '../Avatar';
 import { ErrorLogsDrawer } from '../ErrorLogsDrawer';
 import NavLink from '../NavLink';
 import { ShowErrorsButton } from '../ShowErrorsButton';
-import UserSettingsModal from '../UserSettingsModal';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
 import HelpMenu from './HelpMenu';
@@ -56,9 +55,6 @@ const NavBar = () => {
         params.projectUuid || lastProject || defaultProject.data?.projectUuid;
 
     const history = useHistory();
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [showInvitePage, setShowInvitePage] = useState(false);
-    const [activeTab, setActiveTab] = useState<string | undefined>();
     const { mutate } = useMutation(logoutQuery, {
         mutationKey: ['logout'],
         onSuccess: () => {
@@ -86,13 +82,17 @@ const NavBar = () => {
                             <BrowseMenu projectId={selectedProjectUuid} />
                         </>
                     )}
-                    <Button
-                        minimal
-                        icon="cog"
-                        text="Settings"
-                        onClick={() => setIsSettingsOpen(true)}
-                        data-cy="settings-button"
-                    />
+
+                    <NavLink
+                        to={`/projects/${selectedProjectUuid}/generalSettings`}
+                    >
+                        <Button
+                            minimal
+                            icon="cog"
+                            text="Settings"
+                            data-cy="settings-button"
+                        />
+                    </NavLink>
                 </NavbarGroup>
                 <NavbarGroup align={Alignment.RIGHT}>
                     <HelpMenu />
@@ -135,15 +135,14 @@ const NavBar = () => {
                                     'create',
                                     'InviteLink',
                                 ) ? (
-                                    <MenuItem
-                                        icon="new-person"
-                                        text="Invite user"
-                                        onClick={() => {
-                                            setActiveTab('userManagement');
-                                            setShowInvitePage(true);
-                                            setIsSettingsOpen(true);
-                                        }}
-                                    />
+                                    <NavLink
+                                        to={`/projects/${selectedProjectUuid}/generalSettings/userManagement`}
+                                    >
+                                        <MenuItem
+                                            icon="new-person"
+                                            text="Invite user"
+                                        />
+                                    </NavLink>
                                 ) : null}
                                 <MenuItem
                                     icon="log-out"
@@ -158,21 +157,6 @@ const NavBar = () => {
                     </Popover2>
                 </NavbarGroup>
             </NavBarWrapper>
-            <UserSettingsModal
-                isOpen={isSettingsOpen}
-                onClose={() => setIsSettingsOpen(false)}
-                activeTab={activeTab}
-                onChangeTab={(tab) => {
-                    setActiveTab(tab);
-                    setShowInvitePage(false);
-                }}
-                panelProps={{
-                    userManagementProps: {
-                        showInvitePage,
-                        setShowInvitePage,
-                    },
-                }}
-            />
             <ErrorLogsDrawer />
         </>
     );
