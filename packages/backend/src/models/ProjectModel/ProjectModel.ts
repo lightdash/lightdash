@@ -7,6 +7,8 @@ import {
     NotExistsError,
     OrganizationProject,
     Project,
+    ProjectMemberProfile,
+    ProjectMemberRole,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
     TablesConfiguration,
@@ -14,10 +16,6 @@ import {
     UpdateProject,
     WarehouseCredentials,
 } from '@lightdash/common';
-import {
-    ProjectMemberProfile,
-    ProjectMemberRole,
-} from '@lightdash/common/src/types/projectMemberProfile';
 import { WarehouseCatalog } from '@lightdash/warehouses';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';

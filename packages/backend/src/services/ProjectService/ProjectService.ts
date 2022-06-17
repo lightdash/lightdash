@@ -30,6 +30,7 @@ import {
     NotFoundError,
     Project,
     ProjectCatalog,
+    ProjectMemberProfile,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
@@ -37,7 +38,6 @@ import {
     UpdateProject,
     UpdateProjectMember,
 } from '@lightdash/common';
-import { ProjectMemberProfile } from '@lightdash/common/src/types/projectMemberProfile';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { analytics } from '../../analytics/client';
