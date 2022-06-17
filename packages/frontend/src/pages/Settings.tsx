@@ -1,4 +1,4 @@
-import { Menu, NonIdealState, Spinner } from '@blueprintjs/core';
+import { Collapse, NonIdealState, Spinner } from '@blueprintjs/core';
 import React, { FC, useMemo, useState } from 'react';
 import { Redirect, Route, Switch, useParams } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
@@ -14,7 +14,37 @@ import ProjectManagementPanel from '../components/UserSettingsModal/ProjectManag
 import UserManagementPanel from '../components/UserSettingsModal/UserManagementPanel';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
-import { CardContainer, ContentWrapper, Title } from './Settings.styles';
+import {
+    CardContainer,
+    CollapseTrigger,
+    ContentWrapper,
+    ExpandableWrapper,
+    SettingsItems,
+    SidebarMenu,
+    Title,
+} from './Settings.styles';
+
+interface ExpandableSectionProps {
+    label: string;
+}
+
+const ExpandableSection: FC<ExpandableSectionProps> = ({ label, children }) => {
+    const [isOpen, setIsOpen] = useState<boolean>(false);
+    return (
+        <ExpandableWrapper>
+            <CollapseTrigger
+                icon={isOpen ? 'chevron-down' : 'chevron-right'}
+                text={label}
+                minimal
+                onClick={() => setIsOpen((prev) => !prev)}
+            />
+
+            <Collapse isOpen={isOpen}>
+                <SettingsItems>{children}</SettingsItems>
+            </Collapse>
+        </ExpandableWrapper>
+    );
+};
 
 const Settings: FC = () => {
     const { health } = useApp();
@@ -55,40 +85,43 @@ const Settings: FC = () => {
     return (
         <PageWithSidebar>
             <Sidebar title="Settings" noMargin>
-                <Menu>
-                    <RouterMenuItem text="Profile" exact to={basePath} />
-
-                    <RouterMenuItem
-                        text="Password"
-                        exact
-                        to={`${basePath}/password`}
-                    />
-                    <RouterMenuItem
-                        text="Organization"
-                        exact
-                        to={`${basePath}/organization`}
-                    />
-                    <RouterMenuItem
-                        text="User management"
-                        exact
-                        to={`${basePath}/userManagement`}
-                    />
-                    <RouterMenuItem
-                        text="Project management"
-                        exact
-                        to={`${basePath}/projectManagement`}
-                    />
-                    <RouterMenuItem
-                        text="Appearance"
-                        exact
-                        to={`${basePath}/appearance`}
-                    />
-                    <RouterMenuItem
-                        text="Personal access tokens"
-                        exact
-                        to={`${basePath}/personalAccessTokens`}
-                    />
-                </Menu>
+                <SidebarMenu>
+                    <ExpandableSection label="User settings">
+                        <RouterMenuItem text="Profile" exact to={basePath} />
+                        <RouterMenuItem
+                            text="Password"
+                            exact
+                            to={`${basePath}/password`}
+                        />
+                        <RouterMenuItem
+                            text="Personal access tokens"
+                            exact
+                            to={`${basePath}/personalAccessTokens`}
+                        />
+                    </ExpandableSection>
+                    <ExpandableSection label="Organization settings">
+                        <RouterMenuItem
+                            text="Organization"
+                            exact
+                            to={`${basePath}/organization`}
+                        />
+                        <RouterMenuItem
+                            text="User management"
+                            exact
+                            to={`${basePath}/userManagement`}
+                        />
+                        <RouterMenuItem
+                            text="Project management"
+                            exact
+                            to={`${basePath}/projectManagement`}
+                        />
+                        <RouterMenuItem
+                            text="Appearance"
+                            exact
+                            to={`${basePath}/appearance`}
+                        />
+                    </ExpandableSection>
+                </SidebarMenu>
             </Sidebar>
 
             <Switch>
