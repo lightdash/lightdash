@@ -1,3 +1,10 @@
+# [0.148.0](https://github.com/lightdash/lightdash/compare/0.147.1...0.148.0) (2022-06-17)
+
+
+### Features
+
+* restrict pivot configuration ([#2449](https://github.com/lightdash/lightdash/issues/2449)) ([1337d48](https://github.com/lightdash/lightdash/commit/1337d48d9c3fa15adaca9a751d02110e6c3280dc))
+
 ## [0.147.1](https://github.com/lightdash/lightdash/compare/0.147.0...0.147.1) (2022-06-16)
 
 
