@@ -75,6 +75,7 @@ const ProjectSettings: FC = () => {
                         exact
                         to={`${basePath}/tablesConfiguration`}
                     />
+                    {isOrgAdmin && <MenuDivider />}
                     {isOrgAdmin && (
                         <RouterMenuItem
                             text="Project access"
