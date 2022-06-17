@@ -52,6 +52,7 @@ import { LightdashUser } from './types/user';
 import { formatItemValue } from './utils/formatting';
 
 export * from './authorization/organizationMemberAbility';
+export * from './authorization/projectMemberAbility';
 export * from './compiler/exploreCompiler';
 export * from './compiler/translator';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';

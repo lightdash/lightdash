@@ -1,3 +1,17 @@
+## [0.147.1](https://github.com/lightdash/lightdash/compare/0.147.0...0.147.1) (2022-06-16)
+
+
+### Bug Fixes
+
+* handle timezones in date trunc for snowflake ([#2455](https://github.com/lightdash/lightdash/issues/2455)) ([655ae59](https://github.com/lightdash/lightdash/commit/655ae59147ce7ec1f3db07fbec0babceb2d837a4))
+
+# [0.147.0](https://github.com/lightdash/lightdash/compare/0.146.0...0.147.0) (2022-06-16)
+
+
+### Features
+
+* define abilities for project roles ([#2446](https://github.com/lightdash/lightdash/issues/2446)) ([14f359d](https://github.com/lightdash/lightdash/commit/14f359dcfa4d95557422741996748a4db21548d3))
+
 # [0.146.0](https://github.com/lightdash/lightdash/compare/0.145.0...0.146.0) (2022-06-16)
 
 

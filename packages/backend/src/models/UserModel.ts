@@ -4,6 +4,7 @@ import {
     CreateUserArgs,
     CreateUserWithRole,
     defineAbilityForOrganizationMember,
+    defineAbilityForProjectMember,
     isOpenIdUser,
     LightdashMode,
     LightdashUser,
@@ -14,11 +15,10 @@ import {
     OrganizationMemberRole,
     ParameterError,
     PersonalAccessToken,
+    ProjectMemberProfile,
     SessionUser,
     UpdateUserArgs,
 } from '@lightdash/common';
-import { defineAbilityForProjectMember } from '@lightdash/common/src/authorization/projectMemberAbility';
-import { ProjectMemberProfile } from '@lightdash/common/src/types/projectMemberProfile';
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
 import { URL } from 'url';

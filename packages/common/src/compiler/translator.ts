@@ -34,9 +34,10 @@ const getDataTruncSql = (
                 return `DATETIME_TRUNC(${field}, ${timeInterval.toUpperCase()})`;
             }
             return `DATE_TRUNC(${field}, ${timeInterval.toUpperCase()})`;
+        case SupportedDbtAdapter.SNOWFLAKE:
+            return `DATE_TRUNC('${timeInterval.toUpperCase()}', CONVERT_TIMEZONE('UTC', ${field}))`;
         case SupportedDbtAdapter.REDSHIFT:
         case SupportedDbtAdapter.POSTGRES:
-        case SupportedDbtAdapter.SNOWFLAKE:
         case SupportedDbtAdapter.DATABRICKS:
             return `DATE_TRUNC('${timeInterval.toUpperCase()}', ${field})`;
         default:
@@ -457,7 +458,7 @@ export const attachTypesToModels = (
         }
         if (throwOnMissingCatalogEntry) {
             throw new MissingCatalogEntryError(
-                `Column "${columnName}" from model "${name}" does not exist.\n "${columnName}.${name}" was not found in your target warehouse at ${database}.${schema}.${name}. Try rerunning dbt to update your warehouse.`,
+                `Column "${columnName}" from model "${name}" does not exist.\n "${name}.${columnName}" was not found in your target warehouse at ${database}.${schema}.${name}. Try rerunning dbt to update your warehouse.`,
                 {},
             );
         }
