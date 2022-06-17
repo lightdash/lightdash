@@ -5,6 +5,7 @@ import {
     CreateInviteLink,
     CreatePasswordResetLink,
     CreateUserArgs,
+    defineAbilityForOrganizationMember,
     DeleteOpenIdentity,
     ExpiredError,
     ForbiddenError,
@@ -606,7 +607,9 @@ export class UserService {
         }
     }
 
-    async loginWithPersonalAccessToken(token: string): Promise<LightdashUser> {
+    async loginWithPersonalAccessToken(
+        token: string,
+    ): Promise<Omit<SessionUser, 'userId'>> {
         const results = await this.userModel.findUserByPersonalAccessToken(
             token,
         );
@@ -626,6 +629,9 @@ export class UserService {
             }
             throw new AuthorizationError();
         }
-        return user;
+        return {
+            ...user,
+            ability: defineAbilityForOrganizationMember(user),
+        };
     }
 }
