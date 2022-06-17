@@ -1,13 +1,16 @@
-import { Button, ButtonGroup, Classes } from '@blueprintjs/core';
+import { Button, ButtonGroup, Classes, Dialog } from '@blueprintjs/core';
 import {
     OrganizationMemberProfile,
-    OrganizationMemberRole,
     ProjectMemberProfile,
+    ProjectMemberRole,
 } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
-import { useProjectAccess } from '../../hooks/useProjectAccess';
+import {
+    useProjectAccess,
+    useRevokeProjectAccessMutation,
+} from '../../hooks/useProjectAccess';
 import { useApp } from '../../providers/AppProvider';
 import {
     AddUserButton,
@@ -23,8 +26,13 @@ import {
 
 const UserListItem: FC<{
     key: string;
-    user: OrganizationMemberProfile | ProjectMemberProfile; //TODO replace with project
-}> = ({ key, user: { userUuid, firstName, lastName, email, role } }) => {
+    user: OrganizationMemberProfile | ProjectMemberProfile;
+    onDelete: () => void;
+}> = ({
+    key,
+    user: { userUuid, firstName, lastName, email, role },
+    onDelete,
+}) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     return (
@@ -42,12 +50,12 @@ const UserListItem: FC<{
                         <RoleSelectButton
                             fill
                             id="user-role"
-                            options={Object.values(
-                                OrganizationMemberRole, //TODO replace with project
-                            ).map((orgMemberRole) => ({
-                                value: orgMemberRole,
-                                label: orgMemberRole,
-                            }))}
+                            options={Object.values(ProjectMemberRole).map(
+                                (orgMemberRole) => ({
+                                    value: orgMemberRole,
+                                    label: orgMemberRole,
+                                }),
+                            )}
                             required
                             onChange={(e) => {}}
                             value={role}
@@ -63,11 +71,40 @@ const UserListItem: FC<{
                     </ButtonGroup>
                 </SectionWrapper>
             </ItemContent>
+            <Dialog
+                isOpen={isDeleteDialogOpen}
+                icon="key"
+                onClose={() => setIsDeleteDialogOpen(false)}
+                title="Revoke project access"
+                lazy
+                canOutsideClickClose={false}
+            >
+                <div className={Classes.DIALOG_BODY}>
+                    <p>
+                        Are you sure you want to revoke project access this user{' '}
+                        {email} ?
+                    </p>
+                </div>
+                <div className={Classes.DIALOG_FOOTER}>
+                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+                        <Button onClick={() => setIsDeleteDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button intent="danger" onClick={onDelete}>
+                            Delete
+                        </Button>
+                    </div>
+                </div>
+            </Dialog>
         </UserListItemWrapper>
     );
 };
-const ProjectAccess: FC = () => {
+const ProjectAccess: FC<{
+    onAddUser: () => void;
+}> = ({ onAddUser }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { mutate: revokeAccess } =
+        useRevokeProjectAccessMutation(projectUuid);
 
     const { data: projectMemberships } = useProjectAccess(projectUuid);
 
@@ -78,7 +115,11 @@ const ProjectAccess: FC = () => {
     return (
         <ProjectAccessWrapper>
             {projectMemberships?.map((projectMember) => (
-                <UserListItem key={projectMember.email} user={projectMember} />
+                <UserListItem
+                    key={projectMember.email}
+                    user={projectMember}
+                    onDelete={() => revokeAccess(projectMember.userUuid)}
+                />
             ))}
 
             {/**
@@ -88,7 +129,7 @@ const ProjectAccess: FC = () => {
              ))*/}
             <AddUserButton
                 intent="primary"
-                onClick={() => {}}
+                onClick={onAddUser}
                 text="Add user"
             />
         </ProjectAccessWrapper>

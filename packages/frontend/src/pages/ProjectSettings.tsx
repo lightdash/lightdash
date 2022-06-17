@@ -7,13 +7,14 @@ import {
     NonIdealState,
     Spinner,
 } from '@blueprintjs/core';
-import React, { FC, useMemo } from 'react';
+import React, { FC, useMemo, useState } from 'react';
 import { Redirect, Route, Switch, useParams } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
 import RouterMenuItem from '../components/common/RouterMenuItem';
 import ProjectAccess from '../components/ProjectAccess/ProjectAccess';
+import ProjectAccessInvitation from '../components/ProjectAccess/ProjectAccessInvitation';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import { useProject } from '../hooks/useProject';
@@ -28,6 +29,8 @@ const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isLoading, data, error } = useProject(projectUuid);
 
+    const [projectAccessInvitation, setProjectAccessInvitation] =
+        useState<boolean>(false);
     const basePath = useMemo(
         () => `/projects/${projectUuid}/settings`,
         [projectUuid],
@@ -123,7 +126,19 @@ const ProjectSettings: FC = () => {
                             <Title>
                                 Project access (only visible to Project Admins)
                             </Title>
-                            <ProjectAccess />
+                            {projectAccessInvitation ? (
+                                <ProjectAccessInvitation
+                                    onBackClick={() => {
+                                        setProjectAccessInvitation(false);
+                                    }}
+                                />
+                            ) : (
+                                <ProjectAccess
+                                    onAddUser={() => {
+                                        setProjectAccessInvitation(true);
+                                    }}
+                                />
+                            )}
                         </ProjectAccessWrapper>
                     </Content>
                 </Route>

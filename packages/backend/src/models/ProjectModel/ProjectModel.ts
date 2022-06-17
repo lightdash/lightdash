@@ -536,20 +536,22 @@ export class ProjectModel {
 
     async createProjectAccess(
         projectUuid: string,
-        userUuid: string,
+        email: string,
         role: ProjectMemberRole,
     ): Promise<void> {
         const [project] = await this.database('projects')
-            .select(['project_id'])
+            .select('project_id')
             .where('project_uuid', projectUuid);
-        console.log('project', project);
-
-        console.log('userUuid', userUuid);
 
         const [user] = await this.database('users')
-            .select(['user_id'])
-            .where('user_uuid', userUuid);
-        console.log('user', user);
+            .leftJoin('emails', 'emails.user_id', 'users.user_id')
+            .select('users.user_id')
+            .where('email', email);
+        if (user === undefined) {
+            throw new NotExistsError(
+                `Can't find user with email ${email} in the organization`,
+            );
+        }
 
         await this.database('project_memberships').insert({
             project_id: project.project_id,
@@ -563,10 +565,10 @@ export class ProjectModel {
         userUuid: string,
     ): Promise<void> {
         const [project] = await this.database('projects')
-            .select(['project_id'])
+            .select('project_id')
             .where('project_uuid', projectUuid);
         const [user] = await this.database('users')
-            .select(['user_id'])
+            .select('user_id')
             .where('user_uuid', userUuid);
 
         await this.database('project_memberships')

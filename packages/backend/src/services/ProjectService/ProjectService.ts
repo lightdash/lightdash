@@ -1,11 +1,13 @@
 import { subject } from '@casl/ability';
 import {
+    AlreadyExistsError,
     AlreadyProcessingError,
     ApiQueryResults,
     ApiSqlQueryResults,
     countTotalFilterRules,
     CreateJob,
     CreateProject,
+    CreateProjectMember,
     Explore,
     ExploreError,
     fieldId,
@@ -28,7 +30,6 @@ import {
     NotFoundError,
     Project,
     ProjectCatalog,
-    ProjectMember,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
@@ -36,6 +37,7 @@ import {
     UpdateProject,
 } from '@lightdash/common';
 import { ProjectMemberProfile } from '@lightdash/common/src/types/projectMemberProfile';
+import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { analytics } from '../../analytics/client';
 import { errorHandler } from '../../errors';
@@ -864,20 +866,35 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ProjectMemberProfile[]> {
+        // TODO implement permissions
         return this.projectModel.getProjectAccess(projectUuid);
     }
 
     async createProjectAccess(
         user: SessionUser,
         projectUuid: string,
-        data: ProjectMember,
+        data: CreateProjectMember,
     ): Promise<void> {
-        console.log('data', data);
-        await this.projectModel.createProjectAccess(
-            projectUuid,
-            data.userUuid,
-            data.role,
-        );
+        // TODO implement permissions
+
+        try {
+            await this.projectModel.createProjectAccess(
+                projectUuid,
+                data.email,
+                data.role,
+            );
+        } catch (error: any) {
+            if (
+                error instanceof DatabaseError &&
+                error.constraint ===
+                    'project_memberships_project_id_user_id_unique'
+            ) {
+                throw new AlreadyExistsError(
+                    `This user email ${data.email} already has access to this project`,
+                );
+            }
+            throw error;
+        }
     }
 
     async deleteProjectAccess(
@@ -885,6 +902,8 @@ export class ProjectService {
         projectUuid: string,
         userUuid: string,
     ): Promise<void> {
+        // TODO implement permissions
+
         await this.projectModel.deleteProjectAccess(projectUuid, userUuid);
     }
 }

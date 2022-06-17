@@ -428,8 +428,8 @@ export type TablesConfiguration = {
     };
 };
 
-export type ProjectMember = {
-    userUuid: string;
+export type CreateProjectMember = {
+    email: string;
     role: ProjectMemberRole;
 };
 
