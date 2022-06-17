@@ -1,5 +1,5 @@
 import { Colors } from '@blueprintjs/core';
-import { DateInput } from '@blueprintjs/datetime';
+import { DateInput2 } from '@blueprintjs/datetime2';
 import { formatDate, hexToRGB, parseDate } from '@lightdash/common';
 import moment from 'moment';
 import React, { FC, useState } from 'react';
@@ -94,14 +94,15 @@ const WeekPicker: FC<Props> = ({ value, onChange }) => {
     return (
         <>
             <SelectedWeekStyles />
-            <DateInput
+            <DateInput2
                 fill
-                value={value}
+                defaultTimezone="UTC"
+                value={value.toUTCString()}
                 formatDate={formatDate}
                 parseDate={parseDate}
                 defaultValue={getWeekRange(new Date()).from}
-                onChange={(pickedDate: Date | null) => {
-                    onChange(getWeekRange(pickedDate || value).from);
+                onChange={(pickedDate: string | null) => {
+                    onChange(getWeekRange(new Date(pickedDate || value)).from);
                 }}
                 dayPickerProps={{
                     selectedDays,

@@ -1,5 +1,5 @@
 import { NumericInput } from '@blueprintjs/core';
-import { DateInput, TimePrecision } from '@blueprintjs/datetime';
+import { DateInput2 } from '@blueprintjs/datetime2';
 import {
     DateFilterRule,
     DimensionType,
@@ -92,20 +92,19 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                 }
             }
             return (
-                <DateInput
+                <DateInput2
                     fill
+                    defaultTimezone="UTC"
                     value={
                         filterRule.values?.[0]
-                            ? new Date(filterRule.values?.[0])
-                            : new Date()
+                            ? new Date(filterRule.values?.[0]).toUTCString()
+                            : new Date().toUTCString()
                     }
-                    timePrecision={
-                        isTimestamp ? TimePrecision.MILLISECOND : undefined
-                    }
+                    timePrecision={isTimestamp ? 'millisecond' : undefined}
                     formatDate={isTimestamp ? formatTimestamp : formatDate}
                     parseDate={isTimestamp ? parseTimestamp : parseDate}
                     defaultValue={new Date()}
-                    onChange={(value: Date | null) => {
+                    onChange={(value: string | null) => {
                         if (value) {
                             onChange({
                                 ...filterRule,
