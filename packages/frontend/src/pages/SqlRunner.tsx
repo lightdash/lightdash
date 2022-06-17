@@ -57,6 +57,7 @@ const generateBasicSqlQuery = (table: string) =>
 const SqlRunnerPage = () => {
     const initialState = useSqlRunnerUrlState();
     const [sql, setSql] = useState<string>(initialState?.sqlRunner?.sql || '');
+    const [lastSqlRan, setLastSqlRan] = useState<string>();
     const { isLoading: isCatalogLoading, data: catalogData } =
         useProjectCatalog();
     const sqlQueryMutation = useSqlQueryMutation();
@@ -82,8 +83,11 @@ const SqlRunnerPage = () => {
         fieldsMap: sqlQueryDimensions,
     });
     const sqlRunnerState = useMemo(
-        () => ({ createSavedChart, sqlRunner: { sql } }),
-        [createSavedChart, sql],
+        () => ({
+            createSavedChart,
+            sqlRunner: lastSqlRan ? { sql: lastSqlRan } : undefined,
+        }),
+        [createSavedChart, lastSqlRan],
     );
     useSqlRunnerRoute(sqlRunnerState);
     const [vizIsOpen, setVizIsOpen] = useState(
@@ -92,12 +96,14 @@ const SqlRunnerPage = () => {
     const onSubmit = useCallback(() => {
         if (sql) {
             mutate(sql);
+            setLastSqlRan(sql);
         }
     }, [mutate, sql]);
 
     useMount(() => {
         if (sql) {
             mutate(sql);
+            setLastSqlRan(sql);
         }
     });
 
