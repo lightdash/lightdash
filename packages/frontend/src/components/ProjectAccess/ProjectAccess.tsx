@@ -10,6 +10,7 @@ import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import {
     useProjectAccess,
     useRevokeProjectAccessMutation,
+    useUpdateProjectAccessMutation,
 } from '../../hooks/useProjectAccess';
 import { useApp } from '../../providers/AppProvider';
 import {
@@ -28,10 +29,12 @@ const UserListItem: FC<{
     key: string;
     user: OrganizationMemberProfile | ProjectMemberProfile;
     onDelete: () => void;
+    onUpdate: (newRole: ProjectMemberRole) => void;
 }> = ({
     key,
-    user: { userUuid, firstName, lastName, email, role },
+    user: { firstName, lastName, email, role },
     onDelete,
+    onUpdate,
 }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -57,7 +60,12 @@ const UserListItem: FC<{
                                 }),
                             )}
                             required
-                            onChange={(e) => {}}
+                            onChange={(e) => {
+                                console.log('e', e);
+                                const newRole = e.target
+                                    .value as ProjectMemberRole;
+                                onUpdate(newRole);
+                            }}
                             value={role}
                         />
 
@@ -105,6 +113,8 @@ const ProjectAccess: FC<{
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { mutate: revokeAccess } =
         useRevokeProjectAccessMutation(projectUuid);
+    const { mutate: updateAccess } =
+        useUpdateProjectAccessMutation(projectUuid);
 
     const { data: projectMemberships } = useProjectAccess(projectUuid);
 
@@ -118,6 +128,12 @@ const ProjectAccess: FC<{
                 <UserListItem
                     key={projectMember.email}
                     user={projectMember}
+                    onUpdate={(newRole) =>
+                        updateAccess({
+                            userUuid: projectMember.userUuid,
+                            role: newRole,
+                        })
+                    }
                     onDelete={() => revokeAccess(projectMember.userUuid)}
                 />
             ))}

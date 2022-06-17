@@ -412,7 +412,25 @@ projectRouter.post(
         }
     },
 );
-
+projectRouter.patch(
+    '/projectAccess',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results = await projectService.updateProjectAccess(
+                req.user!,
+                req.params.projectUuid,
+                req.body,
+            );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
 projectRouter.delete(
     '/projectAccess/:userUuid',
     isAuthenticated,

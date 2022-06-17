@@ -560,6 +560,27 @@ export class ProjectModel {
         });
     }
 
+    async updateProjectAccess(
+        projectUuid: string,
+        userUuid: string,
+        role: ProjectMemberRole,
+    ): Promise<void> {
+        const [project] = await this.database('projects')
+            .select('project_id')
+            .where('project_uuid', projectUuid);
+
+        const [user] = await this.database('users')
+            .select('user_id')
+            .where('user_uuid', userUuid);
+
+        await this.database('project_memberships')
+            .update({
+                role,
+            })
+            .where('project_id', project.project_id)
+            .andWhere('user_id', user.user_id);
+    }
+
     async deleteProjectAccess(
         projectUuid: string,
         userUuid: string,

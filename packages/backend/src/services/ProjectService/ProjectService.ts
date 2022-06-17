@@ -35,6 +35,7 @@ import {
     TablesConfiguration,
     TableSelectionType,
     UpdateProject,
+    UpdateProjectMember,
 } from '@lightdash/common';
 import { ProjectMemberProfile } from '@lightdash/common/src/types/projectMemberProfile';
 import { DatabaseError } from 'pg';
@@ -895,6 +896,20 @@ export class ProjectService {
             }
             throw error;
         }
+    }
+
+    async updateProjectAccess(
+        user: SessionUser,
+        projectUuid: string,
+        data: UpdateProjectMember,
+    ): Promise<void> {
+        // TODO implement permissions
+
+        await this.projectModel.updateProjectAccess(
+            projectUuid,
+            data.userUuid,
+            data.role,
+        );
     }
 
     async deleteProjectAccess(

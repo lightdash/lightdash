@@ -433,6 +433,11 @@ export type CreateProjectMember = {
     role: ProjectMemberRole;
 };
 
+export type UpdateProjectMember = {
+    userUuid: string;
+    role: ProjectMemberRole;
+};
+
 export type ApiCompiledQueryResults = string;
 
 export type ApiExploresResults = SummaryExplore[];

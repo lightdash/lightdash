@@ -2,6 +2,7 @@ import {
     ApiError,
     CreateProjectMember,
     ProjectMemberProfile,
+    UpdateProjectMember,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
@@ -78,6 +79,40 @@ export const useCreateProjectAccessMutation = (projectUuid: string) => {
                 await queryClient.refetchQueries(['project_access_users']);
                 showToastSuccess({
                     title: 'Created new project access',
+                });
+            },
+            onError: async (error1) => {
+                const [title, ...rest] = error1.error.message.split('\n');
+                showToastError({
+                    title,
+                    subtitle: rest.join('\n'),
+                });
+            },
+        },
+    );
+};
+
+const updateProjectAccessQuery = async (
+    projectUuid: string,
+    data: UpdateProjectMember,
+) =>
+    lightdashApi<undefined>({
+        url: `/projects/${projectUuid}/projectAccess`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
+export const useUpdateProjectAccessMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastError, showToastSuccess } = useApp();
+    return useMutation<undefined, ApiError, UpdateProjectMember>(
+        (data) => updateProjectAccessQuery(projectUuid, data),
+        {
+            mutationKey: ['project_access_update'],
+            onSuccess: async (data) => {
+                await queryClient.refetchQueries(['project_access_users']);
+                showToastSuccess({
+                    title: 'Updated project access role',
                 });
             },
             onError: async (error1) => {
