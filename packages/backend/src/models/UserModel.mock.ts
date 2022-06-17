@@ -20,6 +20,9 @@ export const projectProfile: ProjectMemberProfile = {
     userUuid: 'user-uuid-1234',
     role: ProjectMemberRole.VIEWER,
     projectUuid: 'project-uuid-view',
+    email: '',
+    firstName: '',
+    lastName: '',
 };
 
 export const adminOrgProfile = {
