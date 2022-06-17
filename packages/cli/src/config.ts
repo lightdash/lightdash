@@ -15,9 +15,16 @@ type Config = {
 };
 
 export const getConfig = async (): Promise<Config> => {
-    const raw = yaml.load(await fs.readFile(configFilePath, 'utf8'));
-    const validated = raw as Config;
-    return validated;
+    try {
+        const raw = yaml.load(await fs.readFile(configFilePath, 'utf8'));
+        const validated = raw as Config;
+        return validated;
+    } catch (e) {
+        if (e.code === 'ENOENT') {
+            return {};
+        }
+        throw e;
+    }
 };
 
 export const setConfig = async (config: Config) => {

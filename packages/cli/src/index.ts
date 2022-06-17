@@ -3,7 +3,7 @@ import { LightdashError } from '@lightdash/common';
 import { program } from 'commander';
 import * as os from 'os';
 import * as path from 'path';
-import { compileHandler } from './handlers/compile';
+import { compileHandler, deployHandler } from './handlers/compile';
 import { dbtRunHandler } from './handlers/dbt/run';
 import { generateHandler } from './handlers/generate';
 import { login } from './handlers/login';
@@ -176,7 +176,7 @@ program
         undefined,
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
-    .action(compileHandler);
+    .action(deployHandler);
 
 program
     .command('generate')
@@ -235,9 +235,12 @@ ${styles.bold('Examples:')}
     .action(generateHandler);
 
 const errorHandler = (err: Error) => {
-    console.error(styles.error(err.message));
+    console.error(styles.error(err.message || 'Error had no message'));
     if (!(err instanceof LightdashError)) {
-        console.error(err.stack);
+        console.error(err);
+        if (err.stack) {
+            console.error(err.stack);
+        }
         console.error('\nReport this issue with 1-click:\n');
         console.error(
             `  🐛 https://github.com/lightdash/lightdash/issues/new?assignees=&labels=🐛+bug&template=bug_report.md&title=${encodeURIComponent(
