@@ -27,7 +27,7 @@ const ProjectAccessCreation: FC<{
     const { track } = useTracking();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const { showToastSuccess, health, user } = useApp();
+    const { showToastSuccess } = useApp();
     const {
         mutate: createMutation,
         isError,
@@ -53,7 +53,7 @@ const ProjectAccessCreation: FC<{
 
     const handleSubmit = (formData: CreateProjectMember) => {
         track({
-            name: EventName.INVITE_BUTTON_CLICKED,
+            name: EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED,
         });
         createMutation(formData);
     };
@@ -98,11 +98,7 @@ const ProjectAccessCreation: FC<{
                     />
                     <SubmitButton
                         intent={Intent.PRIMARY}
-                        text={
-                            health.data?.hasEmailClient
-                                ? 'Send invite'
-                                : 'Generate invite'
-                        }
+                        text={'Give access'}
                         type="submit"
                         disabled={isLoading}
                     />
