@@ -292,10 +292,6 @@ export const getEchartsSeries = (
         | Record<string, Pick<CompiledField, 'format' | 'round'>>
         | undefined,
 ): EChartSeries[] => {
-    console.log(
-        'cartesianChart.eChartsConfig.series',
-        cartesianChart.eChartsConfig.series,
-    );
     return (cartesianChart.eChartsConfig.series || [])
         .filter((s) => !s.hidden)
         .map<EChartSeries>((series) => {
