@@ -349,6 +349,7 @@ export const ResultsTable: FC<Props> = ({
                                                                         content={
                                                                             column.description
                                                                         }
+                                                                        position="top"
                                                                     >
                                                                         <Draggable
                                                                             key={
