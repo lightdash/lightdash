@@ -1,3 +1,10 @@
+## [0.148.2](https://github.com/lightdash/lightdash/compare/0.148.1...0.148.2) (2022-06-17)
+
+
+### Bug Fixes
+
+* table header tooltip position ([#2465](https://github.com/lightdash/lightdash/issues/2465)) ([59e83b0](https://github.com/lightdash/lightdash/commit/59e83b0b72d6f95267395405300089e2ac7d8677))
+
 ## [0.148.1](https://github.com/lightdash/lightdash/compare/0.148.0...0.148.1) (2022-06-17)
 
 
