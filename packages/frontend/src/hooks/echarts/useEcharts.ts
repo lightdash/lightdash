@@ -144,6 +144,145 @@ const valueFormatter =
         return getFormattedValue(rawValue, yFieldId, items);
     };
 
+type GetPivotSeriesArg = {
+    series: Series;
+    items: Array<Field | TableCalculation>;
+    formats:
+        | Record<string, Pick<CompiledField, 'format' | 'round'>>
+        | undefined;
+    cartesianChart: CartesianChart;
+    flipAxes: boolean | undefined;
+    yFieldHash: string;
+    xFieldHash: string;
+    pivotKey: string;
+    pivotField: { value: string };
+};
+
+const getPivotSeries = ({
+    series,
+    pivotKey,
+    pivotField,
+    items,
+    xFieldHash,
+    yFieldHash,
+    flipAxes,
+    formats,
+    cartesianChart,
+}: GetPivotSeriesArg) => {
+    const value = getFormattedValue(pivotField.value, pivotKey, items);
+
+    return {
+        ...series,
+        emphasis: {
+            focus: 'series',
+        },
+        xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
+        yAxisIndex: flipAxes ? undefined : series.yAxisIndex,
+        connectNulls: true,
+        encode: {
+            x: flipAxes ? yFieldHash : xFieldHash,
+            y: flipAxes ? xFieldHash : yFieldHash,
+            tooltip: [yFieldHash],
+            seriesName: yFieldHash,
+        },
+        dimensions: [
+            {
+                name: xFieldHash,
+                displayName: getLabelFromField(items, xFieldHash),
+            },
+            {
+                name: yFieldHash,
+                displayName:
+                    cartesianChart.layout.yField &&
+                    cartesianChart.layout.yField.length > 1
+                        ? `[${value}] ${getLabelFromField(
+                              items,
+                              series.encode.yRef.field,
+                          )}`
+                        : value,
+            },
+        ],
+        tooltip: {
+            valueFormatter: valueFormatter(series.encode.yRef.field, items),
+        },
+        ...(series.label?.show &&
+            formats &&
+            formats[series.encode.yRef.field] && {
+                label: {
+                    ...series.label,
+                    formatter: (val: any) =>
+                        formatValue(
+                            formats[series.encode.yRef.field].format,
+                            formats[series.encode.yRef.field].round,
+                            val?.value?.[yFieldHash],
+                        ),
+                },
+            }),
+    };
+};
+
+type GetSimpleSeriesArg = {
+    series: Series;
+    items: Array<Field | TableCalculation>;
+    formats:
+        | Record<string, Pick<CompiledField, 'format' | 'round'>>
+        | undefined;
+    flipAxes: boolean | undefined;
+    yFieldHash: string;
+    xFieldHash: string;
+};
+
+const getSimpleSeries = ({
+    series,
+    flipAxes,
+    yFieldHash,
+    xFieldHash,
+    items,
+    formats,
+}: GetSimpleSeriesArg) => ({
+    ...series,
+    xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
+    yAxisIndex: flipAxes ? undefined : series.yAxisIndex,
+    emphasis: {
+        focus: 'series',
+    },
+    connectNulls: true,
+    encode: {
+        ...series.encode,
+        x: flipAxes ? yFieldHash : xFieldHash,
+        y: flipAxes ? xFieldHash : yFieldHash,
+        tooltip: [yFieldHash],
+        seriesName: yFieldHash,
+    },
+    dimensions: [
+        {
+            name: xFieldHash,
+            displayName: getLabelFromField(items, xFieldHash),
+        },
+        {
+            name: yFieldHash,
+            displayName: getLabelFromField(items, yFieldHash),
+        },
+    ],
+    tooltip: {
+        valueFormatter: valueFormatter(yFieldHash, items),
+    },
+
+    ...(series.label?.show &&
+        formats &&
+        formats[yFieldHash] && {
+            label: {
+                ...series.label,
+                formatter: (value: any) =>
+                    formatValue(
+                        formats[yFieldHash].format,
+                        formats[yFieldHash].round,
+                        value?.value?.[yFieldHash],
+                    ),
+            },
+        }),
+});
+
 export const getEchartsSeries = (
     items: Array<Field | TableCalculation>,
     originalData: ApiQueryResults['rows'],
@@ -153,131 +292,39 @@ export const getEchartsSeries = (
         | Record<string, Pick<CompiledField, 'format' | 'round'>>
         | undefined,
 ): EChartSeries[] => {
-    if (pivotKey) {
-        return (cartesianChart.eChartsConfig.series || [])
-            .filter((s) => !s.hidden)
-            .map<EChartSeries>((series) => {
-                const { flipAxes } = cartesianChart.layout;
-                const xFieldHash = hashFieldReference(series.encode.xRef);
-                const yFieldHash = hashFieldReference(series.encode.yRef);
-                const pivotField = series.encode.yRef.pivotValues?.find(
-                    ({ field }) => field === pivotKey,
-                );
-
-                const value = getFormattedValue(
-                    pivotField?.value,
-                    pivotKey,
-                    items,
-                );
-
-                return {
-                    ...series,
-                    emphasis: {
-                        focus: 'series',
-                    },
-                    xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
-                    yAxisIndex: flipAxes ? undefined : series.yAxisIndex,
-                    connectNulls: true,
-                    encode: {
-                        x: flipAxes ? yFieldHash : xFieldHash,
-                        y: flipAxes ? xFieldHash : yFieldHash,
-                        tooltip: [yFieldHash],
-                        seriesName: yFieldHash,
-                    },
-                    dimensions: [
-                        {
-                            name: xFieldHash,
-                            displayName: getLabelFromField(items, xFieldHash),
-                        },
-                        {
-                            name: yFieldHash,
-                            displayName:
-                                cartesianChart.layout.yField &&
-                                cartesianChart.layout.yField.length > 1
-                                    ? `[${value}] ${getLabelFromField(
-                                          items,
-                                          series.encode.yRef.field,
-                                      )}`
-                                    : value,
-                        },
-                    ],
-                    tooltip: {
-                        valueFormatter: valueFormatter(
-                            series.encode.yRef.field,
-                            items,
-                        ),
-                    },
-                    ...(series.label?.show &&
-                        formats &&
-                        formats[series.encode.yRef.field] && {
-                            label: {
-                                ...series.label,
-                                formatter: (val: any) =>
-                                    formatValue(
-                                        formats[series.encode.yRef.field]
-                                            .format,
-                                        formats[series.encode.yRef.field].round,
-                                        val?.value?.[yFieldHash],
-                                    ),
-                            },
-                        }),
-                };
-            });
-    } else {
-        return (cartesianChart.eChartsConfig.series || []).reduce<
-            EChartSeries[]
-        >((sum, series) => {
+    return (cartesianChart.eChartsConfig.series || [])
+        .filter((s) => !s.hidden)
+        .map<EChartSeries>((series) => {
             const { flipAxes } = cartesianChart.layout;
-            const xField = hashFieldReference(series.encode.xRef);
-            const yField = hashFieldReference(series.encode.yRef);
-            return [
-                ...sum,
-                {
-                    ...series,
-                    xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
-                    yAxisIndex: flipAxes ? undefined : series.yAxisIndex,
-                    emphasis: {
-                        focus: 'series',
-                    },
-                    connectNulls: true,
-                    encode: {
-                        ...series.encode,
-                        x: flipAxes ? yField : xField,
-                        y: flipAxes ? xField : yField,
-                        tooltip: [yField],
-                        seriesName: yField,
-                    },
-                    dimensions: [
-                        {
-                            name: xField,
-                            displayName: getLabelFromField(items, xField),
-                        },
-                        {
-                            name: yField,
-                            displayName: getLabelFromField(items, yField),
-                        },
-                    ],
-                    tooltip: {
-                        valueFormatter: valueFormatter(yField, items),
-                    },
+            const xFieldHash = hashFieldReference(series.encode.xRef);
+            const yFieldHash = hashFieldReference(series.encode.yRef);
+            const pivotField = series.encode.yRef.pivotValues?.find(
+                ({ field }) => field === pivotKey,
+            );
 
-                    ...(series.label?.show &&
-                        formats &&
-                        formats[yField] && {
-                            label: {
-                                ...series.label,
-                                formatter: (value: any) =>
-                                    formatValue(
-                                        formats[yField].format,
-                                        formats[yField].round,
-                                        value?.value?.[yField],
-                                    ),
-                            },
-                        }),
-                },
-            ];
-        }, []);
-    }
+            if (pivotKey && pivotField) {
+                return getPivotSeries({
+                    series,
+                    items,
+                    cartesianChart,
+                    pivotKey,
+                    pivotField,
+                    formats,
+                    flipAxes,
+                    xFieldHash,
+                    yFieldHash,
+                });
+            }
+
+            return getSimpleSeries({
+                series,
+                items,
+                formats,
+                flipAxes,
+                yFieldHash,
+                xFieldHash,
+            });
+        });
 };
 
 const getEchartAxis = ({

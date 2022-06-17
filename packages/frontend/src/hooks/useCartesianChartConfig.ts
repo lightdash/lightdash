@@ -9,14 +9,21 @@ import {
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-const useCartesianChartConfig = (
-    initialChartConfig: CartesianChart | undefined,
-    pivotKey: string | undefined,
-    resultsData: ApiQueryResults | undefined,
+type Args = {
+    initialChartConfig: CartesianChart | undefined;
+    pivotKey: string | undefined;
+    resultsData: ApiQueryResults | undefined;
     setPivotDimensions: React.Dispatch<
         React.SetStateAction<string[] | undefined>
-    >,
-) => {
+    >;
+};
+
+const useCartesianChartConfig = ({
+    initialChartConfig,
+    pivotKey,
+    resultsData,
+    setPivotDimensions,
+}: Args) => {
     const hasInitialValue =
         !!initialChartConfig &&
         isCompleteLayout(initialChartConfig.layout) &&
@@ -256,9 +263,6 @@ const useCartesianChartConfig = (
                 ) {
                     const usedFields: string[] = [];
 
-                    if (pivotKey) {
-                        usedFields.push(pivotKey);
-                    }
                     if (isCurrentXFieldValid && prev?.xField) {
                         usedFields.push(prev?.xField);
                     }
@@ -387,6 +391,20 @@ const useCartesianChartConfig = (
                 expectedSeriesMap = (dirtyLayout.yField || []).reduce<
                     Record<string, Series>
                 >((sum, yField) => {
+                    if (availableDimensions.includes(yField)) {
+                        const series = {
+                            encode: {
+                                xRef: { field: dirtyLayout.xField },
+                                yRef: {
+                                    field: yField,
+                                },
+                            },
+                            type: dirtyChartType,
+                            areaStyle: areaStyleConfig,
+                        };
+                        return { ...sum, [getSeriesId(series)]: series };
+                    }
+
                     const groupSeries = uniquePivotValues.reduce<
                         Record<string, Series>
                     >((acc, rawValue) => {
@@ -455,7 +473,14 @@ const useCartesianChartConfig = (
                 };
             });
         }
-    }, [dirtyChartType, dirtyLayout, pivotKey, resultsData, areaStyle]);
+    }, [
+        dirtyChartType,
+        dirtyLayout,
+        pivotKey,
+        resultsData,
+        areaStyle,
+        availableDimensions,
+    ]);
 
     const validCartesianConfig: CartesianChart | undefined = useMemo(
         () =>

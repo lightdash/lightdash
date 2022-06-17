@@ -13,18 +13,23 @@ export const getPivotedData = (
     xAxis: string,
     yAxis: string[],
     pivotKey: string,
+    dimensions: string[],
 ): { [col: string]: any }[] => {
     const pivoted = rows.reduce((acc, row) => {
         acc[row[xAxis]] = acc[row[xAxis]] || {
             [xAxis]: row[xAxis],
         };
-        yAxis.forEach((metricKey) => {
+        yAxis.forEach((yKey) => {
             acc[row[xAxis]][
-                hashFieldReference({
-                    field: metricKey,
-                    pivotValues: [{ field: pivotKey, value: row[pivotKey] }],
-                })
-            ] = row[metricKey];
+                dimensions.includes(yKey)
+                    ? yKey
+                    : hashFieldReference({
+                          field: yKey,
+                          pivotValues: [
+                              { field: pivotKey, value: row[pivotKey] },
+                          ],
+                      })
+            ] = row[yKey];
         });
         return acc;
     }, {});
@@ -56,6 +61,7 @@ const usePlottedData = (
                 chartConfig.layout.xField,
                 chartConfig.layout.yField,
                 pivotDimension,
+                resultsData.metricQuery.dimensions,
             );
         }
         return getResultValues(resultsData.rows, true);

@@ -11,7 +11,7 @@ import {
     Series,
     TableCalculation,
 } from '@lightdash/common';
-import React, { FC, useMemo } from 'react';
+import React, { FC } from 'react';
 import {
     GroupedSeriesConfigWrapper,
     GroupSeriesBlock,
@@ -61,7 +61,7 @@ const getFormatterValue = (
 
 type GroupedSeriesConfigurationProps = {
     layout?: CartesianChartLayout;
-    series?: Series[];
+    groupedSeries: Record<string, Series[]>;
     items: Array<Field | TableCalculation>;
     getSeriesColor: (key: string) => string | undefined;
     updateAllGroupedSeries: (fieldKey: string, series: Partial<Series>) => void;
@@ -70,7 +70,7 @@ type GroupedSeriesConfigurationProps = {
 
 const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     layout,
-    series,
+    groupedSeries,
     items,
     getSeriesColor,
     updateSingleSeries,
@@ -79,19 +79,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     const [openSeriesId, setOpenSeriesId] = React.useState<
         string | undefined
     >();
-    const groupedSeries = useMemo(
-        () =>
-            (series || []).reduce<Record<string, Series[]>>(
-                (hash, obj) => ({
-                    ...hash,
-                    [obj.encode.yRef.field]: (
-                        hash[obj.encode.yRef.field] || []
-                    ).concat(obj),
-                }),
-                {},
-            ) || {},
-        [series],
-    );
     return (
         <>
             {Object.entries(groupedSeries).map(([fieldKey, seriesGroup], i) => {
