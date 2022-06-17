@@ -20,7 +20,6 @@ import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 import {
-    ProjectAccessWrapper,
     Title,
     UpdateHeaderWrapper,
     UpdateProjectWrapper,
@@ -131,25 +130,22 @@ const ProjectSettings: FC = () => {
                         path="/projects/:projectUuid/settings/projectAccess"
                     >
                         <Content>
-                            <ProjectAccessWrapper>
-                                <Title>
-                                    Project access (only visible to Project
-                                    Admins)
-                                </Title>
-                                {projectAccessCreate ? (
-                                    <ProjectAccessCreation
-                                        onBackClick={() => {
-                                            setProjectAccessCreate(false);
-                                        }}
-                                    />
-                                ) : (
-                                    <ProjectAccess
-                                        onAddUser={() => {
-                                            setProjectAccessCreate(true);
-                                        }}
-                                    />
-                                )}
-                            </ProjectAccessWrapper>
+                            <Title>
+                                Project access (only visible to Project Admins)
+                            </Title>
+                            {projectAccessCreate ? (
+                                <ProjectAccessCreation
+                                    onBackClick={() => {
+                                        setProjectAccessCreate(false);
+                                    }}
+                                />
+                            ) : (
+                                <ProjectAccess
+                                    onAddUser={() => {
+                                        setProjectAccessCreate(true);
+                                    }}
+                                />
+                            )}
                         </Content>
                     </Route>
                 )}
