@@ -61,7 +61,6 @@ const UserListItem: FC<{
                             )}
                             required
                             onChange={(e) => {
-                                console.log('e', e);
                                 const newRole = e.target
                                     .value as ProjectMemberRole;
                                 onUpdate(newRole);
