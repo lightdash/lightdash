@@ -14,7 +14,7 @@ import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
 import RouterMenuItem from '../components/common/RouterMenuItem';
 import ProjectAccess from '../components/ProjectAccess/ProjectAccess';
-import ProjectAccessInvitation from '../components/ProjectAccess/ProjectAccessInvitation';
+import ProjectAccessCreation from '../components/ProjectAccess/ProjectAccessCreation';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import { useProject } from '../hooks/useProject';
@@ -29,7 +29,7 @@ const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isLoading, data, error } = useProject(projectUuid);
 
-    const [projectAccessInvitation, setProjectAccessInvitation] =
+    const [projectAccessCreate, setProjectAccessCreate] =
         useState<boolean>(false);
     const basePath = useMemo(
         () => `/projects/${projectUuid}/settings`,
@@ -126,16 +126,16 @@ const ProjectSettings: FC = () => {
                             <Title>
                                 Project access (only visible to Project Admins)
                             </Title>
-                            {projectAccessInvitation ? (
-                                <ProjectAccessInvitation
+                            {projectAccessCreate ? (
+                                <ProjectAccessCreation
                                     onBackClick={() => {
-                                        setProjectAccessInvitation(false);
+                                        setProjectAccessCreate(false);
                                     }}
                                 />
                             ) : (
                                 <ProjectAccess
                                     onAddUser={() => {
-                                        setProjectAccessInvitation(true);
+                                        setProjectAccessCreate(true);
                                     }}
                                 />
                             )}

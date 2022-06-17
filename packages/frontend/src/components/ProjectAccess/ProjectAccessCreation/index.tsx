@@ -15,13 +15,13 @@ import { isValidEmail } from '../../../utils/fieldValidators';
 import {
     BackButton,
     EmailInput,
-    InviteForm,
     Panel,
+    ProjectAccessForm,
     RoleSelectButton,
     SubmitButton,
-} from './ProjectAccessInvitation';
+} from './ProjectAccessCreation';
 
-const ProjectAccessInvitation: FC<{
+const ProjectAccessCreation: FC<{
     onBackClick: () => void;
 }> = ({ onBackClick }) => {
     const { track } = useTracking();
@@ -66,7 +66,7 @@ const ProjectAccessInvitation: FC<{
                 onClick={onBackClick}
             />
             <Card>
-                <InviteForm
+                <ProjectAccessForm
                     name="add_saved_charts_to_dashboard"
                     methods={methods}
                     onSubmit={handleSubmit}
@@ -106,10 +106,10 @@ const ProjectAccessInvitation: FC<{
                         type="submit"
                         disabled={isLoading}
                     />
-                </InviteForm>
+                </ProjectAccessForm>
             </Card>
         </Panel>
     );
 };
 
-export default ProjectAccessInvitation;
+export default ProjectAccessCreation;

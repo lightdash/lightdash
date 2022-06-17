@@ -1,15 +1,9 @@
-import { Button, Card, HTMLSelect, InputGroup, Tag } from '@blueprintjs/core';
+import { Button, Card, HTMLSelect, Tag } from '@blueprintjs/core';
 import styled from 'styled-components';
-import SimpleButton from '../common/SimpleButton';
 
 export const ProjectAccessWrapper = styled(Card)`
     margin-top: 20px;
     padding-bottom: 50px;
-`;
-export const UserManagementPanelWrapper = styled.div`
-    width: 100%;
-    display: flex;
-    flex-direction: column;
 `;
 
 export const UserListItemWrapper = styled.div`
@@ -44,17 +38,7 @@ export const UserName = styled.b`
     margin-right: 0.625em;
 `;
 
-export const PendingEmail = styled.b`
-    margin: 0;
-    margin-right: 0.625em;
-`;
-
 export const UserEmail = styled(Tag)`
-    width: fit-content;
-    margin-top: 0.3em;
-`;
-
-export const PendingTag = styled(Tag)`
     width: fit-content;
     margin-top: 0.3em;
 `;
@@ -65,20 +49,4 @@ export const RoleSelectButton = styled(HTMLSelect)`
 
 export const AddUserButton = styled(Button)`
     float: right;
-`;
-export const NewLinkButton = styled(SimpleButton)`
-    padding-left: 0;
-    font-size: 12px;
-    margin-left: 10px;
-`;
-
-export const InviteSuccess = styled.div`
-    margin-top: 10px;
-    width: 100%;
-`;
-
-export const InviteInput = styled(InputGroup)`
-    margin-top: 10px;
-    margin-bottom: 0;
-    width: 100%;
 `;
