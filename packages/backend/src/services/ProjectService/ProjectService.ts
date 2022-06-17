@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    AlreadyExistsError,
     AlreadyProcessingError,
     ApiQueryResults,
     ApiSqlQueryResults,
@@ -38,7 +37,6 @@ import {
     UpdateProject,
     UpdateProjectMember,
 } from '@lightdash/common';
-import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { analytics } from '../../analytics/client';
 import { errorHandler } from '../../errors';
@@ -878,36 +876,24 @@ export class ProjectService {
     ): Promise<void> {
         // TODO implement permissions
 
-        try {
-            await this.projectModel.createProjectAccess(
-                projectUuid,
-                data.email,
-                data.role,
-            );
-        } catch (error: any) {
-            if (
-                error instanceof DatabaseError &&
-                error.constraint ===
-                    'project_memberships_project_id_user_id_unique'
-            ) {
-                throw new AlreadyExistsError(
-                    `This user email ${data.email} already has access to this project`,
-                );
-            }
-            throw error;
-        }
+        await this.projectModel.createProjectAccess(
+            projectUuid,
+            data.email,
+            data.role,
+        );
     }
 
     async updateProjectAccess(
         user: SessionUser,
         projectUuid: string,
+        userUuid: string,
         data: UpdateProjectMember,
     ): Promise<void> {
         // TODO implement permissions
 
         await this.projectModel.updateProjectAccess(
             projectUuid,
-            data.userUuid,
+            userUuid,
             data.role,
         );
     }

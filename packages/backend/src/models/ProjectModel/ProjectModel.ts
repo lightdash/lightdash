@@ -1,4 +1,5 @@
 import {
+    AlreadyExistsError,
     CreateProject,
     CreateWarehouseCredentials,
     DbtProjectConfig,
@@ -18,15 +19,19 @@ import {
 } from '@lightdash/common';
 import { WarehouseCatalog } from '@lightdash/warehouses';
 import { Knex } from 'knex';
+import { DatabaseError } from 'pg';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationTableName } from '../../database/entities/organizations';
+import { DbProjectMembership } from '../../database/entities/projectMemberships';
 import {
     CachedExploresTableName,
     CachedWarehouseTableName,
     DbCachedExplores,
     DbCachedWarehouse,
+    DbProject,
     ProjectTableName,
 } from '../../database/entities/projects';
+import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import Transaction = Knex.Transaction;
@@ -520,7 +525,8 @@ export class ProjectModel {
                 'projects.project_id',
             )
             .select<QueryResult[]>()
-            .where('project_uuid', projectUuid);
+            .where('project_uuid', projectUuid)
+            .andWhere('is_primary', true);
 
         return projectMemberships.map((membership) => ({
             userUuid: membership.user_uuid,
@@ -537,25 +543,36 @@ export class ProjectModel {
         email: string,
         role: ProjectMemberRole,
     ): Promise<void> {
-        const [project] = await this.database('projects')
-            .select('project_id')
-            .where('project_uuid', projectUuid);
-
-        const [user] = await this.database('users')
-            .leftJoin('emails', 'emails.user_id', 'users.user_id')
-            .select('users.user_id')
-            .where('email', email);
-        if (user === undefined) {
-            throw new NotExistsError(
-                `Can't find user with email ${email} in the organization`,
+        try {
+            await this.database.raw<
+                (DbProjectMembership & DbProject & DbUser)[]
+            >(
+                `
+                INSERT INTO project_memberships
+                ("role", user_id, project_id)
+                SELECT :role, u.user_id, (
+                    SELECT p.project_id
+                    FROM projects as p
+                    WHERE p.project_uuid = :projectUuid)
+                FROM users as u
+                LEFT JOIN emails ON u.user_id = emails.user_id
+                WHERE emails.email = :email
+                
+                `,
+                { role, projectUuid, email },
             );
+        } catch (error: any) {
+            if (
+                error instanceof DatabaseError &&
+                error.constraint ===
+                    'project_memberships_project_id_user_id_unique'
+            ) {
+                throw new AlreadyExistsError(
+                    `This user email ${email} already has access to this project`,
+                );
+            }
+            throw error;
         }
-
-        await this.database('project_memberships').insert({
-            project_id: project.project_id,
-            role,
-            user_id: user.user_id,
-        });
     }
 
     async updateProjectAccess(
@@ -563,36 +580,34 @@ export class ProjectModel {
         userUuid: string,
         role: ProjectMemberRole,
     ): Promise<void> {
-        const [project] = await this.database('projects')
-            .select('project_id')
-            .where('project_uuid', projectUuid);
-
-        const [user] = await this.database('users')
-            .select('user_id')
-            .where('user_uuid', userUuid);
-
-        await this.database('project_memberships')
-            .update({
-                role,
-            })
-            .where('project_id', project.project_id)
-            .andWhere('user_id', user.user_id);
+        await this.database.raw<(DbProjectMembership & DbProject & DbUser)[]>(
+            `
+                UPDATE project_memberships AS m
+                SET role = :role FROM projects AS p, users AS u
+                WHERE p.project_id = m.project_id
+                    AND u.user_id = m.user_id
+                    AND user_uuid = :userUuid
+                    AND p.project_uuid = :projectUuid
+                    RETURNING *
+            `,
+            { projectUuid, userUuid, role },
+        );
     }
 
     async deleteProjectAccess(
         projectUuid: string,
         userUuid: string,
     ): Promise<void> {
-        const [project] = await this.database('projects')
-            .select('project_id')
-            .where('project_uuid', projectUuid);
-        const [user] = await this.database('users')
-            .select('user_id')
-            .where('user_uuid', userUuid);
-
-        await this.database('project_memberships')
-            .where('project_id', project.project_id)
-            .andWhere('user_id', user.user_id)
-            .delete();
+        await this.database.raw<(DbProjectMembership & DbProject & DbUser)[]>(
+            `
+            DELETE FROM project_memberships AS m
+            USING projects AS p, users AS u
+            WHERE p.project_id = m.project_id
+              AND u.user_id = m.user_id
+              AND user_uuid = :userUuid
+              AND p.project_uuid = :projectUuid
+        `,
+            { projectUuid, userUuid },
+        );
     }
 }

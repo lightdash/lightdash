@@ -378,7 +378,7 @@ projectRouter.get(
     },
 );
 
-projectRouter.get('/projectAccess', isAuthenticated, async (req, res, next) => {
+projectRouter.get('/access', isAuthenticated, async (req, res, next) => {
     try {
         const results = await projectService.getProjectAccess(
             req.user!,
@@ -393,33 +393,30 @@ projectRouter.get('/projectAccess', isAuthenticated, async (req, res, next) => {
     }
 });
 
-projectRouter.post(
-    '/projectAccess',
-    isAuthenticated,
-    async (req, res, next) => {
-        try {
-            const results = await projectService.createProjectAccess(
-                req.user!,
-                req.params.projectUuid,
-                req.body,
-            );
-            res.json({
-                status: 'ok',
-                results,
-            });
-        } catch (e) {
-            next(e);
-        }
-    },
-);
+projectRouter.post('/access', isAuthenticated, async (req, res, next) => {
+    try {
+        const results = await projectService.createProjectAccess(
+            req.user!,
+            req.params.projectUuid,
+            req.body,
+        );
+        res.json({
+            status: 'ok',
+            results,
+        });
+    } catch (e) {
+        next(e);
+    }
+});
 projectRouter.patch(
-    '/projectAccess',
+    '/access/:userUuid',
     isAuthenticated,
     async (req, res, next) => {
         try {
             const results = await projectService.updateProjectAccess(
                 req.user!,
                 req.params.projectUuid,
+                req.params.userUuid,
                 req.body,
             );
             res.json({
@@ -432,7 +429,7 @@ projectRouter.patch(
     },
 );
 projectRouter.delete(
-    '/projectAccess/:userUuid',
+    '/access/:userUuid',
     isAuthenticated,
     async (req, res, next) => {
         try {
