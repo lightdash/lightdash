@@ -11,8 +11,9 @@ import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
 } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
+import { useLocation } from 'react-router-dom';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {
     useDeleteUserMutation,
@@ -210,12 +211,19 @@ const UserListItem: FC<{
     );
 };
 
-const UserManagementPanel: FC<{
-    showInvitePage: boolean;
-    setShowInvitePage: (showInvitePage: boolean) => void;
-}> = ({ showInvitePage, setShowInvitePage }) => {
+const UserManagementPanel: FC = () => {
     const { user } = useApp();
+    const [showInvitePage, setShowInvitePage] = useState(false);
     const { data: organizationUsers, isLoading } = useOrganizationUsers();
+    const { search } = useLocation();
+
+    useEffect(() => {
+        const searchParams = new URLSearchParams(search);
+        const toParam = searchParams.get('to');
+        if (toParam === 'invite') {
+            setShowInvitePage(true);
+        }
+    }, [search]);
 
     if (showInvitePage) {
         return (

@@ -136,7 +136,7 @@ const NavBar = () => {
                                     'InviteLink',
                                 ) ? (
                                     <NavLink
-                                        to={`/projects/${selectedProjectUuid}/generalSettings/userManagement`}
+                                        to={`/projects/${selectedProjectUuid}/generalSettings/userManagement?to=invite`}
                                     >
                                         <MenuItem
                                             icon="new-person"

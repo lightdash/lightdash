@@ -10,7 +10,7 @@ const InviteExpertFooter: FC = () => {
                 This step is best carried out by your organization’s analytics
                 experts. If this is not you,{' '}
                 <NavLink
-                    to={`/projects/${params.projectUuid}/generalSettings/userManagement`}
+                    to={`/projects/${params.projectUuid}/generalSettings/userManagement?to=invite`}
                 >
                     <InviteLinkButton>
                         invite them to Lightdash!

@@ -52,7 +52,6 @@ const Settings: FC = () => {
     const { health, user } = useApp();
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
-    const [showInvitePage, setShowInvitePage] = useState(true);
     const { data: orgData } = useOrganisation();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isLoading, data, error } = useProject(projectUuid);
@@ -80,10 +79,7 @@ const Settings: FC = () => {
             </div>
         );
     }
-    const userManagementProps = {
-        showInvitePage,
-        setShowInvitePage,
-    };
+
     return (
         <PageWithSidebar>
             <Sidebar title="Settings" noMargin>
@@ -126,7 +122,6 @@ const Settings: FC = () => {
                         ) && (
                             <RouterMenuItem
                                 text="User management"
-                                exact
                                 to={`${basePath}/userManagement`}
                             />
                         )}
@@ -196,13 +191,10 @@ const Settings: FC = () => {
                     'view',
                     'OrganizationMemberProfile',
                 ) && (
-                    <Route
-                        exact
-                        path="/projects/:projectUuid/generalSettings/userManagement"
-                    >
+                    <Route path="/projects/:projectUuid/generalSettings/userManagement">
                         <Content>
                             <ContentWrapper>
-                                <UserManagementPanel {...userManagementProps} />
+                                <UserManagementPanel />
                             </ContentWrapper>
                         </Content>
                     </Route>
