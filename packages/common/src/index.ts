@@ -48,6 +48,7 @@ import { LightdashUser } from './types/user';
 import { formatItemValue } from './utils/formatting';
 
 export * from './authorization/organizationMemberAbility';
+export * from './authorization/projectMemberAbility';
 export * from './compiler/exploreCompiler';
 export * from './compiler/translator';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
@@ -62,6 +63,7 @@ export * from './types/metricQuery';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
 export * from './types/personalAccessToken';
+export * from './types/projectMemberProfile';
 export * from './types/savedCharts';
 export * from './types/table';
 export * from './types/user';
