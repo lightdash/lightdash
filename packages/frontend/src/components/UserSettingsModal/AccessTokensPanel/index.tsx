@@ -21,6 +21,8 @@ import {
     ExpireAtLabel,
     HeaderActions,
     ItemContent,
+    NoTokensWrapper,
+    PanelTitle,
 } from './AccessTokens.styles';
 
 const TokenListItem: FC<{
@@ -111,6 +113,7 @@ const AccessTokensPanel: FC = () => {
         <AccessTokensPanelWrapper>
             {hasAvailableTokens && (
                 <HeaderActions>
+                    <PanelTitle>Personal access tokens</PanelTitle>
                     <Button
                         intent="primary"
                         onClick={() => setCreateInvitesPanel(true)}
@@ -127,20 +130,22 @@ const AccessTokensPanel: FC = () => {
                     ))}
                 </div>
             ) : (
-                <NonIdealState
-                    icon="key"
-                    title="No tokens"
-                    description="You haven't generated any tokens yet!, generate your first token"
-                    action={
-                        <HeaderActions>
-                            <Button
-                                intent="primary"
-                                onClick={() => setCreateInvitesPanel(true)}
-                                text="Generate token"
-                            />
-                        </HeaderActions>
-                    }
-                />
+                <NoTokensWrapper>
+                    <NonIdealState
+                        icon="key"
+                        title="No tokens"
+                        description="You haven't generated any tokens yet!, generate your first token"
+                        action={
+                            <HeaderActions>
+                                <Button
+                                    intent="primary"
+                                    onClick={() => setCreateInvitesPanel(true)}
+                                    text="Generate token"
+                                />
+                            </HeaderActions>
+                        }
+                    />
+                </NoTokensWrapper>
             )}
         </AccessTokensPanelWrapper>
     );

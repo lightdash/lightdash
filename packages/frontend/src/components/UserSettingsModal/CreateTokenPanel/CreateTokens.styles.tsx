@@ -25,15 +25,11 @@ export const AccessTokenForm = styled(Form)`
 export const TokeDescriptionInput = styled(Input)`
     flex: 1;
     margin: 0;
-    max-width: 166px !important;
-
     .bp4-label {
         font-size: 12px;
         color: #5c7080;
-        width: 166px !important;
     }
     .bp4-input-group {
-        width: 166px;
         margin: 0;
     }
 `;
@@ -54,7 +50,6 @@ export const ShareLinkCallout = styled(Callout)`
 
 export const ExpireDateSelect = styled(Select)`
     margin: 20px 7px 0;
-    width: 75.5px !important;
 `;
 
 export const InvitedCallout = styled(Callout)`

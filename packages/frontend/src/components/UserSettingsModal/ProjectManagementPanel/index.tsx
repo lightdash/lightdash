@@ -3,6 +3,7 @@ import {
     ButtonGroup,
     Classes,
     Dialog,
+    H5,
     Intent,
 } from '@blueprintjs/core';
 import { OrganizationProject } from '@lightdash/common';
@@ -108,6 +109,7 @@ const ProjectManagementPanel: FC = () => {
     return (
         <ProjectManagementPanelWrapper>
             <HeaderActions>
+                <H5>Project management settings</H5>
                 <Button
                     intent="primary"
                     onClick={() => history.push(`/createProject`)}

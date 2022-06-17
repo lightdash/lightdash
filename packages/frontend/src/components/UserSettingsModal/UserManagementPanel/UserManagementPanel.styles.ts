@@ -1,4 +1,11 @@
-import { Button, Card, HTMLSelect, InputGroup, Tag } from '@blueprintjs/core';
+import {
+    Button,
+    Card,
+    H5,
+    HTMLSelect,
+    InputGroup,
+    Tag,
+} from '@blueprintjs/core';
 import styled from 'styled-components';
 import SimpleButton from '../../common/SimpleButton';
 
@@ -61,7 +68,6 @@ export const RoleSelectButton = styled(HTMLSelect)`
 
 export const AddUserButton = styled(Button)`
     align-self: flex-end;
-    margin-bottom: 20px;
 `;
 export const NewLinkButton = styled(SimpleButton)`
     padding-left: 0;
@@ -78,4 +84,15 @@ export const InviteInput = styled(InputGroup)`
     margin-top: 10px;
     margin-bottom: 0;
     width: 100%;
+`;
+
+export const HeaderWrapper = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+`;
+
+export const PanelTitle = styled(H5)`
+    margin: 0;
 `;

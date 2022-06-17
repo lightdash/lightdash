@@ -30,10 +30,12 @@ import {
 import InvitesPanel from '../InvitesPanel';
 import {
     AddUserButton,
+    HeaderWrapper,
     InviteInput,
     InviteSuccess,
     ItemContent,
     NewLinkButton,
+    PanelTitle,
     PendingEmail,
     PendingTag,
     RoleSelectButton,
@@ -230,11 +232,14 @@ const UserManagementPanel: FC<{
     return (
         <UserManagementPanelWrapper>
             {user.data?.ability?.can('create', 'InviteLink') && (
-                <AddUserButton
-                    intent="primary"
-                    onClick={() => setShowInvitePage(true)}
-                    text="Add user"
-                />
+                <HeaderWrapper>
+                    <PanelTitle>User management settings</PanelTitle>
+                    <AddUserButton
+                        intent="primary"
+                        onClick={() => setShowInvitePage(true)}
+                        text="Add user"
+                    />
+                </HeaderWrapper>
             )}
             {isLoading ? (
                 <NonIdealState title="Loading users" icon={<Spinner />} />

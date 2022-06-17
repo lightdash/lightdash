@@ -8,9 +8,10 @@ export const ProjectManagementPanelWrapper = styled.div`
 `;
 
 export const HeaderActions = styled.div`
-    display: flex;
-    justify-content: flex-end;
     margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 `;
 
 export const ProjectListItemWrapper = styled(Card)`
