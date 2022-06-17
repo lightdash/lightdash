@@ -58,6 +58,6 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             }
         })
         .catch((err) => {
-            throw handleError(err);
+            throw handleError(err).error;
         });
 };
