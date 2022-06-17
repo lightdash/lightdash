@@ -105,6 +105,7 @@ const SimpleChart: FC = () => {
                 opts={{ renderer: 'svg' }}
                 onEvents={{
                     contextmenu: onChartContextMenu,
+                    click: onChartContextMenu,
                 }}
             />
         </div>
